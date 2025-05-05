@@ -53,7 +53,7 @@ export async function decompress(
         payer: payer.publicKey,
         toAddress: recipient,
         inputCompressedAccounts: userCompressedAccountsWithMerkleContext,
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
         recentInputStateRootIndices: proof.rootIndices,
         lamports,
     });

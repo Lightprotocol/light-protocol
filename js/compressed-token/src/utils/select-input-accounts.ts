@@ -54,37 +54,50 @@ export function selectTokenAccountsForApprove(
 }
 
 /**
- * Selects the minimum number of compressed token accounts required for a transfer, up to a specified maximum.
+ * Selects the minimum number of compressed token accounts required for a
+ * decompress instruction, up to a specified maximum.
  *
- * @param {ParsedTokenAccount[]} accounts - Token accounts to choose from.
- * @param {BN} transferAmount - Amount to transfer.
- * @param {number} [maxInputs=4] - Max accounts to select. Default is 4.
- * @returns {[
+ * @param {ParsedTokenAccount[]} accounts   Token accounts to choose from.
+ * @param {BN} amount                       Amount to decompress.
+ * @param {number} [maxInputs=4]            Max accounts to select. Default
+ *                                          is 4.
+ *
+ * @returns Returns selected accounts and their totals.
+ */
+export function selectMinCompressedTokenAccountsForDecompression(
+    accounts: ParsedTokenAccount[],
+    amount: BN,
+    maxInputs: number = 4,
+): {
+    selectedAccounts: ParsedTokenAccount[];
+    total: BN;
+    totalLamports: BN | null;
+    maxPossibleAmount: BN;
+} {
+    const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
+        selectMinCompressedTokenAccountsForTransfer(
+            accounts,
+            amount,
+            maxInputs,
+        );
+    return { selectedAccounts, total, totalLamports, maxPossibleAmount };
+}
+
+/**
+ * Selects the minimum number of compressed token accounts required for a
+ * transfer or decompression instruction, up to a specified maximum.
+ *
+ * @param {ParsedTokenAccount[]} accounts   Token accounts to choose from.
+ * @param {BN} transferAmount               Amount to transfer or decompress.
+ * @param {number} [maxInputs=4]            Max accounts to select. Default
+ *                                          is 4.
+ *
+ * @returns Returns selected accounts and their totals. [
  *   selectedAccounts: ParsedTokenAccount[],
  *   total: BN,
  *   totalLamports: BN | null,
  *   maxPossibleAmount: BN
- * ]} - Returns:
- *   - selectedAccounts: Accounts chosen for transfer.
- *   - total: Total amount from selected accounts.
- *   - totalLamports: Total lamports from selected accounts.
- *   - maxPossibleAmount: Max transferable amount given maxInputs.
- *
- * @example
- * const accounts = [
- *   { parsed: { amount: new BN(100) }, compressedAccount: { lamports: new BN(10) } },
- *   { parsed: { amount: new BN(50) }, compressedAccount: { lamports: new BN(5) } },
- *   { parsed: { amount: new BN(25) }, compressedAccount: { lamports: new BN(2) } },
- * ];
- * const transferAmount = new BN(75);
- * const maxInputs = 2;
- *
- * const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
- *   selectMinCompressedTokenAccountsForTransfer(accounts, transferAmount, maxInputs);
- *
- * console.log(selectedAccounts.length); // 2
- * console.log(total.toString()); // '150'
- * console.log(totalLamports!.toString()); // '15'
+ * ]
  */
 export function selectMinCompressedTokenAccountsForTransfer(
     accounts: ParsedTokenAccount[],

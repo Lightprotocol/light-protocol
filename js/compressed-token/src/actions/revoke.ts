@@ -45,7 +45,7 @@ export async function revoke(
         payer: payer.publicKey,
         inputCompressedTokenAccounts: accounts,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

@@ -61,7 +61,7 @@ export async function getTokenPoolInfos(
             : null,
     );
 
-    const tokenProgram = accountInfos[0]!.owner;
+    const tokenProgram = accountInfos[0].owner;
     return parsedInfos.map((parsedInfo, i) => {
         if (!parsedInfo) {
             return {
@@ -95,8 +95,8 @@ export type TokenPoolActivity = {
  * Derive the token pool pda with bump.
  *
  * @param mint The mint of the token pool
- * @param bump Bump. starts at 0. The Protocol supports up to 4 bumps aka token
- * pools per mint.
+ * @param bump Bump. starts at 0. The Protocol supports 4 bumps aka token pools
+ * per mint.
  *
  * @returns The token pool pda
  */
@@ -179,13 +179,19 @@ const shuffleArray = <T>(array: T[]): T[] => {
  * @returns A random token pool info
  */
 export function selectTokenPoolInfo(infos: TokenPoolInfo[]): TokenPoolInfo {
-    infos = shuffleArray(infos);
+    const shuffledInfos = shuffleArray(infos);
 
     // filter only infos that are initialized
-    infos = infos.filter(info => info.isInitialized);
+    const filteredInfos = shuffledInfos.filter(info => info.isInitialized);
+
+    if (filteredInfos.length === 0) {
+        throw new Error(
+            'Please pass at least one initialized token pool info.',
+        );
+    }
 
     // Return a single random token pool info
-    return infos[0];
+    return filteredInfos[0];
 }
 
 /**
@@ -204,6 +210,9 @@ export function selectTokenPoolInfosForDecompression(
     infos: TokenPoolInfo[],
     decompressAmount: number | BN,
 ): TokenPoolInfo[] {
+    if (infos.length === 0) {
+        throw new Error('Please pass at least one token pool info.');
+    }
     infos = shuffleArray(infos);
     // Find the first info where balance is 10x the requested amount
     const sufficientBalanceInfo = infos.find(info =>

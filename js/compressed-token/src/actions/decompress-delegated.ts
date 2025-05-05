@@ -84,7 +84,7 @@ export async function decompressDelegated(
         toAddress,
         amount,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
         tokenPoolInfos: tokenPoolInfosToUse,
     });
 

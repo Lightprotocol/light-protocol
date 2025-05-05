@@ -65,7 +65,7 @@ export async function transferDelegated(
         toAddress,
         amount,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

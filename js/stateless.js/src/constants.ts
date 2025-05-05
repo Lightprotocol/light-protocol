@@ -129,6 +129,7 @@ export const getDefaultAddressTreeInfo = () => {
         queue: new PublicKey(addressQueue),
         cpiContext: null,
         treeType: TreeType.AddressV1,
+        nextTreeInfo: null,
     };
 };
 /**

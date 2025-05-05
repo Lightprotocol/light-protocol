@@ -20,6 +20,7 @@ import {
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
     StateTreeInfo,
+    CompressedProof,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -154,7 +155,7 @@ export type DecompressParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: ValidityProof;
+    recentValidityProof: ValidityProof | CompressedProof;
     /**
      * Tokenpool addresses. One or more token pools can be provided.
      */
@@ -187,7 +188,7 @@ export type TransferParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: ValidityProof;
+    recentValidityProof: ValidityProof | CompressedProof;
 };
 
 export type ApproveParams = TransferParams;
@@ -210,7 +211,7 @@ export type RevokeParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: ValidityProof;
+    recentValidityProof: ValidityProof | CompressedProof;
 };
 
 /**

@@ -68,7 +68,7 @@ export async function approve(
         toAddress: delegate,
         amount,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

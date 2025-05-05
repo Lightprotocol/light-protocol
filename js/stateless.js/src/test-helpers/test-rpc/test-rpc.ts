@@ -774,7 +774,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 // publicInputHash,
             );
             validityProof = {
-                validityProof: compressedProof,
+                compressedProof,
                 roots: merkleProofsWithContext.map(proof => proof.root),
                 rootIndices: merkleProofsWithContext.map(
                     proof => proof.rootIndex,
@@ -807,7 +807,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             );
 
             validityProof = {
-                validityProof: compressedProof,
+                compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
                 // TODO(crank): make dynamic to enable forester support in
                 // test-rpc.ts. Currently this is a static root because the
@@ -846,7 +846,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             );
 
             validityProof = {
-                validityProof: compressedProof,
+                compressedProof,
                 roots: merkleProofsWithContext
                     .map(proof => proof.root)
                     .concat(newAddressProofs.map(proof => proof.root)),

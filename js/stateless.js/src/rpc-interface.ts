@@ -160,7 +160,7 @@ export type ValidityProofWithContext = {
     /**
      * Validity proof.
      */
-    validityProof: ValidityProof;
+    compressedProof: ValidityProof;
     /**
      * Roots.
      */

@@ -5,24 +5,18 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-
 import BN from 'bn.js';
 import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
 import { Rpc } from '../rpc';
-
 import {
     bn,
     CompressedAccountWithMerkleContext,
     StateTreeInfo,
 } from '../state';
-import {
-    buildAndSignTx,
-    selectStateTreeInfo,
-    sendAndConfirmTx,
-} from '../utils';
+import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 
 /**
@@ -98,7 +92,7 @@ export async function transfer(
         toAddress,
         lamports,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

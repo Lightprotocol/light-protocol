@@ -1639,7 +1639,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 false,
             );
             validityProof = {
-                validityProof: compressedProof,
+                compressedProof,
                 roots: merkleProofsWithContext.map(proof => proof.root),
                 rootIndices: merkleProofsWithContext.map(
                     proof => proof.rootIndex,
@@ -1673,7 +1673,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
 
             validityProof = {
-                validityProof: compressedProof,
+                compressedProof: compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
                 rootIndices: newAddressProofs.map(proof => proof.rootIndex),
                 leafIndices: newAddressProofs.map(proof =>
@@ -1715,7 +1715,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             ];
 
             validityProof = {
-                validityProof: compressedProof,
+                compressedProof,
                 roots: merkleProofsWithContext
                     .map(proof => proof.root)
                     .concat(newAddressProofs.map(proof => proof.root)),
@@ -1742,8 +1742,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * @deprecated use {@link getValidityProofV0} instead.
      *
-     *
-     *
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses.
@@ -1765,7 +1763,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const trees = accs.map(acc => acc.treeInfo.tree);
         const queues = accs.map(acc => acc.treeInfo.queue);
 
-        // TODO: add dynamic address tree support
         const defaultAddressTreePublicKey =
             defaultTestStateTreeAccounts().addressTree;
         const defaultAddressQueuePublicKey =
@@ -1897,7 +1894,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         ];
 
         const value: ValidityProofWithContext = {
-            validityProof: result.compressedProof,
+            compressedProof: result.compressedProof,
             treeInfos,
             leafIndices: result.leafIndices,
             rootIndices: result.rootIndices,

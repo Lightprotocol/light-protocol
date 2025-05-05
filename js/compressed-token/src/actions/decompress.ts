@@ -82,7 +82,7 @@ export async function decompress(
         amount,
         tokenPoolInfos: selectedTokenPoolInfos,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

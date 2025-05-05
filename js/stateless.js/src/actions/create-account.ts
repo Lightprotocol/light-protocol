@@ -76,7 +76,7 @@ export async function createAccount(
         payer: payer.publicKey,
         newAddressParams: params,
         newAddress: Array.from(address.toBytes()),
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
         programId,
         outputStateTreeInfo,
     });
@@ -156,7 +156,7 @@ export async function createAccountWithLamports(
         payer: payer.publicKey,
         newAddressParams: params,
         newAddress: Array.from(address.toBytes()),
-        recentValidityProof: proof.validityProof,
+        recentValidityProof: proof.compressedProof,
         inputCompressedAccounts: inputAccounts,
         inputStateRootIndices: proof.rootIndices,
         outputStateTreeInfo,
