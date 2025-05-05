@@ -181,6 +181,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated Use {@link getStateTreeInfos} instead
+     */
+    async getCachedActiveStateTreeInfos() {}
+    /**
      * Returns local test state trees.
      */
     async getStateTreeInfos(): Promise<StateTreeInfo[]> {

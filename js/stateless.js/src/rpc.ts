@@ -596,6 +596,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated Use {@link getStateTreeInfos} instead
+     */
+    async getCachedActiveStateTreeInfos() {}
+
+    /**
      * Get a list of all state tree infos. If not already cached, fetches from
      * the cluster.
      */
