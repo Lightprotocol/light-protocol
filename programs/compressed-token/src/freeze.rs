@@ -1,20 +1,18 @@
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-    },
+    compressed_account::{CompressedAccount, CompressedAccountData},
     hash_to_bn254_field_size_be,
     instruction_data::{
         compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext,
+        data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     },
 };
 
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     process_transfer::{
-        add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
         InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
     },
@@ -59,7 +57,8 @@ pub fn process_freeze_or_thaw<
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
-        &output_compressed_accounts,
+        output_compressed_accounts,
+        false,
         proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
@@ -77,7 +76,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     mint: &Pubkey,
     remaining_accounts: &[AccountInfo<'_>],
 ) -> Result<(
-    Vec<PackedCompressedAccountWithMerkleContext>,
+    Vec<InAccount>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
     if inputs.input_token_data_with_context.is_empty() {
@@ -112,7 +111,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &mut output_compressed_accounts,
     )?;
 
-    add_token_data_to_input_compressed_accounts::<FROZEN_INPUTS>(
+    add_data_hash_to_input_compressed_accounts::<FROZEN_INPUTS>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -504,11 +503,6 @@ pub mod test_freeze {
                 output_compressed_accounts,
                 expected_compressed_output_accounts
             );
-            for account in compressed_input_accounts {
-                let account_data = account.compressed_account.data.unwrap();
-                let token_data = TokenData::try_from_slice(&account_data.data).unwrap();
-                assert_eq!(token_data.state, AccountState::Frozen);
-            }
         }
     }
 
@@ -566,7 +560,7 @@ pub mod test_freeze {
         mint: &Pubkey,
         owner: &Pubkey,
         remaining_accounts: &[Pubkey],
-    ) -> Vec<PackedCompressedAccountWithMerkleContext> {
+    ) -> Vec<InAccount> {
         input_token_data_with_context
             .iter()
             .map(|x| {
@@ -584,20 +578,13 @@ pub mod test_freeze {
                 let mut data = Vec::new();
                 token_data.serialize(&mut data).unwrap();
                 let data_hash = token_data.hash_legacy().unwrap();
-                PackedCompressedAccountWithMerkleContext {
-                    compressed_account: CompressedAccount {
-                        owner: crate::ID,
-                        lamports: 0,
-                        address: None,
-                        data: Some(CompressedAccountData {
-                            data,
-                            data_hash,
-                            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                        }),
-                    },
+                InAccount {
+                    lamports: 0,
+                    address: None,
+                    data_hash,
+                    discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                     root_index: x.root_index,
                     merkle_context: x.merkle_context,
-                    read_only: false,
                 }
             })
             .collect()

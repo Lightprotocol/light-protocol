@@ -43,6 +43,7 @@ pub fn process_compress_spl_token_account<'info>(
         cpi_context,
         lamports_change_account_merkle_tree_index: None,
         compress_or_decompress_amount: Some(compress_amount),
+        with_transaction_hash: false,
     };
     process_transfer(ctx, inputs)
 }

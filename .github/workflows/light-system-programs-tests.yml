@@ -78,5 +78,10 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             echo "$subtest"
-            eval "RUSTFLAGS=\"-D warnings\" $subtest"
+
+            RUSTFLAGS="-D warnings" eval "$subtest"
+            if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
+              pnpm --filter @lightprotocol/programs run build-compressed-token-small
+              RUSTFLAGS="-D warnings" eval "$subtest -- --test test_10_all"
+            fi
           done

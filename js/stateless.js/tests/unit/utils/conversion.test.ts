@@ -6,9 +6,22 @@ import {
     pushUniqueItems,
     toArray,
     toCamelCase,
+    convertInvokeCpiWithReadOnlyToInvoke,
 } from '../../../src/utils/conversion';
 import { calculateComputeUnitPrice } from '../../../src/utils';
 import { deserializeAppendNullifyCreateAddressInputsIndexer } from '../../../src/programs';
+import {
+    struct,
+    u8,
+    bool,
+    publicKey,
+    option,
+    vec,
+    u64,
+} from '@coral-xyz/borsh';
+import { decodeInstructionDataInvokeCpiWithReadOnly } from '../../../src/programs/layout';
+import { InstructionDataInvoke } from '../../../src/state/types';
+import BN from 'bn.js';
 
 describe('toArray', () => {
     it('should return same array if array is passed', () => {
@@ -73,6 +86,232 @@ describe('deserialize apc cpi', () => {
             tree_index: 1,
             queue_index: 1,
         });
+    });
+});
+
+describe('deserialize InstructionDataInvokeCpiWithReadOnly', () => {
+    it('should deserialize the complete InstructionDataInvokeCpiWithReadOnly structure', () => {
+        // first 12 bytes are skipped.
+        const data = [
+            1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 148, 0, 0, 0, 0, 0, 0, 0, 1,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 90, 70, 83, 164, 216, 39, 10, 106, 0, 0, 1, 0, 1, 83, 0, 3, 0, 0,
+            0, 91, 97, 69, 180, 246, 54, 236, 250, 62, 116, 95, 226, 176, 250,
+            172, 150, 38, 157, 38, 110, 3, 110, 130, 133, 102, 14, 42, 118, 151,
+            177, 74, 49, 180, 127, 245, 54, 1, 13, 208, 197, 129, 101, 36, 193,
+            85, 161, 48, 175, 182, 23, 26, 150, 52, 204, 60, 96, 233, 248, 140,
+            33, 212, 16, 175, 111, 218, 54, 195, 97, 239, 148, 66, 48, 24, 183,
+            0, 254, 113, 31, 157, 136, 188, 202, 183, 37, 203, 248, 36, 216,
+            177, 227, 159, 93, 238, 171, 167, 173, 224, 196, 144, 193, 203, 88,
+            88, 133, 174, 71, 142, 254, 17, 121, 254, 208, 0, 153, 1, 0, 0, 0,
+            237, 83, 2, 61, 227, 140, 40, 48, 68, 54, 55, 57, 228, 108, 104, 1,
+            19, 138, 156, 96, 249, 111, 250, 212, 130, 57, 47, 54, 4, 5, 48,
+            192, 174, 157, 141, 112, 18, 255, 0, 64, 136, 164, 130, 37, 210, 47,
+            0, 253, 75, 4, 203, 167, 187, 45, 253, 192, 154, 0, 4, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 201, 78, 254, 108, 214, 2, 223, 68, 0, 0,
+            43, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 17, 123, 28, 100, 171, 124,
+            219, 0, 0, 253, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 126, 220, 103, 34, 32,
+            110, 222, 30, 0, 0, 197, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 196, 198, 75,
+            26, 237, 186, 126, 74, 0, 1, 19, 61, 250, 254, 150, 6, 163, 86, 0,
+            0, 0, 0, 156, 9, 53, 70, 77, 194, 172, 226, 190, 160, 23, 141, 31,
+            196, 236, 120, 84, 107, 116, 110, 205, 212, 164, 48, 143, 224, 119,
+            115, 144, 225, 207, 228, 49, 3, 0, 0, 0, 39, 168, 127, 189, 18, 209,
+            50, 130, 61, 249, 224, 77, 91, 119, 75, 140, 171, 218, 60, 106, 84,
+            193, 224, 111, 159, 45, 25, 182, 255, 151, 70, 104, 70, 51, 175, 83,
+            83, 120, 178, 62, 215, 154, 181, 237, 76, 231, 56, 133, 102, 223,
+            246, 189, 104, 18, 195, 42, 151, 220, 240, 78, 245, 64, 112, 90,
+            139, 200, 70, 9, 144, 245, 142, 205, 162, 130, 217, 110, 191, 231,
+            184, 36, 71, 173, 105, 78, 104, 199, 27, 1, 160, 6, 177, 68, 34, 22,
+            224, 174, 159, 50, 42, 53, 143, 251, 61, 65, 82, 2, 0, 0, 0, 139,
+            161, 56, 237, 157, 233, 116, 185, 12, 196, 217, 30, 184, 96, 146,
+            164, 150, 251, 140, 3, 158, 71, 77, 130, 169, 233, 128, 60, 221,
+            108, 98, 247, 124, 28, 145, 30, 204, 146, 1, 14, 104, 21, 236, 252,
+            114, 187, 150, 4, 37, 93, 254, 107, 46, 123, 96, 206, 209, 39, 91,
+            61, 214, 71, 4, 118, 24, 221, 216, 152, 135, 71, 93, 155, 81, 50,
+            14, 128, 30, 108, 170, 1, 235, 59,
+        ];
+
+        const buffer = Buffer.from(data);
+        const result = decodeInstructionDataInvokeCpiWithReadOnly(buffer);
+
+        // Build the expected struct that accurately maps to the Rust structure
+        const expectedStruct = {
+            mode: 0,
+            bump: 148,
+            invoking_program_id: expect.any(Object), // PublicKey object
+            compress_or_decompress_lamports: expect.any(Object), // BN object equal to 7640963529210807898
+            is_compress: false,
+            with_cpi_context: false,
+            with_transaction_hash: true,
+            compressedCpiContext: {
+                set_context: false,
+                first_set_context: true,
+                cpi_context_account_index: 83,
+            },
+            proof: null,
+            new_address_params: [
+                {
+                    seed: [
+                        91, 97, 69, 180, 246, 54, 236, 250, 62, 116, 95, 226,
+                        176, 250, 172, 150, 38, 157, 38, 110, 3, 110, 130, 133,
+                        102, 14, 42, 118, 151, 177, 74, 49,
+                    ],
+                    address_queue_account_index: 180,
+                    address_merkle_tree_account_index: 127,
+                    address_merkle_tree_root_index: 14069,
+                    assigned_to_account: true,
+                    assigned_account_index: 13,
+                },
+                {
+                    seed: [
+                        208, 197, 129, 101, 36, 193, 85, 161, 48, 175, 182, 23,
+                        26, 150, 52, 204, 60, 96, 233, 248, 140, 33, 212, 16,
+                        175, 111, 218, 54, 195, 97, 239, 148,
+                    ],
+                    address_queue_account_index: 66,
+                    address_merkle_tree_account_index: 48,
+                    address_merkle_tree_root_index: 46872,
+                    assigned_to_account: false,
+                    assigned_account_index: 254,
+                },
+                {
+                    seed: [
+                        113, 31, 157, 136, 188, 202, 183, 37, 203, 248, 36, 216,
+                        177, 227, 159, 93, 238, 171, 167, 173, 224, 196, 144,
+                        193, 203, 88, 88, 133, 174, 71, 142, 254,
+                    ],
+                    address_queue_account_index: 17,
+                    address_merkle_tree_account_index: 121,
+                    address_merkle_tree_root_index: 53502,
+                    assigned_to_account: false,
+                    assigned_account_index: 153,
+                },
+            ],
+            input_compressed_accounts: [
+                {
+                    discriminator: [237, 83, 2, 61, 227, 140, 40, 48],
+                    data_hash: [
+                        68, 54, 55, 57, 228, 108, 104, 1, 19, 138, 156, 96, 249,
+                        111, 250, 212, 130, 57, 47, 54, 4, 5, 48, 192, 174, 157,
+                        141, 112, 18, 255, 0, 64,
+                    ],
+                    packedMerkleContext: {
+                        merkle_tree_pubkey_index: 136,
+                        queue_pubkey_index: 164,
+                        leaf_index: 802301314,
+                        prove_by_index: false,
+                    },
+                    root_index: 19453,
+                    lamports: expect.any(Object), // BN for 11151191050233039620
+                    address: null,
+                },
+            ],
+            output_compressed_accounts: [
+                {
+                    compressedAccount: {
+                        owner: expect.any(Object), // PublicKey
+                        lamports: expect.any(Object), // BN
+                        address: null,
+                        data: null,
+                    },
+                    merkleTreeIndex: 43,
+                },
+                {
+                    compressedAccount: {
+                        owner: expect.any(Object), // PublicKey
+                        lamports: expect.any(Object), // BN
+                        address: null,
+                        data: null,
+                    },
+                    merkleTreeIndex: 253,
+                },
+                {
+                    compressedAccount: {
+                        owner: expect.any(Object), // PublicKey
+                        lamports: expect.any(Object), // BN
+                        address: null,
+                        data: null,
+                    },
+                    merkleTreeIndex: 197,
+                },
+                {
+                    compressedAccount: {
+                        owner: expect.any(Object), // PublicKey
+                        lamports: expect.any(Object), // BN
+                        address: null,
+                        data: expect.any(Object), // This one has data
+                    },
+                    merkleTreeIndex: 49,
+                },
+            ],
+            read_only_addresses: [
+                {
+                    address: [
+                        39, 168, 127, 189, 18, 209, 50, 130, 61, 249, 224, 77,
+                        91, 119, 75, 140, 171, 218, 60, 106, 84, 193, 224, 111,
+                        159, 45, 25, 182, 255, 151, 70, 104,
+                    ],
+                    address_merkle_tree_root_index: 13126,
+                    address_merkle_tree_account_index: 175,
+                },
+                {
+                    address: [
+                        83, 83, 120, 178, 62, 215, 154, 181, 237, 76, 231, 56,
+                        133, 102, 223, 246, 189, 104, 18, 195, 42, 151, 220,
+                        240, 78, 245, 64, 112, 90, 139, 200, 70,
+                    ],
+                    address_merkle_tree_root_index: 36873,
+                    address_merkle_tree_account_index: 245,
+                },
+                {
+                    address: [
+                        142, 205, 162, 130, 217, 110, 191, 231, 184, 36, 71,
+                        173, 105, 78, 104, 199, 27, 1, 160, 6, 177, 68, 34, 22,
+                        224, 174, 159, 50, 42, 53, 143, 251,
+                    ],
+                    address_merkle_tree_root_index: 16701,
+                    address_merkle_tree_account_index: 82,
+                },
+            ],
+            read_only_accounts: [
+                {
+                    account_hash: [
+                        139, 161, 56, 237, 157, 233, 116, 185, 12, 196, 217, 30,
+                        184, 96, 146, 164, 150, 251, 140, 3, 158, 71, 77, 130,
+                        169, 233, 128, 60, 221, 108, 98, 247,
+                    ],
+                    packedMerkleContext: {
+                        merkle_tree_pubkey_index: 124,
+                        queue_pubkey_index: 28,
+                        leaf_index: 2462850705,
+                        prove_by_index: true,
+                    },
+                    root_index: 26638,
+                },
+                {
+                    account_hash: [
+                        21, 236, 252, 114, 187, 150, 4, 37, 93, 254, 107, 46,
+                        123, 96, 206, 209, 39, 91, 61, 214, 71, 4, 118, 24, 221,
+                        216, 152, 135, 71, 93, 155, 81,
+                    ],
+                    packedMerkleContext: {
+                        merkle_tree_pubkey_index: 50,
+                        queue_pubkey_index: 14,
+                        leaf_index: 2859212416,
+                        prove_by_index: true,
+                    },
+                    root_index: 15339,
+                },
+            ],
+        };
+
+        // Assert all fields in our expected struct match the result
+        // Use partial matching since the input buffer may not contain all fields
+        expect(result).toMatchObject(expectedStruct);
     });
 });
 
@@ -332,5 +571,118 @@ describe('camelcaseKeys', () => {
         };
 
         expect(toCamelCase(originalData)).toEqual(expectedData);
+    });
+});
+
+describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
+    it('should convert InstructionDataInvokeCpiWithReadOnly to InstructionDataInvoke', () => {
+        const mockCpiWithReadOnly = {
+            mode: 0,
+            bump: 148,
+            invoking_program_id: { toBuffer: () => Buffer.alloc(32) },
+            compress_or_decompress_lamports: new BN(1000),
+            is_compress: true,
+            with_cpi_context: false,
+            with_transaction_hash: true,
+            compressedCpiContext: {
+                set_context: false,
+                first_set_context: true,
+                cpi_context_account_index: 83,
+            },
+            proof: null,
+            new_address_params: [
+                {
+                    seed: Array(32).fill(1),
+                    address_queue_account_index: 5,
+                    address_merkle_tree_account_index: 6,
+                    address_merkle_tree_root_index: 123,
+                    assigned_to_account: true,
+                    assigned_account_index: 7,
+                },
+            ],
+            input_compressed_accounts: [
+                {
+                    discriminator: Array(8).fill(2),
+                    data_hash: Array(32).fill(3),
+                    packedMerkleContext: {
+                        merkle_tree_pubkey_index: 8,
+                        queue_pubkey_index: 9,
+                        leaf_index: 456,
+                        prove_by_index: false,
+                    },
+                    root_index: 789,
+                    lamports: new BN(2000),
+                    address: null,
+                },
+            ],
+            output_compressed_accounts: [
+                {
+                    compressedAccount: {
+                        owner: { toBuffer: () => Buffer.alloc(32) },
+                        lamports: new BN(3000),
+                        address: null,
+                        data: null,
+                    },
+                    merkleTreeIndex: 10,
+                },
+            ],
+            read_only_addresses: [
+                {
+                    address: Array(32).fill(4),
+                    address_merkle_tree_root_index: 567,
+                    address_merkle_tree_account_index: 11,
+                },
+            ],
+            read_only_accounts: [
+                {
+                    account_hash: Array(32).fill(5),
+                    packedMerkleContext: {
+                        merkle_tree_pubkey_index: 12,
+                        queue_pubkey_index: 13,
+                        leaf_index: 890,
+                        prove_by_index: true,
+                    },
+                    root_index: 321,
+                },
+            ],
+        };
+
+        // Convert to InstructionDataInvoke
+        const result =
+            convertInvokeCpiWithReadOnlyToInvoke(mockCpiWithReadOnly);
+
+        // Verify the result is an InstructionDataInvoke
+        expect(result).toBeDefined();
+        expect(result.proof).toBeNull();
+        expect(result.isCompress).toBe(true);
+        expect(result.compressOrDecompressLamports).toEqual(new BN(1000));
+
+        // Check newAddressParams conversion
+        expect(result.newAddressParams).toHaveLength(1);
+        expect(result.newAddressParams[0].seed).toEqual(Array(32).fill(1));
+        expect(result.newAddressParams[0].addressQueueAccountIndex).toBe(5);
+        expect(result.newAddressParams[0].addressMerkleTreeAccountIndex).toBe(
+            6,
+        );
+        expect(result.newAddressParams[0].addressMerkleTreeRootIndex).toBe(123);
+
+        // Check input accounts conversion
+        expect(result.inputCompressedAccountsWithMerkleContext).toHaveLength(1);
+
+        // First account (from input_compressed_accounts)
+        const firstAccount = result.inputCompressedAccountsWithMerkleContext[0];
+        expect(firstAccount.rootIndex).toBe(789);
+        expect(firstAccount.readOnly).toBe(false);
+        expect(firstAccount.compressedAccount.lamports).toEqual(new BN(2000));
+        expect(firstAccount.merkleContext.merkleTreePubkeyIndex).toBe(8);
+        expect(firstAccount.merkleContext.nullifierQueuePubkeyIndex).toBe(9);
+        expect(firstAccount.merkleContext.leafIndex).toBe(456);
+        expect(firstAccount.merkleContext.queueIndex).toBeNull();
+        // Check output accounts conversion
+        expect(result.outputCompressedAccounts).toHaveLength(1);
+        expect(result.outputCompressedAccounts[0].merkleTreeIndex).toBe(10);
+        expect(
+            result.outputCompressedAccounts[0].compressedAccount.lamports,
+        ).toEqual(new BN(3000));
     });
 });

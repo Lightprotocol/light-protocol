@@ -137,6 +137,98 @@ export const InstructionDataInvokeCpiLayout: Layout<InstructionDataInvokeCpi> =
         ),
     ]);
 
+export const CompressedProofLayout = struct(
+    [array(u8(), 32, 'a'), array(u8(), 64, 'b'), array(u8(), 32, 'c')],
+    'compressedProof',
+);
+
+export const CompressedCpiContextLayout = struct(
+    [
+        bool('set_context'),
+        bool('first_set_context'),
+        u8('cpi_context_account_index'),
+    ],
+    'compressedCpiContext',
+);
+
+export const NewAddressParamsAssignedPackedLayout = struct(
+    [
+        array(u8(), 32, 'seed'),
+        u8('address_queue_account_index'),
+        u8('address_merkle_tree_account_index'),
+        u16('address_merkle_tree_root_index'),
+        bool('assigned_to_account'),
+        u8('assigned_account_index'),
+    ],
+    'newAddressParamsAssignedPacked',
+);
+
+export const PackedMerkleContextLayout = struct(
+    [
+        u8('merkle_tree_pubkey_index'),
+        u8('queue_pubkey_index'),
+        u32('leaf_index'),
+        bool('prove_by_index'),
+    ],
+    'packedMerkleContext',
+);
+
+export const InAccountLayout = struct(
+    [
+        array(u8(), 8, 'discriminator'),
+        array(u8(), 32, 'data_hash'),
+        PackedMerkleContextLayout,
+        u16('root_index'),
+        u64('lamports'),
+        option(array(u8(), 32), 'address'),
+    ],
+    'inAccount',
+);
+
+export const PackedReadOnlyAddressLayout = struct(
+    [
+        array(u8(), 32, 'address'),
+        u16('address_merkle_tree_root_index'),
+        u8('address_merkle_tree_account_index'),
+    ],
+    'packedReadOnlyAddress',
+);
+
+export const PackedReadOnlyCompressedAccountLayout = struct(
+    [
+        array(u8(), 32, 'account_hash'),
+        PackedMerkleContextLayout,
+        u16('root_index'),
+    ],
+    'packedReadOnlyCompressedAccount',
+);
+
+export const InstructionDataInvokeCpiWithReadOnlyLayout = struct([
+    u8('mode'),
+    u8('bump'),
+    publicKey('invoking_program_id'),
+    u64('compress_or_decompress_lamports'),
+    bool('is_compress'),
+    bool('with_cpi_context'),
+    bool('with_transaction_hash'),
+    CompressedCpiContextLayout,
+    option(CompressedProofLayout, 'proof'),
+    vec(NewAddressParamsAssignedPackedLayout, 'new_address_params'),
+    vec(InAccountLayout, 'input_compressed_accounts'),
+    vec(
+        struct([CompressedAccountLayout, u8('merkleTreeIndex')]),
+        'output_compressed_accounts',
+    ),
+    vec(PackedReadOnlyAddressLayout, 'read_only_addresses'),
+    vec(PackedReadOnlyCompressedAccountLayout, 'read_only_accounts'),
+]);
+
+export function decodeInstructionDataInvokeCpiWithReadOnly(buffer: Buffer) {
+    return InstructionDataInvokeCpiWithReadOnlyLayout.decode(
+        buffer.slice(INVOKE_DISCRIMINATOR.length + 4),
+    );
+}
+
 export function decodeInstructionDataInvoke(
     buffer: Buffer,
 ): InstructionDataInvoke {

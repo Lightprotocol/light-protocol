@@ -41,6 +41,7 @@ pub struct InAccount {
     pub root_index: u16,
     /// Lamports.
     pub lamports: u64,
+    /// Optional address.
     pub address: Option<[u8; 32]>,
 }
 
@@ -652,20 +653,18 @@ mod test {
                 None
             },
             // Keep collections small to minimize complex serialization issues
-            new_address_params: if rng.gen_range(0..5) == 0 {
-                vec![NewAddressParamsAssignedPacked {
+            new_address_params: (0..rng.gen_range(1..5))
+                .map(|_| NewAddressParamsAssignedPacked {
                     seed: rng.gen(),
                     address_queue_account_index: rng.gen(),
                     address_merkle_tree_account_index: rng.gen(),
                     address_merkle_tree_root_index: rng.gen(),
                     assigned_to_account: rng.gen(),
                     assigned_account_index: rng.gen(),
-                }]
-            } else {
-                vec![]
-            },
-            input_compressed_accounts: if rng.gen_range(0..5) == 1 {
-                vec![InAccount {
+                })
+                .collect::<Vec<_>>(),
+            input_compressed_accounts: (0..rng.gen_range(1..5))
+                .map(|_| InAccount {
                     discriminator: rng.gen(),
                     data_hash: rng.gen(),
                     merkle_context: PackedMerkleContext {
@@ -677,42 +676,38 @@ mod test {
                     root_index: rng.gen(),
                     lamports: rng.gen(),
                     address: if rng.gen() { Some(rng.gen()) } else { None },
-                }]
-            } else {
-                vec![]
-            },
-            output_compressed_accounts: if rng.gen_range(0..5) == 2 {
-                vec![OutputCompressedAccountWithPackedContext {
-                    compressed_account: CompressedAccount {
-                        owner: Pubkey::new_unique().into(),
-                        lamports: rng.gen(),
-                        address: if rng.gen() { Some(rng.gen()) } else { None },
-                        data: if rng.gen() {
-                            Some(CompressedAccountData {
-                                discriminator: rng.gen(),
-                                data: vec![], // Keep data empty for simpler testing
-                                data_hash: rng.gen(),
-                            })
-                        } else {
-                            None
+                })
+                .collect(),
+            output_compressed_accounts: (0..rng.gen_range(1..5))
+                .map(|_| {
+                    OutputCompressedAccountWithPackedContext {
+                        compressed_account: CompressedAccount {
+                            owner: Pubkey::new_unique().into(),
+                            lamports: rng.gen(),
+                            address: if rng.gen() { Some(rng.gen()) } else { None },
+                            data: if rng.gen() {
+                                Some(CompressedAccountData {
+                                    discriminator: rng.gen(),
+                                    data: vec![], // Keep data empty for simpler testing
+                                    data_hash: rng.gen(),
+                                })
+                            } else {
+                                None
+                            },
                         },
-                    },
-                    merkle_tree_index: rng.gen(),
-                }]
-            } else {
-                vec![]
-            },
-            read_only_addresses: if rng.gen_range(0..5) == 3 {
-                vec![PackedReadOnlyAddress {
+                        merkle_tree_index: rng.gen(),
+                    }
+                })
+                .collect::<Vec<_>>(),
+            read_only_addresses: (0..rng.gen_range(1..5))
+                .map(|_| PackedReadOnlyAddress {
                     address: rng.gen(),
                     address_merkle_tree_account_index: rng.gen(),
                     address_merkle_tree_root_index: rng.gen(),
-                }]
-            } else {
-                vec![]
-            },
-            read_only_accounts: if rng.gen_range(0..5) == 4 {
-                vec![PackedReadOnlyCompressedAccount {
+                })
+                .collect::<Vec<_>>(),
+            read_only_accounts: (0..rng.gen_range(1..5))
+                .map(|_| PackedReadOnlyCompressedAccount {
                     account_hash: rng.gen(),
                     merkle_context: PackedMerkleContext {
                         merkle_tree_pubkey_index: rng.gen(),
@@ -721,10 +716,8 @@ mod test {
                         prove_by_index: rng.gen(),
                     },
                     root_index: rng.gen(),
-                }]
-            } else {
-                vec![]
-            },
+                })
+                .collect::<Vec<_>>(),
         }
     }
 
@@ -741,6 +734,8 @@ mod test {
 
             let mut vec = Vec::new();
             value.serialize(&mut vec).unwrap();
+            println!("value {:?}", value);
+            println!("vec {:?}", vec);
             let (zero_copy, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(&vec).unwrap();
 
             // Use the PartialEq implementation first

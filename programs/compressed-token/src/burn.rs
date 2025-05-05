@@ -1,18 +1,17 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 use light_compressed_account::{
-    compressed_account::PackedCompressedAccountWithMerkleContext,
     hash_to_bn254_field_size_be,
     instruction_data::{
         compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext,
+        data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     },
 };
 
 use crate::{
     constants::NOT_FROZEN,
     process_transfer::{
-        add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts, get_cpi_signer_seeds,
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
@@ -54,7 +53,8 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
-        &output_compressed_accounts,
+        output_compressed_accounts,
+        false,
         proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
@@ -122,7 +122,7 @@ pub fn create_input_and_output_accounts_burn(
     remaining_accounts: &[AccountInfo<'_>],
     mint: &Pubkey,
 ) -> Result<(
-    Vec<PackedCompressedAccountWithMerkleContext>,
+    Vec<InAccount>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
     let (mut compressed_input_accounts, input_token_data, sum_lamports) =
@@ -176,7 +176,7 @@ pub fn create_input_and_output_accounts_burn(
     } else {
         Vec::new()
     };
-    add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
+    add_data_hash_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,

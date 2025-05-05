@@ -3392,12 +3392,14 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-system-program-anchor",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
  "spl-token",
  "spl-token-2022 7.0.0",
+ "zerocopy 0.8.24",
 ]
 
 [[package]]

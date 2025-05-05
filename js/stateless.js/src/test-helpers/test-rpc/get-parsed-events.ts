@@ -12,6 +12,7 @@ import {
     defaultStaticAccountsStruct,
     INSERT_INTO_QUEUES_DISCRIMINATOR,
     INVOKE_CPI_DISCRIMINATOR,
+    INVOKE_CPI_WITH_READ_ONLY_DISCRIMINATOR,
     INVOKE_DISCRIMINATOR,
 } from '../../constants';
 import {
@@ -22,8 +23,12 @@ import {
 } from '../../programs';
 import { Rpc } from '../../rpc';
 import { InstructionDataInvoke, PublicTransactionEvent } from '../../state';
-import { decodePublicTransactionEvent } from '../../programs/layout';
+import {
+    decodeInstructionDataInvokeCpiWithReadOnly,
+    decodePublicTransactionEvent,
+} from '../../programs/layout';
 import { Buffer } from 'buffer';
+import { convertInvokeCpiWithReadOnlyToInvoke } from '../../utils';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
 
@@ -221,6 +226,9 @@ export function parseLightTransaction(
         const discriminatorStr = bs58.encode(discriminator);
         const invokeDiscriminatorStr = bs58.encode(INVOKE_DISCRIMINATOR);
         const invokeCpiDiscriminatorStr = bs58.encode(INVOKE_CPI_DISCRIMINATOR);
+        const invokeCpiWithReadOnlyDiscriminatorStr = bs58.encode(
+            INVOKE_CPI_WITH_READ_ONLY_DISCRIMINATOR,
+        );
         if (discriminatorStr === invokeDiscriminatorStr) {
             invokeData = decodeInstructionDataInvoke(Buffer.from(data));
             foundSystemInstruction = true;
@@ -228,6 +236,14 @@ export function parseLightTransaction(
         }
         if (discriminatorStr == invokeCpiDiscriminatorStr) {
             invokeData = decodeInstructionDataInvokeCpi(Buffer.from(data));
+            foundSystemInstruction = true;
+            break;
+        }
+        if (discriminatorStr == invokeCpiWithReadOnlyDiscriminatorStr) {
+            const decoded = decodeInstructionDataInvokeCpiWithReadOnly(
+                Buffer.from(data),
+            );
+            invokeData = convertInvokeCpiWithReadOnlyToInvoke(decoded);
             foundSystemInstruction = true;
             break;
         }

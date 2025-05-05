@@ -5,8 +5,8 @@ use anchor_spl::{token::TokenAccount, token_interface};
 use crate::{
     check_spl_token_pool_derivation,
     constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
-    process_transfer::get_cpi_signer_seeds,
-    CompressedTokenInstructionDataTransfer, ErrorCode, TransferInstruction,
+    process_transfer::{get_cpi_signer_seeds, CompressedTokenInstructionDataTransfer},
+    ErrorCode, TransferInstruction,
 };
 
 pub fn process_compression_or_decompression<'info>(
@@ -25,7 +25,7 @@ pub fn check_spl_token_pool_derivation_with_index(
     token_pool_pubkey: &Pubkey,
     pool_index: &[u8],
 ) -> Result<()> {
-    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, pool_index) {
+    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, pool_index, None)? {
         Ok(())
     } else {
         err!(ErrorCode::InvalidTokenPoolPda)
@@ -36,15 +36,18 @@ pub fn is_valid_token_pool_pda(
     mint_bytes: &[u8],
     token_pool_pubkey: &Pubkey,
     pool_index: &[u8],
-) -> bool {
-    let seeds = [POOL_SEED, mint_bytes, pool_index];
-    let seeds = if pool_index[0] == 0 {
-        &seeds[..2]
+    bump: Option<u8>,
+) -> Result<bool> {
+    let pool_index = if pool_index[0] == 0 { &[] } else { pool_index };
+    let pda = if let Some(bump) = bump {
+        let seeds = [POOL_SEED, mint_bytes, pool_index, &[bump]];
+        Pubkey::create_program_address(&seeds[..], &crate::ID)
+            .map_err(|_| crate::ErrorCode::NoMatchingBumpFound)?
     } else {
-        &seeds[..]
+        let seeds = [POOL_SEED, mint_bytes, pool_index];
+        Pubkey::find_program_address(&seeds[..], &crate::ID).0
     };
-    let (pda, _) = Pubkey::find_program_address(seeds, &crate::ID);
-    pda == *token_pool_pubkey
+    Ok(pda == *token_pool_pubkey)
 }
 
 pub fn decompress_spl_tokens<'info>(
@@ -125,7 +128,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
         }
         // 5. Check if the token pool account is derived from the mint for any bump.
         for (index, i) in token_pool_indices.iter().enumerate() {
-            if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i]) {
+            if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i], None)? {
                 // 7. Burn or transfer the amount from the token pool account.
                 if IS_BURN {
                     crate::burn::spl_burn_cpi(
@@ -236,11 +239,29 @@ pub fn spl_token_transfer<'info>(
     token_program: AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
-    let accounts = token_interface::Transfer {
-        from,
-        to,
-        authority,
-    };
-    let cpi_ctx = CpiContext::new(token_program, accounts);
-    anchor_spl::token_interface::transfer(cpi_ctx, amount)
+    let instruction = match *token_program.key {
+        spl_token_2022::ID => spl_token_2022::instruction::transfer(
+            token_program.key,
+            from.key,
+            to.key,
+            authority.key,
+            &[],
+            amount,
+        ),
+        spl_token::ID => spl_token::instruction::transfer(
+            token_program.key,
+            from.key,
+            to.key,
+            authority.key,
+            &[],
+            amount,
+        ),
+        _ => return Err(anchor_lang::error::ErrorCode::InvalidProgramId.into()),
+    }?;
+
+    anchor_lang::solana_program::program::invoke(
+        &instruction,
+        &[from, to, authority, token_program],
+    )?;
+    Ok(())
 }

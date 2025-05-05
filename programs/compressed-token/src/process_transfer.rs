@@ -3,18 +3,19 @@ use anchor_lang::{
     prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize, Discriminator,
 };
 use light_compressed_account::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        PackedMerkleContext,
-    },
+    compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
     hash_to_bn254_field_size_be,
     instruction_data::{
-        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
+        with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
+    pubkey::PubkeyTrait,
 };
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
+use light_zero_copy::num_trait::ZeroCopyNumTrait;
 
 use crate::{
     constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
@@ -133,7 +134,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 
     bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
     if !compressed_input_accounts.is_empty() {
-        add_token_data_to_input_compressed_accounts::<false>(
+        add_data_hash_to_input_compressed_accounts::<false>(
             &mut compressed_input_accounts,
             input_token_data.as_slice(),
             &hashed_mint,
@@ -166,7 +167,8 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
-        &output_compressed_accounts,
+        output_compressed_accounts,
+        inputs.with_transaction_hash,
         inputs.proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
@@ -187,12 +189,12 @@ pub const OUTPUT_QUEUE_DISCRIMINATOR: &[u8] = b"queueacc";
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_accounts(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
-    mint_pubkey: Pubkey,
-    pubkeys: &[Pubkey],
+    mint_pubkey: impl PubkeyTrait,
+    pubkeys: &[impl PubkeyTrait],
     delegate: Option<Pubkey>,
     is_delegate: Option<Vec<bool>>,
-    amounts: &[u64],
-    lamports: Option<Vec<Option<u64>>>,
+    amounts: &[impl ZeroCopyNumTrait],
+    lamports: Option<Vec<Option<impl ZeroCopyNumTrait>>>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
     remaining_accounts: &[AccountInfo<'_>],
@@ -227,9 +229,9 @@ pub fn create_output_compressed_accounts(
         let mut token_data_bytes = Vec::with_capacity(capacity);
         // 1,000 CU token data and serialize
         let token_data = TokenData {
-            mint: mint_pubkey,
-            owner: *owner,
-            amount: *amount,
+            mint: (mint_pubkey).to_anchor_pubkey(),
+            owner: (*owner).to_anchor_pubkey(),
+            amount: (*amount).into(),
             delegate,
             state: AccountState::Initialized,
             tlv: None,
@@ -237,22 +239,22 @@ pub fn create_output_compressed_accounts(
         // TODO: remove serialization, just write bytes.
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
-        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref());
+        let hashed_owner = hash_to_bn254_field_size_be(owner.trait_to_bytes().as_slice());
 
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes =
             &remaining_accounts[merkle_tree_indices[i] as usize].try_borrow_data()?[0..8];
         match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_le_bytes().as_slice());
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_le().as_slice());
                 Ok(())
             }
             BATCHED_DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_be_bytes().as_slice());
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
                 Ok(())
             }
             OUTPUT_QUEUE_DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_be_bytes().as_slice());
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
                 Ok(())
             }
             _ => {
@@ -281,12 +283,12 @@ pub fn create_output_compressed_accounts(
         let lamports = lamports
             .as_ref()
             .and_then(|lamports| lamports[i])
-            .unwrap_or(0);
-        sum_lamports += lamports;
+            .unwrap_or(0u64.into());
+        sum_lamports += lamports.into();
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
-                lamports,
+                lamports: lamports.into(),
                 data: Some(data),
                 address: None,
             },
@@ -296,11 +298,12 @@ pub fn create_output_compressed_accounts(
     Ok(sum_lamports)
 }
 
-/// Create output compressed accounts
+/// Create input compressed account data hash
 /// 1. enforces discriminator
 /// 2. hashes token data
-pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
-    input_compressed_accounts_with_merkle_context: &mut [PackedCompressedAccountWithMerkleContext],
+/// 3. actual data is not needed for input compressed accounts
+pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
+    input_compressed_accounts_with_merkle_context: &mut [InAccount],
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
     remaining_accounts: &[AccountInfo<'_>],
@@ -310,8 +313,6 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         .enumerate()
     {
         let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
-        let mut data = Vec::new();
-        input_token_data[i].serialize(&mut data)?;
 
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes = &remaining_accounts[compressed_account_with_context
@@ -353,30 +354,22 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         } else {
             None
         };
-        compressed_account_with_context.compressed_account.data = if !FROZEN_INPUTS {
-            Some(CompressedAccountData {
-                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data,
-                data_hash: TokenData::hash_with_hashed_values(
-                    hashed_mint,
-                    &hashed_owner,
-                    &amount_bytes,
-                    &hashed_delegate,
-                )
-                .map_err(ProgramError::from)?,
-            })
+        compressed_account_with_context.data_hash = if !FROZEN_INPUTS {
+            TokenData::hash_with_hashed_values(
+                hashed_mint,
+                &hashed_owner,
+                &amount_bytes,
+                &hashed_delegate,
+            )
+            .map_err(ProgramError::from)?
         } else {
-            Some(CompressedAccountData {
-                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data,
-                data_hash: TokenData::hash_frozen_with_hashed_values(
-                    hashed_mint,
-                    &hashed_owner,
-                    &amount_bytes,
-                    &hashed_delegate,
-                )
-                .map_err(ProgramError::from)?,
-            })
+            TokenData::hash_frozen_with_hashed_values(
+                hashed_mint,
+                &hashed_owner,
+                &amount_bytes,
+                &hashed_delegate,
+            )
+            .map_err(ProgramError::from)?
         };
     }
     Ok(())
@@ -396,13 +389,14 @@ pub fn cpi_execute_compressed_transaction_transfer<
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
     ctx: &A,
-    input_compressed_accounts_with_merkle_context: Vec<PackedCompressedAccountWithMerkleContext>,
-    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+    input_compressed_accounts: Vec<InAccount>,
+    output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
+    with_transaction_hash: bool,
     proof: Option<CompressedProof>,
     cpi_context: Option<CompressedCpiContext>,
     cpi_authority_pda: AccountInfo<'info>,
-    system_program_account_info: AccountInfo<'info>,
-    invoking_program_account_info: AccountInfo<'info>,
+    _system_program_account_info: AccountInfo<'info>,
+    _invoking_program_account_info: AccountInfo<'info>,
     remaining_accounts: &[AccountInfo<'info>],
 ) -> Result<()> {
     bench_sbf_start!("t_cpi_prep");
@@ -413,42 +407,132 @@ pub fn cpi_execute_compressed_transaction_transfer<
     let cpi_context_account = cpi_context.map(|cpi_context| {
         remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
     });
-    let inputs_struct = InstructionDataInvokeCpi {
-        relay_fee: None,
-        input_compressed_accounts_with_merkle_context,
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
+
+    #[cfg(not(feature = "cpi-without-program-ids"))]
+    let mode = 0;
+    #[cfg(feature = "cpi-without-program-ids")]
+    let mode = 1;
+    let inputs_struct = InstructionDataInvokeCpiWithReadOnly {
+        mode,
+        bump: BUMP_CPI_AUTHORITY,
+        invoking_program_id: crate::ID.into(),
+        with_cpi_context: cpi_context.is_some(),
+        cpi_context: cpi_context.unwrap_or_default(),
+        with_transaction_hash,
+        read_only_accounts: Vec::new(),
+        read_only_addresses: Vec::new(),
+        input_compressed_accounts,
+        output_compressed_accounts,
         proof,
         new_address_params: Vec::new(),
-        compress_or_decompress_lamports: None,
+        compress_or_decompress_lamports: 0,
         is_compress: false,
-        cpi_context,
     };
     let mut inputs = Vec::new();
-    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).map_err(ProgramError::from)?;
+    InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs)
+        .map_err(ProgramError::from)?;
 
-    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
-        fee_payer: ctx.get_fee_payer().to_account_info(),
-        authority: cpi_authority_pda,
-        registered_program_pda: ctx.get_registered_program_pda().to_account_info(),
-        noop_program: ctx.get_noop_program().to_account_info(),
-        account_compression_authority: ctx.get_account_compression_authority().to_account_info(),
-        account_compression_program: ctx.get_account_compression_program().to_account_info(),
-        invoking_program: invoking_program_account_info,
-        system_program: ctx.get_system_program().to_account_info(),
-        sol_pool_pda: None,
-        decompression_recipient: None,
-        cpi_context_account,
-    };
-    let mut cpi_ctx =
-        CpiContext::new_with_signer(system_program_account_info, cpi_accounts, signer_seeds_ref);
+    #[cfg(not(feature = "cpi-without-program-ids"))]
+    {
+        let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+            fee_payer: ctx.get_fee_payer().to_account_info(),
+            authority: cpi_authority_pda,
+            registered_program_pda: ctx.get_registered_program_pda().to_account_info(),
+            noop_program: ctx.get_noop_program().to_account_info(),
+            account_compression_authority: ctx
+                .get_account_compression_authority()
+                .to_account_info(),
+            account_compression_program: ctx.get_account_compression_program().to_account_info(),
+            invoking_program: _invoking_program_account_info,
+            system_program: ctx.get_system_program().to_account_info(),
+            sol_pool_pda: None,
+            decompression_recipient: None,
+            cpi_context_account,
+        };
+        let mut cpi_ctx = CpiContext::new_with_signer(
+            _system_program_account_info,
+            cpi_accounts,
+            signer_seeds_ref,
+        );
 
-    cpi_ctx.remaining_accounts = remaining_accounts.to_vec();
-    bench_sbf_end!("t_cpi_prep");
+        cpi_ctx.remaining_accounts = remaining_accounts.to_vec();
+        bench_sbf_end!("t_cpi_prep");
 
-    bench_sbf_start!("t_invoke_cpi");
-    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
-    bench_sbf_end!("t_invoke_cpi");
+        bench_sbf_start!("t_invoke_cpi");
+        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
+        bench_sbf_end!("t_invoke_cpi");
+    }
+    #[cfg(feature = "cpi-without-program-ids")]
+    {
+        let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+        data.extend_from_slice(
+            &light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY,
+        );
+        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
+        data.extend(inputs);
 
+        // 4 static accounts
+        let accounts_len = 4 + remaining_accounts.len() + cpi_context.is_some() as usize;
+        let mut account_infos = Vec::with_capacity(accounts_len);
+        let mut account_metas = Vec::with_capacity(accounts_len);
+        account_infos.push(ctx.get_fee_payer().to_account_info());
+        account_infos.push(cpi_authority_pda);
+        account_infos.push(ctx.get_registered_program_pda().to_account_info());
+        account_infos.push(ctx.get_account_compression_authority().to_account_info());
+
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[0].key(),
+            is_signer: true,
+            is_writable: true,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[1].key(),
+            is_signer: true,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[2].key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[3].key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        let mut remaining_accounts_index = 4;
+
+        if let Some(account_info) = cpi_context_account {
+            account_infos.push(account_info);
+            account_metas.push(AccountMeta {
+                pubkey: account_infos[remaining_accounts_index].key(),
+                is_signer: false,
+                is_writable: true,
+            });
+            remaining_accounts_index += 1;
+        }
+        for account_info in remaining_accounts {
+            account_infos.push(account_info.clone());
+            account_metas.push(AccountMeta {
+                pubkey: account_infos[remaining_accounts_index].key(),
+                is_signer: false,
+                is_writable: account_infos[remaining_accounts_index].is_writable,
+            });
+            remaining_accounts_index += 1;
+        }
+
+        let instruction = anchor_lang::solana_program::instruction::Instruction {
+            program_id: light_system_program::ID,
+            accounts: account_metas,
+            data,
+        };
+
+        anchor_lang::solana_program::program::invoke_signed(
+            &instruction,
+            account_infos.as_slice(),
+            signer_seeds_ref.as_slice(),
+        )?;
+    }
     Ok(())
 }
 
@@ -530,6 +614,7 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub compress_or_decompress_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub lamports_change_account_merkle_tree_index: Option<u8>,
+    pub with_transaction_hash: bool,
 }
 
 pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const IS_FROZEN: bool>(
@@ -538,20 +623,13 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     remaining_accounts: &[AccountInfo<'_>],
     input_token_data_with_context: &[InputTokenDataWithContext],
     mint: &Pubkey,
-) -> Result<(
-    Vec<PackedCompressedAccountWithMerkleContext>,
-    Vec<TokenData>,
-    u64,
-)> {
+) -> Result<(Vec<InAccount>, Vec<TokenData>, u64)> {
     // Collect the total number of lamports to check whether inputs and outputs
     // are unbalanced. If unbalanced create a non token compressed change
     // account owner by the sender.
     let mut sum_lamports = 0;
-    let mut input_compressed_accounts_with_merkle_context: Vec<
-        PackedCompressedAccountWithMerkleContext,
-    > = Vec::<PackedCompressedAccountWithMerkleContext>::with_capacity(
-        input_token_data_with_context.len(),
-    );
+    let mut input_compressed_accounts_with_merkle_context: Vec<InAccount> =
+        Vec::<InAccount>::with_capacity(input_token_data_with_context.len());
     let mut input_token_data_vec: Vec<TokenData> =
         Vec::with_capacity(input_token_data_with_context.len());
 
@@ -582,10 +660,12 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             return err!(ErrorCode::DelegateSignerCheckFailed);
         }
 
-        let compressed_account = CompressedAccount {
-            owner: crate::ID,
+        let compressed_account = InAccount {
             lamports: input_token_data.lamports.unwrap_or_default(),
-            data: None,
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            merkle_context: input_token_data.merkle_context,
+            root_index: input_token_data.root_index,
+            data_hash: [0u8; 32],
             address: None,
         };
         sum_lamports += compressed_account.lamports;
@@ -608,14 +688,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             tlv: None,
         };
         input_token_data_vec.push(token_data);
-        input_compressed_accounts_with_merkle_context.push(
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account,
-                merkle_context: input_token_data.merkle_context,
-                root_index: input_token_data.root_index,
-                read_only: false,
-            },
-        );
+        input_compressed_accounts_with_merkle_context.push(compressed_account);
     }
     Ok((
         input_compressed_accounts_with_merkle_context,
@@ -700,6 +773,7 @@ pub mod transfer_sdk {
         lamports_change_account_merkle_tree: Option<Pubkey>,
         is_token_22: bool,
         additional_token_pools: &[Pubkey],
+        with_transaction_hash: bool,
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
@@ -715,6 +789,7 @@ pub mod transfer_sdk {
             delegate_change_account_index,
             lamports_change_account_merkle_tree,
             additional_token_pools,
+            with_transaction_hash,
         );
         if sort {
             inputs_struct
@@ -727,7 +802,7 @@ pub mod transfer_sdk {
             .map_err(|_| TransferSdkError::SerializationError)?;
 
         let (cpi_authority_pda, _) = crate::process_transfer::get_cpi_authority_pda();
-        let instruction_data = crate::instruction::Transfer { inputs };
+        let instruction_data = crate::instruction::Transfer { inputs }.data();
         let authority = if let Some(delegate) = delegate {
             delegate
         } else {
@@ -767,7 +842,7 @@ pub mod transfer_sdk {
             program_id: crate::ID,
             accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
 
-            data: instruction_data.data(),
+            data: instruction_data,
         })
     }
 
@@ -818,6 +893,7 @@ pub mod transfer_sdk {
                 delegate_change_account_index,
                 lamports_change_account_merkle_tree,
                 &[],
+                false,
             );
         Ok((remaining_accounts, compressed_accounts_ix_data))
     }
@@ -837,6 +913,7 @@ pub mod transfer_sdk {
         delegate_change_account_index: Option<u8>,
         lamports_change_account_merkle_tree: Option<Pubkey>,
         accounts: &[Pubkey],
+        with_transaction_hash: bool,
     ) -> (
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
@@ -890,6 +967,7 @@ pub mod transfer_sdk {
             compress_or_decompress_amount,
             cpi_context: None,
             lamports_change_account_merkle_tree_index,
+            with_transaction_hash,
         };
 
         (remaining_accounts, inputs_struct)
