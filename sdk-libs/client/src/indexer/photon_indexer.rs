@@ -865,32 +865,32 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContextV2, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
-                    let request = photon_api::models::GetValidityProofV2PostRequest {
-                        params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
-                            hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
-                            new_addresses_with_trees: Some(
-                                new_addresses_with_trees
-                                    .iter()
-                                    .map(|x| photon_api::models::AddressWithTree {
-                                        address: x.address.to_base58(),
-                                        tree: x.tree.to_string(),
-                                    })
-                                    .collect(),
-                            ),
-                        }),
-                        ..Default::default()
-                    };
+            let request = photon_api::models::GetValidityProofV2PostRequest {
+                params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
+                    hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
+                    new_addresses_with_trees: Some(
+                        new_addresses_with_trees
+                            .iter()
+                            .map(|x| photon_api::models::AddressWithTree {
+                                address: x.address.to_base58(),
+                                tree: x.tree.to_string(),
+                            })
+                            .collect(),
+                    ),
+                }),
+                ..Default::default()
+            };
 
-                    let result = photon_api::apis::default_api::get_validity_proof_v2_post(
-                        &self.configuration,
-                        request,
-                    )
-                    .await?;
+            let result = photon_api::apis::default_api::get_validity_proof_v2_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
 
-                    let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                    Ok(*result.value)
-                })
-                .await
+            let result = Self::extract_result("get_validity_proof_v2", result.result)?;
+            Ok(*result.value)
+        })
+        .await
     }
 
     async fn get_indexer_slot(&self, _r: &mut R) -> Result<u64, IndexerError> {
@@ -905,7 +905,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
             let result = Self::extract_result("get_indexer_slot", result.result)?;
             Ok(result)
-        }).await
+        })
+        .await
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {

@@ -1,8 +1,11 @@
 use std::{
-    collections::HashMap, sync::{
+    collections::HashMap,
+    sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
-    }, time::Duration, vec
+    },
+    time::Duration,
+    vec,
 };
 
 use account_compression::utils::constants::{
@@ -117,9 +120,8 @@ impl ProcessedHashCache {
 
     fn cleanup(&mut self) {
         let now = Instant::now();
-        self.entries.retain(|_, timestamp| {
-            now.duration_since(*timestamp) < self.ttl
-        });
+        self.entries
+            .retain(|_, timestamp| now.duration_since(*timestamp) < self.ttl);
     }
 }
 
@@ -424,7 +426,12 @@ pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {
 }
 
 impl<R: RpcConnection, I: Indexer<R>> EpochManagerTransactions<R, I> {
-    pub fn new(indexer: Arc<Mutex<I>>, pool: Arc<SolanaRpcPool<R>>, epoch: u64, cache: Arc<Mutex<ProcessedHashCache>>) -> Self {
+    pub fn new(
+        indexer: Arc<Mutex<I>>,
+        pool: Arc<SolanaRpcPool<R>>,
+        epoch: u64,
+        cache: Arc<Mutex<ProcessedHashCache>>,
+    ) -> Self {
         Self {
             indexer,
             pool,
@@ -465,7 +472,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
                 }
             })
             .collect();
-        
+
         for item in &work_items {
             let hash_str = bs58::encode(&item.queue_item_data.hash).into_string();
             cache.add(&hash_str);
@@ -477,8 +484,11 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
             return Ok((vec![], last_valid_block_height));
         }
 
-        let work_items = work_items.iter().map(|&item| item.clone()).collect::<Vec<_>>();
-      
+        let work_items = work_items
+            .iter()
+            .map(|&item| item.clone())
+            .collect::<Vec<_>>();
+
         let mut transactions = vec![];
         let all_instructions = match fetch_proofs_and_create_instructions(
             payer.pubkey(),
@@ -487,18 +497,20 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
             self.indexer.clone(),
             self.epoch,
             work_items.as_slice(),
-        ).await {
+        )
+        .await
+        {
             Ok((_, instructions)) => instructions,
             Err(e) => {
                 // Check if it's a "Record Not Found" error
-                if e.to_string().contains("Record Not Found") {
+                return if e.to_string().contains("Record Not Found") {
                     warn!("Record not found in indexer, skipping batch: {}", e);
                     // Return empty transactions but don't propagate the error
-                    return Ok((vec![], last_valid_block_height));
+                    Ok((vec![], last_valid_block_height))
                 } else {
                     // For any other error, propagate it
-                    return Err(e);
-                }
+                    Err(e)
+                };
             }
         };
 
@@ -536,7 +548,10 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
 
     for item in state_items.iter() {
         if item.tree_account.tree_type != TreeType::StateV1 {
-            warn!("State item has unexpected tree type: {:?}", item.tree_account.tree_type);
+            warn!(
+                "State item has unexpected tree type: {:?}",
+                item.tree_account.tree_type
+            );
         }
     }
     let state_items = state_items
@@ -573,7 +588,10 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
     };
 
     if let Some((merkle_tree, addresses)) = &address_data {
-        info!("Address merkle tree: {}", bs58::encode(merkle_tree).into_string());
+        info!(
+            "Address merkle tree: {}",
+            bs58::encode(merkle_tree).into_string()
+        );
         info!("Looking up {} addresses:", addresses.len());
         for (idx, hash) in addresses.iter().enumerate() {
             info!("  Address {}: {}", idx, bs58::encode(hash).into_string());
@@ -591,9 +609,11 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
     let indexer_guard = indexer.lock().await;
     info!("Acquired indexer lock.");
 
-    let mut rpc = pool.get_connection().await
+    let mut rpc = pool
+        .get_connection()
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to get RPC connection: {}", e))?;
-    
+
     if let Err(e) = wait_for_indexer(&mut *rpc, &*indexer_guard).await {
         warn!("Indexer not fully caught up, but proceeding anyway: {}", e);
     }
@@ -602,7 +622,9 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         let address_future = async {
             if let Some((merkle_tree, addresses)) = address_data {
                 debug!("Fetching proofs for {} addresses", addresses.len());
-                indexer_guard.get_multiple_new_address_proofs(merkle_tree, addresses).await
+                indexer_guard
+                    .get_multiple_new_address_proofs(merkle_tree, addresses)
+                    .await
             } else {
                 Ok(vec![])
             }
@@ -610,7 +632,9 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
 
         let state_future = async {
             if let Some(states) = state_data {
-                indexer_guard.get_multiple_compressed_account_proofs(states).await
+                indexer_guard
+                    .get_multiple_compressed_account_proofs(states)
+                    .await
             } else {
                 Ok(vec![])
             }
@@ -625,7 +649,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
             return Err(anyhow::anyhow!("Failed to get address proofs: {}", e));
         }
     };
-    
+
     let state_proofs = match state_proofs_result {
         Ok(proofs) => proofs,
         Err(e) => {
@@ -736,7 +760,7 @@ pub async fn request_priority_fee_estimate(url: &Url, account_keys: Vec<Pubkey>)
         )
 }
 
-/// Get capped priority fee for transaction between min and max.
+/// Get a capped priority fee for transaction between min and max.
 pub fn get_capped_priority_fee(cap_config: CapConfig) -> u64 {
     if cap_config.max_fee_lamports < cap_config.min_fee_lamports {
         panic!("Max fee is less than min fee");

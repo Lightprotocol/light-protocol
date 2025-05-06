@@ -45,7 +45,8 @@ use crate::{
     queue_helpers::QueueItemData,
     rollover::is_tree_ready_for_rollover,
     send_transaction::{
-        send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions, ProcessedHashCache, SendBatchedTransactionsConfig
+        send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
+        ProcessedHashCache, SendBatchedTransactionsConfig,
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
     tree_data_sync::fetch_trees,
@@ -138,7 +139,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
             new_tree_sender,
-            tx_cache
+            tx_cache,
         })
     }
 
@@ -425,7 +426,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         };
         debug!("Recovered registration info for epoch {}", epoch);
 
-        // Wait for active phase
+        // Wait for the active phase
         registration_info = self.wait_for_active_phase(&registration_info).await?;
 
         // Perform work
@@ -1337,6 +1338,7 @@ fn calculate_remaining_time_or_default(
     skip(config, protocol_config, rpc_pool, indexer, shutdown, work_report_sender, slot_tracker),
     fields(forester = %config.payer_keypair.pubkey())
 )]
+#[allow(clippy::too_many_arguments)]
 pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
