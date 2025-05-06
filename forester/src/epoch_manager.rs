@@ -145,6 +145,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
             new_tree_sender,
+            tx_cache
         })
     }
 
