@@ -22,57 +22,69 @@ export enum TreeType {
     AddressV2 = 4,
 }
 
-// /**
-//  * @deprecated Use {@link StateTreeInfo} instead.
-//  * A bundle of active trees for a given tree type.
-//  */
-// export type ActiveTreeBundle = {
-//     tree: PublicKey;
-//     queue: PublicKey | null;
-//     cpiContext: PublicKey | null;
-//     treeType: TreeType;
-// };
+/**
+ * @deprecated Use {@link StateTreeInfo} instead.
+ *
+ * A bundle of active trees for a given tree type.
+ */
+export type ActiveTreeBundle = {
+    tree: PublicKey;
+    queue: PublicKey | null;
+    cpiContext: PublicKey | null;
+    treeType: TreeType;
+};
 
 /**
- * Public keys for a state tree, versioned via {@link TreeType}. The protocol
+ * State tree info, versioned via {@link TreeType}. The protocol
  * stores compressed accounts in state trees.
  *
  * Onchain Accounts are subject to Solana's write-lock limits.
  *
  * To load balance transactions, use {@link selectStateTreeInfo} to
- * select a random tree from active Trees.
+ * select a random tree from a range of active trees.
  *
  * Example:
  * ```typescript
- * const infos = await getCachedActiveStateTreeInfos();
+ * const infos = await rpc.getStateTreeInfos();
  * const info = selectStateTreeInfo(infos);
- * const ix = CompressedTokenProgram.compress({
- *     ... // other params
- *     outputStateTree: info
+ * const ix = await CompressedTokenProgram.compress({
+ *     // ...
+ *     outputStateTreeInfo: info
  * });
  * ```
  */
 export type StateTreeInfo = {
     /**
-     * Account containing the Sparse Merkle tree in which a compressed
-     * account is stored.
+     * Pubkey of the tree account.
      */
     tree: PublicKey;
     /**
-     * The state nullfier queue belonging to merkleTree.
+     * Pubkey of the queue account associated with the tree.
      */
     queue: PublicKey;
-    /**
-     * The compressed cpi context account.
-     */
-    cpiContext: PublicKey | null;
     /**
      * The type of tree. One of {@link TreeType}.
      */
     treeType: TreeType;
+    /**
+     * Optional compressed cpi context account.
+     */
+    cpiContext?: PublicKey;
+    /**
+     * Optional next tree info if the tree is full.
+     */
+    nextTreeInfo: StateTreeInfo | null;
 };
-export type AddressTreeInfo = Omit<StateTreeInfo, 'cpiContext'> & {
-    cpiContext: null;
+
+/**
+ * Address tree info, versioned via {@link TreeType}. The protocol
+ * stores PDAs in address trees.
+ */
+export type AddressTreeInfo = Omit<
+    StateTreeInfo,
+    'cpiContext' | 'nextTreeInfo'
+> & {
+    nextTreeInfo: AddressTreeInfo | null;
 };
 
 export interface PackedCompressedAccountWithMerkleContext {
@@ -99,23 +111,28 @@ export interface QueueIndex {
  * compressed account.
  * */
 export interface CompressedAccount {
-    /** Public key of program or user that owns the account */
-    owner: PublicKey;
-    /** Lamports attached to the account */
-    lamports: BN; // u64 // FIXME: optional
     /**
-     * TODO: use PublicKey. Optional unique account ID that is persistent across
-     * transactions.
+     * Public key of program or user owning the account.
      */
-    address: number[] | null; // Option<PublicKey>
-    /** Optional data attached to the account */
-    data: CompressedAccountData | null; // Option<CompressedAccountData>
+    owner: PublicKey;
+    /**
+     * Lamports attached to the account.
+     */
+    lamports: BN;
+    /**
+     * Optional unique account ID that is persistent across transactions.
+     */
+    address: number[] | null;
+    /**
+     * Optional data attached to the account.
+     */
+    data: CompressedAccountData | null;
 }
 
 /**
  * Describe the generic compressed account details applicable to every
  * compressed account.
- * */
+ */
 export interface OutputCompressedAccountWithPackedContext {
     compressedAccount: CompressedAccount;
     merkleTreeIndex: number;
@@ -145,7 +162,7 @@ export interface PublicTransactionEvent {
 }
 
 export interface InstructionDataInvoke {
-    proof: CompressedProof | null; // Option<CompressedProof>
+    proof: ValidityProof | null; // Option<ValidityProof>
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     relayFee: BN | null; // Option<u64>
@@ -155,7 +172,7 @@ export interface InstructionDataInvoke {
 }
 
 export interface InstructionDataInvokeCpi {
-    proof: CompressedProof | null; // Option<CompressedProof>
+    proof: ValidityProof | null; // Option<ValidityProof>
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     relayFee: BN | null; // Option<u64>
@@ -176,7 +193,25 @@ export interface CompressedCpiContext {
     cpi_context_account_index: number;
 }
 
+/**
+ * @deprecated Use {@link ValidityProof} instead.
+ */
 export interface CompressedProof {
+    a: number[]; // [u8; 32]
+    b: number[]; // [u8; 64]
+    c: number[]; // [u8; 32]
+}
+
+/**
+ * Validity proof.
+ *
+ * You can request proofs via `rpc.getValidityProof` or
+ * `rpc.getValidityProofV0`.
+ *
+ * One proof is 128 bytes large, and can prove the existence of N compressed
+ * accounts or the uniqueness of N PDAs.
+ */
+export interface ValidityProof {
     a: number[]; // [u8; 32]
     b: number[]; // [u8; 64]
     c: number[]; // [u8; 32]

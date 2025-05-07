@@ -1,106 +1,169 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { AddressTreeInfo, StateTreeInfo, TreeType } from '../state/types';
-import {
-    defaultTestStateTreeAccounts,
-    getDefaultAddressTreeInfo,
-} from '../constants';
+import { StateTreeInfo, TreeType } from '../state/types';
+import { StateTreeLUTPair } from '../constants';
 
 /**
- * @deprecated use {@link selectStateTreeInfo} instead. Get a random tree and
- * queue from the active state tree addresses.
+ * @deprecated use {@link selectStateTreeInfo} instead.
  *
- * Prevents write lock contention on state trees.
+ * Get a random tree and queue from a set of provided state tree infos.
  *
- * @param info The active state tree addresses
+ * @param infos Set of state tree infos
  * @returns A random tree and queue
  */
-export function pickRandomTreeAndQueue(info: StateTreeInfo[]): {
+export function pickRandomTreeAndQueue(infos: StateTreeInfo[]): {
     tree: PublicKey;
     queue: PublicKey;
 } {
-    const length = info.length;
+    const length = infos.length;
     const index = Math.floor(Math.random() * length);
 
-    if (!info[index].queue) {
+    if (!infos[index].queue) {
         throw new Error('Queue must not be null for state tree');
     }
     return {
-        tree: info[index].tree,
-        queue: info[index].queue,
+        tree: infos[index].tree,
+        queue: infos[index].queue,
     };
 }
 
+const MAX_HOTSPOTS = 5;
+
 /**
- * Get a random State tree and context from the active state tree addresses.
+ * Get a pseudo-random active state tree info from the set of provided state
+ * tree infos.
  *
- * Prevents write lock contention on state trees.
+ * Using this mitigates write lock contention on state trees.
  *
- * @param info      The active state tree addresses
- * @param treeType  The type of tree. Defaults to TreeType.StateV2
- * @returns A random tree and queue
+ * @param infos                 Set of state tree infos
+ * @param treeType              The type of tree. Defaults to `TreeType.StateV1`
+ * @param useMaxConcurrency     If true, return all infos. If false, return at
+ *                              most {@link MAX_HOTSPOTS}. Defaults to `false`.
+ *
+ * @returns A pseudo-randomly selected tree info
  */
 export function selectStateTreeInfo(
-    info: StateTreeInfo[],
+    infos: StateTreeInfo[],
     treeType: TreeType = TreeType.StateV1,
+    useMaxConcurrency: boolean = false,
 ): StateTreeInfo {
-    const filteredInfo = info.filter(t => t.treeType === treeType);
-    const length = filteredInfo.length;
-    const index = Math.floor(Math.random() * length);
+    const activeInfos = infos.filter(t => !t.nextTreeInfo);
+    const filteredInfos = activeInfos.filter(t => t.treeType === treeType);
 
-    if (!filteredInfo[index].queue) {
-        throw new Error('Queue must not be null for state tree');
-    }
-
-    return filteredInfo[index];
-}
-
-/**
- * Get most recent active state tree data we store in lookup table for each
- * public state tree
- */
-export async function getActiveStateTreeInfos({
-    connection,
-    stateTreeLookupTableAddress,
-    nullifyTableAddress,
-}: {
-    connection: Connection;
-    stateTreeLookupTableAddress: PublicKey;
-    nullifyTableAddress: PublicKey;
-}): Promise<StateTreeInfo[]> {
-    const stateTreeLookupTable = await connection.getAddressLookupTable(
-        stateTreeLookupTableAddress,
-    );
-
-    if (!stateTreeLookupTable.value) {
-        throw new Error('State tree lookup table not found');
-    }
-
-    if (stateTreeLookupTable.value.state.addresses.length % 3 !== 0) {
+    if (filteredInfos.length === 0) {
         throw new Error(
-            'State tree lookup table must have a multiple of 3 addresses',
+            'No active state tree infos found for the specified tree type',
         );
     }
 
-    const nullifyTable =
-        await connection.getAddressLookupTable(nullifyTableAddress);
-    if (!nullifyTable.value) {
-        throw new Error('Nullify table not found');
+    const length = useMaxConcurrency
+        ? filteredInfos.length
+        : Math.min(MAX_HOTSPOTS, filteredInfos.length);
+    const index = Math.floor(Math.random() * length);
+
+    if (!filteredInfos[index].queue) {
+        throw new Error('Queue must not be null for state tree');
     }
-    const stateTreePubkeys = stateTreeLookupTable.value.state.addresses;
-    const nullifyTablePubkeys = nullifyTable.value.state.addresses;
+
+    return filteredInfos[index];
+}
+
+/**
+ * Get active state tree infos from LUTs.
+ *
+ * @param connection            The connection to the cluster
+ * @param stateTreeLUTPairs     The state tree lookup table pairs
+ *
+ * @returns The active state tree infos
+ */
+export async function getAllStateTreeInfos({
+    connection,
+    stateTreeLUTPairs,
+}: {
+    connection: Connection;
+    stateTreeLUTPairs: StateTreeLUTPair[];
+}): Promise<StateTreeInfo[]> {
+    const stateTreeLookupTablesAndNullifyLookupTables = await Promise.all(
+        stateTreeLUTPairs.map(async lutPair => {
+            return {
+                stateTreeLookupTable: await connection.getAddressLookupTable(
+                    lutPair.stateTreeLookupTable,
+                ),
+                nullifyLookupTable: await connection.getAddressLookupTable(
+                    lutPair.nullifyLookupTable,
+                ),
+            };
+        }),
+    );
 
     const contexts: StateTreeInfo[] = [];
 
-    for (let i = 0; i < stateTreePubkeys.length; i += 3) {
-        const tree = stateTreePubkeys[i];
-        // Skip rolledover (full or almost full) Merkle trees
-        if (!nullifyTablePubkeys.includes(tree)) {
+    for (const {
+        stateTreeLookupTable,
+        nullifyLookupTable,
+    } of stateTreeLookupTablesAndNullifyLookupTables) {
+        if (!stateTreeLookupTable.value) {
+            throw new Error('State tree lookup table not found');
+        }
+
+        if (!nullifyLookupTable.value) {
+            throw new Error('Nullify table not found');
+        }
+
+        const stateTreePubkeys = stateTreeLookupTable.value.state.addresses;
+        const nullifyLookupTablePubkeys =
+            nullifyLookupTable.value.state.addresses;
+
+        if (stateTreePubkeys.length % 3 !== 0) {
+            throw new Error(
+                'State tree lookup table must have a multiple of 3 addresses',
+            );
+        }
+
+        for (let i = 0; i < stateTreePubkeys.length; i += 3) {
+            const tree = stateTreePubkeys[i];
+            const queue = stateTreePubkeys[i + 1];
+            const cpiContext = stateTreePubkeys[i + 2];
+            let nextTreeInfo: StateTreeInfo | null = null;
+
+            if (!tree || !queue || !cpiContext) {
+                throw new Error('Invalid state tree pubkeys structure');
+            }
+            if (
+                nullifyLookupTablePubkeys
+                    .map(addr => addr.toBase58())
+                    .includes(tree.toBase58())
+            ) {
+                // we assign a valid tree later
+                nextTreeInfo = {
+                    tree: PublicKey.default,
+                    queue: PublicKey.default,
+                    cpiContext: PublicKey.default,
+                    treeType: TreeType.StateV1,
+                    nextTreeInfo: null,
+                };
+            }
             contexts.push({
                 tree,
-                queue: stateTreePubkeys[i + 1],
-                cpiContext: stateTreePubkeys[i + 2],
+                queue,
+                cpiContext,
                 treeType: TreeType.StateV1,
+                nextTreeInfo,
             });
+        }
+
+        /// for each context, check if the tree is in the nullifyLookupTable
+        for (const context of contexts) {
+            if (context.nextTreeInfo?.tree.equals(PublicKey.default)) {
+                const nextAvailableTreeInfo = contexts.find(
+                    ctx => !ctx.nextTreeInfo,
+                );
+                if (!nextAvailableTreeInfo) {
+                    throw new Error(
+                        'No available tree info found to assign as next tree',
+                    );
+                }
+                context.nextTreeInfo = nextAvailableTreeInfo;
+            }
         }
     }
 

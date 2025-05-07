@@ -20,7 +20,6 @@ import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
-    selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../utils/get-token-pool-infos';
 
@@ -52,7 +51,7 @@ export async function approveAndMintTo(
 ): Promise<TransactionSignature> {
     outputStateTreeInfo =
         outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
+        selectStateTreeInfo(await rpc.getStateTreeInfos());
     tokenPoolInfo =
         tokenPoolInfo ??
         selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));

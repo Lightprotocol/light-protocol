@@ -1090,6 +1090,104 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'CompressedTokenInstructionDataRevoke';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'mint';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'inputTokenDataWithContext';
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputAccountMerkleTreeIndex';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedTokenInstructionDataApprove';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'mint';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'inputTokenDataWithContext';
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'delegate';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'delegatedAmount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'delegateMerkleTreeIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'changeAccountMerkleTreeIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'delegateLamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'DelegatedTransfer';
             docs: [
                 'Struct to provide the owner when the delegate is signer of the transaction.',
@@ -2822,6 +2920,104 @@ export const IDL: LightCompressedToken = {
                         name: 'lamportsChangeAccountMerkleTreeIndex',
                         type: {
                             option: 'u8',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedTokenInstructionDataRevoke',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'mint',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'inputTokenDataWithContext',
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputAccountMerkleTreeIndex',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedTokenInstructionDataApprove',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'mint',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'inputTokenDataWithContext',
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'delegate',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'delegatedAmount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'delegateMerkleTreeIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'changeAccountMerkleTreeIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'delegateLamports',
+                        type: {
+                            option: 'u64',
                         },
                     },
                 ],

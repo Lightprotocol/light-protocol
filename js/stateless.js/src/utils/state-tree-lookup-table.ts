@@ -134,7 +134,7 @@ export async function extendStateTreeLookupTable({
  * @internal
  * @param connection                    Connection to the Solana network
  * @param stateTreeAddress              Address of the state tree to nullify
- * @param nullifyTableAddress           Address of the nullifier lookup table to
+ * @param nullifyLookupTableAddress     Address of the nullifier lookup table to
  *                                      store address in
  * @param stateTreeLookupTableAddress   lookup table storing all state tree
  *                                      addresses
@@ -144,60 +144,75 @@ export async function extendStateTreeLookupTable({
 export async function nullifyLookupTable({
     connection,
     fullStateTreeAddress,
-    nullifyTableAddress,
+    nullifyLookupTableAddress,
     stateTreeLookupTableAddress,
     payer,
     authority,
 }: {
     connection: Connection;
     fullStateTreeAddress: PublicKey;
-    nullifyTableAddress: PublicKey;
+    nullifyLookupTableAddress: PublicKey;
     stateTreeLookupTableAddress: PublicKey;
     payer: Keypair;
     authority: Keypair;
 }): Promise<{ txId: string }> {
-    // to be nullified address must be part of stateTreeLookupTable set
+    // to be nullified, the address must be part of stateTreeLookupTable set
     const stateTreeLookupTable = await connection.getAddressLookupTable(
         stateTreeLookupTableAddress,
     );
 
     if (!stateTreeLookupTable.value) {
+        console.log('stateTreeLookupTable', stateTreeLookupTable);
         throw new Error('State tree lookup table not found');
     }
 
     if (
-        !stateTreeLookupTable.value.state.addresses.includes(
-            fullStateTreeAddress,
-        )
+        !stateTreeLookupTable.value.state.addresses
+            .map(addr => addr.toBase58())
+            .includes(fullStateTreeAddress.toBase58())
     ) {
+        console.log('fullStateTreeAddress', fullStateTreeAddress);
+        console.log(
+            'stateTreeLookupTable.value.state.addresses',
+            stateTreeLookupTable.value.state.addresses,
+        );
         throw new Error(
             'State tree address not found in lookup table. Pass correct address or stateTreeLookupTable',
         );
     }
 
-    const nullifyTable =
-        await connection.getAddressLookupTable(nullifyTableAddress);
+    const nullifyLookupTable = await connection.getAddressLookupTable(
+        nullifyLookupTableAddress,
+    );
 
-    if (!nullifyTable.value) {
+    if (!nullifyLookupTable.value) {
         throw new Error('Nullify table not found');
     }
-    if (nullifyTable.value.state.addresses.includes(fullStateTreeAddress)) {
+    if (
+        nullifyLookupTable.value.state.addresses
+            .map(addr => addr.toBase58())
+            .includes(fullStateTreeAddress.toBase58())
+    ) {
         throw new Error('Address already exists in nullify lookup table');
     }
 
     const instructions = AddressLookupTableProgram.extendLookupTable({
         payer: payer.publicKey,
         authority: authority.publicKey,
-        lookupTable: nullifyTableAddress,
+        lookupTable: nullifyLookupTableAddress,
         addresses: [fullStateTreeAddress],
     });
 
     const blockhash = await connection.getLatestBlockhash();
 
-    const tx = buildAndSignTx([instructions], payer, blockhash.blockhash);
-    // we pass a Connection type so we don't have to depend on the Rpc module.
-    // @ts-expect-error
-    const txId = await sendAndConfirmTx(connection, tx);
+    const tx = buildAndSignTx(
+        [instructions],
+        payer,
+        blockhash.blockhash,
+        dedupeSigner(payer as Signer, [authority]),
+    );
+
+    const txId = await sendAndConfirmTx(connection as Rpc, tx);
 
     return {
         txId,

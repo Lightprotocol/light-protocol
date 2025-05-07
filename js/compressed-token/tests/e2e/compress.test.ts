@@ -120,9 +120,7 @@ describe('compress', () => {
             )
         ).mint;
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         bob = await newAccountWithLamports(rpc, 1e9);
@@ -338,7 +336,6 @@ describe('compress', () => {
         const tokenPoolInfoT22 = selectTokenPoolInfo(
             await getTokenPoolInfos(rpc, token22Mint),
         );
-        console.log('tokenPoolInfoT22', tokenPoolInfoT22);
 
         await expect(
             mintTo(

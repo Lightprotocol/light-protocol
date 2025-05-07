@@ -8,7 +8,6 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
-    getActiveStateTreeInfos,
     selectStateTreeInfo,
     StateTreeInfo,
 } from '@lightprotocol/stateless.js';
@@ -18,6 +17,7 @@ import { createAssociatedTokenAccount } from '@solana/spl-token';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
+    selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
 
@@ -95,9 +95,7 @@ describe('decompress', () => {
             )
         ).mint;
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
 
         charlieAta = await createAssociatedTokenAccount(
@@ -131,6 +129,8 @@ describe('decompress', () => {
                     mint,
                 });
 
+            tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+
             await decompress(
                 rpc,
                 payer,
@@ -138,8 +138,7 @@ describe('decompress', () => {
                 bn(5),
                 bob,
                 charlieAta,
-                stateTreeInfo,
-                tokenPoolInfos,
+                selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(5)),
             );
 
             await assertDecompress(

@@ -11,12 +11,10 @@ import {
     createTokenProgramLookupTable,
     mintTo,
 } from '../../src/actions';
-
 import {
     getTestKeypair,
     newAccountWithLamports,
     bn,
-    defaultTestStateTreeAccounts,
     Rpc,
     sendAndConfirmTx,
     buildAndSignTx,
@@ -90,9 +88,7 @@ describe('mintTo', () => {
             )
         ).mint;
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         /// Setup LUT.

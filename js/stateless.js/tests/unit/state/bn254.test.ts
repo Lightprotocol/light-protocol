@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createBN254, encodeBN254toBase58 } from '../../../src/state/BN254';
+import { createBN254, encodeBN254toBase58 } from '../../../src/state';
 import { bn } from '../../../src/state';
 import { PublicKey } from '@solana/web3.js';
 import { FIELD_SIZE } from '../../../src/constants';

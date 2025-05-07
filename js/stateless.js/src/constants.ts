@@ -62,7 +62,7 @@ export const defaultStaticAccountsStruct = () => {
 
 export type StateTreeLUTPair = {
     stateTreeLookupTable: PublicKey;
-    nullifyTable: PublicKey;
+    nullifyLookupTable: PublicKey;
 };
 
 /**
@@ -78,7 +78,7 @@ export const defaultStateTreeLookupTables = (): {
                 stateTreeLookupTable: new PublicKey(
                     stateTreeLookupTableMainnet,
                 ),
-                nullifyTable: new PublicKey(
+                nullifyLookupTable: new PublicKey(
                     nullifiedStateTreeLookupTableMainnet,
                 ),
             },
@@ -86,7 +86,7 @@ export const defaultStateTreeLookupTables = (): {
         devnet: [
             {
                 stateTreeLookupTable: new PublicKey(stateTreeLookupTableDevnet),
-                nullifyTable: new PublicKey(
+                nullifyLookupTable: new PublicKey(
                     nullifiedStateTreeLookupTableDevnet,
                 ),
             },
@@ -111,12 +111,14 @@ export const localTestActiveStateTreeInfo = (): StateTreeInfo[] => {
             queue: new PublicKey(nullifierQueuePubkey),
             cpiContext: new PublicKey(cpiContextPubkey),
             treeType: TreeType.StateV1,
+            nextTreeInfo: null,
         },
         {
             tree: new PublicKey(merkleTree2Pubkey),
             queue: new PublicKey(nullifierQueue2Pubkey),
             cpiContext: new PublicKey(cpiContext2Pubkey),
             treeType: TreeType.StateV1,
+            nextTreeInfo: null,
         },
     ];
 };
@@ -127,13 +129,14 @@ export const getDefaultAddressTreeInfo = () => {
         queue: new PublicKey(addressQueue),
         cpiContext: null,
         treeType: TreeType.AddressV1,
+        nextTreeInfo: null,
     };
 };
 /**
- * @deprecated use {@link rpc.getCachedActiveStateTreeInfos} and {@link selectStateTreeInfo} instead.
+ * @deprecated use {@link rpc.getStateTreeInfos} and {@link selectStateTreeInfo} instead.
  * for address trees, use {@link getDefaultAddressTreeInfo} instead.
  * Use only with Localnet testing.
- * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getActiveStateTreeInfos}.
+ * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getAllStateTreeInfos}.
  */
 export const defaultTestStateTreeAccounts = () => {
     return {
@@ -164,9 +167,9 @@ export const nullifiedStateTreeLookupTableMainnet =
     'H9QD4u1fG7KmkAzn2tDXhheushxFe1EcrjGGyEFXeMqT';
 
 export const stateTreeLookupTableDevnet =
-    '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
+    'Dk9mNkbiZXJZ4By8DfSP6HEE4ojZzRvucwpawLeuwq8q'; // '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
 export const nullifiedStateTreeLookupTableDevnet =
-    '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
+    'AXbHzp1NgjLvpfnD6JRTTovXZ7APUCdtWZFCRr5tCxse'; // '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
 
 export const nullifierQueuePubkey =
     'nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148';

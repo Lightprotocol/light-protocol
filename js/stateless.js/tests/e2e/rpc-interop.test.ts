@@ -9,7 +9,6 @@ import {
     compress,
     createAccount,
     createAccountWithLamports,
-    defaultTestStateTreeAccounts,
     deriveAddress,
     deriveAddressSeed,
     getDefaultAddressTreeInfo,
@@ -42,6 +41,7 @@ const logIndexed = async (
 };
 
 describe('rpc-interop', () => {
+    LightSystemProgram.deriveCompressedSolPda();
     let payer: Signer;
     let bob: Signer;
     let rpc: Rpc;
@@ -58,10 +58,11 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        const stateTreeInfos = await rpc.getActiveStateTreeInfos();
+        const stateTreeInfos = await rpc.getStateTreeInfos();
         stateTreeInfo = selectStateTreeInfo(stateTreeInfos);
 
         await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
+
         executedTxs++;
     });
 
@@ -117,12 +118,14 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
             );
         });
 
@@ -175,12 +178,14 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
             );
         });
 
@@ -290,11 +295,13 @@ describe('rpc-interop', () => {
             ),
         );
         assert.isTrue(
-            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+            newAddressProof.treeInfo.tree.equals(
+                newAddressProofTest.treeInfo.tree,
+            ),
         );
         assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
+            newAddressProof.treeInfo.queue.equals(
+                newAddressProofTest.treeInfo.queue,
             ),
         );
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
@@ -313,16 +320,18 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
                 'Mismatch in nullifierQueues expected: ' +
                     elem +
                     ' got: ' +
-                    validityProofTest.nullifierQueues[index],
+                    validityProofTest.treeInfos[index].queue,
             );
         });
 
@@ -341,7 +350,7 @@ describe('rpc-interop', () => {
             0,
             LightSystemProgram.programId,
             undefined,
-            undefined,
+            stateTreeInfo,
         );
         executedTxs++;
     });
@@ -383,13 +392,15 @@ describe('rpc-interop', () => {
         );
 
         assert.isTrue(
-            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+            newAddressProof.treeInfo.tree.equals(
+                newAddressProofTest.treeInfo.tree,
+            ),
         );
         assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
+            newAddressProof.treeInfo.queue.equals(
+                newAddressProofTest.treeInfo.queue,
             ),
-            `Mismatch in nullifierQueue expected: ${newAddressProofTest.nullifierQueue} got: ${newAddressProof.nullifierQueue}`,
+            `Mismatch in nullifierQueue expected: ${newAddressProofTest.treeInfo.queue} got: ${newAddressProof.treeInfo.queue}`,
         );
 
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));

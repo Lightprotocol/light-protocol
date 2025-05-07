@@ -1,7 +1,7 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { unpackAccount } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../program';
-import { Rpc } from '@lightprotocol/stateless.js';
+import { bn, Rpc } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 
 /**
@@ -40,7 +40,7 @@ export async function getTokenPoolInfos(
     commitment?: Commitment,
 ): Promise<TokenPoolInfo[]> {
     const addresses = Array.from({ length: 5 }, (_, i) =>
-        deriveTokenPoolPdaWithBump(mint, i),
+        CompressedTokenProgram.deriveTokenPoolPdaWithBump(mint, i),
     );
 
     const accountInfos = await rpc.getMultipleAccountsInfo(
@@ -60,7 +60,7 @@ export async function getTokenPoolInfos(
             : null,
     );
 
-    const tokenProgram = accountInfos[0]!.owner;
+    const tokenProgram = accountInfos[0].owner;
     return parsedInfos.map((parsedInfo, i) => {
         if (!parsedInfo) {
             return {
@@ -68,8 +68,9 @@ export async function getTokenPoolInfos(
                 tokenPoolPda: addresses[i],
                 tokenProgram,
                 activity: undefined,
-                balance: new BN(0),
+                balance: bn(0),
                 isInitialized: false,
+                poolIndex: i,
             };
         }
 
@@ -78,8 +79,9 @@ export async function getTokenPoolInfos(
             tokenPoolPda: parsedInfo.address,
             tokenProgram,
             activity: undefined,
-            balance: new BN(parsedInfo.amount.toString()),
+            balance: bn(parsedInfo.amount.toString()),
             isInitialized: true,
+            poolIndex: i,
         };
     });
 }
@@ -90,23 +92,9 @@ export type TokenPoolActivity = {
     action: Action;
 };
 
-export function deriveTokenPoolPdaWithBump(
-    mint: PublicKey,
-    bump: number,
-): PublicKey {
-    let seeds: Buffer[] = [];
-    if (bump === 0) {
-        seeds = [Buffer.from('pool'), mint.toBuffer()]; // legacy, 1st
-    } else {
-        seeds = [Buffer.from('pool'), mint.toBuffer(), Buffer.from([bump])];
-    }
-    const [address, _] = PublicKey.findProgramAddressSync(
-        seeds,
-        CompressedTokenProgram.programId,
-    );
-    return address;
-}
-
+/**
+ * Token pool pda info.
+ */
 export type TokenPoolInfo = {
     /**
      * The mint of the token pool
@@ -136,13 +124,24 @@ export type TokenPoolInfo = {
      * The balance of the token pool
      */
     balance: BN;
+    /**
+     * The index of the token pool
+     */
+    poolIndex: number;
 };
+
+/**
+ * @internal
+ */
 export enum Action {
     Compress = 1,
     Decompress = 2,
     Transfer = 3,
 }
 
+/**
+ * @internal
+ */
 const shuffleArray = <T>(array: T[]): T[] => {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -152,42 +151,69 @@ const shuffleArray = <T>(array: T[]): T[] => {
 };
 
 /**
+ * For `compress` and `mintTo` instructions only.
  * Select a random token pool info from the token pool infos.
+ *
+ * For `decompress`, use {@link selectTokenPoolInfosForDecompression} instead.
  *
  * @param infos The token pool infos
  *
  * @returns A random token pool info
  */
 export function selectTokenPoolInfo(infos: TokenPoolInfo[]): TokenPoolInfo {
-    infos = shuffleArray(infos);
+    const shuffledInfos = shuffleArray(infos);
 
     // filter only infos that are initialized
-    infos = infos.filter(info => info.isInitialized);
+    const filteredInfos = shuffledInfos.filter(info => info.isInitialized);
+
+    if (filteredInfos.length === 0) {
+        throw new Error(
+            'Please pass at least one initialized token pool info.',
+        );
+    }
 
     // Return a single random token pool info
-    return infos[0];
+    return filteredInfos[0];
 }
 
 /**
  * Select one or multiple token pool infos from the token pool infos.
  *
- * @param infos             The token pool infos
- * @param decompressAmount  The amount of tokens to withdraw. Only provide if
- *                          you want to withdraw a specific amount.
+ * Use this function for `decompress`.
  *
- * @returns One or multiple token pool infos
+ * For `compress`, `mintTo` use {@link selectTokenPoolInfo} instead.
+ *
+ * @param infos             The token pool infos
+ * @param decompressAmount  The amount of tokens to withdraw
+ *
+ * @returns Array with one or more token pool infos.
  */
 export function selectTokenPoolInfosForDecompression(
     infos: TokenPoolInfo[],
     decompressAmount: number | BN,
-): TokenPoolInfo | TokenPoolInfo[] {
+): TokenPoolInfo[] {
+    if (infos.length === 0) {
+        throw new Error('Please pass at least one token pool info.');
+    }
+
     infos = shuffleArray(infos);
     // Find the first info where balance is 10x the requested amount
     const sufficientBalanceInfo = infos.find(info =>
-        info.balance.gte(new BN(decompressAmount).mul(new BN(10))),
+        info.balance.gte(bn(decompressAmount).mul(bn(10))),
     );
+
     // filter only infos that are initialized
-    infos = infos.filter(info => info.isInitialized);
+    infos = infos
+        .filter(info => info.isInitialized)
+        .sort((a, b) => a.poolIndex - b.poolIndex);
+
+    const allBalancesZero = infos.every(info => info.balance.isZero());
+    if (allBalancesZero) {
+        throw new Error(
+            'All provided token pool balances are zero. Please pass recent token pool infos.',
+        );
+    }
+
     // If none found, return all infos
     return sufficientBalanceInfo ? [sufficientBalanceInfo] : infos;
 }

@@ -8,6 +8,15 @@ import {
 } from '@coral-xyz/anchor';
 import BN from 'bn.js';
 import {
+    bn,
+    InputTokenDataWithContext,
+    PackedMerkleContext,
+    ValidityProof,
+    COMPRESSED_TOKEN_PROGRAM_ID,
+    defaultStaticAccountsStruct,
+    LightSystemProgram,
+} from '@lightprotocol/stateless.js';
+import {
     encodeMintToInstructionData,
     decodeMintToInstructionData,
     encodeCompressSplTokenAccountInstructionData,
@@ -20,16 +29,15 @@ import {
     createTokenPoolAccountsLayout,
     transferAccountsLayout,
     CompressedTokenProgram,
+    CompressedTokenInstructionDataTransfer,
+    PackedTokenTransferOutputData,
+    selectTokenPoolInfo,
+    selectTokenPoolInfosForDecompression,
 } from '../../src/';
 import { Keypair } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { SystemProgram } from '@solana/web3.js';
-import {
-    COMPRESSED_TOKEN_PROGRAM_ID,
-    defaultStaticAccountsStruct,
-    LightSystemProgram,
-} from '@lightprotocol/stateless.js';
 
 const getTestProgram = (): Program<LightCompressedToken> => {
     const mockKeypair = Keypair.generate();
@@ -44,18 +52,29 @@ const getTestProgram = (): Program<LightCompressedToken> => {
     setProvider(mockProvider);
     return new Program(IDL, COMPRESSED_TOKEN_PROGRAM_ID, mockProvider);
 };
-
 function deepEqual(ref: any, val: any) {
-    if (typeof ref !== typeof val) {
-        console.log(`Type mismatch: ${typeof ref} !== ${typeof val}`);
-        return false;
+    if (ref === null && val === null) return true;
+    if (ref === null || val === null) return false;
+
+    if (ref instanceof BN || val instanceof BN) {
+        if (!(ref instanceof BN) || !(val instanceof BN)) {
+            val = bn(val);
+            const result = ref.toString().trim() === val.toString().trim();
+            if (!result) {
+                console.log(
+                    `BN mismatch: ${ref.toString()} !== ${val.toString()}`,
+                );
+            }
+            return result;
+        }
+        const result = ref.toString().trim() === val.toString().trim();
+        if (!result) {
+            console.log(`BN mismatch: ${ref.toString()} !== ${val.toString()}`);
+        }
+        return result;
     }
 
-    if (ref instanceof BN && val instanceof BN) {
-        return ref.eq(val);
-    }
-
-    if (typeof ref === 'object' && ref !== null && val !== null) {
+    if (typeof ref === 'object' && typeof val === 'object') {
         const refKeys = Object.keys(ref);
         const valKeys = Object.keys(val);
 
@@ -132,51 +151,51 @@ describe('layout', () => {
                             185, 153, 246, 199, 206, 47, 210, 17, 10, 66, 68,
                             132, 229, 12, 67, 166, 168, 229, 156, 90, 30,
                         ],
-                    },
+                    } as ValidityProof,
                     mint: new PublicKey(
                         'Bwuvv7NXd59zXRvWRCXcPLvwZ2dfedyQ9XZyqDghRFxv',
                     ),
                     delegatedTransfer: null,
                     inputTokenDataWithContext: [
                         {
-                            amount: new BN('03e8', 16),
+                            amount: new BN(1000),
                             delegateIndex: null,
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
                                 nullifierQueuePubkeyIndex: 1,
                                 leafIndex: 10,
                                 queueIndex: null,
-                            },
+                            } as PackedMerkleContext,
                             rootIndex: 11,
                             lamports: null,
                             tlv: null,
-                        },
+                        } as InputTokenDataWithContext,
                     ],
                     outputCompressedAccounts: [
                         {
                             owner: new PublicKey(
                                 'ARaDUvjovQDvFTMqaNAu9f2j1MpqJ5rhDAnDFrnyKbwg',
                             ),
-                            amount: new BN('012c', 16),
+                            amount: new BN(300),
                             lamports: null,
                             merkleTreeIndex: 0,
                             tlv: null,
-                        },
+                        } as PackedTokenTransferOutputData,
                         {
                             owner: new PublicKey(
                                 'GWYLPLzCCAVxq12UvBSpU4F8pcsmmRYQobPxkGz67ZVx',
                             ),
-                            amount: new BN('02bc', 16),
+                            amount: new BN(700),
                             lamports: null,
                             merkleTreeIndex: 0,
                             tlv: null,
-                        },
+                        } as PackedTokenTransferOutputData,
                     ],
                     compressOrDecompressAmount: null,
                     isCompress: false,
                     cpiContext: null,
                     lamportsChangeAccountMerkleTreeIndex: null,
-                },
+                } as CompressedTokenInstructionDataTransfer,
             },
             {
                 description: 'with compressOrDecompressAmount',
@@ -192,7 +211,7 @@ describe('layout', () => {
                     isCompress: true,
                     cpiContext: null,
                     lamportsChangeAccountMerkleTreeIndex: null,
-                },
+                } as CompressedTokenInstructionDataTransfer,
             },
             {
                 description: 'with delegatedTransfer',
@@ -241,7 +260,7 @@ describe('layout', () => {
                     delegatedTransfer: null,
                     inputTokenDataWithContext: [
                         {
-                            amount: new BN(1000),
+                            amount: bn(1000),
                             delegateIndex: 2,
                             merkleContext: {
                                 merkleTreePubkeyIndex: 1,
@@ -250,7 +269,7 @@ describe('layout', () => {
                                 queueIndex: { queueId: 0, index: 4 },
                             },
                             rootIndex: 5,
-                            lamports: new BN(2000),
+                            lamports: bn(2000),
                             tlv: Buffer.from([1, 2, 3]),
                         },
                     ],
@@ -275,8 +294,8 @@ describe('layout', () => {
                             owner: new PublicKey(
                                 'ARaDUvjovQDvFTMqaNAu9f2j1MpqJ5rhDAnDFrnyKbwg',
                             ),
-                            amount: new BN(3000),
-                            lamports: new BN(4000),
+                            amount: bn(3000),
+                            lamports: bn(4000),
                             merkleTreeIndex: 1,
                             tlv: Buffer.from([4, 5, 6]),
                         },
@@ -347,8 +366,10 @@ describe('layout', () => {
                     'CompressedTokenInstructionDataTransfer',
                     data,
                 );
+
                 const encoded = encodeTransferInstructionData(data);
                 const decoded = decodeTransferInstructionData(encoded);
+
                 expect(deepEqual(decoded, data)).toBe(true);
                 expect(anchorEncodedData).toEqual(
                     encoded.slice(IX_DISCRIMINATOR + LENGTH_DISCRIMINATOR),
@@ -367,7 +388,7 @@ describe('layout', () => {
                             '6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt',
                         ),
                     ],
-                    amounts: [new BN(1000)],
+                    amounts: [bn(1000)],
                     lamports: null,
                 },
             },
@@ -382,7 +403,7 @@ describe('layout', () => {
                             '8ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWs',
                         ),
                     ],
-                    amounts: [new BN(1000), new BN(2000)],
+                    amounts: [bn(1000), bn(2000)],
                     lamports: null,
                 },
             },
@@ -394,8 +415,8 @@ describe('layout', () => {
                             '6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt',
                         ),
                     ],
-                    amounts: [new BN(1000)],
-                    lamports: new BN(500),
+                    amounts: [bn(1000)],
+                    lamports: bn(500),
                 },
             },
         ];
@@ -442,7 +463,7 @@ describe('layout', () => {
                     owner: new PublicKey(
                         'CPMzHV9PsUeb5pFmyrj9nEoDwtL8CcyUKQzJXJxYRnT7',
                     ),
-                    remainingAmount: new BN(110),
+                    remainingAmount: bn(110),
                     cpiContext: null,
                 },
             },
@@ -452,7 +473,7 @@ describe('layout', () => {
                     owner: new PublicKey(
                         'CPMzHV9PsUeb5pFmyrj9nEoDwtL8CcyUKQzJXJxYRnT7',
                     ),
-                    remainingAmount: new BN(110),
+                    remainingAmount: bn(110),
                     cpiContext: {
                         setContext: true,
                         firstSetContext: true,
@@ -734,5 +755,118 @@ describe('layout', () => {
             const result = transferAccountsLayout(accounts);
             expect(result).toEqual(expected);
         });
+    });
+});
+
+describe('selectTokenPoolInfo', () => {
+    const infos = [
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                '5d77eGcKa1CDRJrHeohyT1igCCPX9SYWqBd6NZqsWMyt',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(1e9),
+            isInitialized: true,
+            poolIndex: 0,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                'CqZ5Wv44cEn2R88hrftMdWowiyPhAuLLRzj1BXyq2Kz7',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(1.5e9),
+            isInitialized: true,
+            poolIndex: 1,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                '4ne3Bk9g8gKMWjTbDNc8Sigmec2FJWUjWAraMjJcQDTS',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(10),
+            isInitialized: true,
+            poolIndex: 2,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                'Evr8a5qf2JSAf9DHF5L8qvmrdxtKWZJY9c61VkvfpTZA',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(10),
+            isInitialized: true,
+            poolIndex: 3,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                'B6XrUD6K5VQZaG7m7fVwaf7JWbJXad8PTQdzzGcHdf7E',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(0),
+            isInitialized: false,
+            poolIndex: 4,
+        },
+    ];
+
+    it('should return the correct token pool info', () => {
+        for (let i = 0; i < 10000; i++) {
+            const tokenPoolInfo = selectTokenPoolInfo(infos);
+            expect(tokenPoolInfo.poolIndex).not.toBe(4);
+            expect(tokenPoolInfo.isInitialized).toBe(true);
+        }
+
+        const decompressedInfos = selectTokenPoolInfosForDecompression(
+            infos,
+            new BN(1e9),
+        );
+        expect(decompressedInfos.length).toBe(4);
+        expect(decompressedInfos[0].poolIndex).toBe(0);
+        expect(decompressedInfos[1].poolIndex).toBe(1);
+        expect(decompressedInfos[2].poolIndex).toBe(2);
+        expect(decompressedInfos[3].poolIndex).toBe(3);
+        const decompressedInfos2 = selectTokenPoolInfosForDecompression(
+            infos,
+            new BN(1.51e8),
+        );
+        expect(decompressedInfos2.length).toBe(4);
+        expect(decompressedInfos2[0].poolIndex).toBe(0);
+        expect(decompressedInfos2[1].poolIndex).toBe(1);
+        expect(decompressedInfos2[2].poolIndex).toBe(2);
+        expect(decompressedInfos2[3].poolIndex).toBe(3);
+
+        const decompressedInfos3 = selectTokenPoolInfosForDecompression(
+            infos,
+            new BN(1.5e8),
+        );
+        expect(decompressedInfos3.length).toBe(1);
+        expect(decompressedInfos3[0].poolIndex).toBe(1);
+
+        for (let i = 0; i < 1000; i++) {
+            const decompressedInfos4 = selectTokenPoolInfosForDecompression(
+                infos,
+                new BN(1),
+            );
+            expect(decompressedInfos4.length).toBe(1);
+            expect(decompressedInfos4[0].poolIndex).not.toBe(4);
+        }
     });
 });
