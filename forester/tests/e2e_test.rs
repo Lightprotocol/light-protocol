@@ -246,38 +246,38 @@ async fn test_epoch_monitor_with_2_foresters() {
 
     const EXPECTED_EPOCHS: u64 = 3; // We expect to process 2 epochs (0 and 1)
 
-    let mut processed_epochs = HashSet::new();
-    let mut total_processed = 0;
-    while processed_epochs.len() < EXPECTED_EPOCHS as usize {
-        tokio::select! {
-            Some(report) = work_report_receiver1.recv() => {
-                println!("Received work report from forester 1: {:?}", report);
-                total_processed += report.processed_items;
-                processed_epochs.insert(report.epoch);
+        let mut processed_epochs = HashSet::new();
+        let mut total_processed = 0;
+        while processed_epochs.len() < EXPECTED_EPOCHS as usize {
+            tokio::select! {
+                Some(report) = work_report_receiver1.recv() => {
+                    println!("Received work report from forester 1: {:?}", report);
+                    total_processed += report.processed_items;
+                    processed_epochs.insert(report.epoch);
+                }
+                Some(report) = work_report_receiver2.recv() => {
+                    println!("Received work report from forester 2: {:?}", report);
+                    total_processed += report.processed_items;
+                    processed_epochs.insert(report.epoch);
+                }
+                else => break,
             }
-            Some(report) = work_report_receiver2.recv() => {
-                println!("Received work report from forester 2: {:?}", report);
-                total_processed += report.processed_items;
-                processed_epochs.insert(report.epoch);
-            }
-            else => break,
         }
-    }
 
-    println!("Processed {} items", total_processed);
+        println!("Processed {} items", total_processed);
 
-    // Verify that we've processed the expected number of epochs
-    assert_eq!(
-        processed_epochs.len(),
-        EXPECTED_EPOCHS as usize,
-        "Processed {} epochs, expected {}",
-        processed_epochs.len(),
-        EXPECTED_EPOCHS
-    );
+        // Verify that we've processed the expected number of epochs
+        assert_eq!(
+            processed_epochs.len(),
+            EXPECTED_EPOCHS as usize,
+            "Processed {} epochs, expected {}",
+            processed_epochs.len(),
+            EXPECTED_EPOCHS
+        );
 
-    // Verify that we've processed epochs 0 and 1
-    // assert!(processed_epochs.contains(&0), "Epoch 0 was not processed");
-    assert!(processed_epochs.contains(&1), "Epoch 1 was not processed");
+        // Verify that we've processed epochs 0 and 1
+        // assert!(processed_epochs.contains(&0), "Epoch 0 was not processed");
+        assert!(processed_epochs.contains(&1), "Epoch 1 was not processed");
 
     assert_trees_are_rolledover(
         &pool,

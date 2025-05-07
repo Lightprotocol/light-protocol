@@ -1,3 +1,4 @@
+use reqwest::Url;
 use forester::{
     cli::StartArgs,
     processor::v1::{
