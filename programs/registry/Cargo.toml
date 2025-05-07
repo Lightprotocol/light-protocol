@@ -19,6 +19,7 @@ default = []
 test-sbf = []
 bench-sbf = []
 sdk = []
+idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 aligned-sized = { workspace = true }

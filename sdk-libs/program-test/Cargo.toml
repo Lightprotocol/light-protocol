@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 default = []
 devenv = []
+idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 light-client = { workspace = true }
