@@ -1,3 +1,4 @@
+use reqwest::Url;
 use forester::{
     cli::StartArgs,
     send_transaction::{get_capped_priority_fee, request_priority_fee_estimate, CapConfig},
@@ -5,7 +6,6 @@ use forester::{
 };
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
-use url::Url;
 
 use crate::test_utils::init;
 mod test_utils;

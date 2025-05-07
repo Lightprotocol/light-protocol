@@ -15,6 +15,7 @@ use account_compression::utils::constants::{
 use async_trait::async_trait;
 use forester_utils::{forester_epoch::TreeAccounts, utils::wait_for_indexer};
 use futures::{stream::iter, StreamExt};
+use reqwest::Url;
 use light_client::{
     indexer::Indexer,
     rpc::{RetryConfig, RpcConnection},
@@ -40,7 +41,6 @@ use solana_sdk::{
 };
 use tokio::{join, sync::Mutex, time::Instant};
 use tracing::{debug, error, info, warn};
-use url::Url;
 
 use crate::{
     config::QueueConfig,
@@ -131,7 +131,7 @@ pub fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) ->
 }
 
 /// Setting:
-/// 1. We have 1 light slot (n solana slots), and elements in thequeue
+/// 1. We have 1 light slot (n solana slots), and elements in the queue
 /// 2. we want to send as many elements from the queue as possible
 ///
 /// Strategy:

@@ -127,6 +127,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         Some(0),
     )
     .await;
+
     // removing batched Merkle tree
     env.indexer.state_merkle_trees.remove(1);
 
@@ -419,6 +420,9 @@ async fn test_epoch_monitor_with_2_foresters() {
     let address_tree_with_rollover_threshold_0 =
         env.indexer.address_merkle_trees[1].accounts.merkle_tree;
 
+    println!("State tree with rollover threshold 0: {:?}", state_tree_with_rollover_threshold_0);
+    println!("Address tree with rollover threshold 0: {:?}", address_tree_with_rollover_threshold_0);
+
     let state_trees: Vec<StateMerkleTreeAccounts> = env
         .indexer
         .state_merkle_trees
@@ -487,7 +491,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     ));
 
     // Wait for both foresters to report work for epoch 1
-    const TIMEOUT_DURATION: Duration = Duration::from_secs(500);
+    const TIMEOUT_DURATION: Duration = Duration::from_secs(120);
     const EXPECTED_EPOCHS: u64 = 2; // We expect to process 2 epochs (0 and 1)
 
     let result: Result<(), tokio::time::error::Elapsed> = timeout(TIMEOUT_DURATION, async {
