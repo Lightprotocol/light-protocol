@@ -520,13 +520,12 @@ impl RpcConnection for SolanaRpcConnection {
             .await
     }
 
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
+    async fn get_latest_blockhash(&mut self) -> Result<(Hash, u64), RpcError> {
         self.retry(|| async {
             self.client
                 // Confirmed commitments land more reliably than finalized
                 // https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#how-to-deal-with-blockhash-errors
                 .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
-                .map(|response| response.0)
                 .map_err(RpcError::from)
         })
         .await

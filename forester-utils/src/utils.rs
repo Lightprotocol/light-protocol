@@ -27,7 +27,7 @@ pub async fn airdrop_lamports<R: RpcConnection>(
         &[transfer_instruction],
         Some(&rpc.get_payer().pubkey()),
         &vec![&rpc.get_payer()],
-        latest_blockhash,
+        latest_blockhash.0,
     );
     rpc.process_transaction(transaction).await?;
     Ok(())

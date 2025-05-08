@@ -54,12 +54,12 @@ pub async fn insert_addresses<R: RpcConnection>(
         .concat(),
         data: instruction_data.data(),
     };
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[insert_ix],
         Some(&context.get_payer().pubkey()),
         &[&context.get_payer()],
-        latest_blockhash,
+        latest_blockhash.0,
     );
     context.process_transaction(transaction).await
 }

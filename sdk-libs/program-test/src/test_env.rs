@@ -64,7 +64,7 @@ pub async fn setup_test_programs(
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::default();
     let sbf_path = std::env::var("SBF_OUT_DIR").unwrap();
-    // find path to bin where light cli stores program binaries.
+    // find a path to bin where light cli stores program binaries.
     let path = find_light_bin().unwrap();
     std::env::set_var("SBF_OUT_DIR", path.to_str().unwrap());
     program_test.add_program("light_registry", light_registry::ID, None);
@@ -97,7 +97,7 @@ pub async fn setup_test_programs(
 }
 
 fn find_light_bin() -> Option<PathBuf> {
-    // Run the 'which light' command to find the location of 'light' binary
+    // Run the 'which light' command to find the location of the 'light' binary
 
     #[cfg(not(feature = "devenv"))]
     {
@@ -1181,9 +1181,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     let merkle_tree_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        rpc.get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+        rpc.get_minimum_balance_for_rent_exemption(size).await?,
         &account_compression::ID,
         Some(merkle_tree_keypair),
     );
@@ -1193,9 +1191,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     let nullifier_queue_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        rpc.get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+        rpc.get_minimum_balance_for_rent_exemption(size).await?,
         &account_compression::ID,
         Some(nullifier_queue_keypair),
     );
@@ -1206,8 +1202,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
             .get_minimum_balance_for_rent_exemption(
                 ProtocolConfig::default().cpi_context_size as usize,
             )
-            .await
-            .unwrap();
+            .await?;
         let create_cpi_context_instruction = create_account_instruction(
             &payer.pubkey(),
             ProtocolConfig::default().cpi_context_size as usize,
@@ -1240,7 +1235,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
                 nullifier_queue_keypair,
                 cpi_context_keypair,
             ],
-            rpc.get_latest_blockhash().await.unwrap(),
+            rpc.get_latest_blockhash().await?.0,
         )
     } else {
         let instruction = create_initialize_merkle_tree_instruction(
@@ -1262,7 +1257,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
             ],
             Some(&payer.pubkey()),
             &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
-            rpc.get_latest_blockhash().await.unwrap(),
+            rpc.get_latest_blockhash().await?.0,
         )
     };
 
@@ -1290,10 +1285,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        context
-            .get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+        context.get_minimum_balance_for_rent_exemption(size).await?,
         &account_compression::ID,
         Some(address_queue_keypair),
     );
@@ -1308,10 +1300,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     let mt_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        context
-            .get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+        context.get_minimum_balance_for_rent_exemption(size).await?,
         &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
@@ -1348,7 +1337,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         ],
         Some(&payer.pubkey()),
         &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await?.0,
     );
     let result = context.process_transaction(transaction.clone()).await;
     #[allow(clippy::question_mark)]
@@ -1371,13 +1360,12 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
         *group_pda,
         program_id_keypair.pubkey(),
     );
-    let cpi_authority_pda = light_registry::utils::get_cpi_authority_pda();
+    let cpi_authority_pda = get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
         &governance_authority.pubkey(),
         &cpi_authority_pda.0,
         rpc.get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
-            .await
-            .unwrap(),
+            .await?,
     );
 
     rpc.create_and_send_transaction(
@@ -1407,8 +1395,7 @@ pub async fn deregister_program_with_registry_program<R: RpcConnection>(
         &governance_authority.pubkey(),
         &cpi_authority_pda.0,
         rpc.get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
-            .await
-            .unwrap(),
+            .await?,
     );
 
     rpc.create_and_send_transaction(

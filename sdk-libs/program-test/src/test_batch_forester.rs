@@ -466,7 +466,7 @@ pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
             queue_keypair,
             cpi_context_keypair,
         ],
-        rpc.get_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await?.0,
     );
     rpc.process_transaction(transaction).await
 }

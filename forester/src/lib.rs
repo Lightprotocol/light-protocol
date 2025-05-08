@@ -1,6 +1,5 @@
 pub type Result<T> = anyhow::Result<T>;
 
-mod batch_processor;
 pub mod cli;
 pub mod config;
 pub mod epoch_manager;
@@ -10,10 +9,10 @@ pub mod helius_priority_fee_types;
 mod indexer_type;
 pub mod metrics;
 pub mod pagerduty;
+pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
-pub mod send_transaction;
 mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
@@ -33,7 +32,6 @@ use light_client::{
     rpc_pool::SolanaRpcPool,
 };
 use light_compressed_account::TreeType;
-use send_transaction::ProcessedHashCache;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
@@ -42,6 +40,7 @@ use crate::{
     epoch_manager::{run_service, WorkReport},
     indexer_type::IndexerType,
     metrics::QUEUE_LENGTH,
+    processor::tx_cache::ProcessedHashCache,
     queue_helpers::fetch_queue_item_data,
     slot_tracker::SlotTracker,
     utils::get_protocol_config,

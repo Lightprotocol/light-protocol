@@ -8,7 +8,7 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use thiserror::Error;
 use tracing::{info, warn};
 
-use crate::batch_processor::BatchProcessError;
+use crate::processor::v2::BatchProcessError;
 
 #[derive(Error, Debug)]
 pub enum ForesterError {
@@ -36,8 +36,8 @@ pub enum ForesterError {
     #[error("RPC error: {0}")]
     Rpc(#[from] RpcError),
 
-    #[error("Pool error: {0}")]
-    Pool(#[from] PoolError),
+    #[error("RPC pool error: {0}")]
+    RpcPool(#[from] PoolError),
 
     #[error("Program error: {0}")]
     Program(#[from] ProgramError),

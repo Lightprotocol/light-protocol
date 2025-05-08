@@ -10,7 +10,7 @@ use light_compressed_account::TreeType;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
-use tracing::{debug, info, log::error};
+use tracing::{debug, error, trace, warn};
 
 use super::{address, error::Result, state, BatchProcessError};
 use crate::indexer_type::IndexerType;
@@ -46,18 +46,17 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
     }
 
     pub async fn process(&self) -> Result<usize> {
-        info!(
+        trace!(
             "Starting batch processing for tree type: {:?}",
             self.tree_type
         );
         let state = self.verify_batch_ready().await;
-        debug!("Batch ready state: {:?}", state);
 
         match state {
             BatchReadyState::ReadyForAppend => match self.tree_type {
                 TreeType::AddressV2 => address::process_batch(&self.context).await,
                 TreeType::StateV2 => {
-                    info!(
+                    trace!(
                         "Process state append for tree: {}",
                         self.context.merkle_tree
                     );
@@ -76,7 +75,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 }
             },
             BatchReadyState::ReadyForNullify => {
-                info!(
+                trace!(
                     "Processing batch for nullify, tree: {}",
                     self.context.merkle_tree
                 );
@@ -90,7 +89,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 result
             }
             BatchReadyState::NotReady => {
-                debug!(
+                warn!(
                     "Batch not ready for processing, tree: {}",
                     self.context.merkle_tree
                 );
@@ -133,9 +132,10 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 let input_fill = self.get_input_queue_completion(&mut rpc).await;
                 let output_fill = self.get_output_queue_completion(&mut rpc).await;
 
-                debug!(
+                trace!(
                     "Input queue fill: {:.2}, Output queue fill: {:.2}",
-                    input_fill, output_fill
+                    input_fill,
+                    output_fill
                 );
                 if input_fill > output_fill {
                     BatchReadyState::ReadyForNullify

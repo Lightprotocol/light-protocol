@@ -50,7 +50,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         }
     }
 
-    async fn check_send_tx_rrate_limit(&self) {
+    async fn check_send_tx_rate_limit(&self) {
         if let Some(limiter) = self.send_tx_rate_limiter() {
             limiter.acquire_with_wait().await;
         }
@@ -98,7 +98,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         payer: &'a Pubkey,
         signers: &'a [&'a Keypair],
     ) -> Result<Signature, RpcError> {
-        let blockhash = self.get_latest_blockhash().await?;
+        let blockhash = self.get_latest_blockhash().await?.0;
         let transaction =
             Transaction::new_signed_with_payer(instructions, Some(payer), signers, blockhash);
         self.process_transaction(transaction).await
@@ -128,7 +128,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     }
 
     async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError>;
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError>;
+    async fn get_latest_blockhash(&mut self) -> Result<(Hash, u64), RpcError>;
     async fn get_slot(&mut self) -> Result<u64, RpcError>;
     async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
     async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError>;

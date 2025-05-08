@@ -100,7 +100,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         .concat(),
         data: instruction_data.data(),
     };
-    let blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let blockhash = rpc.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[
             create_nullifier_queue_instruction,
@@ -113,7 +113,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
             &new_nullifier_queue_keypair,
             &new_state_merkle_tree_keypair,
         ],
-        blockhash,
+        blockhash.0,
     );
     rpc.process_transaction_with_context(transaction).await
 }

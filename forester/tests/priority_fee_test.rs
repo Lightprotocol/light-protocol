@@ -1,6 +1,9 @@
 use forester::{
     cli::StartArgs,
-    send_transaction::{get_capped_priority_fee, request_priority_fee_estimate, CapConfig},
+    processor::v1::{
+        config::CapConfig,
+        helpers::{get_capped_priority_fee, request_priority_fee_estimate},
+    },
     ForesterConfig,
 };
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};

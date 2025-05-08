@@ -5344,7 +5344,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     )
     .unwrap();
 
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer.pubkey()),
