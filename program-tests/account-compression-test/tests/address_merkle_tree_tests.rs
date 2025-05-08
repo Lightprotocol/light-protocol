@@ -213,7 +213,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
         &[queue_account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
         &vec![&payer, &queue_keypair, &merkle_tree_keypair],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap().0,
     );
 
     context.process_transaction(transaction.clone()).await

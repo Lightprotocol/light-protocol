@@ -1372,7 +1372,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&fee_payer.pubkey()),
@@ -1433,7 +1433,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&fee_payer.pubkey()),
@@ -1488,7 +1488,7 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
         1,
     );
 
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[
             merkle_tree_account_create_ix,
@@ -1851,7 +1851,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
         data: instruction_data.data(),
     };
 
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
@@ -1967,7 +1967,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
         .concat(),
         data: instruction_data.data(),
     };
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&invalid_autority.pubkey()),
