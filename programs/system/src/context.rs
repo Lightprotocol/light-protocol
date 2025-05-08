@@ -150,7 +150,10 @@ pub struct WrappedInstructionData<'a, T: InstructionData<'a>> {
     cpi_context_outputs_end_offset: usize,
 }
 
-impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
+impl<'a, 'b, T> WrappedInstructionData<'a, T>
+where
+    T: InstructionData<'a>,
+{
     pub fn new(instruction_data: T) -> std::result::Result<Self, SystemProgramError> {
         let outputs_len = instruction_data
             .output_accounts()
@@ -251,10 +254,10 @@ impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
             if let Some(cpi_context) = self.cpi_context.as_ref() {
                 if let Some(context) = cpi_context.context.first() {
                     let index = index.saturating_sub(ix_outputs_len);
-                    context
-                        .output_accounts()
+                    let accounts = context.output_accounts();
+                    accounts
                         .get(index)
-                        .map(|account| account as &dyn OutputAccount<'a>)
+                        .map(|account| account as &(dyn OutputAccount<'a> + 'b))
                 } else {
                     None
                 }
@@ -262,10 +265,10 @@ impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
                 None
             }
         } else {
-            self.instruction_data
-                .output_accounts()
+            let accounts = self.instruction_data.output_accounts();
+            accounts
                 .get(index)
-                .map(|account| account as &dyn OutputAccount<'a>)
+                .map(|account| account as &(dyn OutputAccount<'a> + 'b))
         }
     }
 }

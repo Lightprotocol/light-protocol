@@ -32,7 +32,7 @@ export async function createTokenPool(
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId
+    tokenProgramId = tokenProgramId 
         ? tokenProgramId
         : await CompressedTokenProgram.getMintProgramId(mint, rpc);
 
