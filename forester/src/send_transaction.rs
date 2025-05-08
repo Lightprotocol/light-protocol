@@ -15,7 +15,6 @@ use account_compression::utils::constants::{
 use async_trait::async_trait;
 use forester_utils::{forester_epoch::TreeAccounts, utils::wait_for_indexer};
 use futures::{stream::iter, StreamExt};
-use reqwest::Url;
 use light_client::{
     indexer::Indexer,
     rpc::{RetryConfig, RpcConnection},
@@ -29,6 +28,7 @@ use light_registry::{
     },
     utils::get_forester_epoch_pda_from_authority,
 };
+use reqwest::Url;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
     bs58,
@@ -189,21 +189,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     };
 
     let queue_item_data = {
-        let context_str = format!(
-            "send_batched_transactions (fetch_queue_item_data), tree: {}",
-            tree_accounts.merkle_tree
-        );
-        debug!("{} Attempting to get RPC connection...", context_str);
-        let rpc_result = pool.get_connection().await;
-        match rpc_result {
-            Ok(_) => {
-                debug!("{} Successfully got RPC connection.", context_str);
-            }
-            Err(ref e) => {
-                error!("{} Failed to get RPC connection: {:?}", context_str, e);
-            }
-        }
-        let mut rpc = rpc_result?;
+        let mut rpc = pool.get_connection().await?;
 
         fetch_queue_item_data(
             &mut *rpc,
@@ -221,22 +207,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     }
 
     let (recent_blockhash, current_block_height) = {
-        let context_str = format!(
-            "send_batched_transactions (blockhash/height), tree: {}",
-            tree_id_str
-        );
-        debug!("{} Attempting to get RPC connection...", context_str);
-        let rpc_result = pool.get_connection().await;
-        match rpc_result {
-            Ok(_) => {
-                debug!("{} Successfully got RPC connection.", context_str);
-            }
-            Err(ref e) => {
-                error!("{} Failed to get RPC connection: {:?}", context_str, e);
-            }
-        }
-        let mut rpc = rpc_result?;
-
+        let mut rpc = pool.get_connection().await?;
         (
             rpc.get_latest_blockhash().await?,
             rpc.get_block_height().await?,
@@ -245,22 +216,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     let last_valid_block_height = current_block_height + 150;
 
     let priority_fee = if config.build_transaction_batch_config.enable_priority_fees {
-        let context_str = format!(
-            "send_batched_transactions (priority_fee), tree: {}",
-            tree_accounts.merkle_tree
-        );
-        debug!("{} Attempting to get RPC connection...", context_str);
-        let rpc_result = pool.get_connection().await;
-        match rpc_result {
-            Ok(_) => {
-                debug!("{} Successfully got RPC connection.", context_str);
-            }
-            Err(ref e) => {
-                error!("{} Failed to get RPC connection: {:?}", context_str, e);
-            }
-        }
-        let rpc = rpc_result?;
-
+        let rpc = pool.get_connection().await?;
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(derivation, transaction_builder.epoch()).0;
 
@@ -291,7 +247,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
     for work_chunk in work_items.chunks(config.build_transaction_batch_config.batch_size as usize) {
         if cancel_signal.load(Ordering::SeqCst) {
-            info!(tree = %tree_id_str, "Cancellation signal received, stopping batch processing.");
+            debug!(tree = %tree_id_str, "Cancellation signal received, stopping batch processing.");
             break;
         }
         if Instant::now() >= timeout_deadline {
@@ -354,12 +310,9 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 let tx_signature_str = tx_signature.to_string();
                 let context_str = format!("send_batched_transactions (concurrent sender), tree: {}, tx_sig_prefix: {}", tree_id_str_clone, &tx_signature_str[..8]);
 
-                debug!(context = %context_str, "Attempting to get RPC connection...");
                 let rpc_result = pool_clone.get_connection().await;
-
                 match rpc_result {
                     Ok(mut rpc) => {
-                        debug!(context = %context_str, "Successfully got RPC connection.");
                         if Instant::now() >= deadline {
                             warn!(context = %context_str, "Reached timeout deadline after getting connection, skipping send");
                             return;
@@ -371,15 +324,12 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                             match result {
                                 Ok(signature) => {
                                     num_sent_transactions_clone.fetch_add(1, Ordering::SeqCst);
-                                    info!(tree = %tree_id_str_clone, queue = %queue_id_str_clone, tx = %signature, "Transaction sent successfully");
+                                    debug!(tree = %tree_id_str_clone, queue = %queue_id_str_clone, tx = %signature, "Transaction sent successfully");
                                 }
                                 Err(e) => {
                                     warn!(tree = %tree_id_str_clone, queue = %queue_id_str_clone, tx = %tx_signature_str, "Transaction send/process failed: {:?}", e);
-                                    let retry_check_context = format!("send_batched_transactions (retry check), tree: {}", tree_id_str_clone);
-                                    debug!(context = %retry_check_context, "Attempting RPC connection for retry check...");
                                     match pool_clone.get_connection().await {
                                         Ok(check_rpc) => {
-                                            debug!(context = %retry_check_context, "Got RPC connection for retry check.");
                                             if !check_rpc.should_retry(&e) {
                                                 warn!(tree = %tree_id_str_clone, queue = %queue_id_str_clone, tx = %tx_signature_str, "Non-retryable RPC error detected, setting cancel signal: {:?}", e);
                                                 cancel_signal_clone.store(true, Ordering::SeqCst);
@@ -405,15 +355,15 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             }
         });
 
-        info!(tree = %tree_id_str, "Executing batch of {} sends with concurrency limit {}", work_chunk.len(), MAX_CONCURRENT_SENDS);
+        debug!(tree = %tree_id_str, "Executing batch of {} sends with concurrency limit {}", work_chunk.len(), MAX_CONCURRENT_SENDS);
         let exec_start = Instant::now();
         send_futures_stream
             .for_each_concurrent(MAX_CONCURRENT_SENDS, |f| f)
             .await;
-        info!(tree = %tree_id_str, "Finished executing batch in {:?}", exec_start.elapsed());
+        debug!(tree = %tree_id_str, "Finished executing batch in {:?}", exec_start.elapsed());
     }
 
-    info!(tree = %tree_id_str, "Transaction sending loop finished. Total transactions sent attempt count: {}", num_sent_transactions.load(Ordering::Relaxed));
+    debug!(tree = %tree_id_str, "Transaction sending loop finished. Total transactions sent attempt count: {}", num_sent_transactions.load(Ordering::Relaxed));
     Ok(num_sent_transactions.load(Ordering::SeqCst))
 }
 
@@ -437,7 +387,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManagerTransactions<R, I> {
             pool,
             epoch,
             phantom: std::marker::PhantomData,
-            processed_hash_cache: cache, //Arc::new(Mutex::new(ProcessedHashCache::new(15))),
+            processed_hash_cache: cache,
         }
     }
 }
@@ -587,32 +537,10 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         None
     };
 
-    if let Some((merkle_tree, addresses)) = &address_data {
-        info!(
-            "Address merkle tree: {}",
-            bs58::encode(merkle_tree).into_string()
-        );
-        info!("Looking up {} addresses:", addresses.len());
-        for (idx, hash) in addresses.iter().enumerate() {
-            info!("  Address {}: {}", idx, bs58::encode(hash).into_string());
-        }
-    }
-
-    if let Some(states) = &state_data {
-        info!("Looking up {} state hashes:", states.len());
-        for (idx, hash) in states.iter().enumerate() {
-            info!("  Hash {}: {}", idx, hash);
-        }
-    }
-
-    info!("Attempting to acquire indexer lock...");
     let indexer_guard = indexer.lock().await;
-    info!("Acquired indexer lock.");
-
     let mut rpc = pool
         .get_connection()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to get RPC connection: {}", e))?;
+        .await?;
 
     if let Err(e) = wait_for_indexer(&mut *rpc, &*indexer_guard).await {
         warn!("Indexer not fully caught up, but proceeding anyway: {}", e);
@@ -621,7 +549,6 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
     let (address_proofs_result, state_proofs_result) = {
         let address_future = async {
             if let Some((merkle_tree, addresses)) = address_data {
-                debug!("Fetching proofs for {} addresses", addresses.len());
                 indexer_guard
                     .get_multiple_new_address_proofs(merkle_tree, addresses)
                     .await

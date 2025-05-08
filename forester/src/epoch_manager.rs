@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use dashmap::DashMap;
 use forester_utils::forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule};
 use futures::future::join_all;
@@ -940,7 +940,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     if tree.tree_accounts.tree_type == TreeType::StateV1
                         || tree.tree_accounts.tree_type == TreeType::AddressV1
                     {
-                        let transaction_timeout_buffer = Duration::from_secs(60);
+                        let transaction_timeout_buffer = Duration::ZERO;
 
                         let remaining_time_timeout = calculate_remaining_time_or_default(
                             estimated_slot,
@@ -1009,20 +1009,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                                     )
                                     .await;
                                     items_processed_this_iteration = num_sent;
-
-                                    trace!(
-                                        "Checking for rollover readiness after processing batch..."
-                                    );
-                                    if let Err(e) =
-                                        self.rollover_if_needed(&tree.tree_accounts).await
-                                    {
-                                        error!(
-                                            "Rollover check failed during slot processing: {:?}",
-                                            e
-                                        );
-                                    } else {
-                                        trace!("Rollover check completed.");
-                                    }
                                 } else {
                                     info!("send_batched_transactions processed 0 items. Queue likely empty for this attempt.");
                                 }
@@ -1034,6 +1020,10 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                                 );
                                 iteration_failed = true;
                             }
+                        }
+
+                        if let Err(e) = self.rollover_if_needed(&tree.tree_accounts).await {
+                            error!("Rollover check failed during slot processing: {:?}", e);
                         }
                     } else if tree.tree_accounts.tree_type == TreeType::StateV2
                         || tree.tree_accounts.tree_type == TreeType::AddressV2
@@ -1294,10 +1284,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 )
                 .await
             }
-            _ => panic!(
-                "perform rollover: Invalid tree type {:?}",
-                tree_account.tree_type
-            ),
+            _ => Err(ForesterError::InvalidTreeType(tree_account.tree_type)),
         };
 
         match result {
