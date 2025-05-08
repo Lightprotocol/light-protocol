@@ -41,6 +41,7 @@ const SendButton: FC = () => {
             await connection.getStateTreeInfos(),
         );
 
+
         if (!publicKey) throw new WalletNotConnectedError();
 
         /// airdrop
@@ -112,7 +113,6 @@ const SendButton: FC = () => {
             toAddress: recipient,
             lamports: 1e7,
             inputCompressedAccounts: selectedAccounts,
-            outputStateTreeInfo: stateTreeInfo,
             recentValidityProof: compressedProof,
             recentInputStateRootIndices: rootIndices,
         });
