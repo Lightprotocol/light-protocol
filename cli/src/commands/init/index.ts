@@ -29,7 +29,7 @@ import {
   kebabCase,
   snakeCase,
 } from "case-anything";
-import { execSync } from "child_process";
+
 export default class InitCommand extends Command {
   static description = "Initialize a compressed account project.";
 

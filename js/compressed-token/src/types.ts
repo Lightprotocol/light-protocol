@@ -1,9 +1,11 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
-    CompressedProof,
+    ValidityProof,
     PackedMerkleContext,
 } from '@lightprotocol/stateless.js';
+import { TokenPoolInfo } from './utils/get-token-pool-infos';
 
 export type CompressedCpiContext = {
     setContext: boolean;
@@ -78,11 +80,17 @@ export type CompressSplTokenAccountInstructionData = {
     cpiContext: CompressedCpiContext | null;
 };
 
+export function isSingleTokenPoolInfo(
+    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[],
+): tokenPoolInfos is TokenPoolInfo {
+    return !Array.isArray(tokenPoolInfos);
+}
+
 export type CompressedTokenInstructionDataTransfer = {
     /**
      * Validity proof
      */
-    proof: CompressedProof | null;
+    proof: ValidityProof | null;
     /**
      * The mint of the transfer
      */
@@ -145,4 +153,24 @@ export type TokenData = {
      * TokenExtension tlv
      */
     tlv: Buffer | null;
+};
+
+export type CompressedTokenInstructionDataApprove = {
+    proof: ValidityProof;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    delegate: PublicKey;
+    delegatedAmount: BN;
+    delegateMerkleTreeIndex: number;
+    changeAccountMerkleTreeIndex: number;
+    delegateLamports: BN | null;
+};
+
+export type CompressedTokenInstructionDataRevoke = {
+    proof: ValidityProof;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    outputAccountMerkleTreeIndex: number;
 };

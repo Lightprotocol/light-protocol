@@ -11,23 +11,30 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    pickRandomTreeAndQueue,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../utils/get-token-pool-infos';
+
 /**
  * Mint compressed tokens to a solana address from an external mint authority
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of the transaction fees
- * @param mint           Mint for the account
- * @param destination    Address of the account to mint to
- * @param authority      Minting authority
- * @param amount         Amount to mint
- * @param merkleTree     State tree account that the compressed tokens should be
- *                       part of. Defaults to random public state tree account.
- * @param confirmOptions Options for confirming the transaction
+ * @param rpc                   Rpc to use
+ * @param payer                 Payer of the transaction fees
+ * @param mint                  Mint for the account
+ * @param toPubkey              Address of the account to mint to
+ * @param authority             Minting authority
+ * @param amount                Amount to mint
+ * @param outputStateTreeInfo   State tree info
+ * @param tokenPoolInfo         Token pool info
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
  */
@@ -35,16 +42,19 @@ export async function approveAndMintTo(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    destination: PublicKey,
+    toPubkey: PublicKey,
     authority: Signer,
     amount: number | BN,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
+    tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
-    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId
-        ? tokenProgramId
-        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getStateTreeInfos());
+    tokenPoolInfo =
+        tokenPoolInfo ??
+        selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
     const authorityTokenAccount = await getOrCreateAssociatedTokenAccount(
         rpc,
@@ -54,14 +64,8 @@ export async function approveAndMintTo(
         undefined,
         undefined,
         confirmOptions,
-        tokenProgramId,
+        tokenPoolInfo.tokenProgram,
     );
-
-    if (!merkleTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        merkleTree = tree;
-    }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
         feePayer: payer.publicKey,
@@ -69,25 +73,20 @@ export async function approveAndMintTo(
         authority: authority.publicKey,
         authorityTokenAccount: authorityTokenAccount.address,
         amount,
-        toPubkey: destination,
-        merkleTree,
-        tokenProgramId,
+        toPubkey,
+        outputStateTreeInfo,
+        tokenPoolInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [authority]);
 
     const tx = buildAndSignTx(
-        [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            ...ixs,
-        ],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ...ixs],
         payer,
         blockhash,
         additionalSigners,
     );
 
-    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
-
-    return txId;
+    return await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
