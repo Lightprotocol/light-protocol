@@ -929,7 +929,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 .await?
             {
                 break 'inner_processing_loop;
-                }
+                    }
 
             let processing_start_time = Instant::now();
             let items_processed_this_iteration = match self
@@ -1081,9 +1081,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                             Err(e) => {
                 error!("Failed to rollover tree: {:?}", e);
                 Err(e)
-                                    }
                                 }
                             }
+                        }
 
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
                         let batch_context = BatchContext {

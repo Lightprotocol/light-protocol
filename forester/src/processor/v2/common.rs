@@ -89,7 +89,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 result
             }
             BatchReadyState::NotReady => {
-                trace!(
+                debug!(
                     "Batch not ready for processing, tree: {}",
                     self.context.merkle_tree
                 );
