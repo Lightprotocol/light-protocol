@@ -105,11 +105,13 @@ To run specific tests cd into respective folder (merkle-tree/prover) and `go tes
 ```shell
 docker build -t light-prover .
 
-# /host/path/to/keys should contain the config file
-docker run -it \
-    --mount type=bind,source=host/path/to/config,target=/config \
-    -p 3001:3001 \
-    light-prover
+docker run -d \
+  -v /path/to/proving-keys:/proving-keys/:ro \
+  -p 3001:3001 \
+  light-prover:latest \
+  start \
+  --run-mode forester-test \
+  --keys-dir /proving-keys/
 ```
 
 Or in docker compose
@@ -119,7 +121,7 @@ light-prover:
   # Path to the repo root directory
   build: ./light-prover
   volumes:
-    - /host/path/to/config:/config
+    - /host/path/to/proving-keys:/proving-keys
   ports:
     # Server
     - "3001:3001"
