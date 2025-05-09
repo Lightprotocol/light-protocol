@@ -90,7 +90,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         .unwrap_or(1)
         .max(1);
 
-    info!(tree = %tree_accounts.merkle_tree, "Starting transaction sending loop. Timeout: {:?}. Max concurrent sends: {}", config.retry_config.timeout, max_concurrent_sends);
+    trace!(tree = %tree_accounts.merkle_tree, "Starting transaction sending loop. Timeout: {:?}. Max concurrent sends: {}", config.retry_config.timeout, max_concurrent_sends);
 
     for work_chunk in data
         .work_items
@@ -101,11 +101,11 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             break;
         }
         if Instant::now() >= data.timeout_deadline {
-            warn!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline before processing next chunk, stopping.");
+            trace!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline before processing next chunk, stopping.");
             break;
         }
 
-        debug!(tree = %tree_accounts.merkle_tree, "Processing chunk of size {}", work_chunk.len());
+        trace!(tree = %tree_accounts.merkle_tree, "Processing chunk of size {}", work_chunk.len());
         let build_start_time = Instant::now();
 
         let (transactions_to_send, _) = match transaction_builder
@@ -127,7 +127,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 break;
             }
         };
-        debug!(tree = %tree_accounts.merkle_tree, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());
+        trace!(tree = %tree_accounts.merkle_tree, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());
 
         if Instant::now() >= data.timeout_deadline {
             warn!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline after building transactions, stopping.");
@@ -151,7 +151,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     }
 
     let total_sent_successfully = num_sent_transactions.load(Ordering::SeqCst);
-    debug!(tree = %tree_accounts.merkle_tree, "Transaction sending loop finished. Total transactions sent successfully: {}", total_sent_successfully);
+    trace!(tree = %tree_accounts.merkle_tree, "Transaction sending loop finished. Total transactions sent successfully: {}", total_sent_successfully);
     Ok(total_sent_successfully)
 }
 
@@ -333,7 +333,7 @@ async fn execute_transaction_chunk_sending<R: RpcConnection>(
         }
     });
 
-    debug!(
+    trace!(
         "Executing batch of sends with concurrency limit {}",
         max_concurrent_sends
     );
@@ -342,7 +342,7 @@ async fn execute_transaction_chunk_sending<R: RpcConnection>(
         .buffer_unordered(max_concurrent_sends) // buffer_unordered for concurrency
         .collect::<Vec<TransactionSendResult>>()
         .await;
-    debug!("Finished executing batch in {:?}", exec_start.elapsed());
+    trace!("Finished executing batch in {:?}", exec_start.elapsed());
 
     let mut successes = 0;
     let mut failures = 0;
