@@ -5404,6 +5404,7 @@ async fn test_transfer_with_batched_tree() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_transfer_with_transaction_hash() {
     for with_transaction_hash in [true, false] {
