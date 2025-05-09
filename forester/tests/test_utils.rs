@@ -4,12 +4,9 @@ use forester::{
     telemetry::setup_telemetry,
     ForesterConfig,
 };
-use light_client::{
-    indexer::{
-        photon_indexer::PhotonIndexer, Base58Conversions, Indexer, IndexerError,
-        NewAddressProofWithContext,
-    },
-    rpc::RpcConnection,
+use light_client::indexer::{
+    photon_indexer::PhotonIndexer, Base58Conversions, Indexer, IndexerError,
+    NewAddressProofWithContext,
 };
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{

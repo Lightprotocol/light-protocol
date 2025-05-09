@@ -69,7 +69,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
 }
 
 pub async fn perform_create_pda_with_event_rnd<
-    R: RpcConnection,
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
     I: Indexer + TestIndexerExtensions,
 >(
     test_indexer: &mut I,
@@ -82,7 +82,10 @@ pub async fn perform_create_pda_with_event_rnd<
     perform_create_pda_with_event(test_indexer, rpc, env, payer, seed, &data).await
 }
 
-pub async fn perform_create_pda_with_event<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn perform_create_pda_with_event<
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     test_indexer: &mut I,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -135,8 +138,9 @@ pub async fn perform_create_pda_with_event<R: RpcConnection, I: Indexer + TestIn
         .unwrap()
         .queue_elements
         .len();
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
+    let event =
+        light_program_test::test_rpc::TestRpc::create_and_send_transaction_with_public_event(
+            rpc,
             &[instruction],
             &payer.pubkey(),
             &[payer],

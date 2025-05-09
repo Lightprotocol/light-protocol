@@ -3,7 +3,8 @@ use forester::{
     send_transaction::{get_capped_priority_fee, request_priority_fee_estimate, CapConfig},
     ForesterConfig,
 };
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
+use light_test_utils::SolanaRpcUrl;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
 use url::Url;
 

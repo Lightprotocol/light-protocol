@@ -11,7 +11,10 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
+    rpc::{
+        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
+        SolanaRpcConnection,
+    },
 };
 use light_program_test::{accounts::env_accounts::EnvAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
@@ -72,7 +75,7 @@ async fn test_address_batched() {
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
         url: SolanaRpcUrl::Localnet.to_string(),
-        commitment_config: Some(CommitmentConfig::processed()),
+        commitment_config: Some(commitment_config),
         with_indexer: false,
     });
     rpc.payer = forester_keypair.insecure_clone();

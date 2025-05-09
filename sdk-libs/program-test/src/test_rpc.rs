@@ -557,36 +557,7 @@ impl RpcConnection for ProgramTestRpcConnection {
 impl MerkleTreeExt for ProgramTestRpcConnection {}
 
 #[async_trait]
-pub trait TestRpc {
-    async fn create_and_send_transaction_with_batched_event(
-        &mut self,
-        instructions: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError>;
-
-    async fn create_and_send_transaction_with_event<T>(
-        &mut self,
-        instructions: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
-    where
-        T: BorshDeserialize + Send + Debug;
-
-    async fn create_and_send_transaction_with_public_event(
-        &mut self,
-        instructions: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError>;
-}
-
-#[async_trait]
-impl TestRpc for ProgramTestRpcConnection {
+pub trait TestRpc: RpcConnection + Sized {
     async fn create_and_send_transaction_with_batched_event(
         &mut self,
         instructions: &[Instruction],
@@ -596,9 +567,13 @@ impl TestRpc for ProgramTestRpcConnection {
     ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
         let pre_balance = self.get_balance(payer).await?;
 
-        let event = self
-            ._create_and_send_transaction_with_batched_event(instructions, payer, signers)
-            .await?;
+        let event = <Self as RpcConnection>::create_and_send_transaction_with_batched_event(
+            self,
+            instructions,
+            payer,
+            signers,
+        )
+        .await?;
         assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
 
         Ok(event)
@@ -616,9 +591,13 @@ impl TestRpc for ProgramTestRpcConnection {
     {
         let pre_balance = self.get_balance(payer).await?;
 
-        let result = self
-            ._create_and_send_transaction_with_event::<T>(instructions, payer, signers)
-            .await?;
+        let result = <Self as RpcConnection>::create_and_send_transaction_with_event::<T>(
+            self,
+            instructions,
+            payer,
+            signers,
+        )
+        .await?;
         assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
 
         Ok(result)
@@ -633,13 +612,89 @@ impl TestRpc for ProgramTestRpcConnection {
     ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
         let pre_balance = self.get_balance(payer).await?;
 
-        let res = self
-            ._create_and_send_transaction_with_batched_event(instructions, payer, signers)
-            .await?;
+        let res = <Self as RpcConnection>::create_and_send_transaction_with_batched_event(
+            self,
+            instructions,
+            payer,
+            signers,
+        )
+        .await?;
         assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
 
         let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
 
         Ok(event)
     }
+}
+#[async_trait]
+impl TestRpc for SolanaRpcConnection {}
+#[async_trait]
+impl TestRpc for ProgramTestRpcConnection {
+    // async fn create_and_send_transaction_with_batched_event(
+    //     &mut self,
+    //     instructions: &[Instruction],
+    //     payer: &Pubkey,
+    //     signers: &[&Keypair],
+    //     transaction_params: Option<TransactionParams>,
+    // ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
+    //     let pre_balance = self.get_balance(payer).await?;
+
+    //     let event = <self as RpcConnection>::create_and_send_transaction_with_batched_event(
+    //         self,
+    //         instructions,
+    //         payer,
+    //         signers,
+    //     )
+    //     .await?;
+    //     assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+
+    //     Ok(event)
+    // }
+
+    // async fn create_and_send_transaction_with_event<T>(
+    //     &mut self,
+    //     instructions: &[Instruction],
+    //     payer: &Pubkey,
+    //     signers: &[&Keypair],
+    //     transaction_params: Option<TransactionParams>,
+    // ) -> Result<Option<(T, Signature, Slot)>, RpcError>
+    // where
+    //     T: BorshDeserialize + Send + Debug,
+    // {
+    //     let pre_balance = self.get_balance(payer).await?;
+
+    //     let result = <self as RpcConnection>::create_and_send_transaction_with_event::<T>(
+    //         self,
+    //         instructions,
+    //         payer,
+    //         signers,
+    //     )
+    //     .await?;
+    //     assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+
+    //     Ok(result)
+    // }
+
+    // async fn create_and_send_transaction_with_public_event(
+    //     &mut self,
+    //     instructions: &[Instruction],
+    //     payer: &Pubkey,
+    //     signers: &[&Keypair],
+    //     transaction_params: Option<TransactionParams>,
+    // ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
+    //     let pre_balance = self.get_balance(payer).await?;
+
+    //     let res = <self as RpcConnection>::create_and_send_transaction_with_batched_event(
+    //         self,
+    //         instructions,
+    //         payer,
+    //         signers,
+    //     )
+    //     .await?;
+    //     assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+
+    //     let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
+
+    //     Ok(event)
+    // }
 }

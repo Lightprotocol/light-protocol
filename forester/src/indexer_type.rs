@@ -35,7 +35,6 @@ mod sealed {
 
 #[async_trait]
 pub trait IndexerType<R: RpcConnection>: Indexer + sealed::Sealed {
-    // PhantomData field to hold the R type parameter
     fn rpc_phantom(&self) -> PhantomData<R> {
         PhantomData
     }

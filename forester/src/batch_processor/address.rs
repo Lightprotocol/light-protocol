@@ -83,7 +83,6 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer + IndexerType<R>>
                 &instructions,
                 &context.authority.pubkey(),
                 &[&context.authority],
-                None,
             )
             .await
         {

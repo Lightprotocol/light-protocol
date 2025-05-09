@@ -8,7 +8,10 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer},
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
+    rpc::{
+        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
+        SolanaRpcConnection,
+    },
 };
 use light_compressed_account::{
     address::derive_address_legacy,

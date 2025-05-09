@@ -7,7 +7,6 @@ use light_client::{
 use light_compressed_account::address::derive_address;
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::indexed::IndexedMerkleTree;
-use log::info;
 use num_bigint::BigUint;
 use rand::{prelude::StdRng, Rng, SeedableRng};
 use solana_sdk::{signature::Signer, transaction::Transaction};
@@ -59,9 +58,6 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer>(
     let mut attempts = 0;
 
     while rpc_slot > indexer_slot {
-        info!("indexer slot {}", indexer_slot);
-        info!("rpc_slot slot {}", rpc_slot);
-
         if attempts >= max_attempts {
             return Err(ForesterUtilsError::Indexer(
                 "Maximum attempts reached waiting for indexer to catch up".into(),

@@ -1834,18 +1834,7 @@ async fn test_batch_address_tree() {
         CREATE_ADDRESS_TEST_PROGRAM_ID,
     )]);
     let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
-    // let (mut rpc, env) =
-    //     setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-    //         Some(vec![(
-    //             "create_address_test_program",
-    //             CREATE_ADDRESS_TEST_PROGRAM_ID,
-    //         )]),
-    //         ProtocolConfig::default(),
-    //         true,
-    //         InitStateTreeAccountsInstructionData::test_default(),
-    //         tree_params,
-    //     )
-    //     .await;
+
     spawn_prover(
         true,
         ProverConfig {
@@ -2028,18 +2017,6 @@ async fn test_rollover_batch_address_tree() {
     config.batched_address_tree_init_params = Some(tree_params);
     let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
 
-    // let (mut rpc, env) =
-    //     setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-    //         Some(vec![(
-    //             "create_address_test_program",
-    //             CREATE_ADDRESS_TEST_PROGRAM_ID,
-    //         )]),
-    //         ProtocolConfig::default(),
-    //         true,
-    //         InitStateTreeAccountsInstructionData::test_default(),
-    //         tree_params,
-    //     )
-    //     .await;
     spawn_prover(
         true,
         ProverConfig {

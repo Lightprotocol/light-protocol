@@ -1,8 +1,15 @@
 use std::fmt::Debug;
 
-use light_client::indexer::{IndexerError, LeafIndexInfo, StateMerkleTreeAccounts};
+use light_client::indexer::{IndexerError, StateMerkleTreeAccounts};
 use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
+
+#[derive(Debug, Clone)]
+pub struct LeafIndexInfo {
+    pub leaf_index: u32,
+    pub leaf: [u8; 32],
+    pub tx_hash: [u8; 32],
+}
 
 #[derive(Debug, Clone)]
 pub struct StateMerkleTreeBundle {

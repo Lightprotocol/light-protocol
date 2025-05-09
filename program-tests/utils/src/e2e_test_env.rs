@@ -256,7 +256,9 @@ impl Stats {
     }
 }
 
-pub async fn init_program_test_env<R: RpcConnection + MerkleTreeExt + TestRpcConnection>(
+pub async fn init_program_test_env<
+    R: RpcConnection + MerkleTreeExt + TestRpcConnection + light_program_test::test_rpc::TestRpc,
+>(
     rpc: R,
     env_accounts: &EnvAccounts,
     skip_prover: bool,
@@ -336,7 +338,10 @@ pub struct TestForester {
     is_registered: Option<u64>,
 }
 
-pub struct E2ETestEnv<R: RpcConnection + TestRpcConnection, I: Indexer + TestIndexerExtensions> {
+pub struct E2ETestEnv<
+    R: RpcConnection + TestRpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+> {
     pub payer: Keypair,
     pub governance_keypair: Keypair,
     pub indexer: I,
@@ -359,7 +364,10 @@ pub struct E2ETestEnv<R: RpcConnection + TestRpcConnection, I: Indexer + TestInd
     pub registration_epoch: u64,
 }
 
-impl<R: RpcConnection + TestRpcConnection, I: Indexer + TestIndexerExtensions> E2ETestEnv<R, I>
+impl<
+        R: RpcConnection + TestRpcConnection + light_program_test::test_rpc::TestRpc,
+        I: Indexer + TestIndexerExtensions,
+    > E2ETestEnv<R, I>
 where
     R: RpcConnection,
     I: Indexer,
@@ -2792,9 +2800,14 @@ where
             None,
         );
 
-        let res = self
-            .rpc
-            .create_and_send_transaction_with_public_event(&[instruction], &user.pubkey(), &[user])
+        let res =
+            light_program_test::test_rpc::TestRpc::create_and_send_transaction_with_public_event(
+                &mut self.rpc,
+                &[instruction],
+                &user.pubkey(),
+                &[user],
+                None,
+            )
             .await?;
         // In case that only read only accounts exist in a transaction
         // the account compression program is not invoked -> there is no event and it is ok.

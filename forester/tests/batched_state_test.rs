@@ -9,7 +9,10 @@ use light_batched_merkle_tree::{
     batch::BatchState, initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_client::rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{
+    rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
+    SolanaRpcConnection,
+};
 use light_program_test::{accounts::env_accounts::EnvAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::LightValidatorConfig;
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
@@ -68,7 +71,7 @@ async fn test_state_batched() {
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
         url: SolanaRpcUrl::Localnet.to_string(),
-        commitment_config: Some(CommitmentConfig::processed()),
+        commitment_config: Some(commitment_config),
         with_indexer: false,
     });
     rpc.payer = forester_keypair.insecure_clone();

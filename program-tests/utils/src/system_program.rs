@@ -36,7 +36,10 @@ use crate::assert_compressed_tx::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_addresses_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn create_addresses_test<
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     address_merkle_tree_pubkeys: &[Pubkey],
@@ -114,7 +117,10 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer + TestIndexerExt
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_sol_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn compress_sol_test<
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -173,7 +179,10 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer + TestIndexerExtensi
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_sol_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn decompress_sol_test<
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -217,7 +226,10 @@ pub async fn decompress_sol_test<R: RpcConnection, I: Indexer + TestIndexerExten
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn transfer_compressed_sol_test<
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -303,7 +315,10 @@ pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn compressed_transaction_test<
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
@@ -419,9 +434,9 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer + TestInde
             None => 0,
         };
     }
-    let event = inputs
-        .rpc
-        .create_and_send_transaction_with_public_event(
+    let event =
+        light_program_test::test_rpc::TestRpc::create_and_send_transaction_with_public_event(
+            inputs.rpc,
             &[instruction],
             &inputs.fee_payer.pubkey(),
             &[inputs.fee_payer, inputs.authority],

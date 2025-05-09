@@ -503,7 +503,10 @@ pub async fn create_token_2022_account<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn compressed_transfer_test<
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -539,7 +542,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer + TestIndexer
 
 #[allow(clippy::too_many_arguments)]
 pub async fn compressed_transfer_22_test<
-    R: RpcConnection + TestRpc,
+    R: RpcConnection + light_program_test::test_rpc::TestRpc,
     I: Indexer + TestIndexerExtensions,
 >(
     payer: &Keypair,

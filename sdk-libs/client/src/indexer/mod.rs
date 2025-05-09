@@ -19,7 +19,7 @@ mod types;
 
 pub use base58::Base58Conversions;
 pub use error::IndexerError;
-// // #[cfg(feature = "v2")]
+//
 pub use types::ProofRpcResultV2;
 pub use types::{
     Address, AddressWithTree, Hash, MerkleProof, MerkleProofWithContext, ProofOfLeaf,
@@ -107,27 +107,24 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError>;
 
-    async fn get_validity_proof(
-        &self,
-        hashes: Vec<Hash>,
-        new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResult, IndexerError>;
-
-    // #[cfg(feature = "v2")]
-    async fn get_validity_proof_v2(
-        &self,
-        hashes: Vec<Hash>,
-        new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<types::ProofRpcResultV2, IndexerError>;
-
-    // #[cfg(feature = "v2")]
     async fn get_multiple_new_address_proofs_h40(
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError>;
 
-    // #[cfg(feature = "v2")]
+    async fn get_validity_proof(
+        &self,
+        hashes: Vec<Hash>,
+        new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<ProofRpcResult, IndexerError>;
+
+    async fn get_validity_proof_v2(
+        &self,
+        hashes: Vec<Hash>,
+        new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<types::ProofRpcResultV2, IndexerError>;
+
     async fn get_address_queue_with_proofs(
         &mut self,
         merkle_tree_pubkey: &Pubkey,
@@ -138,7 +135,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     /// queues account compression program does not store queue elements in the
     /// account data but only emits these in the public transaction event. The
     /// indexer needs the queue elements to create batch update proofs.
-    // #[cfg(feature = "v2")]
     async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
@@ -147,7 +143,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError>;
 
-    // #[cfg(feature = "v2")]
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],
@@ -181,14 +176,6 @@ pub struct StateMerkleTreeAccounts {
 pub struct AddressMerkleTreeAccounts {
     pub merkle_tree: Pubkey,
     pub queue: Pubkey,
-}
-
-// TODO: move to test indexer
-#[derive(Debug, Clone)]
-pub struct LeafIndexInfo {
-    pub leaf_index: u32,
-    pub leaf: [u8; 32],
-    pub tx_hash: [u8; 32],
 }
 
 pub trait IntoPhotonAccount {

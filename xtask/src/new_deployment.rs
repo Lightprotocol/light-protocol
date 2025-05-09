@@ -9,7 +9,7 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
 use light_program_test::accounts::env_keypairs::EnvAccountKeypairs;
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL,

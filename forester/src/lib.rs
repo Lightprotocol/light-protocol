@@ -30,7 +30,7 @@ use forester_utils::{
 };
 use light_client::{
     indexer::Indexer,
-    rpc::{RpcConnection, SolanaRpcConnection},
+    rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection},
 };
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -52,7 +52,7 @@ pub async fn run_queue_info(
     queue_type: TreeType,
 ) {
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: self.config.external_services.rpc_url.to_string(),
+        url: config.external_services.rpc_url.to_string(),
         commitment_config: None,
         with_indexer: false,
     });

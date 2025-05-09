@@ -8,7 +8,10 @@ use forester::{queue_helpers::fetch_queue_item_data, run_pipeline, utils::get_pr
 use forester_utils::{registry::register_test_forester, rpc_pool::SolanaRpcPool};
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
+    rpc::{
+        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError,
+        SolanaRpcConnection,
+    },
 };
 use light_program_test::{accounts::env_accounts::EnvAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{
@@ -287,7 +290,7 @@ pub async fn assert_queue_len(
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 async fn test_epoch_monitor_with_2_foresters() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
