@@ -9,7 +9,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::sync::Mutex;
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 use crate::{
     epoch_manager::WorkItem,
@@ -85,7 +85,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
             .filter(|item| {
                 let hash_str = bs58::encode(&item.queue_item_data.hash).into_string();
                 if cache.contains(&hash_str) {
-                    debug!("Skipping already processed hash: {}", hash_str);
+                    trace!("Skipping already processed hash: {}", hash_str);
                     false
                 } else {
                     true
@@ -100,7 +100,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
         drop(cache);
 
         if work_items.is_empty() {
-            debug!("All items in this batch were recently processed, skipping batch");
+            trace!("All items in this batch were recently processed, skipping batch");
             return Ok((vec![], last_valid_block_height));
         }
 

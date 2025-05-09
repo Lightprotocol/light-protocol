@@ -10,7 +10,7 @@ use light_compressed_account::TreeType;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
-use tracing::{debug, error, trace, warn};
+use tracing::{error, trace};
 
 use super::{address, error::Result, state, BatchProcessError};
 use crate::indexer_type::IndexerType;
@@ -89,7 +89,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 result
             }
             BatchReadyState::NotReady => {
-                warn!(
+                trace!(
                     "Batch not ready for processing, tree: {}",
                     self.context.merkle_tree
                 );
@@ -111,9 +111,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             false
         };
 
-        debug!(
+        trace!(
             "self.tree_type: {}, input_ready: {}, output_ready: {}",
-            self.tree_type, input_ready, output_ready
+            self.tree_type,
+            input_ready,
+            output_ready
         );
 
         if self.tree_type == TreeType::AddressV2 {
@@ -220,9 +222,10 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
     async fn process_state_nullify(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (inserted_zkps_count, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
-        debug!(
+        trace!(
             "ZKP batch size: {}, inserted ZKPs count: {}",
-            zkp_batch_size, inserted_zkps_count
+            zkp_batch_size,
+            inserted_zkps_count
         );
         state::perform_nullify(&self.context, &mut rpc).await?;
         Ok(zkp_batch_size)

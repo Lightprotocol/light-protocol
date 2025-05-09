@@ -379,7 +379,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             .await
     }
 
-    #[instrument(level = "debug", skip(self))]
     async fn process_current_and_previous_epochs(&self, tx: Arc<mpsc::Sender<u64>>) -> Result<()> {
         let (slot, current_epoch) = self.get_current_slot_and_epoch().await?;
         let current_phases = get_epoch_phases(&self.protocol_config, current_epoch);

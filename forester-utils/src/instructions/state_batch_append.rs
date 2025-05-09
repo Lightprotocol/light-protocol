@@ -20,7 +20,7 @@ use light_prover_client::{
     },
 };
 use reqwest::Client;
-use tracing::{debug, error, info};
+use tracing::{error, trace};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
@@ -31,14 +31,15 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
 ) -> Result<Vec<InstructionDataBatchAppendInputs>, ForesterUtilsError> {
-    info!("Creating append batch instruction data");
+    trace!("Creating append batch instruction data");
 
     let (merkle_tree_next_index, current_root, root_history) =
         get_merkle_tree_metadata(rpc, merkle_tree_pubkey).await?;
 
-    debug!(
+    trace!(
         "merkle_tree_next_index: {:?} current_root: {:?}",
-        merkle_tree_next_index, current_root
+        merkle_tree_next_index,
+        current_root
     );
 
     // Get output queue metadata and hash chains
@@ -46,7 +47,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         get_output_queue_metadata(rpc, output_queue_pubkey).await?;
 
     if leaves_hash_chains.is_empty() {
-        debug!("No hash chains to process");
+        trace!("No hash chains to process");
         return Ok(Vec::new());
     }
 
@@ -68,7 +69,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ForesterUtilsError::Indexer("Failed to get queue elements".into())
         })?;
 
-    debug!("Got {} queue elements in total", queue_elements.len());
+    trace!("Got {} queue elements in total", queue_elements.len());
 
     if queue_elements.len() != total_elements {
         return Err(ForesterUtilsError::Indexer(format!(
@@ -94,9 +95,11 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let end_idx = start_idx + zkp_batch_size as usize;
         let batch_elements = &queue_elements[start_idx..end_idx];
 
-        debug!(
+        trace!(
             "Processing batch {}: index range {}-{}",
-            batch_idx, start_idx, end_idx
+            batch_idx,
+            start_idx,
+            end_idx
         );
 
         let old_leaves = batch_elements
@@ -147,7 +150,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     for (i, proof_result) in proof_results.into_iter().enumerate() {
         match proof_result {
             Ok((proof, new_root)) => {
-                debug!("Successfully generated proof for batch {}", i);
+                trace!("Successfully generated proof for batch {}", i);
                 instruction_data_vec.push(InstructionDataBatchAppendInputs {
                     new_root,
                     compressed_proof: proof,
@@ -180,7 +183,7 @@ async fn generate_zkp_proof(
         })?;
 
     if response.status().is_success() {
-        debug!("Received successful response from prover server");
+        trace!("Received successful response from prover server");
         let body = response.text().await.map_err(|e| {
             ForesterUtilsError::Prover(format!("Failed to read response body: {}", e))
         })?;
@@ -259,7 +262,7 @@ async fn get_output_queue_metadata(
             .push(output_queue.hash_chain_stores[full_batch_index as usize][i as usize]);
     }
 
-    debug!(
+    trace!(
         "ZKP batch size: {}, inserted ZKPs: {}, current ZKP index: {}, ready for insertion: {}",
         zkp_batch_size,
         num_inserted_zkps,
