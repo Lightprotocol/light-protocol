@@ -5620,8 +5620,16 @@ async fn batch_compress_with_batched_tree() {
         .await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.batched_output_queue;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+      let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::BatchAppendWithProofsTest],
+        }),
+    )
+        .await;
+
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
