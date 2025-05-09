@@ -10,7 +10,8 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
     rpc::{
-        merkle_tree::MerkleTreeExt, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
+        merkle_tree::MerkleTreeExt, rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl,
+        RpcConnection, SolanaRpcConnection,
     },
 };
 use light_compressed_account::{
@@ -74,11 +75,11 @@ async fn test_create_v2_address() {
     config.payer_keypair = env.forester.insecure_clone();
     config.derivation_pubkey = env.forester.pubkey();
 
-    let mut rpc = SolanaRpcConnection::new(
-        SolanaRpcUrl::Localnet,
-        Some(CommitmentConfig::processed()),
-        false,
-    );
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::processed()),
+        with_indexer: true,
+    });
     rpc.payer = env.forester.insecure_clone();
 
     ensure_sufficient_balance(&mut rpc, &env.forester.pubkey(), LAMPORTS_PER_SOL * 100).await;

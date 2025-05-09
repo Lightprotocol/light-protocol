@@ -16,7 +16,10 @@ use forester_utils::{
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
-    rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
+    rpc::{
+        rpc_connection::RpcConnectionConfig, RetryConfig, RpcConnection, RpcError,
+        SolanaRpcConnection,
+    },
 };
 use light_compressed_account::TreeType;
 use light_registry::{
@@ -460,8 +463,11 @@ impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I>
         max_retries: u32,
         retry_delay: Duration,
     ) -> Result<ForesterEpochInfo> {
-        let mut rpc =
-            SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None, true);
+        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+            url: self.config.external_services.rpc_url.to_string(),
+            commitment_config: None,
+            with_indexer: false,
+        });
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -523,8 +529,11 @@ impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I>
     ))]
     async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         info!("Registering for epoch: {}", epoch);
-        let mut rpc =
-            SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None, true);
+        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+            url: self.config.external_services.rpc_url.to_string(),
+            commitment_config: None,
+            with_indexer: false,
+        });
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -1055,8 +1064,11 @@ impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I>
     ))]
     async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         info!("Reporting work");
-        let mut rpc =
-            SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None, true);
+        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+            url: self.config.external_services.rpc_url.to_string(),
+            commitment_config: None,
+            with_indexer: false,
+        });
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
             &self.config.derivation_pubkey,

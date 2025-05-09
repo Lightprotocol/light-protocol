@@ -64,7 +64,11 @@ async fn test_state_indexer_batched() {
     .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config), true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::processed()),
+        with_indexer: false,
+    });
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)

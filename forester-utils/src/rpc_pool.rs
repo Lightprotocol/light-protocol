@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use bb8::{Pool, PooledConnection};
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, RpcError};
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
@@ -51,7 +51,12 @@ impl<R: RpcConnection + 'static> bb8::ManageConnection for SolanaConnectionManag
     type Error = PoolError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        Ok(R::new(&self.url, Some(self.commitment), true))
+        let config = RpcConnectionConfig {
+            url: self.url.to_string(),
+            commitment_config: Some(self.commitment),
+            with_indexer: false,
+        };
+        Ok(R::new(config))
     }
 
     async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {

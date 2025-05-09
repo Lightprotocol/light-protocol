@@ -2794,12 +2794,7 @@ where
 
         let res = self
             .rpc
-            .create_and_send_transaction_with_public_event(
-                &[instruction],
-                &user.pubkey(),
-                &[user],
-                None,
-            )
+            .create_and_send_transaction_with_public_event(&[instruction], &user.pubkey(), &[user])
             .await?;
         // In case that only read only accounts exist in a transaction
         // the account compression program is not invoked -> there is no event and it is ok.

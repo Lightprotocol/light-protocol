@@ -140,7 +140,6 @@ pub async fn nullify_compressed_accounts<R: RpcConnection + TestRpcConnection>(
                 &instructions,
                 &forester.pubkey(),
                 &[forester],
-                None,
             )
             .await?
             .unwrap();
@@ -643,7 +642,6 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         &[update_ix],
         &forester.pubkey(),
         &[forester],
-        None,
     )
     .await
 }

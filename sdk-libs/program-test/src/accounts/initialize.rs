@@ -280,7 +280,14 @@ pub async fn setup_accounts(
     keypairs: EnvAccountKeypairs,
     url: light_client::rpc::solana_rpc::SolanaRpcUrl,
 ) -> Result<EnvAccounts, RpcError> {
-    let mut rpc = light_client::rpc::SolanaRpcConnection::new(url, None, true);
+    use light_client::rpc::rpc_connection::RpcConnectionConfig;
+    use solana_sdk::commitment_config::CommitmentConfig;
+
+    let mut rpc = light_client::rpc::SolanaRpcConnection::new(RpcConnectionConfig {
+        commitment_config: Some(CommitmentConfig::confirmed()),
+        url: url.to_string(),
+        with_indexer: false,
+    });
 
     initialize_accounts(
         &mut rpc,

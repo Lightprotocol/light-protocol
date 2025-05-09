@@ -1,6 +1,6 @@
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Base58Conversions, Hash, Indexer},
-    rpc::SolanaRpcConnection,
+    indexer::{AddressWithTree, Base58Conversions, Hash, Indexer},
+    rpc::{rpc_connection::RpcConnectionConfig, SolanaRpcConnection},
 };
 use light_compressed_account::{
     compressed_account::CompressedAccount, hash_to_bn254_field_size_be,
@@ -54,14 +54,10 @@ async fn test_all_endpoints() {
     spawn_validator(config).await;
 
     let env_accounts = EnvAccounts::get_local_test_validator_accounts();
-    let rpc: SolanaRpcConnection =
-        SolanaRpcConnection::new("http://127.0.0.1:8899".to_string(), None);
-    let mut indexer = PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None, rpc);
+    let mut rpc: SolanaRpcConnection = SolanaRpcConnection::new(RpcConnectionConfig::local());
 
     let payer_pubkey = rpc.get_payer().pubkey();
-    indexer
-        .get_rpc_mut()
-        .airdrop_lamports(&payer_pubkey, LAMPORTS_PER_SOL)
+    rpc.airdrop_lamports(&payer_pubkey, LAMPORTS_PER_SOL)
         .await
         .unwrap();
 
@@ -96,9 +92,7 @@ async fn test_all_endpoints() {
         &[&rpc.get_payer()],
         rpc.client.get_latest_blockhash().unwrap(),
     );
-    indexer
-        .get_rpc()
-        .client
+    rpc.client
         .send_and_confirm_transaction(&tx_create_compressed_account)
         .unwrap();
 
@@ -107,8 +101,7 @@ async fn test_all_endpoints() {
     let mint = Keypair::new();
 
     // Setup mint and create compressed token account
-    let mint_rent = indexer
-        .get_rpc()
+    let mint_rent = rpc
         .client
         .get_minimum_balance_for_rent_exemption(82)
         .unwrap();
@@ -138,11 +131,7 @@ async fn test_all_endpoints() {
         &[rpc.get_payer(), &mint],
         rpc.client.get_latest_blockhash().unwrap(),
     );
-    indexer
-        .get_rpc()
-        .client
-        .send_and_confirm_transaction(&tx)
-        .unwrap();
+    rpc.client.send_and_confirm_transaction(&tx).unwrap();
 
     let amount = 1_000_000;
 
@@ -167,7 +156,9 @@ async fn test_all_endpoints() {
     rpc.client.send_and_confirm_transaction(&tx).unwrap();
 
     let pubkey = payer_pubkey;
-    let accounts = indexer
+    let accounts = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_accounts_by_owner_v2(&pubkey)
         .await
         .unwrap();
@@ -180,7 +171,9 @@ async fn test_all_endpoints() {
     }];
 
     let account_hashes: Vec<Hash> = accounts.iter().map(|a| a.hash().unwrap()).collect();
-    let accounts = indexer
+    let accounts = rpc
+        .indexer()
+        .unwrap()
         .get_multiple_compressed_accounts(None, Some(account_hashes.clone()))
         .await
         .unwrap();
@@ -191,27 +184,35 @@ async fn test_all_endpoints() {
         first_account.hash().unwrap()
     );
 
-    let result = indexer
-        .get_validity_proof(account_hashes.clone(), new_addresses)
+    let result = rpc
+        .indexer()
+        .unwrap()
+        .get_validity_proof(account_hashes.clone(), new_addresses.clone())
         .await
         .unwrap();
     assert_eq!(result.root_indices.len(), account_hashes.len());
-    assert_eq!(result.address_root_indices, new_addresses.len());
+    assert_eq!(result.address_root_indices.len(), new_addresses.len());
 
-    let account = indexer
+    let account = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_account(None, Some(first_account.hash().unwrap()))
         .await
         .unwrap();
     assert_eq!(account.lamports, lamports);
     assert_eq!(account.owner, rpc.get_payer().pubkey().to_string());
 
-    let balance = indexer
+    let balance = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_account_balance(None, Some(first_account.hash().unwrap()))
         .await
         .unwrap();
     assert_eq!(balance, lamports);
 
-    let signatures = indexer
+    let signatures = rpc
+        .indexer()
+        .unwrap()
         .get_compression_signatures_for_account(first_account.hash().unwrap())
         .await
         .unwrap();
@@ -220,7 +221,9 @@ async fn test_all_endpoints() {
         tx_create_compressed_account.signatures[0].to_string()
     );
 
-    let token_accounts = &indexer
+    let token_accounts = &rpc
+        .indexer()
+        .unwrap()
         .get_compressed_token_accounts_by_owner(&pubkey, None)
         .await
         .unwrap();
@@ -230,7 +233,9 @@ async fn test_all_endpoints() {
 
     let hash = token_accounts[0].compressed_account.hash().unwrap();
 
-    let balance = indexer
+    let balance = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_token_account_balance(None, Some(hash))
         .await
         .unwrap();
@@ -241,21 +246,27 @@ async fn test_all_endpoints() {
 
     let hash = token_accounts[0].compressed_account.hash().unwrap();
 
-    let balances = indexer
+    let balances = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_token_balances_by_owner(&pubkey, None)
         .await
         .unwrap();
 
     assert_eq!(balances.token_balances[0].balance, amount);
 
-    let balance = indexer
+    let balance = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_token_account_balance(None, Some(hash))
         .await
         .unwrap();
     assert_eq!(balance, amount);
 
     let hashes_str = account_hashes.iter().map(|h| h.to_base58()).collect();
-    let proofs = indexer
+    let proofs = rpc
+        .indexer()
+        .unwrap()
         .get_multiple_compressed_account_proofs(hashes_str)
         .await
         .unwrap();
@@ -263,7 +274,9 @@ async fn test_all_endpoints() {
     assert_eq!(proofs[0].hash, account_hashes[0].to_base58());
 
     let addresses = vec![hash_to_bn254_field_size_be(&seed)];
-    let new_address_proofs = indexer
+    let new_address_proofs = rpc
+        .indexer()
+        .unwrap()
         .get_multiple_new_address_proofs(
             env_accounts.address_merkle_tree_pubkey.to_bytes(),
             addresses,

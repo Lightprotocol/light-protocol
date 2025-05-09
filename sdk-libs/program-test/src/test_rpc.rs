@@ -1,12 +1,17 @@
-use std::fmt::{Debug, Formatter};
+use std::{
+    fmt::{Debug, Formatter},
+    marker::Send,
+};
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-#[cfg(feature = "devenv")]
-use light_client::fee::{assert_transaction_params, TransactionParams};
 use light_client::{
+    fee::{assert_transaction_params, TransactionParams},
     indexer::{AddressWithTree, Indexer, ProofRpcResult, ProofRpcResultV2},
-    rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError, SolanaRpcConnection},
+    rpc::{
+        merkle_tree::MerkleTreeExt, rpc_connection::RpcConnectionConfig, RpcConnection, RpcError,
+        SolanaRpcConnection,
+    },
 };
 use light_compressed_account::indexer_event::{
     event::{BatchPublicTransactionEvent, PublicTransactionEvent},
@@ -19,7 +24,6 @@ use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::{
     account::{Account, AccountSharedData},
     clock::Slot,
-    commitment_config::CommitmentConfig,
     hash::Hash,
     instruction::Instruction,
     pubkey::Pubkey,
@@ -299,11 +303,7 @@ impl Debug for ProgramTestRpcConnection {
 
 #[async_trait]
 impl RpcConnection for ProgramTestRpcConnection {
-    fn new<U: ToString>(
-        _url: U,
-        _commitment_config: Option<CommitmentConfig>,
-        _skip_indexer: bool,
-    ) -> Self
+    fn new(_config: RpcConnectionConfig) -> Self
     where
         Self: Sized,
     {
@@ -481,7 +481,6 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok((sig, slot))
     }
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instructions: &[Instruction],
@@ -495,7 +494,6 @@ impl RpcConnection for ProgramTestRpcConnection {
             .await
     }
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_batched_event(
         &mut self,
         instructions: &[Instruction],
@@ -506,92 +504,18 @@ impl RpcConnection for ProgramTestRpcConnection {
             .await
     }
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_public_event(
         &mut self,
         instruction: &[Instruction],
         payer: &Pubkey,
         signers: &[&Keypair],
     ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
-        let res = self
-            .create_and_send_transaction_with_batched_event(instruction, payer, signers)
-            .await?;
-        let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
-
-        Ok(event)
-    }
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_public_event(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
-        let res = self
-            .create_and_send_transaction_with_batched_event(
-                instruction,
-                payer,
-                signers,
-                transaction_params,
-            )
-            .await?;
-        let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
-
-        Ok(event)
-    }
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_batched_event(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
-        let pre_balance = self
-            .context
-            .banks_client
-            .get_account(*payer)
-            .await?
-            .unwrap()
-            .lamports;
         let event = self
             ._create_and_send_transaction_with_batched_event(instruction, payer, signers)
             .await?;
-
-        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+        let event = event.map(|e| (e.0[0].event.clone(), e.1, e.2));
 
         Ok(event)
-    }
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_event<T>(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
-    where
-        T: BorshDeserialize + Send + Debug,
-    {
-        let pre_balance = self
-            .context
-            .banks_client
-            .get_account(*payer)
-            .await?
-            .unwrap()
-            .lamports;
-
-        let result = self
-            ._create_and_send_transaction_with_event::<T>(instruction, payer, signers)
-            .await?;
-
-        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
-
-        Ok(result)
     }
 
     fn indexer(&self) -> Result<&impl Indexer, RpcError> {
@@ -616,209 +540,6 @@ impl RpcConnection for ProgramTestRpcConnection {
             .indexer()?
             .get_validity_proof(hashes, new_addresses_with_trees)
             .await?)
-        // let mut state_merkle_tree_pubkeys = Vec::new();
-
-        // for hash in hashes.iter() {
-        //     state_merkle_tree_pubkeys.push(Pubkey::from_str_const(
-        //         self.indexer()?
-        //             .get_compressed_account(None, Some(*hash))
-        //             .await?
-        //             .tree
-        //             .as_str(),
-        //     ));
-        // }
-        // println!(
-        //     "get_validity_proof state_merkle_tree_pubkeys {:?}",
-        //     state_merkle_tree_pubkeys
-        // );
-        // let state_merkle_tree_pubkeys = if state_merkle_tree_pubkeys.is_empty() {
-        //     None
-        // } else {
-        //     Some(state_merkle_tree_pubkeys)
-        // };
-        // let hashes = if hashes.is_empty() {
-        //     None
-        // } else {
-        //     Some(hashes)
-        // };
-        // let new_addresses = if new_addresses_with_trees.is_empty() {
-        //     None
-        // } else {
-        //     Some(
-        //         new_addresses_with_trees
-        //             .iter()
-        //             .map(|x| x.address)
-        //             .collect::<Vec<[u8; 32]>>(),
-        //     )
-        // };
-        // let address_merkle_tree_pubkeys = if new_addresses_with_trees.is_empty() {
-        //     None
-        // } else {
-        //     Some(
-        //         new_addresses_with_trees
-        //             .iter()
-        //             .map(|x| x.tree)
-        //             .collect::<Vec<Pubkey>>(),
-        //     )
-        // };
-
-        // {
-        //     let compressed_accounts = hashes;
-        //     if compressed_accounts.is_some()
-        //         && ![1usize, 2usize, 3usize, 4usize, 8usize]
-        //             .contains(&compressed_accounts.as_ref().unwrap().len())
-        //     {
-        //         return Err(RpcError::CustomError(format!(
-        //             "compressed_accounts must be of length 1, 2, 3, 4 or 8 != {}",
-        //             compressed_accounts.unwrap().len()
-        //         )));
-        //     }
-        //     if new_addresses.is_some()
-        //         && ![1usize, 2usize, 3usize, 4usize, 8usize]
-        //             .contains(&new_addresses.as_ref().unwrap().len())
-        //     {
-        //         return Err(RpcError::CustomError(format!(
-        //             "new_addresses must be of length 1, 2, 3, 4 or 8 != {}",
-        //             new_addresses.unwrap().len()
-        //         )));
-        //     }
-        //     let client = Client::new();
-        //     let (root_indices, address_root_indices, json_payload) =
-        //         match (compressed_accounts, new_addresses) {
-        //             (Some(accounts), None) => {
-        //                 let (payload, payload_legacy, indices) = self
-        //                     .process_inclusion_proofs(
-        //                         &state_merkle_tree_pubkeys.unwrap(),
-        //                         &accounts,
-        //                     )
-        //                     .await?;
-        //                 if let Some(payload) = payload {
-        //                     (indices, Vec::new(), payload.to_string())
-        //                 } else {
-        //                     (indices, Vec::new(), payload_legacy.unwrap().to_string())
-        //                 }
-        //             }
-        //             (None, Some(addresses)) => {
-        //                 let (payload, payload_legacy, indices) = self
-        //                     .process_non_inclusion_proofs(
-        //                         address_merkle_tree_pubkeys.unwrap().as_slice(),
-        //                         addresses,
-        //                     )
-        //                     .await?;
-        //                 let payload_string = if let Some(payload) = payload {
-        //                     payload.to_string()
-        //                 } else {
-        //                     payload_legacy.unwrap().to_string()
-        //                 };
-        //                 (Vec::<u16>::new(), indices, payload_string)
-        //             }
-        //             (Some(accounts), Some(addresses)) => {
-        //                 let (inclusion_payload, inclusion_payload_legacy, inclusion_indices) = self
-        //                     .process_inclusion_proofs(
-        //                         &state_merkle_tree_pubkeys.unwrap(),
-        //                         &accounts,
-        //                     )
-        //                     .await?;
-
-        //                 let (
-        //                     non_inclusion_payload,
-        //                     non_inclusion_payload_legacy,
-        //                     non_inclusion_indices,
-        //                 ) = self
-        //                     .process_non_inclusion_proofs(
-        //                         address_merkle_tree_pubkeys.unwrap().as_slice(),
-        //                         addresses,
-        //                     )
-        //                     .await?;
-        //                 let json_payload = if let Some(non_inclusion_payload) =
-        //                     non_inclusion_payload
-        //                 {
-        //                     let public_input_hash = BigInt::from_bytes_be(
-        //                         num_bigint::Sign::Plus,
-        //                         &create_hash_chain_from_slice(&[
-        //                             bigint_to_u8_32(
-        //                                 &string_to_big_int(
-        //                                     &inclusion_payload.as_ref().unwrap().public_input_hash,
-        //                                 )
-        //                                 .unwrap(),
-        //                             )
-        //                             .unwrap(),
-        //                             bigint_to_u8_32(
-        //                                 &string_to_big_int(
-        //                                     &non_inclusion_payload.public_input_hash,
-        //                                 )
-        //                                 .unwrap(),
-        //                             )
-        //                             .unwrap(),
-        //                         ])
-        //                         .unwrap(),
-        //                     );
-
-        //                     CombinedJsonStruct {
-        //                         circuit_type: ProofType::Combined.to_string(),
-        //                         state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
-        //                         address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
-        //                         public_input_hash: big_int_to_string(&public_input_hash),
-        //                         inclusion: inclusion_payload.unwrap().inputs,
-        //                         non_inclusion: non_inclusion_payload.inputs,
-        //                     }
-        //                     .to_string()
-        //                 } else if let Some(non_inclusion_payload) = non_inclusion_payload_legacy {
-        //                     CombinedJsonStructLegacy {
-        //                         circuit_type: ProofType::Combined.to_string(),
-        //                         state_tree_height: 26,
-        //                         address_tree_height: 26,
-        //                         inclusion: inclusion_payload_legacy.unwrap().inputs,
-        //                         non_inclusion: non_inclusion_payload.inputs,
-        //                     }
-        //                     .to_string()
-        //                 } else {
-        //                     panic!("Unsupported tree height")
-        //                 };
-        //                 (inclusion_indices, non_inclusion_indices, json_payload)
-        //             }
-        //             _ => {
-        //                 panic!(
-        //                     "At least one of compressed_accounts or new_addresses must be provided"
-        //                 )
-        //             }
-        //         };
-
-        //     let mut retries = 1000;
-        //     while retries > 0 {
-        //         let response_result = client
-        //             .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        //             .header("Content-Type", "text/plain; charset=utf-8")
-        //             .body(json_payload.clone())
-        //             .send()
-        //             .await;
-        //         if let Ok(response_result) = response_result {
-        //             if response_result.status().is_success() {
-        //                 let body = response_result.text().await.unwrap();
-        //                 let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        //                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        //                 let (proof_a, proof_b, proof_c) =
-        //                     compress_proof(&proof_a, &proof_b, &proof_c);
-        //                 return Ok(ProofRpcResult {
-        //                     root_indices,
-        //                     address_root_indices: address_root_indices.clone(),
-        //                     proof: CompressedProof {
-        //                         a: proof_a,
-        //                         b: proof_b,
-        //                         c: proof_c,
-        //                     },
-        //                 });
-        //             }
-        //         } else {
-        //             println!("Error: {:#?}", response_result);
-        //             tokio::time::sleep(Duration::from_secs(5)).await;
-        //             retries -= 1;
-        //         }
-        //     }
-        //     return Err(RpcError::CustomError(
-        //         "Failed to get proof from server".to_string(),
-        //     ));
-        // }
     }
 
     async fn get_validity_proof_v2(
@@ -830,130 +551,95 @@ impl RpcConnection for ProgramTestRpcConnection {
             .indexer()?
             .get_validity_proof_v2(hashes, new_addresses_with_trees)
             .await?)
-        // #[cfg(not(feature = "v2"))]
-        // unimplemented!();
-        // #[cfg(feature = "v2")]
-        // {
-        //     use light_batched_merkle_tree::queue::{BatchedQueueAccount, BatchedQueueMetadata};
-        //     use light_client::indexer::ProofRpcResultV2;
-
-        //     let hashes = _hashes;
-        //     let new_addresses_with_trees = _new_addresses_with_trees;
-
-        //     let mut state_merkle_tree_pubkeys = Vec::new();
-        //     println!("get_validity_proof_v2 ");
-
-        //     for hash in hashes.iter() {
-        //         println!("hash {:?}", hash);
-        //         let account = self
-        //             .indexer()?
-        //             .get_compressed_account(None, Some(*hash))
-        //             .await?;
-        //         println!("account {:?}", account);
-
-        //         state_merkle_tree_pubkeys.push(Pubkey::from_str_const(account.tree.as_str()));
-        //     }
-        //     println!("state_merkle_tree_pubkeys {:?}", state_merkle_tree_pubkeys);
-
-        //     let mut indices_to_remove = Vec::new();
-        //     // for all accounts in batched trees, check whether values are in tree or queue
-        //     let compressed_accounts = if !hashes.is_empty() && !state_merkle_tree_pubkeys.is_empty()
-        //     {
-        //         let zipped_accounts = hashes.iter().zip(state_merkle_tree_pubkeys.iter());
-
-        //         for (i, (compressed_account, state_merkle_tree_pubkey)) in
-        //             zipped_accounts.enumerate()
-        //         {
-        //             let accounts = self
-        //                 .indexer
-        //                 .as_ref()
-        //                 .ok_or(RpcError::IndexerNotInitialized)?
-        //                 .state_merkle_trees
-        //                 .iter()
-        //                 .find(|x| {
-        //                     x.accounts.merkle_tree == *state_merkle_tree_pubkey && x.version == 2
-        //                 });
-
-        //             if let Some(accounts) = accounts {
-        //                 let leaf_index = accounts.merkle_tree.get_leaf_index(compressed_account);
-        //                 if leaf_index.is_none() {
-        //                     let output_queue_pubkey = accounts.accounts.nullifier_queue;
-        //                     let mut queue =
-        //                         forester_utils::account_zero_copy::AccountZeroCopy::<
-        //                             BatchedQueueMetadata,
-        //                         >::new(self, output_queue_pubkey)
-        //                         .await;
-        //                     let queue_zero_copy = BatchedQueueAccount::output_from_bytes(
-        //                         queue.account.data.as_mut_slice(),
-        //                     )
-        //                     .unwrap();
-        //                     for value_array in queue_zero_copy.value_vecs.iter() {
-        //                         let index =
-        //                             value_array.iter().position(|x| *x == *compressed_account);
-        //                         if index.is_some() {
-        //                             indices_to_remove.push(i);
-        //                         }
-        //                     }
-        //                 }
-        //             }
-        //         }
-
-        //         let compress_accounts = hashes
-        //             .iter()
-        //             .enumerate()
-        //             .filter(|(i, _)| !indices_to_remove.contains(i))
-        //             .map(|(_, x)| *x)
-        //             .collect::<Vec<[u8; 32]>>();
-
-        //         if compress_accounts.is_empty() {
-        //             None
-        //         } else {
-        //             Some(compress_accounts)
-        //         }
-        //     } else {
-        //         None
-        //     };
-        //     let rpc_result: Option<ProofRpcResult> = if (compressed_accounts.is_some()
-        //         && !compressed_accounts.as_ref().unwrap().is_empty())
-        //         || !new_addresses_with_trees.is_empty()
-        //     {
-        //         Some(
-        //             self.get_validity_proof(
-        //                 compressed_accounts.unwrap_or_default(),
-        //                 new_addresses_with_trees,
-        //             )
-        //             .await?,
-        //         )
-        //     } else {
-        //         None
-        //     };
-        //     let address_root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-        //         rpc_result.address_root_indices.clone()
-        //     } else {
-        //         Vec::new()
-        //     };
-        //     let root_indices = {
-        //         let mut root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-        //             rpc_result
-        //                 .root_indices
-        //                 .iter()
-        //                 .map(|x| Some(*x))
-        //                 .collect::<Vec<_>>()
-        //         } else {
-        //             Vec::new()
-        //         };
-        //         for index in indices_to_remove {
-        //             root_indices.insert(index, None);
-        //         }
-        //         root_indices
-        //     };
-        //     Ok(ProofRpcResultV2 {
-        //         proof: rpc_result.map(|x| x.proof),
-        //         root_indices,
-        //         address_root_indices,
-        //     })
-        // }
     }
 }
 
 impl MerkleTreeExt for ProgramTestRpcConnection {}
+
+#[async_trait]
+pub trait TestRpc {
+    async fn create_and_send_transaction_with_batched_event(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError>;
+
+    async fn create_and_send_transaction_with_event<T>(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
+    where
+        T: BorshDeserialize + Send + Debug;
+
+    async fn create_and_send_transaction_with_public_event(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError>;
+}
+
+#[async_trait]
+impl TestRpc for ProgramTestRpcConnection {
+    async fn create_and_send_transaction_with_batched_event(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
+        let pre_balance = self.get_balance(payer).await?;
+
+        let event = self
+            ._create_and_send_transaction_with_batched_event(instructions, payer, signers)
+            .await?;
+        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+
+        Ok(event)
+    }
+
+    async fn create_and_send_transaction_with_event<T>(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
+    where
+        T: BorshDeserialize + Send + Debug,
+    {
+        let pre_balance = self.get_balance(payer).await?;
+
+        let result = self
+            ._create_and_send_transaction_with_event::<T>(instructions, payer, signers)
+            .await?;
+        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+
+        Ok(result)
+    }
+
+    async fn create_and_send_transaction_with_public_event(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
+        let pre_balance = self.get_balance(payer).await?;
+
+        let res = self
+            ._create_and_send_transaction_with_batched_event(instructions, payer, signers)
+            .await?;
+        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+
+        let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
+
+        Ok(event)
+    }
+}

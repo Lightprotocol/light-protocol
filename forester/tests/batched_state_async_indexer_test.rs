@@ -200,11 +200,11 @@ async fn test_state_indexer_async_batched() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn setup_rpc_connection(forester: &Keypair) -> SolanaRpcConnection {
-    let mut rpc = SolanaRpcConnection::new(
-        SolanaRpcUrl::Localnet,
-        Some(CommitmentConfig::confirmed()),
-        true,
-    );
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::processed()),
+        with_indexer: false,
+    });
     rpc.payer = forester.insecure_clone();
     rpc
 }
@@ -691,9 +691,9 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
         proof_for_compressed_accounts
             .proof
             .map(|proof| CompressedProof {
-                a: proof.a.try_into().unwrap(),
-                b: proof.b.try_into().unwrap(),
-                c: proof.c.try_into().unwrap(),
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
             })
     };
     let input_token_data = input_compressed_accounts
@@ -808,9 +808,9 @@ async fn transfer<R: RpcConnection, I: Indexer>(
         proof_for_compressed_accounts
             .proof
             .map(|proof| CompressedProof {
-                a: proof.a.try_into().unwrap(),
-                b: proof.b.try_into().unwrap(),
-                c: proof.c.try_into().unwrap(),
+                a: proof.a,
+                b: proof.b,
+                c: proof.c,
             })
     };
     let input_compressed_accounts_data = input_compressed_accounts
@@ -938,9 +938,9 @@ async fn create_v1_address<R: RpcConnection, I: Indexer>(
         });
     }
     let proof = proof_for_addresses.proof.map(|proof| CompressedProof {
-        a: proof.a.try_into().unwrap(),
-        b: proof.b.try_into().unwrap(),
-        c: proof.c.try_into().unwrap(),
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
     });
     let instruction = create_invoke_instruction(
         &payer.pubkey(),

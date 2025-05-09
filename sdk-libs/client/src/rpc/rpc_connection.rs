@@ -17,41 +17,62 @@ use solana_signature::Signature;
 use solana_transaction::Transaction;
 use solana_transaction_status::TransactionStatus;
 
+use super::solana_rpc::SolanaRpcUrl;
 use crate::{
     indexer::{AddressWithTree, Indexer, ProofRpcResult},
     rpc::errors::RpcError,
 };
 
+#[derive(Debug, Clone)]
+pub struct RpcConnectionConfig {
+    pub url: String,
+    pub commitment_config: Option<CommitmentConfig>,
+    pub with_indexer: bool,
+}
+
+impl RpcConnectionConfig {
+    pub fn new(url: String) -> Self {
+        Self {
+            url,
+            commitment_config: Some(CommitmentConfig::confirmed()),
+            with_indexer: true,
+        }
+    }
+    pub fn local_no_indexer() -> Self {
+        Self {
+            url: SolanaRpcUrl::Localnet.to_string(),
+            commitment_config: Some(CommitmentConfig::confirmed()),
+            with_indexer: false,
+        }
+    }
+
+    pub fn local() -> Self {
+        Self {
+            url: SolanaRpcUrl::Localnet.to_string(),
+            commitment_config: Some(CommitmentConfig::confirmed()),
+            with_indexer: true,
+        }
+    }
+
+    pub fn devnet() -> Self {
+        Self {
+            url: SolanaRpcUrl::Devnet.to_string(),
+            commitment_config: Some(CommitmentConfig::confirmed()),
+            with_indexer: true,
+        }
+    }
+}
 #[async_trait]
 pub trait RpcConnection: Send + Sync + Debug + 'static {
-    // TODO: use config struct as input.
-    fn new<U: ToString>(
-        url: U,
-        commitment_config: Option<CommitmentConfig>,
-        skip_indexer: bool,
-    ) -> Self
+    fn new(config: RpcConnectionConfig) -> Self
     where
         Self: Sized;
 
     fn should_retry(&self, error: &RpcError) -> bool {
-        println!("should_retry? {:?}", error);
         match error {
-            RpcError::ClientError(error) => {
-                if let Some(error) = error.kind.get_transaction_error() {
-                    println!("error {:?}", error);
-                    false
-                } else {
-                    true
-                }
-                // // if let Some()
-                // println!("false");
-                // // Don't retry failing transactions
-                // return false;
-            }
-            _ => {
-                println!("true");
-                true
-            }
+            // Do not retry transaction errors.
+            RpcError::ClientError(error) => error.kind.get_transaction_error().is_none(),
+            _ => true,
         }
     }
 
@@ -120,7 +141,6 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError>;
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instructions: &[Instruction],
@@ -142,7 +162,6 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         self.process_transaction(transaction).await
     }
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_public_event(
         &mut self,
         instruction: &[Instruction],
@@ -150,42 +169,12 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         signers: &[&Keypair],
     ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError>;
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_batched_event(
         &mut self,
         instruction: &[Instruction],
         payer: &Pubkey,
         signers: &[&Keypair],
     ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError>;
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_batched_event(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError>;
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_event<T>(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
-    where
-        T: BorshDeserialize + Send + Debug;
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_public_event(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError>;
 
     async fn get_validity_proof(
         &mut self,
@@ -193,7 +182,6 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<ProofRpcResult, RpcError>;
 
-    // // #[cfg(feature = "v2")]
     async fn get_validity_proof_v2(
         &mut self,
         hashes: Vec<[u8; 32]>,
@@ -202,6 +190,3 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
 
     fn indexer(&self) -> Result<&impl Indexer, RpcError>;
 }
-
-#[cfg(feature = "devenv")]
-use crate::fee::TransactionParams;

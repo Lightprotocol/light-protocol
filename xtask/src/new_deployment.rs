@@ -48,7 +48,11 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
     } else {
         String::from("https://api.mainnet-beta.solana.com")
     };
-    let mut rpc = SolanaRpcConnection::new(rpc_url, None, true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: rpc_url,
+        commitment_config: None,
+        with_indexer: false,
+    });
 
     let env_keypairs = EnvAccountKeypairs::new_testnet_setup();
     env_keypairs.write_to_files(&format!("{}/", options.keypairs)); // Fixed string concatenation
@@ -66,10 +70,10 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
     println!("read payer: {:?}", payer.pubkey());
 
     let (
-        merkle_tree_config,
-        queue_config,
-        address_tree_config,
-        address_queue_config,
+        _merkle_tree_config,
+        _queue_config,
+        _address_tree_config,
+        _address_queue_config,
         _batched_state_tree_config,
         _batched_address_tree_config,
     ) = if let Some(config) = options.config {

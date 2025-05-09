@@ -65,3 +65,4 @@ spl-token = { workspace = true }
 rand = { workspace = true }
 solana-system-interface = { workspace = true }
 solana-signer = { workspace = true }
+light-prover-client = { workspace = true }

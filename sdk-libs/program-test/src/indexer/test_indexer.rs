@@ -1,4 +1,4 @@
-use std::{cmp::min, time::Duration};
+use std::{cmp::min, fmt::Debug, time::Duration};
 
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
@@ -952,9 +952,7 @@ impl TestIndexerExtensions for TestIndexer {
         slot: u64,
         event: &PublicTransactionEvent,
     ) {
-        <TestIndexer as TestIndexerExtensions>::add_event_and_compressed_accounts(
-            self, slot, event,
-        );
+        TestIndexer::add_event_and_compressed_accounts(self, slot, event);
     }
 
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str) {
@@ -1078,7 +1076,7 @@ impl TestIndexerExtensions for TestIndexer {
     }
 
     fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle) {
-        <TestIndexer as TestIndexerExtensions>::get_state_merkle_trees_mut(self).push(state_bundle);
+        Self::get_state_merkle_trees_mut(self).push(state_bundle);
     }
 
     fn add_event_and_compressed_accounts(

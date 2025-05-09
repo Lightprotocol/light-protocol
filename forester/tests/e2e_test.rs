@@ -71,7 +71,11 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     .await
     .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None, true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::confirmed()),
+        with_indexer: false,
+    });
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -321,7 +325,11 @@ async fn test_epoch_monitor_with_2_foresters() {
     .await
     .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None, true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::confirmed()),
+        with_indexer: false,
+    });
     rpc.payer = forester_keypair1.insecure_clone();
 
     // Airdrop to both foresters and governance authority
@@ -673,7 +681,11 @@ async fn test_epoch_double_registration() {
     .await
     .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None, true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::confirmed()),
+        with_indexer: false,
+    });
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)

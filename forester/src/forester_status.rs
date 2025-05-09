@@ -167,7 +167,11 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
 
     debug!("Fetching trees...");
     debug!("RPC URL: {}", config.external_services.rpc_url);
-    let mut rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None, true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: self.config.external_services.rpc_url.to_string(),
+        commitment_config: None,
+        with_indexer: false,
+    });
     let trees = fetch_trees(&rpc).await.unwrap();
     if trees.is_empty() {
         warn!("No trees found. Exiting.");

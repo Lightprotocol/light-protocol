@@ -28,7 +28,7 @@ use light_compressed_token::{
     TokenData,
 };
 use light_hasher::Poseidon;
-use light_program_test::indexer::TestIndexerExtensions;
+use light_program_test::{indexer::TestIndexerExtensions, test_rpc::TestRpc};
 use light_sdk::token::TokenDataWithMerkleContext;
 use solana_program_test::BanksClientError;
 use solana_sdk::{
@@ -210,7 +210,6 @@ pub async fn mint_tokens_22_helper_with_lamports_and_bump<
             &[instruction],
             &payer_pubkey,
             &[mint_authority],
-            None,
         )
         .await
         .unwrap()
@@ -539,7 +538,10 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer + TestIndexer
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn compressed_transfer_22_test<
+    R: RpcConnection + TestRpc,
+    I: Indexer + TestIndexerExtensions,
+>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -695,16 +697,16 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer + TestInde
     let input_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
 
-    let (event, _signature, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer, authority_signer],
-            transaction_params,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let (event, _signature, _) = <R as TestRpc>::create_and_send_transaction_with_public_event(
+        rpc,
+        &[instruction],
+        &payer.pubkey(),
+        &[payer, authority_signer],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (created_change_output_account, created_token_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
@@ -741,7 +743,7 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer + TestInde
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn decompress_test<R: RpcConnection + TestRpc, I: Indexer + TestIndexerExtensions>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -863,16 +865,16 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer + TestIndexerExtension
         );
     }
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &context_payer.pubkey(),
-            &[&context_payer, payer],
-            transaction_params,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let (event, _signature, _) = <R as TestRpc>::create_and_send_transaction_with_public_event(
+        rpc,
+        &[instruction],
+        &context_payer.pubkey(),
+        &[&context_payer, payer],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (_, created_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
@@ -980,7 +982,6 @@ pub async fn perform_compress_spl_token_account<
             &[instruction],
             &token_owner.pubkey(),
             &[payer, token_owner],
-            None,
         )
         .await?
         .unwrap();
@@ -1024,7 +1025,7 @@ pub async fn perform_compress_spl_token_account<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn compress_test<R: RpcConnection + TestRpc, I: Indexer + TestIndexerExtensions>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1082,16 +1083,16 @@ pub async fn compress_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>
     )
     .unwrap();
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[&context_payer, payer],
-            transaction_params,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let (event, _signature, _) = <R as TestRpc>::create_and_send_transaction_with_public_event(
+        rpc,
+        &[instruction],
+        &payer.pubkey(),
+        &[&context_payer, payer],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (_, created_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
@@ -1129,7 +1130,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn approve_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn approve_test<R: RpcConnection + TestRpc, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1228,16 +1229,16 @@ pub async fn approve_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &context_payer.pubkey(),
-            &[&context_payer, authority],
-            transaction_params,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let (event, _signature, _) = <R as TestRpc>::create_and_send_transaction_with_public_event(
+        rpc,
+        &[instruction],
+        &context_payer.pubkey(),
+        &[&context_payer, authority],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (_, created_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
@@ -1297,7 +1298,7 @@ pub async fn approve_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn revoke_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn revoke_test<R: RpcConnection + TestRpc, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1352,16 +1353,16 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &context_payer.pubkey(),
-            &[&context_payer, authority],
-            transaction_params,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let (event, _signature, _) = <R as TestRpc>::create_and_send_transaction_with_public_event(
+        rpc,
+        &[instruction],
+        &context_payer.pubkey(),
+        &[&context_payer, authority],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (_, created_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
@@ -1411,7 +1412,7 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     .await;
 }
 
-pub async fn freeze_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn freeze_test<R: RpcConnection + TestRpc, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1430,7 +1431,7 @@ pub async fn freeze_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     .await;
 }
 
-pub async fn thaw_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn thaw_test<R: RpcConnection + TestRpc, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1450,7 +1451,7 @@ pub async fn thaw_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
 }
 
 pub async fn freeze_or_thaw_test<
-    R: RpcConnection,
+    R: RpcConnection + TestRpc,
     const FREEZE: bool,
     I: Indexer + TestIndexerExtensions,
 >(
@@ -1509,16 +1510,16 @@ pub async fn freeze_or_thaw_test<
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &context_payer.pubkey(),
-            &[&context_payer, authority],
-            transaction_params,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let (event, _signature, _) = <R as TestRpc>::create_and_send_transaction_with_public_event(
+        rpc,
+        &[instruction],
+        &context_payer.pubkey(),
+        &[&context_payer, authority],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (_, created_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
@@ -1585,7 +1586,7 @@ pub async fn freeze_or_thaw_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn burn_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn burn_test<R: RpcConnection + TestRpc, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1642,16 +1643,16 @@ pub async fn burn_test<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
-    let (event, _signature, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &context_payer.pubkey(),
-            &[&context_payer, authority],
-            transaction_params,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+    let (event, _signature, _) = <R as TestRpc>::create_and_send_transaction_with_public_event(
+        rpc,
+        &[instruction],
+        &context_payer.pubkey(),
+        &[&context_payer, authority],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (_, created_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());

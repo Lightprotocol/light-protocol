@@ -70,11 +70,11 @@ async fn test_priority_fee_request() {
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
 
     // Setup RPC connection using config
-    let mut rpc = SolanaRpcConnection::new(
-        config.external_services.rpc_url,
-        Some(CommitmentConfig::confirmed()),
-        true,
-    );
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::confirmed()),
+        with_indexer: false,
+    });
     rpc.payer = config.payer_keypair.insecure_clone();
 
     let account_keys = vec![config.payer_keypair.pubkey()];

@@ -44,7 +44,11 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     } else {
         String::from("https://api.mainnet-beta.solana.com")
     };
-    let mut rpc = SolanaRpcConnection::new(rpc_url, None, true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: rpc_url,
+        commitment_config: None,
+        with_indexer: false,
+    });
 
     let mut mt_keypairs: Vec<Keypair> = vec![];
     let mut nfq_keypairs: Vec<Keypair> = vec![];

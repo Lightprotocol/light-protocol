@@ -51,8 +51,11 @@ pub async fn run_queue_info(
     trees: Vec<TreeAccounts>,
     queue_type: TreeType,
 ) {
-    let mut rpc =
-        SolanaRpcConnection::new(config.external_services.rpc_url.to_string(), None, true);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: self.config.external_services.rpc_url.to_string(),
+        commitment_config: None,
+        with_indexer: false,
+    });
     let trees: Vec<_> = trees
         .iter()
         .filter(|t| t.tree_type == queue_type)

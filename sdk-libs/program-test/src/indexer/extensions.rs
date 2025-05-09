@@ -74,20 +74,6 @@ pub trait TestIndexerExtensions {
 
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof;
 
-    // async fn update_test_indexer_after_append(
-    //     &mut self,
-    //     rpc: &mut R,
-    //     merkle_tree_pubkey: Pubkey,
-    //     output_queue_pubkey: Pubkey,
-    // );
-
-    // async fn update_test_indexer_after_nullification(
-    //     &mut self,
-    //     rpc: &mut R,
-    //     merkle_tree_pubkey: Pubkey,
-    //     batch_index: usize,
-    // );
-
     async fn finalize_batched_address_tree_update(
         &mut self,
         merkle_tree_pubkey: Pubkey,

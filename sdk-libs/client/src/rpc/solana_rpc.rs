@@ -27,8 +27,7 @@ use solana_transaction_status::{
 use tokio::time::{sleep, Instant};
 use tracing::warn;
 
-#[cfg(feature = "devenv")]
-use crate::fee::{assert_transaction_params, TransactionParams};
+use super::rpc_connection::RpcConnectionConfig;
 use crate::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer, ProofRpcResult},
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, rpc_connection::RpcConnection},
@@ -93,24 +92,21 @@ impl Debug for SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
-    pub fn new_with_retry<U: ToString>(
-        url: U,
-        commitment_config: Option<CommitmentConfig>,
-        retry_config: Option<RetryConfig>,
-        skip_indexer: bool,
-    ) -> Self {
+    pub fn new_with_retry(config: RpcConnectionConfig, retry_config: Option<RetryConfig>) -> Self {
         let payer = Keypair::new();
-        let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
-        let client = RpcClient::new_with_commitment(url.to_string(), commitment_config);
+        let commitment_config = config
+            .commitment_config
+            .unwrap_or(CommitmentConfig::confirmed());
+        let client = RpcClient::new_with_commitment(config.url.to_string(), commitment_config);
         let retry_config = retry_config.unwrap_or_default();
 
-        let indexer = if skip_indexer {
-            None
-        } else {
+        let indexer = if config.with_indexer {
             Some(PhotonIndexer::new(
                 "http://127.0.0.1:8784".to_string(),
                 None,
             ))
+        } else {
+            None
         };
         Self {
             client,
@@ -399,15 +395,11 @@ impl SolanaRpcConnection {
 
 #[async_trait]
 impl RpcConnection for SolanaRpcConnection {
-    fn new<U: ToString>(
-        url: U,
-        commitment_config: Option<CommitmentConfig>,
-        skip_indexer: bool,
-    ) -> Self
+    fn new(config: RpcConnectionConfig) -> Self
     where
         Self: Sized,
     {
-        Self::new_with_retry(url, commitment_config, None, skip_indexer)
+        Self::new_with_retry(config, None)
     }
 
     fn get_payer(&self) -> &Keypair {
@@ -603,7 +595,6 @@ impl RpcConnection for SolanaRpcConnection {
             .map_err(RpcError::from)
     }
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instructions: &[Instruction],
@@ -617,7 +608,6 @@ impl RpcConnection for SolanaRpcConnection {
             .await
     }
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_public_event(
         &mut self,
         instructions: &[Instruction],
@@ -632,7 +622,6 @@ impl RpcConnection for SolanaRpcConnection {
         Ok(event)
     }
 
-    #[cfg(not(feature = "devenv"))]
     async fn create_and_send_transaction_with_batched_event(
         &mut self,
         instructions: &[Instruction],
@@ -641,66 +630,6 @@ impl RpcConnection for SolanaRpcConnection {
     ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
         self._create_and_send_transaction_with_batched_event(instructions, payer, signers)
             .await
-    }
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_batched_event(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
-        let pre_balance = self.get_account(*payer).await?.unwrap().lamports;
-        let event = self
-            ._create_and_send_transaction_with_batched_event(instruction, payer, signers)
-            .await?;
-
-        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
-
-        Ok(event)
-    }
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_event<T>(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(T, Signature, Slot)>, RpcError>
-    where
-        T: BorshDeserialize + Send + Debug,
-    {
-        let pre_balance = self.get_account(*payer).await?.unwrap().lamports;
-
-        let result = self
-            ._create_and_send_transaction_with_event::<T>(instruction, payer, signers)
-            .await?;
-
-        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
-
-        Ok(result)
-    }
-
-    #[cfg(feature = "devenv")]
-    async fn create_and_send_transaction_with_public_event(
-        &mut self,
-        instruction: &[Instruction],
-        payer: &Pubkey,
-        signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
-        let res = self
-            .create_and_send_transaction_with_batched_event(
-                instruction,
-                payer,
-                signers,
-                transaction_params,
-            )
-            .await?;
-        let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
-        Ok(event)
     }
 
     async fn get_validity_proof(

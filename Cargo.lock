@@ -3342,6 +3342,7 @@ dependencies = [
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
  "light-program-test",
+ "light-prover-client",
  "light-sdk",
  "light-test-utils",
  "num-bigint 0.4.6",
