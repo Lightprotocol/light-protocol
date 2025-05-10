@@ -12,7 +12,7 @@ name = "light_system_program"
 [features]
 no-entrypoint = []
 cpi = ["no-entrypoint"]
-default = ["idl-build"]
+default = []
 idl-build = ["anchor-lang/idl-build"]
 test-sbf = []
 

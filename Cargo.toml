@@ -86,7 +86,7 @@ spl-token-2022 = { version = "7", no-default-features = true, features = [
 pinocchio = { version = "0.8.1" }
 
 # Anchor
-anchor-lang = { version = "=0.31.1", features = ["idl-build"] }
+anchor-lang = { version = "=0.31.1" }
 anchor-spl = "=0.31.1"
 
 # Anchor compatibility
