@@ -14,7 +14,7 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 
-use crate::test_env::create_address_merkle_tree_and_queue_account;
+use crate::accounts::address_merkle_tree::create_address_merkle_tree_and_queue_account;
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]

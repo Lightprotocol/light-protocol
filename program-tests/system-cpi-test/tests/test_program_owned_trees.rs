@@ -9,12 +9,14 @@ use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
 use light_program_test::{
-    acp_sdk::create_insert_leaves_instruction,
-    indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{
-        initialize_new_group, register_program_with_registry_program,
-        setup_test_programs_with_accounts, NOOP_PROGRAM_ID,
+    accounts::{
+        env_accounts::NOOP_PROGRAM_ID, initialize::initialize_new_group,
+        register_program::register_program_with_registry_program,
+        state_merkle_tree::create_insert_leaves_instruction,
     },
+    assert::assert_rpc_error,
+    indexer::{TestIndexer, TestIndexerExtensions},
+    test_env::{setup_test_programs_with_accounts, ProgramTestConfig},
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
@@ -29,9 +31,9 @@ use light_registry::{
     },
 };
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
-    create_account_instruction, get_concurrent_merkle_tree, spl::create_mint_helper, FeeConfig,
-    RpcConnection, RpcError, TransactionParams,
+    airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
+    get_concurrent_merkle_tree, spl::create_mint_helper, FeeConfig, RpcConnection, RpcError,
+    TransactionParams,
 };
 use serial_test::serial;
 use solana_sdk::{
@@ -49,9 +51,13 @@ use system_cpi_test::sdk::{
 #[serial]
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", system_cpi_test::ID)]))
-            .await;
+    let (mut rpc, env) = setup_test_programs_with_accounts({
+        let mut config = ProgramTestConfig::default();
+        config.additional_programs = Some(vec![("system_cpi_test", system_cpi_test::ID)]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = payer.pubkey();
 
@@ -60,7 +66,7 @@ async fn test_program_owned_merkle_tree() {
     let program_owned_nullifier_queue_keypair = Keypair::new();
     let cpi_context_keypair = Keypair::new();
 
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+    let mut test_indexer = TestIndexer::init_from_env(
         &payer,
         &env,
         Some(ProverConfig {
@@ -81,7 +87,7 @@ async fn test_program_owned_merkle_tree() {
             1,
         )
         .await;
-
+    rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
@@ -205,9 +211,13 @@ const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
 #[serial]
 #[tokio::test]
 async fn test_invalid_registered_program() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", system_cpi_test::ID)]))
-            .await;
+    let (mut rpc, env) = setup_test_programs_with_accounts({
+        let mut config = ProgramTestConfig::default();
+        config.additional_programs = Some(vec![("system_cpi_test", system_cpi_test::ID)]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
     let payer = env.forester.insecure_clone();
     airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000)
         .await
@@ -216,7 +226,9 @@ async fn test_invalid_registered_program() {
     let program_id_keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
     println!("program_id_keypair: {:?}", program_id_keypair.pubkey());
     let invalid_group_pda =
-        initialize_new_group(&group_seed_keypair, &payer, &mut rpc, payer.pubkey()).await;
+        initialize_new_group(&group_seed_keypair, &payer, &mut rpc, payer.pubkey())
+            .await
+            .unwrap();
     let invalid_group_registered_program_pda =
         register_program(&mut rpc, &payer, &program_id_keypair, &invalid_group_pda)
             .await

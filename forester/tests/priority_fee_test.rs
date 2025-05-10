@@ -3,7 +3,8 @@ use forester::{
     send_transaction::{get_capped_priority_fee, request_priority_fee_estimate, CapConfig},
     ForesterConfig,
 };
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
+use light_test_utils::SolanaRpcUrl;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
 use url::Url;
 
@@ -70,10 +71,11 @@ async fn test_priority_fee_request() {
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
 
     // Setup RPC connection using config
-    let mut rpc = SolanaRpcConnection::new(
-        config.external_services.rpc_url,
-        Some(CommitmentConfig::confirmed()),
-    );
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::confirmed()),
+        with_indexer: false,
+    });
     rpc.payer = config.payer_keypair.insecure_clone();
 
     let account_keys = vec![config.payer_keypair.pubkey()];

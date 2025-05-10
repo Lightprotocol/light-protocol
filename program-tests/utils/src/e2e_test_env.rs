@@ -86,12 +86,9 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::{
-    indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-        StateMerkleTreeBundle,
-    },
+    fee::{FeeConfig, TransactionParams},
+    indexer::{AddressMerkleTreeAccounts, AddressWithTree, Indexer, StateMerkleTreeAccounts},
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, RpcConnection},
-    transaction_params::{FeeConfig, TransactionParams},
 };
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
@@ -125,10 +122,15 @@ use light_indexed_merkle_tree::{
 use light_merkle_tree_metadata::QueueType;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_program_test::{
-    indexer::{TestIndexer, TestIndexerExtensions},
+    accounts::{
+        env_accounts::EnvAccounts, state_merkle_tree::create_state_merkle_tree_and_queue_account,
+    },
+    indexer::{
+        address_tree::AddressMerkleTreeBundle, state_tree::StateMerkleTreeBundle, TestIndexer,
+        TestIndexerExtensions,
+    },
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
-    test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
-    test_rpc::ProgramTestRpcConnection,
+    test_rpc::{ProgramTestRpcConnection, TestRpcConnection},
 };
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
@@ -148,7 +150,8 @@ use light_registry::{
 };
 use light_sdk::{
     token::{AccountState, TokenDataWithMerkleContext},
-    NewAddressParamsAssignedPacked, CPI_AUTHORITY_PDA_SEED,
+    NewAddressParamsAssignedPacked, ADDRESS_MERKLE_TREE_ROOTS, CPI_AUTHORITY_PDA_SEED,
+    STATE_MERKLE_TREE_ROOTS,
 };
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
@@ -252,12 +255,16 @@ impl Stats {
         println!("Finalized registrations {}", self.finalized_registrations);
     }
 }
-pub async fn init_program_test_env<R: RpcConnection + MerkleTreeExt>(
+
+pub async fn init_program_test_env<
+    R: RpcConnection + MerkleTreeExt + TestRpcConnection + light_program_test::test_rpc::TestRpc,
+>(
     rpc: R,
     env_accounts: &EnvAccounts,
     skip_prover: bool,
-) -> E2ETestEnv<R, TestIndexer<R>> {
-    let indexer: TestIndexer<R> = TestIndexer::init_from_env(
+    batch_size: usize,
+) -> E2ETestEnv<R, TestIndexer> {
+    let indexer: TestIndexer = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
         if skip_prover {
@@ -275,10 +282,11 @@ pub async fn init_program_test_env<R: RpcConnection + MerkleTreeExt>(
                 ],
             })
         },
+        batch_size,
     )
     .await;
 
-    E2ETestEnv::<R, TestIndexer<R>>::new(
+    E2ETestEnv::<R, TestIndexer>::new(
         rpc,
         indexer,
         env_accounts,
@@ -293,8 +301,9 @@ pub async fn init_program_test_env<R: RpcConnection + MerkleTreeExt>(
 pub async fn init_program_test_env_forester(
     rpc: ProgramTestRpcConnection,
     env_accounts: &EnvAccounts,
-) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
-    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+    batch_size: usize,
+) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer> {
+    let indexer = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         env_accounts,
         Some(ProverConfig {
@@ -306,10 +315,11 @@ pub async fn init_program_test_env_forester(
                 ProofType::NonInclusion,
             ],
         }),
+        batch_size,
     )
     .await;
 
-    E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+    E2ETestEnv::<ProgramTestRpcConnection, TestIndexer>::new(
         rpc,
         indexer,
         env_accounts,
@@ -328,7 +338,10 @@ pub struct TestForester {
     is_registered: Option<u64>,
 }
 
-pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> {
+pub struct E2ETestEnv<
+    R: RpcConnection + TestRpcConnection + light_program_test::test_rpc::TestRpc,
+    I: Indexer + TestIndexerExtensions,
+> {
     pub payer: Keypair,
     pub governance_keypair: Keypair,
     pub indexer: I,
@@ -351,10 +364,13 @@ pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>
     pub registration_epoch: u64,
 }
 
-impl<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> E2ETestEnv<R, I>
+impl<
+        R: RpcConnection + TestRpcConnection + light_program_test::test_rpc::TestRpc,
+        I: Indexer + TestIndexerExtensions,
+    > E2ETestEnv<R, I>
 where
     R: RpcConnection,
-    I: Indexer<R>,
+    I: Indexer,
 {
     pub async fn new(
         mut rpc: R,
@@ -1275,10 +1291,14 @@ where
         )
         .await
         .unwrap();
-        let merkle_tree = Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
-            STATE_MERKLE_TREE_HEIGHT as usize,
-            STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-        ));
+        let merkle_tree = Box::new(
+            light_merkle_tree_reference::MerkleTree::<Poseidon>::new_with_history(
+                STATE_MERKLE_TREE_HEIGHT as usize,
+                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+                0,
+                STATE_MERKLE_TREE_ROOTS,
+            ),
+        );
         let state_tree_account = AccountZeroCopy::<account_compression::QueueAccount>::new(
             &mut self.rpc,
             nullifier_queue_keypair.pubkey(),
@@ -1301,6 +1321,8 @@ where
                 merkle_tree,
                 output_queue_elements: vec![],
                 input_leaf_indices: vec![],
+                num_inserted_batches: 0,
+                output_queue_batch_size: None,
             });
         // TODO: Add assert
     }
@@ -1367,6 +1389,7 @@ where
             )
             .unwrap(),
         );
+        merkle_tree.merkle_tree.root_history_array_len = Some(ADDRESS_MERKLE_TREE_ROOTS);
         let mut indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
         merkle_tree.append(&init_value, &mut indexed_array).unwrap();
 
@@ -2381,6 +2404,8 @@ where
             4,
         )
         .await;
+        let output_queue_batch_size =
+            self.indexer.get_state_merkle_trees()[index].output_queue_batch_size;
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {
@@ -2398,6 +2423,8 @@ where
                 )),
                 output_queue_elements: vec![],
                 input_leaf_indices: vec![],
+                num_inserted_batches: 0,
+                output_queue_batch_size,
             });
         Ok(())
     }
@@ -2632,47 +2659,19 @@ where
         let mut root_indices = Vec::new();
         let mut proof = None;
         if !proof_input_accounts.is_empty() || !proof_input_addresses.is_empty() {
-            let address_vec;
-            let created_addresses = if proof_input_addresses.is_empty() {
-                None
-            } else {
-                address_vec = proof_input_addresses
-                    .iter()
-                    .map(|x| x.0)
-                    .collect::<Vec<_>>();
+            let address_merkle_tree_pubkeys = proof_input_addresses
+                .clone()
+                .into_iter()
+                .map(|(address, tree)| AddressWithTree { address, tree })
+                .collect::<Vec<_>>();
+            let compressed_account_input_hashes =
+                proof_input_accounts.iter().map(|x| x.0).collect::<Vec<_>>();
 
-                Some(&address_vec[..])
-            };
-            let address_merkle_tree_pubkeys = if proof_input_addresses.is_empty() {
-                None
-            } else {
-                Some(
-                    proof_input_addresses
-                        .iter()
-                        .map(|x| x.1)
-                        .collect::<Vec<_>>(),
-                )
-            };
-            let compressed_account_input_hashes = if proof_input_accounts.is_empty() {
-                None
-            } else {
-                Some(proof_input_accounts.iter().map(|x| x.0).collect::<Vec<_>>())
-            };
-            let state_merkle_trees = if proof_input_accounts.is_empty() {
-                None
-            } else {
-                Some(proof_input_accounts.iter().map(|x| x.1).collect::<Vec<_>>())
-            };
             let proof_rpc_res = self
-                .indexer
-                .create_proof_for_compressed_accounts2(
-                    compressed_account_input_hashes,
-                    state_merkle_trees,
-                    created_addresses,
-                    address_merkle_tree_pubkeys,
-                    &mut self.rpc,
-                )
-                .await;
+                .rpc
+                .get_validity_proof_v2(compressed_account_input_hashes, address_merkle_tree_pubkeys)
+                .await
+                .unwrap();
 
             root_indices = proof_rpc_res.root_indices.clone();
 
@@ -2801,9 +2800,9 @@ where
             None,
         );
 
-        let res = self
-            .rpc
-            .create_and_send_transaction_with_public_event(
+        let res =
+            light_program_test::test_rpc::TestRpc::create_and_send_transaction_with_public_event(
+                &mut self.rpc,
                 &[instruction],
                 &user.pubkey(),
                 &[user],

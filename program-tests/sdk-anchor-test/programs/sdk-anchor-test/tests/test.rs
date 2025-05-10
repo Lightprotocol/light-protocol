@@ -38,7 +38,7 @@ async fn test_sdk_test() {
     .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+    let mut test_indexer: TestIndexer = TestIndexer::new(
         vec![StateMerkleTreeAccounts {
             merkle_tree: env.merkle_tree_pubkey,
             nullifier_queue: env.nullifier_queue_pubkey,
@@ -141,7 +141,7 @@ async fn with_nested_data<R, I>(
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 {
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
     let mut remaining_accounts = PackedAccounts::default();
@@ -213,7 +213,7 @@ async fn update_nested_data<R, I>(
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 {
     let mut remaining_accounts = PackedAccounts::default();
 

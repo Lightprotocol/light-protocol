@@ -8,9 +8,10 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer},
+    indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
     rpc::{
-        merkle_tree::MerkleTreeExt, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
+        merkle_tree::MerkleTreeExt, rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl,
+        RpcConnection, SolanaRpcConnection,
     },
 };
 use light_compressed_account::{
@@ -25,7 +26,7 @@ use light_compressed_account::{
     },
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
+use light_program_test::accounts::env_accounts::EnvAccounts;
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
@@ -74,8 +75,11 @@ async fn test_create_v2_address() {
     config.payer_keypair = env.forester.insecure_clone();
     config.derivation_pubkey = env.forester.pubkey();
 
-    let mut rpc =
-        SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(CommitmentConfig::processed()));
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::processed()),
+        with_indexer: true,
+    });
     rpc.payer = env.forester.insecure_clone();
 
     ensure_sufficient_balance(&mut rpc, &env.forester.pubkey(), LAMPORTS_PER_SOL * 100).await;
@@ -179,10 +183,9 @@ async fn setup_forester_pipeline(
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
-    let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    let forester_photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None, rpc);
+    let forester_photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None);
 
-    let service_handle = tokio::spawn(run_pipeline(
+    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, PhotonIndexer>(
         Arc::from(config.clone()),
         None,
         None,
@@ -277,19 +280,19 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt>(
         println!("- seed: {:?}", seed);
     }
 
-    let mut test_indexer: TestIndexer<R> = TestIndexer::init_from_env(payer, env, None).await;
+    let address_with_trees = addresses
+        .into_iter()
+        .map(|address| AddressWithTree {
+            address,
+            tree: *batch_address_merkle_tree,
+        })
+        .collect::<Vec<_>>();
 
-    let proof_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
-            Some(&addresses),
-            Some(vec![*batch_address_merkle_tree; addresses.len()]),
-            rpc,
-        )
+    let proof_result = rpc
+        .get_validity_proof(Vec::new(), address_with_trees)
         .await
         .unwrap();
-
+    println!("proof_result {:?}", proof_result);
     if num_addresses == 1 {
         let data: [u8; 31] = [1; 31];
         let new_address_params = NewAddressParams {

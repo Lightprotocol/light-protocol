@@ -9,8 +9,8 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
-use light_program_test::test_env::{initialize_accounts, EnvAccountKeypairs};
+use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
+use light_program_test::accounts::env_keypairs::EnvAccountKeypairs;
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL,
     signature::{read_keypair_file, write_keypair_file, Keypair, Signer},
@@ -48,7 +48,11 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
     } else {
         String::from("https://api.mainnet-beta.solana.com")
     };
-    let mut rpc = SolanaRpcConnection::new(rpc_url, None);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: rpc_url,
+        commitment_config: None,
+        with_indexer: false,
+    });
 
     let env_keypairs = EnvAccountKeypairs::new_testnet_setup();
     env_keypairs.write_to_files(&format!("{}/", options.keypairs)); // Fixed string concatenation
@@ -66,11 +70,11 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
     println!("read payer: {:?}", payer.pubkey());
 
     let (
-        merkle_tree_config,
-        queue_config,
-        address_tree_config,
-        address_queue_config,
-        batched_state_tree_config,
+        _merkle_tree_config,
+        _queue_config,
+        _address_tree_config,
+        _address_queue_config,
+        _batched_state_tree_config,
         _batched_address_tree_config,
     ) = if let Some(config) = options.config {
         if config == "testnet" {
@@ -130,21 +134,21 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
         rpc.process_transaction(transaction).await?;
     }
     let governance_authority = env_keypairs.governance_authority.insecure_clone();
-    initialize_accounts(
-        &mut rpc,
-        env_keypairs,
-        light_registry::protocol_config::state::ProtocolConfig::testnet_default(),
-        false,
-        false,
-        true,
-        merkle_tree_config,
-        queue_config,
-        address_tree_config,
-        address_queue_config,
-        batched_state_tree_config,
-        None,
-    )
-    .await;
+    // initialize_accounts(
+    //     &mut rpc,
+    //     env_keypairs,
+    //     light_registry::protocol_config::state::ProtocolConfig::testnet_default(),
+    //     false,
+    //     false,
+    //     true,
+    //     merkle_tree_config,
+    //     queue_config,
+    //     address_tree_config,
+    //     address_queue_config,
+    //     batched_state_tree_config,
+    //     None,
+    // )
+    // .await;
     println!("initialized accounts");
 
     if let Some(num_foresters) = options.num_foresters {

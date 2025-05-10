@@ -35,8 +35,9 @@ use light_compressed_account::{
 use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
+    accounts::env_accounts::NOOP_PROGRAM_ID,
+    assert::assert_rpc_error,
     test_batch_forester::{assert_perform_state_mt_roll_over, create_batched_state_merkle_tree},
-    test_env::NOOP_PROGRAM_ID,
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::{
@@ -44,7 +45,7 @@ use light_prover_client::{
     mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
 use light_test_utils::{
-    address::insert_addresses, airdrop_lamports, assert_rpc_error, create_account_instruction,
+    address::insert_addresses, airdrop_lamports, create_account_instruction,
     spl::create_initialize_mint_instructions, AccountZeroCopy, RpcConnection, RpcError,
 };
 use light_verifier::VerifierError;

@@ -2,17 +2,10 @@
 
 use std::println;
 
-use account_compression::{
-    errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
-    NullifierQueueConfig, StateMerkleTreeConfig,
-};
+use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use light_batched_merkle_tree::{
-    errors::BatchedMerkleTreeError,
-    initialize_address_tree::InitAddressTreeAccountsInstructionData,
-    initialize_state_tree::InitStateTreeAccountsInstructionData, queue::BatchedQueueAccount,
-};
-use light_client::indexer::Indexer;
+use light_batched_merkle_tree::{errors::BatchedMerkleTreeError, queue::BatchedQueueAccount};
+use light_client::indexer::{AddressWithTree, Indexer};
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     compressed_account::{
@@ -27,12 +20,14 @@ use light_compressed_account::{
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
+    accounts::{
+        env_accounts::EnvAccounts, env_keypairs::EnvAccountKeypairs,
+        initialize::initialize_accounts,
+    },
+    assert::assert_rpc_error,
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::perform_batch_append,
-    test_env::{
-        initialize_accounts, setup_test_programs, setup_test_programs_with_accounts,
-        EnvAccountKeypairs, EnvAccounts,
-    },
+    test_env::{setup_test_programs, setup_test_programs_with_accounts, ProgramTestConfig},
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig, ProverMode};
@@ -44,7 +39,7 @@ use light_system_program::{
 use light_test_utils::{
     airdrop_lamports,
     assert_compressed_tx::assert_created_compressed_accounts,
-    assert_custom_error_or_program_error, assert_rpc_error,
+    assert_custom_error_or_program_error,
     system_program::{
         compress_sol_test, create_addresses_test, create_invoke_instruction,
         create_invoke_instruction_data_and_remaining_accounts, decompress_sol_test,
@@ -94,7 +89,9 @@ use tokio::fs::write as async_write;
 #[serial]
 #[tokio::test]
 async fn invoke_failing_test() {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+    let (mut context, env) = setup_test_programs_with_accounts(ProgramTestConfig::default())
+        .await
+        .unwrap();
     spawn_prover(
         true,
         ProverConfig {
@@ -126,8 +123,7 @@ async fn invoke_failing_test() {
     .await
     .unwrap();
 
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None, 0).await;
     // circuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
     let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
 
@@ -188,10 +184,7 @@ async fn invoke_failing_test() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn failing_transaction_inputs<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn failing_transaction_inputs<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     context: &mut R,
     test_indexer: &mut I,
     payer: &Keypair,
@@ -226,47 +219,40 @@ pub async fn failing_transaction_inputs<
         .iter()
         .map(|x| x.hash().unwrap())
         .collect::<Vec<_>>();
-    let input_compressed_account_hashes = if num_inputs != 0 { Some(hashes) } else { None };
-    let mts = input_compressed_accounts
-        .iter()
-        .map(|x| x.merkle_context.merkle_tree_pubkey)
-        .collect::<Vec<_>>();
-    let input_state_merkle_trees = if num_inputs != 0 { Some(mts) } else { None };
+
     let proof_input_derived_addresses = if num_addresses != 0 {
         Some(derived_addresses.as_slice())
     } else {
         None
     };
-    let proof_input_address_merkle_tree_pubkeys = if num_addresses != 0 {
-        Some(vec![env.address_merkle_tree_pubkey; num_addresses])
-    } else {
-        None
-    };
 
-    let (root_indices, proof) =
-        if input_compressed_account_hashes.is_some() || proof_input_derived_addresses.is_some() {
-            let proof_rpc_res = test_indexer
-                .create_proof_for_compressed_accounts(
-                    input_compressed_account_hashes,
-                    input_state_merkle_trees,
-                    proof_input_derived_addresses,
-                    proof_input_address_merkle_tree_pubkeys,
-                    context,
-                )
-                .await
-                .unwrap();
-            for (i, root_index) in proof_rpc_res
-                .clone()
-                .address_root_indices
-                .iter()
-                .enumerate()
-            {
-                new_address_params[i].address_merkle_tree_root_index = *root_index;
-            }
-            (proof_rpc_res.root_indices, Some(proof_rpc_res.proof))
-        } else {
-            (Vec::new(), None)
-        };
+    let addresses_with_tree = proof_input_derived_addresses
+        .unwrap_or_default()
+        .iter()
+        .map(|address| AddressWithTree {
+            address: *address,
+            tree: env.address_merkle_tree_pubkey,
+        })
+        .collect::<Vec<_>>();
+
+    let (root_indices, proof) = if !addresses_with_tree.is_empty() || !hashes.is_empty() {
+        // || proof_input_derived_addresses.is_some()
+        let proof_rpc_res = context
+            .get_validity_proof(hashes, addresses_with_tree)
+            .await
+            .unwrap();
+        for (i, root_index) in proof_rpc_res.address_root_indices.iter().enumerate() {
+            new_address_params[i].address_merkle_tree_root_index = *root_index;
+        }
+        let root_indices = proof_rpc_res
+            .root_indices
+            .iter()
+            .map(|x| Some(*x))
+            .collect::<Vec<_>>();
+        (root_indices, Some(proof_rpc_res.proof))
+    } else {
+        (Vec::new(), None)
+    };
     let (output_compressed_accounts, output_merkle_tree_pubkeys) = if num_outputs > 0 {
         let mut output_compressed_accounts = vec![];
         let mut output_merkle_tree_pubkeys = vec![];
@@ -312,6 +298,7 @@ pub async fn failing_transaction_inputs<
         None,
         false,
     );
+    println!("num_addresses {:?}", num_addresses);
     if num_addresses > 0 {
         failing_transaction_address(
             context,
@@ -322,6 +309,7 @@ pub async fn failing_transaction_inputs<
         )
         .await?;
     }
+    println!("num_inputs {:?}", num_inputs);
     if num_inputs > 0 {
         failing_transaction_inputs_inner(
             context,
@@ -360,6 +348,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
     {
         println!("invalid proof");
         let mut inputs_struct = inputs_struct.clone();
+        println!("inputs_struct {:?}", inputs_struct);
         inputs_struct.proof.as_mut().unwrap().a = inputs_struct.proof.as_ref().unwrap().c;
         create_instruction_and_failing_transaction(
             context,
@@ -906,16 +895,19 @@ pub async fn create_instruction_and_failing_transaction<R: RpcConnection>(
 #[serial]
 #[tokio::test]
 async fn invoke_test() {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+    let (mut context, env) = setup_test_programs_with_accounts(ProgramTestConfig::default())
+        .await
+        .unwrap();
 
     let payer = context.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+    let mut test_indexer = TestIndexer::init_from_env(
         &payer,
         &env,
         Some(ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
         }),
+        0,
     )
     .await;
 
@@ -1051,21 +1043,14 @@ async fn invoke_test() {
     // get zkp from server
     // create instruction as usual with correct zkp
     let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
-    let proof_rpc_res = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(vec![compressed_account_with_context.hash().unwrap()]),
-            Some(vec![
-                compressed_account_with_context
-                    .merkle_context
-                    .merkle_tree_pubkey,
-            ]),
-            None,
-            None,
-            &mut context,
+    let proof_rpc_res = context
+        .get_validity_proof_v2(
+            vec![compressed_account_with_context.hash().unwrap()],
+            vec![],
         )
         .await
         .unwrap();
-    let proof = proof_rpc_res.proof;
+    let proof = proof_rpc_res.proof.unwrap();
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
 
     let instruction = create_invoke_instruction(
@@ -1189,16 +1174,22 @@ async fn invoke_test() {
 #[serial]
 #[tokio::test]
 async fn test_with_address() {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+    let (mut context, env) =
+        setup_test_programs_with_accounts(ProgramTestConfig::default_with_batched_trees())
+            .await
+            .unwrap();
     let payer = context.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+    let mut test_indexer = TestIndexer::init_from_env(
         &payer,
         &env,
         Some(ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
         }),
-        // None,
+        ProgramTestConfig::default_with_batched_trees()
+            .batched_tree_init_params
+            .unwrap()
+            .output_queue_batch_size as usize,
     )
     .await;
 
@@ -1476,20 +1467,23 @@ async fn test_with_address() {
 #[serial]
 #[tokio::test]
 async fn test_with_compression() {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+    let (mut context, env) = setup_test_programs_with_accounts(ProgramTestConfig::default())
+        .await
+        .unwrap();
     let payer = context.get_payer().insecure_clone();
 
     let payer_pubkey = payer.pubkey();
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+    let mut test_indexer = TestIndexer::init_from_env(
         &payer,
         &env,
         Some(ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
         }),
+        0,
     )
     .await;
     let compress_amount = 1_000_000;
@@ -1574,17 +1568,10 @@ async fn test_with_compression() {
     .unwrap();
 
     let compressed_account_with_context = test_indexer.compressed_accounts.last().unwrap().clone();
-    let proof_rpc_res = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(vec![compressed_account_with_context.hash().unwrap()]),
-            Some(vec![
-                compressed_account_with_context
-                    .merkle_context
-                    .merkle_tree_pubkey,
-            ]),
-            None,
-            None,
-            &mut context,
+    let proof_rpc_res = context
+        .get_validity_proof_v2(
+            vec![compressed_account_with_context.hash().unwrap()],
+            vec![],
         )
         .await
         .unwrap();
@@ -1614,7 +1601,7 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        Some(proof),
+        proof,
         Some(compress_amount),
         true,
         Some(recipient),
@@ -1681,22 +1668,26 @@ async fn regenerate_accounts() {
         .await
         .unwrap();
     // Note this will not regenerate the registered program accounts.
-    let skip_register_programs = true;
+    let mut config = ProgramTestConfig::default_with_batched_trees();
+    config.skip_register_programs = true;
+    config.protocol_config = protocol_config;
     let env = initialize_accounts(
         &mut context,
+        &config,
         keypairs,
-        protocol_config,
-        true,
-        skip_register_programs,
-        false,
-        StateMerkleTreeConfig::default(),
-        NullifierQueueConfig::default(),
-        AddressMerkleTreeConfig::default(),
-        AddressQueueConfig::default(),
-        InitStateTreeAccountsInstructionData::test_default(),
-        Some(InitAddressTreeAccountsInstructionData::test_default()),
+        // protocol_config,
+        // true,
+        // skip_register_programs,
+        // false,
+        // StateMerkleTreeConfig::default(),
+        // NullifierQueueConfig::default(),
+        // AddressMerkleTreeConfig::default(),
+        // AddressQueueConfig::default(),
+        // InitStateTreeAccountsInstructionData::test_default(),
+        // Some(InitAddressTreeAccountsInstructionData::test_default()),
     )
-    .await;
+    .await
+    .unwrap();
     let keypairs = EnvAccountKeypairs::for_regenerate_accounts();
 
     // List of public keys to fetch and export
@@ -1850,16 +1841,23 @@ pub fn rustfmt(code: String) -> Result<Vec<u8>, io::Error> {
 #[serial]
 #[tokio::test]
 async fn batch_invoke_test() {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+    let (mut context, env) =
+        setup_test_programs_with_accounts(ProgramTestConfig::default_with_batched_trees())
+            .await
+            .unwrap();
 
     let payer = context.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+    let mut test_indexer = TestIndexer::init_from_env(
         &payer,
         &env,
         Some(ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
         }),
+        ProgramTestConfig::default_with_batched_trees()
+            .batched_tree_init_params
+            .unwrap()
+            .output_queue_batch_size as usize,
     )
     .await;
     let payer_pubkey = payer.pubkey();
@@ -1967,19 +1965,13 @@ async fn batch_invoke_test() {
             compressed_account_with_context
         );
         println!("hash {:?}", compressed_account_with_context.hash());
-        let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts2(
-                Some(vec![compressed_account_with_context.hash().unwrap()]),
-                Some(vec![
-                    compressed_account_with_context
-                        .merkle_context
-                        .merkle_tree_pubkey,
-                ]),
-                None,
-                None,
-                &mut context,
+        let proof_rpc_result = context
+            .get_validity_proof_v2(
+                vec![compressed_account_with_context.hash().unwrap()],
+                vec![],
             )
-            .await;
+            .await
+            .unwrap();
         // No proof since value is in output queue
         assert!(proof_rpc_result.proof.is_none());
         // No root index since value is in output queue
@@ -2154,30 +2146,18 @@ async fn batch_invoke_test() {
             })
             .collect::<Vec<_>>()[0]
             .clone();
-        let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts2(
-                Some(vec![
+        let proof_rpc_result = context
+            .get_validity_proof_v2(
+                vec![
                     compressed_account_with_context_1.hash().unwrap(),
                     compressed_account_with_context_2.hash().unwrap(),
-                ]),
-                Some(vec![
-                    compressed_account_with_context_1
-                        .merkle_context
-                        .merkle_tree_pubkey,
-                    compressed_account_with_context_2
-                        .merkle_context
-                        .merkle_tree_pubkey,
-                ]),
-                None,
-                None,
-                &mut context,
+                ],
+                vec![],
             )
-            .await;
+            .await
+            .unwrap();
 
-        let mut proof = None;
-        if let Some(proof_rpc) = proof_rpc_result.proof {
-            proof = Some(proof_rpc);
-        }
+        let proof = proof_rpc_result.proof;
 
         let input_compressed_accounts = vec![
             compressed_account_with_context_1.compressed_account,
@@ -2508,7 +2488,7 @@ pub enum TestMode {
 
 pub async fn double_spend_compressed_account<
     R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     context: &mut R,
     test_indexer: &mut I,
@@ -2516,21 +2496,14 @@ pub async fn double_spend_compressed_account<
     mode: TestMode,
     compressed_account_with_context_1: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError> {
-    let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(vec![compressed_account_with_context_1.hash().unwrap()]),
-            Some(vec![
-                compressed_account_with_context_1
-                    .merkle_context
-                    .merkle_tree_pubkey,
-            ]),
-            None,
-            None,
-            context,
+    let proof_rpc_result = context
+        .get_validity_proof_v2(
+            vec![compressed_account_with_context_1.hash().unwrap()],
+            vec![],
         )
         .await
         .unwrap();
-    let proof = Some(proof_rpc_result.proof);
+    let proof = proof_rpc_result.proof;
     let input_compressed_accounts = vec![compressed_account_with_context_1.compressed_account];
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -2604,7 +2577,7 @@ pub async fn double_spend_compressed_account<
 /// fill batch and perform batch append
 pub async fn create_compressed_accounts_in_batch_merkle_tree(
     context: &mut ProgramTestRpcConnection,
-    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     output_queue_pubkey: Pubkey,
     env: &EnvAccounts,
@@ -2640,7 +2613,7 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
 pub async fn create_output_accounts(
     context: &mut ProgramTestRpcConnection,
     payer: &Keypair,
-    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+    test_indexer: &mut TestIndexer,
     output_queue_pubkey: Pubkey,
     num_accounts: usize,
     is_batched: bool,

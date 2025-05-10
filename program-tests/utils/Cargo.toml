@@ -30,12 +30,12 @@ light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
 light-compressed-account = { workspace = true }
-light-program-test = { workspace = true }
+light-program-test = { workspace = true, features = ["devenv"] }
 forester-utils = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 rand = { workspace = true }
 log = { workspace = true }
-light-client = { workspace = true }
+light-client = { workspace = true, features = ["devenv"] }
 create-address-test-program = { workspace = true }
 spl-token-2022 = { workspace = true }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }

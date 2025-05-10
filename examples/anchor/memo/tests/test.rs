@@ -44,7 +44,7 @@ async fn test_memo_program() {
         setup_test_programs_with_accounts_v2(Some(vec![("memo", memo::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+    let mut test_indexer: TestIndexer = TestIndexer::new(
         Vec::from(&[StateMerkleTreeAccounts {
             merkle_tree: env.merkle_tree_pubkey,
             nullifier_queue: env.nullifier_queue_pubkey,
@@ -167,7 +167,7 @@ async fn test_memo_program() {
 async fn create_memo<R>(
     message: &str,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
@@ -251,7 +251,7 @@ where
 async fn update_memo<R>(
     new_message: &str,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
@@ -331,7 +331,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn delete_memo<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,

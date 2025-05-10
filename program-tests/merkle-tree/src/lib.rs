@@ -17,6 +17,8 @@ pub enum ReferenceMerkleTreeError {
     InvalidProofLength(usize, usize),
     #[error("IndexedArray error: {0}")]
     IndexedArray(#[from] IndexedArrayError),
+    #[error("RootHistoryArrayLenNotSet")]
+    RootHistoryArrayLenNotSet,
 }
 
 #[derive(Debug, Clone)]
@@ -31,7 +33,9 @@ where
     pub roots: Vec<[u8; 32]>,
     pub rightmost_index: usize,
     pub sequence_number: usize,
-
+    pub root_history_start_offset: usize,
+    pub root_history_array_len: Option<usize>,
+    // pub batch_size: Option<usize>,
     _hasher: PhantomData<H>,
 }
 
@@ -48,8 +52,43 @@ where
             roots: vec![H::zero_bytes()[height]],
             rightmost_index: 0,
             sequence_number: 0,
-
+            root_history_start_offset: 0,
+            root_history_array_len: None,
+            // batch_size: None,
             _hasher: PhantomData,
+        }
+    }
+
+    pub fn new_with_history(
+        height: usize,
+        canopy_depth: usize,
+        root_history_start_offset: usize,
+        root_history_array_len: usize,
+    ) -> Self {
+        Self {
+            height,
+            capacity: 1 << height,
+            canopy_depth,
+            layers: vec![Vec::new(); height],
+            roots: vec![H::zero_bytes()[height]],
+            rightmost_index: 0,
+            sequence_number: 0,
+            root_history_start_offset,
+            root_history_array_len: Some(root_history_array_len),
+            // batch_size: None,
+            _hasher: PhantomData,
+        }
+    }
+
+    pub fn get_history_root_index(&self) -> Result<u16, ReferenceMerkleTreeError> {
+        if let Some(root_history_array_len) = self.root_history_array_len {
+            Ok(
+                ((self.rightmost_index - self.root_history_start_offset) % root_history_array_len)
+                    .try_into()
+                    .unwrap(),
+            )
+        } else {
+            Err(ReferenceMerkleTreeError::RootHistoryArrayLenNotSet)
         }
     }
 

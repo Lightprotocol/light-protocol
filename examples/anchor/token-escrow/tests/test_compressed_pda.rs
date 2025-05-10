@@ -21,8 +21,10 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_program_test::{
+    accounts::env_accounts::EnvAccounts,
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts, EnvAccounts},
+    test_env::setup_test_programs_with_accounts,
+    test_rpc::TestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_test_utils::{
@@ -149,7 +151,7 @@ async fn test_escrow_with_compressed_pda() {
 }
 
 pub async fn perform_escrow_failing<R: RpcConnection + MerkleTreeExt>(
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -179,7 +181,7 @@ pub async fn perform_escrow_failing<R: RpcConnection + MerkleTreeExt>(
 }
 
 pub async fn perform_escrow_with_event<R: RpcConnection + MerkleTreeExt>(
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -218,7 +220,7 @@ pub async fn perform_escrow_with_event<R: RpcConnection + MerkleTreeExt>(
 
 async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
     payer: &Keypair,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     seed: [u8; 32],
     context: &mut R,
@@ -288,7 +290,7 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
 }
 
 pub async fn assert_escrow<R: RpcConnection + MerkleTreeExt>(
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -361,7 +363,7 @@ pub async fn assert_escrow<R: RpcConnection + MerkleTreeExt>(
 }
 pub async fn perform_withdrawal_with_event<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -393,7 +395,7 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection + MerkleTreeExt>(
 
 pub async fn perform_withdrawal_failing<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -421,7 +423,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection + MerkleTreeExt>(
 }
 pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -507,7 +509,7 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_withdrawal<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,

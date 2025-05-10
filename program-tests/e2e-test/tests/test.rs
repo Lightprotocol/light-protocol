@@ -6,7 +6,7 @@ use light_batched_merkle_tree::{
 };
 use light_program_test::{
     indexer::TestIndexer,
-    test_env::setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
+    test_env::{setup_test_programs_with_accounts, ProgramTestConfig},
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
@@ -30,18 +30,23 @@ async fn test_10_all() {
     };
     let params = InitStateTreeAccountsInstructionData::e2e_test_default();
     let address_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
+    let mut config = ProgramTestConfig::default_with_batched_trees();
+    config.batched_tree_init_params = Some(params);
+    config.batched_address_tree_init_params = Some(address_params);
+    config.protocol_config = protocol_config;
+    config.with_prover = false;
+    let (rpc, env_accounts) = setup_test_programs_with_accounts(config).await.unwrap();
+    // let (rpc, env_accounts) =
+    //     setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+    //         None,
+    //         protocol_config,
+    //         true,
+    //         params,
+    //         address_params,
+    //     )
+    //     .await;
 
-    let (rpc, env_accounts) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            None,
-            protocol_config,
-            true,
-            params,
-            address_params,
-        )
-        .await;
-
-    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+    let indexer: TestIndexer = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         &env_accounts,
         Some(ProverConfig {
@@ -62,17 +67,16 @@ async fn test_10_all() {
     general_config.rollover = None;
     general_config.create_address_mt = None;
     general_config.create_state_mt = None;
-    let mut env =
-        E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
-            indexer,
-            &env_accounts,
-            config,
-            general_config,
-            10,
-            None,
-        )
-        .await;
+    let mut env = E2ETestEnv::<ProgramTestRpcConnection, TestIndexer>::new(
+        rpc,
+        indexer,
+        &env_accounts,
+        config,
+        general_config,
+        10,
+        None,
+    )
+    .await;
     env.execute_rounds().await;
     println!("stats {:?}", env.stats);
 }
@@ -90,21 +94,30 @@ async fn test_batched_only() {
     };
     let params = InitStateTreeAccountsInstructionData::e2e_test_default();
     let address_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
+    let mut config = ProgramTestConfig::default_with_batched_trees();
+    config.batched_tree_init_params = Some(params);
+    config.batched_address_tree_init_params = Some(address_params);
+    config.protocol_config = protocol_config;
+    config.with_prover = false;
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        CREATE_ADDRESS_TEST_PROGRAM_ID,
+    )]);
+    let (rpc, env_accounts) = setup_test_programs_with_accounts(config).await.unwrap();
+    // let (rpc, env_accounts) =
+    //     setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+    //         Some(vec![(
+    //             "create_address_test_program",
+    //             CREATE_ADDRESS_TEST_PROGRAM_ID,
+    //         )]),
+    //         protocol_config,
+    //         true,
+    //         params,
+    //         address_params,
+    //     )
+    //     .await;
 
-    let (rpc, env_accounts) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            Some(vec![(
-                "create_address_test_program",
-                CREATE_ADDRESS_TEST_PROGRAM_ID,
-            )]),
-            protocol_config,
-            true,
-            params,
-            address_params,
-        )
-        .await;
-
-    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+    let indexer: TestIndexer = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         &env_accounts,
         Some(ProverConfig {
@@ -128,17 +141,16 @@ async fn test_batched_only() {
     general_config.add_keypair = None;
     general_config.rollover = None;
     general_config.add_forester = None;
-    let mut env =
-        E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
-            indexer,
-            &env_accounts,
-            config,
-            general_config,
-            0,
-            None,
-        )
-        .await;
+    let mut env = E2ETestEnv::<ProgramTestRpcConnection, TestIndexer>::new(
+        rpc,
+        indexer,
+        &env_accounts,
+        config,
+        general_config,
+        0,
+        None,
+    )
+    .await;
     // remove concurrent Merkle trees
     env.indexer.state_merkle_trees.remove(0);
     env.indexer.address_merkle_trees.remove(0);
@@ -172,18 +184,28 @@ async fn test_10000_all() {
     };
     let params = InitStateTreeAccountsInstructionData::e2e_test_default();
     let address_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
+    let mut config = ProgramTestConfig::default_with_batched_trees();
+    config.batched_tree_init_params = Some(params);
+    config.batched_address_tree_init_params = Some(address_params);
+    config.protocol_config = protocol_config;
+    config.with_prover = false;
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        CREATE_ADDRESS_TEST_PROGRAM_ID,
+    )]);
+    let (rpc, env_accounts) = setup_test_programs_with_accounts(config).await.unwrap();
 
-    let (rpc, env_accounts) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            None,
-            protocol_config,
-            true,
-            params,
-            address_params,
-        )
-        .await;
+    // let (rpc, env_accounts) =
+    //     setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+    //         None,
+    //         protocol_config,
+    //         true,
+    //         params,
+    //         address_params,
+    //     )
+    //     .await;
 
-    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+    let indexer: TestIndexer = TestIndexer::init_from_env(
         &env_accounts.forester.insecure_clone(),
         &env_accounts,
         Some(ProverConfig {
@@ -199,16 +221,15 @@ async fn test_10000_all() {
     )
     .await;
 
-    let mut env =
-        E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
-            rpc,
-            indexer,
-            &env_accounts,
-            KeypairActionConfig::all_default_no_fee_assert(),
-            GeneralActionConfig::test_with_rollover(),
-            10000,
-            Some(8464865003173904667),
-        )
-        .await;
+    let mut env = E2ETestEnv::<ProgramTestRpcConnection, TestIndexer>::new(
+        rpc,
+        indexer,
+        &env_accounts,
+        KeypairActionConfig::all_default_no_fee_assert(),
+        GeneralActionConfig::test_with_rollover(),
+        10000,
+        Some(8464865003173904667),
+    )
+    .await;
     env.execute_rounds().await;
 }

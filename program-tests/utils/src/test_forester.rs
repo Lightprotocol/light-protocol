@@ -8,14 +8,15 @@ use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use forester_utils::account_zero_copy::{
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
 };
-use light_client::{
-    indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle},
-    rpc::{errors::RpcError, RpcConnection},
-};
+use light_client::rpc::{errors::RpcError, RpcConnection};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
-use light_program_test::test_env::NOOP_PROGRAM_ID;
+use light_program_test::{
+    accounts::env_accounts::NOOP_PROGRAM_ID,
+    indexer::{address_tree::AddressMerkleTreeBundle, state_tree::StateMerkleTreeBundle},
+    test_rpc::TestRpcConnection,
+};
 use light_registry::{
     account_compression_cpi::sdk::{
         create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -47,7 +48,7 @@ use thiserror::Error;
 /// 2. State tree root is updated
 /// 3. TODO: add event is emitted (after rebase)
 ///     optional: assert that the Merkle tree doesn't change except the updated leaf
-pub async fn nullify_compressed_accounts<R: RpcConnection>(
+pub async fn nullify_compressed_accounts<R: RpcConnection + TestRpcConnection>(
     rpc: &mut R,
     forester: &Keypair,
     state_tree_bundle: &mut StateMerkleTreeBundle,
@@ -139,7 +140,6 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
                 &instructions,
                 &forester.pubkey(),
                 &[forester],
-                None,
             )
             .await?
             .unwrap();
@@ -642,7 +642,6 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         &[update_ix],
         &forester.pubkey(),
         &[forester],
-        None,
     )
     .await
 }

@@ -45,7 +45,7 @@ async fn test_counter() {
             .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+    let mut test_indexer: TestIndexer = TestIndexer::new(
         Vec::from(&[StateMerkleTreeAccounts {
             merkle_tree: env.merkle_tree_pubkey,
             nullifier_queue: env.nullifier_queue_pubkey,
@@ -172,7 +172,7 @@ async fn test_counter() {
 #[allow(clippy::too_many_arguments)]
 async fn create_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     payer: &Keypair,
     address: &[u8; 32],
@@ -249,7 +249,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn increment_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>
@@ -338,7 +338,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn decrement_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>
@@ -426,7 +426,7 @@ where
 
 async fn reset_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>
@@ -514,7 +514,7 @@ where
 
 async fn close_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>

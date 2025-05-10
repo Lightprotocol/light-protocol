@@ -1,4 +1,4 @@
-use solana_sdk::bs58;
+use bs58;
 
 use crate::indexer::error::IndexerError;
 

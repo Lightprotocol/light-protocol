@@ -29,12 +29,12 @@ impl<T> fmt::Display for Error<T> {
 
 impl<T: fmt::Debug> error::Error for Error<T> {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        Some(match self {
-            Error::Reqwest(e) => e,
-            Error::Serde(e) => e,
-            Error::Io(e) => e,
-            Error::ResponseError(_) => return None,
-        })
+        match self {
+            Error::Reqwest(e) => Some(e),
+            Error::Serde(e) => Some(e),
+            Error::Io(e) => Some(e),
+            Error::ResponseError(_) => None,
+        }
     }
 }
 

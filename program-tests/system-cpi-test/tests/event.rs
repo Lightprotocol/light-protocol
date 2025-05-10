@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
+use light_client::indexer::AddressWithTree;
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy, pack_new_address_params_assigned},
     compressed_account::{
@@ -26,13 +27,10 @@ use light_compressed_account::{
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{
-    indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts, EnvAccounts},
-    test_rpc::ProgramTestRpcConnection,
+    accounts::env_accounts::EnvAccounts,
+    test_env::{setup_test_programs_with_accounts, ProgramTestConfig},
 };
-use light_prover_client::gnark::helpers::{
-    spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
-};
+use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_sdk::NewAddressParamsAssigned;
 use light_test_utils::{RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl};
 use serial_test::serial;
@@ -44,20 +42,18 @@ use solana_sdk::{
 #[tokio::test]
 #[serial]
 async fn parse_batched_event_functional() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        "create_address_test_program",
-        create_address_test_program::ID,
-    )]))
-    .await;
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        },
-    )
-    .await;
-
+    let (mut rpc, env) = setup_test_programs_with_accounts({
+        let mut config = ProgramTestConfig::default_with_batched_trees();
+        config.with_prover = false;
+        config.additional_programs = Some(vec![(
+            "create_address_test_program",
+            create_address_test_program::ID,
+        )]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
+    println!("env : {:?}", env);
     let payer = rpc.get_payer().insecure_clone();
     // Insert 8 output accounts that we can use as inputs.
     {
@@ -111,6 +107,7 @@ async fn parse_batched_event_functional() {
         };
         assert_eq!(events[0], expected_batched_event);
     }
+    println!("parse_batched_event_functional 1");
     // Full functional 8 input, 8 outputs, 2 legacy addresses
     {
         let num_expected_events = 1;
@@ -133,31 +130,36 @@ async fn parse_batched_event_functional() {
             derive_address_legacy(&env.address_merkle_tree_pubkey, &[2u8; 32]).unwrap(),
         ];
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
-        let proof_res = test_indexer
-            .create_proof_for_compressed_accounts2(
-                None,
-                None,
-                Some(&new_addresses),
-                Some(vec![env.address_merkle_tree_pubkey; 2]),
-                &mut rpc,
-            )
+
+        let addresses_with_tree = new_addresses
+            .iter()
+            .map(|new_address| AddressWithTree {
+                address: *new_address,
+                tree: env.address_merkle_tree_pubkey,
+            })
+            .collect::<Vec<_>>();
+        println!("parse_batched_event_functional 1.1");
+
+        let proof_res = rpc
+            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
             .await;
+        println!("parse_batched_event_functional 1.2");
+
+        let proof_result = proof_res.unwrap();
 
         let new_address_params = vec![
             NewAddressParamsAssigned {
                 seed: [1u8; 32],
                 address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
                 address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-                address_merkle_tree_root_index: proof_res.address_root_indices[0],
+                address_merkle_tree_root_index: proof_result.address_root_indices[0],
                 assigned_account_index: None,
             },
             NewAddressParamsAssigned {
                 seed: [2u8; 32],
                 address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
                 address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-                address_merkle_tree_root_index: proof_res.address_root_indices[1],
+                address_merkle_tree_root_index: proof_result.address_root_indices[1],
                 assigned_account_index: None,
             },
         ];
@@ -168,7 +170,7 @@ async fn parse_batched_event_functional() {
             output_accounts,
             new_address_params,
             None,
-            proof_res.proof,
+            proof_result.proof,
         )
         .await
         .unwrap()
@@ -177,15 +179,7 @@ async fn parse_batched_event_functional() {
         assert_eq!(events.len(), num_expected_events as usize);
         let input_hashes = input_accounts
             .iter()
-            .map(|x| {
-                x.compressed_account
-                    .hash(
-                        &env.batched_state_merkle_tree,
-                        &x.merkle_context.leaf_index,
-                        true,
-                    )
-                    .unwrap()
-            })
+            .map(|x| x.hash().unwrap())
             .collect::<Vec<_>>();
         let output_hashes = output_accounts
             .iter()
@@ -212,10 +206,7 @@ async fn parse_batched_event_functional() {
 
         let expected_batched_event = BatchPublicTransactionEvent {
             event: PublicTransactionEvent {
-                input_compressed_account_hashes: input_accounts
-                    .iter()
-                    .map(|x| x.hash().unwrap())
-                    .collect::<Vec<_>>(),
+                input_compressed_account_hashes: input_hashes,
                 output_leaf_indices: (8..16).collect(),
                 output_compressed_account_hashes: output_accounts
                     .iter()
@@ -264,6 +255,7 @@ async fn parse_batched_event_functional() {
         };
         assert_eq!(events[0], expected_batched_event);
     }
+    println!("parse_batched_event_functional 2");
     // Full functional 8 input, 8 outputs, 2 batched addresses
     {
         let num_expected_events = 1;
@@ -294,31 +286,34 @@ async fn parse_batched_event_functional() {
             ),
         ];
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
-        let proof_res = test_indexer
-            .create_proof_for_compressed_accounts2(
-                None,
-                None,
-                Some(&new_addresses),
-                Some(vec![env.batch_address_merkle_tree; 2]),
-                &mut rpc,
-            )
+
+        let addresses_with_tree = new_addresses
+            .iter()
+            .map(|address| AddressWithTree {
+                address: *address,
+                tree: env.batch_address_merkle_tree,
+            })
+            .collect::<Vec<_>>();
+
+        let proof_res = rpc
+            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
             .await;
+
+        let proof_result = proof_res.unwrap();
 
         let new_address_params = vec![
             NewAddressParamsAssigned {
                 seed: [1u8; 32],
                 address_queue_pubkey: env.batch_address_merkle_tree,
                 address_merkle_tree_pubkey: env.batch_address_merkle_tree,
-                address_merkle_tree_root_index: proof_res.address_root_indices[0],
+                address_merkle_tree_root_index: proof_result.address_root_indices[0],
                 assigned_account_index: None,
             },
             NewAddressParamsAssigned {
                 seed: [2u8; 32],
                 address_queue_pubkey: env.batch_address_merkle_tree,
                 address_merkle_tree_pubkey: env.batch_address_merkle_tree,
-                address_merkle_tree_root_index: proof_res.address_root_indices[1],
+                address_merkle_tree_root_index: proof_result.address_root_indices[1],
                 assigned_account_index: None,
             },
         ];
@@ -329,7 +324,7 @@ async fn parse_batched_event_functional() {
             output_accounts,
             new_address_params,
             None,
-            proof_res.proof,
+            proof_result.proof,
         )
         .await
         .unwrap()
@@ -373,10 +368,7 @@ async fn parse_batched_event_functional() {
 
         let expected_batched_event = BatchPublicTransactionEvent {
             event: PublicTransactionEvent {
-                input_compressed_account_hashes: input_accounts
-                    .iter()
-                    .map(|x| x.hash().unwrap())
-                    .collect::<Vec<_>>(),
+                input_compressed_account_hashes: input_hashes,
                 output_leaf_indices: (16..24).collect(),
                 output_compressed_account_hashes: output_accounts
                     .iter()
@@ -436,11 +428,14 @@ async fn parse_batched_event_functional() {
 #[serial]
 async fn parse_multiple_batched_events_functional() {
     for num_expected_events in 1..5 {
-        let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
+        let mut config = ProgramTestConfig::default_with_batched_trees();
+        config.with_prover = false;
+        config.additional_programs = Some(vec![(
             "create_address_test_program",
             create_address_test_program::ID,
-        )]))
-        .await;
+        )]);
+
+        let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
 
         let payer = rpc.get_payer().insecure_clone();
         rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)

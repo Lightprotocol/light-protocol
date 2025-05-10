@@ -25,7 +25,7 @@ ark-ff = { workspace = true }
 solana-program-test = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
-light-client = { workspace = true }
+light-client = { workspace = true, features = ["devenv", "program-test"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true }
 num-bigint = { workspace = true }
