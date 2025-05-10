@@ -18,6 +18,8 @@ import {
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
+    CompressedCpiContext,
+    InputTokenDataWithContext,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -39,8 +41,13 @@ import {
     createTokenPoolAccountsLayout,
     mintToAccountsLayout,
     transferAccountsLayout,
+    encodeFreezeInstructionData,
+    freezeAccountsLayout,
+    encodeThawInstructionData,
+    thawAccountsLayout,
 } from './layout';
 import {
+    CompressedTokenInstructionDataFreeze,
     CompressedTokenInstructionDataTransfer,
     TokenTransferOutputData,
 } from './types';
@@ -171,7 +178,6 @@ export type TransferParams = {
     /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
-
      */
     recentInputStateRootIndices: number[];
     /**
@@ -185,6 +191,41 @@ export type TransferParams = {
      * of input state.
      */
     outputStateTrees?: PublicKey[] | PublicKey;
+};
+
+export type FreezeParams = {
+    /**
+     * The payer of the transaction
+     */
+    payer: PublicKey;
+    /**
+     * The freeze authority of the token account
+     */
+    freezeAuthority: PublicKey;
+    /**
+     * The mint of the token account
+     */
+    mint: PublicKey;
+    /**
+     * The input token data with packed merkle context
+     */
+    inputCompressedTokenAccounts: ParsedTokenAccount[];
+    /**
+     * The recent state root indices of the input state. The expiry is tied to
+     * the proof.
+     */
+    recentInputStateRootIndices: number[];
+    /**
+     * The recent validity proof for state inclusion of the input state. It
+     * expires after n slots.
+     */
+    recentValidityProof: CompressedProof;
+    /**
+     * The state trees that the tx output should be inserted into. This can be a
+     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
+     * of input state.
+     */
+    outputStateTree: PublicKey;
 };
 
 /**
@@ -402,6 +443,21 @@ export const parseTokenData = (
     const mint = compressedTokenAccounts[0].parsed.mint;
     const currentOwner = compressedTokenAccounts[0].parsed.owner;
     const delegate = compressedTokenAccounts[0].parsed.delegate;
+
+    if (compressedTokenAccounts.length > 1) {
+        for (const account of compressedTokenAccounts) {
+            if (!account.parsed.mint.equals(mint)) {
+                throw new Error(
+                    'All compressed token accounts must have the same mint',
+                );
+            }
+            if (!account.parsed.owner.equals(currentOwner)) {
+                throw new Error(
+                    'All compressed token accounts must have the same owner',
+                );
+            }
+        }
+    }
 
     return { mint, currentOwner, delegate };
 };
@@ -798,6 +854,153 @@ export class CompressedTokenProgram {
             compressOrDecompressTokenAccount: undefined,
             tokenProgram: undefined,
             systemProgram: SystemProgram.programId,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
+    }
+    /**
+     * Construct freeze instruction for compressed tokens
+     */
+    static async freeze(params: FreezeParams): Promise<TransactionInstruction> {
+        const {
+            payer,
+            inputCompressedTokenAccounts,
+            recentValidityProof,
+            outputStateTree,
+            recentInputStateRootIndices,
+            freezeAuthority,
+            mint,
+        } = params;
+
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                outputStateTrees: outputStateTree,
+                rootIndices: recentInputStateRootIndices,
+                // We pass the same to pack remaining accounts correctly.
+                tokenTransferOutputs: inputCompressedTokenAccounts.map(acc => ({
+                    owner: acc.parsed.owner,
+                    amount: acc.parsed.amount,
+                    lamports: acc.compressedAccount.lamports,
+                    tlv: null,
+                })),
+            });
+
+        console.log('remaining accounts ', remainingAccountMetas);
+
+        console.log('inputTokenDataWithContext ', inputTokenDataWithContext);
+
+        const { mint: currentMint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+        if (!currentMint.equals(mint)) throw new Error('Mint mismatch');
+
+        const rawData: CompressedTokenInstructionDataFreeze = {
+            proof: recentValidityProof,
+            owner: currentOwner,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            outputsMerkleTreeIndex: 0,
+        };
+
+        console.log('rawData', rawData);
+        const data = encodeFreezeInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+        const keys = freezeAccountsLayout({
+            feePayer: payer,
+            authority: freezeAuthority,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+            mint,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
+    }
+
+    /**
+     * Construct thaw instruction for compressed tokens
+     */
+    static async thaw(params: FreezeParams): Promise<TransactionInstruction> {
+        const {
+            payer,
+            inputCompressedTokenAccounts,
+            recentValidityProof,
+            outputStateTree,
+            recentInputStateRootIndices,
+        } = params;
+
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                outputStateTrees: outputStateTree,
+                rootIndices: recentInputStateRootIndices,
+                // We pass the same to pack remaining accounts correctly.
+                tokenTransferOutputs: inputCompressedTokenAccounts.map(acc => ({
+                    owner: acc.parsed.owner,
+                    amount: acc.parsed.amount,
+                    lamports: acc.compressedAccount.lamports,
+                    tlv: null,
+                })),
+            });
+
+        console.log('remaining accounts ', remainingAccountMetas);
+
+        console.log('inputTokenDataWithContext ', inputTokenDataWithContext);
+        const { mint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+
+        const rawData: CompressedTokenInstructionDataFreeze = {
+            proof: recentValidityProof,
+            owner: currentOwner,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            outputsMerkleTreeIndex: 0,
+        };
+        const data = encodeThawInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+        const keys = thawAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+            mint,
         });
 
         keys.push(...remainingAccountMetas);
