@@ -13,7 +13,7 @@ import {
     encodePublicTransactionEvent,
     decodePublicTransactionEvent,
     invokeAccountsLayout,
-} from '../../src/programs/layout';
+} from '../../src/programs/system/layout';
 import { PublicTransactionEvent } from '../../src/state';
 
 import {

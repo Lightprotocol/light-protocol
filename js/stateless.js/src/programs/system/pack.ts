@@ -5,9 +5,9 @@ import {
     PackedCompressedAccountWithMerkleContext,
     StateTreeInfo,
     TreeType,
-} from '../state';
-import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
-import { toArray } from '../utils/conversion';
+} from '../../state';
+import { CompressedAccountWithMerkleContext } from '../../state/compressed-account';
+import { toArray } from '../../utils/conversion';
 
 /**
  * @internal Finds the index of a PublicKey in an array, or adds it if not

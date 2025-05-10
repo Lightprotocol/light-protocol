@@ -19,9 +19,12 @@ import {
     InstructionDataInvoke,
     InstructionDataInvokeCpi,
     PublicTransactionEvent,
-} from '../state';
-import { LightSystemProgram } from './system';
-import { INVOKE_CPI_DISCRIMINATOR, INVOKE_DISCRIMINATOR } from '../constants';
+} from '../../state';
+import { LightSystemProgram } from '.';
+import {
+    INVOKE_CPI_DISCRIMINATOR,
+    INVOKE_DISCRIMINATOR,
+} from '../../constants';
 
 export const CompressedAccountLayout = struct(
     [

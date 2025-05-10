@@ -13,14 +13,14 @@ import {
     StateTreeInfo,
     bn,
     createCompressedAccount,
-} from '../state';
-import { packCompressedAccounts, toAccountMetas } from '../instruction';
-import { defaultStaticAccountsStruct } from '../constants';
+} from '../../state';
+import { packCompressedAccounts, toAccountMetas } from '../../utils';
+import { defaultStaticAccountsStruct } from '../../constants';
 import {
     validateSameOwner,
     validateSufficientBalance,
-} from '../utils/validation';
-import { packNewAddressParams, NewAddressParams } from '../utils';
+} from '../../utils/validation';
+import { packNewAddressParams, NewAddressParams } from '../../utils';
 import { encodeInstructionDataInvoke, invokeAccountsLayout } from './layout';
 
 export const sumUpLamports = (
@@ -100,8 +100,6 @@ type TransferParams = {
     /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
-     *
-     * TODO: Add support for passing recent-values after instruction creation.
      */
     recentInputStateRootIndices: number[];
     /**
@@ -157,8 +155,6 @@ type DecompressParams = {
     /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
-     *
-     * TODO: Add support for passing recent-values after instruction creation.
      */
     recentInputStateRootIndices: number[];
     /**
@@ -286,8 +282,6 @@ export class LightSystemProgram {
     /**
      * Creates instruction to create compressed account with PDA.
      * Cannot write data.
-     *
-     * TODO: support transfer of lamports to the new account.
      */
     static async createAccount({
         payer,
@@ -418,7 +412,6 @@ export class LightSystemProgram {
      * Creates a transaction instruction that transfers compressed lamports from
      * one owner to another.
      */
-    // TODO: add support for non-fee-payer owner
     static async compress({
         payer,
         toAddress,
@@ -452,7 +445,6 @@ export class LightSystemProgram {
                 packedInputCompressedAccounts,
             outputCompressedAccounts: packedOutputCompressedAccounts,
             relayFee: null,
-            /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
             compressOrDecompressLamports: lamports,
             isCompress: true,
@@ -536,37 +528,4 @@ export class LightSystemProgram {
             data,
         });
     }
-}
-
-/**
- * Selects the minimal number of compressed SOL accounts for a transfer.
- *
- * 1. Sorts the accounts by amount in descending order
- * 2. Accumulates the amount until it is greater than or equal to the transfer
- *    amount
- */
-export function selectMinCompressedSolAccountsForTransfer(
-    accounts: CompressedAccountWithMerkleContext[],
-    transferLamports: BN | number,
-): [selectedAccounts: CompressedAccountWithMerkleContext[], total: BN] {
-    let accumulatedLamports = bn(0);
-    transferLamports = bn(transferLamports);
-
-    const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
-
-    accounts.sort((a, b) => b.lamports.cmp(a.lamports));
-
-    for (const account of accounts) {
-        if (accumulatedLamports.gte(bn(transferLamports))) break;
-        accumulatedLamports = accumulatedLamports.add(account.lamports);
-        selectedAccounts.push(account);
-    }
-
-    if (accumulatedLamports.lt(bn(transferLamports))) {
-        throw new Error(
-            `Insufficient balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}`,
-        );
-    }
-
-    return [selectedAccounts, accumulatedLamports];
 }
