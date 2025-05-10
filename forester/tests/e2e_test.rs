@@ -9,7 +9,7 @@ use forester_utils::registry::register_test_forester;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
+    rpc_pool::{SolanaRpcPool, SolanaRpcPoolBuilder},
 };
 use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
 use light_prover_client::gnark::helpers::{
@@ -62,15 +62,12 @@ async fn test_epoch_monitor_with_2_foresters() {
     let mut config2 = forester_config();
     config2.payer_keypair = forester_keypair2.insecure_clone();
 
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config1.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config1.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config1.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed())
+        .build()
+        .await
+        .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     rpc.payer = forester_keypair1.insecure_clone();
@@ -414,15 +411,13 @@ async fn test_epoch_double_registration() {
 
     let mut config = forester_config();
     config.payer_keypair = forester_keypair.insecure_clone();
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed())
+        .build()
+        .await
+        .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     rpc.payer = forester_keypair.insecure_clone();

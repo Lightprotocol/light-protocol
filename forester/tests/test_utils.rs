@@ -1,5 +1,5 @@
 use forester::{
-    config::{ExternalServicesConfig, GeneralConfig},
+    config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig},
     metrics::register_metrics,
     telemetry::setup_telemetry,
     ForesterConfig,
@@ -92,10 +92,17 @@ pub fn forester_config() -> ForesterConfig {
         indexer_config: Default::default(),
         transaction_config: Default::default(),
         general_config: GeneralConfig {
-            rpc_pool_size: 20,
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 5,
             enable_metrics: false,
+        },
+        rpc_pool_config: RpcPoolConfig {
+            max_size: 50,
+            connection_timeout_secs: 15,
+            idle_timeout_secs: 300,
+            max_retries: 10,
+            initial_retry_delay_ms: 1000,
+            max_retry_delay_ms: 16000,
         },
         registry_pubkey: light_registry::ID,
         payer_keypair: env_accounts.forester.insecure_clone(),
