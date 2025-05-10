@@ -167,7 +167,7 @@ pub async fn perform_escrow_failing<R: RpcConnection + MerkleTreeExt>(
         escrow_amount,
     )
     .await;
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer_pubkey),
@@ -410,7 +410,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection + MerkleTreeExt>(
         escrow_amount,
     )
     .await;
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer.pubkey()),

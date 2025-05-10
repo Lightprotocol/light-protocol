@@ -310,7 +310,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             &[transfer_instruction],
             Some(&self.get_payer().pubkey()),
             &vec![&self.get_payer()],
-            latest_blockhash,
+            latest_blockhash.0,
         );
         let sig = *transaction.signatures.first().unwrap();
 
@@ -331,10 +331,11 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(RpcError::from)
     }
 
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
+    async fn get_latest_blockhash(&mut self) -> Result<(Hash, u64), RpcError> {
         self.context
             .get_new_latest_blockhash()
             .await
+            .map(|hash| (hash, 0))
             .map_err(|e| RpcError::from(BanksClientError::from(e)))
     }
 

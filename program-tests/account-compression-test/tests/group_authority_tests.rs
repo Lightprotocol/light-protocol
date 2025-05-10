@@ -62,7 +62,7 @@ async fn test_create_and_update_group() {
         data: instruction_data.data(),
     };
 
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
@@ -95,7 +95,7 @@ async fn test_create_and_update_group() {
         data: update_group_authority_ix.data(),
     };
 
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
@@ -127,7 +127,7 @@ async fn test_create_and_update_group() {
         data: update_group_authority_ix.data(),
     };
 
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
@@ -166,7 +166,7 @@ async fn test_create_and_update_group() {
         &[instruction],
         Some(&updated_keypair.pubkey()),
         &vec![&updated_keypair, &system_program_id_keypair],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap().0,
     );
     context.process_transaction(transaction).await.unwrap();
     let registered_program_account = context
@@ -201,7 +201,7 @@ async fn test_create_and_update_group() {
         data: register_program_ix.data(),
     };
 
-    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
@@ -375,7 +375,7 @@ async fn test_resize_registered_program_pda() {
         println!("account_data: {:?}", account_data);
         let mut transaction =
             Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
-        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap().0;
         transaction.sign(&[&payer], recent_blockhash);
         context.process_transaction(transaction).await.unwrap();
 
@@ -401,7 +401,7 @@ async fn test_resize_registered_program_pda() {
     {
         let mut transaction =
             Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
-        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap().0;
         transaction.sign(&[&payer], recent_blockhash);
         let result = context.process_transaction(transaction).await;
         assert_rpc_error(
@@ -444,7 +444,7 @@ async fn test_resize_registered_program_pda() {
         };
         let mut transaction =
             Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
-        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap().0;
         transaction.sign(&[&payer], recent_blockhash);
         let result = context.process_transaction(transaction).await;
         assert_rpc_error(
@@ -484,7 +484,7 @@ async fn test_resize_registered_program_pda() {
             data: instruction_data.data(),
         };
         let mut transaction = Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
-        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap().0;
         transaction.sign(&[&payer], recent_blockhash);
         let result = context.process_transaction(transaction).await;
         assert_rpc_error(

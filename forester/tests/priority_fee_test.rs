@@ -1,11 +1,14 @@
 use forester::{
     cli::StartArgs,
-    send_transaction::{get_capped_priority_fee, request_priority_fee_estimate, CapConfig},
+    processor::v1::{
+        config::CapConfig,
+        helpers::{get_capped_priority_fee, request_priority_fee_estimate},
+    },
     ForesterConfig,
 };
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use reqwest::Url;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
-use url::Url;
 
 use crate::test_utils::init;
 mod test_utils;
@@ -53,6 +56,11 @@ async fn test_priority_fee_request() {
         cu_limit: 1_000_000,
         enable_priority_fees: true,
         rpc_pool_size: 20,
+        rpc_pool_connection_timeout_secs: 1,
+        rpc_pool_idle_timeout_secs: 1,
+        rpc_pool_max_retries: 10,
+        rpc_pool_initial_retry_delay_ms: 1000,
+        rpc_pool_max_retry_delay_ms: 16000,
         slot_update_interval_seconds: 10,
         tree_discovery_interval_seconds: 5,
         max_retries: 3,

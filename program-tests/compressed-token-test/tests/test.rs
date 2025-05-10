@@ -5344,7 +5344,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     )
     .unwrap();
 
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer.pubkey()),
@@ -5404,6 +5404,7 @@ async fn test_transfer_with_batched_tree() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_transfer_with_transaction_hash() {
     for with_transaction_hash in [true, false] {
@@ -5619,8 +5620,16 @@ async fn batch_compress_with_batched_tree() {
         .await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.batched_output_queue;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::BatchAppendWithProofsTest],
+        }),
+    )
+    .await;
+
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await

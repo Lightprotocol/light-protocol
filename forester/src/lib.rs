@@ -1,6 +1,5 @@
 pub type Result<T> = anyhow::Result<T>;
 
-mod batch_processor;
 pub mod cli;
 pub mod config;
 pub mod epoch_manager;
@@ -10,10 +9,10 @@ pub mod helius_priority_fee_types;
 mod indexer_type;
 pub mod metrics;
 pub mod pagerduty;
+pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
-pub mod send_transaction;
 mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
@@ -30,7 +29,7 @@ use light_client::{
     indexer::Indexer,
     rate_limiter::RateLimiter,
     rpc::{RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
+    rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -41,6 +40,7 @@ use crate::{
     epoch_manager::{run_service, WorkReport},
     indexer_type::IndexerType,
     metrics::QUEUE_LENGTH,
+    processor::tx_cache::ProcessedHashCache,
     queue_helpers::fetch_queue_item_data,
     slot_tracker::SlotTracker,
     utils::get_protocol_config,
@@ -91,15 +91,25 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
-    debug!("run_pipeline");
-    let rpc_pool = SolanaRpcPool::<R>::new(
-        config.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config.general_config.rpc_pool_size as u32,
-        rpc_rate_limiter.clone(),
-        send_tx_rate_limiter.clone(),
-    )
-    .await?;
+    let mut builder = SolanaRpcPoolBuilder::<R>::default()
+        .url(config.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed()) // Or your actual commitment
+        .max_size(config.rpc_pool_config.max_size)
+        .connection_timeout_secs(config.rpc_pool_config.connection_timeout_secs)
+        .idle_timeout_secs(config.rpc_pool_config.idle_timeout_secs)
+        .max_retries(config.rpc_pool_config.max_retries)
+        .initial_retry_delay_ms(config.rpc_pool_config.initial_retry_delay_ms)
+        .max_retry_delay_ms(config.rpc_pool_config.max_retry_delay_ms);
+
+    if let Some(limiter) = rpc_rate_limiter {
+        builder = builder.rpc_rate_limiter(limiter);
+    }
+
+    if let Some(limiter) = send_tx_rate_limiter {
+        builder = builder.send_tx_rate_limiter(limiter);
+    }
+
+    let rpc_pool = builder.build().await?;
 
     let protocol_config = {
         let mut rpc = rpc_pool.get_connection().await?;
@@ -127,6 +137,8 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         SlotTracker::run(arc_slot_tracker_clone, &mut *rpc).await;
     });
 
+    let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(15)));
+
     debug!("Starting Forester pipeline");
     run_service(
         config,
@@ -136,6 +148,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         shutdown,
         work_report_sender,
         arc_slot_tracker,
+        tx_cache,
     )
     .await?;
     Ok(())

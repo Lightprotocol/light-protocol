@@ -6,14 +6,14 @@ use light_registry::account_compression_cpi::sdk::create_batch_update_address_tr
 use solana_sdk::signer::Signer;
 use tracing::{debug, info, instrument, log::error};
 
-use super::common::BatchContext;
-use crate::{
-    batch_processor::error::{BatchProcessError, Result},
-    indexer_type::{finalize_batch_address_tree_update, IndexerType},
+use super::{
+    common::BatchContext,
+    error::{BatchProcessError, Result},
 };
+use crate::indexer_type::{finalize_batch_address_tree_update, IndexerType};
 
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
-pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     context: &BatchContext<R, I>,
 ) -> Result<usize> {
     info!("Processing address batch operation");

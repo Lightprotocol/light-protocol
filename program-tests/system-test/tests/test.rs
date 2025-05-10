@@ -1235,7 +1235,7 @@ async fn test_with_address() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap().0,
     );
 
     let res = context.process_transaction(transaction).await;
@@ -1280,7 +1280,7 @@ async fn test_with_address() {
             &[instruction],
             Some(&payer_pubkey),
             &[&payer],
-            context.get_latest_blockhash().await.unwrap(),
+            context.get_latest_blockhash().await.unwrap().0,
         );
 
         let res = context.process_transaction(transaction).await;
@@ -1327,7 +1327,7 @@ async fn test_with_address() {
             &[instruction],
             Some(&payer_pubkey),
             &[&payer],
-            context.get_latest_blockhash().await.unwrap(),
+            context.get_latest_blockhash().await.unwrap().0,
         );
 
         let res = context.process_transaction(transaction).await;
@@ -1519,7 +1519,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap().0,
     );
 
     let result = context.process_transaction(transaction).await;
@@ -1552,7 +1552,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap().0,
     );
 
     let result = context.process_transaction(transaction).await;
@@ -1624,7 +1624,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap().0,
     );
     println!("Transaction with zkp -------------------------");
 
