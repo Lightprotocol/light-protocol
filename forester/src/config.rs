@@ -21,6 +21,7 @@ pub struct ForesterConfig {
     pub indexer_config: IndexerConfig,
     pub transaction_config: TransactionConfig,
     pub general_config: GeneralConfig,
+    pub rpc_pool_config: RpcPoolConfig,
     pub registry_pubkey: Pubkey,
     pub payer_keypair: Keypair,
     pub derivation_pubkey: Pubkey,
@@ -67,7 +68,6 @@ pub struct TransactionConfig {
 
 #[derive(Debug, Clone)]
 pub struct GeneralConfig {
-    pub rpc_pool_size: usize,
     pub slot_update_interval_seconds: u64,
     pub tree_discovery_interval_seconds: u64,
     pub enable_metrics: bool,
@@ -118,6 +118,16 @@ impl GeneralConfig {
             skip_v2_address_trees: true,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RpcPoolConfig {
+    pub max_size: u32,
+    pub connection_timeout_secs: u64,
+    pub idle_timeout_secs: u64,
+    pub max_retries: u32,
+    pub initial_retry_delay_ms: u64,
+    pub max_retry_delay_ms: u64,
 }
 
 impl Default for QueueConfig {
@@ -229,7 +239,6 @@ impl ForesterConfig {
                 enable_priority_fees: args.enable_priority_fees,
             },
             general_config: GeneralConfig {
-                rpc_pool_size: args.rpc_pool_size,
                 slot_update_interval_seconds: args.slot_update_interval_seconds,
                 tree_discovery_interval_seconds: args.tree_discovery_interval_seconds,
                 enable_metrics: args.enable_metrics(),
@@ -237,6 +246,14 @@ impl ForesterConfig {
                 skip_v2_state_trees: false,
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
+            },
+            rpc_pool_config: RpcPoolConfig {
+                max_size: args.rpc_pool_size,
+                connection_timeout_secs: args.rpc_pool_connection_timeout_secs,
+                idle_timeout_secs: args.rpc_pool_idle_timeout_secs,
+                max_retries: args.rpc_pool_max_retries,
+                initial_retry_delay_ms: args.rpc_pool_initial_retry_delay_ms,
+                max_retry_delay_ms: args.rpc_pool_max_retry_delay_ms,
             },
             registry_pubkey: Pubkey::from_str(&registry_pubkey).map_err(|e| {
                 ConfigError::InvalidPubkey {
@@ -272,7 +289,6 @@ impl ForesterConfig {
             indexer_config: IndexerConfig::default(),
             transaction_config: TransactionConfig::default(),
             general_config: GeneralConfig {
-                rpc_pool_size: 10,
                 slot_update_interval_seconds: 10,
                 tree_discovery_interval_seconds: 60,
                 enable_metrics: args.enable_metrics(),
@@ -280,6 +296,14 @@ impl ForesterConfig {
                 skip_v2_state_trees: false,
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
+            },
+            rpc_pool_config: RpcPoolConfig {
+                max_size: 10,
+                connection_timeout_secs: 15,
+                idle_timeout_secs: 300,
+                max_retries: 10,
+                initial_retry_delay_ms: 1000,
+                max_retry_delay_ms: 16000,
             },
             registry_pubkey: Pubkey::default(),
             payer_keypair: Keypair::new(),
@@ -298,6 +322,7 @@ impl Clone for ForesterConfig {
             indexer_config: self.indexer_config.clone(),
             transaction_config: self.transaction_config.clone(),
             general_config: self.general_config.clone(),
+            rpc_pool_config: self.rpc_pool_config,
             registry_pubkey: self.registry_pubkey,
             payer_keypair: self.payer_keypair.insecure_clone(),
             derivation_pubkey: self.derivation_pubkey,

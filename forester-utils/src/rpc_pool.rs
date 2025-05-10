@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{cmp::min, time::Duration};
 
 use async_trait::async_trait;
 use bb8::{Pool, PooledConnection};
@@ -6,7 +6,7 @@ use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, RpcE
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::rate_limiter::RateLimiter;
 
@@ -18,6 +18,10 @@ pub enum PoolError {
     RpcRequest(#[from] RpcError),
     #[error("Pool error: {0}")]
     Pool(String),
+    #[error("Failed to get connection after {0} retries: {1}")]
+    MaxRetriesExceeded(u32, String),
+    #[error("Missing required field for RpcPoolBuilder: {0}")]
+    BuilderMissingField(String),
 }
 
 pub struct SolanaConnectionManager<R: RpcConnection + 'static> {
@@ -72,6 +76,9 @@ impl<R: RpcConnection + 'static> bb8::ManageConnection for SolanaConnectionManag
 #[derive(Debug)]
 pub struct SolanaRpcPool<R: RpcConnection + 'static> {
     pool: Pool<SolanaConnectionManager<R>>,
+    max_retries: u32,
+    initial_retry_delay: Duration,
+    max_retry_delay: Duration,
 }
 
 impl<R: RpcConnection + 'static> SolanaRpcPool<R> {
@@ -79,60 +86,171 @@ impl<R: RpcConnection + 'static> SolanaRpcPool<R> {
         url: String,
         commitment: CommitmentConfig,
         max_size: u32,
+    connection_timeout_secs: u64,
+    idle_timeout_secs: u64,
+    max_retries: u32,
+    initial_retry_delay_ms: u64,
+    max_retry_delay_ms: u64,
+
         rpc_rate_limiter: Option<RateLimiter>,
         send_tx_rate_limiter: Option<RateLimiter>,
-    ) -> Result<Self, PoolError> {
-        let manager =
-            SolanaConnectionManager::new(url, commitment, rpc_rate_limiter, send_tx_rate_limiter);
+    _phantom: std::marker::PhantomData<R>,
+}
+
+impl<R: RpcConnection> Default for SolanaRpcPoolBuilder<R> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<R: RpcConnection> SolanaRpcPoolBuilder<R> {
+    pub fn new() -> Self {
+        Self {
+            url: None,
+            commitment: None,
+            max_size: 50,
+            connection_timeout_secs: 15,
+            idle_timeout_secs: 300,
+            max_retries: 3,
+            initial_retry_delay_ms: 1000,
+            max_retry_delay_ms: 16000,
+            rpc_rate_limiter: None,
+            send_tx_rate_limiter: None,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    pub fn url(mut self, url: String) -> Self {
+        self.url = Some(url);
+        self
+    }
+
+    pub fn commitment(mut self, commitment: CommitmentConfig) -> Self {
+        self.commitment = Some(commitment);
+        self
+    }
+
+    pub fn max_size(mut self, max_size: u32) -> Self {
+        self.max_size = max_size;
+        self
+    }
+
+    pub fn connection_timeout_secs(mut self, secs: u64) -> Self {
+        self.connection_timeout_secs = secs;
+        self
+    }
+
+    pub fn idle_timeout_secs(mut self, secs: u64) -> Self {
+        self.idle_timeout_secs = secs;
+        self
+    }
+
+    pub fn max_retries(mut self, retries: u32) -> Self {
+        self.max_retries = retries;
+        self
+    }
+
+    pub fn initial_retry_delay_ms(mut self, ms: u64) -> Self {
+        self.initial_retry_delay_ms = ms;
+        self
+    }
+
+    pub fn max_retry_delay_ms(mut self, ms: u64) -> Self {
+        self.max_retry_delay_ms = ms;
+        self
+            }
+
+    pub fn rpc_rate_limiter(mut self, limiter: RateLimiter) -> Self {
+        self.rpc_rate_limiter = Some(limiter);
+        self
+            }
+
+    pub fn send_tx_rate_limiter(mut self, limiter: RateLimiter) -> Self {
+        self.send_tx_rate_limiter = Some(limiter);
+        self
+        }
+
+    pub async fn build(self) -> Result<SolanaRpcPool<R>, PoolError> {
+        let url = self
+            .url
+            .ok_or_else(|| PoolError::BuilderMissingField("url".to_string()))?;
+        let commitment = self
+            .commitment
+            .ok_or_else(|| PoolError::BuilderMissingField("commitment".to_string()))?;
+
+        let manager = SolanaConnectionManager::new(
+            url,
+            commitment,
+            self.rpc_rate_limiter,
+            self.send_tx_rate_limiter,
+        );
+
         let pool = Pool::builder()
-            .max_size(max_size)
-            .connection_timeout(Duration::from_secs(15))
-            .idle_timeout(Some(Duration::from_secs(60 * 5)))
+            .max_size(self.max_size)
+            .connection_timeout(Duration::from_secs(self.connection_timeout_secs))
+            .idle_timeout(Some(Duration::from_secs(self.idle_timeout_secs)))
             .build(manager)
             .await
             .map_err(|e| PoolError::Pool(e.to_string()))?;
 
-        Ok(Self { pool })
+        Ok(SolanaRpcPool {
+            pool,
+            max_retries: self.max_retries,
+            initial_retry_delay: Duration::from_millis(self.initial_retry_delay_ms),
+            max_retry_delay: Duration::from_millis(self.max_retry_delay_ms),
+        })
     }
+}
 
+impl<R: RpcConnection> SolanaRpcPool<R> {
     pub async fn get_connection(
         &self,
     ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
-        debug!("Attempting to get RPC connection...");
-        let result = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| PoolError::Pool(e.to_string()));
+        let mut current_retries = 0;
+        let mut current_delay = self.initial_retry_delay;
 
-        match result {
-            Ok(_) => {
-                debug!("Successfully got RPC connection");
-            }
-            Err(ref e) => {
-                error!("Failed to get RPC connection: {:?}", e);
-            }
-        }
-
-        result
-    }
-
-    pub async fn get_connection_with_retry(
-        &self,
-        max_retries: u32,
-        delay: Duration,
-    ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
-        let mut retries = 0;
         loop {
+            debug!(
+                "Attempting to get RPC connection... (Attempt {})",
+                current_retries + 1
+            );
             match self.pool.get().await {
-                Ok(conn) => return Ok(conn),
-                Err(e) if retries < max_retries => {
-                    retries += 1;
-                    eprintln!("Failed to get connection (attempt {}): {:?}", retries, e);
-                    tokio::task::yield_now().await;
-                    sleep(delay).await;
+                Ok(conn) => {
+                    debug!(
+                        "Successfully got RPC connection (Attempt {})",
+                        current_retries + 1
+                    );
+                    return Ok(conn);
                 }
-                Err(e) => return Err(PoolError::Pool(e.to_string())),
+                Err(e) => {
+                    error!(
+                        "Failed to get RPC connection (Attempt {}): {:?}",
+                        current_retries + 1,
+                        e
+                    );
+                    if current_retries < self.max_retries {
+                        current_retries += 1;
+                        warn!(
+                            "Retrying to get RPC connection in {:?} (Attempt {}/{})",
+                            current_delay,
+                            current_retries + 1,
+                            self.max_retries + 1
+                        );
+                    tokio::task::yield_now().await;
+                        sleep(current_delay).await;
+                        current_delay = min(current_delay * 2, self.max_retry_delay);
+                    } else {
+                        error!(
+                            "Failed to get RPC connection after {} attempts. Last error: {:?}",
+                            self.max_retries + 1,
+                            e
+                        );
+                        return Err(PoolError::MaxRetriesExceeded(
+                            self.max_retries + 1,
+                            e.to_string(),
+                        ));
+                    }
+                }
             }
         }
     }

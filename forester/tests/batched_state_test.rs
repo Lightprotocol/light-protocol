@@ -13,6 +13,7 @@ use light_client::rpc::{
     rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
     SolanaRpcConnection,
 };
+use light_client::rpc_pool::SolanaRpcPoolBuilder;
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
@@ -59,13 +60,10 @@ async fn test_state_batched() {
     config.payer_keypair = forester_keypair.insecure_clone();
     config.general_config = GeneralConfig::test_state_v2();
 
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config.external_services.rpc_url.to_string(),
-        CommitmentConfig::processed(),
-        config.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::processed())
+        .build()
     .await
     .unwrap();
 

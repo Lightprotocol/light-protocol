@@ -12,6 +12,7 @@ use light_client::{
         rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError,
         SolanaRpcConnection,
     },
+    rpc_pool::{SolanaRpcPool, SolanaRpcPoolBuilder},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
@@ -53,13 +54,10 @@ async fn test_epoch_monitor_with_2_foresters() {
     let mut config2 = forester_config();
     config2.payer_keypair = forester_keypair2.insecure_clone();
 
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config1.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config1.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config1.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed())
+        .build()
     .await
     .unwrap();
 
@@ -400,13 +398,11 @@ async fn test_epoch_double_registration() {
 
     let mut config = forester_config();
     config.payer_keypair = forester_keypair.insecure_clone();
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
+
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed())
+        .build()
     .await
     .unwrap();
 
