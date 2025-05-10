@@ -11,6 +11,8 @@ use light_registry::{
 };
 use solana_sdk::signature::{Keypair, Signature, Signer};
 
+use crate::error::ForesterUtilsError;
+
 // What does the forester need to know?
 // What are my public keys (current epoch account, last epoch account, known Merkle trees)
 // 1. The current epoch
@@ -84,11 +86,20 @@ pub fn get_schedule_for_queue(
     protocol_config: &ProtocolConfig,
     total_epoch_weight: u64,
     epoch: u64,
-) -> Vec<Option<ForesterSlot>> {
+    current_phase_start_slot: u64,
+) -> Result<Vec<Option<ForesterSlot>>, ForesterUtilsError> {
     let mut vec = Vec::new();
-    let start_slot = 0;
-    // TODO: enforce that active_phase_length is a multiple of slot_length
-    let end_slot = start_slot + (protocol_config.active_phase_length / protocol_config.slot_length);
+
+    let current_light_slot = if start_solana_slot >= current_phase_start_slot {
+        (start_solana_slot - current_phase_start_slot) / protocol_config.slot_length
+    } else {
+        return Err(ForesterUtilsError::InvalidSlotNumber);
+    };
+
+    let start_slot = current_light_slot;
+    start_solana_slot =
+        current_phase_start_slot + (current_light_slot * protocol_config.slot_length);
+    let end_slot = protocol_config.active_phase_length / protocol_config.slot_length;
 
     for light_slot in start_slot..end_slot {
         let forester_index = ForesterEpochPda::get_eligible_forester_index(
@@ -106,7 +117,7 @@ pub fn get_schedule_for_queue(
         }));
         start_solana_slot += protocol_config.slot_length;
     }
-    vec
+    Ok(vec)
 }
 
 pub fn get_schedule_for_forester_in_queue(
@@ -114,14 +125,15 @@ pub fn get_schedule_for_forester_in_queue(
     queue_pubkey: &Pubkey,
     total_epoch_weight: u64,
     forester_epoch_pda: &ForesterEpochPda,
-) -> Vec<Option<ForesterSlot>> {
+) -> Result<Vec<Option<ForesterSlot>>, ForesterUtilsError> {
     let mut slots = get_schedule_for_queue(
         start_solana_slot,
         queue_pubkey,
         &forester_epoch_pda.protocol_config,
         total_epoch_weight,
         forester_epoch_pda.epoch,
-    );
+        forester_epoch_pda.epoch_active_phase_start_slot,
+    )?;
     slots.iter_mut().for_each(|slot_option| {
         if let Some(slot) = slot_option {
             if !forester_epoch_pda.is_eligible(slot.forester_index) {
@@ -129,7 +141,7 @@ pub fn get_schedule_for_forester_in_queue(
             }
         }
     });
-    slots
+    Ok(slots)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -153,7 +165,7 @@ impl TreeForesterSchedule {
         solana_slot: u64,
         forester_epoch_pda: &ForesterEpochPda,
         epoch_pda: &EpochPda,
-    ) -> Self {
+    ) -> Result<Self, ForesterUtilsError> {
         let mut _self = Self {
             tree_accounts: *tree_accounts,
             slots: Vec::new(),
@@ -163,8 +175,8 @@ impl TreeForesterSchedule {
             &_self.tree_accounts.queue,
             epoch_pda.registered_weight,
             forester_epoch_pda,
-        );
-        _self
+        )?;
+        Ok(_self)
     }
 
     pub fn is_eligible(&self, forester_slot: u64) -> bool {
@@ -209,6 +221,12 @@ impl EpochPhases {
 pub struct Phase {
     pub start: u64,
     pub end: u64,
+}
+
+impl Phase {
+    pub fn length(&self) -> u64 {
+        self.end - self.start
+    }
 }
 
 pub fn get_epoch_phases(protocol_config: &ProtocolConfig, epoch: u64) -> EpochPhases {
@@ -382,7 +400,11 @@ impl Epoch {
         if forester_epoch_pda.total_epoch_weight.is_none() {
             forester_epoch_pda.total_epoch_weight = Some(epoch_pda.registered_weight);
         }
-        self.add_trees_with_schedule(&forester_epoch_pda, &epoch_pda, trees, current_solana_slot);
+        self.add_trees_with_schedule(&forester_epoch_pda, &epoch_pda, trees, current_solana_slot)
+            .map_err(|e| {
+                println!("Error adding trees with schedule: {:?}", e);
+                RpcError::AssertRpcError("Error adding trees with schedule".to_string())
+            })?;
         Ok(())
     }
     /// Internal function to init Epoch struct with registered account
@@ -395,7 +417,7 @@ impl Epoch {
         epoch_pda: &EpochPda,
         trees: &[TreeAccounts],
         current_solana_slot: u64,
-    ) {
+    ) -> Result<(), ForesterUtilsError> {
         // let state = self.phases.get_current_epoch_state(current_solana_slot);
         // TODO: add epoch state to sync schedule
         for tree in trees {
@@ -404,9 +426,10 @@ impl Epoch {
                 current_solana_slot,
                 forester_epoch_pda,
                 epoch_pda,
-            );
+            )?;
             self.merkle_trees.push(tree_schedule);
         }
+        Ok(())
     }
 
     pub fn update_state(&mut self, current_solana_slot: u64) -> EpochState {
@@ -490,6 +513,7 @@ mod test {
         let queue_pubkey = Pubkey::new_unique();
         let start_solana_slot = 0;
         let epoch = 0;
+        let current_phase_start_slot = 0;
 
         let schedule = get_schedule_for_queue(
             start_solana_slot,
@@ -497,7 +521,14 @@ mod test {
             &protocol_config,
             total_epoch_weight,
             epoch,
-        );
+            current_phase_start_slot,
+        )
+        .unwrap();
+
+        // Expected number of light slots in the active phase
+        let expected_light_slots =
+            (protocol_config.active_phase_length / protocol_config.slot_length) as usize;
+        assert_eq!(schedule.len(), expected_light_slots); // Should generate 100 slots
 
         assert_eq!(
             schedule.len(),
@@ -517,5 +548,143 @@ mod test {
             );
             assert!(slot.forester_index < total_epoch_weight);
         }
+    }
+
+    #[test]
+    fn test_get_schedule_for_queue_offset_phase_start() {
+        let protocol_config = ProtocolConfig {
+            genesis_slot: 1000, // Genesis starts later
+            min_weight: 100,
+            slot_length: 10,
+            registration_phase_length: 100,
+            active_phase_length: 1000, // 100 light slots
+            report_work_phase_length: 100,
+            network_fee: 5000,
+            ..Default::default()
+        };
+
+        let total_epoch_weight = 500;
+        let queue_pubkey = Pubkey::new_unique();
+        let epoch = 0;
+
+        // Calculate actual start of the active phase for epoch 0
+        // Registration: 1000 to 1099
+        // Active: 1100 to 2099
+        let current_phase_start_slot = 1100;
+
+        // Start calculating right from the beginning of this active phase
+        let start_solana_slot = current_phase_start_slot;
+
+        let schedule = get_schedule_for_queue(
+            start_solana_slot,
+            &queue_pubkey,
+            &protocol_config,
+            total_epoch_weight,
+            epoch,
+            current_phase_start_slot, // Pass the calculated start slot
+        )
+        .unwrap();
+
+        let expected_light_slots =
+            (protocol_config.active_phase_length / protocol_config.slot_length) as usize;
+        assert_eq!(schedule.len(), expected_light_slots); // Still 100 light slots expected
+
+        // Check the first slot details
+        let first_slot = schedule[0].as_ref().unwrap();
+        assert_eq!(first_slot.slot, 0); // First light slot index is 0
+                                        // Its Solana start slot should be the phase start slot
+        assert_eq!(first_slot.start_solana_slot, current_phase_start_slot);
+        assert_eq!(
+            first_slot.end_solana_slot,
+            current_phase_start_slot + protocol_config.slot_length
+        );
+
+        // Check the second slot details
+        let second_slot = schedule[1].as_ref().unwrap();
+        assert_eq!(second_slot.slot, 1); // Second light slot index is 1
+                                         // Its Solana start slot should be offset by one slot_length
+        assert_eq!(
+            second_slot.start_solana_slot,
+            current_phase_start_slot + protocol_config.slot_length
+        );
+        assert_eq!(
+            second_slot.end_solana_slot,
+            current_phase_start_slot + 2 * protocol_config.slot_length
+        );
+    }
+
+    // NEW TEST: Case where current_light_slot > 0
+    #[test]
+    fn test_get_schedule_for_queue_mid_phase_start() {
+        let protocol_config = ProtocolConfig {
+            genesis_slot: 0,
+            min_weight: 100,
+            slot_length: 10,
+            registration_phase_length: 100, // Reg: 0-99
+            active_phase_length: 1000,      // Active: 100-1099 (100 light slots)
+            report_work_phase_length: 100,
+            network_fee: 5000,
+            ..Default::default()
+        };
+
+        let total_epoch_weight = 500;
+        let queue_pubkey = Pubkey::new_unique();
+        let epoch = 0;
+        let current_phase_start_slot = 100; // Active phase starts at slot 100
+
+        // Start calculating from Solana slot 155, which is within the active phase
+        let start_solana_slot = 155;
+
+        // Calculation:
+        // current_light_slot = floor((155 - 100) / 10) = floor(55 / 10) = 5
+        // Effective start_solana_slot for loop = 100 + (5 * 10) = 150
+        // End light slot = 1000 / 10 = 100
+        // Loop runs from light_slot 5 to 99 (inclusive). Length = 100 - 5 = 95
+
+        let schedule = get_schedule_for_queue(
+            start_solana_slot,
+            &queue_pubkey,
+            &protocol_config,
+            total_epoch_weight,
+            epoch,
+            current_phase_start_slot,
+        )
+        .unwrap();
+
+        let expected_light_slots_total =
+            protocol_config.active_phase_length / protocol_config.slot_length; // 100
+        let expected_start_light_slot = 5;
+        let expected_schedule_len =
+            (expected_light_slots_total - expected_start_light_slot) as usize; // 100 - 5 = 95
+
+        assert_eq!(schedule.len(), expected_schedule_len); // Should generate 95 slots
+
+        // Check the first slot in the *returned* schedule
+        let first_returned_slot = schedule[0].as_ref().unwrap();
+        assert_eq!(first_returned_slot.slot, expected_start_light_slot); // Light slot index starts at 5
+                                                                         // Its Solana start slot should align to the beginning of light slot 5
+        let expected_first_solana_start =
+            current_phase_start_slot + expected_start_light_slot * protocol_config.slot_length; // 100 + 5 * 10 = 150
+        assert_eq!(
+            first_returned_slot.start_solana_slot,
+            expected_first_solana_start
+        );
+        assert_eq!(
+            first_returned_slot.end_solana_slot,
+            expected_first_solana_start + protocol_config.slot_length // 150 + 10 = 160
+        );
+
+        // Check the second slot in the *returned* schedule
+        let second_returned_slot = schedule[1].as_ref().unwrap();
+        assert_eq!(second_returned_slot.slot, expected_start_light_slot + 1); // Light slot index 6
+                                                                              // Its Solana start slot should be 160
+        assert_eq!(
+            second_returned_slot.start_solana_slot,
+            expected_first_solana_start + protocol_config.slot_length
+        );
+        assert_eq!(
+            second_returned_slot.end_solana_slot,
+            expected_first_solana_start + 2 * protocol_config.slot_length // 170
+        );
     }
 }

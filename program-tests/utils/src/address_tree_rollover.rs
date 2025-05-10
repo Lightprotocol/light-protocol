@@ -115,7 +115,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         accounts: [accounts.to_account_metas(Some(true))].concat(),
         data: instruction_data.data(),
     };
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, mt_account_create_ix, instruction],
         Some(&context.get_payer().pubkey()),
@@ -124,7 +124,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
             &new_queue_keypair,
             &new_address_merkle_tree_keypair,
         ],
-        blockhash,
+        blockhash.0,
     );
     context.process_transaction(transaction).await
 }
@@ -301,12 +301,12 @@ pub async fn perform_address_merkle_tree_roll_over_forester<R: RpcConnection>(
         is_metadata_forester,
     )
     .await;
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
         &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
-        blockhash,
+        blockhash.0,
     );
     context.process_transaction(transaction).await
 }
@@ -336,7 +336,7 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
         is_metadata_forester,
     )
     .await;
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
@@ -346,7 +346,7 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
             &new_address_merkle_tree_keypair,
             &new_cpi_signature_keypair,
         ],
-        blockhash,
+        blockhash.0,
     );
     context.process_transaction_with_context(transaction).await
 }

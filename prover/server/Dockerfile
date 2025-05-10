@@ -1,4 +1,4 @@
-FROM golang:1.20.3-alpine as builder
+FROM golang:1.20.3-alpine AS builder
 
 WORKDIR /app
 
@@ -10,10 +10,12 @@ COPY . .
 ENV CGO_ENABLED=0
 RUN go build -v -o /usr/local/bin/light-prover .
 
+RUN mkdir -p /tmp/empty_proving_keys
+
 FROM gcr.io/distroless/base-debian11:nonroot
 
 COPY --from=builder /usr/local/bin/light-prover /usr/local/bin/light-prover
-COPY --from=builder /app/proving-keys/ /proving-keys/
+COPY --chown=nonroot:nonroot --from=builder /tmp/empty_proving_keys /proving-keys/
 
 ENTRYPOINT [ "light-prover" ]
 CMD [ "start", "--inclusion", "--non-inclusion", "--keys-dir", "/proving-keys/" ]

@@ -2126,7 +2126,7 @@ where
             token_accounts = _token_accounts;
         }
         let output_merkle_tree_pubkeys = self.get_merkle_tree_pubkeys(1);
-        let transaction_paramets = if self.keypair_action_config.fee_assert {
+        let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,
@@ -2143,7 +2143,7 @@ where
             &mut self.indexer,
             token_accounts,
             &output_merkle_tree_pubkeys[0],
-            transaction_paramets,
+            transaction_parameters,
         )
         .await;
         self.stats.spl_frozen += 1;

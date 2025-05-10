@@ -1593,7 +1593,7 @@ pub async fn perform_create_pda_failing<
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        rpc.get_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap().0,
     );
     let result = rpc.process_transaction(transaction).await;
     assert_rpc_error(result, 0, expected_error_code)

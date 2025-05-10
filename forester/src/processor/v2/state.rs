@@ -10,12 +10,12 @@ use light_registry::account_compression_cpi::sdk::{
 use solana_sdk::signer::Signer;
 use tracing::{debug, info, instrument, log::error};
 
-use super::common::BatchContext;
-use crate::{
-    batch_processor::error::{BatchProcessError, Result},
-    indexer_type::{
-        update_test_indexer_after_append, update_test_indexer_after_nullification, IndexerType,
-    },
+use super::{
+    common::BatchContext,
+    error::{BatchProcessError, Result},
+};
+use crate::indexer_type::{
+    update_test_indexer_after_append, update_test_indexer_after_nullification, IndexerType,
 };
 
 #[instrument(
@@ -27,7 +27,7 @@ use crate::{
         output_queue = %context.output_queue,
     ), skip(context, rpc))
 ]
-pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
@@ -136,7 +136,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     ),
     skip(context, rpc)
 )]
-pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
