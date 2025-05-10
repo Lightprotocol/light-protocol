@@ -56,6 +56,7 @@ export const defaultStaticAccounts = () => [
     new PublicKey(accountCompressionProgram),
     new PublicKey(getAccountCompressionAuthority()),
 ];
+
 export const defaultStaticAccountsStruct = () => {
     return {
         registeredProgramPda: new PublicKey(getRegisteredProgramPda()),

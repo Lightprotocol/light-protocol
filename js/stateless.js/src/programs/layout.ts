@@ -571,13 +571,14 @@ export function convertToPublicTransactionEvent(
             }),
         ),
         outputLeafIndices: decoded.output_leaf_indices,
-        sequenceNumbers: decoded.sequence_numbers.map((sn: any) => ({
-            // tree_pubkey: new PublicKey(sn.tree_pubkey),
-            pubkey: new PublicKey(sn.pubkey),
-            // queue_pubkey: new PublicKey(sn.queue_pubkey),
-            // tree_type: new BN(sn.tree_type),
-            seq: bn(sn.seq),
-        })),
+        sequenceNumbers: decoded.sequence_numbers.map((sn: any) => {
+            return {
+                tree_pubkey: sn.tree_pubkey,
+                queue_pubkey: sn.queue_pubkey,
+                tree_type: sn.tree_type,
+                seq: sn.seq,
+            };
+        }),
         pubkeyArray: remainingAccounts
             .slice(2)
             .filter(pk => !pk.equals(PublicKey.default)),
