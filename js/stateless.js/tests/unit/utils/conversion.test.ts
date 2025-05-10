@@ -19,7 +19,7 @@ import {
     vec,
     u64,
 } from '@coral-xyz/borsh';
-import { decodeInstructionDataInvokeCpiWithReadOnly } from '../../../src/programs/layout';
+import { decodeInstructionDataInvokeCpiWithReadOnly } from '../../../src/programs/system/layout';
 import { InstructionDataInvoke } from '../../../src/state/types';
 import BN from 'bn.js';
 

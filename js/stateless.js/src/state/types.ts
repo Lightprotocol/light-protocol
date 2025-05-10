@@ -28,9 +28,21 @@ export enum TreeType {
  * A bundle of active trees for a given tree type.
  */
 export type ActiveTreeBundle = {
+    /**
+     * Tree.
+     */
     tree: PublicKey;
+    /**
+     * Queue.
+     */
     queue: PublicKey | null;
+    /**
+     * CPI context.
+     */
     cpiContext: PublicKey | null;
+    /**
+     * Tree type.
+     */
     treeType: TreeType;
 };
 
@@ -84,13 +96,31 @@ export type AddressTreeInfo = Omit<
     StateTreeInfo,
     'cpiContext' | 'nextTreeInfo'
 > & {
+    /**
+     * Next tree info.
+     */
     nextTreeInfo: AddressTreeInfo | null;
 };
 
+/**
+ * Packed compressed account with merkle context.
+ */
 export interface PackedCompressedAccountWithMerkleContext {
+    /**
+     * Compressed account.
+     */
     compressedAccount: CompressedAccount;
+    /**
+     * Merkle context.
+     */
     merkleContext: PackedMerkleContext;
-    rootIndex: number; // u16
+    /**
+     * Root index.
+     */
+    rootIndex: number;
+    /**
+     * Read only.
+     */
     readOnly: boolean;
 }
 
@@ -102,8 +132,8 @@ export interface PackedMerkleContext {
 }
 
 export interface QueueIndex {
-    queueId: number; // u8
-    index: number; // u16
+    queueId: number;
+    index: number;
 }
 
 /**
@@ -138,58 +168,177 @@ export interface OutputCompressedAccountWithPackedContext {
     merkleTreeIndex: number;
 }
 
+/**
+ * Describes compressed account data.
+ */
 export interface CompressedAccountData {
-    discriminator: number[]; // [u8; 8] // TODO: test with uint8Array instead
-    data: Buffer; // bytes
-    dataHash: number[]; // [u8; 32]
+    /**
+     * 8 bytes.
+     */
+    discriminator: number[];
+    /**
+     * Data.
+     */
+    data: Buffer;
+    /**
+     * 32 bytes.
+     */
+    dataHash: number[];
 }
+
+/**
+ * Merkle tree sequence number.
+ */
 export interface MerkleTreeSequenceNumber {
+    /**
+     * Public key.
+     */
     pubkey: PublicKey;
+    /**
+     * Sequence number.
+     */
     seq: BN;
 }
 
+/**
+ * Public transaction event.
+ */
 export interface PublicTransactionEvent {
-    inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
-    outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
+    /**
+     * Input compressed account hashes.
+     */
+    inputCompressedAccountHashes: number[][];
+    /**
+     * Output compressed account hashes.
+     */
+    outputCompressedAccountHashes: number[][];
+    /**
+     * Output compressed accounts.
+     */
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
-    outputLeafIndices: number[]; // Vec<u32>
-    sequenceNumbers: MerkleTreeSequenceNumber[]; // Vec<MerkleTreeSequenceNumber>
-    relayFee: BN | null; // Option<u64>
-    isCompress: boolean; // bool
-    compressOrDecompressLamports: BN | null; // Option<u64>
-    pubkeyArray: PublicKey[]; // Vec<PublicKey>
-    message: Uint8Array | null; // Option<bytes>
+    /**
+     * Output leaf indices.
+     */
+    outputLeafIndices: number[];
+    /**
+     * Sequence numbers.
+     */
+    sequenceNumbers: MerkleTreeSequenceNumber[];
+    /**
+     * Relay fee. Default is null.
+     */
+    relayFee: BN | null;
+    /**
+     * Whether it's a compress or decompress instruction.
+     */
+    isCompress: boolean;
+    /**
+     * If some, it's either a compress or decompress instruction.
+     */
+    compressOrDecompressLamports: BN | null;
+    /**
+     * Public keys.
+     */
+    pubkeyArray: PublicKey[];
+    /**
+     * Message. Default is null.
+     */
+    message: Uint8Array | null;
 }
 
+/**
+ * Instruction data for invoke.
+ */
 export interface InstructionDataInvoke {
-    proof: ValidityProof | null; // Option<ValidityProof>
+    /**
+     * Validity proof.
+     */
+    proof: ValidityProof | null;
+    /**
+     * Input compressed accounts with merkle context.
+     */
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
+    /**
+     * Output compressed accounts.
+     */
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
-    relayFee: BN | null; // Option<u64>
-    newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
-    compressOrDecompressLamports: BN | null; // Option<u64>
-    isCompress: boolean; // bool
+    /**
+     * Relay fee. Default is null.
+     */
+    relayFee: BN | null;
+    /**
+     * Params for creating new addresses.
+     */
+    newAddressParams: NewAddressParamsPacked[];
+    /**
+     * If some, it's either a compress or decompress instruction.
+     */
+    compressOrDecompressLamports: BN | null;
+    /**
+     * Whether it's a compress or decompress instruction.
+     */
+    isCompress: boolean;
 }
 
+/**
+ * Instruction data for invoking a CPI.
+ */
 export interface InstructionDataInvokeCpi {
-    proof: ValidityProof | null; // Option<ValidityProof>
+    /**
+     * Validity proof.
+     */
+    proof: ValidityProof | null;
+    /**
+     * Input compressed accounts with merkle context.
+     */
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
+    /**
+     * Output compressed accounts.
+     */
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
-    relayFee: BN | null; // Option<u64>
-    newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
-    compressOrDecompressLamports: BN | null; // Option<u64>
-    isCompress: boolean; // bool
+    /**
+     * Relay fee. Default is null.
+     */
+    relayFee: BN | null;
+    /**
+     * Params for creating new addresses.
+     */
+    newAddressParams: NewAddressParamsPacked[];
+    /**
+     * If some, it's either a compress or decompress instruction.
+     */
+    compressOrDecompressLamports: BN | null;
+    /**
+     * If `compressOrDecompressLamports` is some, whether it's a compress or
+     * decompress instruction.
+     */
+    isCompress: boolean;
+    /**
+     * Optional compressed CPI context.
+     */
     compressedCpiContext: CompressedCpiContext | null;
 }
 
+/**
+ * Compressed CPI context.
+ *
+ * Use if you want to use a single {@link ValidityProof} to update two
+ * compressed accounts owned by separate programs.
+ */
 export interface CompressedCpiContext {
-    /// Is set by the program that is invoking the CPI to signal that is should
-    /// set the cpi context.
+    /**
+     * Is set by the program that is invoking the CPI to signal that it should
+     * set the cpi context.
+     */
     set_context: boolean;
-    /// Is set to wipe the cpi context since someone could have set it before
-    /// with unrelated data.
+    /**
+     * Is set to wipe the cpi context since someone could have set it before
+     * with unrelated data.
+     */
     first_set_context: boolean;
-    /// Index of cpi context account in remaining accounts.
+    /**
+     * Index of cpi context account in remaining accounts.
+     */
     cpi_context_account_index: number;
 }
 
@@ -197,9 +346,18 @@ export interface CompressedCpiContext {
  * @deprecated Use {@link ValidityProof} instead.
  */
 export interface CompressedProof {
-    a: number[]; // [u8; 32]
-    b: number[]; // [u8; 64]
-    c: number[]; // [u8; 32]
+    /**
+     * 32 bytes.
+     */
+    a: number[];
+    /**
+     * 64 bytes.
+     */
+    b: number[];
+    /**
+     * 32 bytes.
+     */
+    c: number[];
 }
 
 /**
@@ -208,35 +366,81 @@ export interface CompressedProof {
  * You can request proofs via `rpc.getValidityProof` or
  * `rpc.getValidityProofV0`.
  *
- * One proof is 128 bytes large, and can prove the existence of N compressed
- * accounts or the uniqueness of N PDAs.
+ * One proof can prove the existence of N compressed accounts or the uniqueness
+ * of N PDAs.
  */
 export interface ValidityProof {
-    a: number[]; // [u8; 32]
-    b: number[]; // [u8; 64]
-    c: number[]; // [u8; 32]
+    /**
+     * 32 bytes.
+     */
+    a: number[];
+    /**
+     * 64 bytes.
+     */
+    b: number[];
+    /**
+     * 32 bytes.
+     */
+    c: number[];
 }
 
+/**
+ * Packed token data for input compressed accounts.
+ */
 export interface InputTokenDataWithContext {
+    /**
+     * Amount of tokens.
+     */
     amount: BN;
-    delegateIndex: number | null; // Option<u8>
+    /**
+     * Delegate index.
+     */
+    delegateIndex: number | null;
+    /**
+     * Merkle context.
+     */
     merkleContext: PackedMerkleContext;
-    rootIndex: number; // u16
+    /**
+     * Root index.
+     */
+    rootIndex: number;
+    /**
+     * Lamports.
+     */
     lamports: BN | null;
+    /**
+     * Tlv.
+     */
     tlv: Buffer | null;
 }
+
+/**
+ * Token data.
+ */
 export type TokenData = {
-    /// The mint associated with this account
+    /**
+     * The mint associated with this account.
+     */
     mint: PublicKey;
-    /// The owner of this account.
+    /**
+     * The owner of this account.
+     */
     owner: PublicKey;
-    /// The amount of tokens this account holds.
+    /**
+     * The amount of tokens this account holds.
+     */
     amount: BN;
-    /// If `delegate` is `Some` then `delegated_amount` represents
-    /// the amount authorized by the delegate
+    /**
+     * If `delegate` is `Some` then `delegated_amount` represents the amount
+     * authorized by the delegate.
+     */
     delegate: PublicKey | null;
-    /// The account's state
-    state: number; // AccountState_IdlType;
-    /// TokenExtension tlv
+    /**
+     * The account's state.
+     */
+    state: number;
+    /**
+     * Token extension tlv.
+     */
     tlv: Buffer | null;
 };

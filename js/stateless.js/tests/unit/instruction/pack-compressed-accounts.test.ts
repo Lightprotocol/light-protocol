@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PublicKey } from '@solana/web3.js';
-import { padOutputStateMerkleTrees } from '../../../src/instruction/pack-compressed-accounts';
+import { padOutputStateMerkleTrees } from '../../../src/programs/system/pack';
 
 describe('padOutputStateMerkleTrees', () => {
     const treeA: any = PublicKey.unique();
