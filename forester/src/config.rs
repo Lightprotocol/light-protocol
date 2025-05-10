@@ -261,15 +261,20 @@ pub struct ForesterEpochInfo {
 }
 
 impl ForesterEpochInfo {
-    pub fn add_trees_with_schedule(&mut self, trees: &[TreeAccounts], current_solana_slot: u64) {
+    pub fn add_trees_with_schedule(
+        &mut self,
+        trees: &[TreeAccounts],
+        current_solana_slot: u64,
+    ) -> Result<()> {
         for tree in trees {
             let tree_schedule = TreeForesterSchedule::new_with_schedule(
                 tree,
                 current_solana_slot,
                 &self.forester_epoch_pda,
                 &self.epoch_pda,
-            );
+            )?;
             self.trees.push(tree_schedule);
         }
+        Ok(())
     }
 }

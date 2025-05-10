@@ -123,7 +123,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
             &[transfer_instruction],
             Some(&payer.pubkey()),
             &vec![&payer],
-            latest_blockhash,
+            latest_blockhash.0,
         );
 
         // Send the transaction

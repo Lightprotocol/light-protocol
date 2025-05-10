@@ -16,7 +16,7 @@ use light_prover_client::{
     },
 };
 use reqwest::Client;
-use tracing::{debug, error};
+use tracing::{error, trace};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
@@ -25,7 +25,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<Vec<InstructionDataBatchNullifyInputs>, ForesterUtilsError> {
-    debug!("create_multiple_nullify_batch_ix_data");
+    trace!("create_multiple_nullify_batch_ix_data");
     // Get the tree information and find out how many ZKP batches need processing
     let (
         batch_idx,
@@ -43,7 +43,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
         .unwrap();
 
-        debug!("queue_batches: {:?}", merkle_tree.queue_batches);
+        trace!("queue_batches: {:?}", merkle_tree.queue_batches);
 
         let batch_idx = merkle_tree.queue_batches.pending_batch_index as usize;
         let zkp_size = merkle_tree.queue_batches.zkp_batch_size;
@@ -71,7 +71,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
     };
 
-    debug!(
+    trace!(
         "batch_idx: {}, zkp_batch_size: {}, num_inserted_zkps: {}, num_ready_zkps: {}, leaves_hash_chains: {:?}",
         batch_idx, zkp_batch_size, num_inserted_zkps, num_ready_zkps, leaves_hash_chains.len()
     );
@@ -83,14 +83,15 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     wait_for_indexer(rpc, indexer).await?;
 
     let current_slot = rpc.get_slot().await.unwrap();
-    debug!("current_slot: {}", current_slot);
+    trace!("current_slot: {}", current_slot);
 
     let total_elements = zkp_batch_size as usize * leaves_hash_chains.len();
     let offset = num_inserted_zkps * zkp_batch_size as u64;
 
-    debug!(
+    trace!(
         "Requesting {} total elements with offset {}",
-        total_elements, offset
+        total_elements,
+        offset
     );
 
     let all_queue_elements = indexer
@@ -109,7 +110,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ForesterUtilsError::Indexer("Failed to get queue elements".into())
         })?;
 
-    debug!("Got {} queue elements in total", all_queue_elements.len());
+    trace!("Got {} queue elements in total", all_queue_elements.len());
     if all_queue_elements.len() != total_elements {
         return Err(ForesterUtilsError::Indexer(format!(
             "Expected {} elements, got {}",
@@ -135,9 +136,11 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let end_idx = start_idx + zkp_batch_size as usize;
         let batch_elements = &all_queue_elements[start_idx..end_idx];
 
-        debug!(
+        trace!(
             "Processing batch {} with offset {}-{}",
-            batch_offset, start_idx, end_idx
+            batch_offset,
+            start_idx,
+            end_idx
         );
 
         // Process this batch's data
@@ -150,9 +153,12 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
         for (i, leaf_info) in batch_elements.iter().enumerate() {
             let global_leaf_index = start_idx + i;
-            debug!(
+            trace!(
                 "Element {}: local index={}, global index={}, reported index={}",
-                i, i, global_leaf_index, leaf_info.leaf_index
+                i,
+                i,
+                global_leaf_index,
+                leaf_info.leaf_index
             );
 
             path_indices.push(leaf_info.leaf_index as u32);
@@ -222,7 +228,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
                         new_root,
                         compressed_proof: proof,
                     });
-                    debug!("Successfully generated proof for batch {}", i);
+                    trace!("Successfully generated proof for batch {}", i);
                 }
                 Err(e) => {
                     error!("Error generating proof for batch {}: {:?}", i, e);

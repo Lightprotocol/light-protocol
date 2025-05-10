@@ -237,10 +237,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
                 .await?
                 .unwrap(),
         ),
-        _ => panic!(
-            "is_tree_ready_for_rollover: Invalid tree type {:?}",
-            tree_type
-        ),
+        _ => return Err(ForesterError::InvalidTreeType(tree_type)),
     };
 
     let is_already_rolled_over = match &account {
@@ -262,10 +259,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
         TreeType::AddressV1 => {
             Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 3)
         }
-        _ => panic!(
-            "is_tree_ready_for_rollover: Invalid tree type {:?}",
-            tree_type
-        ),
+        _ => Err(ForesterError::InvalidTreeType(tree_type)),
     }
 }
 
@@ -295,7 +289,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
         epoch,
     )
     .await;
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
@@ -305,7 +299,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
             &new_address_merkle_tree_keypair,
             &new_cpi_context_keypair,
         ],
-        blockhash,
+        blockhash.0,
     );
     context.process_transaction(transaction).await
 }
@@ -334,12 +328,12 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     .await;
     let compute_budget_instruction = ComputeBudgetInstruction::set_compute_unit_limit(500_000);
     instructions.insert(0, compute_budget_instruction);
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
         &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
-        blockhash,
+        blockhash.0,
     );
     context.process_transaction(transaction).await
 }
@@ -489,7 +483,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
         .unwrap();
-    let tree_size = account_compression::state::StateMerkleTreeAccount::size(
+    let tree_size = StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
         merkle_tree_config.roots_size as usize,

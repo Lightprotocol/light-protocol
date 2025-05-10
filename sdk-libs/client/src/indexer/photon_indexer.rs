@@ -88,8 +88,8 @@ impl<R: RpcConnection> PhotonIndexer<R> {
     {
         let max_retries = 10;
         let mut attempts = 0;
-        let mut delay_ms = 100;
-        let max_delay_ms = 4000;
+        let mut delay_ms = 400;
+        let max_delay_ms = 8000;
 
         loop {
             attempts += 1;
@@ -319,7 +319,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 let error_code = error.code.unwrap_or(0);
                 tracing::error!("API returned error: {}", error_msg);
                 return Err(IndexerError::PhotonError {
-                    context: "get_multiple_new_address_proofs".to_string(),
+                    context: "get_multiple_compressed_account_proofs".to_string(),
                     message: format!("API Error (code {}): {}", error_code, error_msg),
                 });
             }
@@ -328,7 +328,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 .result
                 .ok_or_else(|| {
                     IndexerError::missing_result(
-                        "get_multiple_new_address_proofs",
+                        "get_multiple_compressed_account_proofs",
                         "No result returned from Photon API",
                     )
                 })?
@@ -894,16 +894,19 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     }
 
     async fn get_indexer_slot(&self, _r: &mut R) -> Result<u64, IndexerError> {
-        let request = photon_api::models::GetIndexerSlotPostRequest {
-            ..Default::default()
-        };
+        self.rate_limited_request_with_retry(|| async {
+            let request = photon_api::models::GetIndexerSlotPostRequest {
+                ..Default::default()
+            };
 
-        let result =
-            photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
-                .await?;
+            let result =
+                photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
+                    .await?;
 
-        let result = Self::extract_result("get_indexer_slot", result.result)?;
-        Ok(result)
+            let result = Self::extract_result("get_indexer_slot", result.result)?;
+            Ok(result)
+        })
+        .await
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {

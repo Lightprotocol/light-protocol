@@ -25,7 +25,6 @@ light-merkle-tree-metadata = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 solana-transaction-status = { workspace = true }
-url = "2.2"
 bb8 = { workspace = true }
 
 serde_json = "1.0"
@@ -56,8 +55,8 @@ serial_test = { workspace = true }
 light-prover-client = { workspace = true }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
+light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 dotenvy = "0.15"
 light-compressed-token = { workspace = true }
-light-compressed-account = { workspace = true }
 rand = { workspace = true }
 create-address-test-program = { workspace = true }

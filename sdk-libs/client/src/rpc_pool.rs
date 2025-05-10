@@ -5,6 +5,7 @@ use bb8::{Pool, PooledConnection};
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
+use tracing::{debug, error};
 
 use crate::{
     rate_limiter::RateLimiter,
@@ -100,10 +101,23 @@ impl<R: RpcConnection> SolanaRpcPool<R> {
     pub async fn get_connection(
         &self,
     ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
-        self.pool
+        debug!("Attempting to get RPC connection...");
+        let result = self
+            .pool
             .get()
             .await
-            .map_err(|e| PoolError::Pool(e.to_string()))
+            .map_err(|e| PoolError::Pool(e.to_string()));
+
+        match result {
+            Ok(_) => {
+                debug!("Successfully got RPC connection");
+            }
+            Err(ref e) => {
+                error!("Failed to get RPC connection: {:?}", e);
+            }
+        }
+
+        result
     }
 
     pub async fn get_connection_with_retry(
