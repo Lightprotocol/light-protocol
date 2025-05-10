@@ -330,16 +330,16 @@ export interface CompressedCpiContext {
      * Is set by the program that is invoking the CPI to signal that it should
      * set the cpi context.
      */
-    set_context: boolean;
+    setContext: boolean;
     /**
      * Is set to wipe the cpi context since someone could have set it before
      * with unrelated data.
      */
-    first_set_context: boolean;
+    firstSetContext: boolean;
     /**
      * Index of cpi context account in remaining accounts.
      */
-    cpi_context_account_index: number;
+    cpiContextAccountIndex: number;
 }
 
 /**

@@ -4,14 +4,9 @@ import { Buffer } from 'buffer';
 import {
     ValidityProof,
     PackedMerkleContext,
+    CompressedCpiContext,
 } from '@lightprotocol/stateless.js';
 import { TokenPoolInfo } from './utils/get-token-pool-infos';
-
-export type CompressedCpiContext = {
-    setContext: boolean;
-    firstSetContext: boolean;
-    cpiContextAccountIndex: number; // u8
-};
 
 export type TokenTransferOutputData = {
     /**
