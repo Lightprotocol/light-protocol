@@ -29,7 +29,7 @@
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "eslint": "9.26.0",
-        "eslint-config-next": "15.1.4",
+        "eslint-config-next": "15.3.2",
         "typescript": "^5.7.2"
     }
 }
