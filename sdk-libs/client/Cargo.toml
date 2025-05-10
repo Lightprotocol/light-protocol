@@ -38,7 +38,6 @@ base64 = { workspace = true }
 
 governor = { workspace = true }
 tracing = { workspace = true }
-log = "0.4.27"
 
 [dev-dependencies]
 light-program-test = { workspace = true }
