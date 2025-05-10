@@ -72,8 +72,39 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_ENABLE_PRIORITY_FEES", default_value = "false")]
     pub enable_priority_fees: bool,
 
-    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "98")]
-    pub rpc_pool_size: usize,
+    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "50")]
+    pub rpc_pool_size: u32,
+
+    #[arg(
+        long,
+        env = "FORESTER_RPC_POOL_CONNECTION_TIMEOUT_SECS",
+        default_value = "15"
+    )]
+    pub rpc_pool_connection_timeout_secs: u64,
+
+    #[arg(
+        long,
+        env = "FORESTER_RPC_POOL_IDLE_TIMEOUT_SECS",
+        default_value = "300"
+    )]
+    pub rpc_pool_idle_timeout_secs: u64,
+
+    #[arg(long, env = "FORESTER_RPC_POOL_MAX_RETRIES", default_value = "100")]
+    pub rpc_pool_max_retries: u32,
+
+    #[arg(
+        long,
+        env = "FORESTER_RPC_POOL_INITIAL_RETRY_DELAY_MS",
+        default_value = "1000"
+    )]
+    pub rpc_pool_initial_retry_delay_ms: u64,
+
+    #[arg(
+        long,
+        env = "FORESTER_RPC_POOL_MAX_RETRY_DELAY_MS",
+        default_value = "16000"
+    )]
+    pub rpc_pool_max_retry_delay_ms: u64,
 
     #[arg(
         long,

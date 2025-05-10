@@ -3342,7 +3342,6 @@ dependencies = [
  "light-prover-client",
  "light-sdk",
  "light-test-utils",
- "log",
  "num-bigint 0.4.6",
  "num-traits",
  "photon-api",
