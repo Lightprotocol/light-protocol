@@ -64,6 +64,7 @@ export async function mergeTokenAccounts(
                 payer: payer.publicKey,
                 owner: owner.publicKey,
                 inputCompressedTokenAccounts: batch,
+                mint,
                 recentValidityProof: proof.compressedProof,
                 recentInputStateRootIndices: proof.rootIndices,
             });

@@ -1,4 +1,17 @@
-## [0.30.0]
+## [0.22.0]
+
+-   `CreateMint` action now allows passing a non-payer mint and freeze authority.
+-   More efficient computebudgets for actions.
+-   Better DX: Parameter lookup in call signatures of CompressedTokenProgram instructions
+-   QoL: improved typedocs.
+
+
+Breaking changes:
+
+- CompressedTokenProgram.mergeTokenAccounts does not accept the 'mint' parameter anymore.
+
+
+## [0.21.0]
 
 #### Breaking Changes
 

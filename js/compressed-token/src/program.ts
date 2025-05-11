@@ -35,7 +35,7 @@ import {
     CREATE_TOKEN_POOL_DISCRIMINATOR,
     ADD_TOKEN_POOL_DISCRIMINATOR,
 } from './constants';
-import { packCompressedTokenAccounts } from './utils';
+import { checkMint, packCompressedTokenAccounts } from './utils';
 import {
     encodeTransferInstructionData,
     encodeCompressSplTokenAccountInstructionData,
@@ -281,6 +281,10 @@ export type MergeTokenAccountsParams = {
      * Owner of the compressed token accounts to be merged
      */
     owner: PublicKey;
+    /**
+     * SPL Token mint address
+     */
+    mint: PublicKey;
     /**
      * Array of compressed token accounts to merge
      */
@@ -1288,6 +1292,7 @@ export class CompressedTokenProgram {
      * @param owner                         Owner of the compressed token
      *                                      accounts to be merged.
      * @param inputCompressedTokenAccounts  Source compressed token accounts.
+     * @param mint                          SPL Token mint address.
      * @param recentValidityProof           Recent validity proof.
      * @param recentInputStateRootIndices   Recent state root indices.
      *
@@ -1297,12 +1302,15 @@ export class CompressedTokenProgram {
         payer,
         owner,
         inputCompressedTokenAccounts,
+        mint,
         recentValidityProof,
         recentInputStateRootIndices,
     }: MergeTokenAccountsParams): Promise<TransactionInstruction[]> {
-        if (inputCompressedTokenAccounts.length > 3) {
-            throw new Error('Cannot merge more than 3 token accounts at once');
+        if (inputCompressedTokenAccounts.length > 4) {
+            throw new Error('Cannot merge more than 4 token accounts at once');
         }
+
+        checkMint(inputCompressedTokenAccounts, mint);
 
         const ix = await this.transfer({
             payer,
