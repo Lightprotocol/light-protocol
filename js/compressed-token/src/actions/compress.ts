@@ -34,7 +34,7 @@ import {
  * @param amount                Number of tokens to compress.
  * @param owner                 Owner of the SPL token account.
  * @param sourceTokenAccount    Source SPL token account. (ATA)
- * @param toAddress             Recipient address.
+ * @param toAddress             Recipient owner address.
  * @param outputStateTreeInfo   Optional: State tree account that the compressed
  *                              tokens should be inserted into. Defaults to a
  *                              shared state tree account.
