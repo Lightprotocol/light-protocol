@@ -6,6 +6,7 @@ import {
     padOutputStateMerkleTrees,
     StateTreeInfo,
     TreeType,
+    featureFlags,
 } from '@lightprotocol/stateless.js';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
 import {
@@ -72,7 +73,7 @@ export function packCompressedTokenAccounts(
                 account.compressedAccount.treeInfo.tree,
             );
 
-            const nullifierQueuePubkeyIndex = getIndexOrAdd(
+            const queuePubkeyIndex = getIndexOrAdd(
                 _remainingAccounts,
                 account.compressedAccount.treeInfo.queue,
             );
@@ -82,9 +83,9 @@ export function packCompressedTokenAccounts(
                 delegateIndex,
                 merkleContext: {
                     merkleTreePubkeyIndex,
-                    nullifierQueuePubkeyIndex,
+                    queuePubkeyIndex,
                     leafIndex: account.compressedAccount.leafIndex,
-                    queueIndex: null,
+                    proveByIndex: account.compressedAccount.proveByIndex,
                 },
                 rootIndex: rootIndices[index],
                 lamports: account.compressedAccount.lamports.eq(bn(0))
@@ -115,10 +116,12 @@ export function packCompressedTokenAccounts(
     // Use next tree if available, otherwise fall back to current tree.
     // `nextTreeInfo` always takes precedence.
     const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
-    const activeTreeOrQueue = activeTreeInfo.tree;
-    // V2 trees are not yet supported
+    let activeTreeOrQueue = activeTreeInfo.tree;
+
     if (activeTreeInfo.treeType === TreeType.StateV2) {
-        throw new Error('V2 trees are not supported yet');
+        if (featureFlags.isV2()) {
+            activeTreeOrQueue = activeTreeInfo.queue;
+        } else throw new Error('V2 trees are not supported yet');
     }
 
     // Pack output state trees

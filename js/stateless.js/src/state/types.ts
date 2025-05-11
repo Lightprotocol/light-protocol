@@ -83,7 +83,8 @@ export type StateTreeInfo = {
      */
     cpiContext?: PublicKey;
     /**
-     * Optional next tree info if the tree is full.
+     * Next tree info. Is `some` if the next tree should be used for the next
+     * state transition.
      */
     nextTreeInfo: StateTreeInfo | null;
 };
@@ -124,16 +125,26 @@ export interface PackedCompressedAccountWithMerkleContext {
     readOnly: boolean;
 }
 
+/**
+ * Packed merkle context.
+ */
 export interface PackedMerkleContext {
-    merkleTreePubkeyIndex: number; // u8
-    nullifierQueuePubkeyIndex: number; // u8
-    leafIndex: number; // u32
-    queueIndex: null | QueueIndex; // Option<QueueIndex>
-}
-
-export interface QueueIndex {
-    queueId: number;
-    index: number;
+    /**
+     * Merkle tree pubkey index.
+     */
+    merkleTreePubkeyIndex: number;
+    /**
+     * Queue pubkey index in remaining accounts.
+     */
+    queuePubkeyIndex: number;
+    /**
+     * Leaf index.
+     */
+    leafIndex: number;
+    /**
+     * Whether to prove by index or validity proof.
+     */
+    proveByIndex: boolean;
 }
 
 /**

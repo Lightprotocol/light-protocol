@@ -43,7 +43,7 @@ const PackedTokenTransferOutputDataLayout = struct([
     option(vecU8(), 'tlv'),
 ]);
 
-const QueueIndexLayout = struct([u8('queueId'), u16('index')]);
+// const QueueIndexLayout = struct([u8('queueId'), u16('index')]);
 
 const InputTokenDataWithContextLayout = struct([
     u64('amount'),
@@ -51,9 +51,9 @@ const InputTokenDataWithContextLayout = struct([
     struct(
         [
             u8('merkleTreePubkeyIndex'),
-            u8('nullifierQueuePubkeyIndex'),
+            u8('queuePubkeyIndex'),
             u32('leafIndex'),
-            option(QueueIndexLayout, 'queueIndex'),
+            bool('proveByIndex'),
         ],
         'merkleContext',
     ),

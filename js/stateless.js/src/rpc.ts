@@ -104,8 +104,8 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     filterByDelegate: boolean = false,
 ): Promise<WithCursor<ParsedTokenAccount[]>> {
     const endpoint = filterByDelegate
-        ? 'getCompressedTokenAccountsByDelegate'
-        : 'getCompressedTokenAccountsByOwner';
+        ? versionedEndpoint('getCompressedTokenAccountsByDelegate')
+        : versionedEndpoint('getCompressedTokenAccountsByOwner');
     const propertyToCheck = filterByDelegate ? 'delegate' : 'owner';
 
     const unsafeRes = await rpcRequest(rpc.compressionApiEndpoint, endpoint, {

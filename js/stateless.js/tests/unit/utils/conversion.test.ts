@@ -665,9 +665,9 @@ describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
         expect(firstAccount.readOnly).toBe(false);
         expect(firstAccount.compressedAccount.lamports).toEqual(new BN(2000));
         expect(firstAccount.merkleContext.merkleTreePubkeyIndex).toBe(8);
-        expect(firstAccount.merkleContext.nullifierQueuePubkeyIndex).toBe(9);
+        expect(firstAccount.merkleContext.queuePubkeyIndex).toBe(9);
         expect(firstAccount.merkleContext.leafIndex).toBe(456);
-        expect(firstAccount.merkleContext.queueIndex).toBeNull();
+        expect(firstAccount.merkleContext.proveByIndex).toBe(false);
         // Check output accounts conversion
         expect(result.outputCompressedAccounts).toHaveLength(1);
         expect(result.outputCompressedAccounts[0].merkleTreeIndex).toBe(10);

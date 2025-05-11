@@ -10,6 +10,7 @@ import { StateTreeInfo, TreeType } from './state/types';
  */
 export const featureFlags = {
     version: 'V1' as 'V1' | 'V2',
+    isV2: () => featureFlags.version.toUpperCase() === 'V2',
 };
 
 /**

@@ -92,7 +92,6 @@ export type CompressedTokenInstructionDataTransfer = {
     mint: PublicKey;
     /**
      * Whether the signer is a delegate
-     * TODO: implement delegated transfer struct
      */
     delegatedTransfer: DelegatedTransfer | null;
     /**

@@ -8,6 +8,7 @@ import {
 } from '../../state';
 import { CompressedAccountWithMerkleContext } from '../../state/compressed-account';
 import { toArray } from '../../utils/conversion';
+import { featureFlags } from '../../constants';
 
 /**
  * @internal Finds the index of a PublicKey in an array, or adds it if not
@@ -110,7 +111,7 @@ export function packCompressedAccounts(
             account.treeInfo.tree,
         );
 
-        const nullifierQueuePubkeyIndex = getIndexOrAdd(
+        const queuePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
             account.treeInfo.queue,
         );
@@ -124,9 +125,9 @@ export function packCompressedAccounts(
             },
             merkleContext: {
                 merkleTreePubkeyIndex,
-                nullifierQueuePubkeyIndex,
+                queuePubkeyIndex,
                 leafIndex: account.leafIndex,
-                queueIndex: null,
+                proveByIndex: account.proveByIndex,
             },
             rootIndex: inputStateRootIndices[index],
             readOnly: false,
@@ -152,10 +153,12 @@ export function packCompressedAccounts(
     // Use next tree if available, otherwise fall back to current tree.
     // `nextTreeInfo` always takes precedence.
     const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
-    const activeTreeOrQueue = activeTreeInfo.tree;
-    // V2 trees are not yet supported
+    let activeTreeOrQueue = activeTreeInfo.tree;
+
     if (activeTreeInfo.treeType === TreeType.StateV2) {
-        throw new Error('V2 trees are not supported yet');
+        if (featureFlags.isV2()) {
+            activeTreeOrQueue = activeTreeInfo.queue;
+        } else throw new Error('V2 trees are not supported yet');
     }
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
