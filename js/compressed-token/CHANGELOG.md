@@ -5,12 +5,6 @@
 -   Better DX: Parameter lookup in call signatures of CompressedTokenProgram instructions
 -   QoL: improved typedocs.
 
-
-Breaking changes:
-
-- CompressedTokenProgram.mergeTokenAccounts does not accept the 'mint' parameter anymore.
-
-
 ## [0.21.0]
 
 #### Breaking Changes
