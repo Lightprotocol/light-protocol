@@ -24,19 +24,19 @@ import {
 /**
  * Mint compressed tokens to a solana address
  *
- * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint for the account
+ * @param rpc                   Rpc connection to use
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param toPubkey              Address of the account to mint to. Can be an
  *                              array of addresses if the amount is an array of
  *                              amounts.
- * @param authority             Minting authority
- * @param amount                Amount to mint. Can be an array of amounts if
- *                              the toPubkey is an array of addresses.
- * @param outputStateTreeInfo   State tree account that the compressed tokens
- *                              should be part of. Defaults to the default state
- *                              tree account.
- * @param tokenPoolInfo         Token pool information
+ * @param authority             Mint authority
+ * @param amount                Amount to mint. Pass an array of amounts if the
+ *                              toPubkey is an array of addresses.
+ * @param outputStateTreeInfo   Optional: State tree account that the compressed
+ *                              tokens should be part of. Defaults to the
+ *                              default state tree account.
+ * @param tokenPoolInfo         Optional: Token pool information
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction

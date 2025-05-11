@@ -23,10 +23,10 @@ import {
  * Approve a delegate to spend tokens
  *
  * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the compressed token
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param amount                Number of tokens to delegate
- * @param owner                 Owner of the compressed tokens
+ * @param owner                 Owner of the SPL token account.
  * @param delegate              Address of the delegate
  * @param confirmOptions        Options for confirming the transaction
  *

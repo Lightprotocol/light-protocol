@@ -11,8 +11,6 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     bn,
-    StateTreeInfo,
-    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 
@@ -20,13 +18,13 @@ import { CompressedTokenProgram } from '../program';
  * Merge multiple compressed token accounts for a given mint into a single
  * account
  *
- * @param rpc                   RPC to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Public key of the token's mint
+ * @param rpc                   RPC connection to use
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param owner                 Owner of the token accounts to be merged
  * @param confirmOptions        Options for confirming the transaction
  *
- * @return signature of the confirmed transaction
+ * @return confirmed transaction signature
  */
 export async function mergeTokenAccounts(
     rpc: Rpc,

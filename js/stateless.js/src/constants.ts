@@ -3,6 +3,23 @@ import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
 import { StateTreeInfo, TreeType } from './state/types';
 
+/**
+/**
+ * @internal
+ * Feature flags. Only use if you know what you are doing.
+ */
+export const featureFlags = {
+    version: 'V1' as 'V1' | 'V2',
+};
+
+/**
+ * Returns the correct endpoint name for the current API version. E.g.
+ * versionedEndpoint('getCompressedAccount') -> 'getCompressedAccount' (V1)
+ * or 'getCompressedAccountV2' (V2)
+ */
+export const versionedEndpoint = (base: string) =>
+    featureFlags.version.toUpperCase() === 'V1' ? base : `${base}V2`;
+
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
 );

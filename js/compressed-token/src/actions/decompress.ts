@@ -24,17 +24,17 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 /**
  * Decompress compressed tokens
  *
- * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the compressed token
+ * @param rpc                   Rpc connection to use
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param amount                Number of tokens to transfer
  * @param owner                 Owner of the compressed tokens
- * @param toAddress             Destination **uncompressed** (associated) token
- *                              account address.
- * @param tokenPoolInfos        Token pool infos
+ * @param toAddress             Destination **uncompressed** token account
+ *                              address. (ATA)
+ * @param tokenPoolInfos        Optional: Token pool infos.
  * @param confirmOptions        Options for confirming the transaction
  *
- * @return Signature of the confirmed transaction
+ * @return confirmed transaction signature
  */
 export async function decompress(
     rpc: Rpc,

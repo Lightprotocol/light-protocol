@@ -28,16 +28,16 @@ import {
  * Compress SPL tokens
  *
  * @param rpc                   Rpc connection to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the compressed token
- * @param amount                Number of tokens to transfer
- * @param owner                 Owner of the compressed tokens.
- * @param sourceTokenAccount    Source (associated) token account
- * @param toAddress             Destination address of the recipient
- * @param outputStateTreeInfo   State tree account that the compressed tokens
- *                              should be inserted into. Defaults to a default
- *                              state tree account.
- * @param tokenPoolInfo         Token pool info
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
+ * @param amount                Number of tokens to compress.
+ * @param owner                 Owner of the SPL token account.
+ * @param sourceTokenAccount    Source token account. (ATA)
+ * @param toAddress             Recipient address.
+ * @param outputStateTreeInfo   Optional: State tree account that the compressed
+ *                              tokens should be inserted into. Defaults to a
+ *                              shared state tree account.
+ * @param tokenPoolInfo         Optional: Token pool info.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction

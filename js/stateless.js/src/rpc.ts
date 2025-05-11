@@ -44,8 +44,6 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
-    HashWithTreeInfo,
-    AddressWithTreeInfo,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -66,6 +64,7 @@ import {
     localTestActiveStateTreeInfo,
     isLocalTest,
     defaultStateTreeLookupTables,
+    versionedEndpoint,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -932,7 +931,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getCompressedAccountsByOwner',
+            versionedEndpoint('getCompressedAccountsByOwner'),
             {
                 owner: owner.toBase58(),
                 filters: config?.filters || [],

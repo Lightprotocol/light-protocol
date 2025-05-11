@@ -12,14 +12,15 @@ import { CompressedTokenProgram } from '../program';
  * Create a lookup table for the token program's default accounts
  *
  * @param rpc                   Rpc connection to use
- * @param payer                 Payer of the transaction fees
+ * @param payer                 Fee payer
  * @param authority             Authority of the lookup table
  * @param mints                 Optional array of mint public keys to include in
  *                              the lookup table
  * @param additionalAccounts    Optional array of additional account public keys
  *                              to include in the lookup table
  *
- * @return Transaction signatures and the address of the created lookup table
+ * @return Object with transaction signatures and the address of the created
+ *         lookup table
  */
 export async function createTokenProgramLookupTable(
     rpc: Rpc,

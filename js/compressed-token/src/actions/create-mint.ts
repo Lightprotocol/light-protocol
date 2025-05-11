@@ -21,20 +21,18 @@ import {
 /**
  * Create and initialize a new compressed token mint
  *
- * @param rpc               RPC to use
- * @param payer             Payer of the transaction and initialization fees
+ * @param rpc               RPC connection to use
+ * @param payer             Fee payer
  * @param mintAuthority     Account or multisig that will control minting
  * @param decimals          Location of the decimal place
  * @param keypair           Optional keypair, defaulting to a new random one
  * @param confirmOptions    Options for confirming the transaction
- * @param tokenProgramId    Program ID for the token. Defaults to
- *                          TOKEN_PROGRAM_ID. You can pass in a boolean to
- *                          automatically resolve to TOKEN_2022_PROGRAM_ID if
- *                          true, or TOKEN_PROGRAM_ID if false.
- * @param freezeAuthority   Account that will control freeze and thaw. Defaults
- *                          to null.
+ * @param tokenProgramId    Optional: Program ID for the token. Defaults to
+ *                          TOKEN_PROGRAM_ID.
+ * @param freezeAuthority   Optional: Account that will control freeze and thaw.
+ *                          Defaults to none.
  *
- * @return Address of the new mint and the transaction signature
+ * @return Object with mint address and transaction signature
  */
 export async function createMint(
     rpc: Rpc,

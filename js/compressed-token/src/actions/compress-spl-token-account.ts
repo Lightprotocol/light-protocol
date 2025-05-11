@@ -27,15 +27,15 @@ import { CompressedTokenProgram } from '../program';
  * Compress SPL tokens into compressed token format
  *
  * @param rpc                   Rpc connection to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the token to compress
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param owner                 Owner of the token account
  * @param tokenAccount          Token account to compress
  * @param remainingAmount       Optional: amount to leave in token account.
  *                              Default: 0
- * @param outputStateTreeInfo   State tree to insert the compressed token
+ * @param outputStateTreeInfo   Optional: State tree account that the compressed
  *                              account into
- * @param tokenPoolInfo         Token pool info
+ * @param tokenPoolInfo         Optional: Token pool info.
  * @param confirmOptions        Options for confirming the transaction
 
  *

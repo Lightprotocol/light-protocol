@@ -27,13 +27,15 @@ import {
  * Mint compressed tokens to a solana address from an external mint authority
  *
  * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint for the account
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param toPubkey              Address of the account to mint to
  * @param authority             Minting authority
  * @param amount                Amount to mint
- * @param outputStateTreeInfo   State tree info
- * @param tokenPoolInfo         Token pool info
+ * @param outputStateTreeInfo   Optional: State tree account that the compressed
+ *                              tokens should be inserted into. Defaults to a
+ *                              shared state tree account.
+ * @param tokenPoolInfo         Optional: Token pool info.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
