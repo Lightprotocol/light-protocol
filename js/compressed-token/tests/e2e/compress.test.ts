@@ -10,7 +10,6 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    defaultTestStateTreeAccounts,
     newAccountWithLamports,
     dedupeSigner,
     buildAndSignTx,
@@ -265,7 +264,7 @@ describe('compress', () => {
                 tokenPoolInfo,
             ),
         ).rejects.toThrow(
-            'Both amount and toAddress must be arrays or both must be single values',
+            'Amount and toAddress arrays must have the same length',
         );
     });
 

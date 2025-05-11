@@ -63,7 +63,6 @@ export async function mergeTokenAccounts(
             await CompressedTokenProgram.mergeTokenAccounts({
                 payer: payer.publicKey,
                 owner: owner.publicKey,
-                mint,
                 inputCompressedTokenAccounts: batch,
                 recentValidityProof: proof.compressedProof,
                 recentInputStateRootIndices: proof.rootIndices,

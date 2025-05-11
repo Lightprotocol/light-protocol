@@ -74,7 +74,7 @@ export async function approve(
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 350_000 }), ix],
         payer,
         blockhash,
         additionalSigners,

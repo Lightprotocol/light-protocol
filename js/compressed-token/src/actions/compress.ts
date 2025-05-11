@@ -13,6 +13,7 @@ import {
     pickRandomTreeAndQueue,
     StateTreeInfo,
     selectStateTreeInfo,
+    toArray,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -32,7 +33,7 @@ import {
  * @param mint                  SPL Mint address
  * @param amount                Number of tokens to compress.
  * @param owner                 Owner of the SPL token account.
- * @param sourceTokenAccount    Source token account. (ATA)
+ * @param sourceTokenAccount    Source SPL token account. (ATA)
  * @param toAddress             Recipient address.
  * @param outputStateTreeInfo   Optional: State tree account that the compressed
  *                              tokens should be inserted into. Defaults to a
@@ -77,7 +78,7 @@ export async function compress(
     const signedTx = buildAndSignTx(
         [
             ComputeBudgetProgram.setComputeUnitLimit({
-                units: 600_000,
+                units: 130_000 + toArray(amount).length * 20_000,
             }),
             compressIx,
         ],

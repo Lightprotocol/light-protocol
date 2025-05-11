@@ -13,6 +13,7 @@ import {
     dedupeSigner,
     StateTreeInfo,
     selectStateTreeInfo,
+    toArray,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
@@ -84,7 +85,12 @@ export async function approveAndMintTo(
     const additionalSigners = dedupeSigner(payer, [authority]);
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ...ixs],
+        [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units: 150_000 + toArray(amount).length * 20_000,
+            }),
+            ...ixs,
+        ],
         payer,
         blockhash,
         additionalSigners,

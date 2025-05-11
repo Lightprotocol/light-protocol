@@ -103,8 +103,8 @@ type TransferParams = {
      */
     recentInputStateRootIndices: number[];
     /**
-     * The recent validity proof for state inclusion of the input state. It
-     * expires after n slots.
+     * The recent validity proof for state inclusion of the input state. Expires
+     * after n slots.
      */
     recentValidityProof: ValidityProof;
 };
@@ -126,8 +126,7 @@ type CompressParams = {
      */
     lamports: number | BN;
     /**
-     * The state tree that the tx output should be inserted into. Defaults to a
-     * public state tree if unspecified.
+     * The state tree that the tx output should be inserted into.
      */
     outputStateTreeInfo: StateTreeInfo;
 };

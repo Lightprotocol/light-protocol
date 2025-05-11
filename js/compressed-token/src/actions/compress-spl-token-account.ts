@@ -75,7 +75,7 @@ export async function compressSplTokenAccount(
     const signedTx = buildAndSignTx(
         [
             ComputeBudgetProgram.setComputeUnitLimit({
-                units: 1_000_000,
+                units: 150_000,
             }),
             compressIx,
         ],
