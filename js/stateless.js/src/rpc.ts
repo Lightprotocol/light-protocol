@@ -74,10 +74,12 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 import { LightWasm } from './test-helpers';
-import { getAllStateTreeInfos } from './utils/get-state-tree-infos';
+import {
+    getAllStateTreeInfos,
+    getStateTreeInfoByPubkey,
+} from './utils/get-state-tree-infos';
 import { StateTreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
-import { getStateTreeInfoByPubkey } from './test-helpers/test-rpc/get-compressed-accounts';
 
 /** @internal */
 export function parseAccountData({
@@ -1596,150 +1598,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Advanced usage of getValidityProof: fetches ZKP directly from a custom
-     * non-rpcprover. Note: This uses the proverEndpoint specified in the
-     * constructor. For normal usage, please use {@link getValidityProof}
-     * instead.
-     *
-     * Fetch the latest validity proof for (1) compressed accounts specified by
-     * an array of account hashes. (2) new unique addresses specified by an
-     * array of addresses.
-     *
-     * Validity proofs prove the presence of compressed accounts in state trees
-     * and the non-existence of addresses in address trees, respectively. They
-     * enable verification without recomputing the merkle proof path, thus
-     * lowering verification and data costs.
-     *
-     * @param hashes        Array of BN254 hashes.
-     * @param newAddresses  Array of BN254 new addresses.
-     * @returns             validity proof with context
-     */
-    async getValidityProofDirect(
-        hashes: BN254[] = [],
-        newAddresses: BN254[] = [],
-    ): Promise<ValidityProofWithContext> {
-        let validityProof: ValidityProofWithContext;
-
-        if (hashes.length === 0 && newAddresses.length === 0) {
-            throw new Error(
-                'Empty input. Provide hashes and/or new addresses.',
-            );
-        } else if (hashes.length > 0 && newAddresses.length === 0) {
-            /// inclusion
-            const merkleProofsWithContext =
-                await this.getMultipleCompressedAccountProofs(hashes);
-            const inputs = convertMerkleProofsWithContextToHex(
-                merkleProofsWithContext,
-            );
-
-            const compressedProof = await proverRequest(
-                this.proverEndpoint,
-                'inclusion',
-                inputs,
-                false,
-            );
-            validityProof = {
-                compressedProof,
-                roots: merkleProofsWithContext.map(proof => proof.root),
-                rootIndices: merkleProofsWithContext.map(
-                    proof => proof.rootIndex,
-                ),
-                leafIndices: merkleProofsWithContext.map(
-                    proof => proof.leafIndex,
-                ),
-                leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
-                treeInfos: merkleProofsWithContext.map(proof => proof.treeInfo),
-            };
-        } else if (hashes.length === 0 && newAddresses.length > 0) {
-            /// new-address
-            const newAddressProofs: MerkleContextWithNewAddressProof[] =
-                await this.getMultipleNewAddressProofs(newAddresses);
-
-            const inputs =
-                convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-            // const lightWasm = await WasmFactory.getInstance();
-            // const publicInputHash = getPublicInputHash(
-            //     [],
-            //     [],
-            //     newAddressProofs,
-            //     lightWasm,
-            // );
-            const compressedProof = await proverRequest(
-                this.proverEndpoint,
-                'new-address',
-                inputs,
-                false,
-                // publicInputHash,
-            );
-
-            validityProof = {
-                compressedProof: compressedProof,
-                roots: newAddressProofs.map(proof => proof.root),
-                rootIndices: newAddressProofs.map(proof => proof.rootIndex),
-                leafIndices: newAddressProofs.map(proof =>
-                    proof.nextIndex.toNumber(),
-                ),
-                leaves: newAddressProofs.map(proof => bn(proof.value)),
-                treeInfos: newAddressProofs.map(proof => proof.treeInfo),
-            };
-        } else if (hashes.length > 0 && newAddresses.length > 0) {
-            /// combined
-            const merkleProofsWithContext =
-                await this.getMultipleCompressedAccountProofs(hashes);
-            const inputs = convertMerkleProofsWithContextToHex(
-                merkleProofsWithContext,
-            );
-            const newAddressProofs: MerkleContextWithNewAddressProof[] =
-                await this.getMultipleNewAddressProofs(newAddresses);
-
-            const newAddressInputs =
-                convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-            // const lightWasm = await WasmFactory.getInstance();
-            // const publicInputHash = getPublicInputHash(
-            //     merkleProofsWithContext,
-            //     hashes,
-            //     newAddressProofs,
-            //     lightWasm,
-            // );
-            const compressedProof = await proverRequest(
-                this.proverEndpoint,
-                'combined',
-                [inputs, newAddressInputs],
-                false,
-                // publicInputHash,
-            );
-
-            const treeInfos = [
-                ...merkleProofsWithContext.map(proof => proof.treeInfo),
-                ...newAddressProofs.map(proof => proof.treeInfo),
-            ];
-
-            validityProof = {
-                compressedProof,
-                roots: merkleProofsWithContext
-                    .map(proof => proof.root)
-                    .concat(newAddressProofs.map(proof => proof.root)),
-                rootIndices: merkleProofsWithContext
-                    .map(proof => proof.rootIndex)
-                    .concat(newAddressProofs.map(proof => proof.rootIndex)),
-                leafIndices: merkleProofsWithContext
-                    .map(proof => proof.leafIndex)
-                    .concat(
-                        newAddressProofs.map(
-                            proof => proof.nextIndex.toNumber(), // TODO: support >32bit
-                        ),
-                    ),
-                leaves: merkleProofsWithContext
-                    .map(proof => bn(proof.hash))
-                    .concat(newAddressProofs.map(proof => bn(proof.value))),
-                treeInfos,
-            };
-        } else throw new Error('Invalid input');
-
-        return validityProof;
-    }
-
-    /**
      * @deprecated use {@link getValidityProofV0} instead.
      *
      * Fetch the latest validity proof for (1) compressed accounts specified by
@@ -1900,6 +1758,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             rootIndices: result.rootIndices,
             roots: result.roots,
             leaves: result.leaves,
+            proveByIndices: result.leaves.map(_ => false),
         };
         return { value, context: res.result.context };
     }

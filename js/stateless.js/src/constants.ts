@@ -9,7 +9,7 @@ import { StateTreeInfo, TreeType } from './state/types';
  * Feature flags. Only use if you know what you are doing.
  */
 export const featureFlags = {
-    version: 'V1' as 'V1' | 'V2',
+    version: 'V2' as 'V1' | 'V2',
     isV2: () => featureFlags.version.toUpperCase() === 'V2',
 };
 
@@ -50,22 +50,18 @@ export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
     180, 143, 159, 153, 35, 46, 248, 163,
 ]);
 
-// TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
-export const lightProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
-export const accountCompressionProgram = // also: merkletree program
+export const lightSystemProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
+export const accountCompressionProgram =
     'compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq';
 
 export const getRegisteredProgramPda = () =>
-    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labelling. gov authority pda
+    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh');
 
 export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [Buffer.from('cpi_authority')],
-        new PublicKey(
-            // TODO: can add check to ensure its consistent with the idl
-            lightProgram,
-        ),
+        new PublicKey(lightSystemProgram),
     )[0];
 
 export const defaultStaticAccounts = () => [
@@ -147,7 +143,16 @@ export const localTestActiveStateTreeInfo = (): StateTreeInfo[] => {
             treeType: TreeType.StateV1,
             nextTreeInfo: null,
         },
-    ];
+        {
+            tree: new PublicKey(batchMerkleTree),
+            queue: new PublicKey(batchQueue),
+            cpiContext: PublicKey.default,
+            treeType: TreeType.StateV2,
+            nextTreeInfo: null,
+        },
+    ].filter(info =>
+        featureFlags.isV2() ? true : info.treeType === TreeType.StateV1,
+    );
 };
 
 export const getDefaultAddressTreeInfo = () => {
@@ -210,6 +215,10 @@ export const merkleTree2Pubkey = 'smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho';
 export const nullifierQueue2Pubkey =
     'nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X';
 export const cpiContext2Pubkey = 'cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK';
+
+// V2 testing.
+export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree (includes nullifier queue)
+export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',

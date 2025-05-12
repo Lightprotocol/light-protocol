@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { hashToBn254FieldSizeBe, hashvToBn254FieldSizeBe } from './conversion';
 import { defaultTestStateTreeAccounts } from '../constants';
-import { getIndexOrAdd } from '../utils';
+import { getIndexOrAdd } from '../programs/system/pack';
 
 export function deriveAddressSeed(
     seeds: Uint8Array[],
