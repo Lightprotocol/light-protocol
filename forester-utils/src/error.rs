@@ -10,4 +10,6 @@ pub enum ForesterUtilsError {
     Rpc(String),
     #[error("indexer error: {0:?}")]
     Indexer(String),
+    #[error("invalid slot number")]
+    InvalidSlotNumber,
 }

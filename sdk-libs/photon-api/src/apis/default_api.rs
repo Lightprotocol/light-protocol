@@ -1479,6 +1479,7 @@ pub async fn get_multiple_compressed_account_proofs_post(
         local_var_configuration.base_path
     );
     let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 

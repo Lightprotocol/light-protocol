@@ -1,13 +1,14 @@
 use std::time::Duration;
 
 use light_client::{rpc::errors::RpcError, rpc_pool::PoolError};
+use light_compressed_account::TreeType;
 use light_registry::errors::RegistryError;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use thiserror::Error;
 use tracing::{info, warn};
 
-use crate::batch_processor::BatchProcessError;
+use crate::processor::v2::BatchProcessError;
 
 #[derive(Error, Debug)]
 pub enum ForesterError {
@@ -35,8 +36,8 @@ pub enum ForesterError {
     #[error("RPC error: {0}")]
     Rpc(#[from] RpcError),
 
-    #[error("Pool error: {0}")]
-    Pool(#[from] PoolError),
+    #[error("RPC pool error: {0}")]
+    RpcPool(#[from] PoolError),
 
     #[error("Program error: {0}")]
     Program(#[from] ProgramError),
@@ -55,6 +56,9 @@ pub enum ForesterError {
 
     #[error("Account deserialization error: {0}")]
     AccountDeserialization(#[from] AccountDeserializationError),
+
+    #[error("Invalid tree type: {0}")]
+    InvalidTreeType(TreeType),
 
     #[error("Forester error: {error}")]
     General { error: String },

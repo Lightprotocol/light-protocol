@@ -1,6 +1,5 @@
 pub type Result<T> = anyhow::Result<T>;
 
-mod batch_processor;
 pub mod cli;
 pub mod config;
 pub mod epoch_manager;
@@ -10,10 +9,10 @@ pub mod helius_priority_fee_types;
 mod indexer_type;
 pub mod metrics;
 pub mod pagerduty;
+pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
-pub mod send_transaction;
 mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
@@ -41,6 +40,7 @@ use crate::{
     epoch_manager::{run_service, WorkReport},
     indexer_type::IndexerType,
     metrics::QUEUE_LENGTH,
+    processor::tx_cache::ProcessedHashCache,
     queue_helpers::fetch_queue_item_data,
     slot_tracker::SlotTracker,
     utils::get_protocol_config,
@@ -127,6 +127,8 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         SlotTracker::run(arc_slot_tracker_clone, &mut *rpc).await;
     });
 
+    let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(15)));
+
     debug!("Starting Forester pipeline");
     run_service(
         config,
@@ -136,6 +138,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         shutdown,
         work_report_sender,
         arc_slot_tracker,
+        tx_cache,
     )
     .await?;
     Ok(())

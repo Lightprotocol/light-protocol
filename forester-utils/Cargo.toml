@@ -49,5 +49,3 @@ rand = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
-log = "0.4.26"
-hex = "0.4.3"

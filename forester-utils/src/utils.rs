@@ -27,7 +27,7 @@ pub async fn airdrop_lamports<R: RpcConnection>(
         &[transfer_instruction],
         Some(&rpc.get_payer().pubkey()),
         &vec![&rpc.get_payer()],
-        latest_blockhash,
+        latest_blockhash.0,
     );
     rpc.process_transaction(transaction).await?;
     Ok(())
@@ -70,7 +70,7 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
         );
 
         tokio::task::yield_now().await;
-        sleep(std::time::Duration::from_millis(400)).await;
+        sleep(std::time::Duration::from_millis(500)).await;
         indexer_slot = indexer.get_indexer_slot(rpc).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get indexer slot".into())

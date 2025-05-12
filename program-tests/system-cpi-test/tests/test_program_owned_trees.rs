@@ -163,7 +163,7 @@ async fn test_program_owned_merkle_tree() {
         0,
     );
 
-    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap().0;
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer_pubkey),
@@ -790,7 +790,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         ],
         Some(&payer.pubkey()),
         &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
-        rpc.get_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap().0,
     );
     rpc.process_transaction(transaction.clone()).await
 }
@@ -851,7 +851,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &[account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
         &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
-        context.get_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap().0,
     );
     context.process_transaction(transaction.clone()).await
 }

@@ -2239,7 +2239,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "url",
  "warp",
 ]
 
@@ -2251,7 +2250,6 @@ dependencies = [
  "anchor-lang",
  "create-address-test-program",
  "futures",
- "hex",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-client",
@@ -2266,7 +2264,6 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-system-program-anchor",
- "log",
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
@@ -3346,6 +3343,7 @@ dependencies = [
  "light-prover-client",
  "light-sdk",
  "light-test-utils",
+ "log",
  "num-bigint 0.4.6",
  "num-traits",
  "photon-api",

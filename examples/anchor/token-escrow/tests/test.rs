@@ -329,7 +329,7 @@ pub async fn perform_escrow_failing<R: RpcConnection, I: Indexer<R> + TestIndexe
         &[instruction],
         Some(&payer.pubkey()),
         &[&payer],
-        rpc.get_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap().0,
     );
     rpc.process_transaction(transaction).await
 }
@@ -499,7 +499,7 @@ pub async fn perform_withdrawal_failing<
         &[instruction],
         Some(&payer.pubkey()),
         &[&payer],
-        rpc.get_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap().0,
     );
     rpc.process_transaction(transaction).await
 }
