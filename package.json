@@ -1,12 +1,12 @@
 {
   "devDependencies": {
     "husky": "^9.1.7",
-    "nx": "^20.4.6",
-    "playwright": "^1.50.0",
-    "prettier": "^3.4.2",
+    "nx": "^20.8.1",
+    "playwright": "^1.52.0",
+    "prettier": "^3.5.3",
     "snarkjs": "^0.7.5",
     "syncpack": "^13.0.4",
-    "typescript": "^5.7.2"
+    "typescript": "^5.8.3"
   },
   "packageManager": "pnpm@9.2.0"
 }
