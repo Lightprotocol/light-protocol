@@ -14,7 +14,10 @@ import {
     bn,
     createCompressedAccount,
 } from '../../state';
-import { packCompressedAccounts, toAccountMetas } from '../../utils';
+import {
+    packCompressedAccounts,
+    toAccountMetas,
+} from '../../programs/system/pack';
 import { defaultStaticAccountsStruct } from '../../constants';
 import {
     validateSameOwner,

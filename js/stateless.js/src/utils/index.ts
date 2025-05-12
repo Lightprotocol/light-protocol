@@ -8,7 +8,6 @@ export * from './parse-validity-proof';
 export * from './pipe';
 export * from './send-and-confirm';
 export * from './sleep';
-export * from './state-tree-lookup-table';
 export * from './validation';
+export * from './state-tree-lookup-table';
 export * from './get-state-tree-infos';
-export * from '../programs/system/pack';

@@ -1,6 +1,38 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { StateTreeInfo, TreeType } from '../state/types';
-import { StateTreeLUTPair } from '../constants';
+import { featureFlags, StateTreeLUTPair } from '../constants';
+
+/**
+ * Get the info for a given tree or queue
+ *
+ * @param info          The active state tree addresses
+ * @param treeOrQueue   The tree or queue to get the info for
+ * @returns The info for the given tree or queue, or throws an error if not
+ * found
+ */
+export function getStateTreeInfoByPubkey(
+    treeInfos: StateTreeInfo[],
+    treeOrQueue: PublicKey,
+): StateTreeInfo {
+    const info = treeInfos.find(
+        t => t.queue?.equals(treeOrQueue) || t.tree.equals(treeOrQueue),
+    );
+
+    if (!info) {
+        throw new Error(
+            `No associated StateTreeInfo found for tree or queue. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. Pubkey: ${treeOrQueue.toBase58()}`,
+        );
+    }
+
+    if (!info.queue) {
+        throw new Error(
+            'Queue must not be null for state tree. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. Pubkey: ' +
+                treeOrQueue.toBase58(),
+        );
+    }
+
+    return info;
+}
 
 /**
  * @deprecated use {@link selectStateTreeInfo} instead.
@@ -29,21 +61,25 @@ export function pickRandomTreeAndQueue(infos: StateTreeInfo[]): {
 const MAX_HOTSPOTS = 5;
 
 /**
- * Get a pseudo-random active state tree info from the set of provided state
+ * Select a pseudo-random active state tree info from the set of provided state
  * tree infos.
  *
- * Using this mitigates write lock contention on state trees.
+ * Using this reduces write-lock contention on state trees.
  *
  * @param infos                 Set of state tree infos
- * @param treeType              The type of tree. Defaults to `TreeType.StateV1`
- * @param useMaxConcurrency     If true, return all infos. If false, return at
- *                              most {@link MAX_HOTSPOTS}. Defaults to `false`.
+ *
+ * @param treeType              Optional: Only use if you know what you are
+ *                              doing. The type of tree.
+ * @param useMaxConcurrency     Optional: Only use if you know what you are
+ *                              doing. If true, select from all infos.
  *
  * @returns A pseudo-randomly selected tree info
  */
 export function selectStateTreeInfo(
     infos: StateTreeInfo[],
-    treeType: TreeType = TreeType.StateV1,
+    treeType: TreeType = featureFlags.isV2()
+        ? TreeType.StateV2
+        : TreeType.StateV1,
     useMaxConcurrency: boolean = false,
 ): StateTreeInfo {
     const activeInfos = infos.filter(t => !t.nextTreeInfo);
