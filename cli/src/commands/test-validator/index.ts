@@ -7,6 +7,7 @@ import {
 import { CustomLoader } from "../../utils/index";
 import path from "path";
 import fs from "fs";
+import { featureFlags } from "@lightprotocol/stateless.js";
 
 class SetupCommand extends Command {
   static description =
@@ -134,6 +135,12 @@ class SetupCommand extends Command {
       multiple: true,
       summary: "Usage: --sbf-program <address> <path/program_name.so>",
     }),
+    version: Flags.string({
+      description: "Specify which version to use (V1 or V2)",
+      options: ["V1", "V2"] as const,
+      required: false,
+      default: "V2",
+    }),
   };
 
   validatePrograms(programs: { address: string; path: string }[]): void {
@@ -180,6 +187,11 @@ class SetupCommand extends Command {
     const { flags } = await this.parse(SetupCommand);
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
+
+    if (flags["version"]) {
+      featureFlags.version = flags["version"] as "V1" | "V2";
+      this.log(`Using ${featureFlags.version} configuration`);
+    }
 
     if (flags["geyser-config"]) {
       const configPath = path.resolve(flags["geyser-config"]);

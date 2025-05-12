@@ -1,4 +1,4 @@
-import { airdropSol } from "@lightprotocol/stateless.js";
+import { airdropSol, featureFlags } from "@lightprotocol/stateless.js";
 import { getConfig, getPayer, setAnchorProvider, setConfig } from "./utils";
 import {
   BASE_PATH,
@@ -149,7 +149,25 @@ export async function initTestEnv({
     const config = getConfig();
     config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
-    await startProver(proverPort, proverRunMode, circuits);
+
+    // Load versioned circuits
+    let proverCircuits = circuits || [];
+    if (proverCircuits.length === 0) {
+      if (featureFlags.isV2()) {
+        proverCircuits = [
+          "append-with-proofs",
+          "update",
+          "address-append",
+          "inclusion",
+          "non-inclusion",
+          "combined",
+        ];
+      } else {
+        proverCircuits = ["inclusion", "non-inclusion", "combined"];
+      }
+    }
+
+    await startProver(proverPort, proverRunMode, proverCircuits);
   }
 }
 
