@@ -9,7 +9,7 @@ import { StateTreeInfo, TreeType } from './state/types';
  * Feature flags. Only use if you know what you are doing.
  */
 export const featureFlags = {
-    version: 'V2' as 'V1' | 'V2',
+    version: 'V1' as 'V1' | 'V2',
     isV2: () => featureFlags.version.toUpperCase() === 'V2',
 };
 
