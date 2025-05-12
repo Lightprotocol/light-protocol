@@ -13,6 +13,7 @@ import {
     dedupeSigner,
     StateTreeInfo,
     selectStateTreeInfo,
+    toArray,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
@@ -27,13 +28,15 @@ import {
  * Mint compressed tokens to a solana address from an external mint authority
  *
  * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint for the account
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param toPubkey              Address of the account to mint to
  * @param authority             Minting authority
  * @param amount                Amount to mint
- * @param outputStateTreeInfo   State tree info
- * @param tokenPoolInfo         Token pool info
+ * @param outputStateTreeInfo   Optional: State tree account that the compressed
+ *                              tokens should be inserted into. Defaults to a
+ *                              shared state tree account.
+ * @param tokenPoolInfo         Optional: Token pool info.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -82,7 +85,12 @@ export async function approveAndMintTo(
     const additionalSigners = dedupeSigner(payer, [authority]);
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ...ixs],
+        [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units: 150_000 + toArray(amount).length * 20_000,
+            }),
+            ...ixs,
+        ],
         payer,
         blockhash,
         additionalSigners,

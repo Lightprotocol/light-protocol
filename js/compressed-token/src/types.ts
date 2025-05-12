@@ -4,14 +4,9 @@ import { Buffer } from 'buffer';
 import {
     ValidityProof,
     PackedMerkleContext,
+    CompressedCpiContext,
 } from '@lightprotocol/stateless.js';
 import { TokenPoolInfo } from './utils/get-token-pool-infos';
-
-export type CompressedCpiContext = {
-    setContext: boolean;
-    firstSetContext: boolean;
-    cpiContextAccountIndex: number; // u8
-};
 
 export type TokenTransferOutputData = {
     /**
@@ -97,7 +92,6 @@ export type CompressedTokenInstructionDataTransfer = {
     mint: PublicKey;
     /**
      * Whether the signer is a delegate
-     * TODO: implement delegated transfer struct
      */
     delegatedTransfer: DelegatedTransfer | null;
     /**

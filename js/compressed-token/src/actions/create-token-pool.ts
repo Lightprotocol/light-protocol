@@ -16,9 +16,9 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 /**
  * Register an existing mint with the CompressedToken program
  *
- * @param rpc             RPC to use
- * @param payer           Payer of the transaction and initialization fees
- * @param mint            Address of the existing mint
+ * @param rpc             RPC connection to use
+ * @param payer           Fee payer
+ * @param mint            SPL Mint address
  * @param confirmOptions  Options for confirming the transaction
  * @param tokenProgramId  Optional: Address of the token program. Default:
  *                        TOKEN_PROGRAM_ID
@@ -32,7 +32,7 @@ export async function createTokenPool(
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId 
+    tokenProgramId = tokenProgramId
         ? tokenProgramId
         : await CompressedTokenProgram.getMintProgramId(mint, rpc);
 
@@ -54,11 +54,12 @@ export async function createTokenPool(
 /**
  * Create additional token pools for an existing mint
  *
- * @param rpc                   RPC to use
- * @param payer                 Payer of the transaction and initialization fees
- * @param mint                  Address of the existing mint
- * @param numMaxAdditionalPools Number of additional token pools to create. Max 3.
- * @param confirmOptions        Options for confirming the transaction
+ * @param rpc                   RPC connection to use
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
+ * @param numMaxAdditionalPools Number of additional token pools to create. Max
+ *                              3.
+ * @param confirmOptions        Optional: Options for confirming the transaction
  * @param tokenProgramId        Optional: Address of the token program. Default:
  *                              TOKEN_PROGRAM_ID
  *

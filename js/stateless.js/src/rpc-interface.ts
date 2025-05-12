@@ -181,6 +181,10 @@ export type ValidityProofWithContext = {
      * Tree infos.
      */
     treeInfos: StateTreeInfo[];
+    /**
+     * Whether to prove by indices.
+     */
+    proveByIndices: boolean[];
 };
 
 /**

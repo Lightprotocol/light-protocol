@@ -3,7 +3,7 @@ import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
 import { COMPRESSED_TOKEN_PROGRAM_ID } from '../../constants';
 import { Rpc } from '../../rpc';
-import { getStateTreeInfoByPubkey } from './get-compressed-accounts';
+import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
     CompressedAccount,
@@ -11,6 +11,7 @@ import {
     MerkleContext,
     createCompressedAccountWithMerkleContext,
     bn,
+    TreeType,
 } from '../../state';
 import {
     struct,
@@ -45,6 +46,7 @@ export type EventWithParsedTokenTlvData = {
     inputCompressedAccountHashes: number[][];
     outputCompressedAccounts: ParsedTokenAccount[];
 };
+
 /**
  * Manually parse the compressed token layout for a given compressed account.
  * @param compressedAccount - The compressed account
@@ -105,7 +107,8 @@ async function parseEventWithTokenTlvData(
                 treeInfo,
                 hash: bn(outputHashes[i]),
                 leafIndex: event.outputLeafIndices[i],
-                proveByIndex: false,
+                // V2 trees are always proveByIndex in test-rpc.
+                proveByIndex: treeInfo.treeType === TreeType.StateV2,
             };
             if (!compressedAccount.compressedAccount.data)
                 throw new Error('No data');

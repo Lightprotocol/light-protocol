@@ -23,7 +23,7 @@ import { InstructionDataInvoke, PublicTransactionEvent } from '../../state';
 import {
     decodeInstructionDataInvokeCpiWithReadOnly,
     decodePublicTransactionEvent,
-} from '../../programs/layout';
+} from '../../programs/system/layout';
 import { Buffer } from 'buffer';
 import { convertInvokeCpiWithReadOnlyToInvoke } from '../../utils';
 

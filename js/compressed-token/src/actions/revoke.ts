@@ -16,9 +16,9 @@ import { CompressedTokenProgram } from '../program';
 /**
  * Revoke one or more delegated token accounts
  *
- * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param accounts              Delegated Compressed token accounts to revoke
+ * @param rpc                   Rpc connection to use
+ * @param payer                 Fee payer
+ * @param accounts              Delegated compressed token accounts to revoke
  * @param owner                 Owner of the compressed tokens
  * @param confirmOptions        Options for confirming the transaction
  *

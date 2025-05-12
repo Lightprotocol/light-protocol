@@ -21,15 +21,15 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 /**
  * Transfer delegated compressed tokens to another owner
  *
- * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the compressed token
+ * @param rpc                   Rpc connection to use
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param amount                Number of tokens to transfer
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination address of the recipient
  * @param confirmOptions        Options for confirming the transaction
  *
- * @return Signature of the confirmed transaction
+ * @return confirmed transaction signature
  */
 export async function transferDelegated(
     rpc: Rpc,

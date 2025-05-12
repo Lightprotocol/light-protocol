@@ -13,7 +13,7 @@ import {
     encodePublicTransactionEvent,
     decodePublicTransactionEvent,
     invokeAccountsLayout,
-} from '../../src/programs/layout';
+} from '../../src/programs/system/layout';
 import { PublicTransactionEvent } from '../../src/state';
 
 import {
@@ -141,9 +141,9 @@ describe('layout', () => {
                             },
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
-                                nullifierQueuePubkeyIndex: 1,
+                                queuePubkeyIndex: 1,
                                 leafIndex: 10,
-                                queueIndex: null,
+                                proveByIndex: false,
                             },
                             rootIndex: 0,
                             readOnly: false,

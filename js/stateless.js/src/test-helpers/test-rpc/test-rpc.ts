@@ -4,14 +4,12 @@ import {
     getCompressedAccountByHashTest,
     getCompressedAccountsByOwnerTest,
     getMultipleCompressedAccountsByHashTest,
-    getStateTreeInfoByPubkey,
 } from './get-compressed-accounts';
 import {
     getCompressedTokenAccountByHashTest,
     getCompressedTokenAccountsByDelegateTest,
     getCompressedTokenAccountsByOwnerTest,
 } from './get-compressed-token-accounts';
-
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import {
@@ -54,17 +52,9 @@ import {
     proverRequest,
 } from '../../rpc';
 import { StateTreeInfo } from '../../state/types';
+import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
 
 export interface TestRpcConfig {
-    /**
-     * Address of the state tree to index. Default: public default test state
-     * tree.
-     */
-    merkleTreeAddress?: PublicKey;
-    /**
-     * Nullifier queue associated with merkleTreeAddress
-     */
-    nullifierQueueAddress?: PublicKey;
     /**
      * Depth of state tree. Defaults to the public default test state tree depth
      */
@@ -73,15 +63,6 @@ export interface TestRpcConfig {
      * Log proof generation time
      */
     log?: boolean;
-    /**
-     * Address of the address tree to index. Default: public default test
-     * address tree.
-     */
-    addressTreeAddress?: PublicKey;
-    /**
-     * Address queue associated with addressTreeAddress
-     */
-    addressQueueAddress?: PublicKey;
 }
 
 export type ClientSubscriptionId = number;
@@ -128,13 +109,13 @@ export async function getTestRpc(
     );
 }
 /**
- * Simple mock rpc for unit tests that simulates the compression rpc interface.
- * Fetches, parses events and builds merkletree on-demand, i.e. it does not persist state.
+ * Mock RPC for unit tests that simulates the ZK Compression RPC interface.
+ * Parses events and builds merkletree on-demand. It does not persist state.
  * Constraints:
- * - Can only index 1 merkletree
  * - Can only index up to 1000 transactions
  *
- * For advanced testing use photon: https://github.com/helius-labs/photon
+ * For advanced testing use `Rpc` class which uses photon:
+ * https://github.com/helius-labs/photon
  */
 export class TestRpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
@@ -284,8 +265,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             {
                 leaves: number[][];
                 leafIndices: number[];
-                treeType: TreeType;
-                queue: PublicKey;
+                treeInfo: StateTreeInfo;
             }
         > = new Map();
 
@@ -313,8 +293,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     leavesByTree.set(stateTreeInfo.tree.toBase58(), {
                         leaves: [],
                         leafIndices: [],
-                        treeType: stateTreeInfo.treeType,
-                        queue: stateTreeInfo.queue,
+                        treeInfo: stateTreeInfo,
                     });
                 }
 
@@ -334,22 +313,25 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         const merkleProofsMap: Map<string, MerkleContextWithMerkleProof> =
             new Map();
 
-        for (const [
-            treeKey,
-            { leaves, treeType, queue },
-        ] of leavesByTree.entries()) {
+        for (const [treeKey, { leaves, treeInfo }] of leavesByTree.entries()) {
             const tree = new PublicKey(treeKey);
 
             let merkleTree: MerkleTree | undefined;
-            if (treeType === TreeType.StateV1) {
+            if (treeInfo.treeType === TreeType.StateV1) {
                 merkleTree = new MerkleTree(
                     this.depth,
                     this.lightWasm,
                     leaves.map(leaf => bn(leaf).toString()),
                 );
+            } else if (treeInfo.treeType === TreeType.StateV2) {
+                /// In V2 State trees, The Merkle tree stays empty until the
+                /// first forester transaction. And since test-rpc is only used
+                /// for non-forested tests, we must return a tree with
+                /// zerovalues.
+                merkleTree = new MerkleTree(32, this.lightWasm, []);
             } else {
                 throw new Error(
-                    `Unsupported tree type: ${treeType} in test-rpc.ts`,
+                    `Invalid tree type: ${treeInfo.treeType} in test-rpc.ts`,
                 );
             }
 
@@ -357,14 +339,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 const leafIndex = leaves.findIndex(leaf =>
                     bn(leaf).eq(hashes[i]),
                 );
-                const stateTreeInfo = getStateTreeInfoByPubkey(
-                    cachedStateTreeInfos,
-                    tree,
-                );
+                // const stateTreeInfo = getStateTreeInfoByPubkey(
+                //     cachedStateTreeInfos,
+                //     tree,
+                // );
 
                 /// If leaf is part of current tree, return proof
                 if (leafIndex !== -1) {
-                    if (treeType === TreeType.StateV1) {
+                    if (treeInfo.treeType === TreeType.StateV1) {
                         const pathElements =
                             merkleTree.path(leafIndex).pathElements;
                         const bnPathElements = pathElements.map(value =>
@@ -374,12 +356,45 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
                         const merkleProof: MerkleContextWithMerkleProof = {
                             hash: bn(hashes[i].toArray('be', 32)),
-                            treeInfo: stateTreeInfo,
-                            leafIndex: leafIndex,
+                            treeInfo,
+                            leafIndex,
                             merkleProof: bnPathElements,
                             proveByIndex: false,
                             rootIndex: leaves.length,
-                            root: root,
+                            root,
+                        };
+
+                        merkleProofsMap.set(hashes[i].toString(), merkleProof);
+                    } else if (treeInfo.treeType === TreeType.StateV2) {
+                        const pathElements = merkleTree._zeros.slice(0, -1);
+                        const bnPathElements = pathElements.map(value =>
+                            bn(value),
+                        );
+                        const root = bn(merkleTree.root());
+
+                        /// get leafIndex from leavesByTree for the given hash
+                        const leafIndex = leavesByTree
+                            .get(tree.toBase58())!
+                            .leafIndices.findIndex(index =>
+                                hashes[i].eq(
+                                    bn(
+                                        leavesByTree.get(tree.toBase58())!
+                                            .leaves[index],
+                                    ),
+                                ),
+                            );
+
+                        const merkleProof: MerkleContextWithMerkleProof = {
+                            // Hash is 0 for proveByIndex trees in test-rpc.
+                            hash: bn(new Array(32).fill(0)),
+                            treeInfo,
+                            leafIndex,
+                            merkleProof: bnPathElements,
+                            proveByIndex: true,
+                            // Root index is 0 for proveByIndex trees in
+                            // test-rpc.
+                            rootIndex: 0,
+                            root,
                         };
 
                         merkleProofsMap.set(hashes[i].toString(), merkleProof);
@@ -390,17 +405,38 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
         // Validate proofs
         merkleProofsMap.forEach((proof, index) => {
-            const leafIndex = proof.leafIndex;
-            const computedHash = leavesByTree.get(
-                proof.treeInfo.tree.toBase58(),
-            )!.leaves[leafIndex];
-            const hashArr = bn(computedHash);
-            if (!hashArr.eq(proof.hash)) {
-                throw new Error(
-                    `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
-                );
+            if (proof.treeInfo.treeType === TreeType.StateV1) {
+                const leafIndex = proof.leafIndex;
+                const computedHash = leavesByTree.get(
+                    proof.treeInfo.tree.toBase58(),
+                )!.leaves[leafIndex];
+                const hashArr = bn(computedHash);
+                if (!hashArr.eq(proof.hash)) {
+                    throw new Error(
+                        `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
+                    );
+                }
             }
         });
+
+        // Ensure all requested hashes belong to the same tree type
+        const uniqueTreeTypes = new Set(
+            hashes.map(hash => {
+                const proof = merkleProofsMap.get(hash.toString());
+                if (!proof) {
+                    throw new Error(
+                        `Proof not found for hash: ${hash.toString()}`,
+                    );
+                }
+                return proof.treeInfo.treeType;
+            }),
+        );
+
+        if (uniqueTreeTypes.size > 1) {
+            throw new Error(
+                'Requested hashes belong to different tree types (V1/V2)',
+            );
+        }
 
         // Return proofs in the order of requested hashes
         return hashes.map(hash => {
@@ -693,21 +729,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Advanced usage of getValidityProof: fetches ZKP directly from a custom
-     * non-rpcprover. Note: This uses the proverEndpoint specified in the
-     * constructor. For normal usage, please use {@link getValidityProof}
-     * instead.
-     *
-     * Note: Use RPC class for forested trees. TestRpc is only for custom
-     * testing purposes.
-     */
-    async getValidityProofDirect(
-        hashes: BN254[] = [],
-        newAddresses: BN254[] = [],
-    ): Promise<ValidityProofWithContext> {
-        return this.getValidityProof(hashes, newAddresses);
-    }
-    /**
      * @deprecated This method is not available for TestRpc. Please use
      * {@link getValidityProof} instead.
      */
@@ -758,20 +779,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 merkleProofsWithContext,
             );
 
-            // TODO: reactivate to handle proofs of height 32
-            // const publicInputHash = getPublicInputHash(
-            //     merkleProofsWithContext,
-            //     hashes,
-            //     [],
-            //     this.lightWasm,
-            // );
-
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'inclusion',
                 inputs,
                 this.log,
-                // publicInputHash,
             );
             validityProof = {
                 compressedProof,
@@ -784,6 +796,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 ),
                 leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
                 treeInfos: merkleProofsWithContext.map(proof => proof.treeInfo),
+                proveByIndices: merkleProofsWithContext.map(
+                    proof => proof.proveByIndex,
+                ),
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
@@ -792,18 +807,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             const inputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-            // const publicInputHash = getPublicInputHash(
-            //     [],
-            //     [],
-            //     newAddressProofs,
-            //     this.lightWasm,
-            // );
+
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'new-address',
                 inputs,
                 this.log,
-                // publicInputHash,
             );
 
             validityProof = {
@@ -818,6 +827,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 treeInfos: newAddressProofs.map(proof => proof.treeInfo),
+                proveByIndices: newAddressProofs.map(_ => false),
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -870,6 +880,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 treeInfos: merkleProofsWithContext
                     .map(proof => proof.treeInfo)
                     .concat(newAddressProofs.map(proof => proof.treeInfo)),
+                proveByIndices: merkleProofsWithContext
+                    .map(proof => proof.proveByIndex)
+                    .concat(newAddressProofs.map(_ => false)),
             };
         } else throw new Error('Invalid input');
 

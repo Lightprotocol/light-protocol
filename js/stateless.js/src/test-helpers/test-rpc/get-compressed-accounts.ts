@@ -7,44 +7,9 @@ import {
     bn,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
-    StateTreeInfo,
+    TreeType,
 } from '../../state';
-
-/**
- * Get the info for a given tree or queue
- *
- * @param info          The active state tree addresses
- * @param treeOrQueue   The tree or queue to get the info for
- * @returns The info for the given tree or queue, or throws an error if not
- * found
- */
-export function getStateTreeInfoByPubkey(
-    treeInfos: StateTreeInfo[],
-    treeOrQueue: PublicKey,
-): StateTreeInfo {
-    if (treeInfos.some(t => t.queue.equals(treeOrQueue)))
-        throw new Error('Checking by queue not supported yet');
-
-    const index = treeInfos.findIndex(t => t.tree.equals(treeOrQueue));
-
-    if (index !== -1) {
-        const { queue, treeType } = treeInfos[index];
-        if (!queue) {
-            throw new Error('Queue must not be null for state tree');
-        }
-        return {
-            queue,
-            treeType,
-            tree: treeInfos[index].tree,
-            cpiContext: treeInfos[index].cpiContext,
-            nextTreeInfo: treeInfos[index].nextTreeInfo,
-        };
-    }
-
-    throw new Error(
-        `No associated StateTreeInfo found for tree or queue. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. Pubkey: ${treeOrQueue.toBase58()}`,
-    );
-}
+import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
 
 export async function getCompressedAccountsByOwnerTest(
     rpc: Rpc,
@@ -86,22 +51,20 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             index < event.outputCompressedAccounts.length;
             index++
         ) {
-            const smt =
+            const maybeTree =
                 event.pubkeyArray[
                     event.outputCompressedAccounts[index].merkleTreeIndex
                 ];
 
-            const treeInfo = getStateTreeInfoByPubkey(
-                infos,
-                new PublicKey(smt),
-            );
+            const treeInfo = getStateTreeInfoByPubkey(infos, maybeTree);
 
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
                 treeInfo,
                 hash: bn(event.outputCompressedAccountHashes[index]),
                 leafIndex: event.outputLeafIndices[index],
-                proveByIndex: false,
+                // V2 trees always have proveByIndex = true in test-rpc.
+                proveByIndex: treeInfo.treeType === TreeType.StateV2,
             };
             const withCtx: CompressedAccountWithMerkleContext =
                 createCompressedAccountWithMerkleContext(

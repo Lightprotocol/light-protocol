@@ -29,14 +29,14 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  * Decompress delegated compressed tokens. Remaining compressed tokens are
  * returned to the owner without delegation.
  *
- * @param rpc                   Rpc to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the compressed token
+ * @param rpc                   Rpc connection to use
+ * @param payer                 Fee payer
+ * @param mint                  SPL Mint address
  * @param amount                Number of tokens to decompress
  * @param owner                 Owner of the compressed tokens
- * @param toAddress             Destination **uncompressed** (associated) token
- *                              account address.
- * @param tokenPoolInfos        Token pool infos
+ * @param toAddress             Destination **uncompressed** token account
+ *                              address. (ATA)
+ * @param tokenPoolInfos        Optional: Token pool infos.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -91,7 +91,7 @@ export async function decompressDelegated(
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 350_000 }), ix],
         payer,
         blockhash,
         additionalSigners,

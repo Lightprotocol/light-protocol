@@ -69,6 +69,14 @@ describe('selectStateTreeInfo', () => {
         nextTreeInfo: info1,
     };
 
+    const info1V2: StateTreeInfo = {
+        tree: new PublicKey(merkletreePubkey),
+        queue: new PublicKey(nullifierQueuePubkey),
+        cpiContext: new PublicKey(cpiContextPubkey),
+        treeType: TreeType.StateV2,
+        nextTreeInfo: null,
+    };
+
     it('returns a filtered tree info', () => {
         const infos = [info1, info2, infoV2];
         for (let i = 0; i < 10_000; i++) {
@@ -110,7 +118,10 @@ describe('selectStateTreeInfo', () => {
     });
 
     it('throws if queue is missing', () => {
-        const infos = [{ ...info1, queue: null }];
+        const infos = [
+            { ...info1, queue: null },
+            { ...info1V2, queue: null },
+        ];
         expect(() => selectStateTreeInfo(infos as any)).toThrow(
             'Queue must not be null for state tree',
         );
