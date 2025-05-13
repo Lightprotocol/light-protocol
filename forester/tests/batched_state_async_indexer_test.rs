@@ -22,7 +22,9 @@ use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
 use light_program_test::accounts::test_accounts::TestAccounts;
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{
+    spawn_prover, LightValidatorConfig, ProverConfig, ProverMode,
+};
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     utils::get_protocol_config_pda_address,
@@ -58,22 +60,24 @@ const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
 async fn test_state_indexer_async_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
         enable_indexer: true,
-        wait_time: 90,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-            restart: true,
-        }),
+        wait_time: 30,
+        prover_config: None,
         sbf_programs: vec![],
-        limit_ledger_size: Some(500000),
+        limit_ledger_size: None,
     }))
+    .await;
+    spawn_prover(ProverConfig {
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: true,
+    })
     .await;
 
     let env = TestAccounts::get_local_test_validator_accounts();
@@ -410,22 +414,24 @@ async fn execute_test_transactions<R: RpcConnection + Indexer, I: Indexer>(
         .await;
 
         sleep(Duration::from_millis(1000)).await;
-        let batch_transfer_sig = transfer(
+        let batch_transfer_sig = transfer::<true, R, I>(
             rpc,
             indexer,
             &env.v2_state_trees[0].output_queue,
             batch_payer,
             sender_batched_accs_counter,
+            env,
         )
         .await;
         println!("{} batch transfer: {:?}", i, batch_transfer_sig);
 
-        let legacy_transfer_sig = transfer(
+        let legacy_transfer_sig = transfer::<false, R, I>(
             rpc,
             indexer,
             &env.v1_state_trees[0].merkle_tree,
             legacy_payer,
             sender_legacy_accs_counter,
+            env,
         )
         .await;
         println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
@@ -756,18 +762,40 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
     sig
 }
 
-async fn transfer<R: RpcConnection + Indexer, I: Indexer>(
+async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
     rpc: &mut R,
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
     payer: &Keypair,
     counter: &mut u64,
+    test_accounts: &TestAccounts,
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
-    let mut input_compressed_accounts = indexer
+    let input_compressed_accounts = indexer
         .get_compressed_accounts_by_owner_v2(&payer.pubkey())
         .await
         .unwrap_or(vec![]);
+    let mut input_compressed_accounts = if V2 {
+        input_compressed_accounts
+            .into_iter()
+            .filter(|x| {
+                test_accounts
+                    .v2_state_trees
+                    .iter()
+                    .any(|y| y.merkle_tree == x.merkle_context.merkle_tree_pubkey)
+            })
+            .collect::<Vec<_>>()
+    } else {
+        input_compressed_accounts
+            .into_iter()
+            .filter(|x| {
+                test_accounts
+                    .v1_state_trees
+                    .iter()
+                    .any(|y| y.merkle_tree == x.merkle_context.merkle_tree_pubkey)
+            })
+            .collect::<Vec<_>>()
+    };
     assert_eq!(
         std::cmp::min(input_compressed_accounts.len(), 1000),
         std::cmp::min(*counter as usize, 1000)
@@ -785,7 +813,8 @@ async fn transfer<R: RpcConnection + Indexer, I: Indexer>(
         .map(|x| x.hash().unwrap())
         .collect::<Vec<[u8; 32]>>();
     wait_for_indexer(rpc, indexer).await.unwrap();
-    let proof_for_compressed_accounts = rpc
+    println!("compressed_account_hashes: {:?}", compressed_account_hashes);
+    let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await
         .unwrap();
