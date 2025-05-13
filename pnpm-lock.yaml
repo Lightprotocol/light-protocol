@@ -551,7 +551,7 @@ importers:
         version: 3.4.2
       ts-mocha:
         specifier: ^11.1.0
-        version: 11.1.0(mocha@11.0.1)(ts-node@10.9.2(@types/node@22.13.0)(typescript@5.7.2))(tsconfig-paths@4.2.0)
+        version: 11.1.0(mocha@11.0.1)(ts-node@10.9.2(@types/node@22.15.17)(typescript@5.7.2))(tsconfig-paths@4.2.0)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -3077,6 +3077,9 @@ packages:
 
   '@types/node@22.13.0':
     resolution: {integrity: sha512-ClIbNe36lawluuvq3+YYhnIN2CELi+6q8NpnM7PYp4hBn/TatfboPgVSm2rwKRfnV2M+Ty9GWDFI64KEe+kysA==}
+
+  '@types/node@22.15.17':
+    resolution: {integrity: sha512-wIX2aSZL5FE+MR0JlvF87BNVrtFWf6AE6rxSE9X7OwnVvoyCQjpzSRJ+M87se/4QCkCiebQAqrJ0y6fwIyi7nw==}
 
   '@types/node@22.5.5':
     resolution: {integrity: sha512-Xjs4y5UPO/CLdzpgR6GirZJx36yScjh73+2NlLlkFRSoQN8B0DpfXPdZGnvVmLRLOsqDpOfTNv7D9trgGhmOIA==}
@@ -10571,14 +10574,14 @@ snapshots:
     dependencies:
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       jest-mock: 29.7.0
 
   '@jest/fake-timers@29.7.0':
     dependencies:
       '@jest/types': 29.6.3
       '@sinonjs/fake-timers': 10.3.0
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       jest-message-util: 29.7.0
       jest-mock: 29.7.0
       jest-util: 29.7.0
@@ -10591,7 +10594,7 @@ snapshots:
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       '@types/yargs': 15.0.19
       chalk: 4.1.2
 
@@ -10599,7 +10602,7 @@ snapshots:
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       '@types/yargs': 16.0.9
       chalk: 4.1.2
 
@@ -10608,7 +10611,7 @@ snapshots:
       '@jest/schemas': 29.6.3
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       '@types/yargs': 17.0.33
       chalk: 4.1.2
 
@@ -12039,7 +12042,7 @@ snapshots:
 
   '@types/bn.js@5.1.6':
     dependencies:
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
 
   '@types/chai@4.3.16': {}
 
@@ -12053,7 +12056,7 @@ snapshots:
 
   '@types/connect@3.4.36':
     dependencies:
-      '@types/node': 20.17.16
+      '@types/node': 22.15.17
 
   '@types/deep-eql@4.0.2': {}
 
@@ -12063,12 +12066,12 @@ snapshots:
 
   '@types/fs-extra@8.1.5':
     dependencies:
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
 
   '@types/glob@7.2.0':
     dependencies:
       '@types/minimatch': 5.1.2
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
 
   '@types/http-cache-semantics@4.0.2': {}
 
@@ -12094,7 +12097,7 @@ snapshots:
 
   '@types/mute-stream@0.0.4':
     dependencies:
-      '@types/node': 20.17.16
+      '@types/node': 22.15.17
 
   '@types/node@12.20.55': {}
 
@@ -12105,6 +12108,10 @@ snapshots:
   '@types/node@22.13.0':
     dependencies:
       undici-types: 6.20.0
+
+  '@types/node@22.15.17':
+    dependencies:
+      undici-types: 6.21.0
 
   '@types/node@22.5.5':
     dependencies:
@@ -12145,11 +12152,11 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 20.17.16
+      '@types/node': 22.15.17
 
   '@types/ws@8.5.10':
     dependencies:
-      '@types/node': 20.17.16
+      '@types/node': 22.15.17
 
   '@types/yargs-parser@21.0.3': {}
 
@@ -14825,7 +14832,7 @@ snapshots:
     dependencies:
       '@types/chai': 5.0.1
       '@types/lodash': 4.14.199
-      '@types/node': 20.17.16
+      '@types/node': 22.15.17
       '@types/sinon': 10.0.16
       lodash: 4.17.21
       mock-stdin: 1.0.0
@@ -15867,7 +15874,7 @@ snapshots:
       '@jest/environment': 29.7.0
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       jest-mock: 29.7.0
       jest-util: 29.7.0
 
@@ -15888,7 +15895,7 @@ snapshots:
   jest-mock@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       jest-util: 29.7.0
 
   jest-regex-util@27.5.1: {}
@@ -15896,7 +15903,7 @@ snapshots:
   jest-util@27.5.1:
     dependencies:
       '@jest/types': 27.5.1
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -15905,7 +15912,7 @@ snapshots:
   jest-util@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -15922,7 +15929,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -18298,10 +18305,10 @@ snapshots:
     optionalDependencies:
       tsconfig-paths: 3.15.0
 
-  ts-mocha@11.1.0(mocha@11.0.1)(ts-node@10.9.2(@types/node@22.13.0)(typescript@5.7.2))(tsconfig-paths@4.2.0):
+  ts-mocha@11.1.0(mocha@11.0.1)(ts-node@10.9.2(@types/node@22.15.17)(typescript@5.7.2))(tsconfig-paths@4.2.0):
     dependencies:
       mocha: 11.0.1
-      ts-node: 10.9.2(@types/node@22.13.0)(typescript@5.7.2)
+      ts-node: 10.9.2(@types/node@22.15.17)(typescript@5.7.2)
     optionalDependencies:
       tsconfig-paths: 4.2.0
 
@@ -18341,14 +18348,14 @@ snapshots:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
 
-  ts-node@10.9.2(@types/node@22.13.0)(typescript@5.7.2):
+  ts-node@10.9.2(@types/node@22.15.17)(typescript@5.7.2):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.9
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 22.13.0
+      '@types/node': 22.15.17
       acorn: 8.11.3
       acorn-walk: 8.2.0
       arg: 4.1.3
