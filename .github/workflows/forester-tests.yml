@@ -75,7 +75,7 @@ jobs:
             },
           ]
     name: test-${{ matrix.test-name.name }}
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.test-name.timeout }}
     steps:
       - uses: actions/checkout@v4
