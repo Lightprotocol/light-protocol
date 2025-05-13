@@ -3327,7 +3327,7 @@ name = "light-client"
 version = "0.9.1"
 dependencies = [
  "async-trait",
- "base64 0.13.1",
+ "base64 0.22.1",
  "bb8",
  "borsh 0.10.4",
  "governor 0.8.1",
