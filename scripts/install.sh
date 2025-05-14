@@ -100,7 +100,7 @@ install_rust() {
         curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
         rustup install 1.83 nightly
         export PATH="${PREFIX}/cargo/bin:${PATH}"
-        rustup component add clippy rustfmt
+        rustup component add --toolchain 1.83-x86_64-unknown-linux-gnu clippy
         cargo install cargo-expand --locked
         cargo install --git https://github.com/Lightprotocol/photon.git --rev edff82c5cb7fd891b5ab62faed9126594c97d90b --locked
         log "rust"
