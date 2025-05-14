@@ -43,7 +43,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
 };
 use light_prover_client::{
-    gnark::helpers::{spawn_prover, ProofType, ProverConfig},
+    gnark::helpers::{spawn_prover, ProverConfig},
     mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
 use light_test_utils::{

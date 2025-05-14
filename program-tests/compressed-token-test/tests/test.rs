@@ -42,8 +42,7 @@ use light_program_test::{
     LightProgramTest, ProgramTestConfig,
 };
 use light_prover_client::gnark::helpers::{
-    kill_prover, spawn_prover, spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
-    ProverMode,
+    kill_prover, spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
 };
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{errors::SystemProgramError, utils::get_sol_pool_pda};
