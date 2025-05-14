@@ -2,7 +2,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
     cpi::{
-        create_instruction, invoke_light_system_program, CpiAccounts, CpiAccountsConfig, CpiInputs,
+        create_light_system_progam_instruction_invoke_cpi, invoke_light_system_program,
+        CpiAccounts, CpiAccountsConfig, CpiInputs,
     },
     error::LightSdkError,
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
@@ -82,7 +83,7 @@ pub fn create_pda<const BATCHED: bool>(
         vec![my_compressed_account.to_account_info()?],
         vec![new_address_params],
     );
-    let instruction = create_instruction(cpi_inputs, &cpi_accounts)?;
+    let instruction = create_light_system_progam_instruction_invoke_cpi(cpi_inputs, &cpi_accounts)?;
 
     invoke_light_system_program(&crate::ID, &cpi_accounts.to_account_infos(), instruction)?;
     Ok(())

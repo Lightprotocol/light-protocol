@@ -51,7 +51,7 @@ impl CpiInputs {
     }
 
     pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts) -> Result<()> {
-        let instruction = create_instruction(self, &cpi_accounts)?;
+        let instruction = create_light_system_progam_instruction_invoke_cpi(self, &cpi_accounts)?;
 
         invoke_light_system_program(
             cpi_accounts.self_program_id(),
@@ -61,7 +61,7 @@ impl CpiInputs {
     }
 }
 
-pub fn create_instruction(
+pub fn create_light_system_progam_instruction_invoke_cpi(
     cpi_inputs: CpiInputs,
     cpi_accounts: &CpiAccounts,
 ) -> Result<Instruction> {
