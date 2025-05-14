@@ -1644,7 +1644,7 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
 #[serial]
 #[tokio::test]
 async fn test_multiple_decompression() {
-    spawn_prover(ProgramTestConfig::new(false, None)).await;
+    spawn_prover(ProverConfig::default()).await;
     let rng = &mut thread_rng();
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
