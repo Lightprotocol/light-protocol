@@ -25,7 +25,7 @@ use tracing::{error, trace};
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
 /// Creates instruction data for a batch append operation
-pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
+pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,

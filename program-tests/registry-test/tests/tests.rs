@@ -21,30 +21,27 @@ use light_batched_merkle_tree::{
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::BatchedQueueAccount,
 };
-use light_client::indexer::Indexer;
+use light_client::{indexer::Indexer, rpc::rpc_connection::RpcConnectionConfig};
 use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{
+    accounts::{
+        address_tree::create_address_merkle_tree_and_queue_account,
+        address_tree_v2::create_batch_address_merkle_tree,
+        initialize::{initialize_new_group, setup_accounts},
+        register_program::{
+            deregister_program_with_registry_program, register_program_with_registry_program,
+        },
+        state_tree::create_state_merkle_tree_and_queue_account,
+        state_tree_v2::create_batched_state_merkle_tree,
+        test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
+        test_keypairs::{GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR},
+    },
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_batch_forester::{
-        assert_perform_state_mt_roll_over, create_append_batch_ix_data,
-        create_batch_address_merkle_tree,
-        create_batch_update_address_tree_instruction_data_with_proof,
-        create_batched_state_merkle_tree, perform_batch_append, perform_batch_nullify,
-        perform_rollover_batch_address_merkle_tree, perform_rollover_batch_state_merkle_tree,
-    },
-    test_env::{
-        create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-        deregister_program_with_registry_program, get_test_env_accounts, initialize_new_group,
-        register_program_with_registry_program, setup_accounts, setup_test_programs,
-        setup_test_programs_with_accounts, setup_test_programs_with_accounts_with_protocol_config,
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
-        EnvAccountKeypairs, GROUP_PDA_SEED_TEST_KEYPAIR, NOOP_PROGRAM_ID,
-        OLD_REGISTRY_ID_TEST_KEYPAIR,
-    },
-    test_rpc::ProgramTestRpcConnection,
+    program_test::{LightProgramTest, TestRpc},
+    utils::{assert::assert_rpc_error, setup_light_programs::setup_light_programs},
+    ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig};
 use light_registry::{
     account_compression_cpi::sdk::{
         create_batch_append_instruction, create_batch_nullify_instruction,
@@ -70,13 +67,20 @@ use light_test_utils::{
         assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
         assert_report_work, fetch_epoch_and_forester_pdas,
     },
-    assert_rpc_error, create_address_merkle_tree_and_queue_account_with_assert,
+    create_address_merkle_tree_and_queue_account_with_assert,
     create_address_test_program_sdk::perform_create_pda_with_event_rnd,
     create_rollover_address_merkle_tree_instructions,
     create_rollover_state_merkle_tree_instructions,
-    e2e_test_env::{init_program_test_env, init_program_test_env_forester},
+    e2e_test_env::init_program_test_env,
     register_test_forester,
+    test_batch_forester::{
+        assert_perform_state_mt_roll_over, create_append_batch_ix_data,
+        create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
+        perform_batch_nullify, perform_rollover_batch_address_merkle_tree,
+        perform_rollover_batch_state_merkle_tree,
+    },
     test_forester::{empty_address_queue_test, nullify_compressed_accounts},
+    test_keypairs::from_target_folder,
     update_test_forester, Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
     TreeAccounts, CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
@@ -176,8 +180,13 @@ fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfi
 
 #[tokio::test]
 async fn test_initialize_protocol_config() {
-    let rpc = setup_test_programs(None).await;
-    let mut rpc = ProgramTestRpcConnection::new(rpc);
+    let context = setup_light_programs(None).await.unwrap();
+
+    let mut rpc = LightProgramTest {
+        context,
+        indexer: None,
+        test_accounts: TestAccounts::get_program_test_test_accounts(),
+    };
     let payer = rpc.get_payer().insecure_clone();
     let program_account_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
     let protocol_config = ProtocolConfig::default();
@@ -318,7 +327,9 @@ async fn test_initialize_protocol_config() {
 
     let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
     let group_pda =
-        initialize_new_group(&group_seed_keypair, &payer, &mut rpc, cpi_authority_pda.0).await;
+        initialize_new_group(&group_seed_keypair, &payer, &mut rpc, cpi_authority_pda.0)
+            .await
+            .unwrap();
 
     let random_program_keypair = Keypair::new();
     // register program with invalid authority
@@ -530,12 +541,12 @@ async fn test_initialize_protocol_config() {
 #[serial]
 #[tokio::test]
 async fn test_custom_forester() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
-        None,
-        ProtocolConfig::default(),
-        false,
-    )
-    .await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
+        .await
+        .unwrap();
+    rpc.indexer = None;
+
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
     {
         let unregistered_forester_keypair = Keypair::new();
@@ -547,7 +558,7 @@ async fn test_custom_forester() {
         let cpi_context_keypair = Keypair::new();
         // create work 1 item in address and nullifier queue each
         let (mut state_merkle_tree_bundle, _, mut rpc) = {
-            let mut e2e_env = init_program_test_env(rpc, &env, false).await;
+            let mut e2e_env = init_program_test_env(rpc, &env, 50).await;
             e2e_env.indexer.state_merkle_trees.clear();
             // add state merkle tree to the indexer
             e2e_env
@@ -609,22 +620,14 @@ async fn test_custom_forester() {
 #[serial]
 #[tokio::test]
 async fn test_custom_forester_batched() {
-    let devnet = false;
-    let tree_params = if devnet {
-        InitStateTreeAccountsInstructionData::default()
-    } else {
-        InitStateTreeAccountsInstructionData::test_default()
-    };
-
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            None,
-            ProtocolConfig::default(),
-            true,
-            tree_params,
-            InitAddressTreeAccountsInstructionData::test_default(),
-        )
-        .await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_test_forster(true))
+        .await
+        .unwrap();
+    rpc.indexer = None;
+    let env = rpc.test_accounts.clone();
+    let tree_params = ProgramTestConfig::default_with_batched_trees(true)
+        .v2_state_tree_config
+        .unwrap();
 
     {
         let mut instruction_data = None;
@@ -637,14 +640,9 @@ async fn test_custom_forester_batched() {
         let cpi_context_keypair = Keypair::new();
         // create work 1 item in address and nullifier queue each
         let (mut state_merkle_tree_bundle, _, mut rpc) = {
-            let mut e2e_env = if devnet {
-                let mut e2e_env = init_program_test_env_forester(rpc, &env).await;
-                e2e_env.keypair_action_config.fee_assert = false;
-                e2e_env
-            } else {
-                init_program_test_env(rpc, &env, false).await
-            };
+            let mut e2e_env = init_program_test_env(rpc, &env, 50).await;
             e2e_env.indexer.state_merkle_trees.clear();
+
             // add state merkle tree to the indexer
             e2e_env
                 .indexer
@@ -660,9 +658,7 @@ async fn test_custom_forester_batched() {
                 .await;
             let state_merkle_tree_pubkey =
                 e2e_env.indexer.state_merkle_trees[0].accounts.merkle_tree;
-            let output_queue_pubkey = e2e_env.indexer.state_merkle_trees[0]
-                .accounts
-                .nullifier_queue;
+
             let mut merkle_tree_account = e2e_env
                 .rpc
                 .get_account(state_merkle_tree_pubkey)
@@ -694,8 +690,6 @@ async fn test_custom_forester_batched() {
                         create_append_batch_ix_data(
                             &mut e2e_env.rpc,
                             &mut e2e_env.indexer.state_merkle_trees[0],
-                            state_merkle_tree_pubkey,
-                            output_queue_pubkey,
                         )
                         .await,
                     );
@@ -715,7 +709,7 @@ async fn test_custom_forester_batched() {
             perform_batch_append(
                 &mut rpc,
                 &mut state_merkle_tree_bundle,
-                &env.forester,
+                &env.protocol.forester,
                 0,
                 false,
                 instruction_data,
@@ -727,7 +721,7 @@ async fn test_custom_forester_batched() {
                 perform_batch_nullify(
                     &mut rpc,
                     &mut state_merkle_tree_bundle,
-                    &env.forester,
+                    &env.protocol.forester,
                     0,
                     false,
                     None,
@@ -746,12 +740,16 @@ async fn test_custom_forester_batched() {
 #[serial]
 #[tokio::test]
 async fn test_register_and_update_forester_pda() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_with_protocol_config(
-        None,
-        ProtocolConfig::default(),
-        false,
-    )
-    .await;
+    let config = ProgramTestConfig {
+        protocol_config: ProtocolConfig::default(),
+        with_prover: false,
+        register_forester_and_advance_to_active_phase: false,
+        ..Default::default()
+    };
+
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    rpc.indexer = None;
+    let env = rpc.test_accounts.clone();
     let forester_keypair = Keypair::new();
     rpc.airdrop_lamports(&forester_keypair.pubkey(), 1_000_000_000)
         .await
@@ -760,7 +758,7 @@ async fn test_register_and_update_forester_pda() {
     // 1. SUCCESS: Register a forester
     register_test_forester(
         &mut rpc,
-        &env.governance_authority,
+        &env.protocol.governance_authority,
         &forester_keypair.pubkey(),
         config,
     )
@@ -794,7 +792,7 @@ async fn test_register_and_update_forester_pda() {
     .await
     .unwrap();
     let protocol_config = rpc
-        .get_anchor_account::<ProtocolConfigPda>(&env.governance_authority_pda)
+        .get_anchor_account::<ProtocolConfigPda>(&env.protocol.governance_authority_pda)
         .await
         .unwrap()
         .unwrap()
@@ -804,13 +802,13 @@ async fn test_register_and_update_forester_pda() {
     {
         let ix = create_update_forester_pda_weight_instruction(
             &forester_keypair.pubkey(),
-            &env.governance_authority.pubkey(),
+            &env.protocol.governance_authority.pubkey(),
             11,
         );
         rpc.create_and_send_transaction(
             &[ix],
-            &env.governance_authority.pubkey(),
-            &[&env.governance_authority],
+            &env.protocol.governance_authority.pubkey(),
+            &[&env.protocol.governance_authority],
         )
         .await
         .unwrap();
@@ -823,13 +821,13 @@ async fn test_register_and_update_forester_pda() {
         // change it back because other asserts expect weight 1
         let ix = create_update_forester_pda_weight_instruction(
             &forester_keypair.pubkey(),
-            &env.governance_authority.pubkey(),
+            &env.protocol.governance_authority.pubkey(),
             1,
         );
         rpc.create_and_send_transaction(
             &[ix],
-            &env.governance_authority.pubkey(),
-            &[&env.governance_authority],
+            &env.protocol.governance_authority.pubkey(),
+            &[&env.protocol.governance_authority],
         )
         .await
         .unwrap();
@@ -839,14 +837,14 @@ async fn test_register_and_update_forester_pda() {
     let tree_accounts = vec![
         TreeAccounts {
             tree_type: TreeType::StateV1,
-            merkle_tree: env.merkle_tree_pubkey,
-            queue: env.nullifier_queue_pubkey,
+            merkle_tree: env.v1_state_trees[0].merkle_tree,
+            queue: env.v1_state_trees[0].nullifier_queue,
             is_rolledover: false,
         },
         TreeAccounts {
             tree_type: TreeType::AddressV1,
-            merkle_tree: env.address_merkle_tree_pubkey,
-            queue: env.address_merkle_tree_queue_pubkey,
+            merkle_tree: env.v1_address_trees[0].merkle_tree,
+            queue: env.v1_address_trees[0].queue,
             is_rolledover: false,
         },
     ];
@@ -881,7 +879,6 @@ async fn test_register_and_update_forester_pda() {
 
     // advance epoch to active phase
     rpc.warp_to_slot(registered_epoch.phases.active.start)
-        .await
         .unwrap();
     // finalize registration
     {
@@ -907,7 +904,7 @@ async fn test_register_and_update_forester_pda() {
 
     // create work 1 item in address and nullifier queue each
     let (mut state_merkle_tree_bundle, mut address_merkle_tree, mut rpc) = {
-        let mut e2e_env = init_program_test_env(rpc, &env, false).await;
+        let mut e2e_env = init_program_test_env(rpc, &env, 50).await;
         // remove batched Merkle tree, fee assert makes this test flaky otherwise
         e2e_env.indexer.state_merkle_trees.remove(1);
         e2e_env.create_address(None, None).await;
@@ -950,7 +947,6 @@ async fn test_register_and_update_forester_pda() {
     rpc.warp_to_slot(
         registered_epoch.phases.report_work.start - protocol_config.registration_phase_length,
     )
-    .await
     .unwrap();
     // register for next epoch
     let next_registered_epoch = Epoch::register(
@@ -973,7 +969,6 @@ async fn test_register_and_update_forester_pda() {
     )
     .await;
     rpc.warp_to_slot(registered_epoch.phases.report_work.start)
-        .await
         .unwrap();
     // report work
     {
@@ -1011,10 +1006,16 @@ async fn test_register_and_update_forester_pda() {
 /// 4. FAIL: Update address tree with invalid authority
 /// 5. FAIL: Rollover address tree with invalid authority
 /// 6. FAIL: Rollover state tree with invalid authority
+#[serial]
 #[tokio::test]
 async fn failing_test_forester() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
+        .await
+        .unwrap();
+    rpc.indexer = None;
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
+    assert_ne!(payer.pubkey(), env.protocol.forester.pubkey());
     // 1. FAIL: Register a forester pda with invalid authority
     {
         let result = register_test_forester(
@@ -1029,7 +1030,7 @@ async fn failing_test_forester() {
     }
     // 2. FAIL: Update forester pda with invalid authority
     {
-        let forester_pda = get_forester_pda(&env.forester.pubkey()).0;
+        let forester_pda = get_forester_pda(&env.protocol.forester.pubkey()).0;
         let instruction_data = light_registry::instruction::UpdateForesterPda { config: None };
         let accounts = light_registry::accounts::UpdateForesterPda {
             forester_pda,
@@ -1051,9 +1052,9 @@ async fn failing_test_forester() {
     {
         let ix = light_registry::instruction::UpdateForesterPdaWeight { new_weight: 11 };
         let accounts = light_registry::accounts::UpdateForesterPdaWeight {
-            forester_pda: get_forester_pda(&env.forester.pubkey()).0,
+            forester_pda: get_forester_pda(&env.protocol.forester.pubkey()).0,
             authority: payer.pubkey(),
-            protocol_config_pda: env.governance_authority_pda,
+            protocol_config_pda: env.protocol.governance_authority_pda,
         };
         let ix = Instruction {
             program_id: light_registry::ID,
@@ -1071,8 +1072,8 @@ async fn failing_test_forester() {
         let expected_error_code = RegistryError::InvalidForester as u32 + 6000;
         let inputs = CreateNullifyInstructionInputs {
             authority: payer.pubkey(),
-            nullifier_queue: env.nullifier_queue_pubkey,
-            merkle_tree: env.merkle_tree_pubkey,
+            nullifier_queue: env.v1_state_trees[0].nullifier_queue,
+            merkle_tree: env.v1_state_trees[0].merkle_tree,
             change_log_indices: vec![1],
             leaves_queue_indices: vec![1u16],
             indices: vec![0u64],
@@ -1082,7 +1083,8 @@ async fn failing_test_forester() {
         };
         let mut ix = create_nullify_instruction(inputs, 0);
         // Swap the derived forester pda with an initialized but invalid one.
-        ix.accounts[0].pubkey = get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+        ix.accounts[0].pubkey =
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
         let result = rpc
             .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
             .await;
@@ -1090,14 +1092,13 @@ async fn failing_test_forester() {
     }
     // 4 FAIL: update address Merkle tree failed
     {
-        let expected_error_code = RegistryError::InvalidForester as u32 + 6000;
         let authority = rpc.get_payer().insecure_clone();
         let mut instruction = create_update_address_merkle_tree_instruction(
             UpdateAddressMerkleTreeInstructionInputs {
                 authority: authority.pubkey(),
                 derivation: authority.pubkey(),
-                address_merkle_tree: env.address_merkle_tree_pubkey,
-                address_queue: env.address_merkle_tree_queue_pubkey,
+                address_merkle_tree: env.v1_address_trees[0].merkle_tree,
+                address_queue: env.v1_address_trees[0].queue,
                 changelog_index: 0,
                 indexed_changelog_index: 0,
                 value: 1,
@@ -1112,7 +1113,47 @@ async fn failing_test_forester() {
         );
         // Swap the derived forester pda with an initialized but invalid one.
         instruction.accounts[0].pubkey =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
+
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
+            .await;
+        assert_rpc_error(result, 0, RegistryError::InvalidForester.into()).unwrap();
+    }
+    // 4 FAIL: batch append failed
+    {
+        let authority = rpc.get_payer().insecure_clone();
+        let mut instruction = create_batch_append_instruction(
+            authority.pubkey(),
+            authority.pubkey(),
+            env.v2_state_trees[0].merkle_tree,
+            env.v2_state_trees[0].output_queue,
+            0,
+            Vec::new(),
+        );
+        // Swap the derived forester pda with an initialized but invalid one.
+        instruction.accounts[0].pubkey =
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
+
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
+            .await;
+        assert_rpc_error(result, 0, RegistryError::InvalidForester.into()).unwrap();
+    }
+    // 4 FAIL: batch nullify failed
+    {
+        let expected_error_code = RegistryError::InvalidForester.into();
+        let authority = rpc.get_payer().insecure_clone();
+        let mut instruction = create_batch_nullify_instruction(
+            authority.pubkey(),
+            authority.pubkey(),
+            env.v2_state_trees[0].merkle_tree,
+            0,
+            Vec::new(),
+        );
+        // Swap the derived forester pda with an initialized but invalid one.
+        instruction.accounts[0].pubkey =
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
@@ -1126,14 +1167,14 @@ async fn failing_test_forester() {
         let mut instruction = create_batch_append_instruction(
             authority.pubkey(),
             authority.pubkey(),
-            env.batched_state_merkle_tree,
-            env.batched_output_queue,
+            env.v2_state_trees[0].merkle_tree,
+            env.v2_state_trees[0].output_queue,
             0,
             Vec::new(),
         );
         // Swap the derived forester pda with an initialized but invalid one.
         instruction.accounts[0].pubkey =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
@@ -1147,54 +1188,13 @@ async fn failing_test_forester() {
         let mut instruction = create_batch_nullify_instruction(
             authority.pubkey(),
             authority.pubkey(),
-            env.batched_state_merkle_tree,
+            env.v2_state_trees[0].merkle_tree,
             0,
             Vec::new(),
         );
         // Swap the derived forester pda with an initialized but invalid one.
         instruction.accounts[0].pubkey =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
-
-        let result = rpc
-            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
-            .await;
-        assert_rpc_error(result, 0, expected_error_code).unwrap();
-    }
-    // 4 FAIL: batch append failed
-    {
-        let expected_error_code = RegistryError::InvalidForester.into();
-        let authority = rpc.get_payer().insecure_clone();
-        let mut instruction = create_batch_append_instruction(
-            authority.pubkey(),
-            authority.pubkey(),
-            env.batched_state_merkle_tree,
-            env.batched_output_queue,
-            0,
-            Vec::new(),
-        );
-        // Swap the derived forester pda with an initialized but invalid one.
-        instruction.accounts[0].pubkey =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
-
-        let result = rpc
-            .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
-            .await;
-        assert_rpc_error(result, 0, expected_error_code).unwrap();
-    }
-    // 4 FAIL: batch nullify failed
-    {
-        let expected_error_code = RegistryError::InvalidForester.into();
-        let authority = rpc.get_payer().insecure_clone();
-        let mut instruction = create_batch_nullify_instruction(
-            authority.pubkey(),
-            authority.pubkey(),
-            env.batched_state_merkle_tree,
-            0,
-            Vec::new(),
-        );
-        // Swap the derived forester pda with an initialized but invalid one.
-        instruction.accounts[0].pubkey =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[&authority])
@@ -1213,15 +1213,15 @@ async fn failing_test_forester() {
             &authority.pubkey(),
             &new_queue_keypair,
             &new_merkle_tree_keypair,
-            &env.address_merkle_tree_pubkey,
-            &env.address_merkle_tree_queue_pubkey,
+            &env.v1_address_trees[0].merkle_tree,
+            &env.v1_address_trees[0].queue,
             0, // TODO: adapt epoch
             false,
         )
         .await;
         // Swap the derived forester pda with an initialized but invalid one.
         instructions[2].accounts[0].pubkey =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(
@@ -1246,15 +1246,15 @@ async fn failing_test_forester() {
             &new_nullifier_queue_keypair,
             &new_state_merkle_tree_keypair,
             &new_cpi_context,
-            &env.merkle_tree_pubkey,
-            &env.nullifier_queue_pubkey,
+            &env.v1_state_trees[0].merkle_tree,
+            &env.v1_state_trees[0].nullifier_queue,
             0, // TODO: adapt epoch
             false,
         )
         .await;
         // Swap the derived forester pda with an initialized but invalid one.
         instructions[3].accounts[0].pubkey =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
 
         let result = rpc
             .create_and_send_transaction(
@@ -1276,32 +1276,38 @@ async fn failing_test_forester() {
 #[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_forester_on_testnet() {
-    let env_accounts = get_test_env_accounts();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::ZKTestnet, None);
-    rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 100)
-        .await
-        .unwrap();
+    let test_accounts = TestAccounts::get_program_test_test_accounts();
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig::local_no_indexer());
+    rpc.airdrop_lamports(
+        &test_accounts.protocol.forester.pubkey(),
+        LAMPORTS_PER_SOL * 100,
+    )
+    .await
+    .unwrap();
     let forester_epoch = rpc
-        .get_anchor_account::<ForesterPda>(&env_accounts.registered_forester_pda)
+        .get_anchor_account::<ForesterPda>(&test_accounts.protocol.registered_forester_pda)
         .await
         .unwrap()
         .unwrap();
     println!("ForesterEpoch: {:?}", forester_epoch);
-    assert_eq!(forester_epoch.authority, env_accounts.forester.pubkey());
+    assert_eq!(
+        forester_epoch.authority,
+        test_accounts.protocol.forester.pubkey()
+    );
 
     let updated_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();
     println!("updated keypair: {:?}", updated_keypair.pubkey());
     update_test_forester(
         &mut rpc,
-        &env_accounts.forester,
-        &env_accounts.forester.pubkey(),
+        &test_accounts.protocol.forester,
+        &test_accounts.protocol.forester.pubkey(),
         Some(&updated_keypair),
         ForesterConfig::default(),
     )
     .await
     .unwrap();
     let forester_epoch = rpc
-        .get_anchor_account::<ForesterPda>(&env_accounts.registered_forester_pda)
+        .get_anchor_account::<ForesterPda>(&test_accounts.protocol.registered_forester_pda)
         .await
         .unwrap()
         .unwrap();
@@ -1312,23 +1318,23 @@ async fn update_forester_on_testnet() {
 #[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_registry_governance_on_testnet() {
-    let env_accounts = get_test_env_accounts();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::ZKTestnet, None);
+    let test_accounts = TestAccounts::get_program_test_test_accounts();
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig::local_no_indexer());
     rpc.airdrop_lamports(
-        &env_accounts.governance_authority.pubkey(),
+        &test_accounts.protocol.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100,
     )
     .await
     .unwrap();
     let governance_authority = rpc
-        .get_anchor_account::<ProtocolConfigPda>(&env_accounts.governance_authority_pda)
+        .get_anchor_account::<ProtocolConfigPda>(&test_accounts.protocol.governance_authority_pda)
         .await
         .unwrap()
         .unwrap();
     println!("GroupAuthority: {:?}", governance_authority);
     assert_eq!(
         governance_authority.authority,
-        env_accounts.governance_authority.pubkey()
+        test_accounts.protocol.governance_authority.pubkey()
     );
 
     let updated_keypair =
@@ -1338,10 +1344,10 @@ async fn update_registry_governance_on_testnet() {
         protocol_config: None,
     };
     let accounts = light_registry::accounts::UpdateProtocolConfig {
-        protocol_config_pda: env_accounts.governance_authority_pda,
-        authority: env_accounts.governance_authority.pubkey(),
+        protocol_config_pda: test_accounts.protocol.governance_authority_pda,
+        authority: test_accounts.protocol.governance_authority.pubkey(),
         new_authority: Some(updated_keypair.pubkey()),
-        fee_payer: env_accounts.governance_authority.pubkey(),
+        fee_payer: test_accounts.protocol.governance_authority.pubkey(),
     };
     let ix = Instruction {
         program_id: light_registry::ID,
@@ -1351,14 +1357,14 @@ async fn update_registry_governance_on_testnet() {
     let signature = rpc
         .create_and_send_transaction(
             &[ix],
-            &env_accounts.governance_authority.pubkey(),
-            &[&env_accounts.governance_authority],
+            &test_accounts.protocol.governance_authority.pubkey(),
+            &[&test_accounts.protocol.governance_authority],
         )
         .await
         .unwrap();
     println!("signature: {:?}", signature);
     let governance_authority = rpc
-        .get_anchor_account::<ProtocolConfigPda>(&env_accounts.governance_authority_pda)
+        .get_anchor_account::<ProtocolConfigPda>(&test_accounts.protocol.governance_authority_pda)
         .await
         .unwrap()
         .unwrap();
@@ -1370,13 +1376,15 @@ async fn update_registry_governance_on_testnet() {
 #[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn init_accounts() {
-    let keypairs = EnvAccountKeypairs::from_target_folder();
+    let keypairs = from_target_folder();
     println!(
         "authority pubkey: {:?}",
         keypairs.governance_authority.pubkey()
     );
     println!("forester pubkey: {:?}", keypairs.forester.pubkey());
-    setup_accounts(keypairs, SolanaRpcUrl::Localnet).await;
+    setup_accounts(keypairs, SolanaRpcUrl::Localnet)
+        .await
+        .unwrap();
 }
 
 /// Tests:
@@ -1390,19 +1398,21 @@ async fn init_accounts() {
 #[serial]
 #[tokio::test]
 async fn test_migrate_state() {
-    let (mut rpc, env_accounts) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            None,
-            ProtocolConfig::default(),
-            true,
-            InitStateTreeAccountsInstructionData::test_default(),
-            InitAddressTreeAccountsInstructionData::test_default(),
-        )
-        .await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
+        .await
+        .unwrap();
+    rpc.indexer = None;
+    let test_accounts = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> =
-        TestIndexer::init_from_env(&env_accounts.forester.insecure_clone(), &env_accounts, None)
-            .await;
+    let mut test_indexer: TestIndexer = TestIndexer::init_from_acounts(
+        &rpc.test_accounts.protocol.forester.insecure_clone(),
+        &rpc.test_accounts,
+        ProgramTestConfig::default_with_batched_trees(true)
+            .v2_state_tree_config
+            .unwrap()
+            .output_queue_batch_size as usize,
+    )
+    .await;
     for _ in 0..4 {
         light_test_utils::system_program::compress_sol_test(
             &mut rpc,
@@ -1411,7 +1421,7 @@ async fn test_migrate_state() {
             &[],
             false,
             1_000_000,
-            &env_accounts.merkle_tree_pubkey,
+            &test_accounts.v1_state_trees[0].merkle_tree,
             None,
         )
         .await
@@ -1419,13 +1429,12 @@ async fn test_migrate_state() {
     }
     // 1. Functional: migrate state
     {
-        let merkle_tree = get_concurrent_merkle_tree::<
-            StateMerkleTreeAccount,
-            ProgramTestRpcConnection,
-            Poseidon,
-            26,
-        >(&mut rpc, env_accounts.merkle_tree_pubkey)
-        .await;
+        let merkle_tree =
+            get_concurrent_merkle_tree::<StateMerkleTreeAccount, LightProgramTest, Poseidon, 26>(
+                &mut rpc,
+                test_accounts.v1_state_trees[0].merkle_tree,
+            )
+            .await;
         let compressed_account =
             &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[0];
         let hash = compressed_account.hash().unwrap();
@@ -1452,10 +1461,10 @@ async fn test_migrate_state() {
             proof: merkle_proof.try_into().unwrap(),
         };
         let params = CreateMigrateStateInstructionInputs {
-            authority: env_accounts.forester.pubkey(),
-            merkle_tree: env_accounts.merkle_tree_pubkey,
-            output_queue: env_accounts.batched_output_queue,
-            derivation: env_accounts.forester.pubkey(),
+            authority: test_accounts.protocol.forester.pubkey(),
+            merkle_tree: test_accounts.v1_state_trees[0].merkle_tree,
+            output_queue: test_accounts.v2_state_trees[0].output_queue,
+            derivation: test_accounts.protocol.forester.pubkey(),
             inputs,
             is_metadata_forester: false,
         };
@@ -1463,8 +1472,8 @@ async fn test_migrate_state() {
         let instruction = create_migrate_state_instruction(params, 0);
         rpc.create_and_send_transaction(
             &[instruction],
-            &env_accounts.forester.pubkey(),
-            &[&env_accounts.forester],
+            &test_accounts.protocol.forester.pubkey(),
+            &[&test_accounts.protocol.forester],
         )
         .await
         .unwrap();
@@ -1472,10 +1481,10 @@ async fn test_migrate_state() {
         {
             let merkle_tree = get_concurrent_merkle_tree::<
                 StateMerkleTreeAccount,
-                ProgramTestRpcConnection,
+                LightProgramTest,
                 Poseidon,
                 26,
-            >(&mut rpc, env_accounts.merkle_tree_pubkey)
+            >(&mut rpc, test_accounts.v1_state_trees[0].merkle_tree)
             .await;
             let bundle = test_indexer
                 .get_state_merkle_trees_mut()
@@ -1492,7 +1501,7 @@ async fn test_migrate_state() {
             let get_leaf = bundle.merkle_tree.get_leaf(leaf_index as usize).unwrap();
             assert_eq!(get_leaf, [0u8; 32]);
             let mut output_queue_account = rpc
-                .get_account(env_accounts.batched_output_queue)
+                .get_account(test_accounts.v2_state_trees[0].output_queue)
                 .await
                 .unwrap()
                 .unwrap();
@@ -1503,13 +1512,12 @@ async fn test_migrate_state() {
         }
     }
     let instruction_params = {
-        let merkle_tree = get_concurrent_merkle_tree::<
-            StateMerkleTreeAccount,
-            ProgramTestRpcConnection,
-            Poseidon,
-            26,
-        >(&mut rpc, env_accounts.merkle_tree_pubkey)
-        .await;
+        let merkle_tree =
+            get_concurrent_merkle_tree::<StateMerkleTreeAccount, LightProgramTest, Poseidon, 26>(
+                &mut rpc,
+                test_accounts.v1_state_trees[0].merkle_tree,
+            )
+            .await;
         let compressed_account =
             &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[1];
         let hash = compressed_account.hash().unwrap();
@@ -1536,10 +1544,10 @@ async fn test_migrate_state() {
             proof: merkle_proof.try_into().unwrap(),
         };
         CreateMigrateStateInstructionInputs {
-            authority: env_accounts.forester.pubkey(),
-            merkle_tree: env_accounts.merkle_tree_pubkey,
-            output_queue: env_accounts.batched_output_queue,
-            derivation: env_accounts.forester.pubkey(),
+            authority: test_accounts.protocol.forester.pubkey(),
+            merkle_tree: test_accounts.v1_state_trees[0].merkle_tree,
+            output_queue: test_accounts.v2_state_trees[0].output_queue,
+            derivation: test_accounts.protocol.forester.pubkey(),
             inputs,
             is_metadata_forester: false,
         }
@@ -1557,13 +1565,13 @@ async fn test_migrate_state() {
     // 3. Failing - invalid output queue
     {
         let mut params = instruction_params.clone();
-        params.output_queue = env_accounts.batch_address_merkle_tree;
+        params.output_queue = test_accounts.v1_state_trees[0].nullifier_queue;
         let instruction = create_migrate_state_instruction(params, 0);
         let result = rpc
             .create_and_send_transaction(
                 &[instruction],
-                &env_accounts.forester.pubkey(),
-                &[&env_accounts.forester],
+                &test_accounts.protocol.forester.pubkey(),
+                &[&test_accounts.protocol.forester],
             )
             .await;
         assert_rpc_error(result, 0, AccountError::InvalidDiscriminator.into()).unwrap();
@@ -1571,13 +1579,13 @@ async fn test_migrate_state() {
     // 4. Failing - invalid state Merkle tree
     {
         let mut params = instruction_params.clone();
-        params.merkle_tree = env_accounts.address_merkle_tree_pubkey;
+        params.merkle_tree = test_accounts.v1_address_trees[0].merkle_tree;
         let instruction = create_migrate_state_instruction(params, 0);
         let result = rpc
             .create_and_send_transaction(
                 &[instruction],
-                &env_accounts.forester.pubkey(),
-                &[&env_accounts.forester],
+                &test_accounts.protocol.forester.pubkey(),
+                &[&test_accounts.protocol.forester],
             )
             .await;
         assert_rpc_error(
@@ -1595,8 +1603,8 @@ async fn test_migrate_state() {
         let result = rpc
             .create_and_send_transaction(
                 &[instruction],
-                &env_accounts.forester.pubkey(),
-                &[&env_accounts.forester],
+                &test_accounts.protocol.forester.pubkey(),
+                &[&test_accounts.protocol.forester],
             )
             .await;
         assert_rpc_error(
@@ -1646,21 +1654,17 @@ async fn test_rollover_batch_state_tree() {
         let mut params = InitStateTreeAccountsInstructionData::test_default();
         params.rollover_threshold = Some(0);
         let is_light_forester = true;
+        let mut config = ProgramTestConfig::default_with_batched_trees(false);
+        config.v2_state_tree_config = Some(params);
 
-        let (mut rpc, env_accounts) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-                None,
-                ProtocolConfig::default(),
-                true,
-                params,
-                InitAddressTreeAccountsInstructionData::test_default(),
-            )
-            .await;
+        let mut rpc = LightProgramTest::new(config).await.unwrap();
+        rpc.indexer = None;
+        let test_accounts = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
-            &env_accounts.forester.insecure_clone(),
-            &env_accounts,
-            None,
+        let mut test_indexer: TestIndexer = TestIndexer::init_from_acounts(
+            &test_accounts.protocol.forester.insecure_clone(),
+            &test_accounts,
+            50,
         )
         .await;
         light_test_utils::system_program::compress_sol_test(
@@ -1670,7 +1674,7 @@ async fn test_rollover_batch_state_tree() {
             &[],
             false,
             1_000_000,
-            &env_accounts.batched_output_queue,
+            &test_accounts.v2_state_trees[0].output_queue,
             None,
         )
         .await
@@ -1689,9 +1693,9 @@ async fn test_rollover_batch_state_tree() {
             let result = perform_rollover_batch_state_merkle_tree(
                 &mut rpc,
                 &payer,
-                env_accounts.forester.pubkey(),
-                env_accounts.batched_state_merkle_tree,
-                env_accounts.batched_output_queue,
+                test_accounts.protocol.forester.pubkey(),
+                test_accounts.v2_state_trees[0].merkle_tree,
+                test_accounts.v2_state_trees[0].output_queue,
                 &new_merkle_tree_keypair,
                 &new_nullifier_queue_keypair,
                 &new_cpi_context,
@@ -1707,10 +1711,10 @@ async fn test_rollover_batch_state_tree() {
         {
             perform_rollover_batch_state_merkle_tree(
                 &mut rpc,
-                &env_accounts.forester,
-                env_accounts.forester.pubkey(),
-                env_accounts.batched_state_merkle_tree,
-                env_accounts.batched_output_queue,
+                &test_accounts.protocol.forester,
+                test_accounts.protocol.forester.pubkey(),
+                test_accounts.v2_state_trees[0].merkle_tree,
+                test_accounts.v2_state_trees[0].output_queue,
                 &new_merkle_tree_keypair,
                 &new_nullifier_queue_keypair,
                 &new_cpi_context,
@@ -1726,10 +1730,10 @@ async fn test_rollover_batch_state_tree() {
                 .unwrap();
             assert_perform_state_mt_roll_over(
                 &mut rpc,
-                env_accounts.group_pda,
-                env_accounts.batched_state_merkle_tree,
+                test_accounts.protocol.group_pda,
+                test_accounts.v2_state_trees[0].merkle_tree,
                 new_merkle_tree_keypair.pubkey(),
-                env_accounts.batched_output_queue,
+                test_accounts.v2_state_trees[0].output_queue,
                 new_nullifier_queue_keypair.pubkey(),
                 params,
                 new_cpi_ctx_account.lamports,
@@ -1745,23 +1749,21 @@ async fn test_rollover_batch_state_tree() {
         params.network_fee = None;
         let is_light_forester = false;
 
-        let (mut rpc, env_accounts) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-                None,
-                ProtocolConfig::default(),
-                true,
-                params,
-                InitAddressTreeAccountsInstructionData::test_default(),
-            )
-            .await;
+        let mut tree_params = InitAddressTreeAccountsInstructionData::test_default();
+        tree_params.rollover_threshold = Some(0);
+        let mut config = ProgramTestConfig::default_with_batched_trees(false);
+        config.v2_state_tree_config = Some(params);
+        config.v2_address_tree_config = Some(tree_params);
+        let mut rpc = LightProgramTest::new(config).await.unwrap();
+        let test_accounts = rpc.test_accounts().clone();
         airdrop_lamports(&mut rpc, &custom_forester.pubkey(), 10_000_000_000)
             .await
             .unwrap();
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
-            &env_accounts.forester.insecure_clone(),
-            &env_accounts,
-            None,
+        let mut test_indexer: TestIndexer = TestIndexer::init_from_acounts(
+            &test_accounts.protocol.forester.insecure_clone(),
+            &test_accounts,
+            50,
         )
         .await;
         light_test_utils::system_program::compress_sol_test(
@@ -1771,7 +1773,7 @@ async fn test_rollover_batch_state_tree() {
             &[],
             false,
             1_000_000,
-            &env_accounts.batched_output_queue,
+            &test_accounts.v2_state_trees[0].output_queue,
             None,
         )
         .await
@@ -1786,8 +1788,8 @@ async fn test_rollover_batch_state_tree() {
             &mut rpc,
             &custom_forester,
             custom_forester.pubkey(),
-            env_accounts.batched_state_merkle_tree,
-            env_accounts.batched_output_queue,
+            test_accounts.v2_state_trees[0].merkle_tree,
+            test_accounts.v2_state_trees[0].output_queue,
             &new_merkle_tree_keypair,
             &new_nullifier_queue_keypair,
             &new_cpi_context,
@@ -1803,10 +1805,10 @@ async fn test_rollover_batch_state_tree() {
             .unwrap();
         assert_perform_state_mt_roll_over(
             &mut rpc,
-            env_accounts.group_pda,
-            env_accounts.batched_state_merkle_tree,
+            test_accounts.protocol.group_pda,
+            test_accounts.v2_state_trees[0].merkle_tree,
             new_merkle_tree_keypair.pubkey(),
-            env_accounts.batched_output_queue,
+            test_accounts.v2_state_trees[0].output_queue,
             new_nullifier_queue_keypair.pubkey(),
             params,
             new_cpi_ctx_account.lamports,
@@ -1822,7 +1824,7 @@ async fn test_rollover_batch_state_tree() {
             let new_nullifier_queue_keypair = Keypair::new();
             let new_cpi_context = Keypair::new();
             let result = create_batched_state_merkle_tree(
-                &env_accounts.governance_authority,
+                &test_accounts.protocol.governance_authority,
                 true,
                 &mut rpc,
                 &new_merkle_tree_keypair,
@@ -1835,34 +1837,23 @@ async fn test_rollover_batch_state_tree() {
         }
     }
 }
+
 #[serial]
 #[tokio::test]
 async fn test_batch_address_tree() {
-    let tree_params = InitAddressTreeAccountsInstructionData::test_default();
+    let mut config = ProgramTestConfig::default_test_forster(true);
+    let tree_params = config.v2_address_tree_config.unwrap();
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        CREATE_ADDRESS_TEST_PROGRAM_ID,
+    )]);
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    rpc.indexer = None;
+    let env = rpc.test_accounts.clone();
 
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            Some(vec![(
-                "create_address_test_program",
-                CREATE_ADDRESS_TEST_PROGRAM_ID,
-            )]),
-            ProtocolConfig::default(),
-            true,
-            InitStateTreeAccountsInstructionData::test_default(),
-            tree_params,
-        )
-        .await;
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::NonInclusion, ProofType::BatchAddressAppendTest],
-        },
-    )
-    .await;
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 50).await;
     {
         let new_merkle_tree = Keypair::new();
         let mut test_tree_params = InitAddressTreeAccountsInstructionData::default();
@@ -1885,21 +1876,21 @@ async fn test_batch_address_tree() {
             perform_batch_address_merkle_tree_update(
                 &mut rpc,
                 &mut test_indexer,
-                &env.forester,
-                &env.forester.pubkey(),
-                &env.batch_address_merkle_tree,
+                &env.protocol.forester,
+                &env.protocol.forester.pubkey(),
+                &env.v2_address_trees[0],
                 0,
             )
             .await
             .unwrap();
             let mut account = rpc
-                .get_account(env.batch_address_merkle_tree)
+                .get_account(env.v2_address_trees[0])
                 .await
                 .unwrap()
                 .unwrap();
             test_indexer
                 .finalize_batched_address_tree_update(
-                    env.batch_address_merkle_tree,
+                    env.v2_address_trees[0],
                     account.data.as_mut_slice(),
                 )
                 .await;
@@ -1912,21 +1903,21 @@ async fn test_batch_address_tree() {
             perform_batch_address_merkle_tree_update(
                 &mut rpc,
                 &mut test_indexer,
-                &env.forester,
-                &env.forester.pubkey(),
-                &env.batch_address_merkle_tree,
+                &env.protocol.forester,
+                &env.protocol.forester.pubkey(),
+                &env.v2_address_trees[0],
                 0,
             )
             .await
             .unwrap();
             let mut account = rpc
-                .get_account(env.batch_address_merkle_tree)
+                .get_account(env.v2_address_trees[0])
                 .await
                 .unwrap()
                 .unwrap();
             test_indexer
                 .finalize_batched_address_tree_update(
-                    env.batch_address_merkle_tree,
+                    env.v2_address_trees[0],
                     account.data.as_mut_slice(),
                 )
                 .await;
@@ -1943,8 +1934,8 @@ async fn test_batch_address_tree() {
             &mut rpc,
             &mut test_indexer,
             &unregistered_forester_keypair,
-            &env.forester.pubkey(),
-            &env.batch_address_merkle_tree,
+            &env.protocol.forester.pubkey(),
+            &env.v2_address_trees[0],
             0,
         )
         .await;
@@ -1960,41 +1951,38 @@ async fn test_batch_address_tree() {
         perform_batch_address_merkle_tree_update(
             &mut rpc,
             &mut test_indexer,
-            &env.forester,
-            &env.forester.pubkey(),
-            &env.batch_address_merkle_tree,
+            &env.protocol.forester,
+            &env.protocol.forester.pubkey(),
+            &env.v2_address_trees[0],
             0,
         )
         .await
         .unwrap();
         let mut account = rpc
-            .get_account(env.batch_address_merkle_tree)
+            .get_account(env.v2_address_trees[0])
             .await
             .unwrap()
             .unwrap();
         test_indexer
             .finalize_batched_address_tree_update(
-                env.batch_address_merkle_tree,
+                env.v2_address_trees[0],
                 account.data.as_mut_slice(),
             )
             .await;
     }
     let mut account = rpc
-        .get_account(env.batch_address_merkle_tree)
+        .get_account(env.v2_address_trees[0])
         .await
         .unwrap()
         .unwrap();
     test_indexer
-        .finalize_batched_address_tree_update(
-            env.batch_address_merkle_tree,
-            account.data.as_mut_slice(),
-        )
+        .finalize_batched_address_tree_update(env.v2_address_trees[0], account.data.as_mut_slice())
         .await;
 }
 
 pub async fn perform_batch_address_merkle_tree_update<
     R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     rpc: &mut R,
     test_indexer: &mut I,
@@ -2027,30 +2015,18 @@ pub async fn perform_batch_address_merkle_tree_update<
 async fn test_rollover_batch_address_tree() {
     let mut tree_params = InitAddressTreeAccountsInstructionData::test_default();
     tree_params.rollover_threshold = Some(0);
+    let mut config = ProgramTestConfig::default_with_batched_trees(true);
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        CREATE_ADDRESS_TEST_PROGRAM_ID,
+    )]);
+    config.v2_address_tree_config = Some(tree_params);
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    rpc.indexer = None;
+    let env = rpc.test_accounts.clone();
 
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            Some(vec![(
-                "create_address_test_program",
-                CREATE_ADDRESS_TEST_PROGRAM_ID,
-            )]),
-            ProtocolConfig::default(),
-            true,
-            InitStateTreeAccountsInstructionData::test_default(),
-            tree_params,
-        )
-        .await;
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::NonInclusion],
-        },
-    )
-    .await;
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 50).await;
     // Create one address to pay for rollover fees.
     perform_create_pda_with_event_rnd(&mut test_indexer, &mut rpc, &env, &payer)
         .await
@@ -2058,9 +2034,9 @@ async fn test_rollover_batch_address_tree() {
     let new_merkle_tree_keypair = Keypair::new();
     perform_rollover_batch_address_merkle_tree(
         &mut rpc,
-        &env.forester,
-        env.forester.pubkey(),
-        env.batch_address_merkle_tree,
+        &env.protocol.forester,
+        env.protocol.forester.pubkey(),
+        env.v2_address_trees[0],
         &new_merkle_tree_keypair,
         0,
     )
@@ -2073,7 +2049,7 @@ async fn test_rollover_batch_address_tree() {
         .unwrap();
     let mt_params = CreateTreeParams::from_address_ix_params(
         tree_params,
-        env.group_pda.into(),
+        env.protocol.group_pda.into(),
         new_merkle_tree_keypair.pubkey().into(),
     );
     let zero_copy_account =
@@ -2098,7 +2074,7 @@ async fn test_rollover_batch_address_tree() {
         let result = perform_rollover_batch_address_merkle_tree(
             &mut rpc,
             &unregistered_forester_keypair,
-            env.forester.pubkey(),
+            env.protocol.forester.pubkey(),
             new_merkle_tree_keypair.pubkey(),
             &new_merkle_tree_keypair2,
             0,
@@ -2112,8 +2088,8 @@ async fn test_rollover_batch_address_tree() {
     let new_merkle_tree_keypair2 = Keypair::new();
     perform_rollover_batch_address_merkle_tree(
         &mut rpc,
-        &env.forester,
-        env.forester.pubkey(),
+        &env.protocol.forester,
+        env.protocol.forester.pubkey(),
         new_merkle_tree_keypair.pubkey(),
         &new_merkle_tree_keypair2,
         0,

@@ -18,6 +18,7 @@ use forester_utils::{
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
+use light_program_test::{program_test::TestRpc, Indexer};
 use solana_sdk::{
     account::{AccountSharedData, WritableAccount},
     account_info::AccountInfo,
@@ -34,7 +35,7 @@ use crate::assert_rollover::{
     assert_rolledover_queues_metadata,
 };
 
-pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
+pub async fn set_address_merkle_tree_next_index<R: RpcConnection + TestRpc + Indexer>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,

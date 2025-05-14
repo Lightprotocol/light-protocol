@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use light_client::{rpc::errors::RpcError, rpc_pool::PoolError};
+use forester_utils::rpc_pool::PoolError;
+use light_client::rpc::errors::RpcError;
 use light_compressed_account::TreeType;
 use light_registry::errors::RegistryError;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};

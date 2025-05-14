@@ -2,7 +2,8 @@
 // optimized for forester client
 use std::time::{Duration, Instant};
 
-use light_client::{rpc::RpcConnection, rpc_pool::SolanaConnectionManager};
+use forester_utils::rpc_pool::SolanaConnectionManager;
+use light_client::rpc::RpcConnection;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
@@ -51,7 +52,7 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
         }
 
         let status: Vec<Option<solana_transaction_status::TransactionStatus>> =
-            connection.get_signature_statuses(&[txt_sig]).await?;
+            (**connection).get_signature_statuses(&[txt_sig]).await?;
 
         match status[0].clone() {
             Some(status) => {
@@ -89,9 +90,10 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
     let start_time: Instant = Instant::now();
 
     while Instant::now().duration_since(start_time) < timeout
-        && connection.get_slot().await? <= last_valid_block_height
+        && (**connection).get_slot().await? <= last_valid_block_height
     {
-        let result = connection.send_transaction_with_config(transaction, send_transaction_config);
+        let result =
+            (**connection).send_transaction_with_config(transaction, send_transaction_config);
 
         match result.await {
             Ok(signature) => {

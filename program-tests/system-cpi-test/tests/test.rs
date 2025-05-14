@@ -4,7 +4,9 @@ use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_client::indexer::Indexer;
+use light_client::indexer::{
+    AddressMerkleTreeAccounts, AddressWithTree, Indexer, StateMerkleTreeAccounts,
+};
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     compressed_account::{
@@ -21,21 +23,22 @@ use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
+    accounts::test_accounts::TestAccounts,
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_batch_forester::{
-        create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
-    },
-    test_env::{setup_test_programs_with_accounts, EnvAccounts},
+    program_test::LightProgramTest,
+    utils::assert::assert_rpc_error,
+    ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::errors::SystemProgramError;
 use light_test_utils::{
-    assert_rpc_error,
     e2e_test_env::init_program_test_env,
     spl::{create_mint_helper, mint_tokens_helper},
     system_program::transfer_compressed_sol_test,
+    test_batch_forester::{
+        create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
+    },
     RpcConnection, RpcError,
 };
 use light_verifier::VerifierError;
@@ -88,11 +91,17 @@ use system_cpi_test::{
 #[tokio::test]
 #[ignore = "Currently failes with Prover failed to generate proof."]
 async fn test_read_only_accounts() {
-    let (_rpc, env) = setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
+    let _rpc = LightProgramTest::new({
+        let mut config = ProgramTestConfig::default();
+        config.additional_programs = Some(vec![("system_cpi_test", ID)]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
+    let env = _rpc.test_accounts.clone();
     let payer = _rpc.get_payer().insecure_clone();
-    let skip_prover = false;
 
-    let mut e2e_env = init_program_test_env(_rpc, &env, skip_prover).await;
+    let mut e2e_env = init_program_test_env(_rpc, &env, 0).await;
     e2e_env.keypair_action_config.fee_assert = false;
 
     // Create system state with accounts:
@@ -131,30 +140,33 @@ async fn test_read_only_accounts() {
         // insert one batch and one proof for batch 2 to zero out the bloom filter of batch 1
         for i in 0..6 {
             println!("inserting batch {}", i);
+
+            let mut bundle = e2e_env.indexer.state_merkle_trees[1].clone();
             perform_batch_append(
                 &mut e2e_env.rpc,
-                &mut e2e_env.indexer.state_merkle_trees[1],
-                &env.forester,
+                &mut bundle,
+                &env.protocol.forester,
                 0,
                 false,
                 None,
             )
             .await
             .unwrap();
+            e2e_env.indexer.state_merkle_trees[1] = bundle;
 
             // fails because of invalid leaves hash_chain in some iteration
             let instruction_data = create_batch_update_address_tree_instruction_data_with_proof(
                 &mut e2e_env.rpc,
                 &mut e2e_env.indexer,
-                env.batch_address_merkle_tree,
+                env.v2_address_trees[0],
             )
             .await
             .unwrap();
 
             let instruction = create_batch_update_address_tree_instruction(
-                env.forester.pubkey(),
-                env.forester.pubkey(),
-                env.batch_address_merkle_tree,
+                env.protocol.forester.pubkey(),
+                env.protocol.forester.pubkey(),
+                env.v2_address_trees[0],
                 0,
                 instruction_data.try_to_vec().unwrap(),
             );
@@ -162,21 +174,21 @@ async fn test_read_only_accounts() {
                 .rpc
                 .create_and_send_transaction(
                     &[instruction],
-                    &env.forester.pubkey(),
-                    &[&env.forester],
+                    &env.protocol.forester.pubkey(),
+                    &[&env.protocol.forester],
                 )
                 .await
                 .unwrap();
             let mut account = e2e_env
                 .rpc
-                .get_account(env.batch_address_merkle_tree)
+                .get_account(env.v2_address_trees[0])
                 .await
                 .unwrap()
                 .unwrap();
             e2e_env
                 .indexer
                 .finalize_batched_address_tree_update(
-                    env.batch_address_merkle_tree,
+                    env.v2_address_trees[0],
                     account.data.as_mut_slice(),
                 )
                 .await;
@@ -209,7 +221,7 @@ async fn test_read_only_accounts() {
         .iter()
         .find(|x| {
             x.merkle_context.leaf_index == 101
-                && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+                && x.merkle_context.merkle_tree_pubkey == env.v2_state_trees[0].merkle_tree
         })
         .unwrap()
         .clone();
@@ -220,7 +232,7 @@ async fn test_read_only_accounts() {
         .iter()
         .find(|x| {
             x.merkle_context.leaf_index == 1
-                && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+                && x.merkle_context.merkle_tree_pubkey == env.v2_state_trees[0].merkle_tree
         })
         .unwrap()
         .clone();
@@ -316,7 +328,7 @@ async fn test_read_only_accounts() {
             .indexer
             .get_compressed_accounts_with_merkle_context_by_owner(&ID)
             .iter()
-            .find(|x| x.merkle_context.merkle_tree_pubkey == env.merkle_tree_pubkey)
+            .find(|x| x.merkle_context.merkle_tree_pubkey == env.v1_state_trees[0].merkle_tree)
             .unwrap()
             .clone();
         let result = perform_create_pda_with_event(
@@ -602,7 +614,7 @@ async fn test_read_only_accounts() {
             .iter()
             .find(|x| {
                 x.merkle_context.leaf_index == 2
-                    && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+                    && x.merkle_context.merkle_tree_pubkey == env.v2_state_trees[0].merkle_tree
                     && x.merkle_context.leaf_index
                         != account_not_in_value_array_and_in_mt
                             .merkle_context
@@ -637,7 +649,7 @@ async fn test_read_only_accounts() {
     //     for i in 0..100 {
     //         let input_account_in_mt = compressed_accounts.iter().find(|x| {
     //             x.merkle_context.leaf_index == i
-    //                 && x.merkle_context.merkle_tree_pubkey == env.batched_state_merkle_tree
+    //                 && x.merkle_context.merkle_tree_pubkey == env.v2_state_trees[0].merkle_tree
     //                 && x.merkle_context.leaf_index
     //                     != account_not_in_value_array_and_in_mt
     //                         .merkle_context
@@ -715,18 +727,16 @@ async fn test_read_only_accounts() {
 #[serial]
 #[tokio::test]
 async fn only_test_create_pda() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
+    let mut rpc = LightProgramTest::new({
+        let mut config = ProgramTestConfig::default_with_batched_trees(true);
+        config.additional_programs = Some(vec![("system_cpi_test", ID)]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
-    )
-    .await;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     {
         let seed = [5u8; 32];
         let data = [2u8; 31];
@@ -744,13 +754,13 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyAddress,
         )
         .await;
-        // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
         assert_rpc_error(
             result,
             0,
             SystemProgramError::ProofVerificationFailed.into(),
         )
         .unwrap();
+
         let result = perform_create_pda_with_event(
             &mut test_indexer,
             &mut rpc,
@@ -784,7 +794,7 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyRootIndex,
         )
         .await;
-        // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+
         assert_rpc_error(
             result,
             0,
@@ -806,27 +816,6 @@ async fn only_test_create_pda() {
         )
         .await;
         assert_rpc_error(result, 0, SystemProgramError::AddressDoesNotMatch.into()).unwrap();
-
-        // // The transaction inserts the address first, then checks read only addresses.
-        // let result = perform_create_pda_with_event(
-        //     &mut test_indexer,
-        //     &mut rpc,
-        //     &env,
-        //     &payer,
-        //     seed,
-        //     &data,
-        //     &ID,
-        //     None,
-        //     None,
-        //     CreatePdaMode::ReadOnlyProofOfInsertedAddress,
-        // )
-        // .await;
-        // assert_rpc_error(
-        //     result,
-        //     0,
-        //     SystemProgramError::ReadOnlyAddressAlreadyExists.into(),
-        // )
-        // .unwrap();
 
         // Functional readonly address ----------------------------------------------
         perform_create_pda_with_event(
@@ -898,7 +887,7 @@ async fn only_test_create_pda() {
         // bloom filter full
         assert_rpc_error(result, 0, 14201).unwrap();
         let seed = [4u8; 32];
-        println!("post bloomf filter");
+
         let result = perform_create_pda_with_event(
             &mut test_indexer,
             &mut rpc,
@@ -938,15 +927,22 @@ async fn only_test_create_pda() {
     .await
     .unwrap();
 
-    assert_created_pda(&mut test_indexer, &env, &payer, &seed, &data).await;
+    assert_created_pda::<LightProgramTest, TestIndexer>(
+        &mut test_indexer,
+        &env,
+        &payer,
+        &seed,
+        &data,
+    )
+    .await;
 
     let seed = [2u8; 32];
     let data = [3u8; 31];
 
     // Failing 2 invoking program ----------------------------------------------
     perform_create_pda_failing(
-        &mut test_indexer,
         &mut rpc,
+        &mut test_indexer,
         &env,
         &payer,
         seed,
@@ -960,8 +956,8 @@ async fn only_test_create_pda() {
 
     // Failing 3 write to account not owned ----------------------------------------------
     perform_create_pda_failing(
-        &mut test_indexer,
         &mut rpc,
+        &mut test_indexer,
         &env,
         &payer,
         seed,
@@ -990,6 +986,9 @@ async fn only_test_create_pda() {
             1,
         )
         .await;
+
+    rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
+
     let mint = create_mint_helper(&mut rpc, &payer).await;
 
     let amount = 10000u64;
@@ -1010,6 +1009,7 @@ async fn only_test_create_pda() {
         .unwrap()[0]
         .compressed_account
         .clone();
+    println!("only_test_create_pda 8");
 
     // Failing 4 input account that is not owned by signer ----------------------------------------------
     perform_with_input_accounts(
@@ -1040,6 +1040,8 @@ async fn only_test_create_pda() {
         )
         .await
         .unwrap();
+        println!("only_test_create_pda 9");
+
         // Failing 6 provide cpi context account but no cpi context ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1053,6 +1055,8 @@ async fn only_test_create_pda() {
         )
         .await
         .unwrap();
+        println!("only_test_create_pda 10");
+
         // Failing 7 provide cpi context account but cpi context is empty ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1066,6 +1070,8 @@ async fn only_test_create_pda() {
         )
         .await
         .unwrap();
+        println!("only_test_create_pda 11");
+
         // Failing 8 test signer checks trying to insert into cpi context account (invalid invoking program) ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1084,6 +1090,8 @@ async fn only_test_create_pda() {
             .await
             .unwrap()[0]
             .clone();
+        println!("only_test_create_pda 12");
+
         // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1097,6 +1105,8 @@ async fn only_test_create_pda() {
         )
         .await
         .unwrap();
+        println!("only_test_create_pda 13");
+
         // Failing 11 write to account not owned ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1110,6 +1120,7 @@ async fn only_test_create_pda() {
         )
         .await
         .unwrap();
+        println!("only_test_create_pda 14");
 
         // Failing 12 Spend with program keypair
         {
@@ -1129,16 +1140,18 @@ async fn only_test_create_pda() {
                 &keypair,
                 &[compressed_account],
                 &[Pubkey::new_unique()],
-                &[env.merkle_tree_pubkey],
+                &[env.v1_state_trees[0].merkle_tree],
                 None,
             )
             .await;
             assert_rpc_error(result, 0, SystemProgramError::SignerCheckFailed.into()).unwrap();
         }
+        println!("only_test_create_pda 15");
+
         // Failing 13 DataFieldUndefined ----------------------------------------------
         perform_create_pda_failing(
-            &mut test_indexer,
             &mut rpc,
+            &mut test_indexer,
             &env,
             &payer,
             seed,
@@ -1165,25 +1178,20 @@ async fn only_test_create_pda() {
 #[serial]
 #[tokio::test]
 async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
-
+    let config = ProgramTestConfig::new(true, Some(vec![("system_cpi_test", ID)]));
+    let mut rpc = LightProgramTest::new(config)
+        .await
+        .expect("Failed to setup test programs with accounts");
+    rpc.indexer = None;
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
-    )
-    .await;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
         &mut test_indexer,
-        &env.merkle_tree_pubkey,
+        &env.v1_state_trees[0].merkle_tree,
         &payer,
         &mint,
         vec![amount],
@@ -1377,19 +1385,16 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
 #[serial]
 #[tokio::test]
 async fn test_create_pda_in_program_owned_merkle_trees() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
-
+    let mut rpc = LightProgramTest::new({
+        let mut config = ProgramTestConfig::default();
+        config.additional_programs = Some(vec![("system_cpi_test", ID)]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
-    )
-    .await;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     // Failing test 1 invalid address Merkle tree ----------------------------------------------
     let program_owned_address_merkle_tree_keypair = Keypair::new();
     let program_owned_address_queue_keypair = Keypair::new();
@@ -1402,30 +1407,18 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             Some(light_compressed_token::ID),
             1,
         )
-        .await;
-    let env_with_program_owned_address_merkle_tree = EnvAccounts {
-        address_merkle_tree_pubkey: program_owned_address_merkle_tree_keypair.pubkey(),
-        address_merkle_tree_queue_pubkey: program_owned_address_queue_keypair.pubkey(),
-        merkle_tree_pubkey: env.merkle_tree_pubkey,
-        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-        cpi_context_account_pubkey: env.cpi_context_account_pubkey,
-        governance_authority: env.governance_authority.insecure_clone(),
-        governance_authority_pda: env.governance_authority_pda,
-        group_pda: env.group_pda,
-        registered_program_pda: env.registered_program_pda,
-        registered_registry_program_pda: env.registered_registry_program_pda,
-        forester: env.forester.insecure_clone(),
-        registered_forester_pda: env.registered_forester_pda,
-        forester_epoch: env.forester_epoch.clone(),
-        batched_cpi_context: env.batched_cpi_context,
-        batched_output_queue: env.batched_output_queue,
-        batched_state_merkle_tree: env.batched_state_merkle_tree,
-        batch_address_merkle_tree: env.batch_address_merkle_tree,
-    };
+        .await
+        .unwrap();
+    rpc.indexer.as_mut().unwrap().address_merkle_trees = test_indexer.address_merkle_trees.clone();
+    let mut env_with_program_owned_address_merkle_tree = env.clone();
+    env_with_program_owned_address_merkle_tree.v1_address_trees = vec![AddressMerkleTreeAccounts {
+        merkle_tree: program_owned_address_merkle_tree_keypair.pubkey(),
+        queue: program_owned_address_queue_keypair.pubkey(),
+    }];
 
     perform_create_pda_failing(
-        &mut test_indexer,
         &mut rpc,
+        &mut test_indexer,
         &env_with_program_owned_address_merkle_tree,
         &payer,
         [3u8; 32],
@@ -1453,28 +1446,19 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             1,
         )
         .await;
-    let env_with_program_owned_state_merkle_tree = EnvAccounts {
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        address_merkle_tree_queue_pubkey: env.address_merkle_tree_queue_pubkey,
-        merkle_tree_pubkey: program_owned_state_merkle_tree_keypair.pubkey(),
-        nullifier_queue_pubkey: program_owned_state_queue_keypair.pubkey(),
-        cpi_context_account_pubkey: program_owned_cpi_context_keypair.pubkey(),
-        governance_authority: env.governance_authority.insecure_clone(),
-        governance_authority_pda: env.governance_authority_pda,
-        group_pda: env.group_pda,
-        registered_program_pda: env.registered_program_pda,
-        registered_registry_program_pda: env.registered_registry_program_pda,
-        forester: env.forester.insecure_clone(),
-        registered_forester_pda: env.registered_forester_pda,
-        forester_epoch: env.forester_epoch.clone(),
-        batched_cpi_context: env.batched_cpi_context,
-        batched_output_queue: env.batched_output_queue,
-        batched_state_merkle_tree: env.batched_state_merkle_tree,
-        batch_address_merkle_tree: env.batch_address_merkle_tree,
-    };
+    rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
+
+    let mut env_with_program_owned_state_merkle_tree = env.clone();
+
+    env_with_program_owned_state_merkle_tree.v1_state_trees = vec![StateMerkleTreeAccounts {
+        merkle_tree: program_owned_state_merkle_tree_keypair.pubkey(),
+        nullifier_queue: program_owned_state_queue_keypair.pubkey(),
+        cpi_context: program_owned_cpi_context_keypair.pubkey(),
+    }];
+
     perform_create_pda_failing(
-        &mut test_indexer,
         &mut rpc,
+        &mut test_indexer,
         &env_with_program_owned_state_merkle_tree,
         &payer,
         [3u8; 32],
@@ -1502,6 +1486,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             1,
         )
         .await;
+    rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
     let program_owned_address_merkle_tree_keypair = Keypair::new();
     let program_owned_address_queue_keypair = Keypair::new();
 
@@ -1513,26 +1498,40 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             Some(ID),
             1,
         )
-        .await;
-    let env_with_program_owned_state_merkle_tree = EnvAccounts {
-        address_merkle_tree_pubkey: program_owned_address_merkle_tree_keypair.pubkey(),
-        address_merkle_tree_queue_pubkey: program_owned_address_queue_keypair.pubkey(),
-        merkle_tree_pubkey: program_owned_state_merkle_tree_keypair.pubkey(),
-        nullifier_queue_pubkey: program_owned_state_queue_keypair.pubkey(),
-        cpi_context_account_pubkey: program_owned_cpi_context_keypair.pubkey(),
-        governance_authority: env.governance_authority.insecure_clone(),
-        governance_authority_pda: env.governance_authority_pda,
-        group_pda: env.group_pda,
-        registered_program_pda: env.registered_program_pda,
-        registered_registry_program_pda: env.registered_registry_program_pda,
-        forester: env.forester.insecure_clone(),
-        registered_forester_pda: env.registered_forester_pda,
-        forester_epoch: env.forester_epoch.clone(),
-        batched_cpi_context: env.batched_cpi_context,
-        batched_output_queue: env.batched_output_queue,
-        batched_state_merkle_tree: env.batched_state_merkle_tree,
-        batch_address_merkle_tree: env.batch_address_merkle_tree,
-    };
+        .await
+        .unwrap();
+    rpc.indexer.as_mut().unwrap().address_merkle_trees = test_indexer.address_merkle_trees.clone();
+
+    let mut env_with_program_owned_state_merkle_tree = env.clone();
+    env_with_program_owned_state_merkle_tree.v1_address_trees = vec![AddressMerkleTreeAccounts {
+        merkle_tree: program_owned_address_merkle_tree_keypair.pubkey(),
+        queue: program_owned_address_queue_keypair.pubkey(),
+    }];
+    env_with_program_owned_state_merkle_tree.v1_state_trees = vec![StateMerkleTreeAccounts {
+        merkle_tree: program_owned_state_merkle_tree_keypair.pubkey(),
+        nullifier_queue: program_owned_state_queue_keypair.pubkey(),
+        cpi_context: program_owned_cpi_context_keypair.pubkey(),
+    }];
+
+    // TestAccounts {
+    //     address_merkle_tree_pubkey: program_owned_address_merkle_tree_keypair.pubkey(),
+    //     address_merkle_tree_queue_pubkey: program_owned_address_queue_keypair.pubkey(),
+    //     merkle_tree_pubkey: program_owned_state_merkle_tree_keypair.pubkey(),
+    //     nullifier_queue_pubkey: program_owned_state_queue_keypair.pubkey(),
+    //     cpi_context_account_pubkey: program_owned_cpi_context_keypair.pubkey(),
+    //     governance_authority: env.protocol.governance_authority.insecure_clone(),
+    //     governance_authority_pda: env.protocol.governance_authority_pda,
+    //     group_pda: env.protocol.group_pda,
+    //     registered_program_pda: env.protocol.registered_program_pda,
+    //     registered_registry_program_pda: env.protocol.registered_registry_program_pda,
+    //     forester: env.protocol.forester.insecure_clone(),
+    //     registered_forester_pda: env.protocol.registered_forester_pda,
+    //     forester_epoch: env.protocol.forester_epoch.clone(),
+    //     batched_cpi_context: env.batched_cpi_context,
+    //     batched_output_queue: env.v2_state_trees[0].output_queue,
+    //     batched_state_merkle_tree: env.v2_state_trees[0].merkle_tree,
+    //     batch_address_merkle_tree: env.v2_address_trees[0],
+    // };
     let seed = [4u8; 32];
     let data = [5u8; 31];
     perform_create_pda_with_event(
@@ -1550,7 +1549,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
     .await
     .unwrap();
 
-    assert_created_pda(
+    assert_created_pda::<LightProgramTest, TestIndexer>(
         &mut test_indexer,
         &env_with_program_owned_state_merkle_tree,
         &payer,
@@ -1561,13 +1560,10 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_failing<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
-    test_indexer: &mut I,
+pub async fn perform_create_pda_failing<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
-    env: &EnvAccounts,
+    test_indexer: &mut I,
+    env: &TestAccounts,
     payer: &Keypair,
     seed: [u8; 32],
     data: &[u8; 31],
@@ -1580,7 +1576,6 @@ pub async fn perform_create_pda_failing<
         env,
         seed,
         test_indexer,
-        rpc,
         data,
         payer_pubkey,
         owner_program,
@@ -1600,13 +1595,10 @@ pub async fn perform_create_pda_failing<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_with_event<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn perform_create_pda_with_event<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     rpc: &mut R,
-    env: &EnvAccounts,
+    env: &TestAccounts,
     payer: &Keypair,
     seed: [u8; 32],
     data: &[u8; 31],
@@ -1621,7 +1613,6 @@ pub async fn perform_create_pda_with_event<
             env,
             seed,
             test_indexer,
-            rpc,
             data,
             payer_pubkey,
             owner_program,
@@ -1639,7 +1630,7 @@ pub async fn perform_create_pda_with_event<
     }
 
     let event = rpc
-        .create_and_send_transaction_with_public_event(&instructions, &payer_pubkey, &[payer], None)
+        .create_and_send_transaction_with_public_event(&instructions, &payer_pubkey, &[payer])
         .await?;
     if let Some(event) = event {
         let slot: u64 = rpc.get_slot().await.unwrap();
@@ -1652,11 +1643,10 @@ pub async fn perform_create_pda_with_event<
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
-    env: &EnvAccounts,
+async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
+    env: &TestAccounts,
     seed: [u8; 32],
     test_indexer: &mut I,
-    rpc: &mut R,
     data: &[u8; 31],
     payer_pubkey: Pubkey,
     owner_program: &Pubkey,
@@ -1665,9 +1655,9 @@ async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     mode: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
     let output_compressed_account_merkle_tree_pubkey = if mode == CreatePdaMode::BatchFunctional {
-        &env.batched_output_queue
+        &env.v2_state_trees[0].output_queue
     } else {
-        &env.merkle_tree_pubkey
+        &env.v1_state_trees[0].merkle_tree
     };
     let (address, mut address_merkle_tree_pubkey, address_queue_pubkey) = if mode
         == CreatePdaMode::BatchAddressFunctional
@@ -1690,27 +1680,17 @@ async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     {
         let address = derive_address(
             &seed,
-            &env.batch_address_merkle_tree.to_bytes(),
+            &env.v2_address_trees[0].to_bytes(),
             &system_cpi_test::ID.to_bytes(),
         );
-        println!("address: {:?}", address);
-        println!(
-            "address_merkle_tree_pubkey: {:?}",
-            env.address_merkle_tree_pubkey
-        );
-        println!("program_id: {:?}", system_cpi_test::ID);
-        println!("seed: {:?}", seed);
-        (
-            address,
-            env.batch_address_merkle_tree,
-            env.batch_address_merkle_tree,
-        )
+
+        (address, env.v2_address_trees[0], env.v2_address_trees[0])
     } else {
-        let address = derive_address_legacy(&env.address_merkle_tree_pubkey, &seed).unwrap();
+        let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree, &seed).unwrap();
         (
             address,
-            env.address_merkle_tree_pubkey,
-            env.address_merkle_tree_queue_pubkey,
+            env.v1_address_trees[0].merkle_tree,
+            env.v1_address_trees[0].queue,
         )
     };
     let mut addresses = vec![address];
@@ -1750,26 +1730,27 @@ async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
             compressed_account_merkle_tree_pubkeys.push(x.merkle_context.merkle_tree_pubkey);
         });
     }
+    let hashes = if compressed_account_hashes.is_empty() {
+        Vec::new()
+    } else {
+        compressed_account_hashes
+    };
+
+    let addresses_with_tree = addresses
+        .iter()
+        .zip(address_merkle_tree_pubkeys.iter())
+        .map(|(address, tree)| AddressWithTree {
+            address: *address,
+            tree: *tree,
+        })
+        .collect::<Vec<_>>();
+
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts2(
-            if compressed_account_hashes.is_empty() {
-                None
-            } else {
-                Some(compressed_account_hashes)
-            },
-            if compressed_account_merkle_tree_pubkeys.is_empty() {
-                None
-            } else {
-                Some(compressed_account_merkle_tree_pubkeys)
-            },
-            Some(&addresses),
-            Some(address_merkle_tree_pubkeys),
-            rpc,
-        )
-        .await;
-    println!("rpc_result: {:?}", rpc_result);
+        .get_validity_proof_v2(hashes, addresses_with_tree)
+        .await
+        .unwrap();
     if mode == CreatePdaMode::InvalidBatchTreeAccount {
-        address_merkle_tree_pubkey = env.merkle_tree_pubkey;
+        address_merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
     }
     let new_address_params = NewAddressParams {
         seed,
@@ -1831,10 +1812,10 @@ async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
         output_compressed_account_merkle_tree_pubkey,
         proof: &rpc_result.proof.unwrap(),
         new_address_params,
-        cpi_context_account: &env.cpi_context_account_pubkey,
+        cpi_context_account: &env.v1_state_trees[0].cpi_context,
         owner_program,
         signer_is_program: mode.clone(),
-        registered_program_pda: &env.registered_program_pda,
+        registered_program_pda: &env.protocol.registered_program_pda,
         readonly_adresses,
         read_only_accounts,
         input_compressed_accounts_with_merkle_context: input_accounts,
@@ -1843,9 +1824,9 @@ async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     create_pda_instruction(create_ix_inputs)
 }
 
-pub async fn assert_created_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_created_pda<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
-    env: &EnvAccounts,
+    env: &TestAccounts,
     payer: &Keypair,
     seed: &[u8; 32],
     data: &[u8; 31],
@@ -1856,7 +1837,7 @@ pub async fn assert_created_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExt
         .find(|x| x.compressed_account.owner == ID)
         .unwrap()
         .clone();
-    let address = derive_address_legacy(&env.address_merkle_tree_pubkey, seed).unwrap();
+    let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree, seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
@@ -1887,10 +1868,7 @@ pub async fn assert_created_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExt
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_with_input_accounts<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn perform_with_input_accounts<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     rpc: &mut R,
     payer: &Keypair,
@@ -1945,12 +1923,9 @@ pub async fn perform_with_input_accounts<
         .accounts
         .cpi_context;
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(hashes),
-            Some(merkle_tree_pubkeys),
-            None,
-            None,
-            rpc,
+        .get_validity_proof_v2(
+            hashes,
+            Vec::new(), // No addresses needed
         )
         .await
         .unwrap();
@@ -1993,7 +1968,7 @@ pub async fn perform_with_input_accounts<
         input_nullifier_pubkey: &nullifier_pubkey,
         cpi_context_account: &cpi_context_account_pubkey,
         cpi_context,
-        proof: &rpc_result.proof,
+        proof: &rpc_result.proof.unwrap(),
         compressed_account: &PackedCompressedAccountWithMerkleContext {
             compressed_account: compressed_account.compressed_account.clone(),
             merkle_context: PackedMerkleContext {
@@ -2015,7 +1990,6 @@ pub async fn perform_with_input_accounts<
             &[instruction],
             &payer_pubkey,
             &[payer, invalid_fee_payer],
-            None,
         )
         .await;
     if expected_error_code == u32::MAX {

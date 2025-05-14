@@ -17,7 +17,7 @@ use tracing::{instrument, trace};
     ),
     skip(context)
 )]
-pub async fn process_batched_operations<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub async fn process_batched_operations<R: RpcConnection, I: Indexer + IndexerType<R>>(
     context: BatchContext<R, I>,
     tree_type: TreeType,
 ) -> Result<usize> {

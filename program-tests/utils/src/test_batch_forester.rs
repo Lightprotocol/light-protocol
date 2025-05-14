@@ -1,5 +1,4 @@
-use anchor_lang::AnchorDeserialize;
-use borsh::BorshSerialize;
+use anchor_lang::{prelude::borsh::BorshSerialize, AnchorDeserialize};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -44,18 +43,14 @@ use light_prover_client::{
 use light_registry::{
     account_compression_cpi::sdk::{
         create_batch_append_instruction, create_batch_nullify_instruction,
-        create_initialize_batched_address_merkle_tree_instruction,
-        create_initialize_batched_merkle_tree_instruction,
     },
-    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    protocol_config::state::ProtocolConfigPda,
     utils::get_protocol_config_pda_address,
 };
 use reqwest::Client;
 use solana_sdk::{
-    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
-    transaction::Transaction,
 };
 
 pub async fn perform_batch_append<Rpc: RpcConnection>(
@@ -66,32 +61,32 @@ pub async fn perform_batch_append<Rpc: RpcConnection>(
     _is_metadata_forester: bool,
     instruction_data: Option<InstructionDataBatchAppendInputs>,
 ) -> Result<Signature, RpcError> {
-    let merkle_tree_pubkey = bundle.accounts.merkle_tree;
-    let output_queue_pubkey = bundle.accounts.nullifier_queue;
-
     let data = if let Some(instruction_data) = instruction_data {
         instruction_data
     } else {
-        create_append_batch_ix_data(rpc, bundle, merkle_tree_pubkey, output_queue_pubkey).await
+        create_append_batch_ix_data(rpc, bundle).await
     };
     let instruction = create_batch_append_instruction(
         forester.pubkey(),
         forester.pubkey(),
-        merkle_tree_pubkey,
-        output_queue_pubkey,
+        bundle.accounts.merkle_tree,
+        bundle.accounts.nullifier_queue,
         epoch,
         data.try_to_vec().unwrap(),
     );
-    rpc.create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
-        .await
+    let res = rpc
+        .create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
+        .await?;
+    bundle.merkle_tree.num_root_updates += 1;
+    Ok(res)
 }
 
 pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     rpc: &mut Rpc,
     bundle: &mut StateMerkleTreeBundle,
-    merkle_tree_pubkey: Pubkey,
-    output_queue_pubkey: Pubkey,
 ) -> InstructionDataBatchAppendInputs {
+    let output_queue_pubkey = bundle.accounts.nullifier_queue;
+    let merkle_tree_pubkey = bundle.accounts.merkle_tree;
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
         merkle_tree_account.data.as_mut_slice(),
@@ -101,6 +96,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     let merkle_tree_next_index = merkle_tree.next_index as usize;
 
     let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
+
     let output_queue =
         BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice()).unwrap();
     let full_batch_index = output_queue.batch_metadata.pending_batch_index;
@@ -219,16 +215,6 @@ pub async fn perform_batch_nullify<Rpc: RpcConnection>(
     _is_metadata_forester: bool,
     instruction_data: Option<InstructionDataBatchNullifyInputs>,
 ) -> Result<Signature, RpcError> {
-    // let forester_epoch_pda = get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0;
-    // let pre_forester_counter = if is_metadata_forester {
-    //     0
-    // } else {
-    //     rpc.get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda)
-    //         .await
-    //         .unwrap()
-    //         .unwrap()
-    //         .work_counter
-    // };
     let merkle_tree_pubkey = bundle.accounts.merkle_tree;
 
     let data = if let Some(instruction_data) = instruction_data {
@@ -366,110 +352,12 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     })
 }
 
-use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::{
     account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
 };
-use light_client::indexer::{Indexer, StateMerkleTreeBundle};
+use light_client::indexer::Indexer;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
-
-pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
-    payer: &Keypair,
-    registry: bool,
-    rpc: &mut R,
-    merkle_tree_keypair: &Keypair,
-    queue_keypair: &Keypair,
-    cpi_context_keypair: &Keypair,
-    params: InitStateTreeAccountsInstructionData,
-) -> Result<Signature, RpcError> {
-    let queue_account_size = get_output_queue_account_size(
-        params.output_queue_batch_size,
-        params.output_queue_zkp_batch_size,
-    );
-    let mt_account_size = get_merkle_tree_account_size(
-        params.input_queue_batch_size,
-        params.bloom_filter_capacity,
-        params.input_queue_zkp_batch_size,
-        params.root_history_capacity,
-        params.height,
-    );
-    let queue_rent = rpc
-        .get_minimum_balance_for_rent_exemption(queue_account_size)
-        .await
-        .unwrap();
-    let create_queue_account_ix = create_account_instruction(
-        &payer.pubkey(),
-        queue_account_size,
-        queue_rent,
-        &account_compression::ID,
-        Some(queue_keypair),
-    );
-    let mt_rent = rpc
-        .get_minimum_balance_for_rent_exemption(mt_account_size)
-        .await
-        .unwrap();
-    let create_mt_account_ix = create_account_instruction(
-        &payer.pubkey(),
-        mt_account_size,
-        mt_rent,
-        &account_compression::ID,
-        Some(merkle_tree_keypair),
-    );
-    let rent_cpi_config = rpc
-        .get_minimum_balance_for_rent_exemption(ProtocolConfig::default().cpi_context_size as usize)
-        .await
-        .unwrap();
-    let create_cpi_context_instruction = create_account_instruction(
-        &payer.pubkey(),
-        ProtocolConfig::default().cpi_context_size as usize,
-        rent_cpi_config,
-        &light_system_program::ID,
-        Some(cpi_context_keypair),
-    );
-    let instruction = if registry {
-        create_initialize_batched_merkle_tree_instruction(
-            payer.pubkey(),
-            merkle_tree_keypair.pubkey(),
-            queue_keypair.pubkey(),
-            cpi_context_keypair.pubkey(),
-            params,
-        )
-    } else {
-        let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
-            bytes: params.try_to_vec().unwrap(),
-        };
-        let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
-            authority: payer.pubkey(),
-            merkle_tree: merkle_tree_keypair.pubkey(),
-            queue: queue_keypair.pubkey(),
-            registered_program_pda: None,
-        };
-
-        Instruction {
-            program_id: account_compression::ID,
-            accounts: accounts.to_account_metas(Some(true)),
-            data: instruction.data(),
-        }
-    };
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[
-            create_mt_account_ix,
-            create_queue_account_ix,
-            create_cpi_context_instruction,
-            instruction,
-        ],
-        Some(&payer.pubkey()),
-        &vec![
-            payer,
-            merkle_tree_keypair,
-            queue_keypair,
-            cpi_context_keypair,
-        ],
-        rpc.get_latest_blockhash().await?.0,
-    );
-    rpc.process_transaction(transaction).await
-}
+use light_program_test::indexer::state_tree::StateMerkleTreeBundle;
 
 pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
@@ -534,6 +422,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
     assert_queue_zero_copy_inited(queue.account.data.as_mut_slice(), ref_output_queue_account);
     Ok(())
 }
+
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
@@ -743,44 +632,6 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
     assert_state_mt_roll_over(params);
 }
 
-pub async fn create_batch_address_merkle_tree<R: RpcConnection>(
-    rpc: &mut R,
-    payer: &Keypair,
-    new_address_merkle_tree_keypair: &Keypair,
-    address_tree_params: InitAddressTreeAccountsInstructionData,
-) -> Result<Signature, RpcError> {
-    let mt_account_size = get_merkle_tree_account_size(
-        address_tree_params.input_queue_batch_size,
-        address_tree_params.bloom_filter_capacity,
-        address_tree_params.input_queue_zkp_batch_size,
-        address_tree_params.root_history_capacity,
-        address_tree_params.height,
-    );
-    let mt_rent = rpc
-        .get_minimum_balance_for_rent_exemption(mt_account_size)
-        .await
-        .unwrap();
-    let create_mt_account_ix = create_account_instruction(
-        &payer.pubkey(),
-        mt_account_size,
-        mt_rent,
-        &account_compression::ID,
-        Some(new_address_merkle_tree_keypair),
-    );
-
-    let instruction = create_initialize_batched_address_merkle_tree_instruction(
-        payer.pubkey(),
-        new_address_merkle_tree_keypair.pubkey(),
-        address_tree_params,
-    );
-    rpc.create_and_send_transaction(
-        &[create_mt_account_ix, instruction],
-        &payer.pubkey(),
-        &[payer, new_address_merkle_tree_keypair],
-    )
-    .await
-}
-
 pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
     payer_pubkey: Pubkey,
@@ -818,7 +669,7 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
 
 pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     R: RpcConnection,
-    I: Indexer<R>,
+    I: Indexer,
 >(
     rpc: &mut R,
     indexer: &mut I,

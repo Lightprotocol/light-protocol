@@ -25,13 +25,11 @@ mod test {
     #[serial]
     #[tokio::test]
     async fn prove_inclusion() {
-        spawn_prover(
-            true,
-            ProverConfig {
-                run_mode: None,
-                circuits: vec![ProofType::Inclusion],
-            },
-        )
+        spawn_prover(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+            restart: true,
+        })
         .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3] {
@@ -76,13 +74,11 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn prove_inclusion_full() {
-        spawn_prover(
-            true,
-            ProverConfig {
-                run_mode: None,
-                circuits: vec![ProofType::Inclusion],
-            },
-        )
+        spawn_prover(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion],
+            restart: true,
+        })
         .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {

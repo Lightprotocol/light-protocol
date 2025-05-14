@@ -1,11 +1,7 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
 use async_trait::async_trait;
-use light_client::{
-    indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, MerkleProof,
-        NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle,
-    },
-    rpc::{types::BatchedTreeProofRpcResult, RpcConnection},
+use light_client::indexer::{
+    AddressMerkleTreeAccounts, MerkleProof, NewAddressProofWithContext, StateMerkleTreeAccounts,
 };
 use light_compressed_account::{
     compressed_account::CompressedAccountWithMerkleContext,
@@ -14,8 +10,12 @@ use light_compressed_account::{
 use light_sdk::token::TokenDataWithMerkleContext;
 use solana_sdk::signature::Keypair;
 
+use super::{address_tree::AddressMerkleTreeBundle, state_tree::StateMerkleTreeBundle};
+
 #[async_trait]
-pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
+pub trait TestIndexerExtensions {
+    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
+
     fn get_address_merkle_tree(
         &self,
         merkle_tree_pubkey: Pubkey,
@@ -45,18 +45,7 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
 
     fn get_token_compressed_accounts(&self) -> &Vec<TokenDataWithMerkleContext>;
 
-    fn get_payer(&self) -> &Keypair;
-
     fn get_group_pda(&self) -> &Pubkey;
-
-    async fn create_proof_for_compressed_accounts2(
-        &mut self,
-        compressed_accounts: Option<Vec<[u8; 32]>>,
-        state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        new_addresses: Option<&[[u8; 32]]>,
-        address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        rpc: &mut R,
-    ) -> BatchedTreeProofRpcResult;
 
     fn add_address_merkle_tree_accounts(
         &mut self,
@@ -82,20 +71,6 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
     );
 
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof;
-
-    async fn update_test_indexer_after_append(
-        &mut self,
-        rpc: &mut R,
-        merkle_tree_pubkey: Pubkey,
-        output_queue_pubkey: Pubkey,
-    );
-
-    async fn update_test_indexer_after_nullification(
-        &mut self,
-        rpc: &mut R,
-        merkle_tree_pubkey: Pubkey,
-        batch_index: usize,
-    );
 
     async fn finalize_batched_address_tree_update(
         &mut self,

@@ -32,13 +32,11 @@ use serial_test::serial;
 #[serial]
 #[tokio::test]
 async fn prove_inclusion() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     let client = Client::new();
     for number_of_utxos in &[1, 2, 3, 4, 8] {
@@ -73,13 +71,11 @@ async fn prove_inclusion() {
 #[serial]
 #[tokio::test]
 async fn prove_combined() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Combined],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Combined],
+        restart: true,
+    })
     .await;
     let client = Client::new();
     {
@@ -117,13 +113,11 @@ async fn prove_combined() {
 #[serial]
 #[tokio::test]
 async fn prove_non_inclusion() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::NonInclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::NonInclusion],
+        restart: true,
+    })
     .await;
     let client = Client::new();
     // legacy height 26
@@ -163,13 +157,11 @@ async fn prove_non_inclusion() {
 #[serial]
 #[tokio::test]
 async fn prove_batch_update() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::BatchUpdateTest],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::BatchUpdateTest],
+        restart: true,
+    })
     .await;
     const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
@@ -241,13 +233,11 @@ async fn prove_batch_update() {
 #[tokio::test]
 async fn prove_batch_append_with_proofs() {
     // Spawn the prover with specific configuration
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::BatchAppendWithProofsTest],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::BatchAppendWithProofsTest],
+        restart: true,
+    })
     .await;
 
     const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
@@ -344,13 +334,11 @@ async fn prove_batch_address_append() {
     use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 
     println!("spawning prover");
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::BatchAddressAppendTest],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::BatchAddressAppendTest],
+        restart: true,
+    })
     .await;
 
     // Initialize test data

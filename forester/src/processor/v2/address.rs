@@ -13,7 +13,7 @@ use super::{
 use crate::indexer_type::{finalize_batch_address_tree_update, IndexerType};
 
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
-pub async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub(crate) async fn process_batch<R: RpcConnection, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
 ) -> Result<usize> {
     info!("Processing address batch operation");
@@ -83,7 +83,6 @@ pub async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
                 &instructions,
                 &context.authority.pubkey(),
                 &[&context.authority],
-                None,
             )
             .await
         {

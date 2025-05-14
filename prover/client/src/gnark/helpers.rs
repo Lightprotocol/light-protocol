@@ -78,9 +78,30 @@ impl Display for ProofType {
 pub struct ProverConfig {
     pub run_mode: Option<ProverMode>,
     pub circuits: Vec<ProofType>,
+    pub restart: bool,
 }
 
-pub async fn spawn_prover(restart: bool, config: ProverConfig) {
+impl Default for ProverConfig {
+    fn default() -> Self {
+        Self {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+            restart: true,
+        }
+    }
+}
+
+impl ProverConfig {
+    pub fn rpc_no_restart() -> Self {
+        Self {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+            restart: false,
+        }
+    }
+}
+
+pub async fn spawn_prover(config: ProverConfig) {
     if let Some(_project_root) = get_project_root() {
         let prover_path: &str = {
             #[cfg(feature = "devenv")]
@@ -93,7 +114,7 @@ pub async fn spawn_prover(restart: bool, config: ProverConfig) {
             }
         };
 
-        if restart {
+        if config.restart {
             println!("Killing prover...");
             kill_prover();
         }
@@ -288,6 +309,7 @@ impl Default for LightValidatorConfig {
     }
 }
 
+// TODO: move to light-client
 pub async fn spawn_validator(config: LightValidatorConfig) {
     if let Some(project_root) = get_project_root() {
         let path = "cli/test_bin/run test-validator";

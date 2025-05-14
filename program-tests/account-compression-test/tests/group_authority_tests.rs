@@ -10,11 +10,16 @@ use account_compression::{
 };
 use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_program_test::{
-    env_accounts_v1::get_registered_program_pda,
-    test_env::{get_group_pda, OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR},
-    test_rpc::ProgramTestRpcConnection,
+    accounts::{
+        initialize::get_group_pda, test_accounts::TestAccounts,
+        test_keypairs::OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR,
+    },
+    program_test::LightProgramTest,
+    utils::assert::assert_rpc_error,
 };
-use light_test_utils::{airdrop_lamports, assert_rpc_error, RpcConnection};
+use light_test_utils::{
+    airdrop_lamports, registered_program_accounts_v1::get_registered_program_pda, RpcConnection,
+};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -39,7 +44,11 @@ async fn test_create_and_update_group() {
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
 
     let seed = Keypair::new();
     let group_accounts = Pubkey::find_program_address(
@@ -349,7 +358,11 @@ async fn test_resize_registered_program_pda() {
     program_test.add_account(registered_program, get_registered_program_pda());
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = context.get_payer().insecure_clone();
 
     let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
@@ -428,7 +441,11 @@ async fn test_resize_registered_program_pda() {
         program_test.add_account(registered_program, account);
         program_test.set_compute_max_units(1_400_000u64);
         let context = program_test.start_with_context().await;
-        let mut context = ProgramTestRpcConnection::new(context);
+        let mut context = LightProgramTest {
+            context,
+            test_accounts: TestAccounts::get_local_test_validator_accounts(),
+            indexer: None,
+        };
         let payer = context.get_payer().insecure_clone();
 
         let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
@@ -470,7 +487,11 @@ async fn test_resize_registered_program_pda() {
         program_test.add_account(registered_program, account);
         program_test.set_compute_max_units(1_400_000u64);
         let context = program_test.start_with_context().await;
-        let mut context = ProgramTestRpcConnection::new(context);
+        let mut context = LightProgramTest {
+            context,
+            test_accounts: TestAccounts::get_local_test_validator_accounts(),
+            indexer: None,
+        };
         let payer = context.get_payer().insecure_clone();
         let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
         let accounts = account_compression::accounts::ResizeRegisteredProgramPda {

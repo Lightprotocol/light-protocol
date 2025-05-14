@@ -1,4 +1,3 @@
-use light_merkle_tree_reference::indexed::IndexedReferenceMerkleTreeError as IndexedReferenceMerkleTreeErrorV2;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -10,7 +9,7 @@ pub enum IndexerError {
     RpcError(String),
 
     #[error("Failed to deserialize account data: {0}")]
-    DeserializeError(#[from] solana_sdk::program_error::ProgramError),
+    DeserializeError(#[from] solana_program_error::ProgramError),
 
     #[error("API error: {0}")]
     ApiError(String),
@@ -42,12 +41,13 @@ pub enum IndexerError {
     ),
     #[error("Indexed Merkle tree v1 error: {0}")]
     IndexedMerkleTreeError(#[from] light_indexed_merkle_tree::errors::IndexedMerkleTreeError),
-    #[error("Reference Merkle tree error: {0}")]
-    ReferenceMerkleTreeError(#[from] light_merkle_tree_reference::ReferenceMerkleTreeError),
-    #[error("Indexed Merkle tree v2 error: {0}")]
-    IndexedMerkleTreeV2Error(#[from] IndexedReferenceMerkleTreeErrorV2),
-    #[error("Light indexed array error: {0}")]
-    LightIndexedArrayError(#[from] light_indexed_array::errors::IndexedArrayError),
+    #[error("Invalid response data")]
+    InvalidResponseData,
+
+    #[error("Error: `{0}`")]
+    CustomError(String),
+    #[error("Indexer not initialized.")]
+    NotInitialized,
 }
 
 impl IndexerError {
@@ -88,6 +88,47 @@ impl<T> From<photon_api::apis::Error<T>> for IndexerError {
             }
             photon_api::apis::Error::Io(e) => IndexerError::ApiError(format!("IO error: {}", e)),
             _ => IndexerError::ApiError("Unknown API error".to_string()),
+        }
+    }
+}
+
+impl Clone for IndexerError {
+    fn clone(&self) -> Self {
+        match self {
+            IndexerError::PhotonError { context, message } => IndexerError::PhotonError {
+                context: context.clone(),
+                message: message.clone(),
+            },
+            IndexerError::RpcError(message) => IndexerError::RpcError(message.clone()),
+            IndexerError::DeserializeError(err) => IndexerError::DeserializeError(err.clone()),
+            IndexerError::ApiError(message) => IndexerError::ApiError(message.clone()),
+            IndexerError::MissingResult { context, message } => IndexerError::MissingResult {
+                context: context.clone(),
+                message: message.clone(),
+            },
+            IndexerError::AccountNotFound => IndexerError::AccountNotFound,
+            IndexerError::Base58DecodeError { field, message } => IndexerError::Base58DecodeError {
+                field: field.clone(),
+                message: message.clone(),
+            },
+            IndexerError::InvalidParameters(message) => {
+                IndexerError::InvalidParameters(message.clone())
+            }
+            IndexerError::DataDecodeError { field, message } => IndexerError::DataDecodeError {
+                field: field.clone(),
+                message: message.clone(),
+            },
+            IndexerError::NotImplemented(message) => IndexerError::NotImplemented(message.clone()),
+            IndexerError::Unknown(message) => IndexerError::Unknown(message.clone()),
+            IndexerError::ReferenceIndexedMerkleTreeError(_) => {
+                IndexerError::CustomError("ReferenceIndexedMerkleTreeError".to_string())
+            }
+            IndexerError::IndexedMerkleTreeError(_) => {
+                IndexerError::CustomError("IndexedMerkleTreeError".to_string())
+            }
+            IndexerError::InvalidResponseData => IndexerError::InvalidResponseData,
+            IndexerError::CustomError(_) => IndexerError::CustomError("IndexerError".to_string()),
+            IndexerError::NotInitialized => IndexerError::NotInitialized,
         }
     }
 }

@@ -36,7 +36,7 @@ light-account-checks = { workspace = true }
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-light-client = { workspace = true }
+light-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }

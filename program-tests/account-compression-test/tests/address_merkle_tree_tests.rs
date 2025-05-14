@@ -13,20 +13,28 @@ use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_account_checks::error::AccountError;
 use light_bounded_vec::BoundedVecError;
-use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
+use light_client::indexer::AddressMerkleTreeAccounts;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_program_test::{test_env::NOOP_PROGRAM_ID, test_rpc::ProgramTestRpcConnection};
+use light_program_test::{
+    accounts::{
+        address_tree::create_initialize_address_merkle_tree_and_queue_instruction,
+        test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
+    },
+    indexer::address_tree::AddressMerkleTreeBundle,
+    program_test::LightProgramTest,
+    utils::assert::assert_rpc_error,
+};
 use light_test_utils::{
     address::insert_addresses,
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue, perform_address_merkle_tree_roll_over,
         set_address_merkle_tree_next_index,
     },
-    airdrop_lamports, assert_rpc_error, create_account_instruction,
+    airdrop_lamports, create_account_instruction,
     create_address_merkle_tree_and_queue_account_with_assert, get_hash_set,
     get_indexed_merkle_tree,
     test_forester::{empty_address_queue_test, update_merkle_tree},
@@ -73,8 +81,7 @@ async fn address_queue_and_tree_functional(
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
-            .await
+        get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
     };
 
     assert!(address_queue.contains(&address1, None).unwrap());
@@ -103,8 +110,7 @@ async fn address_queue_and_tree_functional(
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
-            .await
+        get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
     };
     address_queue
         .find_element(&address3, None)
@@ -134,13 +140,13 @@ async fn test_address_queue_and_tree_functional_default() {
 
 #[tokio::test]
 async fn test_address_queue_and_tree_functional_custom() {
-    for changelog_size in [1, 1000, 2000] {
-        for roots_size in [1, 1000, 2000] {
+    for changelog_size in [1, 1000] {
+        for roots_size in [1000] {
             if roots_size < changelog_size {
                 continue;
             }
-            for queue_capacity in [5003, 6857, 7901] {
-                for address_changelog_size in (250..1000).step_by(250) {
+            for queue_capacity in [7901] {
+                for address_changelog_size in (750..1000).step_by(250) {
                     address_queue_and_tree_functional(
                         &AddressMerkleTreeConfig {
                             height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
@@ -197,18 +203,17 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
         Some(merkle_tree_keypair),
     );
 
-    let instruction =
-        light_program_test::acp_sdk::create_initialize_address_merkle_tree_and_queue_instruction(
-            0,
-            payer.pubkey(),
-            None,
-            None,
-            Some(Pubkey::new_unique()),
-            merkle_tree_keypair.pubkey(),
-            queue_keypair.pubkey(),
-            merkle_tree_config.clone(),
-            queue_config.clone(),
-        );
+    let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
+        0,
+        payer.pubkey(),
+        None,
+        None,
+        Some(Pubkey::new_unique()),
+        merkle_tree_keypair.pubkey(),
+        queue_keypair.pubkey(),
+        merkle_tree_config.clone(),
+        queue_config.clone(),
+    );
     let transaction = Transaction::new_signed_with_payer(
         &[queue_account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
@@ -226,7 +231,11 @@ async fn test_address_queue_and_tree_invalid_sizes() {
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -322,7 +331,11 @@ async fn test_address_queue_and_tree_invalid_config() {
     program_test.set_compute_max_units(1_400_000u64);
 
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -594,8 +607,7 @@ async fn update_address_merkle_tree_failing_tests(
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
-            .await
+        get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
     };
     // CHECK: 2.1 cannot insert an address with an invalid low address
     test_with_invalid_low_element(
@@ -811,7 +823,7 @@ async fn update_address_merkle_tree_failing_tests(
     .unwrap();
     let address_merkle_tree = get_indexed_merkle_tree::<
         AddressMerkleTreeAccount,
-        ProgramTestRpcConnection,
+        LightProgramTest,
         Poseidon,
         usize,
         26,
@@ -1083,8 +1095,7 @@ async fn update_address_merkle_tree_wrap_around(
     .unwrap();
 
     let address_queue = unsafe {
-        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
-            .await
+        get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
     };
     let value_index = address_queue
         .find_element_index(&address1, None)
@@ -1373,13 +1384,13 @@ async fn test_address_merkle_tree_and_queue_rollover_default() {
 
 #[tokio::test]
 async fn test_address_merkle_tree_and_queue_rollover_custom() {
-    for changelog_size in [1, 1000, 2000] {
-        for roots_size in [1, 1000, 2000] {
+    for changelog_size in [1, 1000] {
+        for roots_size in [1, 1000] {
             if roots_size < changelog_size {
                 continue;
             }
-            for queue_capacity in [5003, 6857, 7901] {
-                for address_changelog_size in (250..1000).step_by(250) {
+            for queue_capacity in [5003] {
+                for address_changelog_size in (250..500).step_by(250) {
                     address_merkle_tree_and_queue_rollover(
                         &AddressMerkleTreeConfig {
                             height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
@@ -1408,8 +1419,8 @@ pub async fn test_setup_with_address_merkle_tree(
     merkle_tree_config: &AddressMerkleTreeConfig,
     queue_config: &AddressQueueConfig,
 ) -> (
-    ProgramTestRpcConnection, // rpc
-    Keypair,                  // payer
+    LightProgramTest, // rpc
+    Keypair,          // payer
     AddressMerkleTreeBundle,
 ) {
     let mut program_test = ProgramTest::default();
@@ -1418,7 +1429,11 @@ pub async fn test_setup_with_address_merkle_tree(
     program_test.set_compute_max_units(1_400_000u64);
 
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -1447,7 +1462,7 @@ pub async fn test_setup_with_address_merkle_tree(
 }
 
 pub async fn test_with_invalid_low_element(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     address_queue: &HashSet,

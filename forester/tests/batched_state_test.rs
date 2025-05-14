@@ -1,17 +1,20 @@
 use std::{sync::Arc, time::Duration};
 
-use forester::run_pipeline;
-use forester_utils::registry::{register_test_forester, update_test_forester};
+use forester::{config::GeneralConfig, run_pipeline};
+use forester_utils::{
+    registry::{register_test_forester, update_test_forester},
+    rpc_pool::SolanaRpcPool,
+};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_client::{
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
+use light_client::rpc::{
+    rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
+    SolanaRpcConnection,
 };
-use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
-use light_prover_client::gnark::helpers::LightValidatorConfig;
+use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
 use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -40,20 +43,25 @@ async fn test_state_batched() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 10,
-        prover_config: None,
+        wait_time: 30,
+        prover_config: Some(ProverConfig {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+            restart: true,
+        }),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;
 
     let forester_keypair = Keypair::new();
-    let mut env = EnvAccounts::get_local_test_validator_accounts();
-    env.forester = forester_keypair.insecure_clone();
+    let mut env = TestAccounts::get_local_test_validator_accounts();
+    env.protocol.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
     config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
+    config.general_config = GeneralConfig::test_state_v2();
 
     let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
         config.external_services.rpc_url.to_string(),
@@ -66,7 +74,11 @@ async fn test_state_batched() {
     .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(commitment_config),
+        with_indexer: false,
+    });
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -74,7 +86,7 @@ async fn test_state_batched() {
         .unwrap();
 
     rpc.airdrop_lamports(
-        &env.governance_authority.pubkey(),
+        &env.protocol.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100_000,
     )
     .await
@@ -82,7 +94,7 @@ async fn test_state_batched() {
 
     register_test_forester(
         &mut rpc,
-        &env.governance_authority,
+        &env.protocol.governance_authority,
         &forester_keypair.pubkey(),
         light_registry::ForesterConfig::default(),
     )
@@ -107,9 +119,8 @@ async fn test_state_batched() {
     config.derivation_pubkey = forester_keypair.pubkey();
     config.payer_keypair = new_forester_keypair.insecure_clone();
 
-    let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>;
-
-    e2e_env = init_program_test_env(rpc, &env, false).await;
+    let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer> =
+        init_program_test_env(rpc, &env, tree_params.output_queue_batch_size as usize).await;
 
     for tree in e2e_env.indexer.state_merkle_trees.iter() {
         println!("====================");
@@ -150,7 +161,7 @@ async fn test_state_batched() {
     .unwrap();
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
-        let mut rpc = pool.get_connection().await.unwrap();
+        let rpc = pool.get_connection().await.unwrap();
         let mut merkle_tree_account = rpc
             .get_account(batched_state_merkle_tree_pubkey)
             .await
@@ -227,7 +238,7 @@ async fn test_state_batched() {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline(
+    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
         Arc::from(config.clone()),
         None,
         None,
@@ -264,7 +275,7 @@ async fn test_state_batched() {
         Err(_) => panic!("Test timed out after {:?}", timeout_duration),
     }
 
-    let mut rpc = pool.get_connection().await.unwrap();
+    let rpc = pool.get_connection().await.unwrap();
     let mut merkle_tree_account = rpc
         .get_account(batched_state_merkle_tree_pubkey)
         .await
@@ -283,7 +294,7 @@ async fn test_state_batched() {
     );
 
     {
-        let mut rpc = pool.get_connection().await.unwrap();
+        let rpc = pool.get_connection().await.unwrap();
 
         let mut merkle_tree_account = rpc
             .get_account(batched_state_merkle_tree_pubkey)

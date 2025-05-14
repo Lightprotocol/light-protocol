@@ -4,15 +4,12 @@ use forester::{
     telemetry::setup_telemetry,
     ForesterConfig,
 };
-use light_client::{
-    indexer::{
-        photon_indexer::PhotonIndexer, Base58Conversions, Indexer, IndexerError,
-        NewAddressProofWithContext,
-    },
-    rpc::RpcConnection,
+use light_client::indexer::{
+    photon_indexer::PhotonIndexer, Base58Conversions, Indexer, IndexerError,
+    NewAddressProofWithContext,
 };
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
+use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use solana_sdk::{
@@ -71,8 +68,8 @@ pub fn general_action_config() -> GeneralActionConfig {
 
 #[allow(dead_code)]
 pub fn forester_config() -> ForesterConfig {
-    let mut env_accounts = get_test_env_accounts();
-    env_accounts.forester = Keypair::new();
+    let mut test_accounts = TestAccounts::get_program_test_test_accounts();
+    test_accounts.protocol.forester = Keypair::new();
 
     ForesterConfig {
         external_services: ExternalServicesConfig {
@@ -96,10 +93,14 @@ pub fn forester_config() -> ForesterConfig {
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 5,
             enable_metrics: false,
+            skip_v1_state_trees: false,
+            skip_v2_state_trees: false,
+            skip_v1_address_trees: false,
+            skip_v2_address_trees: false,
         },
         registry_pubkey: light_registry::ID,
-        payer_keypair: env_accounts.forester.insecure_clone(),
-        derivation_pubkey: env_accounts.forester.pubkey(),
+        payer_keypair: test_accounts.protocol.forester.insecure_clone(),
+        derivation_pubkey: test_accounts.protocol.forester.pubkey(),
         address_tree_data: vec![],
         state_tree_data: vec![],
     }
@@ -116,13 +117,12 @@ pub fn generate_pubkey_254() -> Pubkey {
 
 #[allow(dead_code)]
 pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     indexer: &mut I,
     trees: &[Pubkey],
     addresses: &[Pubkey],
-    photon_indexer: &PhotonIndexer<R>,
+    photon_indexer: &PhotonIndexer,
 ) {
     for (tree, address) in trees.iter().zip(addresses.iter()) {
         let address_proof_test_indexer = indexer
@@ -186,13 +186,10 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
 }
 
 #[allow(dead_code)]
-pub async fn assert_accounts_by_owner<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn assert_accounts_by_owner<I: Indexer + TestIndexerExtensions>(
     indexer: &mut I,
     user: &User,
-    photon_indexer: &PhotonIndexer<R>,
+    photon_indexer: &PhotonIndexer,
 ) {
     let mut photon_accs = photon_indexer
         .get_compressed_accounts_by_owner_v2(&user.keypair.pubkey())
@@ -224,12 +221,11 @@ pub async fn assert_accounts_by_owner<
 
 #[allow(dead_code)]
 pub async fn assert_account_proofs_for_photon_and_test_indexer<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     indexer: &mut I,
     user_pubkey: &Pubkey,
-    photon_indexer: &PhotonIndexer<R>,
+    photon_indexer: &PhotonIndexer,
 ) {
     let accs: Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> = indexer
         .get_compressed_accounts_by_owner_v2(user_pubkey)

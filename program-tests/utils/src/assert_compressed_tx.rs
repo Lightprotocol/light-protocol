@@ -27,7 +27,7 @@ use crate::system_program::get_sol_pool_pda;
 pub struct AssertCompressedTransactionInputs<
     'a,
     R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 > {
     pub rpc: &'a mut R,
     pub test_indexer: &'a mut I,
@@ -56,10 +56,7 @@ pub struct AssertCompressedTransactionInputs<
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     input: AssertCompressedTransactionInputs<'_, R, I>,
 ) {
     // CHECK 1
@@ -331,10 +328,7 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
     test_indexer: &mut I,

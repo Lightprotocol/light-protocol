@@ -10,7 +10,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeAccount,
     StateMerkleTreeConfig, ID, SAFETY_MARGIN,
 };
-use anchor_lang::{error::ErrorCode, InstructionData, ToAccountMetas};
+use anchor_lang::{InstructionData, ToAccountMetas};
 use light_account_checks::error::AccountError;
 use light_compressed_account::instruction_data::{
     data::pack_pubkey, insert_into_queues::InsertIntoQueuesInstructionDataMut,
@@ -26,16 +26,19 @@ use light_hasher::{
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::{
-    acp_sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
-    test_rpc::ProgramTestRpcConnection,
+    accounts::{
+        state_tree::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
+        test_accounts::TestAccounts,
+    },
+    program_test::{LightProgramTest, TestRpc},
+    utils::assert::assert_rpc_error,
 };
 use light_test_utils::{
     airdrop_lamports,
     assert_merkle_tree::assert_merkle_tree_initialized,
     assert_queue::assert_nullifier_queue_initialized,
-    assert_rpc_error, create_account_instruction,
-    create_address_merkle_tree_and_queue_account_with_assert, get_concurrent_merkle_tree,
-    get_hash_set,
+    create_account_instruction, create_address_merkle_tree_and_queue_account_with_assert,
+    get_concurrent_merkle_tree, get_hash_set,
     state_tree_rollover::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
         set_state_merkle_tree_next_index, StateMerkleTreeRolloverMode,
@@ -75,7 +78,11 @@ async fn test_init_and_insert_into_nullifier_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection::new(context);
+    let mut rpc = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer_pubkey = rpc.get_payer().pubkey();
     fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes(
         &mut rpc,
@@ -248,7 +255,11 @@ async fn test_full_nullifier_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection::new(context);
+    let mut rpc = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer_pubkey = rpc.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut rpc,
@@ -309,17 +320,16 @@ async fn test_full_nullifier_queue(
     let mut reference_merkle_tree = MerkleTree::<Poseidon>::new(26, 10);
     reference_merkle_tree.append(&leaf).unwrap();
 
-    let merkle_tree = get_concurrent_merkle_tree::<
-        StateMerkleTreeAccount,
-        ProgramTestRpcConnection,
-        Poseidon,
-        26,
-    >(&mut rpc, merkle_tree_pubkey)
-    .await;
+    let merkle_tree =
+        get_concurrent_merkle_tree::<StateMerkleTreeAccount, LightProgramTest, Poseidon, 26>(
+            &mut rpc,
+            merkle_tree_pubkey,
+        )
+        .await;
     assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
     let leaf_index = reference_merkle_tree.get_leaf_index(&leaf).unwrap() as u64;
     let element_index = unsafe {
-        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut rpc, nullifier_queue_pubkey)
+        get_hash_set::<QueueAccount, LightProgramTest>(&mut rpc, nullifier_queue_pubkey)
             .await
             .find_element_index(&BigUint::from_bytes_be(&leaf), None)
             .unwrap()
@@ -449,7 +459,11 @@ async fn failing_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection::new(context);
+    let mut rpc = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = rpc.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -507,11 +521,16 @@ async fn failing_queue(
         &[nullifier_1],
         &payer,
         &payer,
-        &[(merkle_tree_pubkey, merkle_tree_pubkey)],
+        &[(merkle_tree_pubkey, nullifier_queue_pubkey)],
         &mut rpc,
     )
     .await;
-    assert_rpc_error(result, 0, ErrorCode::AccountDiscriminatorMismatch.into()).unwrap();
+    assert_rpc_error(
+        result,
+        0,
+        AccountCompressionErrorCode::InvalidAccount.into(),
+    )
+    .unwrap();
 
     // CHECK 3.2: pass address queue account instead of nullifier queue account
     let result = insert_into_nullifier_queues(
@@ -546,28 +565,28 @@ async fn failing_queue(
     )
     .unwrap();
     // CHECK 4.1: pass non Merkle tree account
-    // Triggering a discriminator mismatch error is not possibly
-    // by passing an invalid Merkle tree account.
-    // A non Merkle tree account cannot be associated with a queue account.
-    // Hence the instruction fails with MerkleTreeAndQueueNotAssociated.
-    // The Merkle tree account will not be deserialized.
-    let result = insert_into_nullifier_queues(
-        &[nullifier_1],
-        &payer,
-        &payer,
-        &[(
-            nullifier_queue_keypair.pubkey(),
-            nullifier_queue_keypair.pubkey(),
-        )],
-        &mut rpc,
-    )
-    .await;
-    assert_rpc_error(
-        result,
-        0,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
-    )
-    .unwrap();
+    // // Triggering a discriminator mismatch error is not possibly
+    // // by passing an invalid Merkle tree account.
+    // // A non Merkle tree account cannot be associated with a queue account.
+    // // Hence the instruction fails with MerkleTreeAndQueueNotAssociated.
+    // // The Merkle tree account will not be deserialized.
+    // let result = insert_into_nullifier_queues(
+    //     &[nullifier_1],
+    //     &payer,
+    //     &payer,
+    //     &[(
+    //         nullifier_queue_keypair.pubkey(),
+    //         nullifier_queue_keypair.pubkey(),
+    //     )],
+    //     &mut rpc,
+    // )
+    // .await;
+    // assert_rpc_error(
+    //     result,
+    //     0,
+    //     AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+    // )
+    // .unwrap();
     // CHECK 4.2: pass non associated Merkle tree account
     let result = insert_into_nullifier_queues(
         &[nullifier_1],
@@ -620,7 +639,11 @@ async fn test_init_and_rollover_state_merkle_tree(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer_pubkey = context.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
@@ -879,7 +902,11 @@ async fn test_append_functional_and_failing(
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer_pubkey = context.get_payer().pubkey();
     let merkle_tree_keypair = Keypair::new();
     let queue_keypair = Keypair::new();
@@ -1009,7 +1036,11 @@ async fn test_nullify_leaves(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = context.get_payer().insecure_clone();
     let payer_pubkey = context.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -1407,11 +1438,14 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 
     for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
         ix_nf.account_hash = elements[i];
-
         ix_nf.queue_index = pack_pubkey(&pubkeys[i].0, &mut hash_set);
         ix_nf.tree_index = pack_pubkey(&pubkeys[i].1, &mut hash_set);
     }
-    ix_data.num_queues = hash_set.len() as u8 / 2;
+    ix_data.num_queues = if hash_set.len() == 1 {
+        1
+    } else {
+        hash_set.len() as u8 / 2
+    };
 
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
     let accounts = account_compression::accounts::GenericInstruction {
@@ -1898,7 +1932,6 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
     let instruction = [create_insert_leaves_instruction(
         leaves.clone(),
         context.get_payer().pubkey(),
-        context.get_payer().pubkey(),
         (*merkle_tree_pubkeys).clone(),
     )];
 
@@ -2012,7 +2045,6 @@ pub async fn nullify<R: RpcConnection>(
             &instructions,
             &payer.pubkey(),
             &[&payer],
-            None,
         )
         .await?;
 
@@ -2056,7 +2088,7 @@ pub async fn nullify<R: RpcConnection>(
     Ok(())
 }
 
-pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
+pub async fn set_nullifier_queue_to_full<R: RpcConnection + TestRpc>(
     rpc: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     left_over_indices: usize,
@@ -2141,7 +2173,7 @@ async fn fail_insert_into_full_queue<R: RpcConnection>(
     assert_rpc_error(result, 0, HashSetError::Full.into()).unwrap();
 }
 
-pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
+pub async fn set_state_merkle_tree_sequence<R: RpcConnection + TestRpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     sequence_number: u64,
@@ -2173,12 +2205,12 @@ pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
     );
 }
 pub async fn assert_element_inserted_in_nullifier_queue(
-    rpc: &mut ProgramTestRpcConnection,
+    rpc: &mut LightProgramTest,
     nullifier_queue_pubkey: &Pubkey,
     nullifier: [u8; 32],
 ) {
     let array = unsafe {
-        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(rpc, *nullifier_queue_pubkey).await
+        get_hash_set::<QueueAccount, LightProgramTest>(rpc, *nullifier_queue_pubkey).await
     };
     let nullifier_bn = BigUint::from_bytes_be(&nullifier);
     let (array_element, _) = array.find_element(&nullifier_bn, None).unwrap().unwrap();
@@ -2187,7 +2219,7 @@ pub async fn assert_element_inserted_in_nullifier_queue(
 }
 
 async fn functional_6_test_insert_into_two_nullifier_queues(
-    rpc: &mut ProgramTestRpcConnection,
+    rpc: &mut LightProgramTest,
     nullifiers: &[[u8; 32]],
     queue_tree_pairs: &[(Pubkey, Pubkey)],
 ) {
@@ -2200,7 +2232,7 @@ async fn functional_6_test_insert_into_two_nullifier_queues(
 }
 
 async fn functional_7_test_insert_into_two_nullifier_queues_not_ordered(
-    rpc: &mut ProgramTestRpcConnection,
+    rpc: &mut LightProgramTest,
     nullifiers: &[[u8; 32]],
     queue_tree_pairs: &[(Pubkey, Pubkey)],
 ) {

@@ -447,16 +447,14 @@ pub fn simulate_transaction(
 #[serial]
 #[tokio::test]
 async fn test_simulate_transactions() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::BatchAppendWithProofsTest,
-                ProofType::BatchUpdateTest,
-            ],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![
+            ProofType::BatchAppendWithProofsTest,
+            ProofType::BatchUpdateTest,
+        ],
+        restart: true,
+    })
     .await;
     let mut mock_indexer =
         MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
@@ -896,16 +894,14 @@ pub fn get_random_leaf(rng: &mut StdRng, active_leaves: &mut Vec<[u8; 32]>) -> (
 #[serial]
 #[tokio::test]
 async fn test_e2e() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::BatchAppendWithProofsTest,
-                ProofType::BatchUpdateTest,
-            ],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![
+            ProofType::BatchAppendWithProofsTest,
+            ProofType::BatchUpdateTest,
+        ],
+        restart: true,
+    })
     .await;
     let mut mock_indexer =
         MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
@@ -1471,8 +1467,6 @@ fn assert_merkle_tree_update(
             && old_full_batch.get_state() != BatchState::Inserted;
         println!("zeroed_batch: {:?}", zeroed_batch);
 
-        // let current_batch = old_account.queue_batches.get_current_batch();
-
         let state = account.queue_batches.batches[previous_full_batch_index].get_state();
         let previous_batch = old_account
             .queue_batches
@@ -1603,16 +1597,14 @@ pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {
 #[serial]
 #[tokio::test]
 async fn test_fill_state_queues_completely() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::BatchAppendWithProofsTest,
-                ProofType::BatchUpdateTest,
-            ],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![
+            ProofType::BatchAppendWithProofsTest,
+            ProofType::BatchUpdateTest,
+        ],
+        restart: true,
+    })
     .await;
     let mut current_slot = 1;
     let roothistory_capacity = vec![17, 80];
@@ -2013,13 +2005,11 @@ async fn test_fill_state_queues_completely() {
 #[serial]
 #[tokio::test]
 async fn test_fill_address_tree_completely() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::BatchAddressAppendTest],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        restart: true,
+        circuits: vec![ProofType::BatchAddressAppendTest],
+    })
     .await;
     let mut current_slot = 1;
     let roothistory_capacity = vec![17, 80]; //

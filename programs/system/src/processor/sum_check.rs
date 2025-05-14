@@ -181,7 +181,6 @@ mod test {
                 root_index: 1,
                 read_only: false,
             });
-            // let mut _bytes = Vec::new();
             inputs
                 .last()
                 .unwrap()

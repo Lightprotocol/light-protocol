@@ -8,13 +8,12 @@ use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, queue::QueueMetadata,
     rollover::RolloverMetadata, QueueType,
 };
+use light_program_test::accounts::address_tree::create_address_merkle_tree_and_queue_account;
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
-
-use crate::test_env::create_address_merkle_tree_and_queue_account;
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]

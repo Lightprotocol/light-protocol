@@ -9,15 +9,15 @@ use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
 use light_program_test::{
-    acp_sdk::create_insert_leaves_instruction,
-    indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{
-        initialize_new_group, register_program_with_registry_program,
-        setup_test_programs_with_accounts, NOOP_PROGRAM_ID,
+    accounts::{
+        initialize::initialize_new_group, register_program::register_program_with_registry_program,
+        state_tree::create_insert_leaves_instruction, test_accounts::NOOP_PROGRAM_ID,
     },
-    test_rpc::ProgramTestRpcConnection,
+    indexer::{TestIndexer, TestIndexerExtensions},
+    program_test::{LightProgramTest, TestRpc},
+    utils::assert::assert_rpc_error,
+    ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_registry::{
     account_compression_cpi::sdk::{
         create_nullify_instruction, get_registered_program_pda, CreateNullifyInstructionInputs,
@@ -29,9 +29,9 @@ use light_registry::{
     },
 };
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
-    create_account_instruction, get_concurrent_merkle_tree, spl::create_mint_helper, FeeConfig,
-    RpcConnection, RpcError, TransactionParams,
+    airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
+    get_concurrent_merkle_tree, spl::create_mint_helper, FeeConfig, RpcConnection, RpcError,
+    TransactionParams,
 };
 use serial_test::serial;
 use solana_sdk::{
@@ -49,9 +49,14 @@ use system_cpi_test::sdk::{
 #[serial]
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", system_cpi_test::ID)]))
-            .await;
+    let mut rpc = LightProgramTest::new({
+        let mut config = ProgramTestConfig::default();
+        config.additional_programs = Some(vec![("system_cpi_test", system_cpi_test::ID)]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = payer.pubkey();
 
@@ -60,15 +65,7 @@ async fn test_program_owned_merkle_tree() {
     let program_owned_nullifier_queue_keypair = Keypair::new();
     let cpi_context_keypair = Keypair::new();
 
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        }),
-    )
-    .await;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
 
     test_indexer
         .add_state_merkle_tree(
@@ -81,7 +78,7 @@ async fn test_program_owned_merkle_tree() {
             1,
         )
         .await;
-
+    rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
@@ -96,36 +93,34 @@ async fn test_program_owned_merkle_tree() {
         false,
         0,
     );
-    let pre_merkle_tree = get_concurrent_merkle_tree::<
-        StateMerkleTreeAccount,
-        ProgramTestRpcConnection,
-        Poseidon,
-        26,
-    >(&mut rpc, program_owned_merkle_tree_pubkey)
-    .await;
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer_pubkey,
-            &[&payer],
-            Some(TransactionParams {
-                num_new_addresses: 0,
-                num_input_compressed_accounts: 0,
-                num_output_compressed_accounts: 1,
-                compress: 0,
-                fee_config: FeeConfig::default(),
-            }),
+    let pre_merkle_tree =
+        get_concurrent_merkle_tree::<StateMerkleTreeAccount, LightProgramTest, Poseidon, 26>(
+            &mut rpc,
+            program_owned_merkle_tree_pubkey,
         )
-        .await
-        .unwrap()
-        .unwrap();
-    let post_merkle_tree = get_concurrent_merkle_tree::<
-        StateMerkleTreeAccount,
-        ProgramTestRpcConnection,
-        Poseidon,
-        26,
-    >(&mut rpc, program_owned_merkle_tree_pubkey)
-    .await;
+        .await;
+    let event = TestRpc::create_and_send_transaction_with_public_event(
+        &mut rpc,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let post_merkle_tree =
+        get_concurrent_merkle_tree::<StateMerkleTreeAccount, LightProgramTest, Poseidon, 26>(
+            &mut rpc,
+            program_owned_merkle_tree_pubkey,
+        )
+        .await;
     let slot: u64 = rpc.get_slot().await.unwrap();
     test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
@@ -205,10 +200,15 @@ const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
 #[serial]
 #[tokio::test]
 async fn test_invalid_registered_program() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", system_cpi_test::ID)]))
-            .await;
-    let payer = env.forester.insecure_clone();
+    let mut rpc = LightProgramTest::new({
+        let mut config = ProgramTestConfig::default();
+        config.additional_programs = Some(vec![("system_cpi_test", system_cpi_test::ID)]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs with accounts");
+    let env = rpc.test_accounts.clone();
+    let payer = env.protocol.forester.insecure_clone();
     airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000)
         .await
         .unwrap();
@@ -216,7 +216,9 @@ async fn test_invalid_registered_program() {
     let program_id_keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
     println!("program_id_keypair: {:?}", program_id_keypair.pubkey());
     let invalid_group_pda =
-        initialize_new_group(&group_seed_keypair, &payer, &mut rpc, payer.pubkey()).await;
+        initialize_new_group(&group_seed_keypair, &payer, &mut rpc, payer.pubkey())
+            .await
+            .unwrap();
     let invalid_group_registered_program_pda =
         register_program(&mut rpc, &payer, &program_id_keypair, &invalid_group_pda)
             .await
@@ -253,10 +255,10 @@ async fn test_invalid_registered_program() {
     .await
     .unwrap();
 
-    let state_merkle_tree = env.merkle_tree_pubkey;
-    let nullifier_queue = env.nullifier_queue_pubkey;
-    let address_tree = env.address_merkle_tree_pubkey;
-    let address_queue = env.address_merkle_tree_queue_pubkey;
+    let state_merkle_tree = env.v1_state_trees[0].merkle_tree;
+    let nullifier_queue = env.v1_state_trees[0].nullifier_queue;
+    let address_tree = env.v1_address_trees[0].merkle_tree;
+    let address_queue = env.v1_address_trees[0].queue;
 
     // invoke account compression program through system cpi test
     // 1. the program is registered with a different group than the Merkle tree
@@ -300,7 +302,6 @@ async fn test_invalid_registered_program() {
         let instruction = create_insert_leaves_instruction(
             vec![(0, [1u8; 32])],
             payer.pubkey(),
-            payer.pubkey(),
             vec![state_merkle_tree],
         );
         let expected_error_code =
@@ -314,8 +315,8 @@ async fn test_invalid_registered_program() {
     let other_program_id_keypair = Keypair::new();
     let token_program_registered_program_pda = register_program_with_registry_program(
         &mut rpc,
-        &env.governance_authority,
-        &env.group_pda,
+        &env.protocol.governance_authority,
+        &env.protocol.group_pda,
         &other_program_id_keypair,
     )
     .await
@@ -367,7 +368,7 @@ async fn test_invalid_registered_program() {
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
         let registered_forester_pda =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
         let protocol_config_pda = get_protocol_config_pda_address().0;
 
         let instruction_data =
@@ -457,7 +458,7 @@ async fn test_invalid_registered_program() {
         let instruction_data =
             light_registry::instruction::RolloverAddressMerkleTreeAndQueue { bump };
         let registered_forester_pda =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
 
         let accounts = light_registry::accounts::RolloverAddressMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
@@ -530,7 +531,7 @@ async fn test_invalid_registered_program() {
             leaves_queue_indices: vec![1u16],
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
-            derivation: env.forester.pubkey(),
+            derivation: env.protocol.forester.pubkey(),
             is_metadata_forester: false,
         };
         let ix = create_nullify_instruction(inputs, 0);
@@ -547,7 +548,7 @@ async fn test_invalid_registered_program() {
     {
         let register_program_pda = get_registered_program_pda(&light_registry::ID);
         let registered_forester_pda =
-            get_forester_epoch_pda_from_authority(&env.forester.pubkey(), 0).0;
+            get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let instruction_data = light_registry::instruction::UpdateAddressMerkleTree {
             bump,
@@ -596,10 +597,10 @@ async fn test_invalid_registered_program() {
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
             system_program: system_program::ID,
-            state_merkle_tree: env.batched_state_merkle_tree,
-            nullifier_queue: env.batched_output_queue,
-            address_queue: env.batch_address_merkle_tree,
-            address_tree: env.batch_address_merkle_tree,
+            state_merkle_tree: env.v2_state_trees[0].merkle_tree,
+            nullifier_queue: env.v2_state_trees[0].output_queue,
+            address_queue: env.v2_address_trees[0],
+            address_tree: env.v2_address_trees[0],
         };
 
         let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
@@ -631,10 +632,10 @@ async fn test_invalid_registered_program() {
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
             system_program: system_program::ID,
-            state_merkle_tree: env.batched_state_merkle_tree,
-            nullifier_queue: env.batched_output_queue,
-            address_queue: env.batch_address_merkle_tree,
-            address_tree: env.batch_address_merkle_tree,
+            state_merkle_tree: env.v2_state_trees[0].merkle_tree,
+            nullifier_queue: env.v2_state_trees[0].output_queue,
+            address_queue: env.v2_address_trees[0],
+            address_tree: env.v2_address_trees[0],
         };
 
         let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
@@ -697,7 +698,7 @@ async fn test_invalid_registered_program() {
 }
 
 pub async fn register_program(
-    rpc: &mut ProgramTestRpcConnection,
+    rpc: &mut LightProgramTest,
     authority: &Keypair,
     program_id_keypair: &Keypair,
     group_account: &Pubkey,

@@ -27,7 +27,7 @@ use crate::indexer_type::{
         output_queue = %context.output_queue,
     ), skip(context, rpc))
 ]
-pub async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub(crate) async fn perform_append<R: RpcConnection, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
@@ -136,7 +136,7 @@ pub async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     ),
     skip(context, rpc)
 )]
-pub async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
@@ -227,7 +227,7 @@ pub async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
 }
 
 /// Get the current batch index from the Merkle tree account
-async fn get_batch_index<R: RpcConnection, I: Indexer<R>>(
+async fn get_batch_index<R: RpcConnection, I: Indexer>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<usize> {

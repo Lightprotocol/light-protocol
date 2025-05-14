@@ -2,15 +2,16 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
-use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
+use forester::{config::GeneralConfig, epoch_manager::WorkReport, run_pipeline, ForesterConfig};
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer},
+    indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
     rpc::{
-        merkle_tree::MerkleTreeExt, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
+        merkle_tree::MerkleTreeExt, rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl,
+        RpcConnection, SolanaRpcConnection,
     },
 };
 use light_compressed_account::{
@@ -19,13 +20,12 @@ use light_compressed_account::{
         pack_output_compressed_accounts, PackedCompressedAccountWithMerkleContext,
     },
     instruction_data::{
-        compressed_proof::CompressedProof,
         data::{NewAddressParams, NewAddressParamsAssigned, OutputCompressedAccountWithContext},
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
+use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer, Indexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
@@ -55,10 +55,11 @@ async fn test_create_v2_address() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: true,
-        wait_time: 10,
+        wait_time: 90,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
+            restart: true,
         }),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
@@ -68,20 +69,28 @@ async fn test_create_v2_address() {
     }))
     .await;
 
-    let env = EnvAccounts::get_local_test_validator_accounts();
+    let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
     config.transaction_config.batch_ixs_per_tx = 1;
-    config.payer_keypair = env.forester.insecure_clone();
-    config.derivation_pubkey = env.forester.pubkey();
+    config.payer_keypair = env.protocol.forester.insecure_clone();
+    config.derivation_pubkey = env.protocol.forester.pubkey();
+    config.general_config = GeneralConfig::test_address_v2();
 
-    let mut rpc =
-        SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(CommitmentConfig::processed()));
-    rpc.payer = env.forester.insecure_clone();
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(CommitmentConfig::processed()),
+        with_indexer: true,
+    });
+    rpc.payer = env.protocol.forester.insecure_clone();
 
-    ensure_sufficient_balance(&mut rpc, &env.forester.pubkey(), LAMPORTS_PER_SOL * 100).await;
+    ensure_sufficient_balance(
+        &mut rpc,
+        &env.protocol.forester.pubkey(),
+        LAMPORTS_PER_SOL * 100,
+    )
+    .await;
 
-    let (_, _, pre_root) =
-        get_initial_merkle_tree_state(&mut rpc, &env.batch_address_merkle_tree).await;
+    let (_, _, pre_root) = get_initial_merkle_tree_state(&mut rpc, &env.v2_address_trees[0]).await;
 
     let batch_payer = Keypair::from_bytes(&[
         88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
@@ -92,7 +101,7 @@ async fn test_create_v2_address() {
     .unwrap();
     ensure_sufficient_balance(&mut rpc, &batch_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
-    let batch_size = get_batch_size(&mut rpc, &env.batch_address_merkle_tree).await;
+    let batch_size = get_batch_size(&mut rpc, &env.v2_address_trees[0]).await;
     let num_addresses = 2;
 
     let num_batches = batch_size / num_addresses;
@@ -107,8 +116,8 @@ async fn test_create_v2_address() {
         println!("====== Creating v2 address {} ======", i);
         let result = create_v2_addresses(
             &mut rpc,
-            &env.batch_address_merkle_tree,
-            &env.registered_program_pda,
+            &env.v2_address_trees[0],
+            &env.protocol.registered_program_pda,
             &batch_payer,
             &env,
             &mut rng,
@@ -116,13 +125,14 @@ async fn test_create_v2_address() {
         )
         .await;
         println!("====== result: {:?} ======", result);
+        result.expect("Create address in v2 tree not successful.");
     }
     for i in 0..remaining_addresses {
         println!("====== Creating v2 address {} ======", i);
         let result = create_v2_addresses(
             &mut rpc,
-            &env.batch_address_merkle_tree,
-            &env.registered_program_pda,
+            &env.v2_address_trees[0],
+            &env.protocol.registered_program_pda,
             &batch_payer,
             &env,
             &mut rng,
@@ -133,14 +143,14 @@ async fn test_create_v2_address() {
     }
 
     let mut address_tree_account = rpc
-        .get_account(env.batch_address_merkle_tree)
+        .get_account(env.v2_address_trees[0])
         .await
         .unwrap()
         .unwrap();
 
     let address_tree = BatchedMerkleTreeAccount::address_from_bytes(
         address_tree_account.data.as_mut_slice(),
-        &env.batch_address_merkle_tree.into(),
+        &env.v2_address_trees[0].into(),
     )
     .unwrap();
 
@@ -151,7 +161,7 @@ async fn test_create_v2_address() {
 
     wait_for_work_report(&mut work_report_receiver, &tree_params).await;
 
-    verify_root_changed(&mut rpc, &env.batch_address_merkle_tree, &pre_root).await;
+    verify_root_changed(&mut rpc, &env.v2_address_trees[0], &pre_root).await;
 
     shutdown_sender
         .send(())
@@ -179,10 +189,9 @@ async fn setup_forester_pipeline(
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
-    let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    let forester_photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None, rpc);
+    let forester_photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None);
 
-    let service_handle = tokio::spawn(run_pipeline(
+    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, PhotonIndexer>(
         Arc::from(config.clone()),
         None,
         None,
@@ -242,12 +251,12 @@ async fn wait_for_work_report(
     );
 }
 
-async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt>(
+async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
     rpc: &mut R,
     batch_address_merkle_tree: &Pubkey,
     registered_program_pda: &Pubkey,
     payer: &Keypair,
-    env: &EnvAccounts,
+    env: &TestAccounts,
     rng: &mut StdRng,
     num_addresses: usize,
 ) -> Result<(), light_client::rpc::RpcError> {
@@ -277,19 +286,18 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt>(
         println!("- seed: {:?}", seed);
     }
 
-    let mut test_indexer: TestIndexer<R> = TestIndexer::init_from_env(payer, env, None).await;
-
+    let address_with_trees = addresses
+        .into_iter()
+        .map(|address| AddressWithTree {
+            address,
+            tree: *batch_address_merkle_tree,
+        })
+        .collect::<Vec<_>>();
+    let test_indexer = TestIndexer::init_from_acounts(rpc.get_payer(), env, 50).await;
     let proof_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
-            Some(&addresses),
-            Some(vec![*batch_address_merkle_tree; addresses.len()]),
-            rpc,
-        )
+        .get_validity_proof_v2(Vec::new(), address_with_trees)
         .await
         .unwrap();
-
     if num_addresses == 1 {
         let data: [u8; 31] = [1; 31];
         let new_address_params = NewAddressParams {
@@ -300,17 +308,12 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt>(
         };
 
         let proof = proof_result.proof;
-        let proof = CompressedProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
-        };
 
         let create_ix_inputs = CreateCompressedPdaInstructionInputs {
             data,
             signer: &payer.pubkey(),
-            output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-            proof: &proof,
+            output_compressed_account_merkle_tree_pubkey: &env.v1_state_trees[0].merkle_tree,
+            proof: &proof.unwrap(),
             new_address_params,
             registered_program_pda,
         };
@@ -366,7 +369,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt>(
             bump: 255,
             with_cpi_context: false,
             invoking_program_id: create_address_test_program::ID.into(),
-            proof: Some(proof_result.proof),
+            proof: proof_result.proof,
             new_address_params: packed_new_address_params,
             is_compress: false,
             compress_or_decompress_lamports: 0,

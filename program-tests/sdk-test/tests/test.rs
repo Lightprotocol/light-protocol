@@ -1,20 +1,14 @@
 #![cfg(feature = "test-sbf")]
 
 use borsh::BorshSerialize;
-use light_client::{
-    indexer::Indexer,
-    rpc::{RpcConnection, RpcError},
-};
 use light_compressed_account::{
     address::derive_address, compressed_account::CompressedAccountWithMerkleContext,
     hashv_to_bn254_field_size_be,
 };
 use light_program_test::{
-    indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::setup_test_programs_with_accounts_v2,
-    test_rpc::ProgramTestRpcConnection,
+    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, RpcConnection,
+    RpcError,
 };
-use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
     cpi::accounts::SystemAccountMetaConfig,
     instruction::{
@@ -36,24 +30,13 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_sdk_test() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_v2(Some(vec![("sdk_test", sdk_test::ID)])).await;
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        // None,
-        Some(ProverConfig {
-            circuits: vec![ProofType::Inclusion, ProofType::NonInclusion],
-            run_mode: None,
-        }),
-    )
-    .await;
-
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.batch_address_merkle_tree,
-        address_queue_pubkey: env.batch_address_merkle_tree,
+        address_merkle_tree_pubkey: rpc.get_address_merkle_tree_v2(),
+        address_queue_pubkey: rpc.get_address_merkle_tree_v2(), // v2 queue is part of the tree account
     };
 
     let account_data = [1u8; 31];
@@ -71,12 +54,11 @@ async fn test_sdk_test() {
         &address_merkle_context.address_merkle_tree_pubkey.to_bytes(),
         &sdk_test::ID.to_bytes(),
     );
-
+    let ouput_queue = rpc.get_state_merkle_tree_v2().output_queue;
     create_pda(
         &payer,
         &mut rpc,
-        &mut test_indexer,
-        &env.batched_output_queue,
+        &ouput_queue,
         account_data,
         address_merkle_context,
         address,
@@ -84,29 +66,23 @@ async fn test_sdk_test() {
     .await
     .unwrap();
 
-    let compressed_pda = test_indexer
+    let compressed_pda = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_accounts_by_owner_v2(&sdk_test::ID)
         .await
         .unwrap()[0]
         .clone();
     assert_eq!(compressed_pda.compressed_account.address.unwrap(), address);
 
-    update_pda(
-        &payer,
-        &mut rpc,
-        &mut test_indexer,
-        [2u8; 31],
-        compressed_pda,
-        env.batched_output_queue,
-    )
-    .await
-    .unwrap();
+    update_pda(&payer, &mut rpc, [2u8; 31], compressed_pda, ouput_queue)
+        .await
+        .unwrap();
 }
 
 pub async fn create_pda(
     payer: &Keypair,
-    rpc: &mut ProgramTestRpcConnection,
-    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+    rpc: &mut LightProgramTest,
     merkle_tree_pubkey: &Pubkey,
     account_data: [u8; 31],
     address_merkle_context: AddressMerkleContext,
@@ -117,16 +93,15 @@ pub async fn create_pda(
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
-            Some(&[address]),
-            Some(vec![address_merkle_context.address_merkle_tree_pubkey]),
-            rpc,
+    let rpc_result = rpc
+        .get_validity_proof_v2(
+            vec![],
+            vec![AddressWithTree {
+                address,
+                tree: address_merkle_context.address_merkle_tree_pubkey,
+            }],
         )
-        .await
-        .unwrap();
+        .await?;
 
     let output_merkle_tree_index = accounts.insert_or_get(*merkle_tree_pubkey);
     let packed_address_merkle_context = pack_address_merkle_context(
@@ -137,7 +112,7 @@ pub async fn create_pda(
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
     let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
+        proof: rpc_result.proof,
         new_addresses: Some(vec![packed_address_merkle_context]),
     };
     let instruction_data = CreatePdaInstructionData {
@@ -155,23 +130,14 @@ pub async fn create_pda(
         data: [&[0u8][..], &inputs[..]].concat(),
     };
 
-    let (event, _, slot) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?
-        .unwrap();
-    test_indexer.add_event_and_compressed_accounts(slot, &event);
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await?;
     Ok(())
 }
 
 pub async fn update_pda(
     payer: &Keypair,
-    rpc: &mut ProgramTestRpcConnection,
-    test_indexer: &mut TestIndexer<ProgramTestRpcConnection>,
+    rpc: &mut LightProgramTest,
     new_account_data: [u8; 31],
     compressed_account: CompressedAccountWithMerkleContext,
     output_merkle_tree: Pubkey,
@@ -181,15 +147,9 @@ pub async fn update_pda(
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts2(
-            Some(vec![compressed_account.hash().unwrap()]),
-            Some(vec![compressed_account.merkle_context.merkle_tree_pubkey]),
-            None,
-            None,
-            rpc,
-        )
-        .await;
+    let rpc_result = rpc
+        .get_validity_proof_v2(vec![compressed_account.hash().unwrap()], vec![])
+        .await?;
 
     let light_ix_data = LightInstructionData {
         proof: rpc_result.proof,
@@ -226,15 +186,7 @@ pub async fn update_pda(
         data: [&[1u8][..], &inputs[..]].concat(),
     };
 
-    let (event, _, slot) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?
-        .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event);
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await?;
     Ok(())
 }

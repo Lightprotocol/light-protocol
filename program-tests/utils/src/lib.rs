@@ -1,6 +1,7 @@
 use std::cmp;
 
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
+use batched_address_tree::assert_address_merkle_tree_initialized;
 pub use forester_utils::{
     account_zero_copy::{
         get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
@@ -23,15 +24,19 @@ pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
+pub mod batched_address_tree;
 pub mod conversions;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
+pub mod registered_program_accounts_v1;
 #[allow(unused)]
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
+pub mod test_batch_forester;
 #[allow(unused)]
 pub mod test_forester;
+pub mod test_keypairs;
 
 pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 pub use forester_utils::{
@@ -43,16 +48,11 @@ pub use forester_utils::{
     },
 };
 pub use light_client::{
-    rpc::{
-        assert_rpc_error, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection,
-    },
-    transaction_params::{FeeConfig, TransactionParams},
+    fee::{FeeConfig, TransactionParams},
+    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
 };
 use light_hasher::Poseidon;
-use light_program_test::{
-    indexer::utils::assert_address_merkle_tree_initialized,
-    test_env::create_address_merkle_tree_and_queue_account,
-};
+use light_program_test::accounts::address_tree::create_address_merkle_tree_and_queue_account;
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 
 use crate::assert_queue::assert_address_queue_initialized;

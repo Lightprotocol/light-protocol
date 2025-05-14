@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_client::{
-    indexer::Indexer,
+    fee::TransactionParams,
+    indexer::{AddressWithTree, Indexer},
     rpc::{errors::RpcError, RpcConnection},
-    transaction_params::TransactionParams,
 };
 use light_compressed_account::{
     address::derive_address_legacy,
@@ -20,7 +20,7 @@ use light_compressed_account::{
         },
     },
 };
-use light_program_test::indexer::TestIndexerExtensions;
+use light_program_test::{indexer::TestIndexerExtensions, program_test::test_rpc::TestRpc};
 use light_system_program::{
     constants::SOL_POOL_PDA_SEED,
     utils::{get_cpi_authority_pda, get_registered_program_pda},
@@ -36,7 +36,10 @@ use crate::assert_compressed_tx::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn create_addresses_test<
+    R: RpcConnection + TestRpc + Indexer,
+    I: Indexer + TestIndexerExtensions,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     address_merkle_tree_pubkeys: &[Pubkey],
@@ -114,7 +117,10 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexer
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn compress_sol_test<
+    R: RpcConnection + TestRpc + Indexer,
+    I: Indexer + TestIndexerExtensions,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -173,7 +179,10 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExte
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn decompress_sol_test<
+    R: RpcConnection + TestRpc + Indexer,
+    I: Indexer + TestIndexerExtensions,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -218,8 +227,8 @@ pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerEx
 
 #[allow(clippy::too_many_arguments)]
 pub async fn transfer_compressed_sol_test<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    R: RpcConnection + TestRpc + Indexer,
+    I: Indexer + TestIndexerExtensions,
 >(
     rpc: &mut R,
     test_indexer: &mut I,
@@ -287,7 +296,7 @@ pub async fn transfer_compressed_sol_test<
 }
 
 #[derive(Debug)]
-pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer<R>> {
+pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer> {
     rpc: &'a mut R,
     test_indexer: &'a mut I,
     fee_payer: &'a Keypair,
@@ -307,8 +316,8 @@ pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer<R>> 
 
 #[allow(clippy::too_many_arguments)]
 pub async fn compressed_transaction_test<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    R: RpcConnection + TestRpc + Indexer,
+    I: Indexer + TestIndexerExtensions,
 >(
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
@@ -336,27 +345,23 @@ pub async fn compressed_transaction_test<
     let mut address_params = Vec::new();
     let mut proof = None;
     if !inputs.input_compressed_accounts.is_empty() || !inputs.new_address_params.is_empty() {
-        let address_merkle_tree_pubkeys = if inputs.new_address_params.is_empty() {
-            None
-        } else {
-            Some(
-                inputs
-                    .new_address_params
-                    .iter()
-                    .map(|x| x.address_merkle_tree_pubkey)
-                    .collect::<Vec<_>>(),
-            )
-        };
+        let address_with_trees = inputs
+            .new_address_params
+            .iter()
+            .enumerate()
+            .map(|(i, x)| AddressWithTree {
+                address: inputs.created_addresses.as_ref().unwrap()[i],
+                tree: x.address_merkle_tree_pubkey,
+            })
+            .collect::<Vec<_>>();
         let proof_rpc_res = inputs
             .test_indexer
-            .create_proof_for_compressed_accounts2(
-                compressed_account_input_hashes,
-                state_input_merkle_trees.clone(),
-                inputs.created_addresses,
-                address_merkle_tree_pubkeys,
-                inputs.rpc,
+            .get_validity_proof_v2(
+                compressed_account_input_hashes.unwrap_or_else(Vec::new),
+                address_with_trees,
             )
-            .await;
+            .await
+            .unwrap();
         root_indices = proof_rpc_res.root_indices;
 
         if let Some(proof_rpc_res) = proof_rpc_res.proof {
@@ -429,16 +434,15 @@ pub async fn compressed_transaction_test<
             None => 0,
         };
     }
-    let event = inputs
-        .rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &inputs.fee_payer.pubkey(),
-            &[inputs.fee_payer, inputs.authority],
-            inputs.transaction_params,
-        )
-        .await?
-        .unwrap();
+    let event = TestRpc::create_and_send_transaction_with_public_event(
+        inputs.rpc,
+        &[instruction],
+        &inputs.fee_payer.pubkey(),
+        &[inputs.fee_payer, inputs.authority],
+        inputs.transaction_params,
+    )
+    .await?
+    .unwrap();
 
     let slot = inputs.rpc.get_transaction_slot(&event.1).await.unwrap();
     let (created_output_compressed_accounts, _) = inputs
