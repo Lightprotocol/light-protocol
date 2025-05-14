@@ -14,7 +14,7 @@ use light_client::rpc::{
     SolanaRpcConnection,
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
 use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -44,11 +44,7 @@ async fn test_state_batched() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 30,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-            restart: true,
-        }),
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))

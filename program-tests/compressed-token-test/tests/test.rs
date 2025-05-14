@@ -43,6 +43,7 @@ use light_program_test::{
 };
 use light_prover_client::gnark::helpers::{
     kill_prover, spawn_prover, spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
+    ProverMode,
 };
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{errors::SystemProgramError, utils::get_sol_pool_pda};
@@ -75,7 +76,7 @@ use spl_token::{error::TokenError, instruction::initialize_mint};
 #[serial]
 #[tokio::test]
 async fn test_create_mint() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -92,7 +93,7 @@ async fn test_create_mint() {
 #[serial]
 #[tokio::test]
 async fn test_failing_create_token_pool() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -345,7 +346,7 @@ async fn test_failing_create_token_pool() {
 #[tokio::test]
 async fn failing_tests_add_token_pool() {
     for is_token_22 in [false, true] {
-        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
             .unwrap();
         let payer = rpc.get_payer().insecure_clone();
@@ -593,14 +594,14 @@ pub async fn add_token_pool<R: RpcConnection>(
 #[tokio::test]
 async fn test_wrapped_sol() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     // is token 22 fails with Instruction: InitializeAccount, Program log: Error: Invalid Mint line 216
     for is_token_22 in [false] {
-        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
             .unwrap();
         let env = rpc.test_accounts.clone();
@@ -686,7 +687,7 @@ async fn test_wrapped_sol() {
 }
 
 async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64>) {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let env = rpc.test_accounts.clone();
@@ -726,7 +727,7 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
 #[tokio::test]
 async fn compress_spl_account() {
     for is_token_22 in [false, true] {
-        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
             .unwrap();
         let env = rpc.test_accounts.clone();
@@ -830,7 +831,7 @@ async fn compress_spl_account() {
 #[serial]
 #[tokio::test]
 async fn test_22_mint_to() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let env = rpc.test_accounts.clone();
@@ -932,7 +933,7 @@ async fn test_mint_to_failing() {
     for is_token_22 in [false, true] {
         const MINTS: usize = 10;
 
-        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
             .unwrap();
         let env = rpc.test_accounts.clone();
@@ -1247,9 +1248,9 @@ async fn test_mint_to_failing() {
 #[tokio::test]
 async fn test_transfers() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     let possible_inputs = [1, 2, 3, 4, 8];
@@ -1281,7 +1282,7 @@ async fn test_1_transfer() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000, true).await
+            perform_transfer_test(input_num, output_num, 10_000, false).await
         }
     }
 }
@@ -1300,7 +1301,7 @@ async fn test_2_transfer() {
                 "\n\ninput num: {}, output num: {}\n\n",
                 input_num, output_num
             );
-            perform_transfer_test(input_num, output_num, 10_000, true).await
+            perform_transfer_test(input_num, output_num, 10_000, false).await
         }
     }
 }
@@ -1315,7 +1316,7 @@ async fn test_8_transfer() {
             "\n\ninput num: {}, output num: {}\n\n",
             input_num, output_num
         );
-        perform_transfer_test(input_num, output_num, 10_000, true).await
+        perform_transfer_test(input_num, output_num, 10_000, false).await
     }
 }
 
@@ -1414,9 +1415,10 @@ async fn perform_transfer_22_test(
 #[tokio::test]
 async fn test_decompression() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        // is overkill but we run everything on ForesterTest
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -1566,9 +1568,9 @@ pub async fn assert_minted_to_all_token_pools<R: RpcConnection>(
 #[tokio::test]
 async fn test_mint_to_and_burn_from_all_token_pools() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -1643,12 +1645,7 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
 #[serial]
 #[tokio::test]
 async fn test_multiple_decompression() {
-    spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
-    })
-    .await;
+    spawn_prover(ProgramTestConfig::new(false, None)).await;
     let rng = &mut thread_rng();
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
@@ -1825,7 +1822,7 @@ async fn test_delegation(
     output_amounts_1: Vec<u64>,
     output_amounts_2: Vec<u64>,
 ) {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let env = rpc.test_accounts.clone();
@@ -1948,7 +1945,7 @@ async fn test_delegation_mixed() {
     let num_inputs: usize = 2;
     let delegated_amount: u64 = 3000;
 
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let env = rpc.test_accounts.clone();
@@ -2800,9 +2797,9 @@ async fn test_revoke_failing() {
 #[tokio::test]
 async fn test_burn() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3064,9 +3061,9 @@ async fn test_burn() {
 #[tokio::test]
 async fn failing_tests_burn() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3406,9 +3403,9 @@ async fn failing_tests_burn() {
 /// 5. Thaw delegated tokens
 async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3585,9 +3582,9 @@ async fn test_freeze_and_thaw_10000() {
 #[tokio::test]
 async fn test_failing_freeze() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3845,9 +3842,9 @@ async fn test_failing_freeze() {
 #[tokio::test]
 async fn test_failing_thaw() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -4135,9 +4132,9 @@ async fn test_failing_thaw() {
 #[tokio::test]
 async fn test_failing_decompression() {
     spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::Inclusion],
-        restart: true,
+        run_mode: Some(ProverMode::ForesterTest),
+        circuits: vec![],
+        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {

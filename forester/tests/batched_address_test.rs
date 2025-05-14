@@ -17,7 +17,7 @@ use light_client::{
     },
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::{
     create_address_test_program_sdk::perform_create_pda_with_event_rnd, e2e_test_env::E2ETestEnv,
 };
@@ -40,11 +40,7 @@ async fn test_address_batched() {
     init(Some(LightValidatorConfig {
         enable_indexer: true,
         wait_time: 90,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-            restart: true,
-        }),
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
             "../target/deploy/create_address_test_program.so".to_string(),

@@ -14,7 +14,7 @@ use light_client::{
     },
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_registry::{utils::get_forester_epoch_pda_from_authority, ForesterEpochPda};
 use light_test_utils::{e2e_test_env::E2ETestEnv, update_test_forester};
 use serial_test::serial;
@@ -36,11 +36,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 90,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-            restart: true,
-        }),
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))
@@ -391,11 +387,7 @@ async fn test_epoch_double_registration() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 90,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-            restart: true,
-        }),
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))

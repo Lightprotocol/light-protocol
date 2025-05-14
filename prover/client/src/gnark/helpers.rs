@@ -82,6 +82,15 @@ pub struct ProverConfig {
 }
 
 impl Default for ProverConfig {
+    #[cfg(feature = "devenv")]
+    fn default() -> Self {
+        Self {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+            restart: false,
+        }
+    }
+    #[cfg(not(feature = "devenv"))]
     fn default() -> Self {
         Self {
             run_mode: Some(ProverMode::Rpc),

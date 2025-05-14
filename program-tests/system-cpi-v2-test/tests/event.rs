@@ -43,7 +43,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 #[serial]
 async fn parse_batched_event_functional() {
     let mut rpc = LightProgramTest::new({
-        let mut config = ProgramTestConfig::default_with_batched_trees(true);
+        let mut config = ProgramTestConfig::default_with_batched_trees(false);
         config.additional_programs = Some(vec![(
             "create_address_test_program",
             create_address_test_program::ID,

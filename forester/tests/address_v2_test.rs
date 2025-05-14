@@ -26,7 +26,7 @@ use light_compressed_account::{
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer, Indexer};
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
 };
@@ -56,11 +56,7 @@ async fn test_create_v2_address() {
     init(Some(LightValidatorConfig {
         enable_indexer: true,
         wait_time: 90,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
-            circuits: vec![],
-            restart: true,
-        }),
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
             "../target/deploy/create_address_test_program.so".to_string(),

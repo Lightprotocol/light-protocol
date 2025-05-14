@@ -3154,11 +3154,7 @@ pub struct KeypairActionConfig {
 
 impl KeypairActionConfig {
     pub fn prover_config(&self) -> ProverConfig {
-        let mut config = ProverConfig {
-            run_mode: None,
-            circuits: vec![],
-            restart: true,
-        };
+        let mut config = ProverConfig::default();
 
         if self.inclusion() {
             config.circuits.push(ProofType::Inclusion);

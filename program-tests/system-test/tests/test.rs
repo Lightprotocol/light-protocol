@@ -86,7 +86,7 @@ use tokio::fs::write as async_write;
 #[serial]
 #[tokio::test]
 async fn invoke_failing_test() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -869,7 +869,7 @@ pub async fn create_instruction_and_failing_transaction<R: RpcConnection>(
 #[serial]
 #[tokio::test]
 async fn invoke_test() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
 
@@ -1140,7 +1140,7 @@ async fn invoke_test() {
 #[serial]
 #[tokio::test]
 async fn test_with_address() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(false))
         .await
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -1433,7 +1433,7 @@ async fn test_with_address() {
 #[serial]
 #[tokio::test]
 async fn test_with_compression() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
         .await
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -1812,7 +1812,7 @@ pub fn rustfmt(code: String) -> Result<Vec<u8>, io::Error> {
 #[serial]
 #[tokio::test]
 async fn batch_invoke_test() {
-    let config = ProgramTestConfig::default_test_forster(true);
+    let config = ProgramTestConfig::default_test_forster(false);
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
 

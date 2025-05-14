@@ -22,9 +22,7 @@ use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
 use light_program_test::accounts::test_accounts::TestAccounts;
-use light_prover_client::gnark::helpers::{
-    spawn_prover, LightValidatorConfig, ProverConfig, ProverMode,
-};
+use light_prover_client::gnark::helpers::{spawn_prover, LightValidatorConfig, ProverConfig};
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     utils::get_protocol_config_pda_address,
@@ -87,12 +85,7 @@ async fn test_state_indexer_async_batched() {
         limit_ledger_size: None,
     }))
     .await;
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-        restart: true,
-    })
-    .await;
+    spawn_prover(ProverConfig::default()).await;
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();

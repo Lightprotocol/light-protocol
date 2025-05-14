@@ -31,17 +31,7 @@ async fn test_10_all() {
     config.v2_address_tree_config = Some(address_params);
     config.protocol_config = protocol_config;
     config.with_prover = true;
-    config.prover_config = Some(ProverConfig {
-        restart: true,
-        run_mode: None,
-        circuits: vec![
-            ProofType::Inclusion,
-            ProofType::NonInclusion,
-            ProofType::Combined,
-            ProofType::BatchUpdateTest,
-            ProofType::BatchAppendWithProofsTest,
-        ],
-    });
+    config.prover_config = Some(ProverConfig::default());
     let rpc = LightProgramTest::new(config).await.unwrap();
 
     let indexer: TestIndexer = TestIndexer::init_from_acounts(
@@ -89,17 +79,7 @@ async fn test_batched_only() {
     config.v2_address_tree_config = Some(address_params);
     config.protocol_config = protocol_config;
     config.with_prover = true;
-    config.prover_config = Some(ProverConfig {
-        restart: true,
-        run_mode: None,
-        circuits: vec![
-            ProofType::Inclusion,
-            ProofType::NonInclusion,
-            ProofType::Combined,
-            ProofType::BatchUpdateTest,
-            ProofType::BatchAppendWithProofsTest,
-        ],
-    });
+    config.prover_config = Some(ProverConfig::default());
     config.additional_programs = Some(vec![(
         "create_address_test_program",
         CREATE_ADDRESS_TEST_PROGRAM_ID,
@@ -170,17 +150,7 @@ async fn test_10000_all() {
     config.v2_address_tree_config = Some(address_params);
     config.protocol_config = protocol_config;
     config.with_prover = true;
-    config.prover_config = Some(ProverConfig {
-        run_mode: None,
-        circuits: vec![
-            ProofType::Inclusion,
-            ProofType::NonInclusion,
-            ProofType::Combined,
-            ProofType::BatchUpdateTest,
-            ProofType::BatchAppendWithProofsTest,
-        ],
-        restart: true,
-    });
+    config.prover_config = Some(ProverConfig::default());
     config.additional_programs = Some(vec![(
         "create_address_test_program",
         CREATE_ADDRESS_TEST_PROGRAM_ID,
