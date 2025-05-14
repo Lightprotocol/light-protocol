@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use counter::CounterAccount;
@@ -24,7 +24,7 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_counter() {
-    let config = ProgramTestConfig::new(false, Some(vec![("counter", counter::ID)]));
+    let config = ProgramTestConfig::new(true, Some(vec![("counter", counter::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 

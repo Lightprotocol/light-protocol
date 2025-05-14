@@ -71,14 +71,10 @@ pub mod system_cpi_test {
             let account_metas = cpi_accounts.to_account_metas();
             (account_infos, account_metas)
         };
-        let mut data = Vec::with_capacity(8 + 4 + inputs.len());
-        data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
-        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
-        data.extend(inputs);
         let instruction = Instruction {
             program_id: PROGRAM_ID_LIGHT_SYSTEM,
             accounts: account_metas,
-            data,
+            data: inputs,
         };
         invoke_light_system_program(&crate::ID, &account_infos, instruction)
             .map_err(ProgramError::from)?;

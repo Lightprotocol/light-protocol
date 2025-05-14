@@ -2832,10 +2832,9 @@ pub mod local_sdk {
     use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
     use light_program_test::indexer::TestIndexerExtensions;
     use light_sdk::{
-        cpi::accounts::{CpiAccountsConfig, SystemAccountPubkeys},
-        find_cpi_signer_macro, pack_pubkey_usize, NewAddressParamsAssigned,
-        OutputCompressedAccountWithContext, OutputCompressedAccountWithPackedContext,
-        ReadOnlyAddress, CPI_AUTHORITY_PDA_SEED,
+        cpi::CpiAccountsConfig, find_cpi_signer_macro, instruction::accounts::SystemAccountPubkeys,
+        pack_pubkey_usize, NewAddressParamsAssigned, OutputCompressedAccountWithContext,
+        OutputCompressedAccountWithPackedContext, ReadOnlyAddress, CPI_AUTHORITY_PDA_SEED,
     };
     use light_system_program::constants::SOL_POOL_PDA_SEED;
     use light_test_utils::{RpcConnection, RpcError};
