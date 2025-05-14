@@ -80,7 +80,6 @@ pub struct GeneralConfig {
 impl Default for GeneralConfig {
     fn default() -> Self {
         GeneralConfig {
-            rpc_pool_size: 20,
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 1,
             enable_metrics: true,
@@ -95,7 +94,6 @@ impl Default for GeneralConfig {
 impl GeneralConfig {
     pub fn test_address_v2() -> Self {
         GeneralConfig {
-            rpc_pool_size: 10,
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 1,
             enable_metrics: true,
@@ -108,7 +106,6 @@ impl GeneralConfig {
 
     pub fn test_state_v2() -> Self {
         GeneralConfig {
-            rpc_pool_size: 10,
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 1,
             enable_metrics: true,

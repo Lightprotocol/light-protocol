@@ -63,8 +63,8 @@ async fn test_address_batched() {
         .url(config.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::processed())
         .build()
-    .await
-    .unwrap();
+        .await
+        .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {

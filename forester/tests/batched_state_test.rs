@@ -9,11 +9,13 @@ use light_batched_merkle_tree::{
     batch::BatchState, initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_client::rpc::{
-    rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
-    SolanaRpcConnection,
+use light_client::{
+    rpc::{
+        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
+        SolanaRpcConnection,
+    },
+    rpc_pool::SolanaRpcPoolBuilder,
 };
-use light_client::rpc_pool::SolanaRpcPoolBuilder;
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
@@ -64,8 +66,8 @@ async fn test_state_batched() {
         .url(config.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::processed())
         .build()
-    .await
-    .unwrap();
+        .await
+        .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {

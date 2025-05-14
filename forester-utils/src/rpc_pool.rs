@@ -61,6 +61,7 @@ impl<R: RpcConnection + 'static> bb8::ManageConnection for SolanaConnectionManag
             commitment_config: Some(self.commitment),
             with_indexer: false,
         };
+
         Ok(R::new(config))
     }
 
@@ -81,19 +82,20 @@ pub struct SolanaRpcPool<R: RpcConnection + 'static> {
     max_retry_delay: Duration,
 }
 
-impl<R: RpcConnection + 'static> SolanaRpcPool<R> {
-    pub async fn new(
-        url: String,
-        commitment: CommitmentConfig,
-        max_size: u32,
+#[derive(Debug)]
+pub struct SolanaRpcPoolBuilder<R: RpcConnection> {
+    url: Option<String>,
+    commitment: Option<CommitmentConfig>,
+
+    max_size: u32,
     connection_timeout_secs: u64,
     idle_timeout_secs: u64,
     max_retries: u32,
     initial_retry_delay_ms: u64,
     max_retry_delay_ms: u64,
 
-        rpc_rate_limiter: Option<RateLimiter>,
-        send_tx_rate_limiter: Option<RateLimiter>,
+    rpc_rate_limiter: Option<RateLimiter>,
+    send_tx_rate_limiter: Option<RateLimiter>,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -158,17 +160,17 @@ impl<R: RpcConnection> SolanaRpcPoolBuilder<R> {
     pub fn max_retry_delay_ms(mut self, ms: u64) -> Self {
         self.max_retry_delay_ms = ms;
         self
-            }
+    }
 
     pub fn rpc_rate_limiter(mut self, limiter: RateLimiter) -> Self {
         self.rpc_rate_limiter = Some(limiter);
         self
-            }
+    }
 
     pub fn send_tx_rate_limiter(mut self, limiter: RateLimiter) -> Self {
         self.send_tx_rate_limiter = Some(limiter);
         self
-        }
+    }
 
     pub async fn build(self) -> Result<SolanaRpcPool<R>, PoolError> {
         let url = self
@@ -236,7 +238,7 @@ impl<R: RpcConnection> SolanaRpcPool<R> {
                             current_retries + 1,
                             self.max_retries + 1
                         );
-                    tokio::task::yield_now().await;
+                        tokio::task::yield_now().await;
                         sleep(current_delay).await;
                         current_delay = min(current_delay * 2, self.max_retry_delay);
                     } else {

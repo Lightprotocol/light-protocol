@@ -58,8 +58,8 @@ async fn test_epoch_monitor_with_2_foresters() {
         .url(config1.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::confirmed())
         .build()
-    .await
-    .unwrap();
+        .await
+        .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
         url: SolanaRpcUrl::Localnet.to_string(),
@@ -403,8 +403,8 @@ async fn test_epoch_double_registration() {
         .url(config.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::confirmed())
         .build()
-    .await
-    .unwrap();
+        .await
+        .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
         url: SolanaRpcUrl::Localnet.to_string(),

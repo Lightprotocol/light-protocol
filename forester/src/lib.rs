@@ -25,12 +25,11 @@ use std::{sync::Arc, time::Duration};
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::{
-    forester_epoch::TreeAccounts, rate_limiter::RateLimiter, rpc_pool::SolanaRpcPool,
+    forester_epoch::TreeAccounts, rate_limiter::RateLimiter, rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_client::{
     indexer::Indexer,
     rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
