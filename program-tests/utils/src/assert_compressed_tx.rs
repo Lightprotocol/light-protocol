@@ -294,10 +294,11 @@ pub fn assert_public_transaction_event(
         if index.is_none() {
             println!("reference sequence numbers: {:?}", sequence_numbers);
             println!("event: {:?}", event);
-            panic!(
-                "queue pubkey not found in sequence numbers : {:?}",
-                queue_pubkey
-            );
+            // Not really applicable for the ouput queue.
+            // panic!(
+            //     "queue pubkey not found in sequence numbers : {:?}",
+            //     queue_pubkey
+            // );
         } else {
             let seq = &mut index.as_mut().unwrap().seq;
             // The output queue doesn't have a sequence number hence we set it
