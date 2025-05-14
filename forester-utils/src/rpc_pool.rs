@@ -6,7 +6,7 @@ use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, RpcE
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, error, warn};
+use tracing::{error, trace, warn};
 
 use crate::rate_limiter::RateLimiter;
 
@@ -212,13 +212,13 @@ impl<R: RpcConnection> SolanaRpcPool<R> {
         let mut current_delay = self.initial_retry_delay;
 
         loop {
-            debug!(
+            trace!(
                 "Attempting to get RPC connection... (Attempt {})",
                 current_retries + 1
             );
             match self.pool.get().await {
                 Ok(conn) => {
-                    debug!(
+                    trace!(
                         "Successfully got RPC connection (Attempt {})",
                         current_retries + 1
                     );

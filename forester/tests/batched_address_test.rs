@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use forester::run_pipeline;
 use forester_utils::{
     registry::{register_test_forester, update_test_forester},
-    rpc_pool::SolanaRpcPool,
+    rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -15,7 +15,6 @@ use light_client::{
         rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
         SolanaRpcConnection,
     },
-    rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
