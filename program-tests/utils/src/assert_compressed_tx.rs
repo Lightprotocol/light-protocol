@@ -290,7 +290,7 @@ pub fn assert_public_transaction_event(
         let queue_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
         let index = &mut updated_sequence_numbers
             .iter_mut()
-            .find(|x| x.queue_pubkey == queue_pubkey);
+            .find(|x| x.tree_pubkey == queue_pubkey);
         if index.is_none() {
             println!("reference sequence numbers: {:?}", sequence_numbers);
             println!("event: {:?}", event);
@@ -306,7 +306,9 @@ pub fn assert_public_transaction_event(
         }
     }
     for sequence_number in updated_sequence_numbers.iter() {
-        sequence_numbers.iter().any(|x| x == sequence_number);
+        sequence_numbers
+            .iter()
+            .any(|x| x.tree_pubkey == sequence_number.tree_pubkey && x.seq == sequence_number.seq);
     }
 }
 

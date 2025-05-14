@@ -4,8 +4,8 @@ use light_zero_copy::borsh::Deserialize;
 use super::{
     error::ParseIndexerEventError,
     event::{
-        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber, NewAddress,
-        PublicTransactionEvent,
+        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
+        MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
     },
 };
 use crate::{
@@ -153,7 +153,7 @@ fn deserialize_associated_instructions<'a>(
                 Vec::<OutputCompressedAccountWithPackedContext>::deserialize(&mut &bytes[..])?;
             Ok((data, cpi_context_outputs))
         } else {
-            Err(ParseIndexerEventError::DeserializeAccountCompressionInstructionError)
+            Err(ParseIndexerEventError::DeserializeAccountLightSystemCpiInputsError)
         }
     }?;
     let exec_instruction =
@@ -497,6 +497,10 @@ fn create_batched_transaction_event(
                 .iter()
                 .map(From::from)
                 .filter(|x: &MerkleTreeSequenceNumber| !(*x).is_empty())
+                .map(|x| MerkleTreeSequenceNumberV1 {
+                    seq: x.seq,
+                    tree_pubkey: x.tree_pubkey,
+                })
                 .collect(),
             relay_fee: associated_instructions
                 .executing_system_instruction

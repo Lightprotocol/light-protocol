@@ -28,8 +28,6 @@ use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::{pubkey, Pubkey};
 
-pub type AddressProof = CompressedProof;
-
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 pub struct ValidityProof(pub Option<CompressedProof>);
 

@@ -1480,14 +1480,10 @@ name = "counter"
 version = "0.0.11"
 dependencies = [
  "anchor-lang",
- "borsh 0.10.4",
- "light-client",
  "light-compressed-account",
  "light-hasher",
  "light-program-test",
- "light-prover-client",
  "light-sdk",
- "light-test-utils",
  "solana-sdk",
  "tokio",
 ]

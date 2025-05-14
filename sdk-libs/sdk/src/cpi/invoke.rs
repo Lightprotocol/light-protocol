@@ -10,14 +10,14 @@ use light_compressed_account::{
 
 use crate::{
     account_info::AccountInfoTrait,
-    cpi::accounts::CompressionCpiAccounts,
+    cpi::CpiAccounts,
     error::{LightSdkError, Result},
-    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, AddressProof, AnchorSerialize,
-    Instruction, Pubkey, ValidityProof, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
+    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
+    Pubkey, ValidityProof, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct CompressionInstruction {
+pub struct CpiInputs {
     pub proof: ValidityProof,
     pub account_infos: Option<Vec<CompressedAccountInfo>>,
     pub read_only_accounts: Option<Vec<ReadOnlyCompressedAccount>>,
@@ -28,7 +28,7 @@ pub struct CompressionInstruction {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
-impl CompressionInstruction {
+impl CpiInputs {
     pub fn new(proof: ValidityProof, account_infos: Vec<CompressedAccountInfo>) -> Self {
         Self {
             proof,
@@ -38,26 +38,36 @@ impl CompressionInstruction {
     }
 
     pub fn new_with_address(
-        proof: AddressProof,
+        proof: ValidityProof,
         account_infos: Vec<CompressedAccountInfo>,
         new_addresses: Vec<NewAddressParamsPacked>,
     ) -> Self {
         Self {
-            proof: proof.into(),
+            proof,
             account_infos: Some(account_infos),
             new_addresses: Some(new_addresses),
             ..Default::default()
         }
     }
+
+    pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts) -> Result<()> {
+        let instruction = create_instruction(self, &cpi_accounts)?;
+
+        invoke_light_system_program(
+            cpi_accounts.self_program_id(),
+            cpi_accounts.to_account_infos().as_slice(),
+            instruction,
+        )
+    }
 }
 
-pub fn verify_compression_instruction(
-    light_cpi_accounts: &CompressionCpiAccounts,
-    instruction: CompressionInstruction,
-) -> Result<()> {
-    let owner = *light_cpi_accounts.invoking_program().key;
+pub fn create_instruction(
+    cpi_inputs: CpiInputs,
+    cpi_accounts: &CpiAccounts,
+) -> Result<Instruction> {
+    let owner = *cpi_accounts.invoking_program().key;
     let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
-        if let Some(account_infos) = instruction.account_infos.as_ref() {
+        if let Some(account_infos) = cpi_inputs.account_infos.as_ref() {
             let mut input_compressed_accounts_with_merkle_context =
                 Vec::with_capacity(account_infos.len());
             let mut output_compressed_accounts = Vec::with_capacity(account_infos.len());
@@ -77,31 +87,43 @@ pub fn verify_compression_instruction(
             (vec![], vec![])
         };
     #[cfg(not(feature = "v2"))]
-    if instruction.read_only_accounts.is_some() {
+    if cpi_inputs.read_only_accounts.is_some() {
         unimplemented!("read_only_accounts are only supported with v2 soon on Devnet.");
     }
     #[cfg(not(feature = "v2"))]
-    if instruction.read_only_address.is_some() {
+    if cpi_inputs.read_only_address.is_some() {
         unimplemented!("read_only_addresses are only supported with v2 soon on Devnet.");
     }
 
-    let instruction = InstructionDataInvokeCpi {
-        proof: instruction.proof.into(),
-        new_address_params: instruction.new_addresses.unwrap_or_default(),
+    let inputs = InstructionDataInvokeCpi {
+        proof: cpi_inputs.proof.into(),
+        new_address_params: cpi_inputs.new_addresses.unwrap_or_default(),
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts,
-        compress_or_decompress_lamports: instruction.compress_or_decompress_lamports,
-        is_compress: instruction.is_compress,
-        cpi_context: instruction.cpi_context,
+        compress_or_decompress_lamports: cpi_inputs.compress_or_decompress_lamports,
+        is_compress: cpi_inputs.is_compress,
+        cpi_context: cpi_inputs.cpi_context,
     };
-    verify_borsh(light_cpi_accounts, &instruction)
+    let inputs = inputs.try_to_vec().map_err(|_| LightSdkError::Borsh)?;
+
+    let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+    data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
+    data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
+    data.extend(inputs);
+
+    let account_metas: Vec<AccountMeta> = cpi_accounts.to_account_metas();
+    Ok(Instruction {
+        program_id: PROGRAM_ID_LIGHT_SYSTEM,
+        accounts: account_metas,
+        data,
+    })
 }
 
 /// Invokes the light system program to verify and apply a zk-compressed state
 /// transition. Serializes CPI instruction data, configures necessary accounts,
 /// and executes the CPI.
-pub fn verify_borsh<T>(light_system_accounts: &CompressionCpiAccounts, inputs: &T) -> Result<()>
+pub fn verify_borsh<T>(light_system_accounts: &CpiAccounts, inputs: &T) -> Result<()>
 where
     T: AnchorSerialize,
 {
@@ -111,21 +133,18 @@ where
     data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
-    verify_system_info(light_system_accounts, data)
-}
-
-pub fn verify_system_info(
-    light_system_accounts: &CompressionCpiAccounts,
-    data: Vec<u8>,
-) -> Result<()> {
     let account_infos: Vec<AccountInfo> = light_system_accounts.to_account_infos();
 
     let account_metas: Vec<AccountMeta> = light_system_accounts.to_account_metas();
+    let instruction = Instruction {
+        program_id: PROGRAM_ID_LIGHT_SYSTEM,
+        accounts: account_metas,
+        data,
+    };
     invoke_light_system_program(
         light_system_accounts.self_program_id(),
-        &account_infos,
-        account_metas,
-        data,
+        account_infos.as_slice(),
+        instruction,
     )
 }
 
@@ -133,15 +152,8 @@ pub fn verify_system_info(
 pub fn invoke_light_system_program(
     invoking_program_id: &Pubkey,
     account_infos: &[AccountInfo],
-    account_metas: Vec<AccountMeta>,
-    data: Vec<u8>,
+    instruction: Instruction,
 ) -> Result<()> {
-    let instruction = Instruction {
-        program_id: PROGRAM_ID_LIGHT_SYSTEM,
-        accounts: account_metas,
-        data,
-    };
-
     let (_authority, bump) = find_cpi_signer_macro!(invoking_program_id);
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 

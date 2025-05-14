@@ -2,8 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
     cpi::{
-        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
-        verify::{verify_compression_instruction, CompressionInstruction},
+        create_instruction, invoke_light_system_program, CpiAccounts, CpiAccountsConfig, CpiInputs,
     },
     error::LightSdkError,
     instruction::account_meta::CompressedAccountMeta,
@@ -35,23 +34,25 @@ pub fn update_pda<const BATCHED: bool>(
 
     my_compressed_account.data = instruction_data.new_data;
 
-    let config = CompressionCpiAccountsConfig {
+    let config = CpiAccountsConfig {
         self_program: crate::ID,
         cpi_context: false,
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
-    let cpi_accounts = CompressionCpiAccounts::new_with_config(
+    let cpi_accounts = CpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
     )?;
-    let instruction = CompressionInstruction::new(
+    let cpi_inputs = CpiInputs::new(
         instruction_data.proof,
         vec![my_compressed_account.to_account_info()?],
     );
+    let instruction = create_instruction(cpi_inputs, &cpi_accounts)?;
 
-    verify_compression_instruction(&cpi_accounts, instruction)
+    invoke_light_system_program(&crate::ID, &cpi_accounts.to_account_infos(), instruction)?;
+    Ok(())
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]

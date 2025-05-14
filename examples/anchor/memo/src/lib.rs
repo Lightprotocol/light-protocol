@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use borsh::BorshDeserialize;
 use light_sdk::{
     account::LightAccount, instruction_data::LightInstructionData, light_system_accounts,
-    system_accounts::CompressionCpiAccounts, verify::verify_light_accounts, LightDiscriminator,
-    LightHasher, LightTraits,
+    system_accounts::CpiAccounts, verify::verify_light_accounts, LightDiscriminator, LightHasher,
+    LightTraits,
 };
 
 use solana_program::program_error::ProgramError;
@@ -54,7 +54,7 @@ pub mod memo {
         memo.authority = ctx.accounts.signer.key();
         memo.message = message;
 
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,
@@ -95,7 +95,7 @@ pub mod memo {
 
         memo.message = new_message;
 
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,
@@ -132,7 +132,7 @@ pub mod memo {
         if memo.authority != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
         }
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,

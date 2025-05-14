@@ -2,14 +2,10 @@ use anchor_lang::{prelude::*, Discriminator};
 use light_sdk::{
     account::LightAccount,
     address::v1::derive_address,
-    cpi::{
-        accounts::CompressionCpiAccounts,
-        verify::{verify_compression_instruction, CompressionInstruction},
-    },
+    cpi::{CpiAccounts, CpiInputs},
     instruction::{
         account_meta::CompressedAccountMeta, merkle_context::PackedAddressMerkleContext,
     },
-    verifier::CompressedProof,
     LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
 
@@ -18,19 +14,17 @@ declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 #[program]
 pub mod sdk_anchor_test {
 
-    use light_sdk::AddressProof;
-
     use super::*;
 
     pub fn with_nested_data<'info>(
         ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
-        proof: AddressProof,
+        proof: ValidityProof,
         address_merkle_context: PackedAddressMerkleContext,
         output_merkle_tree_index: u8,
         name: String,
     ) -> Result<()> {
         let program_id = crate::ID.into();
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
@@ -61,7 +55,7 @@ pub mod sdk_anchor_test {
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        let instruction = CompressionInstruction::new_with_address(
+        let cpi_inputs = CpiInputs::new_with_address(
             proof,
             vec![my_compressed_account
                 .to_account_info()
@@ -69,7 +63,8 @@ pub mod sdk_anchor_test {
             vec![new_address_params],
         );
 
-        verify_compression_instruction(&light_cpi_accounts, instruction)
+        cpi_inputs
+            .invoke_light_system_program(light_cpi_accounts)
             .map_err(ProgramError::from)?;
 
         Ok(())
@@ -92,21 +87,22 @@ pub mod sdk_anchor_test {
 
         my_compressed_account.nested = nested_data;
 
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
         )
         .map_err(ProgramError::from)?;
 
-        let instruction = CompressionInstruction::new(
+        let cpi_inputs = CpiInputs::new(
             proof,
             vec![my_compressed_account
                 .to_account_info()
                 .map_err(ProgramError::from)?],
         );
 
-        verify_compression_instruction(&light_cpi_accounts, instruction)
+        cpi_inputs
+            .invoke_light_system_program(light_cpi_accounts)
             .map_err(ProgramError::from)?;
 
         Ok(())

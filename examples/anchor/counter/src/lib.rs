@@ -1,16 +1,11 @@
-use anchor_lang::{prelude::*, Discriminator};
-use borsh::BorshDeserialize;
+use anchor_lang::{prelude::*, AnchorDeserialize, Discriminator};
 use light_sdk::{
     account::LightAccount,
     address::v1::derive_address,
-    cpi::{
-        accounts::CompressionCpiAccounts,
-        verify::{verify_compression_instruction, CompressionInstruction},
-    },
+    cpi::{CpiAccounts, CpiInputs},
     instruction::{
         account_meta::CompressedAccountMeta, merkle_context::PackedAddressMerkleContext,
     },
-    verifier::CompressedProof,
     LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
 
@@ -23,7 +18,7 @@ pub mod counter {
 
     pub fn create_counter<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
-        proof: CompressedProof,
+        proof: ValidityProof,
         address_merkle_context: PackedAddressMerkleContext,
         output_merkle_tree_index: u8,
     ) -> Result<()> {
@@ -31,9 +26,9 @@ pub mod counter {
         // LightAccount::new_init will create an account with empty output state (no input state).
         // Modifying the account will modify the output state that when converted to_account_info()
         // is hashed with poseidon hashes, serialized with borsh
-        // and created with verify_compression_instruction by invoking the light-system-program.
+        // and created with invoke_light_system_program by invoking the light-system-program.
         // The hashing scheme is the account structure derived with LightHasher.
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
@@ -65,13 +60,12 @@ pub mod counter {
         counter.owner = ctx.accounts.signer.key();
         counter.value = 0;
 
-        let instruction = CompressionInstruction::new_with_address(
+        let cpi = CpiInputs::new_with_address(
             proof,
             vec![counter.to_account_info().map_err(ProgramError::from)?],
             vec![new_address_params],
         );
-
-        verify_compression_instruction(&light_cpi_accounts, instruction)
+        cpi.invoke_light_system_program(light_cpi_accounts)
             .map_err(ProgramError::from)?;
 
         Ok(())
@@ -88,7 +82,7 @@ pub mod counter {
         // The input state is hashed immediately when calling new_mut().
         // Modifying the account will modify the output state that when converted to_account_info()
         // is hashed with poseidon hashes, serialized with borsh
-        // and created with verify_compression_instruction by invoking the light-system-program.
+        // and created with invoke_light_system_program by invoking the light-system-program.
         // The hashing scheme is the account structure derived with LightHasher.
         let mut counter = LightAccount::<'_, CounterAccount>::new_mut(
             &program_id,
@@ -102,21 +96,20 @@ pub mod counter {
 
         counter.value = counter.value.checked_add(1).ok_or(CustomError::Overflow)?;
 
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
         )
         .map_err(ProgramError::from)?;
 
-        let instruction = CompressionInstruction::new(
+        let cpi_inputs = CpiInputs::new(
             proof,
             vec![counter.to_account_info().map_err(ProgramError::from)?],
         );
-
-        verify_compression_instruction(&light_cpi_accounts, instruction)
+        cpi_inputs
+            .invoke_light_system_program(light_cpi_accounts)
             .map_err(ProgramError::from)?;
-
         Ok(())
     }
 
@@ -143,19 +136,20 @@ pub mod counter {
 
         counter.value = counter.value.checked_sub(1).ok_or(CustomError::Underflow)?;
 
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
         )
         .map_err(ProgramError::from)?;
 
-        let instruction = CompressionInstruction::new(
+        let cpi_inputs = CpiInputs::new(
             proof,
             vec![counter.to_account_info().map_err(ProgramError::from)?],
         );
 
-        verify_compression_instruction(&light_cpi_accounts, instruction)
+        cpi_inputs
+            .invoke_light_system_program(light_cpi_accounts)
             .map_err(ProgramError::from)?;
 
         Ok(())
@@ -180,18 +174,19 @@ pub mod counter {
 
         counter.value = 0;
 
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
         )
         .map_err(ProgramError::from)?;
-        let instruction = CompressionInstruction::new(
+        let cpi_inputs = CpiInputs::new(
             proof,
             vec![counter.to_account_info().map_err(ProgramError::from)?],
         );
 
-        verify_compression_instruction(&light_cpi_accounts, instruction)
+        cpi_inputs
+            .invoke_light_system_program(light_cpi_accounts)
             .map_err(ProgramError::from)?;
 
         Ok(())
@@ -217,21 +212,21 @@ pub mod counter {
         )
         .map_err(ProgramError::from)?;
 
-        let light_cpi_accounts = CompressionCpiAccounts::new(
+        let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
         )
         .map_err(ProgramError::from)?;
 
-        let instruction = CompressionInstruction::new(
+        let cpi_inputs = CpiInputs::new(
             proof,
             vec![counter.to_account_info().map_err(ProgramError::from)?],
         );
 
-        verify_compression_instruction(&light_cpi_accounts, instruction)
+        cpi_inputs
+            .invoke_light_system_program(light_cpi_accounts)
             .map_err(ProgramError::from)?;
-
         Ok(())
     }
 }

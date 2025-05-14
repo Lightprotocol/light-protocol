@@ -2,9 +2,11 @@
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use counter::CounterAccount;
-use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-use light_program_test::{program_test::LightProgramTest, AddressWithTree, ProgramTestConfig};
+use light_program_test::{
+    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, RpcConnection,
+    RpcError,
+};
 use light_sdk::{
     address::v1::derive_address,
     instruction::{
@@ -14,7 +16,6 @@ use light_sdk::{
         pack_accounts::PackedAccounts,
     },
 };
-use light_test_utils::{RpcConnection, RpcError};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -23,7 +24,7 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_counter() {
-    let config = ProgramTestConfig::new(true, Some(vec![("counter", counter::ID)]));
+    let config = ProgramTestConfig::new(false, Some(vec![("counter", counter::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -175,7 +176,7 @@ where
     );
 
     let instruction_data = counter::instruction::CreateCounter {
-        proof: rpc_result.proof,
+        proof: rpc_result.proof.into(),
         address_merkle_context: packed_address_merkle_context,
         output_merkle_tree_index,
     };

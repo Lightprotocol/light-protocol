@@ -9,7 +9,6 @@ use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, RpcConnection,
     RpcError,
 };
-
 use light_sdk::instruction::{
     account_meta::CompressedAccountMeta,
     accounts::SystemAccountMetaConfig,
@@ -110,7 +109,7 @@ pub async fn create_pda(
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
     let instruction_data = CreatePdaInstructionData {
-        proof: rpc_result.proof.unwrap(),
+        proof: rpc_result.proof.unwrap().into(),
         address_merkle_context: packed_address_merkle_context,
         data: account_data,
         output_merkle_tree_index,

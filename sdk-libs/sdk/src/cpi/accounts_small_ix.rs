@@ -1,8 +1,5 @@
 #![cfg(feature = "v2")]
-use crate::{
-    cpi::accounts::CompressionCpiAccountsConfig, error::Result, msg, AccountInfo, AccountMeta,
-    Pubkey,
-};
+use crate::{cpi::CpiAccountsConfig, error::Result, msg, AccountInfo, AccountMeta, Pubkey};
 
 #[repr(usize)]
 pub enum CompressionCpiAccountIndexSmall {
@@ -22,13 +19,13 @@ pub const PROGRAM_ACCOUNTS_LEN: usize = 3;
 pub const SMALL_SYSTEM_ACCOUNTS_LEN: usize = 9;
 
 // TODO: add unit tests
-pub struct CompressionCpiAccounts<'c, 'info> {
+pub struct CpiAccountsSmall<'c, 'info> {
     fee_payer: &'c AccountInfo<'info>,
     accounts: &'c [AccountInfo<'info>],
-    config: CompressionCpiAccountsConfig,
+    config: CpiAccountsConfig,
 }
 
-impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
+impl<'c, 'info> CpiAccountsSmall<'c, 'info> {
     // TODO: consider to pass num of trees to split remaining accounts
     pub fn new(
         fee_payer: &'c AccountInfo<'info>,
@@ -42,7 +39,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
         Ok(Self {
             fee_payer,
             accounts,
-            config: CompressionCpiAccountsConfig {
+            config: CpiAccountsConfig {
                 self_program: program_id,
                 ..Default::default()
             },
@@ -52,7 +49,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     pub fn new_with_config(
         fee_payer: &'c AccountInfo<'info>,
         accounts: &'c [AccountInfo<'info>],
-        config: CompressionCpiAccountsConfig,
+        config: CpiAccountsConfig,
     ) -> Result<Self> {
         msg!("config {:?}", config);
         // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
@@ -160,7 +157,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
         account_metas
     }
 
-    pub fn config(&self) -> &CompressionCpiAccountsConfig {
+    pub fn config(&self) -> &CpiAccountsConfig {
         &self.config
     }
 

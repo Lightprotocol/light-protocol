@@ -24,7 +24,7 @@ pub struct PublicTransactionEvent {
     pub output_compressed_account_hashes: Vec<[u8; 32]>,
     pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     pub output_leaf_indices: Vec<u32>,
-    pub sequence_numbers: Vec<MerkleTreeSequenceNumber>,
+    pub sequence_numbers: Vec<MerkleTreeSequenceNumberV1>,
     pub relay_fee: Option<u64>,
     pub is_compress: bool,
     pub compress_or_decompress_lamports: Option<u64>,
@@ -53,6 +53,12 @@ pub struct MerkleTreeSequenceNumber {
     pub tree_pubkey: Pubkey,
     pub queue_pubkey: Pubkey,
     pub tree_type: u64,
+    pub seq: u64,
+}
+
+#[derive(Debug, Clone, Copy, BorshSerialize, BorshDeserialize, Default, PartialEq)]
+pub struct MerkleTreeSequenceNumberV1 {
+    pub tree_pubkey: Pubkey,
     pub seq: u64,
 }
 

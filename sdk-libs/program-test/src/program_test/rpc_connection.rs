@@ -7,6 +7,7 @@ use light_client::{
     rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, RpcError},
 };
 use light_compressed_account::indexer_event::{
+    error::ParseIndexerEventError,
     event::{BatchPublicTransactionEvent, PublicTransactionEvent},
     parse::event_from_light_transaction,
 };
@@ -285,48 +286,69 @@ impl LightProgramTest {
             };
             return Err(error);
         }
-        let mut vec_accounts = Vec::<Vec<Pubkey>>::new();
-        let mut program_ids = Vec::new();
-
-        transaction.message.instructions.iter().for_each(|i| {
-            program_ids.push(transaction.message.account_keys[i.program_id_index as usize]);
-            vec.push(i.data.clone());
-            vec_accounts.push(
-                i.accounts
-                    .iter()
-                    .map(|x| transaction.message.account_keys[*x as usize])
-                    .collect(),
-            );
-        });
-        simulation_result
+        // Try old event deserialization.
+        let event = simulation_result
             .simulation_details
-            .and_then(|details| details.inner_instructions)
+            .as_ref()
+            .and_then(|details| details.inner_instructions.clone())
             .and_then(|instructions| {
                 instructions.iter().flatten().find_map(|inner_instruction| {
-                    vec.push(inner_instruction.instruction.data.clone());
-                    program_ids.push(
-                        transaction.message.account_keys
-                            [inner_instruction.instruction.program_id_index as usize],
-                    );
-                    vec_accounts.push(
-                        inner_instruction
-                            .instruction
-                            .accounts
-                            .iter()
-                            .map(|x| transaction.message.account_keys[*x as usize])
-                            .collect(),
-                    );
-                    None::<PublicTransactionEvent>
+                    PublicTransactionEvent::try_from_slice(&inner_instruction.instruction.data).ok()
                 })
             });
+        println!("event {:?}", event);
+        let event = if let Some(event) = event {
+            Some(vec![BatchPublicTransactionEvent {
+                event,
+                ..Default::default()
+            }])
+        } else {
+            // If PublicTransactionEvent wasn't successful deserialize new event.
+            let mut vec_accounts = Vec::<Vec<Pubkey>>::new();
+            let mut program_ids = Vec::new();
 
-        let event = event_from_light_transaction(
-            program_ids.as_slice(),
-            vec.as_slice(),
-            vec_accounts.to_vec(),
-        )
-        .unwrap();
-        println!("event: {:?}", event);
+            transaction.message.instructions.iter().for_each(|i| {
+                program_ids.push(transaction.message.account_keys[i.program_id_index as usize]);
+                vec.push(i.data.clone());
+                vec_accounts.push(
+                    i.accounts
+                        .iter()
+                        .map(|x| transaction.message.account_keys[*x as usize])
+                        .collect(),
+                );
+            });
+            simulation_result
+                .simulation_details
+                .and_then(|details| details.inner_instructions)
+                .and_then(|instructions| {
+                    instructions.iter().flatten().find_map(|inner_instruction| {
+                        vec.push(inner_instruction.instruction.data.clone());
+                        program_ids.push(
+                            transaction.message.account_keys
+                                [inner_instruction.instruction.program_id_index as usize],
+                        );
+                        vec_accounts.push(
+                            inner_instruction
+                                .instruction
+                                .accounts
+                                .iter()
+                                .map(|x| transaction.message.account_keys[*x as usize])
+                                .collect(),
+                        );
+                        None::<PublicTransactionEvent>
+                    })
+                });
+
+            event_from_light_transaction(
+                program_ids.as_slice(),
+                vec.as_slice(),
+                vec_accounts.to_vec(),
+            )
+            .or(Ok::<
+                Option<Vec<BatchPublicTransactionEvent>>,
+                ParseIndexerEventError,
+            >(None))?
+        };
         // If transaction was successful, execute it.
         if let Some(Ok(())) = simulation_result.result {
             let result = self

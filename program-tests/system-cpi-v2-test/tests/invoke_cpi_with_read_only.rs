@@ -2832,7 +2832,7 @@ pub mod local_sdk {
     use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
     use light_program_test::indexer::TestIndexerExtensions;
     use light_sdk::{
-        cpi::accounts::{CompressionCpiAccountsConfig, SystemAccountPubkeys},
+        cpi::accounts::{CpiAccountsConfig, SystemAccountPubkeys},
         find_cpi_signer_macro, pack_pubkey_usize, NewAddressParamsAssigned,
         OutputCompressedAccountWithContext, OutputCompressedAccountWithPackedContext,
         ReadOnlyAddress, CPI_AUTHORITY_PDA_SEED,
@@ -2999,7 +2999,7 @@ pub mod local_sdk {
             [228, 34, 128, 84, 47, 139, 86, 240, 0, 0, 0, 0]
             // INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION
         };
-        let onchain_config = CompressionCpiAccountsConfig {
+        let onchain_config = CpiAccountsConfig {
             self_program: create_address_test_program::ID,
             cpi_context: config.cpi_context.is_some(),
             sol_pool_pda: config.sol_pool_pda.is_some(),

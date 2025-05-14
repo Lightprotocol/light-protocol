@@ -21,17 +21,11 @@ idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true }
-borsh = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-compressed-account = { workspace = true }
 
-[target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = { workspace = true }
-
 [dev-dependencies]
-light-client = { workspace = true, features = ["devenv"] }
-light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
-light-prover-client = { workspace = true, features = ["devenv"] }
 tokio = "1.43.0"
+solana-sdk = { workspace = true }

@@ -4,14 +4,14 @@ use crate::{
 };
 
 #[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressionCpiAccountsConfig {
+pub struct CpiAccountsConfig {
     pub self_program: Pubkey,
     pub cpi_context: bool,
     pub sol_compression_recipient: bool,
     pub sol_pool_pda: bool,
 }
 
-impl CompressionCpiAccountsConfig {
+impl CpiAccountsConfig {
     pub fn new(self_program: Pubkey) -> Self {
         Self {
             self_program,
@@ -49,13 +49,13 @@ pub enum CompressionCpiAccountIndex {
 pub const SYSTEM_ACCOUNTS_LEN: usize = 11;
 
 // TODO: add unit tests
-pub struct CompressionCpiAccounts<'c, 'info> {
+pub struct CpiAccounts<'c, 'info> {
     fee_payer: &'c AccountInfo<'info>,
     accounts: &'c [AccountInfo<'info>],
-    config: CompressionCpiAccountsConfig,
+    config: CpiAccountsConfig,
 }
 
-impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
+impl<'c, 'info> CpiAccounts<'c, 'info> {
     pub fn new(
         fee_payer: &'c AccountInfo<'info>,
         accounts: &'c [AccountInfo<'info>],
@@ -64,7 +64,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
         let new = Self {
             fee_payer,
             accounts,
-            config: CompressionCpiAccountsConfig {
+            config: CpiAccountsConfig {
                 self_program: program_id,
                 ..Default::default()
             },
@@ -79,7 +79,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     pub fn new_with_config(
         fee_payer: &'c AccountInfo<'info>,
         accounts: &'c [AccountInfo<'info>],
-        config: CompressionCpiAccountsConfig,
+        config: CpiAccountsConfig,
     ) -> Result<Self> {
         let new = Self {
             fee_payer,
@@ -235,7 +235,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
         account_metas
     }
 
-    pub fn config(&self) -> &CompressionCpiAccountsConfig {
+    pub fn config(&self) -> &CpiAccountsConfig {
         &self.config
     }
 

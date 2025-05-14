@@ -12,13 +12,13 @@ pub use create_pda::*;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, data::NewAddressParamsPacked,
 };
-use light_sdk::cpi::accounts::CompressionCpiAccountsConfig;
+use light_sdk::cpi::CpiAccountsConfig;
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 #[program]
 pub mod system_cpi_test {
 
-    use light_sdk::cpi::verify::invoke_light_system_program;
+    use light_sdk::{cpi::invoke_light_system_program, PROGRAM_ID_LIGHT_SYSTEM};
 
     use super::*;
 
@@ -46,33 +46,41 @@ pub mod system_cpi_test {
     /// Test wrapper, for with read-only and with account info instructions.
     pub fn invoke_with_read_only<'info>(
         ctx: Context<'_, '_, '_, 'info, InvokeCpiReadOnly<'info>>,
-        config: CompressionCpiAccountsConfig,
+        config: CpiAccountsConfig,
         small_ix: bool,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let fee_payer = ctx.accounts.signer.to_account_info();
 
         let (account_infos, account_metas) = if small_ix {
-            use light_sdk::cpi::accounts_small_ix::CompressionCpiAccounts;
+            use light_sdk::cpi::CpiAccountsSmall;
             let cpi_accounts =
-                CompressionCpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config)
+                CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config)
                     .map_err(ProgramError::from)?;
             let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas = cpi_accounts.to_account_metas();
             (account_infos, account_metas)
         } else {
-            use light_sdk::cpi::accounts::CompressionCpiAccounts;
+            use light_sdk::cpi::CpiAccounts;
             let cpi_accounts =
-                CompressionCpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config)
+                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config)
                     .map_err(ProgramError::from)?;
             let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas = cpi_accounts.to_account_metas();
             (account_infos, account_metas)
         };
-
-        invoke_light_system_program(&crate::ID, &account_infos, account_metas, inputs)
+        let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+        data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
+        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
+        data.extend(inputs);
+        let instruction = Instruction {
+            program_id: PROGRAM_ID_LIGHT_SYSTEM,
+            accounts: account_metas,
+            data,
+        };
+        invoke_light_system_program(&crate::ID, &account_infos, instruction)
             .map_err(ProgramError::from)?;
         Ok(())
     }
@@ -173,7 +181,7 @@ pub struct InvokeCpiReadOnly<'info> {
 pub fn create_invoke_read_only_account_info_instruction(
     signer: Pubkey,
     inputs: Vec<u8>,
-    config: CompressionCpiAccountsConfig,
+    config: CpiAccountsConfig,
     small: bool,
     remaining_accounts: Vec<AccountMeta>,
 ) -> Instruction {

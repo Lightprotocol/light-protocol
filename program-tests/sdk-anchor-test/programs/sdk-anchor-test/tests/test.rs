@@ -1,12 +1,10 @@
 // #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{
-    indexer::{TestIndexer, TestIndexerExtensions},
-    program_test::LightProgramTest,
-    AddressWithTree, Indexer, ProgramTestConfig,
+    indexer::TestIndexerExtensions, program_test::LightProgramTest, AddressWithTree, Indexer,
+    ProgramTestConfig,
 };
 use light_sdk::{
     address::v1::derive_address,
@@ -132,7 +130,7 @@ async fn with_nested_data(
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
-        proof: rpc_result.proof,
+        proof: rpc_result.proof.into(),
         address_merkle_context: packed_address_merkle_context,
         name,
         output_merkle_tree_index,

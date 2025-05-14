@@ -2,13 +2,12 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
     cpi::{
-        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
-        verify::{verify_compression_instruction, CompressionInstruction},
+        create_instruction, invoke_light_system_program, CpiAccounts, CpiAccountsConfig, CpiInputs,
     },
     error::LightSdkError,
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
     instruction::merkle_context::PackedAddressMerkleContext,
-    AddressProof, LightDiscriminator, LightHasher, NewAddressParamsPacked,
+    LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError};
 
@@ -23,13 +22,13 @@ pub fn create_pda<const BATCHED: bool>(
     let mut instruction_data = instruction_data;
     let instruction_data = CreatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
-    let config = CompressionCpiAccountsConfig {
+    let config = CpiAccountsConfig {
         self_program: crate::ID,
         cpi_context: false,
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
-    let light_cpi_accounts = CompressionCpiAccounts::new_with_config(
+    let cpi_accounts = CpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
@@ -44,7 +43,7 @@ pub fn create_pda<const BATCHED: bool>(
         .map_err(ProgramError::from)?;
         let address = light_compressed_account::address::derive_address(
             &address_seed,
-            &light_cpi_accounts.tree_accounts()[instruction_data
+            &cpi_accounts.tree_accounts()[instruction_data
                 .address_merkle_context
                 .address_merkle_tree_pubkey_index
                 as usize]
@@ -56,7 +55,7 @@ pub fn create_pda<const BATCHED: bool>(
     } else {
         light_sdk::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],
-            light_cpi_accounts.tree_accounts()
+            cpi_accounts.tree_accounts()
                 [address_merkle_context.address_merkle_tree_pubkey_index as usize]
                 .key,
             &crate::ID,
@@ -78,13 +77,15 @@ pub fn create_pda<const BATCHED: bool>(
 
     my_compressed_account.data = instruction_data.data;
 
-    let instruction = CompressionInstruction::new_with_address(
+    let cpi_inputs = CpiInputs::new_with_address(
         instruction_data.proof,
         vec![my_compressed_account.to_account_info()?],
         vec![new_address_params],
     );
+    let instruction = create_instruction(cpi_inputs, &cpi_accounts)?;
 
-    verify_compression_instruction(&light_cpi_accounts, instruction)
+    invoke_light_system_program(&crate::ID, &cpi_accounts.to_account_infos(), instruction)?;
+    Ok(())
 }
 
 #[derive(
@@ -96,7 +97,7 @@ pub struct MyCompressedAccount {
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct CreatePdaInstructionData {
-    pub proof: AddressProof,
+    pub proof: ValidityProof,
     pub address_merkle_context: PackedAddressMerkleContext,
     pub output_merkle_tree_index: u8,
     pub data: [u8; 31],
