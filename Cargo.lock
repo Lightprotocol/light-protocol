@@ -3789,14 +3789,10 @@ version = "2.0.0"
 dependencies = [
  "groth16-solana",
  "light-compressed-account",
- "light-prover-client",
  "pinocchio",
- "reqwest",
- "serial_test",
  "solana-msg",
  "solana-program-error",
  "thiserror 2.0.12",
- "tokio",
 ]
 
 [[package]]
