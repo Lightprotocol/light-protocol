@@ -6,7 +6,7 @@ use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, RpcE
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, error};
+use tracing::{error, trace};
 
 use crate::rate_limiter::RateLimiter;
 
@@ -98,7 +98,7 @@ impl<R: RpcConnection + 'static> SolanaRpcPool<R> {
     pub async fn get_connection(
         &self,
     ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
-        debug!("Attempting to get RPC connection...");
+        trace!("Attempting to get RPC connection...");
         let result = self
             .pool
             .get()
@@ -107,7 +107,7 @@ impl<R: RpcConnection + 'static> SolanaRpcPool<R> {
 
         match result {
             Ok(_) => {
-                debug!("Successfully got RPC connection");
+                trace!("Successfully got RPC connection");
             }
             Err(ref e) => {
                 error!("Failed to get RPC connection: {:?}", e);

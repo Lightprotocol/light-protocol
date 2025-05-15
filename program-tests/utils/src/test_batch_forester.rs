@@ -36,7 +36,7 @@ use light_prover_client::{
         batch_address_append_json_formatter::to_json,
         batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
         batch_update_json_formatter::update_inputs_string,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
+        constants::{get_server_address, PROVE_PATH},
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
 };
@@ -172,7 +172,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
         let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", get_server_address(), PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs_json)
             .send()
@@ -317,7 +317,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     let new_root = bundle.merkle_tree.root();
 
     let response_result = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .post(format!("{}{}", get_server_address(), PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
         .body(inputs)
         .send()
@@ -764,7 +764,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);
     let response_result = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .post(format!("{}{}", get_server_address(), PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
         .body(inputs)
         .send()

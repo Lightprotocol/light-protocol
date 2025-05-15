@@ -54,8 +54,6 @@ rand = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
-log = "0.4.26"
-hex = "0.4.3"
 bb8 = { workspace = true }
 async-trait = { workspace = true }
 governor = { workspace = true }

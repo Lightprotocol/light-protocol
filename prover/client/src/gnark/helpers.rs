@@ -1,9 +1,9 @@
 use std::{
+    env,
     ffi::OsStr,
     fmt::{Display, Formatter},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
-    thread::sleep,
     time::Duration,
 };
 
@@ -12,9 +12,10 @@ use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
 use serde_json::json;
 use sysinfo::{Signal, System};
+use tokio::time::sleep;
 use tracing::info;
 
-use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
+use crate::gnark::constants::{get_server_address, HEALTH_CHECK};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -111,12 +112,30 @@ impl ProverConfig {
     }
 }
 
+pub fn is_remote_prover() -> bool {
+    env::var("PROVER_URL").is_ok()
+}
+
 pub async fn spawn_prover(config: ProverConfig) {
+    if is_remote_prover() {
+        println!("Using external prover...");
+        let health_result = health_check(3, 3).await;
+        if health_result {
+            info!("External prover is accessible");
+        } else {
+            info!(
+                "Warning: External prover at {} is not responding",
+                get_server_address()
+            );
+        }
+        return;
+    }
+
     if let Some(_project_root) = get_project_root() {
         let prover_path: &str = {
             #[cfg(feature = "devenv")]
             {
-                sleep(Duration::from_secs(2));
+                sleep(Duration::from_secs(2)).await;
                 &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
             }
             #[cfg(not(feature = "devenv"))]
@@ -226,9 +245,10 @@ pub fn kill_prover() {
 pub async fn health_check(retries: usize, timeout: usize) -> bool {
     let client = reqwest::Client::new();
     let mut result = false;
+    let server_address = get_server_address();
     for _ in 0..retries {
         match client
-            .get(format!("{}{}", SERVER_ADDRESS, HEALTH_CHECK))
+            .get(format!("{}{}", server_address, HEALTH_CHECK))
             .send()
             .await
         {
@@ -344,15 +364,15 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             ));
         }
 
-        if let Some(prover_config) = config.prover_config {
+        if is_remote_prover() || config.prover_config.is_none() {
+            path.push_str(" --skip-prover");
+        } else if let Some(prover_config) = config.prover_config {
             prover_config.circuits.iter().for_each(|circuit| {
                 path.push_str(&format!(" --circuit {}", circuit));
             });
             if let Some(prover_mode) = prover_config.run_mode {
                 path.push_str(&format!(" --prover-run-mode {}", prover_mode));
             }
-        } else {
-            path.push_str(" --skip-prover");
         }
 
         println!("Starting validator with command: {}", path);
@@ -367,8 +387,8 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             .expect("Failed to start server process");
 
         // Explicitly `drop` the process to ensure we don't wait on it
-        std::mem::drop(child);
+        drop(child);
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
+        tokio::time::sleep(Duration::from_secs(config.wait_time)).await;
     }
 }

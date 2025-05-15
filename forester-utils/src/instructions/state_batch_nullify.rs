@@ -11,7 +11,7 @@ use light_prover_client::{
     batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
     gnark::{
         batch_update_json_formatter::update_inputs_string,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
+        constants::{get_server_address, PROVE_PATH},
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
 };
@@ -257,7 +257,7 @@ async fn generate_nullify_zkp_proof(
     let json_str = update_inputs_string(&inputs);
 
     let response = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .post(format!("{}{}", get_server_address(), PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
         .body(json_str.clone())
         .send()

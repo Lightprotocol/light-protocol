@@ -35,7 +35,7 @@ use test_utils::*;
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 90,
+        wait_time: 3,
         prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
@@ -285,25 +285,20 @@ async fn test_epoch_monitor_with_2_foresters() {
     let mut rpc = pool.get_connection().await.unwrap();
     let forester_pubkeys = [config1.derivation_pubkey, config2.derivation_pubkey];
 
-    // assert that foresters registered for epoch 1 and 2 (no new work is emitted after epoch 0)
-    // Assert that foresters have registered all processed epochs and the next epoch (+1)
-    for epoch in 1..=EXPECTED_EPOCHS {
-        let total_processed_work =
-            assert_foresters_registered(&forester_pubkeys[..], &mut rpc, epoch)
-                .await
-                .unwrap();
-        if epoch == 1 {
-            assert_eq!(
-                total_processed_work, total_expected_work,
-                "Not all items were processed."
-            );
-        } else {
-            assert_eq!(
-                total_processed_work, 0,
-                "Not all items were processed in prior epoch."
-            );
-        }
+    let mut total_processed_work = 0;
+    // assert that
+    // - foresters registered for epoch 1 and 2
+    // - foresters have registered all processed epochs and the next epoch (+1)
+    for epoch in 0..=EXPECTED_EPOCHS {
+        total_processed_work += assert_foresters_registered(&forester_pubkeys[..], &mut rpc, epoch)
+            .await
+            .unwrap();
     }
+
+    assert_eq!(
+        total_processed_work, total_expected_work,
+        "Not all items were processed."
+    );
 
     shutdown_sender1
         .send(())

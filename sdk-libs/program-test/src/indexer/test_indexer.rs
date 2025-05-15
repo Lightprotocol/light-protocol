@@ -36,7 +36,7 @@ use light_prover_client::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
+        constants::{get_server_address, PROVE_PATH},
         helpers::{big_int_to_string, string_to_big_int, ProofType},
         inclusion_json_formatter::BatchInclusionJsonStruct,
         inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
@@ -512,7 +512,7 @@ impl Indexer for TestIndexer {
             let mut retries = 3;
             while retries > 0 {
                 let response_result = client
-                    .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                    .post(format!("{}{}", get_server_address(), PROVE_PATH))
                     .header("Content-Type", "text/plain; charset=utf-8")
                     .body(json_payload.clone())
                     .send()

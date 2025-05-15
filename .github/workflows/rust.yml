@@ -23,13 +23,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_MIN_STACK: 8388608
-  RUSTFLAGS: "-D warnings"
+  RUST_BACKTRACE: "1"
+  RUSTFLAGS: "--cfg tokio_unstable -D warnings"
+  PROVER_URL: ${{ secrets.PROVER_URL }}
 
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-latest
     outputs:
       timing: ${{ steps.test-timing.outputs.timing }}
     strategy:

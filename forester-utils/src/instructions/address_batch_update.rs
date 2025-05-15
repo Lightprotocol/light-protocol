@@ -19,7 +19,7 @@ use light_prover_client::{
     batch_address_append::{get_batch_address_append_circuit_inputs, BatchAddressAppendInputs},
     gnark::{
         batch_address_append_json_formatter::to_json,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
+        constants::{get_server_address, PROVE_PATH},
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
 };
@@ -290,7 +290,7 @@ async fn generate_zkp_proof(
     let inputs_json = to_json(&inputs);
 
     let response_result = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .post(format!("{}{}", get_server_address(), PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
         .body(inputs_json)
         .send()
