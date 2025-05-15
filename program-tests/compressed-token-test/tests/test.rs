@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use std::{assert_eq, str::FromStr};
 
@@ -42,7 +42,7 @@ use light_program_test::{
     LightProgramTest, ProgramTestConfig,
 };
 use light_prover_client::gnark::helpers::{
-    kill_prover, spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
+    spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
 };
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{errors::SystemProgramError, utils::get_sol_pool_pda};
@@ -682,7 +682,6 @@ async fn test_wrapped_sol() {
         )
         .await;
     }
-    kill_prover();
 }
 
 async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64>) {
@@ -713,7 +712,6 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
         )
         .await;
     }
-    kill_prover();
 }
 
 /// Functional tests:
@@ -1499,7 +1497,6 @@ async fn test_decompression() {
         )
         .await;
     }
-    kill_prover();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1807,7 +1804,6 @@ async fn test_multiple_decompression() {
             .await;
         }
     }
-    kill_prover();
 }
 
 /// Test delegation:
@@ -1930,7 +1926,6 @@ async fn test_delegation(
         )
         .await;
     }
-    kill_prover();
 }
 
 /// Test delegation:
@@ -2136,7 +2131,6 @@ async fn test_delegation_mixed() {
         .await;
         println!("part 4");
     }
-    kill_prover();
 }
 
 #[serial]
@@ -4633,7 +4627,6 @@ async fn test_failing_decompression() {
         )
         .await;
     }
-    kill_prover();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5135,7 +5128,6 @@ async fn test_invalid_inputs() {
         )
         .unwrap();
     }
-    kill_prover();
 }
 
 #[allow(clippy::too_many_arguments)]

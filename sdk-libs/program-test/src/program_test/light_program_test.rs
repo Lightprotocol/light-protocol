@@ -63,8 +63,8 @@ impl LightProgramTest {
             .as_ref()
             .map(|config| config.output_queue_batch_size as usize);
         context.add_indexer(&test_accounts, batch_size).await?;
-        // config.with_prover &&
-        let prover_config = if config.prover_config.is_none() {
+
+        let prover_config = if config.with_prover && config.prover_config.is_none() {
             Some(ProverConfig::default())
         } else {
             config.prover_config

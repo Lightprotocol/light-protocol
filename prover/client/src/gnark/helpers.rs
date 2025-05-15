@@ -130,7 +130,7 @@ pub async fn spawn_prover(config: ProverConfig) {
             kill_prover();
         }
 
-        if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+        if !health_check(3, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
 
             let mut command = Command::new(prover_path);

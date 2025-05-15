@@ -28,7 +28,7 @@ fn get_valid_cpi_context_account_info() -> AccountInfo {
 
     // Create data with the correct discriminator at the beginning
     let mut data = vec![0; 100]; // Extra space for the account data
-    data[0..8].copy_from_slice(&CpiContextAccount::DISCRIMINATOR);
+    data[0..8].copy_from_slice(&CpiContextAccount::LIGHT_DISCRIMINATOR);
 
     get_account_info(
         pubkey_unique(), // Random pubkey
