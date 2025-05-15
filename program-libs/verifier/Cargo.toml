@@ -27,12 +27,6 @@ solana-msg = { workspace = true, optional = true }
 # Optional import for ProgramError conversion
 pinocchio = { workspace = true, optional = true }
 
-[dev-dependencies]
-tokio = { workspace = true }
-reqwest = { workspace = true, features = ["json", "rustls-tls"] }
-light-prover-client = { workspace = true, features = ["devenv"] }
-serial_test = { workspace = true }
-
 [lints.rust.unexpected_cfgs]
 level = "allow"
 check-cfg = ['cfg(target_os, values("solana"))']
