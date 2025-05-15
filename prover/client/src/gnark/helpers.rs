@@ -112,9 +112,13 @@ impl ProverConfig {
     }
 }
 
+pub fn is_remote_prover() -> bool {
+    env::var("PROVER_URL").is_ok()
+}
+
 pub async fn spawn_prover(config: ProverConfig) {
-    if env::var("PROVER_URL").is_ok() {
-        println!("Using external prover at: {}", get_server_address());
+    if is_remote_prover() {
+        println!("Using external prover...");
         let health_result = health_check(3, 3).await;
         if health_result {
             info!("External prover is accessible");
@@ -360,6 +364,9 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             ));
         }
 
+        if is_remote_prover() || config.prover_config.is_none() {
+            path.push_str(" --skip-prover");
+        }
         if let Some(prover_config) = config.prover_config {
             prover_config.circuits.iter().for_each(|circuit| {
                 path.push_str(&format!(" --circuit {}", circuit));
@@ -367,8 +374,6 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             if let Some(prover_mode) = prover_config.run_mode {
                 path.push_str(&format!(" --prover-run-mode {}", prover_mode));
             }
-        } else {
-            path.push_str(" --skip-prover");
         }
 
         println!("Starting validator with command: {}", path);
