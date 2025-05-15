@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use std::{assert_eq, str::FromStr};
 
@@ -5215,7 +5215,6 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
 
 #[serial]
 #[tokio::test]
-#[ignore = "works"]
 async fn mint_with_batched_tree() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -5249,7 +5248,6 @@ async fn mint_with_batched_tree() {
 
 #[serial]
 #[tokio::test]
-#[ignore = "works"]
 async fn test_transfer_with_batched_tree() {
     let possible_inputs = [1];
     for input_num in possible_inputs {
@@ -5469,7 +5467,7 @@ async fn test_transfer_with_photon_and_batched_tree() {
 /// 5. Failing invalid derived token pool pda
 /// 6. Failing invalid token pool pda derived from different index
 /// 7. Failing no sender token account
-#[ignore = "works"]
+
 #[serial]
 #[tokio::test]
 async fn batch_compress_with_batched_tree() {

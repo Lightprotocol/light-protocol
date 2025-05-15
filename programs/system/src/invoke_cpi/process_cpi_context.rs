@@ -176,7 +176,7 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
             .unwrap()
             .merkle_tree_index();
         if &remaining_accounts[index as usize].try_borrow_data()?[..8]
-            == BatchedQueueAccount::DISCRIMINATOR_SLICE
+            == BatchedQueueAccount::LIGHT_DISCRIMINATOR_SLICE
         {
             let queue_account =
                 BatchedQueueAccount::output_from_account_info(&remaining_accounts[index as usize])?;
@@ -258,7 +258,7 @@ mod tests {
             true,
             false,
             [
-                CpiContextAccount::DISCRIMINATOR_SLICE.to_vec(),
+                CpiContextAccount::LIGHT_DISCRIMINATOR_SLICE.to_vec(),
                 data.try_to_vec().unwrap(),
                 vec![0u8; 15000],
             ]

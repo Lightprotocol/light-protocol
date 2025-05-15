@@ -191,7 +191,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
                     .contains(&BigUint::from_be_bytes(address), None)
                     .unwrap());
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
+            BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => {
                 let mut account_data = account.data.clone();
                 let mut merkle_tree =
                     BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey.into())
@@ -458,7 +458,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     version: 1,
                 });
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
+            BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => {
                 let merkle_tree_account_lamports = account_data.lamports;
                 let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                     &mut account_data.data,

@@ -31,7 +31,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     ) -> Self {
         let output_account_info = OutAccountInfo {
             output_merkle_tree_index,
-            discriminator: A::DISCRIMINATOR,
+            discriminator: A::LIGHT_DISCRIMINATOR,
             ..Default::default()
         };
         Self {
@@ -57,14 +57,14 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 merkle_context: *input_account_meta.get_merkle_context(),
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
-                discriminator: A::DISCRIMINATOR,
+                discriminator: A::LIGHT_DISCRIMINATOR,
             }
         };
         let output_account_info = {
             OutAccountInfo {
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 output_merkle_tree_index: input_account_meta.get_output_merkle_tree_index(),
-                discriminator: A::DISCRIMINATOR,
+                discriminator: A::LIGHT_DISCRIMINATOR,
                 ..Default::default()
             }
         };
@@ -92,7 +92,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 merkle_context: *input_account_meta.get_merkle_context(),
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
-                discriminator: A::DISCRIMINATOR,
+                discriminator: A::LIGHT_DISCRIMINATOR,
             }
         };
         Ok(Self {
@@ -107,7 +107,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     }
 
     pub fn discriminator(&self) -> &[u8; 8] {
-        &A::DISCRIMINATOR
+        &A::LIGHT_DISCRIMINATOR
     }
 
     pub fn lamports(&self) -> u64 {

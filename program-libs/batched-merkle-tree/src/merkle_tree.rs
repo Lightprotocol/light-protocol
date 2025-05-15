@@ -85,8 +85,8 @@ pub struct BatchedMerkleTreeAccount<'a> {
 }
 
 impl Discriminator for BatchedMerkleTreeAccount<'_> {
-    const DISCRIMINATOR: [u8; 8] = *b"BatchMta";
-    const DISCRIMINATOR_SLICE: &'static [u8] = b"BatchMta";
+    const LIGHT_DISCRIMINATOR: [u8; 8] = *b"BatchMta";
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = b"BatchMta";
 }
 
 impl<'a> BatchedMerkleTreeAccount<'a> {

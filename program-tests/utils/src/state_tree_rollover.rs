@@ -151,7 +151,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection + TestRpc + Index
                 .unwrap();
             assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
         }
-        BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {}
+        BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => {}
         _ => panic!("Invalid discriminator"),
     }
 }

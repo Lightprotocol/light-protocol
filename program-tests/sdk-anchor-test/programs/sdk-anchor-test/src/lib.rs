@@ -117,9 +117,8 @@ pub mod sdk_anchor_test {
     }
 }
 
-#[derive(
-    Clone, Debug, Default, LightHasher, LightDiscriminator, AnchorSerialize, AnchorDeserialize,
-)]
+#[event]
+#[derive(Clone, Debug, Default, LightHasher, LightDiscriminator)]
 pub struct MyCompressedAccount {
     pub name: String,
     pub nested: NestedData,

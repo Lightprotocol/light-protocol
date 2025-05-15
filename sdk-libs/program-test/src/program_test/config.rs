@@ -52,6 +52,7 @@ impl ProgramTestConfig {
     pub fn default_with_batched_trees(with_prover: bool) -> Self {
         Self {
             additional_programs: None,
+            prover_config: Some(ProverConfig::default()),
             with_prover,
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
             v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),

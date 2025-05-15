@@ -133,7 +133,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
             discriminator.copy_from_slice(&data[..8]);
         }
         match &discriminator[..] {
-            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
+            BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => {
                 let mut tree_type = [0u8; 8];
                 tree_type.copy_from_slice(&account_info.try_borrow_data()?[8..16]);
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
@@ -163,7 +163,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                     _ => Err(ProgramError::from(AccountError::BorrowAccountDataFailed).into()),
                 }
             }
-            BatchedQueueAccount::DISCRIMINATOR_SLICE => {
+            BatchedQueueAccount::LIGHT_DISCRIMINATOR_SLICE => {
                 let queue = BatchedQueueAccount::output_from_account_info(account_info)
                     .map_err(ProgramError::from)?;
 

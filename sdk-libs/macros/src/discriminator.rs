@@ -14,11 +14,11 @@ pub(crate) fn discriminator(input: ItemStruct) -> Result<TokenStream> {
 
     Ok(quote! {
         impl #impl_gen ::light_sdk::LightDiscriminator for #account_name #type_gen #where_clause {
-            const DISCRIMINATOR: [u8; 8] = #discriminator;
-            const DISCRIMINATOR_SLICE: &'static [u8] = &Self::DISCRIMINATOR;
+            const LIGHT_DISCRIMINATOR: [u8; 8] = #discriminator;
+            const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 
             fn discriminator() -> [u8; 8] {
-                Self::DISCRIMINATOR
+                Self::LIGHT_DISCRIMINATOR
             }
         }
     })
