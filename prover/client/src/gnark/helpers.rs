@@ -3,6 +3,7 @@ use std::{
     fmt::{Display, Formatter},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
+    thread::sleep,
     time::Duration,
 };
 
@@ -115,6 +116,7 @@ pub async fn spawn_prover(config: ProverConfig) {
         let prover_path: &str = {
             #[cfg(feature = "devenv")]
             {
+                sleep(Duration::from_secs(2));
                 &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
             }
             #[cfg(not(feature = "devenv"))]
@@ -239,6 +241,7 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
             }
         }
     }
+    println!("health_check is ok {}", result);
     result
 }
 

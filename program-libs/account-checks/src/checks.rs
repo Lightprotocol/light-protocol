@@ -293,7 +293,7 @@ mod check_account_tests {
         // Test 1 functional set discriminator.
         assert_eq!(bytes[0..8], [0; 8]);
         set_discriminator::<MyStruct>(&mut bytes).unwrap();
-        assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
+        assert_eq!(bytes[0..8], MyStruct::LIGHT_DISCRIMINATOR);
         // Test 2 failing set discriminator.
         assert_eq!(
             set_discriminator::<MyStruct>(&mut bytes),
