@@ -2,6 +2,7 @@
 
 pub mod cyclic_vec;
 pub mod errors;
+#[cfg(feature = "std")]
 pub mod num_trait;
 pub mod slice;
 pub mod slice_mut;
