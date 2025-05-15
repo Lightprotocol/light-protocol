@@ -366,8 +366,7 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
 
         if is_remote_prover() || config.prover_config.is_none() {
             path.push_str(" --skip-prover");
-        }
-        else if let Some(prover_config) = config.prover_config {
+        } else if let Some(prover_config) = config.prover_config {
             prover_config.circuits.iter().for_each(|circuit| {
                 path.push_str(&format!(" --circuit {}", circuit));
             });
