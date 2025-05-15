@@ -134,8 +134,8 @@ pub struct BatchedQueueAccount<'a> {
 }
 
 impl Discriminator for BatchedQueueAccount<'_> {
-    const DISCRIMINATOR: [u8; 8] = *b"queueacc";
-    const DISCRIMINATOR_SLICE: &'static [u8] = b"queueacc";
+    const LIGHT_DISCRIMINATOR: [u8; 8] = *b"queueacc";
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = b"queueacc";
 }
 
 impl<'a> BatchedQueueAccount<'a> {

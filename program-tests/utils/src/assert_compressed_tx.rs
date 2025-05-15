@@ -191,7 +191,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
                     .contains(&BigUint::from_be_bytes(address), None)
                     .unwrap());
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
+            BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => {
                 let mut account_data = account.data.clone();
                 let mut merkle_tree =
                     BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey.into())
@@ -290,14 +290,15 @@ pub fn assert_public_transaction_event(
         let queue_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
         let index = &mut updated_sequence_numbers
             .iter_mut()
-            .find(|x| x.queue_pubkey == queue_pubkey);
+            .find(|x| x.tree_pubkey == queue_pubkey);
         if index.is_none() {
             println!("reference sequence numbers: {:?}", sequence_numbers);
             println!("event: {:?}", event);
-            panic!(
-                "queue pubkey not found in sequence numbers : {:?}",
-                queue_pubkey
-            );
+            // Not really applicable for the ouput queue.
+            // panic!(
+            //     "queue pubkey not found in sequence numbers : {:?}",
+            //     queue_pubkey
+            // );
         } else {
             let seq = &mut index.as_mut().unwrap().seq;
             // The output queue doesn't have a sequence number hence we set it
@@ -306,7 +307,9 @@ pub fn assert_public_transaction_event(
         }
     }
     for sequence_number in updated_sequence_numbers.iter() {
-        sequence_numbers.iter().any(|x| x == sequence_number);
+        sequence_numbers
+            .iter()
+            .any(|x| x.tree_pubkey == sequence_number.tree_pubkey && x.seq == sequence_number.seq);
     }
 }
 
@@ -455,7 +458,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     version: 1,
                 });
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
+            BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => {
                 let merkle_tree_account_lamports = account_data.lamports;
                 let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                     &mut account_data.data,

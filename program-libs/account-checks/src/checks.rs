@@ -79,7 +79,7 @@ pub fn check_account_info<T: Discriminator>(
 pub fn set_discriminator<T: Discriminator>(bytes: &mut [u8]) -> Result<(), AccountError> {
     check_data_is_zeroed::<DISCRIMINATOR_LEN>(bytes)
         .map_err(|_| AccountError::AlreadyInitialized)?;
-    bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
+    bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::LIGHT_DISCRIMINATOR);
     Ok(())
 }
 
@@ -91,7 +91,7 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
         return Err(AccountError::InvalidAccountSize);
     }
 
-    if T::DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
+    if T::LIGHT_DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
         return Err(AccountError::InvalidDiscriminator);
     }
     Ok(())
@@ -277,8 +277,8 @@ mod check_account_tests {
         pub data: u64,
     }
     impl Discriminator for MyStruct {
-        const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-        const DISCRIMINATOR_SLICE: &[u8] = &Self::DISCRIMINATOR;
+        const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+        const LIGHT_DISCRIMINATOR_SLICE: &[u8] = &Self::LIGHT_DISCRIMINATOR;
     }
 
     /// Tests:
@@ -293,7 +293,7 @@ mod check_account_tests {
         // Test 1 functional set discriminator.
         assert_eq!(bytes[0..8], [0; 8]);
         set_discriminator::<MyStruct>(&mut bytes).unwrap();
-        assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
+        assert_eq!(bytes[0..8], MyStruct::LIGHT_DISCRIMINATOR);
         // Test 2 failing set discriminator.
         assert_eq!(
             set_discriminator::<MyStruct>(&mut bytes),

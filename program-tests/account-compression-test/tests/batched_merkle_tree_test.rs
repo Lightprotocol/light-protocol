@@ -43,7 +43,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
 };
 use light_prover_client::{
-    gnark::helpers::{spawn_prover, ProofType, ProverConfig},
+    gnark::helpers::{spawn_prover, ProverConfig},
     mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
 use light_test_utils::{
@@ -246,15 +246,7 @@ async fn test_batch_state_merkle_tree() {
         .await
         .unwrap();
     }
-    spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![
-            ProofType::BatchAppendWithProofsTest,
-            ProofType::BatchUpdateTest,
-        ],
-        restart: true,
-    })
-    .await;
+    spawn_prover(ProverConfig::default()).await;
 
     // 4. Failing Invalid Signer (batch append)
     {
@@ -1719,12 +1711,7 @@ async fn test_batch_address_merkle_trees() {
             .unwrap();
         }
     }
-    spawn_prover(ProverConfig {
-        run_mode: None,
-        circuits: vec![ProofType::BatchAddressAppendTest],
-        restart: true,
-    })
-    .await;
+    spawn_prover(ProverConfig::default()).await;
     // 4. Functional: update batch address tree
     {
         update_batch_address_tree(

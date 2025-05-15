@@ -178,6 +178,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	case ForesterTest: // append-test + update-test + address-append-test
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
+		keys = append(keys, combinedKeys...)
 		keys = append(keys, appendWithProofsTestKeys...)
 		keys = append(keys, updateTestKeys...)
 		keys = append(keys, addressAppendTestKeys...)

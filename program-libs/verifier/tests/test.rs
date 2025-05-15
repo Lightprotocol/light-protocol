@@ -11,7 +11,7 @@ mod test {
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{kill_prover, spawn_prover, ProofType, ProverConfig},
+            helpers::{kill_prover, spawn_prover, ProverConfig},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
@@ -25,12 +25,7 @@ mod test {
     #[serial]
     #[tokio::test]
     async fn prove_inclusion() {
-        spawn_prover(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-            restart: true,
-        })
-        .await;
+        spawn_prover(ProverConfig::default()).await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3] {
             let big_int_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H32);
@@ -74,12 +69,7 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn prove_inclusion_full() {
-        spawn_prover(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-            restart: true,
-        })
-        .await;
+        spawn_prover(ProverConfig::default()).await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
             let big_int_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H26);

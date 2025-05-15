@@ -9,7 +9,7 @@ pub enum ParseIndexerEventError {
     #[error("Deserialize light system program instruction error")]
     DeserializeSystemInstructionError,
     #[error("Deserialize account compression program instruction error")]
-    DeserializeAccountCompressionInstructionError,
+    DeserializeAccountLightSystemCpiInputsError,
     #[error("Instruction data too small {0} expected {1}")]
     InstructionDataTooSmall(usize, usize),
     #[error("Zero copy error {0}")]

@@ -504,7 +504,7 @@ fn create_compressed_pda_data(
             &new_address_params.seed,
         )
         .map_err(ProgramError::from)?,
-        BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => derive_address(
+        BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => derive_address(
             &new_address_params.seed,
             &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
                 .key()

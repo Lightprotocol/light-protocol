@@ -63,6 +63,15 @@ impl LightProgramTest {
             .as_ref()
             .map(|config| config.output_queue_batch_size as usize);
         context.add_indexer(&test_accounts, batch_size).await?;
+
+        // Will always start a prover server.
+        #[cfg(feature = "devenv")]
+        let prover_config = if config.prover_config.is_none() {
+            Some(ProverConfig::default())
+        } else {
+            config.prover_config
+        };
+        #[cfg(not(feature = "devenv"))]
         let prover_config = if config.with_prover && config.prover_config.is_none() {
             Some(ProverConfig::default())
         } else {

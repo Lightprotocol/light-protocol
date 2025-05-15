@@ -58,8 +58,8 @@ impl From<IndexedMerkleTreeError> for pinocchio::program_error::ProgramError {
     }
 }
 #[cfg(not(feature = "pinocchio"))]
-impl From<IndexedMerkleTreeError> for solana_program::program_error::ProgramError {
+impl From<IndexedMerkleTreeError> for solana_program_error::ProgramError {
     fn from(e: IndexedMerkleTreeError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        solana_program_error::ProgramError::Custom(e.into())
     }
 }

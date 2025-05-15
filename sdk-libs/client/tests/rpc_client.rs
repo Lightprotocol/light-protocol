@@ -9,9 +9,7 @@ use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
 use light_program_test::accounts::test_accounts::TestAccounts;
-use light_prover_client::gnark::helpers::{
-    spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
-};
+use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig, ProverConfig};
 use light_test_utils::{system_program::create_invoke_instruction, RpcConnection};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
@@ -38,15 +36,7 @@ async fn test_all_endpoints() {
 
     let config = LightValidatorConfig {
         enable_indexer: true,
-        prover_config: Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::Combined,
-                ProofType::Inclusion,
-                ProofType::NonInclusion,
-            ],
-            restart: true,
-        }),
+        prover_config: Some(ProverConfig::default()),
         wait_time: 60,
         sbf_programs: vec![],
         limit_ledger_size: None,

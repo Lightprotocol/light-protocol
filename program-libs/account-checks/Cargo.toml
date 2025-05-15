@@ -1,6 +1,6 @@
 [package]
 name = "light-account-checks"
-version = "0.1.0"
+version = "0.2.0"
 description = "Checks for solana accounts."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -15,7 +15,7 @@ solana = [
     "solana-pubkey",
 ]
 pinocchio = ["dep:pinocchio"]
-test_only = ["dep:rand"]
+test-only = ["dep:rand"]
 
 [dependencies]
 solana-sysvar = { workspace = true, optional = true }

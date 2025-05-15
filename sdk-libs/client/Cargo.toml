@@ -49,11 +49,7 @@ num-bigint = { workspace = true }
 num-traits = { workspace = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
-# Optimize tokio to only include features we actually use
-tokio = { workspace = true, default-features = false, features = [
-    "rt",
-    "time",
-] }
+tokio = { workspace = true, features = ["rt", "time"] }
 
 tracing = { workspace = true }
 log = "0.4.27"

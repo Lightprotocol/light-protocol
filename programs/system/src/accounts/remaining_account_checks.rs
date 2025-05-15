@@ -77,7 +77,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     }
 
     let (account, program_owner) = match discriminator {
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {
+        BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR => {
             let mut tree_type = [0u8; 8];
             tree_type.copy_from_slice(
                 &account_info
@@ -110,7 +110,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 }
             }
         }
-        BatchedQueueAccount::DISCRIMINATOR => {
+        BatchedQueueAccount::LIGHT_DISCRIMINATOR => {
             let queue = BatchedQueueAccount::output_from_account_info(account_info).unwrap();
             let program_owner = queue.metadata.access_metadata.program_owner;
             Ok((AcpAccount::OutputQueue(queue), program_owner))

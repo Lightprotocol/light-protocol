@@ -8,7 +8,11 @@ license = "Apache-2.0"
 
 [features]
 heavy-tests = []
-solana = ["solana-program", "light-bounded-vec/solana", "light-hasher/solana"]
+solana = [
+    "solana-program-error",
+    "light-bounded-vec/solana",
+    "light-hasher/solana",
+]
 pinocchio = [
     "dep:pinocchio",
     "light-bounded-vec/solana",
@@ -20,7 +24,7 @@ borsh = { workspace = true }
 light-bounded-vec = { workspace = true }
 light-hasher = { workspace = true }
 memoffset = "0.9"
-solana-program = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
@@ -30,7 +34,6 @@ ark-ff = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-hash-set = { workspace = true }
 rand = { workspace = true }
-solana-program = { workspace = true }
 # spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false }
 tokio = { workspace = true }
 num-bigint = { workspace = true }

@@ -1,6 +1,6 @@
 [package]
 name = "light-compressed-account"
-version = "0.1.0"
+version = "0.2.0"
 description = "Compressed account struct and common utility functions used in Light Protocol."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -9,7 +9,8 @@ edition = "2021"
 [features]
 default = ["solana"]
 solana = [
-    "dep:solana-program",
+    "dep:solana-program-error",
+    "dep:solana-pubkey",
     "light-hasher/solana",
     "light-zero-copy/solana",
     "light-macros/solana",
@@ -22,26 +23,27 @@ pinocchio = [
     "light-macros/pinocchio",
 ]
 bytemuck-des = ["bytemuck"]
+new-unique = ["dep:solana-pubkey"]
 
 [dependencies]
 thiserror = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
-light-hasher = { workspace = true, default-features = false }
+light-hasher = { workspace = true }
 light-zero-copy = { workspace = true, features = ["std"] }
-light-macros = { workspace = true, default-features = false }
+light-macros = { workspace = true }
 
 # Feature-gated dependencies
-solana-program = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
+solana-pubkey = { workspace = true, optional = true, features = ["borsh"] }
 anchor-lang = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 borsh = { workspace = true }
-rand = { workspace = true }
 
 [dev-dependencies]
+rand = { workspace = true }
 light-poseidon = { workspace = true }
 borsh = { workspace = true }
-solana-program = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }

@@ -91,11 +91,10 @@ use system_cpi_test::{
 #[tokio::test]
 #[ignore = "Currently failes with Prover failed to generate proof."]
 async fn test_read_only_accounts() {
-    let _rpc = LightProgramTest::new({
-        let mut config = ProgramTestConfig::default();
-        config.additional_programs = Some(vec![("system_cpi_test", ID)]);
-        config
-    })
+    let _rpc = LightProgramTest::new(ProgramTestConfig::new(
+        false,
+        Some(vec![("system_cpi_test", ID)]),
+    ))
     .await
     .expect("Failed to setup test programs with accounts");
     let env = _rpc.test_accounts.clone();
@@ -728,7 +727,7 @@ async fn test_read_only_accounts() {
 #[tokio::test]
 async fn only_test_create_pda() {
     let mut rpc = LightProgramTest::new({
-        let mut config = ProgramTestConfig::default_with_batched_trees(true);
+        let mut config = ProgramTestConfig::default_with_batched_trees(false);
         config.additional_programs = Some(vec![("system_cpi_test", ID)]);
         config
     })
@@ -1178,7 +1177,7 @@ async fn only_test_create_pda() {
 #[serial]
 #[tokio::test]
 async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
-    let config = ProgramTestConfig::new(true, Some(vec![("system_cpi_test", ID)]));
+    let config = ProgramTestConfig::new(false, Some(vec![("system_cpi_test", ID)]));
     let mut rpc = LightProgramTest::new(config)
         .await
         .expect("Failed to setup test programs with accounts");
@@ -1385,13 +1384,10 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
 #[serial]
 #[tokio::test]
 async fn test_create_pda_in_program_owned_merkle_trees() {
-    let mut rpc = LightProgramTest::new({
-        let mut config = ProgramTestConfig::default();
-        config.additional_programs = Some(vec![("system_cpi_test", ID)]);
-        config
-    })
-    .await
-    .expect("Failed to setup test programs with accounts");
+    let config = ProgramTestConfig::new(false, Some(vec![("system_cpi_test", ID)]));
+    let mut rpc = LightProgramTest::new(config)
+        .await
+        .expect("Failed to setup test programs with accounts");
     let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
@@ -1744,6 +1740,11 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
             tree: *tree,
         })
         .collect::<Vec<_>>();
+    println!("get_validity_proof_v2 inputs: hashes {:?}", hashes);
+    println!(
+        "get_validity_proof_v2 inputs: addresses_with_tree {:?}",
+        addresses_with_tree
+    );
 
     let rpc_result = test_indexer
         .get_validity_proof_v2(hashes, addresses_with_tree)

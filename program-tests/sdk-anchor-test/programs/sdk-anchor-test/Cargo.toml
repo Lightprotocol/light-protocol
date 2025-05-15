@@ -23,7 +23,7 @@ idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 # Needs to be imported for LightHasher
 light-hasher = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true }
-light-sdk = { workspace = true, features = ["anchor"] }
+light-sdk = { workspace = true, features = ["anchor", "v2"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -32,6 +32,6 @@ solana-sdk = { workspace = true }
 light-client = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }

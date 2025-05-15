@@ -31,9 +31,9 @@ pub(crate) use pinocchio::program_error::ProgramError;
 pub(crate) use pinocchio::pubkey::Pubkey;
 // Solana program imports (default framework)
 #[cfg(not(feature = "pinocchio"))]
-pub(crate) use solana_program::program_error::ProgramError;
+pub(crate) use solana_program_error::ProgramError;
 #[cfg(not(feature = "pinocchio"))]
-pub(crate) use solana_program::pubkey::Pubkey;
+pub(crate) use solana_pubkey::Pubkey;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressedAccountError {

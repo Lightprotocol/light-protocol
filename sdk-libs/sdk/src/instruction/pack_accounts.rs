@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    cpi::accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    instruction::accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
     AccountMeta, Pubkey,
 };
 

@@ -60,9 +60,9 @@ impl From<ZeroCopyError> for pinocchio::program_error::ProgramError {
 }
 
 #[cfg(feature = "solana")]
-impl From<ZeroCopyError> for solana_program::program_error::ProgramError {
+impl From<ZeroCopyError> for solana_program_error::ProgramError {
     fn from(e: ZeroCopyError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        solana_program_error::ProgramError::Custom(e.into())
     }
 }
 

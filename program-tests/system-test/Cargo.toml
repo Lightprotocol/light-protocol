@@ -24,13 +24,13 @@ default = ["custom-heap"]
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 anchor-lang = { workspace = true }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
-light-client = { workspace = true }
+light-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-verifier = { workspace = true }
 light-registry = { workspace = true }

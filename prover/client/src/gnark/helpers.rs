@@ -3,6 +3,7 @@ use std::{
     fmt::{Display, Formatter},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
+    thread::sleep,
     time::Duration,
 };
 
@@ -82,6 +83,15 @@ pub struct ProverConfig {
 }
 
 impl Default for ProverConfig {
+    #[cfg(feature = "devenv")]
+    fn default() -> Self {
+        Self {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+            restart: false,
+        }
+    }
+    #[cfg(not(feature = "devenv"))]
     fn default() -> Self {
         Self {
             run_mode: Some(ProverMode::Rpc),
@@ -106,6 +116,7 @@ pub async fn spawn_prover(config: ProverConfig) {
         let prover_path: &str = {
             #[cfg(feature = "devenv")]
             {
+                sleep(Duration::from_secs(2));
                 &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
             }
             #[cfg(not(feature = "devenv"))]
@@ -119,7 +130,7 @@ pub async fn spawn_prover(config: ProverConfig) {
             kill_prover();
         }
 
-        if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+        if !health_check(3, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
 
             let mut command = Command::new(prover_path);
@@ -144,13 +155,16 @@ pub async fn spawn_prover(config: ProverConfig) {
             if health_result {
                 info!("Prover started successfully");
             } else {
-                panic!("Prover failed to start");
+                panic!("Failed to determine the project root directory");
             }
-            IS_LOADING.store(false, Ordering::Relaxed);
+        }
+        #[cfg(not(feature = "devenv"))]
+        {
+            "light"
         }
     } else {
-        panic!("Failed to determine the project root directory");
-    }
+        panic!("Failed to find project root.");
+    };
 }
 
 pub fn kill_process(process_name: &str) {
@@ -227,6 +241,7 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
             }
         }
     }
+    println!("health_check is ok {}", result);
     result
 }
 

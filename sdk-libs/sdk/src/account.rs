@@ -8,20 +8,20 @@ use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
     error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, AnchorDeserialize,
-    AnchorSerialize, Discriminator,
+    AnchorSerialize, LightDiscriminator,
 };
 
 #[derive(Debug, PartialEq)]
 pub struct LightAccount<
     'a,
-    A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default,
+    A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
 > {
     owner: &'a Pubkey,
     pub account: A,
     account_info: CompressedAccountInfo,
 }
 
-impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default>
+impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default>
     LightAccount<'a, A>
 {
     pub fn new_init(
@@ -31,7 +31,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
     ) -> Self {
         let output_account_info = OutAccountInfo {
             output_merkle_tree_index,
-            discriminator: A::DISCRIMINATOR,
+            discriminator: A::LIGHT_DISCRIMINATOR,
             ..Default::default()
         };
         Self {
@@ -57,14 +57,14 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 merkle_context: *input_account_meta.get_merkle_context(),
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
-                discriminator: A::DISCRIMINATOR,
+                discriminator: A::LIGHT_DISCRIMINATOR,
             }
         };
         let output_account_info = {
             OutAccountInfo {
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 output_merkle_tree_index: input_account_meta.get_output_merkle_tree_index(),
-                discriminator: A::DISCRIMINATOR,
+                discriminator: A::LIGHT_DISCRIMINATOR,
                 ..Default::default()
             }
         };
@@ -92,7 +92,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 merkle_context: *input_account_meta.get_merkle_context(),
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
-                discriminator: A::DISCRIMINATOR,
+                discriminator: A::LIGHT_DISCRIMINATOR,
             }
         };
         Ok(Self {
@@ -107,7 +107,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
     }
 
     pub fn discriminator(&self) -> &[u8; 8] {
-        &A::DISCRIMINATOR
+        &A::LIGHT_DISCRIMINATOR
     }
 
     pub fn lamports(&self) -> u64 {
@@ -163,7 +163,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
     }
 }
 
-impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> Deref
+impl<A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default> Deref
     for LightAccount<'_, A>
 {
     type Target = A;
@@ -173,7 +173,7 @@ impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Defau
     }
 }
 
-impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> DerefMut
+impl<A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default> DerefMut
     for LightAccount<'_, A>
 {
     fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {

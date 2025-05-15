@@ -29,7 +29,7 @@ env:
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     outputs:
       timing: ${{ steps.test-timing.outputs.timing }}
     strategy:

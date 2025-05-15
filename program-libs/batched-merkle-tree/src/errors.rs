@@ -38,7 +38,7 @@ pub enum BatchedMerkleTreeError {
     ProgramError(u64),
     #[cfg(not(feature = "pinocchio"))]
     #[error("Program error {0}")]
-    ProgramError(#[from] solana_program::program_error::ProgramError),
+    ProgramError(#[from] solana_program_error::ProgramError),
     #[error("Verifier error {0}")]
     VerifierErrorError(#[from] VerifierError),
     #[error("Invalid batch index")]
@@ -84,9 +84,9 @@ impl From<BatchedMerkleTreeError> for u32 {
 }
 
 #[cfg(feature = "solana")]
-impl From<BatchedMerkleTreeError> for solana_program::program_error::ProgramError {
+impl From<BatchedMerkleTreeError> for solana_program_error::ProgramError {
     fn from(e: BatchedMerkleTreeError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        solana_program_error::ProgramError::Custom(e.into())
     }
 }
 

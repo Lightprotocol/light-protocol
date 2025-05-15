@@ -52,6 +52,7 @@ impl ProgramTestConfig {
     pub fn default_with_batched_trees(with_prover: bool) -> Self {
         Self {
             additional_programs: None,
+            prover_config: Some(ProverConfig::default()),
             with_prover,
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
             v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),
@@ -61,18 +62,12 @@ impl ProgramTestConfig {
 
     #[cfg(feature = "devenv")]
     pub fn default_test_forster(with_prover: bool) -> Self {
-        use light_prover_client::gnark::helpers::ProverMode;
-
         Self {
             additional_programs: None,
             with_prover,
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
             v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),
-            prover_config: Some(ProverConfig {
-                run_mode: Some(ProverMode::ForesterTest),
-                circuits: vec![],
-                restart: true,
-            }),
+            prover_config: Some(ProverConfig::default()),
             ..Default::default()
         }
     }

@@ -33,8 +33,8 @@ pub struct CpiContextAccount {
 }
 
 impl Discriminator for CpiContextAccount {
-    const DISCRIMINATOR: [u8; 8] = CPI_CONTEXT_ACCOUNT_DISCRIMINATOR;
-    const DISCRIMINATOR_SLICE: &'static [u8] = &Self::DISCRIMINATOR;
+    const LIGHT_DISCRIMINATOR: [u8; 8] = CPI_CONTEXT_ACCOUNT_DISCRIMINATOR;
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 }
 
 #[derive(Debug)]

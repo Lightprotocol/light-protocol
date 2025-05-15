@@ -13,7 +13,7 @@ use light_program_test::{
     test_env::{setup_test_programs_with_accounts_v2, TestAccounts},
     program_test::LightProgramTest,
 };
-use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
