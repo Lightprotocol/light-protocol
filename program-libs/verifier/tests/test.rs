@@ -10,7 +10,7 @@ mod test {
     };
     use light_prover_client::{
         gnark::{
-            constants::{PROVE_PATH, SERVER_ADDRESS},
+            constants::{get_server_address, PROVE_PATH},
             helpers::{kill_prover, spawn_prover, ProverConfig},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -32,7 +32,7 @@ mod test {
 
             let inputs = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
-                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", get_server_address(), PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()
@@ -76,7 +76,7 @@ mod test {
 
             let inputs = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
-                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", get_server_address(), PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()

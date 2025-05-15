@@ -18,7 +18,7 @@ use light_prover_client::{
         batch_update_json_formatter::update_inputs_string,
         combined_json_formatter::combined_inputs_string,
         combined_json_formatter_legacy::combined_inputs_string as combined_inputs_string_legacy,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
+        constants::{get_server_address, PROVE_PATH},
         helpers::{spawn_prover, ProverConfig},
         inclusion_json_formatter::inclusion_inputs_string,
         inclusion_json_formatter_legacy,
@@ -37,7 +37,7 @@ async fn prove_inclusion() {
     for number_of_utxos in &[1, 2, 3, 4, 8] {
         let inputs = inclusion_inputs_string(*number_of_utxos as usize);
         let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", get_server_address(), PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs)
             .send()
@@ -52,7 +52,7 @@ async fn prove_inclusion() {
             let inputs =
                 inclusion_json_formatter_legacy::inclusion_inputs_string(*number_of_utxos as usize);
             let response_result = client
-                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", get_server_address(), PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()
@@ -73,7 +73,7 @@ async fn prove_combined() {
             for non_i in 1..=2 {
                 let inputs = combined_inputs_string_legacy(i, non_i);
                 let response_result = client
-                    .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                    .post(format!("{}{}", get_server_address(), PROVE_PATH))
                     .header("Content-Type", "text/plain; charset=utf-8")
                     .body(inputs)
                     .send()
@@ -88,7 +88,7 @@ async fn prove_combined() {
             for non_i in 1..=2 {
                 let inputs = combined_inputs_string(i, non_i);
                 let response_result = client
-                    .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                    .post(format!("{}{}", get_server_address(), PROVE_PATH))
                     .header("Content-Type", "text/plain; charset=utf-8")
                     .body(inputs)
                     .send()
@@ -110,7 +110,7 @@ async fn prove_non_inclusion() {
         for i in 1..=2 {
             let (inputs, _) = non_inclusion_inputs_string(i);
             let response_result = client
-                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", get_server_address(), PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()
@@ -128,7 +128,7 @@ async fn prove_non_inclusion() {
             );
 
             let response_result = client
-                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", get_server_address(), PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()
@@ -191,7 +191,7 @@ async fn prove_batch_update() {
         let client = Client::new();
         let inputs = update_inputs_string(&inputs);
         let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", get_server_address(), PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs)
             .send()
@@ -271,7 +271,7 @@ async fn prove_batch_append_with_proofs() {
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&inputs).to_string();
         // Send proof request to server
         let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", get_server_address(), PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs_json)
             .send()
@@ -391,7 +391,7 @@ async fn prove_batch_address_append() {
     // Send proof request to server
     let client = Client::new();
     let response_result = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+        .post(format!("{}{}", get_server_address(), PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
         .body(inputs_json)
         .send()

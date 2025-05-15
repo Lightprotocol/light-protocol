@@ -19,7 +19,7 @@ use crate::{
         batch_address_append_json_formatter::to_json,
         batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
         batch_update_json_formatter::update_inputs_string,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
+        constants::{get_server_address, PROVE_PATH},
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
 };
@@ -120,7 +120,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
         let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", get_server_address(), PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs_json)
             .send()
@@ -205,7 +205,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         let new_root = self.merkle_tree.root();
 
         let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", get_server_address(), PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs)
             .send()
@@ -319,7 +319,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         let inputs = to_json(&inputs);
 
         let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+            .post(format!("{}{}", get_server_address(), PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs)
             .send()
