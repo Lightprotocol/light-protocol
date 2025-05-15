@@ -1,6 +1,6 @@
 [package]
 name = "light-macros"
-version = "1.2.0"
+version = "2.0.0"
 description = "Macros used in Light Protocol on-chain programs"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

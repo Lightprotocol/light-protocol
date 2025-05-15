@@ -3278,7 +3278,7 @@ dependencies = [
 
 [[package]]
 name = "light-account-checks"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "borsh 0.10.4",
  "pinocchio",
@@ -3395,7 +3395,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-account"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anchor-lang",
  "ark-bn254 0.5.0",
@@ -3474,7 +3474,7 @@ dependencies = [
 
 [[package]]
 name = "light-hasher"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
@@ -3528,7 +3528,7 @@ dependencies = [
 
 [[package]]
 name = "light-macros"
-version = "1.2.0"
+version = "2.0.0"
 dependencies = [
  "bs58",
  "proc-macro2",
@@ -3693,7 +3693,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-macros"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "ark-bn254 0.5.0",
  "borsh 0.10.4",
@@ -3785,7 +3785,7 @@ dependencies = [
 
 [[package]]
 name = "light-verifier"
-version = "1.2.0"
+version = "2.0.0"
 dependencies = [
  "groth16-solana",
  "light-compressed-account",
@@ -3801,7 +3801,7 @@ dependencies = [
 
 [[package]]
 name = "light-zero-copy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pinocchio",
  "rand 0.8.5",

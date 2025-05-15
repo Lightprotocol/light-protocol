@@ -1,6 +1,6 @@
 [package]
 name = "light-compressed-account"
-version = "0.1.0"
+version = "0.2.0"
 description = "Compressed account struct and common utility functions used in Light Protocol."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
