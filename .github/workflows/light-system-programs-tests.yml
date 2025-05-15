@@ -27,6 +27,11 @@ on:
 
 name: system-programs-examples-tests
 
+env:
+  RUST_BACKTRACE: "1"
+  RUSTFLAGS: "--cfg tokio_unstable -D warnings"
+  PROVER_URL: ${{ secrets.PROVER_URL }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

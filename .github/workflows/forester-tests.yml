@@ -2,7 +2,7 @@ name: forester-tests
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - "forester/**"
       - "forester-utils/**"
@@ -12,7 +12,7 @@ on:
       - "scripts/**"
       - ".github/workflows/forester-tests.yml"
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
     paths:
       - "forester/**"
       - "forester-utils/**"
@@ -21,7 +21,7 @@ on:
       - "program-libs/batched-merkle-tree/**"
       - "scripts/**"
       - ".github/workflows/forester-tests.yml"
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [ opened, synchronize, reopened, ready_for_review ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,6 +30,7 @@ concurrency:
 env:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: "--cfg tokio_unstable -D warnings"
+  PROVER_URL: ${{ secrets.PROVER_URL }}
 
 jobs:
   test:
