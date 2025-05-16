@@ -761,7 +761,6 @@ impl Indexer for PhotonIndexer {
         #[cfg(feature = "v2")]
         {
             self.retry(|| async {
-                println!("begin get_validity_proof_v2");
                 let request = photon_api::models::GetValidityProofV2PostRequest {
                     params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
                         hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
