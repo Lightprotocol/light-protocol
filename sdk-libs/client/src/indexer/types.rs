@@ -155,7 +155,7 @@ impl ProofRpcResultV2 {
             address_root_indices: value
                 .addresses
                 .iter()
-                .map(|x| (x.root_index.root_index as u16) - 3)
+                .map(|x| (x.root_index.root_index as u16))
                 .collect::<Vec<u16>>(),
         })
     }
