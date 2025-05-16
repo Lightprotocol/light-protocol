@@ -54,7 +54,7 @@ async fn test_create_v2_address() {
     let tree_params = InitAddressTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
-        enable_indexer: true,
+        enable_indexer: false,
         wait_time: 90,
         prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
@@ -98,7 +98,7 @@ async fn test_create_v2_address() {
     ensure_sufficient_balance(&mut rpc, &batch_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
     let batch_size = get_batch_size(&mut rpc, &env.v2_address_trees[0]).await;
-    let num_addresses = 2;
+    let num_addresses = 1;
 
     let num_batches = batch_size / num_addresses;
     let remaining_addresses = batch_size % num_addresses;
@@ -289,11 +289,22 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             tree: *batch_address_merkle_tree,
         })
         .collect::<Vec<_>>();
+
     let test_indexer = TestIndexer::init_from_acounts(rpc.get_payer(), env, 50).await;
-    let proof_result = test_indexer
+    let proof_result_test = test_indexer
+        .get_validity_proof_v2(Vec::new(), address_with_trees.clone())
+        .await
+        .unwrap();
+
+    let proof_result_photon = rpc
         .get_validity_proof_v2(Vec::new(), address_with_trees)
         .await
         .unwrap();
+
+    println!("Test proof result: {:?}", proof_result_test);
+    println!("Proof result: {:?}", proof_result_photon);
+
+    let proof_result = proof_result_photon;
     if num_addresses == 1 {
         let data: [u8; 31] = [1; 31];
         let new_address_params = NewAddressParams {

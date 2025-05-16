@@ -20,7 +20,7 @@ light-merkle-tree-reference = { workspace = true }
 light-registry = { workspace = true }
 photon-api = { workspace = true }
 forester-utils = { workspace = true }
-light-client = { workspace = true }
+light-client = { workspace = true, features = ["v2"] }
 light-merkle-tree-metadata = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }

@@ -761,6 +761,7 @@ impl Indexer for PhotonIndexer {
         #[cfg(feature = "v2")]
         {
             self.retry(|| async {
+                println!("begin get_validity_proof_v2");
                 let request = photon_api::models::GetValidityProofV2PostRequest {
                     params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
                         hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
@@ -776,14 +777,13 @@ impl Indexer for PhotonIndexer {
                     }),
                     ..Default::default()
                 };
-
                 let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
                 let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                super::types::ProofRpcResultV2::from_api_model(*result.value, hashes.len())
+                super::types::ProofRpcResultV2::from_api_model(*result.value)
             })
             .await
         }
@@ -826,7 +826,7 @@ impl Indexer for PhotonIndexer {
                     .iter()
                     .map(|x| AddressQueueIndex {
                         address: Hash::from_base58(x.address.clone().as_ref()).unwrap(),
-                        queue_index: x.queue_index,
+                        queue_index: x.seq,
                     })
                     .collect();
 

@@ -15,13 +15,13 @@ pub struct CompressedProofWithContext {
     #[serde(rename = "compressedProof")]
     pub compressed_proof: Box<models::CompressedProof>,
     #[serde(rename = "leafIndices")]
-    pub leaf_indices: Vec<i32>,
+    pub leaf_indices: Vec<u32>,
     #[serde(rename = "leaves")]
     pub leaves: Vec<String>,
     #[serde(rename = "merkleTrees")]
     pub merkle_trees: Vec<String>,
     #[serde(rename = "rootIndices")]
-    pub root_indices: Vec<i32>,
+    pub root_indices: Vec<u32>,
     #[serde(rename = "roots")]
     pub roots: Vec<String>,
 }
@@ -29,10 +29,10 @@ pub struct CompressedProofWithContext {
 impl CompressedProofWithContext {
     pub fn new(
         compressed_proof: models::CompressedProof,
-        leaf_indices: Vec<i32>,
+        leaf_indices: Vec<u32>,
         leaves: Vec<String>,
         merkle_trees: Vec<String>,
-        root_indices: Vec<i32>,
+        root_indices: Vec<u32>,
         roots: Vec<String>,
     ) -> CompressedProofWithContext {
         CompressedProofWithContext {

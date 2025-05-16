@@ -13,7 +13,7 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetBatchAddressUpdateInfoPost200ResponseResult {
     #[serde(rename = "addresses")]
-    pub addresses: Vec<models::AddressQueueIndex>,
+    pub addresses: Vec<models::AddressSeq>,
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "nonInclusionProofs")]
@@ -26,7 +26,7 @@ pub struct GetBatchAddressUpdateInfoPost200ResponseResult {
 
 impl GetBatchAddressUpdateInfoPost200ResponseResult {
     pub fn new(
-        addresses: Vec<models::AddressQueueIndex>,
+        addresses: Vec<models::AddressSeq>,
         context: models::Context,
         non_inclusion_proofs: Vec<models::MerkleContextWithNewAddressProof>,
         start_index: u64,

@@ -11,19 +11,16 @@
 use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AddressQueueIndex {
+pub struct AddressSeq {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "address")]
     pub address: String,
-    #[serde(rename = "queueIndex")]
-    pub queue_index: u64,
+    #[serde(rename = "seq")]
+    pub seq: u64,
 }
 
-impl AddressQueueIndex {
-    pub fn new(address: String, queue_index: u64) -> AddressQueueIndex {
-        AddressQueueIndex {
-            address,
-            queue_index,
-        }
+impl AddressSeq {
+    pub fn new(address: String, seq: u64) -> AddressSeq {
+        AddressSeq { address, seq }
     }
 }

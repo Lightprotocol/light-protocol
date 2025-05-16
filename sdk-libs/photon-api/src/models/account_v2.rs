@@ -38,7 +38,6 @@ pub struct AccountV2 {
 }
 
 impl AccountV2 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         hash: String,
         lamports: u64,

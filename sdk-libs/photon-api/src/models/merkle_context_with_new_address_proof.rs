@@ -38,7 +38,6 @@ pub struct MerkleContextWithNewAddressProof {
 }
 
 impl MerkleContextWithNewAddressProof {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         address: String,
         higher_range_address: String,
