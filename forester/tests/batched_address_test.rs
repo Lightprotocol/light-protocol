@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use forester::run_pipeline;
 use forester_utils::{
     registry::{register_test_forester, update_test_forester},
-    rpc_pool::SolanaRpcPool,
+    rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -58,15 +58,12 @@ async fn test_address_batched() {
     config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
 
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config.external_services.rpc_url.to_string(),
-        CommitmentConfig::processed(),
-        config.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::processed())
+        .build()
+        .await
+        .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {

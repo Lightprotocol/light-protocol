@@ -25,7 +25,7 @@ use std::{sync::Arc, time::Duration};
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::{
-    forester_epoch::TreeAccounts, rate_limiter::RateLimiter, rpc_pool::SolanaRpcPool,
+    forester_epoch::TreeAccounts, rate_limiter::RateLimiter, rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_client::{
     indexer::Indexer,
@@ -95,15 +95,25 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer + IndexerType<R> + 'stati
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
-    debug!("run_pipeline");
-    let rpc_pool = SolanaRpcPool::<R>::new(
-        config.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config.general_config.rpc_pool_size as u32,
-        rpc_rate_limiter.clone(),
-        send_tx_rate_limiter.clone(),
-    )
-    .await?;
+    let mut builder = SolanaRpcPoolBuilder::<R>::default()
+        .url(config.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed())
+        .max_size(config.rpc_pool_config.max_size)
+        .connection_timeout_secs(config.rpc_pool_config.connection_timeout_secs)
+        .idle_timeout_secs(config.rpc_pool_config.idle_timeout_secs)
+        .max_retries(config.rpc_pool_config.max_retries)
+        .initial_retry_delay_ms(config.rpc_pool_config.initial_retry_delay_ms)
+        .max_retry_delay_ms(config.rpc_pool_config.max_retry_delay_ms);
+
+    if let Some(limiter) = rpc_rate_limiter {
+        builder = builder.rpc_rate_limiter(limiter);
+    }
+
+    if let Some(limiter) = send_tx_rate_limiter {
+        builder = builder.send_tx_rate_limiter(limiter);
+    }
+
+    let rpc_pool = builder.build().await?;
 
     let protocol_config = {
         let mut rpc = rpc_pool.get_connection().await?;

@@ -52,7 +52,6 @@ bs58 = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }
 
 tracing = { workspace = true }
-log = "0.4.27"
 
 [dev-dependencies]
 light-program-test = { workspace = true }

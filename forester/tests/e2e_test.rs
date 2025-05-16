@@ -5,7 +5,10 @@ use account_compression::{
     AddressMerkleTreeAccount,
 };
 use forester::{queue_helpers::fetch_queue_item_data, run_pipeline, utils::get_protocol_config};
-use forester_utils::{registry::register_test_forester, rpc_pool::SolanaRpcPool};
+use forester_utils::{
+    registry::register_test_forester,
+    rpc_pool::{SolanaRpcPool, SolanaRpcPoolBuilder},
+};
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{
@@ -53,15 +56,12 @@ async fn test_epoch_monitor_with_2_foresters() {
     let mut config2 = forester_config();
     config2.payer_keypair = forester_keypair2.insecure_clone();
 
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config1.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config1.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config1.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed())
+        .build()
+        .await
+        .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
         url: SolanaRpcUrl::Localnet.to_string(),
@@ -400,15 +400,13 @@ async fn test_epoch_double_registration() {
 
     let mut config = forester_config();
     config.payer_keypair = forester_keypair.insecure_clone();
-    let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
-        config.external_services.rpc_url.to_string(),
-        CommitmentConfig::confirmed(),
-        config.general_config.rpc_pool_size as u32,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+
+    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+        .url(config.external_services.rpc_url.to_string())
+        .commitment(CommitmentConfig::confirmed())
+        .build()
+        .await
+        .unwrap();
 
     let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
         url: SolanaRpcUrl::Localnet.to_string(),
