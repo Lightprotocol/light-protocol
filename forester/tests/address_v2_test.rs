@@ -54,7 +54,7 @@ async fn test_create_v2_address() {
     let tree_params = InitAddressTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
-        enable_indexer: false,
+        enable_indexer: true,
         wait_time: 90,
         prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
