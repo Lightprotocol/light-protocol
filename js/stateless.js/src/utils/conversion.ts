@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { bn, createBN254 } from '../state/BN254';
+import { bn, createBN254 } from '../state';
 import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Keypair, PublicKey } from '@solana/web3.js';
@@ -11,7 +11,6 @@ import {
     CompressedAccount,
     OutputCompressedAccountWithPackedContext,
     PackedMerkleContext,
-    QueueIndex,
 } from '../state/types';
 import { NewAddressParamsPacked } from './address';
 
@@ -140,12 +139,10 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
             const merkleContext: PackedMerkleContext = {
                 merkleTreePubkeyIndex:
                     account.packedMerkleContext.merkle_tree_pubkey_index,
-                nullifierQueuePubkeyIndex:
+                queuePubkeyIndex:
                     account.packedMerkleContext.queue_pubkey_index,
                 leafIndex: account.packedMerkleContext.leaf_index,
-                queueIndex: account.packedMerkleContext.prove_by_index
-                    ? ({ queueId: 0, index: 0 } as QueueIndex)
-                    : null,
+                proveByIndex: account.packedMerkleContext.prove_by_index,
             };
 
             return {

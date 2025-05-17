@@ -10,12 +10,13 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    defaultTestStateTreeAccounts,
     newAccountWithLamports,
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,
     getTestRpc,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
     compress,
@@ -30,6 +31,11 @@ import {
 } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../../src/utils/get-token-pool-infos';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -92,8 +98,14 @@ describe('compress', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
     let lut: PublicKey;
+    let stateTreeInfo: StateTreeInfo;
+    let tokenPoolInfo: TokenPoolInfo;
 
-    const { merkleTree } = defaultTestStateTreeAccounts();
+    const maxBatchSize = 26;
+    const recipients = Array.from(
+        { length: maxBatchSize },
+        () => Keypair.generate().publicKey,
+    );
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -113,6 +125,9 @@ describe('compress', () => {
             )
         ).mint;
 
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
+        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
+
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);
 
@@ -130,16 +145,25 @@ describe('compress', () => {
             bob.publicKey,
             mintAuthority,
             bn(10000),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
-        await decompress(rpc, payer, mint, bn(9000), bob, bobAta);
+        await decompress(rpc, payer, mint, bn(900), bob, bobAta);
 
         /// Setup LUT.
         const { address } = await createTokenProgramLookupTable(
             rpc,
             payer,
             payer,
+            [mint],
+            [
+                payer.publicKey,
+                bob.publicKey,
+                bobAta,
+                stateTreeInfo.tree,
+                stateTreeInfo.queue,
+            ],
         );
         lut = address;
     }, 80_000);
@@ -159,7 +183,8 @@ describe('compress', () => {
             bob,
             bobAta,
             charlie.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
         await assertCompress(
             rpc,
@@ -172,11 +197,6 @@ describe('compress', () => {
         );
     });
 
-    const maxBatchSize = 15;
-    const recipients = Array.from(
-        { length: maxBatchSize },
-        () => Keypair.generate().publicKey,
-    );
     const amounts = Array.from({ length: maxBatchSize }, (_, i) => bn(i + 1));
 
     it('should compress to multiple (11 max without LUT) recipients with array of amounts and addresses', async () => {
@@ -188,6 +208,7 @@ describe('compress', () => {
             ),
         );
 
+        // compress to 11 recipients
         await compress(
             rpc,
             payer,
@@ -196,7 +217,8 @@ describe('compress', () => {
             bob,
             bobAta,
             recipients.slice(0, 11),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
         for (let i = 0; i < recipients.length; i++) {
@@ -232,7 +254,8 @@ describe('compress', () => {
                 bob,
                 bobAta,
                 recipients.slice(0, 11),
-                defaultTestStateTreeAccounts().merkleTree,
+                stateTreeInfo,
+                tokenPoolInfo,
             ),
         ).rejects.toThrow(
             'Amount and toAddress arrays must have the same length',
@@ -247,10 +270,11 @@ describe('compress', () => {
                 bob,
                 bobAta,
                 recipients,
-                defaultTestStateTreeAccounts().merkleTree,
+                stateTreeInfo,
+                tokenPoolInfo,
             ),
         ).rejects.toThrow(
-            'Both amount and toAddress must be arrays or both must be single values',
+            'Amount and toAddress arrays must have the same length',
         );
     });
 
@@ -259,15 +283,16 @@ describe('compress', () => {
         const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
             .value!;
 
-        /// Mint to max recipients with LUT
+        /// Compress to max recipients with LUT
         const ix = await CompressedTokenProgram.compress({
-            payer: payer.publicKey,
+            payer: bob.publicKey,
             owner: bob.publicKey,
             source: bobAta,
             toAddress: recipients,
-            amount: amounts,
+            amount: bn(2),
             mint,
-            outputStateTree: defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeInfo: stateTreeInfo,
+            tokenPoolInfo,
         });
 
         const { blockhash } = await rpc.getLatestBlockhash();
@@ -280,9 +305,7 @@ describe('compress', () => {
             additionalSigners,
             [lookupTableAccount],
         );
-        const txId = await sendAndConfirmTx(rpc, tx);
-
-        return txId;
+        await sendAndConfirmTx(rpc, tx);
     });
 
     it('should compress from bob Token 2022 Ata -> charlie', async () => {
@@ -317,6 +340,23 @@ describe('compress', () => {
             TOKEN_2022_PROGRAM_ID,
         );
 
+        const tokenPoolInfoT22 = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, token22Mint),
+        );
+
+        await expect(
+            mintTo(
+                rpc,
+                payer,
+                token22Mint,
+                bob.publicKey,
+                mintAuthority,
+                bn(10000),
+                stateTreeInfo,
+                tokenPoolInfo,
+            ),
+        ).rejects.toThrow();
+
         await mintTo(
             rpc,
             payer,
@@ -324,9 +364,9 @@ describe('compress', () => {
             bob.publicKey,
             mintAuthority,
             bn(10000),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfoT22,
         );
-
         await decompress(
             rpc,
             payer,
@@ -350,7 +390,8 @@ describe('compress', () => {
             bob,
             bobToken2022Ata,
             charlie.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfoT22,
         );
         await assertCompress(
             rpc,

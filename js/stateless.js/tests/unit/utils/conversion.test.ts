@@ -10,17 +10,7 @@ import {
 } from '../../../src/utils/conversion';
 import { calculateComputeUnitPrice } from '../../../src/utils';
 import { deserializeAppendNullifyCreateAddressInputsIndexer } from '../../../src/programs';
-import {
-    struct,
-    u8,
-    bool,
-    publicKey,
-    option,
-    vec,
-    u64,
-} from '@coral-xyz/borsh';
-import { decodeInstructionDataInvokeCpiWithReadOnly } from '../../../src/programs/layout';
-import { InstructionDataInvoke } from '../../../src/state/types';
+import { decodeInstructionDataInvokeCpiWithReadOnly } from '../../../src/programs/system/layout';
 import BN from 'bn.js';
 
 describe('toArray', () => {
@@ -65,7 +55,7 @@ describe('deserialize apc cpi', () => {
         expect(result.meta.is_invoked_by_program).toEqual(1);
 
         expect(result.addresses.length).toBeGreaterThan(0);
-        console.log('address ', result.addresses[0]);
+
         expect(result.addresses[0]).toEqual({
             address: new Array(32).fill(1),
             tree_index: 1,
@@ -675,9 +665,9 @@ describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
         expect(firstAccount.readOnly).toBe(false);
         expect(firstAccount.compressedAccount.lamports).toEqual(new BN(2000));
         expect(firstAccount.merkleContext.merkleTreePubkeyIndex).toBe(8);
-        expect(firstAccount.merkleContext.nullifierQueuePubkeyIndex).toBe(9);
+        expect(firstAccount.merkleContext.queuePubkeyIndex).toBe(9);
         expect(firstAccount.merkleContext.leafIndex).toBe(456);
-        expect(firstAccount.merkleContext.queueIndex).toBeNull();
+        expect(firstAccount.merkleContext.proveByIndex).toBe(false);
         // Check output accounts conversion
         expect(result.outputCompressedAccounts).toHaveLength(1);
         expect(result.outputCompressedAccounts[0].merkleTreeIndex).toBe(10);
