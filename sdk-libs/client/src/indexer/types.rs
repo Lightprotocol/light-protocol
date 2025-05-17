@@ -109,7 +109,7 @@ impl ProofRpcResult {
 #[derive(Debug, Default, Clone)]
 pub struct ProofRpcResultV2 {
     pub proof: Option<CompressedProof>,
-    // If none -> proof by index  and not included in zkp, else included in zkp
+    // If none -> proof by index and not included in zkp, else included in zkp
     pub root_indices: Vec<Option<u16>>,
     pub address_root_indices: Vec<u16>,
 }
@@ -118,7 +118,6 @@ pub struct ProofRpcResultV2 {
 impl ProofRpcResultV2 {
     pub fn from_api_model(
         value: photon_api::models::CompressedProofWithContextV2,
-        num_hashes: usize,
     ) -> Result<Self, IndexerError> {
         let proof = if let Some(proof) = value.compressed_proof {
             let proof = CompressedProof {
@@ -142,17 +141,19 @@ impl ProofRpcResultV2 {
 
         Ok(Self {
             proof,
-            root_indices: value.root_indices[..num_hashes]
+            root_indices: value
+                .accounts
                 .iter()
                 .map(|x| {
-                    if x.prove_by_index {
+                    if x.root_index.prove_by_index {
                         None
                     } else {
-                        Some(x.root_index)
+                        Some(x.root_index.root_index as u16)
                     }
                 })
                 .collect::<Vec<Option<u16>>>(),
-            address_root_indices: value.root_indices[num_hashes..]
+            address_root_indices: value
+                .addresses
                 .iter()
                 .map(|x| x.root_index)
                 .collect::<Vec<u16>>(),

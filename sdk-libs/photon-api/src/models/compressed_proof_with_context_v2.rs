@@ -14,33 +14,73 @@ use crate::models;
 pub struct CompressedProofWithContextV2 {
     #[serde(rename = "compressedProof", skip_serializing_if = "Option::is_none")]
     pub compressed_proof: Option<Box<models::CompressedProof>>,
-    #[serde(rename = "leafIndices")]
-    pub leaf_indices: Vec<u32>,
-    #[serde(rename = "leaves")]
-    pub leaves: Vec<String>,
-    #[serde(rename = "merkleContexts")]
-    pub merkle_contexts: Vec<models::MerkleContextV2>,
-    #[serde(rename = "rootIndices")]
-    pub root_indices: Vec<models::RootIndex>,
-    #[serde(rename = "roots")]
-    pub roots: Vec<String>,
+
+    #[serde(rename = "accounts", skip_serializing_if = "Vec::is_empty")]
+    pub accounts: Vec<AccountProofInputs>,
+
+    #[serde(rename = "addresses", skip_serializing_if = "Vec::is_empty")]
+    pub addresses: Vec<AddressProofInputs>,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountProofInputs {
+    pub hash: String,
+    pub root: String,
+    pub root_index: RootIndex,
+    pub leaf_index: u64,
+    pub merkle_context: MerkleContextV2,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddressProofInputs {
+    pub address: String,
+    pub root: String,
+    pub root_index: u16,
+    pub merkle_context: MerkleContextV2,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RootIndex {
+    pub root_index: u64,
+    // if prove_by_index is true, ignore root_index and use 0
+    pub prove_by_index: bool,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(non_snake_case)]
+pub struct MerkleContextV2 {
+    pub tree_type: u16,
+    pub tree: String,
+    // nullifier_queue in V1 trees, output_queue in V2 trees.
+    pub queue: String,
+    pub cpi_context: Option<String>,
+    pub next_tree_context: Option<TreeContextInfo>,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(non_snake_case)]
+pub struct TreeContextInfo {
+    pub tree_type: u16,
+    pub tree: String,
+    pub queue: String,
+    pub cpi_context: Option<String>,
 }
 
 impl CompressedProofWithContextV2 {
     pub fn new(
-        leaf_indices: Vec<u32>,
-        leaves: Vec<String>,
-        merkle_contexts: Vec<models::MerkleContextV2>,
-        root_indices: Vec<models::RootIndex>,
-        roots: Vec<String>,
+        compressed_proof: models::CompressedProof,
+        accounts: Vec<AccountProofInputs>,
+        addresses: Vec<AddressProofInputs>,
     ) -> CompressedProofWithContextV2 {
         CompressedProofWithContextV2 {
-            compressed_proof: None,
-            leaf_indices,
-            leaves,
-            merkle_contexts,
-            root_indices,
-            roots,
+            compressed_proof: Option::from(Box::new(compressed_proof)),
+            accounts,
+            addresses,
         }
     }
 }

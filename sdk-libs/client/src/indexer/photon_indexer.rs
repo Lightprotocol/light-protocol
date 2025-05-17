@@ -776,14 +776,13 @@ impl Indexer for PhotonIndexer {
                     }),
                     ..Default::default()
                 };
-
                 let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
                 let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                super::types::ProofRpcResultV2::from_api_model(*result.value, hashes.len())
+                super::types::ProofRpcResultV2::from_api_model(*result.value)
             })
             .await
         }

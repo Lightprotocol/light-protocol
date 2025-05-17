@@ -16,9 +16,9 @@ pub struct GetCompressionSignaturesForAddressPostRequestParams {
     #[serde(rename = "address")]
     pub address: String,
     #[serde(rename = "cursor", default, skip_serializing_if = "Option::is_none")]
-    pub cursor: Option<Option<String>>,
+    pub cursor: Option<String>,
     #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
-    pub limit: Option<Option<u16>>,
+    pub limit: Option<u16>,
 }
 
 impl GetCompressionSignaturesForAddressPostRequestParams {

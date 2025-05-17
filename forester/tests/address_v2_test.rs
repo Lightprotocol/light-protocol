@@ -25,7 +25,7 @@ use light_compressed_account::{
     },
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer, Indexer};
+use light_program_test::{accounts::test_accounts::TestAccounts, Indexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
@@ -289,11 +289,12 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             tree: *batch_address_merkle_tree,
         })
         .collect::<Vec<_>>();
-    let test_indexer = TestIndexer::init_from_acounts(rpc.get_payer(), env, 50).await;
-    let proof_result = test_indexer
+
+    let proof_result = rpc
         .get_validity_proof_v2(Vec::new(), address_with_trees)
         .await
         .unwrap();
+
     if num_addresses == 1 {
         let data: [u8; 31] = [1; 31];
         let new_address_params = NewAddressParams {
@@ -303,13 +304,11 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             address_merkle_tree_root_index: proof_result.address_root_indices[0],
         };
 
-        let proof = proof_result.proof;
-
         let create_ix_inputs = CreateCompressedPdaInstructionInputs {
             data,
             signer: &payer.pubkey(),
             output_compressed_account_merkle_tree_pubkey: &env.v1_state_trees[0].merkle_tree,
-            proof: &proof.unwrap(),
+            proof: &proof_result.proof.unwrap(),
             new_address_params,
             registered_program_pda,
         };

@@ -352,10 +352,7 @@ impl Indexer for TestIndexer {
                     .as_str(),
             ));
         }
-        println!(
-            "get_validity_proof state_merkle_tree_pubkeys {:?}",
-            state_merkle_tree_pubkeys
-        );
+
         let state_merkle_tree_pubkeys = if state_merkle_tree_pubkeys.is_empty() {
             None
         } else {
