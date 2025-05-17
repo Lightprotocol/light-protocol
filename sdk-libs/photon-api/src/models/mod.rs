@@ -19,7 +19,7 @@ pub use self::account_with_optional_token_data::AccountWithOptionalTokenData;
 pub mod account_with_optional_token_data_v2;
 pub use self::account_with_optional_token_data_v2::AccountWithOptionalTokenDataV2;
 pub mod address_seq;
-pub use self::address_seq::AddressSeq;
+pub use self::address_seq::AddressQueueIndex;
 pub mod address_with_tree;
 pub use self::address_with_tree::AddressWithTree;
 pub mod closed_account_v2;

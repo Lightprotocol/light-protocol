@@ -825,7 +825,7 @@ impl Indexer for PhotonIndexer {
                     .iter()
                     .map(|x| AddressQueueIndex {
                         address: Hash::from_base58(x.address.clone().as_ref()).unwrap(),
-                        queue_index: x.seq,
+                        queue_index: x.queue_index,
                     })
                     .collect();
 

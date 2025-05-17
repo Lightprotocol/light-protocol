@@ -25,7 +25,7 @@ use light_compressed_account::{
     },
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer, Indexer};
+use light_program_test::{accounts::test_accounts::TestAccounts, Indexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
@@ -98,7 +98,7 @@ async fn test_create_v2_address() {
     ensure_sufficient_balance(&mut rpc, &batch_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
     let batch_size = get_batch_size(&mut rpc, &env.v2_address_trees[0]).await;
-    let num_addresses = 1;
+    let num_addresses = 2;
 
     let num_batches = batch_size / num_addresses;
     let remaining_addresses = batch_size % num_addresses;
@@ -290,21 +290,11 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
         })
         .collect::<Vec<_>>();
 
-    let test_indexer = TestIndexer::init_from_acounts(rpc.get_payer(), env, 50).await;
-    let proof_result_test = test_indexer
-        .get_validity_proof_v2(Vec::new(), address_with_trees.clone())
-        .await
-        .unwrap();
-
-    let proof_result_photon = rpc
+    let proof_result = rpc
         .get_validity_proof_v2(Vec::new(), address_with_trees)
         .await
         .unwrap();
 
-    println!("Test proof result: {:?}", proof_result_test);
-    println!("Proof result: {:?}", proof_result_photon);
-
-    let proof_result = proof_result_photon;
     if num_addresses == 1 {
         let data: [u8; 31] = [1; 31];
         let new_address_params = NewAddressParams {
@@ -314,13 +304,11 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             address_merkle_tree_root_index: proof_result.address_root_indices[0],
         };
 
-        let proof = proof_result.proof;
-
         let create_ix_inputs = CreateCompressedPdaInstructionInputs {
             data,
             signer: &payer.pubkey(),
             output_compressed_account_merkle_tree_pubkey: &env.v1_state_trees[0].merkle_tree,
-            proof: &proof.unwrap(),
+            proof: &proof_result.proof.unwrap(),
             new_address_params,
             registered_program_pda,
         };
