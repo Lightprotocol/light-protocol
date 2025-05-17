@@ -24,14 +24,14 @@ pub struct AccountContext {
         rename = "nullifierQueueIndex",
         skip_serializing_if = "Option::is_none"
     )]
-    pub nullifier_queue_index: Option<i32>,
+    pub nullifier_queue_index: Option<u16>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "queue")]
     pub queue: String,
     #[serde(rename = "spent")]
     pub spent: bool,
     #[serde(rename = "treeType")]
-    pub tree_type: i32,
+    pub tree_type: u16,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "txHash", skip_serializing_if = "Option::is_none")]
     pub tx_hash: Option<String>,
@@ -44,7 +44,7 @@ impl AccountContext {
         nullified_in_tree: bool,
         queue: String,
         spent: bool,
-        tree_type: i32,
+        tree_type: u16,
     ) -> AccountContext {
         AccountContext {
             in_output_queue,

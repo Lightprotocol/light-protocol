@@ -37,7 +37,7 @@ pub struct AccountProofInputs {
 pub struct AddressProofInputs {
     pub address: String,
     pub root: String,
-    pub root_index: RootIndex,
+    pub root_index: u16,
     pub merkle_context: MerkleContextV2,
 }
 
