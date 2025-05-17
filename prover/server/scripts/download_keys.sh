@@ -5,7 +5,7 @@ set -e
 # Configuration
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 KEYS_DIR="${ROOT_DIR}/prover/server/proving-keys"
-BASE_URL="https://light.fra1.digitaloceanspaces.com/proving-keys-06-03-25"
+BASE_URL="https://light.fra1.digitaloceanspaces.com/proving-keys-gnark12"
 CHECKSUM_URL="${BASE_URL}/CHECKSUM"
 MAX_RETRIES=3
 RETRY_DELAY=5
