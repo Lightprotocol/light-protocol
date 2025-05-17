@@ -150,13 +150,13 @@ export const initFlags = {
 
   tag: Flags.string({
     aliases: ["t"],
-    description: "Tag must be used in conjuction with --git",
+    description: "Tag must be used in conjunction with --git",
     required: false,
   }),
 
   branch: Flags.string({
     aliases: ["b"],
-    description: "Branch must be used in conjuction with --git",
+    description: "Branch must be used in conjunction with --git",
     default: "main",
     required: false,
   }),
