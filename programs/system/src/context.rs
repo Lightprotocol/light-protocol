@@ -6,9 +6,7 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext,
         invoke_cpi::InstructionDataInvokeCpi,
         traits::{InputAccount, InstructionData, NewAddress, OutputAccount},
-        zero_copy::{
-            ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
-        },
+        zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
@@ -247,35 +245,14 @@ impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
         self.instruction_data.with_transaction_hash()
     }
 
-    #[allow(clippy::type_complexity)]
-    pub fn get_output_account(
-        &'b self,
-        requested_index: usize,
-    ) -> Option<&'b (dyn OutputAccount<'a> + 'b)> {
-        let direct_outputs_slice = self.instruction_data.output_accounts();
-        let num_direct_outputs: usize = direct_outputs_slice.len();
-
-        if requested_index < num_direct_outputs {
-            let maybe_direct_account_ref = direct_outputs_slice.get(requested_index);
-            maybe_direct_account_ref.map(|account_concrete_ref| {
-                let output_account_trait_object: &'b (dyn OutputAccount<'a> + 'b) =
-                    account_concrete_ref;
-                output_account_trait_object
-            })
-        } else {
-            let maybe_cpi_account_wrapper: Option<&'b ZCpiContextAccount<'a>> =
-                self.cpi_context.as_ref();
-            if let Some(cpi_account_wrapper) = maybe_cpi_account_wrapper {
-                let maybe_cpi_data_handler: Option<&'b ZInstructionDataInvokeCpi<'a>> =
-                    cpi_account_wrapper.context.first();
-                if let Some(cpi_data_handler) = maybe_cpi_data_handler {
-                    let cpi_relative_index: usize =
-                        requested_index.saturating_sub(num_direct_outputs);
-                    let cpi_outputs_slice = cpi_data_handler.output_accounts();
-                    let maybe_cpi_account_ref = cpi_outputs_slice.get(cpi_relative_index);
-                    maybe_cpi_account_ref.map(|account_concrete_ref| {
-                        let output_account_trait_object: &'b (dyn OutputAccount<'a> + 'b) =
-                            account_concrete_ref;
+    pub fn get_output_account(&'b self, index: usize) -> Option<&'b (dyn OutputAccount<'a> + 'b)> {
+        let ix_outputs_len = self.instruction_data.output_accounts().len();
+        if index >= ix_outputs_len {
+            if let Some(cpi_context) = self.cpi_context.as_ref() {
+                if let Some(context) = cpi_context.context.first() {
+                    let index = index.saturating_sub(ix_outputs_len);
+                    context.output_accounts().get(index).map(|account| {
+                        let output_account_trait_object: &'b (dyn OutputAccount<'a> + 'b) = account;
                         output_account_trait_object
                     })
                 } else {
@@ -284,6 +261,11 @@ impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
             } else {
                 None
             }
+        } else {
+            self.instruction_data
+                .output_accounts()
+                .get(index)
+                .map(|account| account as &dyn OutputAccount<'a>)
         }
     }
 }
