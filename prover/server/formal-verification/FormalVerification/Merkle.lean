@@ -40,7 +40,7 @@ lemma ProveParentHash_rw {d : Bool} {h s : F} {k : F → Prop}:
   LightProver.ProveParentHash d.toZMod h s k ↔
     (k $ hashLevel d s h)
   := by
-  cases d <;> simp [LightProver.ProveParentHash, Gates, GatesGnark8, hashLevel]
+  cases d <;> simp [LightProver.ProveParentHash, Gates, GatesGnark12, GatesGnark9, GatesGnark8, hashLevel]
 
 lemma MerkleTree.recover_succ' {ix : List.Vector Bool (Nat.succ N)} {proof : List.Vector F (Nat.succ N)} :
   MerkleTree.recover poseidon₂ ix proof item = hashLevel ix.head proof.head (MerkleTree.recover poseidon₂ ix.tail proof.tail item) := Eq.refl _
@@ -64,7 +64,7 @@ theorem StateInclusionProofStep_rw {l i e r} {k : F → Prop}:
     (∃b, Gates.to_binary i SD b ∧ StateMerkleRootGadget l b e fun o => Gates.eq o r ∧ k o) ↔
     (∃ (hi : i.val < 2^SD), MerkleTree.recoverAtFin poseidon₂ ⟨i.val, hi⟩ e.reverse l = r) ∧ k r := by
   have : 2^SD < Order := by decide
-  simp only [Gates, GatesGnark8, Gates.to_binary_iff_eq_fin_to_bits_le_of_pow_length_lt this]
+  simp only [Gates, GatesGnark12, GatesDef.to_binary_12, GatesGnark8, GatesGnark9]
   simp only [←exists_and_right]
   rw [←exists_comm]
   simp only [exists_eq_left, StateMerkleRootGadget_rw, GatesDef.eq, MerkleTree.recoverAtFin, Fin.toBitsLE]
@@ -201,7 +201,7 @@ theorem InclusionCircuit_rw:
     h = inputHash poseidon₂ poseidon₃ roots leaves ∧
     InclusionProof roots leaves inPathIndices inPathElements (fun _ => True) := by
   unfold InclusionCircuit
-  simp only [TwoInputsHashChain_rw, Gates, GatesGnark8, GatesDef.eq]
+  simp only [TwoInputsHashChain_rw, Gates, GatesGnark8, GatesGnark9, GatesGnark12, GatesDef.eq]
 
 theorem InclusionCircuit_correct [Fact (CollisionResistant poseidon₂)] {ih : F} {trees : List.Vector (MerkleTree F poseidon₂ SD) B} {leaves : List.Vector F B}:
   (∃inPathIndices proofs, InclusionCircuit ih (trees.map (·.root)) leaves inPathIndices proofs) ↔
@@ -260,7 +260,7 @@ theorem AddressInclusionProofStep_rw {l i e r} {k : F → Prop}:
     (∃b, Gates.to_binary i AD b ∧ AddressMerkleRootGadget l b e fun o => Gates.eq o r ∧ k o) ↔
     (∃ (hi : i.val < 2^AD), MerkleTree.recoverAtFin poseidon₂ ⟨i.val, hi⟩ e.reverse l = r) ∧ k r := by
   have : 2^AD < Order := by decide
-  simp only [Gates, GatesGnark8, Gates.to_binary_iff_eq_fin_to_bits_le_of_pow_length_lt this]
+  simp only [Gates, GatesGnark12, GatesDef.to_binary_12, GatesGnark8, GatesGnark9]
   simp only [←exists_and_right]
   rw [←exists_comm]
   simp only [exists_eq_left, AddressMerkleRootGadget_rw, GatesDef.eq, MerkleTree.recoverAtFin, Fin.toBitsLE]
@@ -452,7 +452,7 @@ theorem NonInclusionCircuit_correct [Fact poseidon₂_no_zero_preimage] [Fact (C
   unfold NonInclusionCircuit
   simp only [←NonInclusionProof_rec_equiv]
   simp only [TwoInputsHashChain_rw]
-  simp [Gates, GatesGnark8, GatesDef.eq]
+  simp [Gates, GatesGnark8, GatesGnark9, GatesGnark12, GatesDef.eq]
   intro
   apply Iff.intro
   · rintro ⟨_, _, _, _, hp⟩
@@ -476,7 +476,7 @@ theorem CombinedCircuit_correct [Fact poseidon₂_no_zero_preimage] [Fact (Colli
   h = poseidon₂ vec![inputHash poseidon₂ poseidon₃ (inclusionTrees.map (·.root)) inclusionLeaves, inputHash poseidon₂ poseidon₃ (nonInclusionTrees.map (·.root)) nonInclusionLeaves] ∧
   ∀i (_: i∈[0:B]), inclusionLeaves[i] ∈ inclusionTrees[i] ∧ nonInclusionLeaves[i].val ∈ nonInclusionTrees[i] := by
   unfold CombinedCircuit B AD SD at *
-  simp [InclusionProof_swap_ex, InclusionProof_correct, ←NonInclusionProof_rec_equiv, NonInclusionCircuit_rec_correct, TwoInputsHashChain_rw, Gates, GatesGnark8, GatesDef.eq]
+  simp [InclusionProof_swap_ex, InclusionProof_correct, ←NonInclusionProof_rec_equiv, NonInclusionCircuit_rec_correct, TwoInputsHashChain_rw, Gates, GatesGnark8, GatesGnark9, GatesGnark12, GatesDef.eq]
   rintro _
   apply Iff.intro
   . rintro ⟨l, r⟩
@@ -496,7 +496,7 @@ theorem StateMerkleRootUpdateGadget_rw [Fact (CollisionResistant poseidon₂)] {
     ∃(hi: ix.val < 2^SD), proof.reverse = tree.proofAtFin ⟨ix.val, hi⟩ ∧ oldleaf = tree.itemAtFin ⟨ix.val, hi⟩ ∧ k (tree.setAtFin ⟨ix.val, hi⟩ newleaf).root := by
   unfold StateMerkleRootUpdateGadget
   have : 2^SD < Order := by decide
-  simp only [Gates, GatesGnark8, GatesDef.eq, Gates.to_binary_iff_eq_fin_to_bits_le_of_pow_length_lt this]
+  simp only [Gates, GatesGnark12, GatesDef.to_binary_12, GatesGnark8, GatesGnark9, GatesDef.eq]
   apply Iff.intro
   · rintro ⟨_, ⟨hi, rfl⟩, h⟩
     simp only [StateMerkleRootGadget_rw] at h
@@ -570,10 +570,10 @@ lemma iszero_rw (k : F → Prop) : (∃ gate_2,
         Gates.is_zero oleaf gate_2 ∧
           ∃ gate_3,
             Gates.select gate_2 leaf oleaf gate_3 ∧ k gate_3) ↔ k (if oleaf = 0 then leaf else oleaf) := by
-  simp [Gates, GatesGnark8]
+  simp [Gates, GatesGnark8, GatesGnark12, GatesGnark9]
 
 lemma ex_add_rw (k : F → Prop) : (∃g, g = Gates.add a b ∧ k g) ↔ k (a + b) := by
-  simp [Gates, GatesGnark8, GatesDef.add]
+  simp [Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.add]
 
 def AppendWithProofs_rec {D} (or si : F) (ol l : List.Vector F D) (mps : List.Vector (List.Vector F SD) D) (k : F → Prop): Prop := match D with
   | 0 => k or
@@ -583,7 +583,7 @@ def AppendWithProofs_rec {D} (or si : F) (ol l : List.Vector F D) (mps : List.Ve
     AppendWithProofs_rec or (si + 1) ol.tail l.tail mps.tail fun r => k r
 
 lemma double_eq_ex {f : F → F} : (∃x, Gates.eq (f x) y ∧ Gates.eq z x ∧ k) ↔ y = (f z) ∧ k := by
-  simp [Gates, GatesGnark8]
+  simp [Gates, GatesGnark8, GatesGnark12, GatesGnark9]
   apply Iff.intro
   · rintro ⟨x, _⟩
     simp_all
@@ -873,7 +873,7 @@ theorem BatchUpdateCircuit_rw1 {pih or nr txh l ol mps} :
     pih = hashChain vec![or, nr, hashChain3 l pis txh] ∧ batchUpdate_rec or l ol pis txh mps fun nr' => nr' = nr := by
   unfold BatchUpdateCircuit
   rw [←List.Vector.ofFn_get (v:=mps), ←List.Vector.ofFn_get (v:=ol), ←List.Vector.ofFn_get (v:=l), ←List.Vector.ofFn_get (v:=pis), ←List.Vector.ofFn_get (v:=txh)]
-  simp only [batchUpdate_rec, HashChain_B_rw, Poseidon3_iff_uniqueAssignment, Gates, GatesGnark8, GatesDef.eq, HashChain_3_rw]
+  simp only [batchUpdate_rec, HashChain_B_rw, Poseidon3_iff_uniqueAssignment, Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.eq, HashChain_3_rw]
   apply Iff.intro
   · rintro ⟨lhh, pihdef, lhhdef, h⟩
     cases pihdef
@@ -1051,7 +1051,7 @@ theorem AddressMerkleRootUpdateGadget_rw [Fact (CollisionResistant poseidon₂)]
     ∃(hi: ix.val < 2^AD), proof.reverse = tree.proofAtFin ⟨ix.val, hi⟩ ∧ oldleaf = tree.itemAtFin ⟨ix.val, hi⟩ ∧ k (tree.setAtFin ⟨ix.val, hi⟩ newleaf).root := by
   unfold AddressMerkleRootUpdateGadget
   have : 2^AD < Order := by decide
-  simp only [Gates, GatesGnark8, GatesDef.eq, Gates.to_binary_iff_eq_fin_to_bits_le_of_pow_length_lt this]
+  simp only [Gates, GatesGnark8, GatesDef.eq, GatesGnark12, GatesGnark9]
   apply Iff.intro
   · rintro ⟨_, ⟨hi, rfl⟩, h⟩
     simp only [AddressMerkleRootGadget_rw] at h
@@ -1108,7 +1108,7 @@ theorem BatchAddressAppend_step_complete [Fact (CollisionResistant poseidon₂)]
     rw [hei] at helt
     simp [Membership.mem] at helt
   simp [LeafHashGadget_rw, RangeVector.root, AddressMerkleRootUpdateGadget_rw, *]
-  simp [Gates, GatesGnark8, GatesDef.add, *]
+  simp [Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.add, *]
   apply And.intro
   · rw [←hr] at helt
     exact helt
@@ -1155,7 +1155,7 @@ theorem BatchAddressAppend_step_rw [Fact (CollisionResistant poseidon₂)] [Fact
   simp only [LightProver.LeafHashGadget, Poseidon2_iff_uniqueAssignment, RangeVector.root, AddressMerkleRootUpdateGadget_rw]
   have := @Range.hashOpt_eq_poseidon_iff_is_some
   conv at this => enter [x,x,x,x,x,1]; rw [eq_comm]
-  simp only [rangeTree, MerkleTree.ofFn_itemAtFin, this, Gates, GatesGnark8, GatesDef.add]
+  simp only [rangeTree, MerkleTree.ofFn_itemAtFin, this, Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.add]
   · rintro ⟨hlo, hhi, hli, hlep, ⟨hrsome, hlodef, hhidef⟩, _, rfl, hemp, hnep, heltZ, hk⟩
     apply Exists.intro hemp
     apply Exists.intro hli
@@ -1230,37 +1230,14 @@ theorem BatchAddressAppend_step_sound [Fact (CollisionResistant poseidon₂)] [F
 theorem exists_BatchAddressAppend_step_comm {k : α → F → Prop}:
   (∃x, BatchAddressAppendStep root lev lenv nev lei si o lep nep (k x)) ↔ BatchAddressAppendStep root lev lenv nev lei si o lep nep fun r => ∃x, k x r := by
   simp [BatchAddressAppendStep, LightProver.LeafHashGadget, AddressMerkleRootUpdateGadget]
-  simp [Gates, GatesGnark8, Gates.to_binary_iff_eq_Fin_ofBitsLE]
+  simp [Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.to_binary_12, GatesDef.add]
   intros
   apply Iff.intro
   · simp_all [AddressMerkleRootGadget_rw]
     intros
     apply Exists.intro
-    apply And.intro
-    apply Exists.intro
-    apply And.intro rfl rfl
-    simp_all [AddressMerkleRootGadget_rw]
-    apply Exists.intro
-    apply And.intro
-    apply Exists.intro
-    apply And.intro rfl rfl
-    simp_all [AddressMerkleRootGadget_rw]
-    apply Exists.intro
     assumption
   · simp_all [AddressMerkleRootGadget_rw]
-    intros
-    apply Exists.intro
-    apply Exists.intro
-    apply And.intro
-    apply Exists.intro
-    apply And.intro rfl rfl
-    simp_all [AddressMerkleRootGadget_rw]
-    apply Exists.intro
-    apply And.intro
-    apply Exists.intro
-    apply And.intro rfl rfl
-    simp_all [AddressMerkleRootGadget_rw]
-    assumption
 
 
 def BatchAddressLoop {l} (OldRoot: F) (StartIndex: F) (offset : F) (LowElementValues: List.Vector F l) (LowElementNextValues: List.Vector F l) (LowElementIndices: List.Vector F l) (LowElementProofs: List.Vector (List.Vector F AD) l) (NewElementValues: List.Vector F l) (NewElementProofs: List.Vector (List.Vector F AD) l) (k : F → Prop): Prop :=
@@ -1429,7 +1406,7 @@ theorem BatchAddressLoop_skip_tree {elements : List.Vector F l}:
     intro h
     use rv
   | succ l ih =>
-    simp [BatchAddressLoop, LightProver.LeafHashGadget, Gates, GatesGnark8, Gates.to_binary_iff_eq_Fin_ofBitsLE, AddressMerkleRootUpdateGadget]
+    simp [BatchAddressLoop, LightProver.LeafHashGadget, Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.to_binary_12, AddressMerkleRootUpdateGadget]
     intros
     simp_all [AddressMerkleRootGadget_rw]
     casesm* Exists _, _ ∧ _
@@ -1447,7 +1424,7 @@ theorem BatchAdressAppend_sound [Fact (CollisionResistant poseidon₂)] [Fact po
   have := BatchAddressLoop_sound $ by
     repeat apply Exists.intro
     assumption
-  simp only [HashChain_B_rw, HashChain_4_rw, Gates, GatesGnark8, GatesDef.eq] at this
+  simp only [HashChain_B_rw, HashChain_4_rw, Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.eq] at this
   rcases this with ⟨nrv, this⟩
   use nrv
   simp_all
@@ -1459,7 +1436,7 @@ theorem BatchAddressAppend_complete [Fact (CollisionResistant poseidon₂)] [Fac
     (h_mems : ∀ i ∈ elements, i.val ∈ rv)
     (h_emps : ∀i, (h: i ∈ [si:si+B]) → rv.ranges ⟨i, by linarith [h.2]⟩ = none):
     ∃lev lenv lei lep nep newRoot hch pih, BatchAddressTreeAppendCircuit pih rv.root newRoot hch si lev lenv lei lep elements nep := by
-  simp [BatchAddressLoop_rw1, exists_BatchAddressLoop_comm, HashChain_B_rw, HashChain_4_rw, Gates, GatesGnark8, GatesDef.eq]
+  simp [BatchAddressLoop_rw1, exists_BatchAddressLoop_comm, HashChain_B_rw, HashChain_4_rw, Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.eq]
   apply BatchAddressLoop_complete (hk := fun _ => trivial)
   · exact h_distinct
   · exact h_mems
