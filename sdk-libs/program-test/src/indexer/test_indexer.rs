@@ -175,23 +175,21 @@ impl Indexer for TestIndexer {
         hash: Option<Hash>,
     ) -> Result<Account, IndexerError> {
         let account = match (address, hash) {
-            (Some(address), _) => self.compressed_accounts.iter().find(|acc| {
-                acc.compressed_account
-                    .address
-                    .map_or(false, |acc_addr| acc_addr == address)
-            }),
+            (Some(address), _) => self
+                .compressed_accounts
+                .iter()
+                .find(|acc| acc.compressed_account.address == Some(address)),
             (_, Some(hash)) => {
                 let res = self
                     .compressed_accounts
                     .iter()
-                    .find(|acc| acc.hash().map_or(false, |acc_hash| acc_hash == hash));
+                    .find(|acc| acc.hash() == Ok(hash));
                 // TODO: unify token accounts with compressed accounts.
                 if res.is_none() {
-                    let res = self.token_compressed_accounts.iter().find(|acc| {
-                        acc.compressed_account
-                            .hash()
-                            .map_or(false, |acc_hash| acc_hash == hash)
-                    });
+                    let res = self
+                        .token_compressed_accounts
+                        .iter()
+                        .find(|acc| acc.compressed_account.hash() == Ok(hash));
                     res.map(|x| &x.compressed_account)
                 } else {
                     res
@@ -218,7 +216,7 @@ impl Indexer for TestIndexer {
             .token_compressed_accounts
             .iter()
             .filter(|acc| {
-                acc.token_data.owner == *owner && mint.map_or(true, |m| acc.token_data.mint == m)
+                acc.token_data.owner == *owner && mint.is_none_or(|m| acc.token_data.mint == m)
             })
             .cloned()
             .collect();
@@ -241,17 +239,14 @@ impl Indexer for TestIndexer {
         hash: Option<Hash>,
     ) -> Result<u64, IndexerError> {
         let account = match (address, hash) {
-            (Some(address), _) => self.token_compressed_accounts.iter().find(|acc| {
-                acc.compressed_account
-                    .compressed_account
-                    .address
-                    .map_or(false, |acc_addr| acc_addr == address)
-            }),
-            (_, Some(hash)) => self.token_compressed_accounts.iter().find(|acc| {
-                acc.compressed_account
-                    .hash()
-                    .map_or(false, |acc_hash| acc_hash == hash)
-            }),
+            (Some(address), _) => self
+                .token_compressed_accounts
+                .iter()
+                .find(|acc| acc.compressed_account.compressed_account.address == Some(address)),
+            (_, Some(hash)) => self
+                .token_compressed_accounts
+                .iter()
+                .find(|acc| acc.compressed_account.hash() == Ok(hash)),
             (None, None) => {
                 return Err(IndexerError::InvalidParameters(
                     "Either address or hash must be provided".to_string(),
@@ -277,7 +272,7 @@ impl Indexer for TestIndexer {
                     .filter(|acc| {
                         acc.compressed_account
                             .address
-                            .map_or(false, |addr| addresses.contains(&addr))
+                            .is_some_and(|addr| addresses.contains(&addr))
                     })
                     .map(|acc| acc.clone().into_photon_account())
                     .collect();
@@ -287,7 +282,7 @@ impl Indexer for TestIndexer {
                 let accounts = self
                     .compressed_accounts
                     .iter()
-                    .filter(|acc| acc.hash().map_or(false, |hash| hashes.contains(&hash)))
+                    .filter(|acc| acc.hash().is_ok_and(|hash| hashes.contains(&hash)))
                     .map(|acc| acc.clone().into_photon_account())
                     .collect();
                 Ok(accounts)
@@ -307,7 +302,7 @@ impl Indexer for TestIndexer {
             .token_compressed_accounts
             .iter()
             .filter(|acc| {
-                acc.token_data.owner == *owner && mint.map_or(true, |m| acc.token_data.mint == m)
+                acc.token_data.owner == *owner && mint.is_none_or(|m| acc.token_data.mint == m)
             })
             .map(|acc| TokenBalance {
                 balance: acc.token_data.amount,

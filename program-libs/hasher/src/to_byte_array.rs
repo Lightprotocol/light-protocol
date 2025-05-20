@@ -395,7 +395,7 @@ mod test {
         // Test with longer string that gets truncated
         let long_string =
             "this is a string that is longer than 32 bytes and will be fail".to_string();
-        let byte_len = long_string.as_bytes().len();
+        let byte_len = long_string.len();
         let result = long_string.to_byte_array();
         assert_eq!(result, Err(HasherError::InvalidInputLength(31, byte_len)));
     }

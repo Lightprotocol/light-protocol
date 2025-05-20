@@ -32,8 +32,8 @@ pub struct CreateSmartTransactionConfig {
 ///
 /// # Returns
 /// The confirmed transaction signature or an error if the confirmation times out
-pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
-    connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
+pub async fn poll_transaction_confirmation<R: RpcConnection>(
+    connection: &mut bb8::PooledConnection<'_, SolanaConnectionManager<R>>,
     txt_sig: Signature,
     abort_timeout: Duration,
 ) -> Result<Signature, light_client::rpc::RpcError> {
@@ -80,8 +80,8 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
 }
 
 // Sends a transaction and handles its confirmation. Retries until timeout or last_valid_block_height is reached.
-pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
-    connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
+pub async fn send_and_confirm_transaction<R: RpcConnection>(
+    connection: &mut bb8::PooledConnection<'_, SolanaConnectionManager<R>>,
     transaction: &Transaction,
     send_transaction_config: RpcSendTransactionConfig,
     last_valid_block_height: u64,
@@ -118,7 +118,7 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
 ///
 /// # Arguments
 /// * `config` - The configuration for the smart transaction, which includes the transaction's instructions, signers, and lookup tables, depending on
-///     whether it's a legacy or versioned smart transaction. The transaction's send configuration can also be changed, if provided
+///   whether it's a legacy or versioned smart transaction. The transaction's send configuration can also be changed, if provided
 ///
 /// # Returns
 /// An optimized `Transaction` and the `last_valid_block_height`

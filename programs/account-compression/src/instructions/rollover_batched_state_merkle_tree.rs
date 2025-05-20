@@ -51,7 +51,7 @@ impl<'info> GroupAccounts<'info> for RolloverBatchedStateMerkleTree<'info> {
 /// 2. Check that signer is registered or authority.
 /// 3. Rollover the old Merkle tree and queue to new Merkle tree and queue.
 /// 4. Transfer rent exemption for new accounts
-///     from old output queue to fee payer.
+///    from old output queue to fee payer.
 pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
     additional_bytes: u64,

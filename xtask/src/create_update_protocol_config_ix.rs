@@ -23,11 +23,11 @@ pub struct Options {
 
 /// Steps:
 /// 1. fetch protocol config account
-///     1.1. print protocol config account
+///    1.1. print protocol config account
 /// 2. create updated protocol config based on inputs
-///     2.1. print updated protocol config
+///    2.1. print updated protocol config
 /// 3. create instruction
-///     - signer is the multisig
+///    - signer is the multisig
 /// 4. serialize instruction to bs58
 /// 5. print bs58
 pub async fn create_update_protocol_config_ix(options: Options) -> anyhow::Result<()> {

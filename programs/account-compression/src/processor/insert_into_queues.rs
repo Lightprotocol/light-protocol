@@ -24,8 +24,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         &authority,
         inputs.is_invoked_by_program(),
         inputs.bump,
-    )
-    .map_err(ProgramError::from)?;
+    )?;
     if inputs.nullifiers.is_empty() && inputs.addresses.is_empty() && inputs.leaves.is_empty() {
         return Err(AccountCompressionErrorCode::InputElementsEmpty.into());
     }

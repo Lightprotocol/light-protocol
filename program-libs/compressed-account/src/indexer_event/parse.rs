@@ -67,10 +67,10 @@ struct AssociatedInstructions<'a> {
 /// 1. light_system_program::{Invoke, InvokeCpi, InvokeCpiReadOnly} (one of the 3)
 /// 2. account_compression::InsertIntoQueues
 /// - We return new addresses in batched trees separately
-///     because from the PublicTransactionEvent there
-///     is no way to know which addresses are new and
-///     for batched address trees we need to index the queue of new addresses
-///     the tree&queue account only contains bloomfilters, roots and metadata.
+///   because from the PublicTransactionEvent there
+///   is no way to know which addresses are new and
+///   for batched address trees we need to index the queue of new addresses
+///   the tree&queue account only contains bloomfilters, roots and metadata.
 ///
 /// Steps:
 /// 0. Wrap program ids of instructions to filter but not change the pattern

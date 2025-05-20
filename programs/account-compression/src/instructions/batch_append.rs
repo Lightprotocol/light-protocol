@@ -40,9 +40,9 @@ impl<'info> GroupAccounts<'info> for BatchAppend<'info> {
 /// 1. Check Merkle tree account discriminator, tree type, and program ownership.
 /// 2. Check that signer is registered or authority.
 /// 3. Append leaves from the output queue to the state Merkle tree.
-///     3.1 Checks that output queue is associated with the Merkle tree.
-///     3.2 Checks output queue discriminator, program ownership.
-///     3.3 Verifies batch zkp and updates root.
+///    3.1 Checks that output queue is associated with the Merkle tree.
+///    3.2 Checks output queue discriminator, program ownership.
+///    3.3 Verifies batch zkp and updates root.
 /// 4. Emit indexer event.
 pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,

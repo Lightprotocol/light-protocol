@@ -48,7 +48,7 @@ use thiserror::Error;
 /// 1. Value in hashset is marked
 /// 2. State tree root is updated
 /// 3. TODO: add event is emitted (after rebase)
-///     optional: assert that the Merkle tree doesn't change except the updated leaf
+///    optional: assert that the Merkle tree doesn't change except the updated leaf
 pub async fn nullify_compressed_accounts<R: RpcConnection + TestRpc + Indexer + Indexer>(
     rpc: &mut R,
     forester: &Keypair,
@@ -215,7 +215,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection + TestRpc + Indexer + 
     Ok(())
 }
 
-async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
+async fn assert_value_is_marked_in_queue<R: RpcConnection>(
     rpc: &mut R,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     index_in_nullifier_queue: &usize,

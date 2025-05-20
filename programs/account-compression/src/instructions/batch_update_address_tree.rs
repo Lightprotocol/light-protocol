@@ -36,7 +36,7 @@ impl<'info> GroupAccounts<'info> for BatchUpdateAddressTree<'info> {
 /// 1. Check tree account discriminator, tree type, and program ownership.
 /// 2. Check that signer is registered or authority.
 /// 3. Update the address tree with the batch of addresses.
-///     3.1 Verifies batch update zkp and updates root.
+///    3.1 Verifies batch update zkp and updates root.
 /// 4. Emit indexer event.
 pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,

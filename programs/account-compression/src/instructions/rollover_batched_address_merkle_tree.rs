@@ -42,9 +42,9 @@ impl<'info> GroupAccounts<'info> for RolloverBatchedAddressMerkleTree<'info> {
 /// 1. Check Merkle tree account discriminator, tree type, and program ownership.
 /// 2. Check that signer is registered or authority.
 /// 3. Rollover the old address Merkle tree to the new address Merkle tree.
-///     3.1. Check that new address Merkle tree account is exactly rent exempt.
+///    3.1. Check that new address Merkle tree account is exactly rent exempt.
 /// 4. Transfer rent exemption for new Merkle tree
-///     from old address Merkle tree to fee payer.
+///    from old address Merkle tree to fee payer.
 pub fn process_rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedAddressMerkleTree<'info>>,
     network_fee: Option<u64>,

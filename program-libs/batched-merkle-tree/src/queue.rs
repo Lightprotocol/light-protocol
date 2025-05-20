@@ -96,9 +96,9 @@ impl BatchedQueueMetadata {
 /// An output queue is configured with:
 /// 1. 2 batches
 /// 2. 2 value vecs (one for each batch)
-///     value vec length = batch size
+///    value vec length = batch size
 /// 3. 2 hash chain vecs (one for each batch)
-///     hash chain store length = batch size /zkp batch size
+///    hash chain store length = batch size /zkp batch size
 ///
 /// Default config:
 /// - 50,000 batch size
@@ -106,7 +106,7 @@ impl BatchedQueueMetadata {
 ///
 /// Initialization:
 /// - an output queue is initialized
-///     in combination with a state Merkle tree
+///   in combination with a state Merkle tree
 /// - `init_batched_state_merkle_tree_from_account_info`
 ///
 /// For deserialization use:
@@ -121,7 +121,7 @@ impl BatchedQueueMetadata {
 ///
 /// To spend, the account compression program uses:
 /// - check_leaf_index_could_exist_in_batches in combination with
-///     `prove_inclusion_by_index_and_zero_out_leaf`
+///   `prove_inclusion_by_index_and_zero_out_leaf`
 ///
 /// To read, light the system program uses:
 /// - `prove_inclusion_by_index`
@@ -298,8 +298,8 @@ impl<'a> BatchedQueueAccount<'a> {
     /// Proves inclusion of leaf index if it exists in one of the batches.
     /// 1. Iterate over all batches
     /// 2. Check if leaf index could exist in the batch.
-    ///     2.1 If yes, check whether value at index is equal to hash_chain_value.
-    ///         Throw error if not.
+    ///    2.1 If yes, check whether value at index is equal to hash_chain_value.
+    ///    Throw error if not.
     /// 3. Return true if leaf index exists in one of the batches.
     ///
     /// Note, this method does not fail but returns `false`
@@ -448,7 +448,7 @@ impl DerefMut for BatchedQueueAccount<'_> {
 ///
 /// Steps:
 /// 1. Check if the current batch is ready.
-///     1.1. If the current batch is inserted, clear the batch.
+///    1.1. If the current batch is inserted, clear the batch.
 /// 2. Insert value into the current batch.
 /// 3. If batch is full, increment currently_processing_batch_index.
 #[allow(clippy::too_many_arguments)]

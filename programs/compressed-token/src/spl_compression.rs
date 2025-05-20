@@ -91,7 +91,7 @@ pub fn decompress_spl_tokens<'info>(
 /// 4. Skip if action amount is zero.
 /// 5. Check if the token pool account is derived from the mint.
 /// 6. Return error if the token pool account is not derived
-///     from any combination of mint and bump.
+///    from any combination of mint and bump.
 /// 7. Burn or transfer the amount from the token pool account.
 /// 8. Remove bump from the list of bumps.
 /// 9. Reduce the amount by the transferred or burned amount.

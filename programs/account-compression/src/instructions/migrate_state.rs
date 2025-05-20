@@ -52,9 +52,9 @@ pub struct MigrateLeafParams {
 /// Migrate a leaf from a v1 state tree to a v2 state tree.
 /// 1. Check that signer is a registered program.
 /// 2. Migrate state
-///     2.1 Nullifies a leaf in the state merkle tree.
-///     2.2 Create a nullifier event.
-///     2.3 Inserts the leaf in the output queue.
+///    2.1 Nullifies a leaf in the state merkle tree.
+///    2.2 Create a nullifier event.
+///    2.3 Inserts the leaf in the output queue.
 /// 3. Emit nullifier event
 pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
