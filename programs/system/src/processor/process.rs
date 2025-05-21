@@ -42,39 +42,39 @@ use crate::{
 /// (Note this is a high level overview and not in order.
 ///  See Steps for checks in implementation order.)
 /// 1. Writable Compressed accounts
-///     `inputs.input_compressed_accounts_with_merkle_context`
-///     1.1. Sum check lamports
-///         Check that sum of lamports of in and
-///         output compressed accounts add up +- (de)compression.
-///     1.2. Compress or decompress lamports
-///     1.3. Hash input compressed accounts
-///     1.4. Insert Output compressed accounts
-///         1.4.1. hash output compressed accounts
-///         1.4.2. Validate Tree is writable by signer
-///         1.4.3. Check that only existing addresses are used.
-///         1.4.4. Enforce that Merkle tree indices are in order
-///     1.5. Insert nullifiers
-///         1.5.1. Validate Tree is writable by signer.
-///     1.6. Verify inclusion
-///         1.5.1 by index
-///         1.5.2 by zkp
-///     1.7. Cpi account compression program to insert new addresses,
-///         nullify input and append output state.
+///    `inputs.input_compressed_accounts_with_merkle_context`
+///    1.1. Sum check lamports
+///    Check that sum of lamports of in and
+///    output compressed accounts add up +- (de)compression.
+///    1.2. Compress or decompress lamports
+///    1.3. Hash input compressed accounts
+///    1.4. Insert Output compressed accounts
+///    1.4.1. hash output compressed accounts
+///    1.4.2. Validate Tree is writable by signer
+///    1.4.3. Check that only existing addresses are used.
+///    1.4.4. Enforce that Merkle tree indices are in order
+///    1.5. Insert nullifiers
+///    1.5.1. Validate Tree is writable by signer.
+///    1.6. Verify inclusion
+///    1.6.1 by index
+///    1.6.2 by zkp
+///    1.7. Cpi account compression program to insert new addresses,
+///    nullify input and append output state.
 /// 2. Read-only compressed accounts
-///     `read_only_accounts`
+///    `read_only_accounts`
 ///     - is already hashed we only verify inclusion
-///        2.1. Verify inclusion
-///         2.1.1 by index
-///         2.1.2 by zkp
+///       2.1. Verify inclusion
+///       2.1.1 by index
+///       2.1.2 by zkp
 /// 3. New addresses
-///     `inputs.new_address_params`
+///    `inputs.new_address_params`
 ///    3.1. Derive addresses from seed
 ///    3.2. Insert addresses into address Merkle tree queue
 ///    3.3. Verify non-inclusion
 /// 4. Read-only addresses
 ///    `read_only_addresses`
-///     4.1. Verify non-inclusion in queue
-///     4.2. Verify inclusion by zkp
+///    4.1. Verify non-inclusion in queue
+///    4.2. Verify inclusion by zkp
 pub fn process<
     'a,
     'info,

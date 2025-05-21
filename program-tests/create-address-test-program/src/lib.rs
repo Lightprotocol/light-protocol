@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(unexpected_cfgs)]
 
 use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, NOOP_PUBKEY};
 use anchor_lang::{

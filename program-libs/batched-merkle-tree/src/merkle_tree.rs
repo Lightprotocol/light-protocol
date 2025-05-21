@@ -356,22 +356,22 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Update the tree from the output queue account.
     /// 1. Create public inputs hash.
     /// 2. Verify update proof and update tree account.
-    ///     2.1. Verify proof.
-    ///     2.2. Increment sequence number.
-    ///     2.3. Increment next index.
-    ///     2.4. Append new root to root history.
+    ///    2.1. Verify proof.
+    ///    2.2. Increment sequence number.
+    ///    2.3. Increment next index.
+    ///    2.4. Append new root to root history.
     /// 3. Mark zkp batch as inserted in the merkle tree.
-    ///     3.1. Checks that the batch is ready.
-    ///     3.2. Increment the number of inserted zkps.
-    ///     3.3. If all zkps are inserted, set batch state to inserted.
+    ///    3.1. Checks that the batch is ready.
+    ///    3.2. Increment the number of inserted zkps.
+    ///    3.3. If all zkps are inserted, set batch state to inserted.
     /// 4. Increment next full batch index if inserted.
     /// 5. Zero out previous batch bloom filter of input queue
-    ///     if current batch is 50% inserted.
+    ///    if current batch is 50% inserted.
     /// 6. Return the batch append event.
     ///
     /// Note: when proving inclusion by index in
-    ///     value array we need to insert the value into a bloom_filter once it is
-    ///     inserted into the tree. Check this with get_num_inserted_zkps
+    /// value array we need to insert the value into a bloom_filter once it is
+    /// inserted into the tree. Check this with get_num_inserted_zkps
     pub fn update_tree_from_output_queue_account(
         &mut self,
         queue_account: &mut BatchedQueueAccount,
@@ -475,14 +475,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Update the tree from the input/address queue account.
     /// 1. Create public inputs hash.
     /// 2. Verify update proof and update tree account.
-    ///     2.1. Verify proof.
-    ///     2.2. Increment sequence number.
-    ///     2.3. If address tree increment next index.
-    ///     2.4. Append new root to root history.
+    ///    2.1. Verify proof.
+    ///    2.2. Increment sequence number.
+    ///    2.3. If address tree increment next index.
+    ///    2.4. Append new root to root history.
     /// 3. Mark batch as inserted in the merkle tree.
-    ///     3.1. Checks that the batch is ready.
-    ///     3.2. Increment the number of inserted zkps.
-    ///     3.3. If all zkps are inserted, set the state to inserted.
+    ///    3.1. Checks that the batch is ready.
+    ///    3.2. Increment the number of inserted zkps.
+    ///    3.3. If all zkps are inserted, set the state to inserted.
     /// 4. Zero out previous batch bloom filter if current batch is 50% inserted.
     /// 5. Increment next full batch index if inserted.
     /// 6. Return the batch nullify event.
@@ -618,13 +618,13 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 1. Check that the tree is a state tree.
     /// 2. Create nullifier Hash(value,leaf_index, tx_hash).
     /// 3. Insert nullifier into current batch.
-    ///     3.1. Insert compressed_account_hash into bloom filter.
-    ///         (bloom filter enables non-inclusion proofs in later txs)
-    ///     3.2. Add nullifier to leaves hash chain.
-    ///         (Nullification means, the compressed_account_hash in the tree,
-    ///         is overwritten with a nullifier hash)
-    ///     3.3. Check that compressed_account_hash
-    ///         does not exist in any other bloom filter.
+    ///    3.1. Insert compressed_account_hash into bloom filter.
+    ///    (bloom filter enables non-inclusion proofs in later txs)
+    ///    3.2. Add nullifier to leaves hash chain.
+    ///    (Nullification means, the compressed_account_hash in the tree,
+    ///    is overwritten with a nullifier hash)
+    ///    3.3. Check that compressed_account_hash
+    ///    does not exist in any other bloom filter.
     pub fn insert_nullifier_into_queue(
         &mut self,
         compressed_account_hash: &[u8; 32],
@@ -707,8 +707,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Steps:
     /// 1. Check whether overlapping roots exist.
     /// 2. If yes:
-    ///     2.1. Get, first safe root index.
-    ///     2.2. Zero out roots from the oldest root to first safe root.
+    ///    2.1. Get, first safe root index.
+    ///    2.2. Zero out roots from the oldest root to first safe root.
     ///
     /// Note on security for root buffer:
     /// Account {
@@ -722,20 +722,20 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Timeslot 1:
     /// - insert into B1 until full
     /// - update tree with B0 in 4 partial updates, don't clear B0 yet
-    ///     -> R0 -> B0.1
-    ///     -> R1 -> B0.2
-    ///     -> R2 -> B0.3
-    ///     -> R3 -> B0.4 - final B0 root
-    ///     B0.sequence_number = 13 (3 + account.root.length)
-    ///     B0.root_index = 3
+    ///   -> R0 -> B0.1
+    ///   -> R1 -> B0.2
+    ///   -> R2 -> B0.3
+    ///   -> R3 -> B0.4 - final B0 root
+    ///   B0.sequence_number = 13 (3 + account.root.length)
+    ///   B0.root_index = 3
     /// - execute some B1 root updates
-    ///     -> R4 -> B1.1
-    ///     -> R5 -> B1.2
-    ///     -> R6 -> B1.3
-    ///     -> R7 -> B1.4 - final B1 (update batch 0) root
-    ///     B0.sequence_number = 17 (7 + account.root.length)
-    ///     B0.root_index = 7
-    ///     current_sequence_number = 8
+    ///   -> R4 -> B1.1
+    ///   -> R5 -> B1.2
+    ///   -> R6 -> B1.3
+    ///   -> R7 -> B1.4 - final B1 (update batch 0) root
+    ///   B0.sequence_number = 17 (7 + account.root.length)
+    ///   B0.root_index = 7
+    ///   current_sequence_number = 8
     ///
     /// Timeslot 2:
     ///     - clear B0
@@ -779,12 +779,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///
     /// Idea:
     /// 1. Zeroing out the bloom filter of the previous batch is expensive
-    ///     -> the forester should do it.
+    ///    -> the forester should do it.
     /// 2. We don't want to zero out the bloom filter when inserting
-    ///     the last zkp of a batch for this might result in failing user tx.
+    ///    the last zkp of a batch for this might result in failing user tx.
     /// 3. Wait until next batch is 50% full as grace period for clients
-    ///     to switch from proof by index to proof by zkp
-    ///     for values inserted in the previous batch.
+    ///    to switch from proof by index to proof by zkp
+    ///    for values inserted in the previous batch.
     ///
     /// Steps:
     /// 1. Previous batch must be inserted and bloom filter must not be zeroed out.
@@ -794,9 +794,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///    3.2. zero out bloom filter
     ///    3.3. zero out roots if needed
     ///
-    ///     Initial state: 0 pending -> 1 previous pending even though it was never used
-    ///     0 inserted -> 1 pending 0 -> 1 pending 50% - zero out 0 -> 1 inserted
-    ///     0 pending -> 1 inserted
+    ///   Initial state: 0 pending -> 1 previous pending even though it was never used
+    ///   0 inserted -> 1 pending 0 -> 1 pending 50% - zero out 0 -> 1 inserted
+    ///   0 pending -> 1 inserted
     fn zero_out_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
         let current_batch = self.queue_batches.pending_batch_index as usize;
         let batch_size = self.queue_batches.batch_size;
@@ -1101,15 +1101,15 @@ mod test {
     /// 1. No batch is ready -> nothing should happen.
     /// 2. Batch 0 is inserted but Batch 1 is empty -> nothing should happen.
     /// 3. Batch 0 is inserted but Batch 1 is 25% full (not the required half)
-    ///     -> nothing should happen.
+    ///    -> nothing should happen.
     /// 4. Batch 0 is inserted and Batch 1 is full
-    ///     -> should zero out all existing roots except the last one.
+    ///    -> should zero out all existing roots except the last one.
     /// 5. Batch 1 is inserted and Batch 0 is empty
-    ///     -> nothing should happen.
+    ///    -> nothing should happen.
     /// 6. Batch 1 is inserted and Batch 0 is 25% full (not the required half)
-    ///     -> nothing should happen.
+    ///    -> nothing should happen.
     /// 7. Batch 1 is inserted and Batch 0 is half full and no overlapping roots exist
-    ///     -> bloom filter is zeroed, roots are untouched.
+    ///    -> bloom filter is zeroed, roots are untouched.
     /// 8. Batch 1 is already zeroed -> nothing should happen
     /// 9. Batch 1 is inserted and Batch 0 is full and overlapping roots exist
     #[test]

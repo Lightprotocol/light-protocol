@@ -127,7 +127,7 @@ impl<'info> SystemContext<'info> {
     /// 1. create account with address    network fee 10,000 lamports
     /// 2. token transfer                 network fee 5,000 lamports
     /// 3. mint token                     network fee 5,000 lamports
-    ///     Transfers rollover and network fees.
+    ///    Transfers rollover and network fees.
     pub fn transfer_fees(&self, accounts: &[AccountInfo], fee_payer: &AccountInfo) -> Result<()> {
         for (i, fee) in self.rollover_fee_payments.iter() {
             transfer_lamports_invoke(fee_payer, &accounts[*i as usize], *fee)?;
@@ -251,10 +251,10 @@ impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
             if let Some(cpi_context) = self.cpi_context.as_ref() {
                 if let Some(context) = cpi_context.context.first() {
                     let index = index.saturating_sub(ix_outputs_len);
-                    context
-                        .output_accounts()
-                        .get(index)
-                        .map(|account| account as &dyn OutputAccount<'a>)
+                    context.output_accounts().get(index).map(|account| {
+                        let output_account_trait_object: &'b (dyn OutputAccount<'a> + 'b) = account;
+                        output_account_trait_object
+                    })
                 } else {
                     None
                 }

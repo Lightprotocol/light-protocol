@@ -84,7 +84,7 @@ pub fn insert_addresses(
 
 /// Insert a batch of addresses into the address queue.
 /// 1. Filter for addresses with the same queue indices.
-///     (Tree index is unused for batched address trees.)
+///    (Tree index is unused for batched address trees.)
 /// 2. Insert the addresses into the address queue.
 fn batched_addresses(
     addresse_tree: &mut BatchedMerkleTreeAccount<'_>,
@@ -133,9 +133,7 @@ fn process_address_v1<'info>(
         return err!(AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch);
     };
     {
-        let queue_data = address_queue
-            .try_borrow_data()
-            .map_err(ProgramError::from)?;
+        let queue_data = address_queue.try_borrow_data()?;
         let queue = bytemuck::from_bytes::<QueueAccount>(&queue_data[8..QueueAccount::LEN]);
         // 3. Check queue and Merkle tree are associated.
         if queue.metadata.associated_merkle_tree != (*merkle_pubkey).into() {

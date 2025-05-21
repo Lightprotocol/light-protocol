@@ -9,9 +9,9 @@ use crate::{context::AcpAccount, errors::AccountCompressionErrorCode};
 /// 2. get first leaves that points to current account
 /// 3. get last leaf that points to current account
 /// 4. append batch to Merkle tree or insert into output queue
-///     based on discriminator
+///    based on discriminator
 /// 5. check that all leaves are processed
-///     return Ok(()) if all leaves are processed
+///    return Ok(()) if all leaves are processed
 pub fn insert_leaves<'a, 'b, 'c: 'info, 'info>(
     leaves: &[AppendLeavesInput],
     start_output_appends: u8,

@@ -112,10 +112,10 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
     /// 1. Owner is crate::ID
     /// 2. match discriminator
     /// 3. check signer is registered program or authority
-    ///     (Unless the account is a v1 queue account.
-    ///      v1 queue accounts are always used in combination
-    ///      with a v1 Merkle tree and are checked that these
-    ///      are associated to it.)
+    ///    (Unless the account is a v1 queue account.
+    ///    v1 queue accounts are always used in combination
+    ///    with a v1 Merkle tree and are checked that these
+    ///    are associated to it.)
     #[inline(always)]
     pub(crate) fn try_from_account_info(
         account_info: &'info AccountInfo<'info>,

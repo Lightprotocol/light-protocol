@@ -100,7 +100,7 @@ pub fn insert_nullifiers(
 /// 2. unpack tree account, fail if account is not a tree account
 /// 3. check queue and tree are associated
 /// 4. check for every value whether it exists in the queue and zero it out.
-///     If checked fail if the value is not in the queue.
+///    If checked fail if the value is not in the queue.
 /// 5. Insert the nullifiers into the current input queue batch.
 #[inline(always)]
 fn batched_nullifiers<'info>(
@@ -171,9 +171,7 @@ fn process_nullifiers_v1<'info>(
     };
 
     {
-        let queue_data = nullifier_queue
-            .try_borrow_data()
-            .map_err(ProgramError::from)?;
+        let queue_data = nullifier_queue.try_borrow_data()?;
         // Discriminator is already checked in try_from_account_infos.
         let queue = bytemuck::from_bytes::<QueueAccount>(&queue_data[8..QueueAccount::LEN]);
         // 3. Check queue and Merkle tree are associated.

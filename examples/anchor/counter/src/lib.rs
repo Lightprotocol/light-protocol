@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::{prelude::*, AnchorDeserialize, Discriminator};
 use light_sdk::{
     account::LightAccount,

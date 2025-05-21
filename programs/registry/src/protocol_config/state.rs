@@ -122,12 +122,12 @@ pub enum EpochState {
 ///   let current_registry_epoch = (slot - genesis) / active_phase_length;
 ///   current_registry_epoch =  (0 - 0) / 1000 = 0;
 ///   first active phase starts at genesis + registration_phase_length
-///     = 0 + 100 = 100;
+///   = 0 + 100 = 100;
 ///
 /// To get the current active epoch:
 /// - slot = 100;
 ///   let current_active_epoch =
-///     (slot - genesis - registration_phase_length) / active_phase_length;
+///   (slot - genesis - registration_phase_length) / active_phase_length;
 ///   current_active_epoch = (100 - 0 - 100) / 1000 = 0;
 ///
 /// Epoch 0:

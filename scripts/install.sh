@@ -98,9 +98,9 @@ install_rust() {
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"
         curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
-        rustup install 1.83 nightly
+        rustup install 1.86 nightly
         export PATH="${PREFIX}/cargo/bin:${PATH}"
-        rustup component add --toolchain 1.83-x86_64-unknown-linux-gnu clippy
+        rustup component add --toolchain 1.86-x86_64-unknown-linux-gnu clippy
         cargo install cargo-expand --locked
         cargo install --git https://github.com/Lightprotocol/photon.git --rev 41ac9d0e3607a820ef1dbf4312b288992f792864 --locked
         log "rust"

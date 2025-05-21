@@ -17,11 +17,11 @@ use crate::hasher::{
 ///
 /// - Attribute Macros:
 ///     1. hash
-///         hash to bn254 field size (less than 254 bit), hash with keccak256 and truncate to 31 bytes
+///        hash to bn254 field size (less than 254 bit), hash with keccak256 and truncate to 31 bytes
 ///     2. skip
-///         ignore field
+///        ignore field
 ///     3. flatten
-///         flatten nested struct or vector
+///        flatten nested struct or vector
 ///
 /// Derive macro for ToByteArray
 /// - Struct:

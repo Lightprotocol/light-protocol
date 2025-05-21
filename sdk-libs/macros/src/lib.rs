@@ -31,16 +31,16 @@ mod traits;
 /// ```
 /// This will expand to add the following fields to your struct:
 /// - `light_system_program`:           Verifies and applies zk-compression
-///                                     state transitions.
+///   state transitions.
 /// - `registered_program_pda`:         A light protocol PDA to authenticate
-///                                     state tree updates.
+///   state tree updates.
 /// - `noop_program`:                   The SPL noop program to write
-///                                     compressed-account state as calldata to
-///                                     the Solana ledger.
+///   compressed-account state as calldata to
+///   the Solana ledger.
 /// - `account_compression_authority`:  The authority for account compression
-///                                     operations.
+///   operations.
 /// - `account_compression_program`:    Called by light_system_program. Updates
-///                                     state trees.
+///   state trees.
 /// - `system_program`:                 The Solana System program.
 #[proc_macro_attribute]
 pub fn light_system_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
@@ -80,10 +80,10 @@ pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
 ///
 /// ### Attributes
 /// - `self_program`:   Marks the field that represents the program invoking the
-///                     light system program, i.e. your program. You need to
-///                     list your program as part of the struct.
+///   light system program, i.e. your program. You need to
+///   list your program as part of the struct.
 /// - `fee_payer`:      Marks the field that represents the account responsible
-///                     for paying transaction fees. (Signer)
+///   for paying transaction fees. (Signer)
 ///
 /// - `authority`:      TODO: explain authority.
 /// - `cpi_context`:    TODO: explain cpi_context.
@@ -91,7 +91,7 @@ pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
 /// ### Required accounts (must specify exact name).
 ///
 /// - `light_system_program`:           Light systemprogram. verifies & applies
-///                                     compression state transitions.
+///   compression state transitions.
 /// - `registered_program_pda`:         Light Systemprogram PDA
 /// - `noop_program`:                   SPL noop program
 /// - `account_compression_authority`:  TODO: explain.

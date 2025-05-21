@@ -190,9 +190,9 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer + TestIndex
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn assert_mint_to<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
-    test_indexer: &'a mut I,
+    test_indexer: &mut I,
     recipients: &[Pubkey],
     mint: Pubkey,
     amounts: &[u64],

@@ -45,15 +45,15 @@ pub fn rollover_batched_address_tree_from_account_info(
 ///
 /// Steps:
 /// 1. Check that Merkle tree is ready to be rolled over:
-///     1.1. rollover threshold is configured
-///     1.2. next index is greater than rollover threshold
-///     1.3. the network fee is not set if the current fee is zero
+///    1.1. rollover threshold is configured
+///    1.2. next index is greater than rollover threshold
+///    1.3. the network fee is not set if the current fee is zero
 /// 2. Rollover the old Merkle tree and check:
-///     2.2. Rollover is configured.
-///     2.3. Tree is not already rolled over.
-///     2.4. Mark as rolled over in this slot.
+///    2.2. Rollover is configured.
+///    2.3. Tree is not already rolled over.
+///    2.4. Mark as rolled over in this slot.
 /// 3. Initialize new batched address Merkle tree account
-///     with the same parameters as the old account.
+///    with the same parameters as the old account.
 pub fn rollover_batched_address_tree<'a>(
     old_merkle_tree: &mut BatchedMerkleTreeAccount<'a>,
     new_mt_data: &'a mut [u8],

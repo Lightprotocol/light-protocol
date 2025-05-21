@@ -39,7 +39,7 @@ impl<'info> GroupAccounts<'info> for BatchNullify<'info> {
 /// 1. Check Merkle tree account discriminator, tree type, and program ownership.
 /// 2. Check that signer is registered or authority.
 /// 3. Nullify leaves from the input queue to the state Merkle tree.
-///     3.1 Verifies batch zkp and updates root.
+///    3.1 Verifies batch zkp and updates root.
 /// 4. Emit indexer event.
 pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
