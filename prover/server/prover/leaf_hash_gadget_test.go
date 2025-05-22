@@ -75,7 +75,7 @@ func TestLeafGadget(t *testing.T) {
 				LeafHigherRangeValue: tc.LeafHigherRangeValue,
 				Value:                tc.Value,
 				ExpectedHash:         tc.ExpectedHash,
-			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else {
 			assert := test.NewAssert(t)
 			assert.ProverFailed(&circuit, &LeafHashGadgetCircuit{
@@ -83,7 +83,7 @@ func TestLeafGadget(t *testing.T) {
 				LeafHigherRangeValue: tc.LeafHigherRangeValue,
 				Value:                tc.Value,
 				ExpectedHash:         tc.ExpectedHash,
-			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		}
 	}
 }
