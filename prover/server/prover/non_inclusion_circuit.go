@@ -4,7 +4,6 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type NonInclusionCircuit struct {
@@ -42,7 +41,7 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
 		Height:                     circuit.Height,
 	}
-	abstractor.Call1(api, proof)
+	proof.DefineGadget(api)
 	return nil
 }
 

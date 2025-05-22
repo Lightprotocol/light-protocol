@@ -13,7 +13,6 @@ import (
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type BatchAddressTreeAppendCircuit struct {
@@ -39,44 +38,44 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 	currentRoot := circuit.OldRoot
 
 	for i := uint32(0); i < circuit.BatchSize; i++ {
-		oldLowLeafHash := abstractor.Call(api, LeafHashGadget{
+		oldLowLeafHash := LeafHashGadget{
 			LeafLowerRangeValue:  circuit.LowElementValues[i],
 			LeafHigherRangeValue: circuit.LowElementNextValues[i],
 			Value:                circuit.NewElementValues[i],
-		})
+		}.DefineGadget(api).(frontend.Variable)
 
-		lowLeafHash := abstractor.Call(api, poseidon.Poseidon2{
+		lowLeafHash := poseidon.Poseidon2{
 			In1: circuit.LowElementValues[i],
 			In2: circuit.NewElementValues[i],
-		})
+		}.DefineGadget(api).(frontend.Variable)
 
 		pathIndexBits := api.ToBinary(circuit.LowElementIndices[i], int(circuit.TreeHeight))
-		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
+		currentRoot = MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
 			OldLeaf:     oldLowLeafHash,
 			NewLeaf:     lowLeafHash,
 			PathIndex:   pathIndexBits,
 			MerkleProof: circuit.LowElementProofs[i],
 			Height:      int(circuit.TreeHeight),
-		})
+		}.DefineGadget(api).(frontend.Variable)
 
 		// value = new value
 		// next value is low leaf next value
 		// next index is new value next index
-		newLeafHash := abstractor.Call(api, poseidon.Poseidon2{
+		newLeafHash := poseidon.Poseidon2{
 			In1: circuit.NewElementValues[i],
 			In2: circuit.LowElementNextValues[i],
-		})
+		}.DefineGadget(api).(frontend.Variable)
 
 		indexBits := api.ToBinary(api.Add(circuit.StartIndex, i), int(circuit.TreeHeight))
-		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
+		currentRoot = MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
 			OldLeaf:     getZeroValue(0),
 			NewLeaf:     newLeafHash,
 			PathIndex:   indexBits,
 			MerkleProof: circuit.NewElementProofs[i],
 			Height:      int(circuit.TreeHeight),
-		})
+		}.DefineGadget(api).(frontend.Variable)
 	}
 
 	api.AssertIsEqual(circuit.NewRoot, currentRoot)

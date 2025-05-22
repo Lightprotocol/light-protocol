@@ -4,7 +4,6 @@ import (
 	"light/light-prover/prover/poseidon"
 
 	"github.com/consensys/gnark/frontend"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type CombinedCircuit struct {
@@ -17,10 +16,10 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 	inclusionPublicInputsHashChain := createTwoInputsHashChain(api, circuit.Inclusion.Roots, circuit.Inclusion.Leaves)
 	nonInclusionPublicInputsHashChain := createTwoInputsHashChain(api, circuit.NonInclusion.Roots, circuit.NonInclusion.Values)
 
-	publicInputsHashChain := abstractor.Call(api, poseidon.Poseidon2{In1: inclusionPublicInputsHashChain, In2: nonInclusionPublicInputsHashChain})
+	publicInputsHashChain := poseidon.Poseidon2{In1: inclusionPublicInputsHashChain, In2: nonInclusionPublicInputsHashChain}.DefineGadget(api).(frontend.Variable)
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
-	abstractor.CallVoid(api, InclusionProof{
+	InclusionProof{
 		Roots:          circuit.Inclusion.Roots,
 		Leaves:         circuit.Inclusion.Leaves,
 		InPathElements: circuit.Inclusion.InPathElements,
@@ -28,7 +27,7 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 
 		NumberOfCompressedAccounts: circuit.Inclusion.NumberOfCompressedAccounts,
 		Height:                     circuit.Inclusion.Height,
-	})
+	}.DefineGadget(api)
 
 	proof := NonInclusionProof{
 		Roots:  circuit.NonInclusion.Roots,
@@ -43,7 +42,7 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 		NumberOfCompressedAccounts: circuit.NonInclusion.NumberOfCompressedAccounts,
 		Height:                     circuit.NonInclusion.Height,
 	}
-	abstractor.Call1(api, proof)
+	proof.DefineGadget(api)
 	return nil
 }
 

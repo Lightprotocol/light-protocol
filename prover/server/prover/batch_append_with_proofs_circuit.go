@@ -10,7 +10,6 @@ import (
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type BatchAppendWithProofsCircuit struct {
@@ -56,14 +55,14 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
 		indexBits := api.ToBinary(api.Add(circuit.StartIndex, i), int(circuit.Height))
-		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
+		newRoot = MerkleRootUpdateGadget{
 			OldRoot:     newRoot,
 			OldLeaf:     circuit.OldLeaves[i],
 			NewLeaf:     newLeaves[i],
 			PathIndex:   indexBits,
 			MerkleProof: circuit.MerkleProofs[i],
 			Height:      int(circuit.Height),
-		})
+		}.DefineGadget(api).(frontend.Variable)
 	}
 
 	api.AssertIsEqual(newRoot, circuit.NewRoot)

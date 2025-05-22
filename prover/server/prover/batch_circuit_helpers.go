@@ -5,8 +5,6 @@ import (
 	"light/light-prover/prover/poseidon"
 	"math/big"
 
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
-
 	"github.com/consensys/gnark/frontend"
 )
 
@@ -24,7 +22,7 @@ func (gadget HashChain) DefineGadget(api frontend.API) interface{} {
 }
 
 func createHashChain(api frontend.API, hashes []frontend.Variable) frontend.Variable {
-	return abstractor.Call(api, HashChain{hashes})
+	return HashChain{hashes}.DefineGadget(api).(frontend.Variable)
 }
 
 type TwoInputsHashChain struct {
@@ -37,22 +35,22 @@ func (gadget TwoInputsHashChain) DefineGadget(api frontend.API) interface{} {
 		panic("HashesFirst must not be empty")
 	}
 
-	hashChain := abstractor.Call(api, poseidon.Poseidon2{In1: gadget.HashesFirst[0], In2: gadget.HashesSecond[0]})
+	hashChain := poseidon.Poseidon2{In1: gadget.HashesFirst[0], In2: gadget.HashesSecond[0]}.DefineGadget(api).(frontend.Variable)
 	for i := 1; i < len(gadget.HashesFirst); i++ {
-		hashChain = abstractor.Call(api, poseidon.Poseidon3{In1: hashChain, In2: gadget.HashesFirst[i], In3: gadget.HashesSecond[i]})
+		hashChain = poseidon.Poseidon3{In1: hashChain, In2: gadget.HashesFirst[i], In3: gadget.HashesSecond[i]}.DefineGadget(api).(frontend.Variable)
 	}
 	return hashChain
 }
 
 func createTwoInputsHashChain(api frontend.API, hashesFirst []frontend.Variable, hashesSecond []frontend.Variable) frontend.Variable {
-	return abstractor.Call(api, TwoInputsHashChain{HashesFirst: hashesFirst, HashesSecond: hashesSecond})
+	return TwoInputsHashChain{HashesFirst: hashesFirst, HashesSecond: hashesSecond}.DefineGadget(api).(frontend.Variable)
 }
 
 func computeHashChain(api frontend.API, initialHash frontend.Variable, hashes []frontend.Variable) frontend.Variable {
 	hashChain := initialHash
 
 	for i := 1; i < len(hashes); i++ {
-		hashChain = abstractor.Call(api, poseidon.Poseidon2{In1: hashChain, In2: hashes[i]})
+		hashChain = poseidon.Poseidon2{In1: hashChain, In2: hashes[i]}.DefineGadget(api).(frontend.Variable)
 	}
 
 	return hashChain

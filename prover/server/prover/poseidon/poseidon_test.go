@@ -7,7 +7,6 @@ import (
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type TestPoseidonCircuit1 struct {
@@ -29,19 +28,19 @@ type TestPoseidonCircuit3 struct {
 }
 
 func (circuit *TestPoseidonCircuit1) Define(api frontend.API) error {
-	poseidon := abstractor.Call(api, Poseidon1{circuit.Input})
+	poseidon := Poseidon1{circuit.Input}.DefineGadget(api).(frontend.Variable)
 	api.AssertIsEqual(circuit.Hash, poseidon)
 	return nil
 }
 
 func (circuit *TestPoseidonCircuit2) Define(api frontend.API) error {
-	poseidon := abstractor.Call(api, Poseidon2{circuit.Left, circuit.Right})
+	poseidon := Poseidon2{circuit.Left, circuit.Right}.DefineGadget(api).(frontend.Variable)
 	api.AssertIsEqual(circuit.Hash, poseidon)
 	return nil
 }
 
 func (circuit *TestPoseidonCircuit3) Define(api frontend.API) error {
-	poseidon := abstractor.Call(api, Poseidon3{circuit.First, circuit.Second, circuit.Third})
+	poseidon := Poseidon3{circuit.First, circuit.Second, circuit.Third}.DefineGadget(api).(frontend.Variable)
 	api.AssertIsEqual(circuit.Hash, poseidon)
 	return nil
 }
