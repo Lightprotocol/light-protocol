@@ -2,7 +2,6 @@ package poseidon
 
 import (
 	"github.com/consensys/gnark/frontend"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type cfg struct {
@@ -50,7 +49,7 @@ type Poseidon1 struct {
 
 func (g Poseidon1) DefineGadget(api frontend.API) interface{} {
 	inp := []frontend.Variable{0, g.In}
-	return abstractor.Call1(api, poseidon{inp})[0]
+	return poseidon{inp}.DefineGadget(api).([]frontend.Variable)[0]
 }
 
 type Poseidon2 struct {
@@ -59,7 +58,7 @@ type Poseidon2 struct {
 
 func (g Poseidon2) DefineGadget(api frontend.API) interface{} {
 	inp := []frontend.Variable{0, g.In1, g.In2}
-	return abstractor.Call1(api, poseidon{inp})[0]
+	return poseidon{inp}.DefineGadget(api).([]frontend.Variable)[0]
 }
 
 type Poseidon3 struct {
@@ -68,7 +67,7 @@ type Poseidon3 struct {
 
 func (g Poseidon3) DefineGadget(api frontend.API) interface{} {
 	inp := []frontend.Variable{0, g.In1, g.In2, g.In3}
-	result := abstractor.Call1(api, poseidon{inp})[0]
+	result := poseidon{inp}.DefineGadget(api).([]frontend.Variable)[0]
 	return result
 }
 
@@ -80,13 +79,13 @@ func (g poseidon) DefineGadget(api frontend.API) interface{} {
 	state := g.Inputs
 	cfg := cfgFor(len(state))
 	for i := 0; i < cfg.RF/2; i += 1 {
-		state = abstractor.Call1(api, fullRound{state, cfg.constants[i]})
+		state = fullRound{state, cfg.constants[i]}.DefineGadget(api).([]frontend.Variable)
 	}
 	for i := 0; i < cfg.RP; i += 1 {
-		state = abstractor.Call1(api, halfRound{state, cfg.constants[cfg.RF/2+i]})
+		state = halfRound{state, cfg.constants[cfg.RF/2+i]}.DefineGadget(api).([]frontend.Variable)
 	}
 	for i := 0; i < cfg.RF/2; i += 1 {
-		state = abstractor.Call1(api, fullRound{state, cfg.constants[cfg.RF/2+cfg.RP+i]})
+		state = fullRound{state, cfg.constants[cfg.RF/2+cfg.RP+i]}.DefineGadget(api).([]frontend.Variable)
 	}
 	return state
 }
@@ -128,8 +127,8 @@ func (h halfRound) DefineGadget(api frontend.API) interface{} {
 	for i := 0; i < len(h.Inp); i += 1 {
 		h.Inp[i] = api.Add(h.Inp[i], h.Consts[i])
 	}
-	h.Inp[0] = abstractor.Call(api, sbox{h.Inp[0]})
-	return abstractor.Call1(api, mds{h.Inp})
+	h.Inp[0] = sbox{h.Inp[0]}.DefineGadget(api)
+	return mds{h.Inp}.DefineGadget(api)
 }
 
 type fullRound struct {
@@ -142,8 +141,8 @@ func (h fullRound) DefineGadget(api frontend.API) interface{} {
 		h.Inp[i] = api.Add(h.Inp[i], h.Consts[i])
 	}
 	for i := 0; i < len(h.Inp); i += 1 {
-		h.Inp[i] = abstractor.Call(api, sbox{h.Inp[i]})
+		h.Inp[i] = sbox{h.Inp[i]}.DefineGadget(api)
 	}
-	result := abstractor.Call1(api, mds{h.Inp})
+	result := mds{h.Inp}.DefineGadget(api)
 	return result
 }

@@ -1,7 +1,6 @@
 package prover
 
 import (
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 	"math/big"
 	"testing"
 
@@ -22,7 +21,7 @@ func (circuit *IsLessCircuit) Define(api frontend.API) error {
 		B: circuit.B,
 		N: 248,
 	}
-	abstractor.CallVoid(api, isLess)
+	isLess.DefineGadget(api)
 	return nil
 }
 

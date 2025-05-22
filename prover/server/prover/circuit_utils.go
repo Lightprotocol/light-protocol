@@ -7,8 +7,6 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
-
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type Proof struct {
@@ -45,7 +43,7 @@ func (gadget ProveParentHash) DefineGadget(api frontend.API) interface{} {
 	api.AssertIsBoolean(gadget.Bit)
 	d1 := api.Select(gadget.Bit, gadget.Sibling, gadget.Hash)
 	d2 := api.Select(gadget.Bit, gadget.Hash, gadget.Sibling)
-	hash := abstractor.Call(api, poseidon.Poseidon2{In1: d1, In2: d2})
+	hash := poseidon.Poseidon2{In1: d1, In2: d2}.DefineGadget(api)
 	return hash
 }
 
@@ -68,7 +66,7 @@ func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 			Index:  currentPath,
 			Path:   gadget.InPathElements[proofIndex],
 			Height: int(gadget.Height)}
-		currentHash[proofIndex] = abstractor.Call(api, hash)
+		currentHash[proofIndex] = hash.DefineGadget(api)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
 	return currentHash
@@ -95,7 +93,7 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
 			LeafHigherRangeValue: gadget.LeafHigherRangeValues[proofIndex],
 			Value:                gadget.Values[proofIndex]}
-		currentHash[proofIndex] = abstractor.Call(api, leaf)
+		currentHash[proofIndex] = leaf.DefineGadget(api)
 
 		currentPath := api.ToBinary(gadget.InPathIndices[proofIndex], int(gadget.Height))
 		hash := MerkleRootGadget{
@@ -103,7 +101,7 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 			Index:  currentPath,
 			Path:   gadget.InPathElements[proofIndex],
 			Height: int(gadget.Height)}
-		currentHash[proofIndex] = abstractor.Call(api, hash)
+		currentHash[proofIndex] = hash.DefineGadget(api)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
 	return currentHash
@@ -115,8 +113,8 @@ type CombinedProof struct {
 }
 
 func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
-	abstractor.Call(api, gadget.InclusionProof)
-	abstractor.Call(api, gadget.NonInclusionProof)
+	gadget.InclusionProof.DefineGadget(api)
+	gadget.NonInclusionProof.DefineGadget(api)
 	return nil
 }
 
@@ -129,11 +127,11 @@ type VerifyProof struct {
 func (gadget VerifyProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := gadget.Leaf
 	for i := 0; i < len(gadget.Path); i++ {
-		currentHash = abstractor.Call(api, ProveParentHash{
+		currentHash = ProveParentHash{
 			Bit:     gadget.Path[i],
 			Hash:    currentHash,
 			Sibling: gadget.Proof[i],
-		})
+		}.DefineGadget(api)
 	}
 	return currentHash
 }
@@ -148,11 +146,11 @@ type LeafHashGadget struct {
 // since we truncate address values to 31 bytes.
 func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
 	// Lower bound is less than value
-	abstractor.CallVoid(api, AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248})
+	AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248}.DefineGadget(api)
 	// Value is less than upper bound
-	abstractor.CallVoid(api, AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248})
+	AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248}.DefineGadget(api)
 
-	return abstractor.Call(api, poseidon.Poseidon2{In1: gadget.LeafLowerRangeValue, In2: gadget.LeafHigherRangeValue})
+	return poseidon.Poseidon2{In1: gadget.LeafLowerRangeValue, In2: gadget.LeafHigherRangeValue}.DefineGadget(api)
 }
 
 // Assert A is less than B.
@@ -182,11 +180,11 @@ type MerkleRootGadget struct {
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
 	currentHash := gadget.Hash
 	for i := 0; i < gadget.Height; i++ {
-		currentHash = abstractor.Call(api, ProveParentHash{
+		currentHash = ProveParentHash{
 			Bit:     gadget.Index[i],
 			Hash:    currentHash,
 			Sibling: gadget.Path[i],
-		})
+		}.DefineGadget(api)
 	}
 	return currentHash
 }
@@ -201,19 +199,19 @@ type MerkleRootUpdateGadget struct {
 }
 
 func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} {
-	oldRoot := abstractor.Call(api, MerkleRootGadget{
+	oldRoot := MerkleRootGadget{
 		Hash:   gadget.OldLeaf,
 		Index:  gadget.PathIndex,
 		Path:   gadget.MerkleProof,
 		Height: gadget.Height,
-	})
+	}.DefineGadget(api)
 	api.AssertIsEqual(oldRoot, gadget.OldRoot)
 
-	newRoot := abstractor.Call(api, MerkleRootGadget{
+	newRoot := MerkleRootGadget{
 		Hash:   gadget.NewLeaf,
 		Index:  gadget.PathIndex,
 		Path:   gadget.MerkleProof,
 		Height: gadget.Height,
-	})
+	}.DefineGadget(api)
 	return newRoot
 }

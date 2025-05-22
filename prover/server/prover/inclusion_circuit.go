@@ -4,7 +4,6 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type InclusionCircuit struct {
@@ -26,7 +25,7 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 	publicInputsHashChain := createTwoInputsHashChain(api, circuit.Roots, circuit.Leaves)
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
-	abstractor.CallVoid(api, InclusionProof{
+	InclusionProof{
 		Roots:          circuit.Roots,
 		Leaves:         circuit.Leaves,
 		InPathElements: circuit.InPathElements,
@@ -34,7 +33,7 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
 		Height:                     circuit.Height,
-	})
+	}.DefineGadget(api)
 	return nil
 }
 

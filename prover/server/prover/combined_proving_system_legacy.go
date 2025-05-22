@@ -7,7 +7,6 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type LegacyCombinedParameters struct {
@@ -108,7 +107,7 @@ type LegacyInclusionCircuit struct {
 }
 
 func (circuit *LegacyInclusionCircuit) Define(api frontend.API) error {
-	abstractor.CallVoid(api, InclusionProof{
+	InclusionProof{
 		Roots:          circuit.Roots,
 		Leaves:         circuit.Leaves,
 		InPathElements: circuit.InPathElements,
@@ -116,13 +115,13 @@ func (circuit *LegacyInclusionCircuit) Define(api frontend.API) error {
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
 		Height:                     circuit.Height,
-	})
+	}.DefineGadget(api)
 	return nil
 }
 
 func (circuit *LegacyCombinedCircuit) Define(api frontend.API) error {
 
-	abstractor.CallVoid(api, InclusionProof{
+	InclusionProof{
 		Roots:          circuit.Inclusion.Roots,
 		Leaves:         circuit.Inclusion.Leaves,
 		InPathElements: circuit.Inclusion.InPathElements,
@@ -130,7 +129,7 @@ func (circuit *LegacyCombinedCircuit) Define(api frontend.API) error {
 
 		NumberOfCompressedAccounts: circuit.Inclusion.NumberOfCompressedAccounts,
 		Height:                     circuit.Inclusion.Height,
-	})
+	}.DefineGadget(api)
 
 	proof := NonInclusionProof{
 		Roots:  circuit.NonInclusion.Roots,
@@ -145,7 +144,7 @@ func (circuit *LegacyCombinedCircuit) Define(api frontend.API) error {
 		NumberOfCompressedAccounts: circuit.NonInclusion.NumberOfCompressedAccounts,
 		Height:                     circuit.NonInclusion.Height,
 	}
-	abstractor.Call1(api, proof)
+	proof.DefineGadget(api)
 	return nil
 }
 

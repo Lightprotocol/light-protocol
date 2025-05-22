@@ -11,7 +11,6 @@ import (
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type BatchUpdateCircuit struct {
@@ -51,7 +50,7 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 		// - We need to include path index in the nullifier hash so
 		// that it is checked in case OldLeaf is 0 -> Leaves[i] is not inserted
 		// yet but has to be inserted into a specific index
-		nullifiers[i] = abstractor.Call(api, poseidon.Poseidon3{In1: circuit.Leaves[i], In2: circuit.PathIndices[i], In3: circuit.TxHashes[i]})
+		nullifiers[i] = poseidon.Poseidon3{In1: circuit.Leaves[i], In2: circuit.PathIndices[i], In3: circuit.TxHashes[i]}.DefineGadget(api)
 	}
 
 	nullifierHashChainHash := createHashChain(api, nullifiers)
@@ -61,14 +60,14 @@ func (circuit *BatchUpdateCircuit) Define(api frontend.API) error {
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
 		currentPath := api.ToBinary(circuit.PathIndices[i], int(circuit.Height))
-		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
+		newRoot = MerkleRootUpdateGadget{
 			OldRoot:     newRoot,
 			OldLeaf:     circuit.OldLeaves[i],
 			NewLeaf:     nullifiers[i],
 			PathIndex:   currentPath,
 			MerkleProof: circuit.MerkleProofs[i],
 			Height:      int(circuit.Height),
-		})
+		}.DefineGadget(api)
 	}
 
 	api.AssertIsEqual(newRoot, circuit.NewRoot)
