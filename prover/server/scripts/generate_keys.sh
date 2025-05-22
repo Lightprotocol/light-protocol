@@ -79,14 +79,14 @@ generate_circuit() {
 }
 
 main() {
-    declare -a append_batch_sizes_arr=("100" "250" "500")
+    declare -a append_batch_sizes_arr=("500")
 
     # echo "Generating proving keys..."
     for batch_size in "${append_batch_sizes_arr[@]}"; do
         echo "Generating address-append circuit for ${batch_size} COMPRESSED_ACCOUNTS with height ${height}..."
-        generate_circuit "address-append" "$DEFAULT_ADDRESS_HEIGHT" "0" "$batch_size" "0" "0"
+        # generate_circuit "address-append" "$DEFAULT_ADDRESS_HEIGHT" "0" "$batch_size" "0" "0"
         generate_circuit "update" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
-        generate_circuit "append-with-proofs" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
+        # generate_circuit "append-with-proofs" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     done
 
 
@@ -99,23 +99,23 @@ main() {
     #     generate_circuit "update" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     # done
 
-    declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
-    for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
-        generate_circuit "inclusion" "$DEFAULT_STATE_HEIGHT" "0" "0" "$compressed_accounts" "0"
-    done
+    # declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+    # for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"; do
+    #     generate_circuit "inclusion" "$DEFAULT_STATE_HEIGHT" "0" "0" "$compressed_accounts" "0"
+    # done
 
-    declare -a non_inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
-    for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"; do
-        generate_circuit "non-inclusion" "0" "$DEFAULT_ADDRESS_HEIGHT" "0" "0" "$compressed_accounts"
-    done
+    # declare -a non_inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
+    # for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"; do
+    #     generate_circuit "non-inclusion" "0" "$DEFAULT_ADDRESS_HEIGHT" "0" "0" "$compressed_accounts"
+    # done
 
-    declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
-    declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
-    for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"; do
-        for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"; do
-            generate_circuit "combined" "$DEFAULT_STATE_HEIGHT" "$DEFAULT_ADDRESS_HEIGHT" "0" "$i_compressed_accounts" "$ni_compressed_accounts"
-        done
-    done
+    # declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
+    # declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
+    # for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"; do
+    #     for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"; do
+    #         generate_circuit "combined" "$DEFAULT_STATE_HEIGHT" "$DEFAULT_ADDRESS_HEIGHT" "0" "$i_compressed_accounts" "$ni_compressed_accounts"
+    #     done
+    # done
 
     echo "Done."
 }
