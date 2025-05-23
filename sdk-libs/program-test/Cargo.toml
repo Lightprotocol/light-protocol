@@ -10,7 +10,7 @@ v2 = ["light-client/v2", "forester-utils/v2"]
 
 [dependencies]
 light-client = { workspace = true, features = ["program-test", "devenv"] }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-array = { workspace = true }

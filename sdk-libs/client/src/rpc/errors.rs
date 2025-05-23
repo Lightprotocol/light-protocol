@@ -44,7 +44,6 @@ pub enum RpcError {
     IndexerError(#[from] IndexerError),
 }
 
-// Convert light_compressed_account errors
 impl From<light_compressed_account::indexer_event::error::ParseIndexerEventError> for RpcError {
     fn from(e: light_compressed_account::indexer_event::error::ParseIndexerEventError) -> Self {
         RpcError::CustomError(format!("ParseIndexerEventError: {}", e))

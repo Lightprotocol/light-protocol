@@ -1,9 +1,7 @@
 use std::{
-    ffi::OsStr,
     fmt::{Display, Formatter},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
-    thread::sleep,
     time::Duration,
 };
 
@@ -11,7 +9,6 @@ use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
 use serde_json::json;
-use sysinfo::{Signal, System};
 use tracing::info;
 
 use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
@@ -79,7 +76,6 @@ impl Display for ProofType {
 pub struct ProverConfig {
     pub run_mode: Option<ProverMode>,
     pub circuits: Vec<ProofType>,
-    pub restart: bool,
 }
 
 impl Default for ProverConfig {
@@ -88,7 +84,6 @@ impl Default for ProverConfig {
         Self {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
-            restart: false,
         }
     }
     #[cfg(not(feature = "devenv"))]
@@ -96,7 +91,6 @@ impl Default for ProverConfig {
         Self {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
-            restart: true,
         }
     }
 }
@@ -106,7 +100,6 @@ impl ProverConfig {
         Self {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
-            restart: false,
         }
     }
 }
@@ -116,21 +109,16 @@ pub async fn spawn_prover(config: ProverConfig) {
         let prover_path: &str = {
             #[cfg(feature = "devenv")]
             {
-                sleep(Duration::from_secs(2));
                 &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
             }
             #[cfg(not(feature = "devenv"))]
             {
+                println!("Running in production mode, using prover binary");
                 "light"
             }
         };
 
-        if config.restart {
-            println!("Killing prover...");
-            kill_prover();
-        }
-
-        if !health_check(3, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+        if !health_check(10, 1).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
 
             let mut command = Command::new(prover_path);
@@ -151,11 +139,11 @@ pub async fn spawn_prover(config: ProverConfig) {
                 .expect("Failed to start prover process")
                 .wait();
 
-            let health_result = health_check(20, 30).await;
+            let health_result = health_check(120, 1).await;
             if health_result {
                 info!("Prover started successfully");
             } else {
-                panic!("Failed to determine the project root directory");
+                panic!("Failed to start prover, health check failed.");
             }
         }
         #[cfg(not(feature = "devenv"))]
@@ -165,62 +153,6 @@ pub async fn spawn_prover(config: ProverConfig) {
     } else {
         panic!("Failed to find project root.");
     };
-}
-
-pub fn kill_process(process_name: &str) {
-    let mut system = System::new_all();
-    system.refresh_all();
-
-    for process in system.processes().values() {
-        let process_name_str = process.name().to_string_lossy();
-        let process_cmd = process.cmd().join(OsStr::new(" "));
-        let process_cmd_str = process_cmd.to_string_lossy();
-
-        // Match the exact process name
-        if process_name_str.contains(process_name) {
-            println!(
-                "Attempting to kill process: PID={}, Name={}, Cmd={}",
-                process.pid(),
-                process_name_str,
-                process_cmd_str
-            );
-            if process.kill_with(Signal::Kill).is_some() {
-                println!("Successfully killed process: PID={}", process.pid());
-            } else {
-                eprintln!("Failed to kill process: PID={}", process.pid());
-            }
-        }
-    }
-
-    // Double-check if processes are still running
-    system.refresh_all();
-    let remaining_processes: Vec<_> = system
-        .processes()
-        .values()
-        .filter(|process| {
-            let process_name_str = process.name().to_string_lossy();
-            process_name_str == process_name
-        })
-        .collect();
-
-    if !remaining_processes.is_empty() {
-        eprintln!(
-            "Warning: {} processes still running after kill attempt",
-            remaining_processes.len()
-        );
-        for process in remaining_processes {
-            eprintln!(
-                "Remaining process: PID={}, Name={}, Cmd={}",
-                process.pid(),
-                process.name().to_string_lossy(),
-                process.cmd().join(OsStr::new(" ")).to_string_lossy()
-            );
-        }
-    }
-}
-
-pub fn kill_prover() {
-    kill_process("prover");
 }
 
 pub async fn health_check(retries: usize, timeout: usize) -> bool {
@@ -241,7 +173,6 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
             }
         }
     }
-    println!("health_check is ok {}", result);
     result
 }
 

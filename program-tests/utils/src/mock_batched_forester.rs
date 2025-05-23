@@ -7,22 +7,12 @@ use light_indexed_array::changelog::IndexedChangelogEntry;
 use light_merkle_tree_reference::{
     indexed::IndexedMerkleTree, sparse_merkle_tree::SparseMerkleTree, MerkleTree,
 };
-use num_bigint::BigUint;
-use reqwest::Client;
-
-use crate::{
+use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     batch_append_with_proofs::get_batch_append_with_proofs_inputs,
-    batch_update::get_batch_update_inputs,
-    errors::ProverClientError,
-    gnark::{
-        batch_address_append_json_formatter::to_json,
-        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
-        batch_update_json_formatter::update_inputs_string,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-    },
+    batch_update::get_batch_update_inputs, errors::ProverClientError, proof_client::ProofClient,
 };
+use num_bigint::BigUint;
 
 #[derive(Clone, Debug)]
 pub struct MockBatchedForester<const HEIGHT: usize> {
@@ -67,6 +57,13 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         let leaves = self.output_queue_leaves.to_vec();
         let start = num_zkp_updates as usize * batch_size as usize;
         let end = start + batch_size as usize;
+        if end > leaves.len() {
+            return Err(ProverClientError::GenericError(format!(
+                "end index {} out of bounds for leaves length {}",
+                end,
+                leaves.len()
+            )));
+        }
         let leaves = leaves[start..end].to_vec();
         // if batch is complete, remove leaves from mock output queue
         if num_zkp_updates == max_num_zkp_updates - 1 {
@@ -76,6 +73,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         }
         let local_leaves_hashchain = create_hash_chain_from_slice(&leaves)?;
         assert_eq!(leaves_hashchain, local_leaves_hashchain);
+
         let old_root = self.merkle_tree.root();
         let mut old_leaves = vec![];
         let mut merkle_proofs = vec![];
@@ -94,15 +92,14 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             let proof = self.merkle_tree.get_proof_of_leaf(i, true).unwrap();
             merkle_proofs.push(proof.to_vec());
         }
-        // Insert new leaves into the merkle tree. Every leaf which is not [0u8;
-        // 32] has already been nullified hence shouldn't be updated.
+        // Insert new leaves into the merkle tree. Every leaf which is not [0u8; 32] has already been nullified hence shouldn't be updated.
         for (i, leaf) in leaves.iter().enumerate() {
             if old_leaves[i] == [0u8; 32] {
                 let index = account_next_index + i;
                 self.merkle_tree.update(leaf, index).unwrap();
             }
         }
-        let (circuit_inputs, _) = get_batch_append_with_proofs_inputs::<HEIGHT>(
+        let (circuit_inputs, _) = match get_batch_append_with_proofs_inputs::<HEIGHT>(
             old_root,
             account_next_index as u32,
             leaves,
@@ -111,37 +108,41 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             merkle_proofs,
             batch_size,
             &[],
-        )?;
-        assert_eq!(
-            bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
-            self.merkle_tree.root()
-        );
-        let client = Client::new();
-        let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
+        ) {
+            Ok(val) => val,
+            Err(e) => {
+                return Err(ProverClientError::GenericError(format!(
+                    "get_batch_append_with_proofs_inputs error: {:?}",
+                    e
+                )));
+            }
+        };
+        let computed_new_root =
+            match bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()) {
+                Ok(val) => val,
+                Err(e) => {
+                    return Err(ProverClientError::GenericError(format!(
+                        "bigint_to_be_bytes_array error: {:?}",
+                        e
+                    )));
+                }
+            };
 
-        let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs_json)
-            .send()
+        assert_eq!(computed_new_root, self.merkle_tree.root());
+
+        let proof_result = match ProofClient::local()
+            .generate_batch_append_proof(circuit_inputs)
             .await
-            .expect("Failed to execute request.");
-        if response_result.status().is_success() {
-            let body = response_result.text().await.unwrap();
-            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-            return Ok((
-                CompressedProof {
-                    a: proof_a,
-                    b: proof_b,
-                    c: proof_c,
-                },
-                bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap())
-                    .unwrap(),
-            ));
-        }
-        Err(ProverClientError::RpcError)
+        {
+            Ok(val) => val,
+            Err(e) => {
+                return Err(ProverClientError::GenericError(format!(
+                    "generate_batch_append_proof error: {:?}",
+                    e
+                )));
+            }
+        };
+        Ok(proof_result)
     }
 
     pub async fn get_batched_update_proof(
@@ -198,36 +199,11 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             batch_size,
             &[],
         )?;
-        let client = Client::new();
-        let circuit_inputs_new_root =
-            bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
-        let inputs = update_inputs_string(&inputs);
+        let proof_result = ProofClient::local()
+            .generate_batch_update_proof(inputs)
+            .await?;
         let new_root = self.merkle_tree.root();
-
-        let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert_eq!(circuit_inputs_new_root, new_root);
-
-        if response_result.status().is_success() {
-            let body = response_result.text().await.unwrap();
-            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-            return Ok((
-                CompressedProof {
-                    a: proof_a,
-                    b: proof_b,
-                    c: proof_c,
-                },
-                new_root,
-            ));
-        }
-        Err(ProverClientError::RpcError)
+        Ok((proof_result.0, new_root))
     }
 }
 
@@ -259,7 +235,6 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         current_root: [u8; 32],
     ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
         let new_element_values = self.queue_leaves[..zkp_batch_size as usize].to_vec();
-
         assert_eq!(
             self.merkle_tree.merkle_tree.rightmost_index,
             batch_start_index
@@ -268,38 +243,35 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             batch_start_index >= 1,
             "start index should be greater than 2 else tree is not inited"
         );
-
         let mut low_element_values = Vec::new();
         let mut low_element_indices = Vec::new();
         let mut low_element_next_indices = Vec::new();
         let mut low_element_next_values = Vec::new();
         let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
-
         for new_element_value in &new_element_values {
-            println!("new element value {:?}", new_element_value);
             let non_inclusion_proof = self
                 .merkle_tree
                 .get_non_inclusion_proof(&BigUint::from_bytes_be(new_element_value.as_slice()))
                 .unwrap();
-
             low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
             low_element_indices.push(non_inclusion_proof.leaf_index);
             low_element_next_indices.push(non_inclusion_proof.next_index);
             low_element_next_values.push(non_inclusion_proof.leaf_higher_range_value);
-
             low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
         }
-
         let subtrees = self.merkle_tree.merkle_tree.get_subtrees();
-        let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(
-            <[[u8; 32]; HEIGHT]>::try_from(subtrees).unwrap(),
-            start_index,
-        );
-
+        let mut merkle_tree = match <[[u8; 32]; HEIGHT]>::try_from(subtrees) {
+            Ok(arr) => SparseMerkleTree::<Poseidon, HEIGHT>::new(arr, start_index),
+            Err(e) => {
+                return Err(ProverClientError::GenericError(format!(
+                    "get_subtrees/try_from error: {:?}",
+                    e
+                )));
+            }
+        };
         let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
         let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, HEIGHT>> = Vec::new();
-
-        let inputs = get_batch_address_append_circuit_inputs::<HEIGHT>(
+        let inputs = match get_batch_address_append_circuit_inputs::<HEIGHT>(
             start_index,
             current_root,
             low_element_values,
@@ -313,38 +285,28 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             zkp_batch_size as usize,
             &mut changelog,
             &mut indexed_changelog,
-        )?;
-        let client = Client::new();
-        let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
-        let inputs = to_json(&inputs);
-
-        let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs)
-            .send()
+        ) {
+            Ok(val) => val,
+            Err(e) => {
+                return Err(ProverClientError::GenericError(format!(
+                    "get_batch_address_append_circuit_inputs error: {:?}",
+                    e
+                )));
+            }
+        };
+        let proof_result = match ProofClient::local()
+            .generate_batch_address_append_proof(inputs)
             .await
-            .expect("Failed to execute request.");
-
-        if response_result.status().is_success() {
-            let body = response_result.text().await.unwrap();
-            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-            return Ok((
-                CompressedProof {
-                    a: proof_a,
-                    b: proof_b,
-                    c: proof_c,
-                },
-                circuit_inputs_new_root,
-            ));
-        }
-        println!(
-            "response result {:?}",
-            response_result.text().await.unwrap()
-        );
-        Err(ProverClientError::RpcError)
+        {
+            Ok(val) => val,
+            Err(e) => {
+                return Err(ProverClientError::GenericError(format!(
+                    "generate_batch_address_append_proof error: {:?}",
+                    e
+                )));
+            }
+        };
+        Ok(proof_result)
     }
 
     pub fn finalize_batch_address_update(&mut self, batch_size: usize) {

@@ -1,5 +1,6 @@
 import { Command, Flags } from "@oclif/core";
-import { CustomLoader, startProver } from "../../utils/index";
+import { CustomLoader } from "../../utils/index";
+import { healthCheck, startProver } from "../../utils/processProverServer";
 
 class StartProver extends Command {
   static description = "Start gnark prover";
@@ -36,6 +37,17 @@ class StartProver extends Command {
       multiple: true,
       required: false,
     }),
+    force: Flags.boolean({
+      description:
+        "Force restart the prover even if one is already running with the same flags.",
+      required: false,
+      default: false,
+    }),
+    redisUrl: Flags.string({
+      description:
+        "Redis URL to use for the prover (e.g. redis://localhost:6379)",
+      required: false,
+    }),
   };
 
   async run() {
@@ -48,12 +60,24 @@ class StartProver extends Command {
       return;
     }
 
+    const proverPort = flags["prover-port"] || 3001;
+    const force = flags["force"] || false;
+    const redisUrl = flags["redisUrl"] || process.env.REDIS_URL;
     await startProver(
-      flags["prover-port"],
+      proverPort,
       flags["run-mode"],
       flags["circuit"],
+      force,
+      redisUrl,
     );
-    this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
+
+    const healthy = await healthCheck(proverPort, 10, 1000);
+    loader.stop();
+    if (healthy) {
+      this.log("\nProver started and passed health check \x1b[32m✔\x1b[0m");
+    } else {
+      this.log("\nProver started but health check failed");
+    }
   }
 }
 
