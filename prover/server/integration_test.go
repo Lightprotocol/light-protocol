@@ -30,10 +30,13 @@ func proveEndpoint() string {
 func StartServer(isLightweight bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
 	var keys []string
+	var runMode prover.RunMode
 	if isLightweight {
 		keys = prover.GetKeys("./proving-keys/", prover.FullTest, []string{})
+		runMode = prover.FullTest
 	} else {
 		keys = prover.GetKeys("./proving-keys/", prover.Full, []string{})
+		runMode = prover.Full
 	}
 	var pssv1 []*prover.ProvingSystemV1
 	var pssv2 []*prover.ProvingSystemV2
@@ -79,7 +82,7 @@ func StartServer(isLightweight bool) {
 		MetricsAddress: MetricsAddress,
 	}
 	logging.Logger().Info().Msg("Starting the server")
-	instance = server.Run(&serverCfg, pssv1, pssv2)
+	instance = server.Run(&serverCfg, []string{}, runMode, pssv1, pssv2)
 
 	// sleep for 1 sec to ensure that the server is up and running before running the tests
 	time.Sleep(1 * time.Second)

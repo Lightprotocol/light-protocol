@@ -810,9 +810,9 @@ pub async fn create_append_batch_ix_data(
     let leaves_hash_chain = output_zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
-        .unwrap()
+        .expect("Failed to get hash_chain_stores for next_full_batch")
         .get(batch.get_num_inserted_zkps() as usize)
-        .unwrap();
+        .expect("Failed to get hash_chain for inserted_zkps");
     let (proof, new_root) = mock_indexer
         .get_batched_append_proof(
             next_index as usize,
@@ -822,7 +822,7 @@ pub async fn create_append_batch_ix_data(
             batch.get_num_zkp_batches() as u32,
         )
         .await
-        .unwrap();
+        .expect("mock_indexer.get_batched_append_proof failed");
 
     InstructionDataBatchAppendInputs {
         new_root,

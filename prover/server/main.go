@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/consensys/gnark/constraint"
 	gnarkLogger "github.com/consensys/gnark/logger"
@@ -428,6 +429,26 @@ func runCli() {
 						Name:  "run-mode",
 						Usage: "Specify the running mode (rpc, forester, forester-test, full, or full-test)",
 					},
+					&cli.StringFlag{
+						Name:  "redis-url",
+						Usage: "Redis URL for queue processing (e.g., redis://localhost:6379)",
+						Value: "",
+					},
+					&cli.BoolFlag{
+						Name:  "queue-only",
+						Usage: "Run only queue workers (no HTTP server)",
+						Value: false,
+					},
+					&cli.BoolFlag{
+						Name:  "server-only",
+						Usage: "Run only HTTP server (no queue workers)",
+						Value: false,
+					},
+					&cli.IntFlag{
+						Name:  "queue-workers",
+						Usage: "Number of queue worker goroutines",
+						Value: 1,
+					},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
@@ -453,18 +474,120 @@ func runCli() {
 						return fmt.Errorf("no proving systems loaded")
 					}
 
-					merkleConfig := server.Config{
-						ProverAddress:  context.String("prover-address"),
-						MetricsAddress: context.String("metrics-address"),
+					redisURL := context.String("redis-url")
+					if redisURL == "" {
+						redisURL = os.Getenv("REDIS_URL")
 					}
-					instance := server.Run(&merkleConfig, psv1, psv2)
+
+					queueOnly := context.Bool("queue-only")
+					serverOnly := context.Bool("server-only")
+					numWorkers := context.Int("queue-workers")
+
+					enableQueue := redisURL != "" && !serverOnly
+					enableServer := !queueOnly
+
+					if os.Getenv("QUEUE_MODE") == "true" {
+						enableQueue = true
+						if os.Getenv("SERVER _MODE") != "true" {
+							enableServer = false
+						}
+					}
+
+					logging.Logger().Info().
+						Bool("enable_queue", enableQueue).
+						Bool("enable_server", enableServer).
+						Str("redis_url", redisURL).
+						Int("queue_workers", numWorkers).
+						Msg("Starting ZK Prover service")
+
+					var workers []*server.QueueWorker
+					var redisQueue *server.RedisQueue
+					var instance server.RunningJob
+
+					if enableQueue {
+						if redisURL == "" {
+							return fmt.Errorf("Redis URL is required for queue mode. Use --redis-url or set REDIS_URL environment variable")
+						}
+
+						redisQueue, err = server.NewRedisQueue(redisURL)
+						if err != nil {
+							return fmt.Errorf("failed to connect to Redis: %w", err)
+						}
+
+						startResultCleanup(redisQueue)
+
+						if stats, err := redisQueue.GetQueueStats(); err == nil {
+							logging.Logger().Info().Interface("initial_queue_stats", stats).Msg("Redis connection successful")
+						}
+
+						if numWorkers <= 0 {
+							numWorkers = 1
+						}
+
+						logging.Logger().Info().Int("workers", numWorkers).Msg("Starting queue workers")
+
+						for i := 0; i < numWorkers; i++ {
+							worker := server.NewQueueWorker(i+1, redisQueue, psv1, psv2)
+							workers = append(workers, worker)
+							go worker.Start()
+						}
+					}
+
+					if enableServer {
+						config := server.Config{
+							ProverAddress:  context.String("prover-address"),
+							MetricsAddress: context.String("metrics-address"),
+						}
+
+						if redisQueue != nil {
+							instance = server.RunWithQueue(&config, redisQueue, circuits, runMode, psv1, psv2)
+							logging.Logger().Info().
+								Str("prover_address", config.ProverAddress).
+								Str("metrics_address", config.MetricsAddress).
+								Msg("Started enhanced server with Redis queue support")
+						} else {
+							instance = server.Run(&config, circuits, runMode, psv1, psv2)
+							logging.Logger().Info().
+								Str("prover_address", config.ProverAddress).
+								Str("metrics_address", config.MetricsAddress).
+								Msg("Started standard server without queue support")
+						}
+					}
+
+					if !enableServer && !enableQueue {
+						return fmt.Errorf("at least one of server or queue mode must be enabled")
+					}
+
 					sigint := make(chan os.Signal, 1)
 					signal.Notify(sigint, os.Interrupt)
 					<-sigint
 					logging.Logger().Info().Msg("Received sigint, shutting down")
-					instance.RequestStop()
-					logging.Logger().Info().Msg("Waiting for server to close")
-					instance.AwaitStop()
+
+					if len(workers) > 0 {
+						logging.Logger().Info().Msg("Stopping queue workers...")
+						for i, worker := range workers {
+							logging.Logger().Info().Int("worker_id", i+1).Msg("Stopping worker")
+							worker.Stop()
+						}
+
+						time.Sleep(2 * time.Second)
+						logging.Logger().Info().Msg("All queue workers stopped")
+					}
+
+					if enableServer {
+						logging.Logger().Info().Msg("Stopping HTTP server...")
+						instance.RequestStop()
+						instance.AwaitStop()
+						logging.Logger().Info().Msg("HTTP server stopped")
+					}
+
+					if redisQueue != nil {
+						if stats, err := redisQueue.GetQueueStats(); err == nil {
+							logging.Logger().Info().Interface("final_queue_stats", stats).Msg("Final queue statistics")
+						}
+					}
+
+					logging.Logger().Info().Msg("Shutdown completed")
 					return nil
 				},
 			},
@@ -806,4 +929,19 @@ func debugProvingSystemKeys(keysDirPath string, runMode prover.RunMode, circuits
 			}
 		}
 	}
+}
+
+func startResultCleanup(redisQueue *server.RedisQueue) {
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			if err := redisQueue.CleanupOldResults(); err != nil {
+				logging.Logger().Error().
+					Err(err).
+					Msg("Failed to cleanup old results")
+			}
+		}
+	}()
 }

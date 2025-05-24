@@ -13,7 +13,6 @@ v2 = ["light-client/v2"]
 
 [dependencies]
 
-# Light Protocol
 account-compression = { workspace = true }
 light-hash-set = { workspace = true }
 light-hasher = { workspace = true }
@@ -34,28 +33,23 @@ create-address-test-program = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 
-# Anchor
 anchor-lang = { workspace = true }
 
-# Solana
 solana-sdk = { workspace = true }
 
-# Error handling
 thiserror = { workspace = true }
 
-# Logging
 tracing = { workspace = true }
 
-# Big numbers
 num-traits = { workspace = true }
 num-bigint = { workspace = true }
 
 rand = { workspace = true }
 
-# HTTP client
 reqwest = { workspace = true }
-log = "0.4.26"
-hex = "0.4.3"
 bb8 = { workspace = true }
 async-trait = { workspace = true }
 governor = { workspace = true }
+
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"

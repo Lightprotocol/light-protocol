@@ -8,22 +8,14 @@ use light_batched_merkle_tree::{
     },
 };
 use light_client::{indexer::Indexer, rpc::RpcConnection};
-use light_compressed_account::{
-    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
-};
+use light_compressed_account::hash_chain::create_hash_chain_from_slice;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_array::changelog::IndexedChangelogEntry;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_prover_client::{
-    batch_address_append::{get_batch_address_append_circuit_inputs, BatchAddressAppendInputs},
-    gnark::{
-        batch_address_append_json_formatter::to_json,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-    },
+    batch_address_append::get_batch_address_append_circuit_inputs, proof_client::ProofClient,
 };
-use reqwest::Client;
 use tracing::{debug, error, info, warn};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
@@ -255,7 +247,10 @@ where
     }
 
     info!("Generating {} ZK proofs asynchronously", all_inputs.len());
-    let proof_futures = all_inputs.into_iter().map(generate_zkp_proof);
+    let proof_client = ProofClient::local();
+    let proof_futures = all_inputs
+        .into_iter()
+        .map(|inputs| proof_client.generate_batch_address_append_proof(inputs));
     let proof_results = future::join_all(proof_futures).await;
 
     let mut instruction_data_vec = Vec::new();
@@ -270,7 +265,7 @@ where
             }
             Err(e) => {
                 error!("Failed to generate proof for batch {}: {:?}", i, e);
-                return Err(e);
+                return Err(ForesterUtilsError::Prover(e.to_string()));
             }
         }
     }
@@ -280,54 +275,4 @@ where
         instruction_data_vec.len()
     );
     Ok((instruction_data_vec, batch_size))
-}
-
-async fn generate_zkp_proof(
-    inputs: BatchAddressAppendInputs,
-) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
-    let client = Client::new();
-    let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
-    let inputs_json = to_json(&inputs);
-
-    let response_result = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        .header("Content-Type", "text/plain; charset=utf-8")
-        .body(inputs_json)
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Failed to send request to prover server: {:?}", e);
-            ForesterUtilsError::Prover(format!("Failed to send request: {}", e))
-        })?;
-
-    if response_result.status().is_success() {
-        let body = response_result.text().await.map_err(|e| {
-            error!("Failed to read response body: {:?}", e);
-            ForesterUtilsError::Prover(format!("Failed to read response body: {}", e))
-        })?;
-
-        let proof_json = deserialize_gnark_proof_json(&body).map_err(|e| {
-            error!("Failed to deserialize proof JSON: {:?}", e);
-            ForesterUtilsError::Prover(format!("Failed to deserialize proof: {}", e))
-        })?;
-
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-
-        Ok((
-            CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
-            new_root,
-        ))
-    } else {
-        let error_text = response_result.text().await.unwrap_or_default();
-        error!("Prover server error response: {}", error_text);
-        Err(ForesterUtilsError::Prover(format!(
-            "Prover server error: {}",
-            error_text
-        )))
-    }
 }

@@ -121,6 +121,7 @@ pub async fn spawn_prover(config: ProverConfig) {
             }
             #[cfg(not(feature = "devenv"))]
             {
+                println!("Running in production mode, using prover binary");
                 "light"
             }
         };
