@@ -9,12 +9,15 @@ use light_compressed_account::instruction_data::compressed_proof::CompressedProo
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::QueueType;
-use light_prover_client::batch_append_with_proofs::{
-    get_batch_append_with_proofs_inputs, BatchAppendWithProofsCircuitInputs,
+use light_prover_client::{
+    batch_append_with_proofs::{
+        get_batch_append_with_proofs_inputs, BatchAppendWithProofsCircuitInputs,
+    },
+    proof_client::ProofClient,
 };
 use tracing::{error, trace};
 
-use crate::{error::ForesterUtilsError, proof_client::ProofClient, utils::wait_for_indexer};
+use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
 pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
@@ -163,6 +166,7 @@ async fn generate_zkp_proof(
     proof_client
         .generate_batch_append_proof(circuit_inputs)
         .await
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))
 }
 
 /// Get metadata from the Merkle tree account

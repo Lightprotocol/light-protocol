@@ -3,7 +3,6 @@ pub mod address_merkle_tree_config;
 mod error;
 pub mod forester_epoch;
 pub mod instructions;
-mod proof_client;
 pub mod rate_limiter;
 pub mod registry;
 pub mod rpc_pool;

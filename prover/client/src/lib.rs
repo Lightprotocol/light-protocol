@@ -14,4 +14,5 @@ pub mod init_merkle_tree;
 pub mod mock_batched_forester;
 pub mod non_inclusion;
 pub mod non_inclusion_legacy;
+pub mod proof_client;
 pub mod prove_utils;

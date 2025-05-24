@@ -7,10 +7,13 @@ use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_merkle_tree_metadata::QueueType;
-use light_prover_client::batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs};
+use light_prover_client::{
+    batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
+    proof_client::ProofClient,
+};
 use tracing::{error, trace};
 
-use crate::{error::ForesterUtilsError, proof_client::ProofClient, utils::wait_for_indexer};
+use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
 pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
@@ -41,11 +44,11 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer>(
         let zkp_size = merkle_tree.queue_batches.zkp_batch_size;
         let batch = &merkle_tree.queue_batches.batches[batch_idx];
         let num_inserted_zkps = batch.get_num_inserted_zkps();
-        let num_current_zkp = batch.get_current_zkp_batch_index();
-        let num_ready_zkps = num_current_zkp.saturating_sub(num_inserted_zkps);
+        let num_current_zqp = batch.get_current_zkp_batch_index();
+        let num_ready_zkps = num_current_zqp.saturating_sub(num_inserted_zkps);
 
         let mut leaves_hash_chains = Vec::new();
-        for i in num_inserted_zkps..num_current_zkp {
+        for i in num_inserted_zkps..num_current_zqp {
             leaves_hash_chains.push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
         }
 
@@ -243,5 +246,8 @@ async fn generate_nullify_zkp_proof(
     inputs: BatchUpdateCircuitInputs,
 ) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
     let proof_client = ProofClient::local();
-    proof_client.generate_batch_update_proof(inputs).await
+    proof_client
+        .generate_batch_update_proof(inputs)
+        .await
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))
 }

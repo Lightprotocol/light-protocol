@@ -13,10 +13,12 @@ use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_array::changelog::IndexedChangelogEntry;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
-use light_prover_client::batch_address_append::get_batch_address_append_circuit_inputs;
+use light_prover_client::{
+    batch_address_append::get_batch_address_append_circuit_inputs, proof_client::ProofClient,
+};
 use tracing::{debug, error, info, warn};
 
-use crate::{error::ForesterUtilsError, proof_client::ProofClient, utils::wait_for_indexer};
+use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
@@ -263,7 +265,7 @@ where
             }
             Err(e) => {
                 error!("Failed to generate proof for batch {}: {:?}", i, e);
-                return Err(e);
+                return Err(ForesterUtilsError::Prover(e.to_string()));
             }
         }
     }

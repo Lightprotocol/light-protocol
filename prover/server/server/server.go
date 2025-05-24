@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"net/http"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/gorilla/handlers"
 	//"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -244,17 +245,6 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !handler.isCircuitSupported(proofRequestMeta.CircuitType) {
-		unsupportedError := &Error{
-			StatusCode: http.StatusBadRequest,
-			Code:       "circuit_not_supported",
-			Message: fmt.Sprintf("Circuit type '%s' is not supported in run mode '%s'. Batch operations require 'forester' or 'forester-test' mode.",
-				proofRequestMeta.CircuitType, handler.runMode),
-		}
-		unsupportedError.send(w)
-		return
-	}
-
 	forceAsync := r.Header.Get("X-Async") == "true" || r.URL.Query().Get("async") == "true"
 	forceSync := r.Header.Get("X-Sync") == "true" || r.URL.Query().Get("sync") == "true"
 	priority := r.Header.Get("X-Priority") == "true" || r.URL.Query().Get("priority") == "true"
@@ -277,46 +267,6 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type CircuitSet map[prover.CircuitType]bool
-
-var (
-	lightCircuits = CircuitSet{
-		prover.InclusionCircuitType:    true,
-		prover.NonInclusionCircuitType: true,
-		prover.CombinedCircuitType:     true,
-	}
-
-	batchCircuits = CircuitSet{
-		prover.BatchAppendWithProofsCircuitType: true,
-		prover.BatchUpdateCircuitType:           true,
-		prover.BatchAddressAppendCircuitType:    true,
-	}
-)
-
-func (handler proveHandler) isCircuitSupported(circuitType prover.CircuitType) bool {
-	if handler.circuits != nil {
-		for _, ct := range handler.circuits {
-			if ct == string(circuitType) {
-				return true
-			}
-		}
-	}
-
-	switch handler.runMode {
-	case prover.Full, prover.FullTest:
-		return true
-
-	case prover.Forester, prover.ForesterTest:
-		return batchCircuits[circuitType]
-
-	case prover.Rpc:
-		return lightCircuits[circuitType]
-
-	default:
-		return false
-	}
-}
-
 func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitType, forceAsync, forceSync, priority bool) bool {
 	if forceAsync {
 		return true
@@ -333,7 +283,13 @@ func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitT
 		return false
 	}
 
-	return handler.isCircuitSupported(circuitType)
+	if circuitType == prover.InclusionCircuitType ||
+		circuitType == prover.NonInclusionCircuitType ||
+		circuitType == prover.CombinedCircuitType {
+		return false
+	}
+
+	return true
 }
 
 type queueStatsHandler struct {
