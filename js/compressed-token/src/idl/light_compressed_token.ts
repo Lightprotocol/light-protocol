@@ -1782,6 +1782,11 @@ export type LightCompressedToken = {
             code: 6027;
             name: 'MintWithInvalidExtension';
         },
+        {
+            code: 6028;
+            name: 'InsufficientTokenAccountBalance';
+            msg: 'The token account balance is less than the remaining amount.';
+        },
     ];
 };
 export const IDL: LightCompressedToken = {
@@ -3572,6 +3577,11 @@ export const IDL: LightCompressedToken = {
         {
             code: 6027,
             name: 'MintWithInvalidExtension',
+        },
+        {
+            code: 6028,
+            name: 'InsufficientTokenAccountBalance',
+            msg: 'The token account balance is less than the remaining amount.',
         },
     ],
 };

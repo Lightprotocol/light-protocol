@@ -25,7 +25,7 @@ export const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 export const BASE_PATH = "../../bin/";
 
 export const PROGRAM_ID = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
-export const ANCHOR_VERSION = "0.29.0";
+export const ANCHOR_VERSION = "0.31.1";
 export const BORSH_VERSION = "0.9.2";
 
 export const SOLANA_PROGRAM_TEST_VERSION = "1.18.22";
@@ -33,12 +33,14 @@ export const SOLANA_SDK_VERSION = "1.18.22";
 
 export const TOKIO_VERSION = "1.36.0";
 
-export const LIGHT_SDK_VERSION = "0.10.0";
+export const LIGHT_SDK_VERSION = "0.12.0";
 export const LIGHT_TEST_UTILS_VERSION = "1.2.1";
 export const LIGHT_CLIENT_VERSION = "0.9.1";
 
-export const COMPRESSED_PROGRAM_TEMPLATE_TAG = "v0.2.0-alpha";
+export const COMPRESSED_PROGRAM_TEMPLATE_TAG = "v0.2.0";
 
-export const LIGHT_ACCOUNT_CHECKS = "0.1.0";
-export const LIGHT_HASHER_VERSION = "2.0.0";
-export const LIGHT_SDK_MACROS_VERSION = "0.5.1";
+export const LIGHT_ACCOUNT_CHECKS = "0.2.0";
+export const LIGHT_HASHER_VERSION = "3.0.0";
+export const LIGHT_SDK_MACROS_VERSION = "0.6.0";
+export const ANCHOR_JS_VERSION = "0.31.1";
+export const STATELESS_JS_VERSION = "0.21.0";

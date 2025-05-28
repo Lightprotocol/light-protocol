@@ -1,6 +1,13 @@
 import { Command, Flags } from "@oclif/core";
 import { initTestEnv, stopTestEnv } from "../../utils/initTestEnv";
-import { CustomLoader } from "../../utils/index";
+import {
+  CustomLoader,
+  LIGHT_ACCOUNT_COMPRESSION_TAG,
+  LIGHT_COMPRESSED_TOKEN_TAG,
+  LIGHT_REGISTRY_TAG,
+  LIGHT_SYSTEM_PROGRAM_TAG,
+  SPL_NOOP_PROGRAM_TAG,
+} from "../../utils/index";
 import path from "path";
 import fs from "fs";
 
@@ -119,6 +126,13 @@ class SetupCommand extends Command {
       required: false,
       exclusive: ["geyser-config"],
     }),
+    "sbf-program": Flags.string({
+      description:
+        "Add a SBF program to the genesis configuration with upgrades disabled. If the ledger already exists then this parameter is silently ignored. First argument can be a pubkey string or path to a keypair",
+      required: false,
+      multiple: true,
+      summary: "Usage: --sbf-program <address> <path/program_name.so>",
+    }),
   };
 
   async run() {
@@ -139,6 +153,22 @@ class SetupCommand extends Command {
       });
       this.log("\nTest validator stopped successfully \x1b[32m✔\x1b[0m");
     } else {
+      const rawValues = flags["sbf-program"] || [];
+
+      if (rawValues.length % 2 !== 0) {
+        this.error("Each --sbf-program flag must have exactly two arguments");
+      }
+
+      const programs: { address: string; path: string }[] = [];
+      for (let i = 0; i < rawValues.length; i += 2) {
+        programs.push({
+          address: rawValues[i],
+          path: rawValues[i + 1],
+        });
+      }
+
+      this.validatePrograms(programs);
+
       await initTestEnv({
         checkPhotonVersion: !flags["relax-indexer-version-constraint"],
         indexer: !flags["skip-indexer"],
@@ -162,10 +192,79 @@ class SetupCommand extends Command {
         circuits: flags["circuit"],
         geyserConfig: flags["geyser-config"],
         validatorArgs: flags["validator-args"],
+        additionalPrograms: programs,
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
+    }
+  }
+
+  validatePrograms(programs: { address: string; path: string }[]): void {
+    // Check for duplicate addresses among provided programs
+    const addresses = new Set<string>();
+    for (const program of programs) {
+      if (addresses.has(program.address)) {
+        this.error(`Duplicate program address detected: ${program.address}`);
+      }
+      addresses.add(program.address);
+
+      // Get the program filename from the path
+      const programFileName = path.basename(program.path);
+
+      // Check for collisions with system programs (both address and filename)
+      const systemProgramCollision = SYSTEM_PROGRAMS.find(
+        (sysProg) =>
+          sysProg.id === program.address ||
+          (sysProg.name && programFileName === sysProg.name),
+      );
+
+      if (systemProgramCollision) {
+        const collisionType =
+          systemProgramCollision.id === program.address
+            ? `address (${program.address})`
+            : `filename (${programFileName})`;
+
+        this.error(
+          `Program ${collisionType} collides with system program ` +
+            `"${systemProgramCollision.name || systemProgramCollision.id}". ` +
+            `System programs cannot be overwritten.`,
+        );
+      }
+
+      // Validate program file exists
+      const programPath = path.resolve(program.path);
+      if (!fs.existsSync(programPath)) {
+        this.error(`Program file not found: ${programPath}`);
+      }
     }
   }
 }
 
 export default SetupCommand;
+
+export const SYSTEM_PROGRAMS = [
+  {
+    id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+    name: "spl_noop.so",
+    tag: SPL_NOOP_PROGRAM_TAG,
+  },
+  {
+    id: "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
+    name: "light_system_program.so",
+    tag: LIGHT_SYSTEM_PROGRAM_TAG,
+  },
+  {
+    id: "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+    name: "light_compressed_token.so",
+    tag: LIGHT_COMPRESSED_TOKEN_TAG,
+  },
+  {
+    id: "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq",
+    name: "account_compression.so",
+    tag: LIGHT_ACCOUNT_COMPRESSION_TAG,
+  },
+  {
+    id: "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX",
+    name: "light_registry.so",
+    tag: LIGHT_REGISTRY_TAG,
+  },
+];
