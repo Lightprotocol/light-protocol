@@ -240,13 +240,18 @@ impl ProofClient {
 
     fn should_retry(&self, error: &ProverClientError, retries: u32, elapsed: Duration) -> bool {
         let error_str = error.to_string();
-        let is_job_not_found = error_str.contains("job_not_found");
+        let is_retryable_error = error_str.contains("job_not_found")
+            || error_str.contains("connection")
+            || error_str.contains("timeout")
+            || error_str.contains("503")
+            || error_str.contains("502")
+            || error_str.contains("500");
         let should_retry =
-            retries < MAX_RETRIES && is_job_not_found && elapsed < self.max_wait_time;
+            retries < MAX_RETRIES && is_retryable_error && elapsed < self.max_wait_time;
 
         debug!(
-            "Retry check: retries={}/{}, is_job_not_found={}, elapsed={:?}/{:?}, should_retry={}, error={}",
-            retries, MAX_RETRIES, is_job_not_found, elapsed, self.max_wait_time, should_retry, error_str
+            "Retry check: retries={}/{}, is_retryable_error={}, elapsed={:?}/{:?}, should_retry={}, error={}",
+            retries, MAX_RETRIES, is_retryable_error, elapsed, self.max_wait_time, should_retry, error_str
         );
 
         should_retry
@@ -263,7 +268,7 @@ impl ProofClient {
         info!("Starting to poll for job {} at URL: {}", job_id, status_url);
 
         let mut poll_count = 0;
-        let mut not_found_count = 0;
+        let mut transient_error_count = 0;
 
         loop {
             poll_count += 1;
@@ -284,7 +289,7 @@ impl ProofClient {
 
             match self.poll_job_status(&status_url, job_id, poll_count).await {
                 Ok(response) => {
-                    not_found_count = 0;
+                    transient_error_count = 0;
 
                     if let Some(proof) = self
                         .handle_job_status(response, job_id, total_elapsed, poll_count)
@@ -307,35 +312,42 @@ impl ProofClient {
                     sleep(self.polling_interval).await;
                 }
                 Err(err) if self.is_job_not_found_error(&err) => {
-                    not_found_count += 1;
+                    error!(
+                        "Job {} not found during polling - will retry with new proof request at higher level: {}",
+                        job_id, err
+                    );
+                    return Err(err);
+                }
+                Err(err) if self.is_transient_polling_error(&err) => {
+                    transient_error_count += 1;
 
                     debug!(
-                        "Job {} not found error detected: attempt {}/{}, error: {}",
-                        job_id, not_found_count, MAX_RETRIES, err
+                        "Transient polling error for job {}: attempt {}/{}, error: {}",
+                        job_id, transient_error_count, MAX_RETRIES, err
                     );
 
-                    if not_found_count >= MAX_RETRIES {
+                    if transient_error_count >= MAX_RETRIES {
                         error!(
-                            "Job {} not found after {} attempts, giving up",
-                            job_id, not_found_count
+                            "Job {} polling failed after {} transient errors, giving up",
+                            job_id, transient_error_count
                         );
                         return Err(err);
                     }
 
                     let retry_delay =
-                        Duration::from_secs(BASE_RETRY_DELAY_SECS * not_found_count as u64);
+                        Duration::from_secs(BASE_RETRY_DELAY_SECS * transient_error_count as u64);
 
                     if total_elapsed + retry_delay > self.max_wait_time {
                         warn!(
-                            "Skipping job not found retry due to max wait time constraint: total_elapsed={:?}, retry_delay={:?}, max_wait={:?}",
+                            "Skipping transient error retry due to max wait time constraint: total_elapsed={:?}, retry_delay={:?}, max_wait={:?}",
                             total_elapsed, retry_delay, self.max_wait_time
                         );
                         return Err(err);
                     }
 
                     warn!(
-                        "Job {} not found (attempt {}/{}), retrying after {:?}",
-                        job_id, not_found_count, MAX_RETRIES, retry_delay
+                        "Job {} transient error (attempt {}/{}), retrying after {:?}",
+                        job_id, transient_error_count, MAX_RETRIES, retry_delay
                     );
                     sleep(retry_delay).await;
                 }
@@ -467,6 +479,11 @@ impl ProofClient {
 
     fn is_job_not_found_error(&self, error: &ProverClientError) -> bool {
         error.to_string().contains("job_not_found")
+    }
+
+    fn is_transient_polling_error(&self, error: &ProverClientError) -> bool {
+        let error_str = error.to_string();
+        error_str.contains("503") || error_str.contains("502") || error_str.contains("500")
     }
 
     fn parse_proof_from_json(&self, json_str: &str) -> Result<CompressedProof, ProverClientError> {
