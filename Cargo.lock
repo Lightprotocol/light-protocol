@@ -3436,6 +3436,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-compressed-token-sdk"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-heap",
+ "num-bigint 0.4.6",
+ "solana-program",
+ "solana-sdk",
+]
+
+[[package]]
 name = "light-concurrent-merkle-tree"
 version = "1.1.0"
 dependencies = [
