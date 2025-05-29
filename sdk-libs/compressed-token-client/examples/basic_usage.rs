@@ -7,19 +7,12 @@ use light_compressed_token_client::{
 use solana_sdk::pubkey::Pubkey;
 
 fn main() {
-    // Example 1: Simple compression
     simple_compress_example();
-
-    // Example 2: Batch compression
     batch_compress_example();
-
-    // Example 3: Decompression
     decompress_example();
 }
 
 fn simple_compress_example() {
-    println!("=== Simple Compress Example ===");
-
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let source_token_account = Pubkey::new_unique();
@@ -45,8 +38,6 @@ fn simple_compress_example() {
 }
 
 fn batch_compress_example() {
-    println!("=== Batch Compress Example ===");
-
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let source_token_account = Pubkey::new_unique();
@@ -80,8 +71,6 @@ fn batch_compress_example() {
 }
 
 fn decompress_example() {
-    println!("=== Decompress Example ===");
-
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
