@@ -1,5 +1,3 @@
-//! Example demonstrating basic usage of the compressed-token-client library
-
 use light_compressed_token_client::{
     batch_compress, compress, create_decompress_instruction, AccountState, CompressedAccount,
     DecompressParams, MerkleContext, TokenData, TreeType,
