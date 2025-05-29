@@ -1,0 +1,40 @@
+[package]
+name = "light-compressed-token-client"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/lightprotocol/light-protocol"
+description = "Client library for Light Protocol Compressed Token Program"
+
+[features]
+default = []
+
+[dependencies]
+# Light Protocol dependencies
+light-compressed-token = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
+light-system-program-anchor = { workspace = true }
+account-compression = { workspace = true }
+
+# Solana dependencies
+solana-sdk = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-instruction = { workspace = true }
+solana-program = { workspace = true }
+solana-transaction = { workspace = true }
+solana-signature = { workspace = true }
+solana-hash = { workspace = true }
+solana-account = { workspace = true }
+
+# Anchor
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+
+# External dependencies
+borsh = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] } 
