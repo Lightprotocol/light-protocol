@@ -102,34 +102,48 @@ To run specific tests cd into respective folder (merkle-tree/prover) and `go tes
 
 ## Docker
 
-```shell
-docker build -t light-prover .
+The Docker image is configured to include only the necessary proving-key files:
+- Files with `mainnet*` prefix
+- Files with `inclusion*` prefix
+- Files with `non-inclusion_*` prefix
+- Files with `combined_*` prefix
 
-docker run -d \
-  -v /path/to/proving-keys:/proving-keys/:ro \
-  -p 3001:3001 \
-  light-prover:latest \
-  start \
-  --run-mode forester-test \
-  --keys-dir /proving-keys/
+### Building the Docker Image
+
+```shell
+# First ensure you have the proving keys downloaded
+./scripts/download_keys.sh light
+
+# Build the Docker image with the selected proving keys
+# Make sure to run this command from the prover/server directory
+docker build -t light-prover .
 ```
 
-Or in docker compose
+### Running the Docker Image
+
+```shell
+docker run -d \
+  -p 3001:3001 \
+  light-prover:latest
+```
+
+### Docker Compose
 
 ```yaml
 light-prover:
-  # Path to the repo root directory
-  build: ./light-prover
-  volumes:
-    - /host/path/to/proving-keys:/proving-keys
+  # Path to the prover/server directory
+  build: ./prover/server
   ports:
     # Server
     - "3001:3001"
     # Metrics
     - "9998:9998"
+```
 
-  docker compose build
-  docker compose up -d
+```shell
+# Build and run with Docker Compose
+docker compose build
+docker compose up -d
 ```
 
 ## Formal Verification
