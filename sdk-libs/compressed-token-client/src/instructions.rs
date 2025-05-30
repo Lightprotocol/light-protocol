@@ -69,12 +69,12 @@ pub fn create_compress_instruction(
     let token_program = params.token_program_id.unwrap_or(anchor_spl::token::ID);
 
     // Create output compressed accounts
-    let output_compressed_accounts = if let Some(batch_recipients) = params.batch_recipients {
+    let output_compressed_accounts = if let Some(ref batch_recipients) = params.batch_recipients {
         batch_recipients
-            .into_iter()
+            .iter()
             .map(|(recipient, amount)| TokenTransferOutputData {
-                owner: recipient,
-                amount,
+                owner: *recipient,
+                amount: *amount,
                 lamports: None,
                 merkle_tree: params.output_state_tree,
             })
@@ -92,7 +92,7 @@ pub fn create_compress_instruction(
     let total_amount: u64 = output_compressed_accounts.iter().map(|x| x.amount).sum();
 
     // Create the instruction using the transfer SDK
-    transfer_sdk::create_transfer_instruction(
+    let mut ix = match transfer_sdk::create_transfer_instruction(
         &params.payer,
         &params.owner,
         &[], // empty input merkle context for compression
@@ -113,10 +113,23 @@ pub fn create_compress_instruction(
         token_program == spl_token_2022::ID,           // is_token_22
         &[],                                           // no additional token pools
         false,                                         // with_transaction_hash = false
-    )
-    .map_err(|e| {
-        CompressedTokenError::SerializationError(format!("Failed to create instruction: {:?}", e))
-    })
+    ) {
+        Ok(ix) => ix,
+        Err(e) => {
+            return Err(CompressedTokenError::SerializationError(format!(
+                "Failed to create instruction: {:?}",
+                e
+            )))
+        }
+    };
+    // PATCH: For batch compress, add all recipient pubkeys as writable accounts
+    if let Some(ref batch_recipients) = params.batch_recipients {
+        for (recipient, _) in batch_recipients {
+            ix.accounts
+                .push(solana_sdk::instruction::AccountMeta::new(*recipient, false));
+        }
+    }
+    Ok(ix)
 }
 
 /// Create a decompress instruction

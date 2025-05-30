@@ -114,7 +114,6 @@ export interface HexInputsForProver {
     leaf: string;
 }
 
-// TODO: Rename Compressed -> ValidityProof
 export type CompressedProofWithContext = {
     compressedProof: CompressedProof;
     roots: BN[];
