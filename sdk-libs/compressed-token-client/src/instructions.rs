@@ -62,19 +62,18 @@ pub struct DecompressParams {
 
 /// Create a compress instruction
 ///
-/// This instruction transfers tokens from an SPL token account to compressed token accounts.
+/// This instruction compresses tokens from an SPL token account to N recipients.
 pub fn create_compress_instruction(
     params: CompressParams,
 ) -> Result<Instruction, CompressedTokenError> {
     let token_program = params.token_program_id.unwrap_or(anchor_spl::token::ID);
 
-    // Create output compressed accounts
-    let output_compressed_accounts = if let Some(batch_recipients) = params.batch_recipients {
+    let output_compressed_accounts = if let Some(ref batch_recipients) = params.batch_recipients {
         batch_recipients
-            .into_iter()
+            .iter()
             .map(|(recipient, amount)| TokenTransferOutputData {
-                owner: recipient,
-                amount,
+                owner: *recipient,
+                amount: *amount,
                 lamports: None,
                 merkle_tree: params.output_state_tree,
             })
@@ -87,41 +86,46 @@ pub fn create_compress_instruction(
             merkle_tree: params.output_state_tree,
         }]
     };
-
-    // Calculate total amount
     let total_amount: u64 = output_compressed_accounts.iter().map(|x| x.amount).sum();
 
-    // Create the instruction using the transfer SDK
-    transfer_sdk::create_transfer_instruction(
+    // TODO: refactor.
+    let ix = match transfer_sdk::create_transfer_instruction(
         &params.payer,
         &params.owner,
-        &[], // empty input merkle context for compression
+        &[],
         &output_compressed_accounts,
-        &[],   // empty root indices for compression
-        &None, // no proof needed for compression
-        &[],   // empty input token data for compression
-        &[],   // empty input compressed accounts for compression
+        &[],
+        &None,
+        &[],
+        &[],
         params.mint,
-        None,                                          // no delegate
-        true,                                          // is_compress = true
-        Some(total_amount),                            // compress_or_decompress_amount
-        Some(crate::get_token_pool_pda(&params.mint)), // token_pool_pda
-        Some(params.source),                           // compress_or_decompress_token_account
-        false,                                         // don't sort outputs
-        None,                                          // no delegate change account
-        None,                                          // no lamports change account
-        token_program == spl_token_2022::ID,           // is_token_22
-        &[],                                           // no additional token pools
-        false,                                         // with_transaction_hash = false
-    )
-    .map_err(|e| {
-        CompressedTokenError::SerializationError(format!("Failed to create instruction: {:?}", e))
-    })
+        None,
+        true,
+        Some(total_amount),
+        Some(crate::get_token_pool_pda(&params.mint)),
+        Some(params.source),
+        false,
+        None,
+        None,
+        token_program == spl_token_2022::ID,
+        &[],
+        false,
+    ) {
+        Ok(ix) => ix,
+        Err(e) => {
+            return Err(CompressedTokenError::SerializationError(format!(
+                "Failed to create instruction: {:?}",
+                e
+            )))
+        }
+    };
+
+    Ok(ix)
 }
 
 /// Create a decompress instruction
 ///
-/// This instruction transfers tokens from compressed token accounts to an SPL token account.
+/// This instruction decompresses compressed tokens to an SPL token account.
 pub fn create_decompress_instruction(
     params: DecompressParams,
 ) -> Result<Instruction, CompressedTokenError> {
@@ -133,7 +137,6 @@ pub fn create_decompress_instruction(
 
     let token_program = params.token_program_id.unwrap_or(anchor_spl::token::ID);
 
-    // Extract components from input accounts
     let (compressed_accounts, token_data, merkle_contexts): (Vec<_>, Vec<_>, Vec<_>) = params
         .input_compressed_token_accounts
         .into_iter()
@@ -148,13 +151,9 @@ pub fn create_decompress_instruction(
             },
         );
 
-    // Get mint from first token data
     let mint = token_data[0].mint;
-
-    // Get owner from first token data
     let owner = token_data[0].owner;
 
-    // Create output state for remaining tokens (if any)
     let input_total: u64 = token_data.iter().map(|td| td.amount).sum();
     let remaining_amount = input_total.saturating_sub(params.amount);
 
@@ -171,7 +170,7 @@ pub fn create_decompress_instruction(
         vec![]
     };
 
-    // Create the instruction using the transfer SDK
+    // TODO: refactor.
     transfer_sdk::create_transfer_instruction(
         &params.payer,
         &owner,
@@ -182,26 +181,24 @@ pub fn create_decompress_instruction(
         &token_data,
         &compressed_accounts,
         mint,
-        None,                                   // no delegate
-        false,                                  // is_compress = false
-        Some(params.amount),                    // compress_or_decompress_amount
-        Some(crate::get_token_pool_pda(&mint)), // token_pool_pda
-        Some(params.to_address),                // compress_or_decompress_token_account
-        false,                                  // don't sort outputs
-        None,                                   // no delegate change account
-        None,                                   // no lamports change account
-        token_program == spl_token_2022::ID,    // is_token_22
-        &[],                                    // no additional token pools
-        false,                                  // with_transaction_hash = false
+        None,
+        false,
+        Some(params.amount),
+        Some(crate::get_token_pool_pda(&mint)),
+        Some(params.to_address),
+        false,
+        None,
+        None,
+        token_program == spl_token_2022::ID,
+        &[],
+        false,
     )
     .map_err(|e| {
         CompressedTokenError::SerializationError(format!("Failed to create instruction: {:?}", e))
     })
 }
 
-/// Helper function to create a simple compress instruction
-///
-/// This is a convenience function for the most common compress use case.
+/// Create a compress instruction with a single recipient.
 pub fn compress(
     payer: Pubkey,
     owner: Pubkey,
@@ -224,27 +221,32 @@ pub fn compress(
     })
 }
 
-/// Helper function to create a batch compress instruction
-///
-/// Compress tokens to multiple recipients in a single transaction.
+/// Creates a compress instruction to compress tokens to multiple recipients.
 pub fn batch_compress(
     payer: Pubkey,
     owner: Pubkey,
     source_token_account: Pubkey,
     mint: Pubkey,
-    recipients: Vec<(Pubkey, u64)>,
+    recipients: Vec<Pubkey>,
+    amounts: Vec<u64>,
     output_state_tree: Pubkey,
 ) -> Result<Instruction, CompressedTokenError> {
+    if recipients.len() != amounts.len() {
+        return Err(CompressedTokenError::InvalidParams(
+            "Recipients and amounts must have the same length".to_string(),
+        ));
+    }
+
     create_compress_instruction(CompressParams {
         payer,
         owner,
         source: source_token_account,
-        to_address: Pubkey::default(), // Not used in batch mode
+        to_address: Pubkey::default(),
         mint,
-        amount: 0, // Not used in batch mode
+        amount: 0,
         output_state_tree,
         token_program_id: None,
-        batch_recipients: Some(recipients),
+        batch_recipients: Some(recipients.into_iter().zip(amounts).collect()),
     })
 }
 
@@ -286,12 +288,21 @@ mod tests {
         let output_state_tree = Pubkey::new_unique();
 
         let recipients = vec![
-            (Pubkey::new_unique(), 500),
-            (Pubkey::new_unique(), 300),
-            (Pubkey::new_unique(), 200),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
         ];
+        let amounts = vec![500, 300, 200];
 
-        let result = batch_compress(payer, owner, source, mint, recipients, output_state_tree);
+        let result = batch_compress(
+            payer,
+            owner,
+            source,
+            mint,
+            recipients,
+            amounts,
+            output_state_tree,
+        );
 
         assert!(result.is_ok());
         let instruction = result.unwrap();

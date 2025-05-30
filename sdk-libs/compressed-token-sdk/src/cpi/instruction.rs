@@ -1,3 +1,4 @@
+use crate::cpi::accounts::CompressedTokenDecompressCpiAccounts;
 #[cfg(feature = "anchor")]
 use anchor_lang::AnchorSerialize;
 #[cfg(not(feature = "anchor"))]
@@ -11,10 +12,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::{
-    cpi::accounts::CompressedTokenDecompressCpiAccounts,
-    state::{CompressedTokenInstructionDataTransfer, InputTokenDataWithContext},
-};
+use crate::state::{CompressedTokenInstructionDataTransfer, InputTokenDataWithContext};
 
 /// Return Instruction to decompress compressed token accounts.
 /// Proof can be None if prove_by_index is used.
@@ -31,7 +29,7 @@ pub fn decompress(
     let accounts = vec![
         AccountMeta::new(*light_cpi_accounts.fee_payer.key, true),
         AccountMeta::new_readonly(*light_cpi_accounts.authority.key, true),
-        AccountMeta::new_readonly(*light_cpi_accounts.cpi_authority_pda.key, true),
+        AccountMeta::new_readonly(*light_cpi_accounts.cpi_authority_pda.key, false),
         AccountMeta::new_readonly(*light_cpi_accounts.light_system_program.key, false),
         AccountMeta::new_readonly(*light_cpi_accounts.registered_program_pda.key, false),
         AccountMeta::new_readonly(*light_cpi_accounts.noop_program.key, false),
@@ -47,7 +45,7 @@ pub fn decompress(
     ];
 
     Ok(Instruction {
-        program_id: *light_cpi_accounts.token_program.key,
+        program_id: *light_cpi_accounts.self_program.key,
         accounts,
         data,
     })
@@ -75,12 +73,20 @@ pub fn decompress_token_instruction_data(
         compress_or_decompress_amount: Some(amount),
         cpi_context: cpi_context.copied(),
         lamports_change_account_merkle_tree_index: None,
+        with_transaction_hash: false,
     };
 
     let mut inputs = Vec::new();
+    // transfer discriminator
+    inputs.extend_from_slice(&[163, 52, 200, 231, 140, 3, 69, 186]);
 
+    let mut serialized_data = Vec::new();
     compressed_token_instruction_data_transfer
-        .serialize(&mut inputs)
+        .serialize(&mut serialized_data)
         .unwrap();
+
+    // Add length buffer
+    inputs.extend_from_slice(&(serialized_data.len() as u32).to_le_bytes());
+    inputs.extend_from_slice(&serialized_data);
     inputs
 }

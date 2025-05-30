@@ -6,7 +6,18 @@ use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, PackedMerkleContext},
     instruction_data::{compressed_proof::CompressedProof, cpi_context::CompressedCpiContext},
 };
+
 use solana_program::pubkey::Pubkey;
+
+#[derive(Clone, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedTokenTransferOutputData {
+    pub owner: Pubkey,
+    pub amount: u64,
+    pub lamports: Option<u64>,
+    pub merkle_tree_index: u8,
+    /// Placeholder for TokenExtension tlv data (unimplemented)
+    pub tlv: Option<Vec<u8>>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 #[repr(u8)]
@@ -42,14 +53,17 @@ pub struct TokenDataWithMerkleContext {
 pub struct CompressedTokenInstructionDataTransfer {
     pub proof: Option<CompressedProof>,
     pub mint: Pubkey,
-
-    pub delegated_transfer: Option<bool>,
+    /// Is required if the signer is delegate,
+    /// -> delegate is authority account,
+    /// owner = Some(owner) is the owner of the token account.
+    pub delegated_transfer: Option<DelegatedTransfer>,
     pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
-    pub output_compressed_accounts: Vec<bool>,
+    pub output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
     pub is_compress: bool,
     pub compress_or_decompress_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub lamports_change_account_merkle_tree_index: Option<u8>,
+    pub with_transaction_hash: bool,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
