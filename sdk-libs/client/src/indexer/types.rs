@@ -110,7 +110,6 @@ impl ProofRpcResult {
     }
 }
 
-// #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone)]
 pub struct ProofRpcResultV2 {
     pub proof: Option<CompressedProof>,
@@ -119,7 +118,6 @@ pub struct ProofRpcResultV2 {
     pub address_root_indices: Vec<u16>,
 }
 
-// #[cfg(feature = "v2")]
 impl ProofRpcResultV2 {
     pub fn from_api_model(
         value: photon_api::models::CompressedProofWithContextV2,

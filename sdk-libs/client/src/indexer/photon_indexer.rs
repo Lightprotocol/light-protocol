@@ -238,9 +238,8 @@ impl Indexer for PhotonIndexer {
 
     async fn get_compressed_accounts_by_owner(
         &self,
-        _owner: &Pubkey,
+        owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
-        let owner = _owner;
         self.retry(|| async {
             let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
                 params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
