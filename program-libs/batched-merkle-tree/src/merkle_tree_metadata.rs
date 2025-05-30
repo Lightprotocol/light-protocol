@@ -46,6 +46,7 @@ pub struct BatchedMerkleTreeMetadata {
     /// + 1 byte padding) Merkle tree pubkey.
     pub hashed_pubkey: [u8; 32],
     pub nullifier_next_index: u64,
+    pub placeholder_bytes: [u8; 128],
 }
 
 impl Default for BatchedMerkleTreeMetadata {
@@ -68,6 +69,7 @@ impl Default for BatchedMerkleTreeMetadata {
             },
             hashed_pubkey: [0u8; 32],
             nullifier_next_index: 0,
+            placeholder_bytes: [0u8; 128],
         }
     }
 }
@@ -158,6 +160,7 @@ impl BatchedMerkleTreeMetadata {
             capacity: 2u64.pow(height),
             hashed_pubkey: hash_to_bn254_field_size_be(&tree_pubkey.to_bytes()),
             nullifier_next_index: 0,
+            placeholder_bytes: [0u8; 128],
         }
     }
 }
