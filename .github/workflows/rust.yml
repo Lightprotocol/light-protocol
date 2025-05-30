@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - ".cargo/**"
       - "**/*.rs"
       - "**/Cargo.*"
+      - ".cargo/**"
       - "prover/client/**"
       - ".github/workflows/rust.yml"
   pull_request:
@@ -30,38 +30,55 @@ jobs:
   test:
     if: github.event.pull_request.draft == false
     runs-on: warp-ubuntu-latest-x64-4x
-    outputs:
-      timing: ${{ steps.test-timing.outputs.timing }}
+
     strategy:
       matrix:
         group:
           - name: concurrent-merkle-tree
-            packages: >-
-              light-concurrent-merkle-tree
-              light-batched-merkle-tree
+            packages: light-concurrent-merkle-tree light-batched-merkle-tree
+            test_cmd: |
+              cargo test -p light-concurrent-merkle-tree
+              RUST_LOG=light_prover_client=debug cargo test -p light-batched-merkle-tree --features test-only -- --test test_simulate_transactions
           - name: program-libs
-            packages: >-
-              aligned-sized
-              light-bloom-filter
-              light-hasher
-              light-compressed-account
-              light-account-checks
-              light-verifier
-              light-merkle-tree-metadata
-              light-zero-copy
-              light-hash-set
-              light-indexed-merkle-tree
-              light-batched-merkle-tree
+            packages:
+              aligned-sized light-bloom-filter light-hasher light-compressed-account light-account-checks \
+              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set light-indexed-merkle-tree light-batched-merkle-tree
+            test_cmd: |
+              cargo test -p aligned-sized
+              cargo test -p light-bloom-filter
+              cargo test -p light-hasher
+              cargo test -p light-compressed-account
+              cargo test -p light-account-checks
+              cargo test -p light-verifier
+              cargo test -p light-merkle-tree-metadata
+              cargo test -p light-zero-copy --features std
+              cargo test -p light-hash-set
+              cargo test -p light-indexed-merkle-tree
+              cargo test -p light-batched-merkle-tree --features test-only -- --test test_e2e
           - name: sdk-libs
-            packages: >-
-              light-macros
-              light-sdk
-              light-program-test
-              light-client
-              light-batched-merkle-tree
+            packages: light-macros light-sdk light-program-test light-client light-batched-merkle-tree
+            test_cmd: |
+              cargo test -p light-macros
+              cargo test -p light-sdk
+              cargo test -p light-program-test
+              cargo test -p light-client
+              cargo test -p light-batched-merkle-tree --features test-only -- --skip test_simulate_transactions --skip test_e2e
 
-      fail-fast: false
     name: Test ${{ matrix.group.name }}
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -74,86 +91,7 @@ jobs:
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
 
-      - name: Run tests
-        id: test-timing
+      - name: Run tests for ${{ matrix.group.name }}
         run: |
           source ./scripts/devenv.sh
-          {
-            echo "Testing group: ${{ matrix.group.name }}"
-            echo "Packages: ${{ matrix.group.packages }}"
-          echo "Rust version: $(rustc --version)"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          # Function to format time duration
-          format_duration() {
-            local duration="$1"
-            local minutes=$((duration / 60))
-            local seconds=$((duration % 60))
-            echo "${minutes}m ${seconds}s"
-          }
-
-          # Record group start time
-          group_start=$(date +%s)
-
-          # Convert space-separated packages into array
-          readarray -t packages <<< "$(echo "${{ matrix.group.packages }}" | tr ' ' '\n')"
-
-          # Test each package and measure time
-          for pkg in "${packages[@]}"; do
-            if [[ -n "$pkg" ]]; then  # Skip empty lines
-              echo "::group::Testing ${pkg}"
-              start=$(date +%s)
-              echo "${name}"
-              echo "${{ matrix.group.name }}"
-
-              if [ "${pkg}" == "light-zero-copy" ]; then
-                cargo test -p "${pkg}" --features std || exit 1
-              elif [ "${pkg}" == "light-batched-merkle-tree" ]; then
-                if [ "${{ matrix.group.name }}" == "sdk-libs" ]; then
-                  # execute simulate transactions test
-                  cargo test -p "${pkg}" --features test-only -- --skip test_simulate_transactions --skip test_e2e || exit 1
-                elif [ "${{ matrix.group.name }}" == "program-libs" ]; then
-                  # execute e2e test
-                  cargo test -p "${pkg}" --features test-only -- --test test_e2e || exit 1
-                else
-                  # execute all tests except test_simulate_transactions and test_e2e
-                  cargo test -p "${pkg}" --features test-only -- --test test_simulate_transactions || exit 1
-                fi
-              else
-                cargo test -p "${pkg}" || exit 1
-              fi
-
-              end=$(date +%s)
-              duration=$((end - start))
-              formatted_time=$(format_duration "$duration")
-              echo "Package ${pkg} completed in ${formatted_time}"
-              echo "::endgroup::"
-            fi
-          done
-
-          # Record and print group total time
-          group_end=$(date +%s)
-          group_duration=$((group_end - group_start))
-          formatted_group_time=$(format_duration "$group_duration")
-
-          # Create timing report with simplified output
-          echo "timing=${{ matrix.group.name }}:${formatted_group_time}" >> "$GITHUB_OUTPUT"
-          echo "Group ${{ matrix.group.name }} total time: ${formatted_group_time}" >> "$GITHUB_STEP_SUMMARY"
-
-  collect-times:
-    needs: test
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Create timing summary
-        run: |
-          {
-            echo "# Test Execution Times"
-            echo "| Group | Time |"
-            echo "|-------|------|"
-            for timing in ${{ needs.test.outputs.timing }}; do
-              group="${timing%%:*}"
-              time="${timing#*:}"
-              echo "| $group | $time |"
-            done
-          } >> "$GITHUB_STEP_SUMMARY"
+          ${{ matrix.group.test_cmd }}

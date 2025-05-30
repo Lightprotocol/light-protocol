@@ -9,6 +9,7 @@ edition = "2021"
 [features]
 default = []
 devenv = []
+test-only = []
 
 [dependencies]
 anchor-lang = { workspace = true }
@@ -31,7 +32,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
 light-compressed-account = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
-forester-utils = { workspace = true }
+forester-utils = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 rand = { workspace = true }
 log = { workspace = true }
@@ -40,6 +41,5 @@ create-address-test-program = { workspace = true }
 spl-token-2022 = { workspace = true }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-merkle-tree-metadata = { workspace = true }
-light-verifier = { workspace = true }
 reqwest = { workspace = true }
 light-account-checks = { workspace = true }

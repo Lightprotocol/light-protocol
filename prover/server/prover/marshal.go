@@ -24,7 +24,7 @@ func fromHex(i *big.Int, s string) error {
 }
 
 func toHex(i *big.Int) string {
-	return fmt.Sprintf("0x%s", i.Text(16))
+	return fmt.Sprintf("0x%064x", i)
 }
 
 func fromDec(i *big.Int, s string) error {
@@ -95,7 +95,14 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 	const fpSize = 32
 	proofBytes := make([]byte, 8*fpSize)
 	for i := 0; i < 8; i++ {
-		copy(proofBytes[i*fpSize:(i+1)*fpSize], proofInts[i].Bytes())
+		intBytes := proofInts[i].Bytes()
+		// Pad with leading zeros to ensure exactly 32 bytes
+		if len(intBytes) <= fpSize {
+			copy(proofBytes[i*fpSize+fpSize-len(intBytes):(i+1)*fpSize], intBytes)
+		} else {
+			// If somehow longer than 32 bytes, take the last 32 bytes
+			copy(proofBytes[i*fpSize:(i+1)*fpSize], intBytes[len(intBytes)-fpSize:])
+		}
 	}
 
 	p.Proof = groth16.NewProof(ecc.BN254)

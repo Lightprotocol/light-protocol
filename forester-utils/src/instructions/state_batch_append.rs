@@ -13,18 +13,12 @@ use light_prover_client::{
     batch_append_with_proofs::{
         get_batch_append_with_proofs_inputs, BatchAppendWithProofsCircuitInputs,
     },
-    gnark::{
-        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-    },
+    proof_client::ProofClient,
 };
-use reqwest::Client;
 use tracing::{error, trace};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
-/// Creates instruction data for a batch append operation
 pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
@@ -168,47 +162,11 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
 async fn generate_zkp_proof(
     circuit_inputs: BatchAppendWithProofsCircuitInputs,
 ) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
-    let client = Client::new();
-    let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
-
-    let response = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        .header("Content-Type", "text/plain; charset=utf-8")
-        .body(inputs_json)
-        .send()
+    let proof_client = ProofClient::local();
+    proof_client
+        .generate_batch_append_proof(circuit_inputs)
         .await
-        .map_err(|e| {
-            error!("Failed to send request to prover server: {:?}", e);
-            ForesterUtilsError::Prover(format!("Failed to send request: {}", e))
-        })?;
-
-    if response.status().is_success() {
-        trace!("Received successful response from prover server");
-        let body = response.text().await.map_err(|e| {
-            ForesterUtilsError::Prover(format!("Failed to read response body: {}", e))
-        })?;
-        let proof_json = deserialize_gnark_proof_json(&body).map_err(|e| {
-            ForesterUtilsError::Prover(format!("Failed to deserialize proof: {}", e))
-        })?;
-
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-        Ok((
-            CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
-            bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
-        ))
-    } else {
-        let error_text = response.text().await.unwrap_or_default();
-        error!("Prover server error response: {}", error_text);
-        Err(ForesterUtilsError::Prover(format!(
-            "Prover server error: {}",
-            error_text
-        )))
-    }
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))
 }
 
 /// Get metadata from the Merkle tree account

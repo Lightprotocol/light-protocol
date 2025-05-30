@@ -9,10 +9,443 @@ import (
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/gorilla/handlers"
 	//"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+type proofStatusHandler struct {
+	redisQueue *RedisQueue
+}
+
+func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	jobID := r.URL.Query().Get("job_id")
+	if jobID == "" {
+		malformedBodyError(fmt.Errorf("job_id parameter required")).send(w)
+		return
+	}
+
+	if !isValidJobID(jobID) {
+		notFoundError := &Error{
+			StatusCode: http.StatusBadRequest,
+			Code:       "invalid_job_id",
+			Message:    "Invalid job ID format. Job ID must be a valid UUID.",
+		}
+		notFoundError.send(w)
+		return
+	}
+
+	logging.Logger().Info().
+		Str("job_id", jobID).
+		Msg("Checking job status")
+
+	result, err := handler.redisQueue.GetResult(jobID)
+	if err != nil && err != redis.Nil {
+		logging.Logger().Error().
+			Err(err).
+			Str("job_id", jobID).
+			Msg("Error retrieving result")
+		unexpectedError(err).send(w)
+		return
+	}
+
+	if err == nil && result != nil {
+		logging.Logger().Info().
+			Str("job_id", jobID).
+			Msg("Job completed - returning result")
+
+		response := map[string]interface{}{
+			"job_id": jobID,
+			"status": "completed",
+			"result": result,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	jobExists, jobStatus, jobInfo := handler.checkJobExistsDetailed(jobID)
+
+	if !jobExists {
+		logging.Logger().Warn().
+			Str("job_id", jobID).
+			Msg("Job not found in any queue")
+
+		notFoundError := &Error{
+			StatusCode: http.StatusNotFound,
+			Code:       "job_not_found",
+			Message:    fmt.Sprintf("Job with ID %s not found. It may have expired or never existed.", jobID),
+		}
+		notFoundError.send(w)
+		return
+	}
+
+	logging.Logger().Info().
+		Str("job_id", jobID).
+		Str("status", jobStatus).
+		Interface("job_info", jobInfo).
+		Msg("Job found but not completed")
+
+	response := map[string]interface{}{
+		"job_id":  jobID,
+		"status":  jobStatus,
+		"message": getStatusMessage(jobStatus),
+	}
+
+	if jobInfo != nil {
+		if createdAt, ok := jobInfo["created_at"]; ok {
+			response["created_at"] = createdAt
+		}
+		if circuitType, ok := jobInfo["circuit_type"]; ok {
+			response["circuit_type"] = circuitType
+		}
+		if priority, ok := jobInfo["priority"]; ok {
+			response["priority"] = priority
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(response)
+}
+
+func isValidJobID(jobID string) bool {
+	_, err := uuid.Parse(jobID)
+	return err == nil
+}
+
+func getStatusMessage(status string) string {
+	switch status {
+	case "queued":
+		return "Job is queued and waiting to be processed"
+	case "processing":
+		return "Job is currently being processed"
+	case "failed":
+		return "Job processing failed. Check the failed queue for details"
+	case "completed":
+		return "Job completed successfully"
+	default:
+		return "Job status unknown"
+	}
+}
+
+func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, string, map[string]interface{}) {
+	if job, found := handler.findJobInQueue("zk_proof_queue", jobID); found {
+		return true, "queued", job
+	}
+
+	if job, found := handler.findJobInQueue("zk_priority_queue", jobID); found {
+		return true, "queued", job
+	}
+
+	if job, found := handler.findJobInQueue("zk_processing_queue", jobID); found {
+		return true, "processing", job
+	}
+
+	if job, found := handler.findJobInQueue("zk_failed_queue", jobID); found {
+		return true, "failed", job
+	}
+
+	return false, "", nil
+}
+
+func (handler proofStatusHandler) findJobInQueue(queueName, jobID string) (map[string]interface{}, bool) {
+	items, err := handler.redisQueue.Client.LRange(handler.redisQueue.Ctx, queueName, 0, -1).Result()
+	if err != nil {
+		logging.Logger().Error().
+			Err(err).
+			Str("queue", queueName).
+			Str("job_id", jobID).
+			Msg("Error searching queue")
+		return nil, false
+	}
+
+	for _, item := range items {
+		var job ProofJob
+		if json.Unmarshal([]byte(item), &job) == nil {
+			if job.ID == jobID ||
+				job.ID == jobID+"_processing" ||
+				job.ID == jobID+"_failed" {
+
+				jobInfo := map[string]interface{}{
+					"created_at": job.CreatedAt,
+					"priority":   job.Priority,
+				}
+
+				if len(job.Payload) > 0 {
+					var meta map[string]interface{}
+					if json.Unmarshal(job.Payload, &meta) == nil {
+						if circuitType, ok := meta["circuit_type"]; ok {
+							jobInfo["circuit_type"] = circuitType
+						}
+					}
+				}
+
+				logging.Logger().Info().
+					Str("job_id", jobID).
+					Str("queue", queueName).
+					Str("found_job_id", job.ID).
+					Msg("Job found in queue")
+
+				return jobInfo, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
+type QueueConfig struct {
+	RedisURL string
+	Enabled  bool
+}
+
+type EnhancedConfig struct {
+	ProverAddress  string
+	MetricsAddress string
+	Queue          *QueueConfig
+}
+
+type proveHandler struct {
+	provingSystemsV1 []*prover.ProvingSystemV1
+	provingSystemsV2 []*prover.ProvingSystemV2
+	redisQueue       *RedisQueue
+	enableQueue      bool
+	runMode          prover.RunMode
+	circuits         []string
+}
+
+func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	buf, err := io.ReadAll(r.Body)
+	if err != nil {
+		logging.Logger().Error().Err(err).Msg("Error reading request body")
+		malformedBodyError(err).send(w)
+		return
+	}
+
+	proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+	if err != nil {
+		malformedBodyError(err).send(w)
+		return
+	}
+
+	forceAsync := r.Header.Get("X-Async") == "true" || r.URL.Query().Get("async") == "true"
+	forceSync := r.Header.Get("X-Sync") == "true" || r.URL.Query().Get("sync") == "true"
+	priority := r.Header.Get("X-Priority") == "true" || r.URL.Query().Get("priority") == "true"
+
+	shouldUseQueue := handler.shouldUseQueueForCircuit(proofRequestMeta.CircuitType, forceAsync, forceSync, priority)
+
+	logging.Logger().Info().
+		Str("circuit_type", string(proofRequestMeta.CircuitType)).
+		Bool("force_async", forceAsync).
+		Bool("force_sync", forceSync).
+		Bool("priority", priority).
+		Bool("use_queue", shouldUseQueue).
+		Bool("queue_available", handler.enableQueue && handler.redisQueue != nil).
+		Msg("Processing prove request")
+
+	if shouldUseQueue && handler.enableQueue && handler.redisQueue != nil {
+		handler.handleAsyncProof(w, r, buf, priority, proofRequestMeta)
+	} else {
+		handler.handleSyncProof(w, r, buf, proofRequestMeta)
+	}
+}
+
+func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitType, forceAsync, forceSync, priority bool) bool {
+	if forceAsync {
+		return true
+	}
+	if forceSync {
+		return false
+	}
+
+	if priority {
+		return true
+	}
+
+	if !handler.enableQueue || handler.redisQueue == nil {
+		return false
+	}
+
+	if circuitType == prover.InclusionCircuitType ||
+		circuitType == prover.NonInclusionCircuitType ||
+		circuitType == prover.CombinedCircuitType {
+		return false
+	}
+
+	return true
+}
+
+type queueStatsHandler struct {
+	redisQueue *RedisQueue
+}
+
+func (handler queueStatsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	stats, err := handler.redisQueue.GetQueueStats()
+	if err != nil {
+		unexpectedError(err).send(w)
+		return
+	}
+
+	response := map[string]interface{}{
+		"queues":        stats,
+		"total_pending": stats["zk_proof_queue"] + stats["zk_priority_queue"],
+		"total_active":  stats["zk_processing_queue"],
+		"total_failed":  stats["zk_failed_queue"],
+		"timestamp":     time.Now().Unix(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+	return RunEnhanced(&EnhancedConfig{
+		ProverAddress:  config.ProverAddress,
+		MetricsAddress: config.MetricsAddress,
+		Queue: &QueueConfig{
+			Enabled: redisQueue != nil,
+		},
+	}, redisQueue, circuits, runMode, provingSystemsV1, provingSystemsV2)
+}
+
+func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+	metricsMux := http.NewServeMux()
+	metricsServer := &http.Server{Addr: config.MetricsAddress, Handler: metricsMux}
+	metricsJob := spawnServerJob(metricsServer, "metrics server")
+	logging.Logger().Info().Str("addr", config.MetricsAddress).Msg("metrics server started")
+
+	proverMux := http.NewServeMux()
+
+	proverMux.Handle("/prove", proveHandler{
+		provingSystemsV1: provingSystemsV1,
+		provingSystemsV2: provingSystemsV2,
+		redisQueue:       redisQueue,
+		enableQueue:      config.Queue != nil && config.Queue.Enabled,
+		runMode:          runMode,
+		circuits:         circuits,
+	})
+
+	proverMux.Handle("/health", healthHandler{})
+
+	if redisQueue != nil {
+		proverMux.Handle("/prove/status", proofStatusHandler{redisQueue: redisQueue})
+		proverMux.Handle("/queue/stats", queueStatsHandler{redisQueue: redisQueue})
+
+		proverMux.HandleFunc("/queue/add", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+
+			buf, err := io.ReadAll(r.Body)
+			if err != nil {
+				malformedBodyError(err).send(w)
+				return
+			}
+
+			proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+			if err != nil {
+				malformedBodyError(err).send(w)
+				return
+			}
+
+			jobID := uuid.New().String()
+			priority := r.Header.Get("X-Priority") == "true"
+
+			job := &ProofJob{
+				ID:        jobID,
+				Type:      "zk_proof",
+				Payload:   json.RawMessage(buf),
+				CreatedAt: time.Now(),
+				Priority:  0,
+			}
+
+			if priority {
+				job.Priority = 1
+			}
+
+			queueName := "zk_proof_queue"
+			if priority {
+				queueName = "zk_priority_queue"
+			}
+
+			err = redisQueue.EnqueueProof(queueName, job)
+			if err != nil {
+				unexpectedError(err).send(w)
+				return
+			}
+
+			response := map[string]interface{}{
+				"job_id":       jobID,
+				"status":       "queued",
+				"queue":        queueName,
+				"circuit_type": string(proofRequestMeta.CircuitType),
+				"priority":     priority,
+				"message":      fmt.Sprintf("Job queued in %s", queueName),
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			json.NewEncoder(w).Encode(response)
+		})
+	}
+
+	corsHandler := handlers.CORS(
+		handlers.AllowedHeaders([]string{
+			"X-Requested-With",
+			"Content-Type",
+			"Authorization",
+			"X-Async",
+			"X-Sync",
+			"X-Priority",
+		}),
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+	)
+
+	proverServer := &http.Server{Addr: config.ProverAddress, Handler: corsHandler(proverMux)}
+	proverJob := spawnServerJob(proverServer, "prover server")
+
+	if redisQueue != nil {
+		logging.Logger().Info().
+			Str("addr", config.ProverAddress).
+			Bool("queue_enabled", true).
+			Msg("enhanced prover server started with Redis queue support")
+	} else {
+		logging.Logger().Info().
+			Str("addr", config.ProverAddress).
+			Bool("queue_enabled", false).
+			Msg("prover server started (no queue support)")
+	}
+
+	return CombineJobs(metricsJob, proverJob)
+}
+
+func Run(config *Config, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+	return RunWithQueue(config, nil, circuits, runMode, provingSystemsV1, provingSystemsV2)
+}
 
 type Error struct {
 	StatusCode int
@@ -74,108 +507,211 @@ func spawnServerJob(server *http.Server, label string) RunningJob {
 	return SpawnJob(start, shutdown)
 }
 
-func Run(config *Config, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
-	metricsMux := http.NewServeMux()
-	// TODO: Add metrics
-	//metricsMux.Handle("/metrics", promhttp.Handler())
-	metricsServer := &http.Server{Addr: config.MetricsAddress, Handler: metricsMux}
-	metricsJob := spawnServerJob(metricsServer, "metrics server")
-	logging.Logger().Info().Str("addr", config.MetricsAddress).Msg("metrics server started")
-
-	proverMux := http.NewServeMux()
-	proverMux.Handle("/prove", proveHandler{
-		provingSystemsV1: provingSystemsV1,
-		provingSystemsV2: provingSystemsV2,
-	})
-	proverMux.Handle("/health", healthHandler{})
-
-	// Setup CORS
-	// TODO: Enforce strict CORS policy
-	corsHandler := handlers.CORS(
-		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
-		handlers.AllowedOrigins([]string{"*"}),
-		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
-	)
-
-	proverServer := &http.Server{Addr: config.ProverAddress, Handler: corsHandler(proverMux)}
-	proverJob := spawnServerJob(proverServer, "prover server")
-	logging.Logger().Info().Str("addr", config.ProverAddress).Msg("app server started")
-
-	return CombineJobs(metricsJob, proverJob)
-}
-
-type proveHandler struct {
-	provingSystemsV1 []*prover.ProvingSystemV1
-	provingSystemsV2 []*prover.ProvingSystemV2
-}
-
 type healthHandler struct {
 }
 
-func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, priority bool, meta prover.ProofRequestMeta) {
+	jobID := uuid.New().String()
+
+	job := &ProofJob{
+		ID:        jobID,
+		Type:      "zk_proof",
+		Payload:   json.RawMessage(buf),
+		CreatedAt: time.Now(),
+		Priority:  0,
 	}
-	logging.Logger().Info().Msg("received prove request")
-	buf, err := io.ReadAll(r.Body)
+
+	if priority {
+		job.Priority = 1
+	}
+
+	queueName := "zk_proof_queue"
+	if priority {
+		queueName = "zk_priority_queue"
+	}
+
+	err := handler.redisQueue.EnqueueProof(queueName, job)
 	if err != nil {
-		logging.Logger().Info().Msg("error reading request body")
-		logging.Logger().Info().Msg(err.Error())
-		malformedBodyError(err).send(w)
+		logging.Logger().Error().Err(err).Msg("Failed to enqueue proof job")
+
+		if handler.isBatchOperation(meta.CircuitType) {
+			serviceUnavailableError := &Error{
+				StatusCode: http.StatusServiceUnavailable,
+				Code:       "queue_unavailable",
+				Message:    fmt.Sprintf("Queue service unavailable and %s requires asynchronous processing", meta.CircuitType),
+			}
+			serviceUnavailableError.send(w)
+			return
+		}
+
+		logging.Logger().Warn().Msg("Queue failed, falling back to synchronous processing")
+		handler.handleSyncProof(w, r, buf, meta)
 		return
 	}
 
-	var proof *prover.Proof
-	var proofError *Error
+	estimatedTime := handler.getEstimatedTime(meta.CircuitType)
 
+	response := map[string]interface{}{
+		"job_id":         jobID,
+		"status":         "queued",
+		"circuit_type":   string(meta.CircuitType),
+		"priority":       priority,
+		"queue":          queueName,
+		"estimated_time": estimatedTime,
+		"status_url":     fmt.Sprintf("/prove/status?job_id=%s", jobID),
+		"message":        fmt.Sprintf("Proof generation queued for %s circuit. Use status_url to check progress.", meta.CircuitType),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(response)
+
+	logging.Logger().Info().
+		Str("job_id", jobID).
+		Str("queue", queueName).
+		Str("circuit_type", string(meta.CircuitType)).
+		Msg("Batch operation job queued successfully")
+}
+
+func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta prover.ProofRequestMeta) {
+	if handler.isBatchOperation(meta.CircuitType) {
+		warning := fmt.Sprintf("WARNING: %s is a heavy operation that should be processed asynchronously. Consider using X-Async: true header.", meta.CircuitType)
+		w.Header().Set("X-Warning", warning)
+		logging.Logger().Warn().
+			Str("circuit_type", string(meta.CircuitType)).
+			Msg("Processing batch operation synchronously - this may cause timeouts")
+	}
+
+	estimatedTime := handler.getEstimatedTimeSeconds(meta.CircuitType)
+	timeoutDuration := time.Duration(estimatedTime*2) * time.Second
+	if timeoutDuration < 10*time.Second {
+		timeoutDuration = 10 * time.Second
+	}
+	if timeoutDuration > 300*time.Second {
+		timeoutDuration = 300 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), timeoutDuration)
+	defer cancel()
+
+	type proofResult struct {
+		proof *prover.Proof
+		err   *Error
+	}
+
+	resultChan := make(chan proofResult, 1)
+
+	go func() {
+		proof, proofError := handler.processProofSync(buf)
+		resultChan <- proofResult{proof: proof, err: proofError}
+	}()
+
+	select {
+	case result := <-resultChan:
+		if result.err != nil {
+			result.err.send(w)
+			return
+		}
+
+		responseBytes, err := json.Marshal(result.proof)
+		if err != nil {
+			unexpectedError(err).send(w)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(responseBytes)
+
+		logging.Logger().Info().
+			Str("circuit_type", string(meta.CircuitType)).
+			Msg("Synchronous proof completed successfully")
+
+	case <-ctx.Done():
+		timeoutError := &Error{
+			StatusCode: http.StatusRequestTimeout,
+			Code:       "proof_timeout",
+			Message:    fmt.Sprintf("Proof generation timed out after %d seconds. For %s circuits, use asynchronous mode with X-Async: true header.", int(timeoutDuration.Seconds()), meta.CircuitType),
+		}
+		timeoutError.send(w)
+
+		logging.Logger().Warn().
+			Str("circuit_type", string(meta.CircuitType)).
+			Int("timeout_seconds", int(timeoutDuration.Seconds())).
+			Msg("Synchronous proof timed out")
+	}
+}
+
+func (handler proveHandler) isBatchOperation(circuitType prover.CircuitType) bool {
+	switch circuitType {
+	case prover.BatchAppendWithProofsCircuitType,
+		prover.BatchUpdateCircuitType,
+		prover.BatchAddressAppendCircuitType:
+		return true
+	default:
+		return false
+	}
+}
+
+func (handler proveHandler) getEstimatedTime(circuitType prover.CircuitType) string {
+	switch circuitType {
+	case prover.InclusionCircuitType:
+		return "1-3 seconds"
+	case prover.NonInclusionCircuitType:
+		return "1-3 seconds"
+	case prover.CombinedCircuitType:
+		return "1-3 seconds"
+	case prover.BatchAppendWithProofsCircuitType:
+		return "10-30 seconds"
+	case prover.BatchUpdateCircuitType:
+		return "10-30 seconds"
+	case prover.BatchAddressAppendCircuitType:
+		return "10-30 seconds"
+	default:
+		return "1-3 seconds"
+	}
+}
+
+func (handler proveHandler) getEstimatedTimeSeconds(circuitType prover.CircuitType) int {
+	switch circuitType {
+	case prover.InclusionCircuitType:
+		return 1
+	case prover.NonInclusionCircuitType:
+		return 1
+	case prover.CombinedCircuitType:
+		return 1
+	case prover.BatchAppendWithProofsCircuitType:
+		return 30
+	case prover.BatchUpdateCircuitType:
+		return 30
+	case prover.BatchAddressAppendCircuitType:
+		return 30
+	default:
+		return 1
+	}
+}
+
+func (handler proveHandler) processProofSync(buf []byte) (*prover.Proof, *Error) {
 	proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
 	if err != nil {
-		logging.Logger().Info().Msg("error parsing circuit type")
-		logging.Logger().Info().Msg(err.Error())
-		malformedBodyError(err).send(w)
-		return
+		return nil, malformedBodyError(err)
 	}
-	logging.Logger().Info().Msgf("proofRequestMeta %+v", proofRequestMeta)
 
 	switch proofRequestMeta.CircuitType {
 	case prover.InclusionCircuitType:
-		{
-			proof, proofError = handler.inclusionProof(buf, proofRequestMeta)
-		}
+		return handler.inclusionProof(buf, proofRequestMeta)
 	case prover.NonInclusionCircuitType:
-		proof, proofError = handler.nonInclusionProof(buf, proofRequestMeta)
+		return handler.nonInclusionProof(buf, proofRequestMeta)
 	case prover.CombinedCircuitType:
-		proof, proofError = handler.combinedProof(buf, proofRequestMeta)
+		return handler.combinedProof(buf, proofRequestMeta)
 	case prover.BatchUpdateCircuitType:
-		proof, proofError = handler.batchUpdateProof(buf)
+		return handler.batchUpdateProof(buf)
 	case prover.BatchAppendWithProofsCircuitType:
-		proof, proofError = handler.batchAppendWithProofsHandler(buf)
+		return handler.batchAppendWithProofsHandler(buf)
 	case prover.BatchAddressAppendCircuitType:
-		proof, proofError = handler.batchAddressAppendProof(buf)
+		return handler.batchAddressAppendProof(buf)
 	default:
-		proofError = malformedBodyError(fmt.Errorf("unknown circuit type"))
-	}
-
-	if proofError != nil {
-		println(proofError.Message)
-		logging.Logger().Err(err)
-		proofError.send(w)
-		return
-	}
-
-	responseBytes, err := json.Marshal(&proof)
-	if err != nil {
-		logging.Logger().Err(err)
-		unexpectedError(err).send(w)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(responseBytes)
-
-	if err != nil {
-		logging.Logger().Err(err)
+		return nil, malformedBodyError(fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType))
 	}
 }
 
@@ -215,8 +751,6 @@ func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Pr
 	var params prover.BatchAppendWithProofsParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
-		logging.Logger().Info().Msg("Error during JSON unmarshalling")
-		logging.Logger().Info().Msg(err.Error())
 		return nil, malformedBodyError(err)
 	}
 
@@ -248,8 +782,6 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 	var params prover.BatchUpdateParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
-		logging.Logger().Info().Msg("error Unmarshal")
-		logging.Logger().Info().Msg(err.Error())
 		return nil, malformedBodyError(err)
 	}
 
@@ -277,10 +809,9 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 }
 
 func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
-
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == uint32(proofRequestMeta.NumInputs) && provingSystem.InclusionTreeHeight == uint32(proofRequestMeta.StateTreeHeight) && provingSystem.Version == uint32(proofRequestMeta.Version) && provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
+		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.Version == proofRequestMeta.Version && provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
 			break
 		}
@@ -289,43 +820,31 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 	if ps == nil {
 		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
-	fmt.Println(proofRequestMeta)
+
 	if proofRequestMeta.Version == 0 {
-		var proof *prover.Proof
 		var params prover.LegacyInclusionParameters
 
-		var err = json.Unmarshal(buf, &params)
-
-		if err != nil {
-			logging.Logger().Info().Msg("error Unmarshal")
-			logging.Logger().Info().Msg(err.Error())
+		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err = ps.LegacyProveInclusion(&params)
+		proof, err := ps.LegacyProveInclusion(&params)
 		if err != nil {
-			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.Version == 1 {
-		var proof *prover.Proof
 		var params prover.InclusionParameters
-
-		var err = json.Unmarshal(buf, &params)
-		if err != nil {
-			logging.Logger().Info().Msg("error Unmarshal")
-			logging.Logger().Info().Msg(err.Error())
+		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err = ps.ProveInclusion(&params)
+		proof, err := ps.ProveInclusion(&params)
 		if err != nil {
-			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else {
-		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
+
+	return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 }
 
 func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
@@ -343,7 +862,6 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var proof *prover.Proof
 		var params prover.LegacyNonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
@@ -352,14 +870,13 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 			logging.Logger().Info().Msg(err.Error())
 			return nil, malformedBodyError(err)
 		}
-		proof, err = ps.LegacyProveNonInclusion(&params)
+		proof, err := ps.LegacyProveNonInclusion(&params)
 		if err != nil {
 			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var proof *prover.Proof
 		var params prover.NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
@@ -368,7 +885,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 			logging.Logger().Info().Msg(err.Error())
 			return nil, malformedBodyError(err)
 		}
-		proof, err = ps.ProveNonInclusion(&params)
+		proof, err := ps.ProveNonInclusion(&params)
 		if err != nil {
 			logging.Logger().Err(err)
 			return nil, provingError(err)
@@ -380,67 +897,35 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 }
 
 func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
-	var rawInput map[string]interface{}
-	json.Unmarshal(buf, &rawInput)
-
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range handler.provingSystemsV1 {
-		fmt.Printf("provingSystem inputs %+v\n", provingSystem.InclusionNumberOfCompressedAccounts)
-		fmt.Printf("provingSystem addresses %+v\n", provingSystem.NonInclusionNumberOfCompressedAccounts)
-		fmt.Printf("provingSystem inclusionTreeHeight %+v\n", provingSystem.InclusionTreeHeight)
-		fmt.Printf("provingSystem nonInclusionTreeHeight %+v\n", provingSystem.NonInclusionTreeHeight)
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.NonInclusionNumberOfCompressedAccounts == proofRequestMeta.NumAddresses && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.NonInclusionTreeHeight == proofRequestMeta.AddressTreeHeight {
 			ps = provingSystem
 			break
 		}
 	}
 
+	if ps == nil {
+		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
+	}
+
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var proof *prover.Proof
 		var params prover.LegacyCombinedParameters
-
-		var err = json.Unmarshal(buf, &params)
-
-		if err != nil {
-			logging.Logger().Info().Msg("error Unmarshal")
-			logging.Logger().Info().Msg(err.Error())
+		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
-
 		}
-
-		var inclusionNumberOfCompressedAccounts = uint32(len(params.InclusionParameters.Inputs))
-		var nonInclusionNumberOfCompressedAccounts = uint32(len(params.NonInclusionParameters.Inputs))
-
-		if ps == nil {
-			return nil, provingError(fmt.Errorf("no proving system for %d inclusion compressedAccounts & %d non-inclusion", inclusionNumberOfCompressedAccounts, nonInclusionNumberOfCompressedAccounts))
-		}
-		proof, err = ps.LegacyProveCombined(&params)
+		proof, err := ps.LegacyProveCombined(&params)
 		if err != nil {
-			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var proof *prover.Proof
 		var params prover.CombinedParameters
-
-		var err = json.Unmarshal(buf, &params)
-		if err != nil {
-			logging.Logger().Info().Msg("error Unmarshal")
-			logging.Logger().Info().Msg(err.Error())
+		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
-
 		}
-
-		var inclusionNumberOfCompressedAccounts = uint32(len(params.InclusionParameters.Inputs))
-		var nonInclusionNumberOfCompressedAccounts = uint32(len(params.NonInclusionParameters.Inputs))
-
-		if ps == nil {
-			return nil, provingError(fmt.Errorf("no proving system for %d inclusion compressedAccounts & %d non-inclusion", inclusionNumberOfCompressedAccounts, nonInclusionNumberOfCompressedAccounts))
-		}
-		proof, err = ps.ProveCombined(&params)
+		proof, err := ps.ProveCombined(&params)
 		if err != nil {
-			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil

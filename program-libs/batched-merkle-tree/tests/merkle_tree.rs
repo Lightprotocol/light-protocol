@@ -38,9 +38,9 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::{
-    gnark::helpers::{spawn_prover, ProverConfig},
-    mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
+use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
+use light_test_utils::mock_batched_forester::{
+    MockBatchedAddressForester, MockBatchedForester, MockTxEvent,
 };
 use light_zero_copy::vec::ZeroCopyVecU64;
 use rand::{rngs::StdRng, Rng};

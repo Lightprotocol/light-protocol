@@ -9,13 +9,8 @@ use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
     batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
-    gnark::{
-        batch_update_json_formatter::update_inputs_string,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-    },
+    proof_client::ProofClient,
 };
-use reqwest::Client;
 use tracing::{error, trace};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
@@ -250,43 +245,9 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer>(
 async fn generate_nullify_zkp_proof(
     inputs: BatchUpdateCircuitInputs,
 ) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
-    let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap())
-        .map_err(|_| ForesterUtilsError::Prover("Failed to convert new root to bytes".into()))?;
-
-    let client = Client::new();
-    let json_str = update_inputs_string(&inputs);
-
-    let response = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        .header("Content-Type", "text/plain; charset=utf-8")
-        .body(json_str.clone())
-        .send()
+    let proof_client = ProofClient::local();
+    proof_client
+        .generate_batch_update_proof(inputs)
         .await
-        .map_err(|e| {
-            error!("Failed to send proof to server: {:?}", e);
-            ForesterUtilsError::Prover("Failed to send proof to server".into())
-        })?;
-
-    if response.status().is_success() {
-        let body = response.text().await.unwrap();
-        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-
-        Ok((
-            CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
-            new_root,
-        ))
-    } else {
-        let error_text = response.text().await.unwrap_or_default();
-        error!("Failed to get proof from server: {:?}", error_text);
-        Err(ForesterUtilsError::Prover(format!(
-            "Failed to get proof from server: {}",
-            error_text
-        )))
-    }
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))
 }

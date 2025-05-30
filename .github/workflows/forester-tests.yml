@@ -77,6 +77,21 @@ jobs:
     name: test-${{ matrix.test-name.name }}
     runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: ${{ matrix.test-name.timeout }}
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379
+
     steps:
       - uses: actions/checkout@v4
       - name: Setup and build

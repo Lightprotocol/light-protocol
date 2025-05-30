@@ -62,6 +62,7 @@ tokio = { workspace = true }
 serial_test = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-test-utils = { workspace = true, features = [ "test-only"]}
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

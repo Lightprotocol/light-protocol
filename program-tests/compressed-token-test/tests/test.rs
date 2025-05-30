@@ -595,7 +595,6 @@ async fn test_wrapped_sol() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     // is token 22 fails with Instruction: InitializeAccount, Program log: Error: Invalid Mint line 216
@@ -1247,7 +1246,6 @@ async fn test_transfers() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     let possible_inputs = [1, 2, 3, 4, 8];
@@ -1415,7 +1413,6 @@ async fn test_decompression() {
         // is overkill but we run everything on ForesterTest
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -1566,7 +1563,6 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -2792,7 +2788,6 @@ async fn test_burn() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3056,7 +3051,6 @@ async fn failing_tests_burn() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3398,7 +3392,6 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3577,7 +3570,6 @@ async fn test_failing_freeze() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -3837,7 +3829,6 @@ async fn test_failing_thaw() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {
@@ -4127,7 +4118,6 @@ async fn test_failing_decompression() {
     spawn_prover(ProverConfig {
         run_mode: Some(ProverMode::ForesterTest),
         circuits: vec![],
-        restart: false,
     })
     .await;
     for is_token_22 in [false, true] {

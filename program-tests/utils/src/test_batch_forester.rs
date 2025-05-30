@@ -36,9 +36,8 @@ use light_prover_client::{
         batch_address_append_json_formatter::to_json,
         batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
         batch_update_json_formatter::update_inputs_string,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
+    proof_client::ProofClient,
 };
 use light_registry::{
     account_compression_cpi::sdk::{
@@ -47,7 +46,6 @@ use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     utils::get_protocol_config_pda_address,
 };
-use reqwest::Client;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
@@ -168,32 +166,21 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
             bundle.merkle_tree.root()
         );
-        let client = Client::new();
+        let proof_client = ProofClient::local();
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
-        let response_result = client
-            .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(inputs_json)
-            .send()
+        match proof_client
+            .generate_proof(inputs_json, "append-with-proofs")
             .await
-            .expect("Failed to execute request.");
-        if response_result.status().is_success() {
-            let body = response_result.text().await.unwrap();
-            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-            (
-                CompressedProof {
-                    a: proof_a,
-                    b: proof_b,
-                    c: proof_c,
-                },
+        {
+            Ok(compressed_proof) => (
+                compressed_proof,
                 bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap())
                     .unwrap(),
-            )
-        } else {
-            panic!("Failed to get proof from server.");
+            ),
+            Err(e) => {
+                panic!("Failed to get proof from server: {}", e);
+            }
         }
     };
 
@@ -310,36 +297,20 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         &[],
     )
     .unwrap();
-    let client = Client::new();
+    let proof_client = ProofClient::local();
     let circuit_inputs_new_root =
         bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
-    let inputs = update_inputs_string(&inputs);
+    let inputs_json = update_inputs_string(&inputs);
     let new_root = bundle.merkle_tree.root();
 
-    let response_result = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        .header("Content-Type", "text/plain; charset=utf-8")
-        .body(inputs)
-        .send()
-        .await
-        .expect("Failed to execute request.");
     assert_eq!(circuit_inputs_new_root, new_root);
-    let (proof, new_root) = if response_result.status().is_success() {
-        let body = response_result.text().await.unwrap();
-        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-        (
-            CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
-            new_root,
-        )
-    } else {
-        println!("response_result: {:?}", response_result);
-        panic!("Failed to get proof from server.");
+
+    let proof = match proof_client.generate_proof(inputs_json, "update").await {
+        Ok(compressed_proof) => compressed_proof,
+        Err(e) => {
+            println!("Failed to generate proof: {:?}", e);
+            panic!("Failed to get proof from server: {}", e);
+        }
     };
 
     Ok(InstructionDataBatchNullifyInputs {
@@ -760,36 +731,29 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             &mut indexed_changelog,
         )
         .unwrap();
-    let client = Client::new();
-    let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
-    let inputs = to_json(&inputs);
-    let response_result = client
-        .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
-        .header("Content-Type", "text/plain; charset=utf-8")
-        .body(inputs)
-        .send()
-        .await
-        .expect("Failed to execute request.");
 
-    if response_result.status().is_success() {
-        let body = response_result.text().await.unwrap();
-        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-        let instruction_data = InstructionDataBatchNullifyInputs {
-            new_root: circuit_inputs_new_root,
-            compressed_proof: CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
-        };
-        Ok(instruction_data)
-    } else {
-        println!("response_result: {:?}", response_result.text().await);
-        Err(RpcError::CustomError(
-            "Prover failed to generate proof".to_string(),
-        ))
+    let proof_client = ProofClient::local();
+    let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
+    let inputs_json = to_json(&inputs);
+
+    match proof_client
+        .generate_proof(inputs_json, "address-append")
+        .await
+    {
+        Ok(compressed_proof) => {
+            let instruction_data = InstructionDataBatchNullifyInputs {
+                new_root: circuit_inputs_new_root,
+                compressed_proof,
+            };
+            Ok(instruction_data)
+        }
+        Err(e) => {
+            println!("Failed to generate proof: {:?}", e);
+            Err(RpcError::CustomError(format!(
+                "Prover failed to generate proof: {}",
+                e
+            )))
+        }
     }
 }
 

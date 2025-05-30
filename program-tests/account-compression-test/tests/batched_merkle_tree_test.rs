@@ -42,15 +42,14 @@ use light_program_test::{
     program_test::LightProgramTest,
     utils::assert::assert_rpc_error,
 };
-use light_prover_client::{
-    gnark::helpers::{spawn_prover, ProverConfig},
-    mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
-};
+use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
 use light_test_utils::{
-    address::insert_addresses, airdrop_lamports, create_account_instruction,
+    address::insert_addresses,
+    airdrop_lamports, create_account_instruction,
+    mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
     spl::create_initialize_mint_instructions,
-    test_batch_forester::assert_perform_state_mt_roll_over, AccountZeroCopy, RpcConnection,
-    RpcError,
+    test_batch_forester::assert_perform_state_mt_roll_over,
+    AccountZeroCopy, RpcConnection, RpcError,
 };
 use light_verifier::VerifierError;
 use num_bigint::ToBigUint;
@@ -89,6 +88,8 @@ pub enum TestMode {
 #[serial]
 #[tokio::test]
 async fn test_batch_state_merkle_tree() {
+    spawn_prover(ProverConfig::default()).await;
+
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -246,7 +247,6 @@ async fn test_batch_state_merkle_tree() {
         .await
         .unwrap();
     }
-    spawn_prover(ProverConfig::default()).await;
 
     // 4. Failing Invalid Signer (batch append)
     {
@@ -810,9 +810,9 @@ pub async fn create_append_batch_ix_data(
     let leaves_hash_chain = output_zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
-        .unwrap()
+        .expect("Failed to get hash_chain_stores for next_full_batch")
         .get(batch.get_num_inserted_zkps() as usize)
-        .unwrap();
+        .expect("Failed to get hash_chain for inserted_zkps");
     let (proof, new_root) = mock_indexer
         .get_batched_append_proof(
             next_index as usize,
@@ -822,7 +822,7 @@ pub async fn create_append_batch_ix_data(
             batch.get_num_zkp_batches() as u32,
         )
         .await
-        .unwrap();
+        .expect("mock_indexer.get_batched_append_proof failed");
 
     InstructionDataBatchAppendInputs {
         new_root,
@@ -1590,6 +1590,7 @@ pub async fn perform_init_batch_address_merkle_tree(
 #[serial]
 #[tokio::test]
 async fn test_batch_address_merkle_trees() {
+    spawn_prover(ProverConfig::default()).await;
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -1711,7 +1712,7 @@ async fn test_batch_address_merkle_trees() {
             .unwrap();
         }
     }
-    spawn_prover(ProverConfig::default()).await;
+
     // 4. Functional: update batch address tree
     {
         update_batch_address_tree(

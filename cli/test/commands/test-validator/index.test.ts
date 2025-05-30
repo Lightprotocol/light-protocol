@@ -23,7 +23,6 @@ describe("test-validator command", function () {
   async function cleanupProcesses() {
     console.log("Running cleanup...");
     try {
-      // Stop the validator using CLI command first
       try {
         await exec("./test_bin/dev test-validator --stop");
         console.log("Validator stopped via CLI command");
@@ -31,41 +30,86 @@ describe("test-validator command", function () {
         console.log("No running validator to stop via CLI");
       }
 
-      // Then force kill any remaining processes
       await killProcess("solana-test-validator");
       await killProcess("photon");
       await killProcess("prover");
 
-      // Wait for processes to fully terminate
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, 8000));
 
-      // Verify processes are actually stopped
-      try {
-        await fetch(`http://localhost:${defaultRpcPort}/health`);
-        throw new Error("Validator still running");
-      } catch (e) {
-        console.log("Validator stopped");
-      }
-
-      try {
-        await fetch(`http://localhost:${defaultIndexerPort}/health`);
-        throw new Error("Indexer still running");
-      } catch (e) {
-        console.log("Indexer stopped");
-      }
-
-      try {
-        await fetch(`http://localhost:${defaultProverPort}/health`);
-        throw new Error("Prover still running");
-      } catch (e) {
-        console.log("Prover stopped");
-      }
+      await verifyProcessStopped(defaultRpcPort, "Validator");
+      await verifyProcessStopped(defaultIndexerPort, "Indexer");
+      await verifyProcessStopped(defaultProverPort, "Prover");
 
       console.log("Cleanup completed successfully");
     } catch (error) {
       console.error("Error in cleanup:", error);
       throw error;
     }
+  }
+
+  async function verifyProcessStopped(
+    port: number,
+    serviceName: string,
+    maxRetries: number = 3,
+  ) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        await fetch(`http://localhost:${port}/health`, {
+          signal: AbortSignal.timeout(2000),
+        });
+        if (i === maxRetries - 1) {
+          throw new Error(`${serviceName} still running after cleanup`);
+        }
+        console.log(`${serviceName} still running, waiting...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (e) {
+        console.log(`${serviceName} stopped`);
+        return;
+      }
+    }
+  }
+
+  async function waitForValidatorReady(
+    port: number = defaultRpcPort,
+    maxRetries: number = 15,
+    delayMs: number = 3000,
+  ): Promise<Connection> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        console.log(
+          `Attempting to connect to validator (attempt ${i + 1}/${maxRetries})...`,
+        );
+        const connection = new Connection(`http://localhost:${port}`, {
+          commitment: "confirmed",
+          confirmTransactionInitialTimeout: 5000,
+        });
+
+        const version = await Promise.race([
+          connection.getVersion(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 5000),
+          ),
+        ]);
+
+        console.log("Validator is ready and responding");
+        return connection;
+      } catch (error) {
+        console.error(
+          `Validator connection failed (attempt ${i + 1}):`,
+          error instanceof Error ? error.message : String(error),
+        );
+        if (i === maxRetries - 1) {
+          throw new Error(
+            `Validator did not start within the expected time after ${maxRetries} attempts.`,
+          );
+        }
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    throw new Error(
+      `Validator did not start within the expected time after ${maxRetries} attempts.`,
+    );
   }
 
   before(async function () {
@@ -82,27 +126,31 @@ describe("test-validator command", function () {
     );
     expect(stdout).to.contain("Setup tasks completed successfully");
 
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    console.log("Validator setup completed. Waiting for it to be ready...");
 
-    // Verify validator is running
-    const connection = new Connection(`http://localhost:${defaultRpcPort}`);
+    const connection = await waitForValidatorReady();
     const version = await connection.getVersion();
     expect(version).to.have.property("solana-core");
+    console.log("Validator is running and verified.");
 
-    // Verify indexer is not running
     try {
-      await fetch(`http://localhost:${defaultIndexerPort}/health`);
+      await fetch(`http://localhost:${defaultIndexerPort}/health`, {
+        signal: AbortSignal.timeout(2000),
+      });
       throw new Error("Indexer should not be running");
     } catch (error) {
       expect(error).to.exist;
+      console.log("Indexer is not running as expected.");
     }
 
-    // Verify prover is not running
     try {
-      await fetch(`http://localhost:${defaultProverPort}/health`);
+      await fetch(`http://localhost:${defaultProverPort}/health`, {
+        signal: AbortSignal.timeout(2000),
+      });
       throw new Error("Prover should not be running");
     } catch (error) {
       expect(error).to.exist;
+      console.log("Prover is not running as expected.");
     }
   });
 
@@ -116,13 +164,7 @@ describe("test-validator command", function () {
     console.log("Stdout check passed");
 
     console.log("Waiting for validator to be fully ready...");
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    console.log("Attempting to connect to validator...");
-    const connection = new Connection(`http://localhost:${defaultRpcPort}`, {
-      commitment: "confirmed",
-      confirmTransactionInitialTimeout: 10000,
-    });
+    const connection = await waitForValidatorReady();
 
     try {
       console.log("Getting validator version...");
@@ -154,29 +196,48 @@ describe("test-validator command", function () {
     const { stdout } = await exec(command);
     expect(stdout).to.contain("Setup tasks completed successfully");
 
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    // Verify validator on custom port
-    const connection = new Connection(`http://localhost:${customRpcPort}`);
+    const connection = await waitForValidatorReady(customRpcPort);
     const version = await connection.getVersion();
     expect(version).to.have.property("solana-core");
 
-    // Verify indexer on custom port
-    const indexerResponse = await fetch(
-      `http://localhost:${customIndexerPort}/health`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      },
-    );
-    expect(indexerResponse.status).to.equal(200);
+    let indexerReady = false;
+    for (let i = 0; i < 10; i++) {
+      try {
+        const indexerResponse = await fetch(
+          `http://localhost:${customIndexerPort}/health`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+            signal: AbortSignal.timeout(3000),
+          },
+        );
+        expect(indexerResponse.status).to.equal(200);
+        indexerReady = true;
+        break;
+      } catch (error) {
+        console.log(`Indexer not ready, attempt ${i + 1}/10...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+    expect(indexerReady).to.be.true;
 
-    // Verify prover on custom port
-    const proverResponse = await fetch(
-      `http://localhost:${customProverPort}/health`,
-    );
-    expect(proverResponse.status).to.equal(200);
+    let proverReady = false;
+    for (let i = 0; i < 10; i++) {
+      try {
+        const proverResponse = await fetch(
+          `http://localhost:${customProverPort}/health`,
+          { signal: AbortSignal.timeout(3000) },
+        );
+        expect(proverResponse.status).to.equal(200);
+        proverReady = true;
+        break;
+      } catch (error) {
+        console.log(`Prover not ready, attempt ${i + 1}/10...`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+    expect(proverReady).to.be.true;
   });
 
   it("should fail with invalid geyser config path", async function () {
@@ -190,7 +251,6 @@ describe("test-validator command", function () {
         stdout?: string;
         stderr?: string;
       };
-      // Check either error message or stderr
       const errorText = execError.message || execError.stderr || "";
       expect(errorText).to.contain("Geyser config file not found");
     }
@@ -202,21 +262,23 @@ describe("test-validator command", function () {
     const { stdout: startOutput } = await exec(startCommand);
     expect(startOutput).to.contain("Setup tasks completed successfully");
 
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    // Verify validator is running
-    const connection = new Connection(`http://localhost:${defaultRpcPort}`);
+    const connection = await waitForValidatorReady();
     const version = await connection.getVersion();
     expect(version).to.have.property("solana-core");
 
-    // Stop validator
     const stopCommand = "./test_bin/dev test-validator --stop";
     const { stdout: stopOutput } = await exec(stopCommand);
     expect(stopOutput).to.contain("Test validator stopped successfully");
 
-    // Verify validator is stopped
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
     try {
-      await connection.getVersion();
+      await Promise.race([
+        connection.getVersion(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 2000),
+        ),
+      ]);
       throw new Error("Validator should be stopped");
     } catch (error) {
       expect(error).to.exist;
@@ -234,7 +296,7 @@ describe("test-validator command", function () {
       const command = [
         "./test_bin/dev test-validator",
         "--sbf-program",
-        SYSTEM_PROGRAM_ID, // Use system program address
+        SYSTEM_PROGRAM_ID,
         testProgramPath,
       ].join(" ");
 
@@ -299,7 +361,7 @@ describe("test-validator command", function () {
         testKeypair.publicKey.toString(),
         testProgramPath1,
         "--sbf-program",
-        testKeypair.publicKey.toString(), // Same address as first program
+        testKeypair.publicKey.toString(),
         testProgramPath2,
       ].join(" ");
 
@@ -334,10 +396,7 @@ describe("test-validator command", function () {
       const { stdout } = await exec(command);
       expect(stdout).to.contain("Setup tasks completed successfully");
 
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-
-      // Verify validator is running
-      const connection = new Connection(`http://localhost:${defaultRpcPort}`);
+      const connection = await waitForValidatorReady();
       const version = await connection.getVersion();
       expect(version).to.have.property("solana-core");
 

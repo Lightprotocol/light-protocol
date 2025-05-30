@@ -7,8 +7,12 @@ use thiserror::Error;
 pub enum ProverClientError {
     #[error("RPC error")]
     RpcError,
+
     #[error("Error: {0}")]
     GenericError(String),
+
+    #[error("Prover server error: {0}")]
+    ProverServerError(String),
 
     #[error("Arkworks prover error: {0}")]
     ArkworksProverError(String),

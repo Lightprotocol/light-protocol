@@ -2,6 +2,8 @@
 
 # Command to deactivate the devenv. It sets the old environment variables.
 deactivate () {
+    redis-stop
+
     PS1="${LIGHT_PROTOCOL_OLD_PS1}"
     RUSTUP_HOME="${LIGHT_PROTOCOL_OLD_RUSTUP_HOME}"
     CARGO_HOME="${LIGHT_PROTOCOL_OLD_CARGO_HOME}"
@@ -62,6 +64,8 @@ PATH="${CARGO_HOME}/bin:${PATH}"
 
 # Export the modified PATH
 export PATH
+
+export REDIS_URL="redis://localhost:6379"
 
 if [[ "$(uname)" == "Darwin" ]]; then
     LIGHT_PROTOCOL_OLD_CPATH="${CPATH:-}"
