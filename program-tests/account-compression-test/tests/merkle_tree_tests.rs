@@ -2186,8 +2186,8 @@ pub async fn set_state_merkle_tree_sequence<R: RpcConnection + TestRpc>(
                 &mut merkle_tree.data[8 + mem::size_of::<StateMerkleTreeAccount>()..],
             )
             .unwrap();
-        unsafe {
-            *merkle_tree_deserialized.sequence_number = sequence_number as usize;
+        while merkle_tree_deserialized.sequence_number() < sequence_number as usize {
+            merkle_tree_deserialized.inc_sequence_number().unwrap();
         }
     }
     let mut account_share_data = AccountSharedData::from(merkle_tree);

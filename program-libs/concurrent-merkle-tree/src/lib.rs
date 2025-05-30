@@ -51,9 +51,9 @@ where
     pub height: usize,
     pub canopy_depth: usize,
 
-    pub next_index: *mut usize,
-    pub sequence_number: *mut usize,
-    pub rightmost_leaf: *mut [u8; 32],
+    next_index: *mut usize,
+    sequence_number: *mut usize,
+    rightmost_leaf: *mut [u8; 32],
 
     /// Hashes of subtrees.
     pub filled_subtrees: BoundedVec<[u8; 32]>,
@@ -262,7 +262,7 @@ where
         unsafe { *self.next_index }
     }
 
-    fn inc_next_index(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
+    pub fn inc_next_index(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
         unsafe {
             *self.next_index = self
                 .next_index()
@@ -276,7 +276,7 @@ where
         unsafe { *self.sequence_number }
     }
 
-    fn inc_sequence_number(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
+    pub fn inc_sequence_number(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
         unsafe {
             *self.sequence_number = self
                 .sequence_number()

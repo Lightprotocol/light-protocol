@@ -1115,7 +1115,7 @@ mod test {
     #[test]
     fn test_zero_out() {
         let current_slot = 1;
-        let mut account_data = vec![0u8; 3184];
+        let mut account_data = vec![0u8; 3312];
         let batch_size = 4;
         let zkp_batch_size = 1;
         let num_zkp_updates = batch_size / zkp_batch_size;
@@ -1503,7 +1503,7 @@ mod test {
 
     #[test]
     fn test_check_queue_next_index_reached_tree_capacity() {
-        let mut account_data = vec![0u8; 15728];
+        let mut account_data = vec![0u8; 15856];
         let batch_size = 200;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1557,7 +1557,7 @@ mod test {
 
     #[test]
     fn test_check_non_inclusion() {
-        let mut account_data = vec![0u8; 3248];
+        let mut account_data = vec![0u8; 3376];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1657,7 +1657,7 @@ mod test {
 
     #[test]
     fn test_tree_is_full() {
-        let mut account_data = vec![0u8; 3248];
+        let mut account_data = vec![0u8; 3376];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1692,7 +1692,7 @@ mod test {
     }
     #[test]
     fn test_increment_next_index() {
-        let mut account_data = vec![0u8; 3248];
+        let mut account_data = vec![0u8; 3376];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1730,7 +1730,7 @@ mod test {
 
     #[test]
     fn test_get_pubkey_and_associated_queue() {
-        let mut account_data = vec![0u8; 3248];
+        let mut account_data = vec![0u8; 3376];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;

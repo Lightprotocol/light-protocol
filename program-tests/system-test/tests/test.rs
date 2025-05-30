@@ -1619,8 +1619,9 @@ async fn regenerate_accounts() {
         report_work_phase_length: 100,
         ..ProtocolConfig::default()
     };
-    let mut config = ProgramTestConfig::new(false, None);
+    let mut config = ProgramTestConfig::default_with_batched_trees(false);
     config.protocol_config = protocol_config;
+    config.skip_protocol_init = true;
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let keypairs = for_regenerate_accounts();
 

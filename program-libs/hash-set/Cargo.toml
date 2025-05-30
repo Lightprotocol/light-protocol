@@ -1,6 +1,6 @@
 [package]
 name = "light-hash-set"
-version = "1.2.0"
+version = "2.0.0"
 description = "Hash set which can be stored on a Solana account"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -15,9 +15,6 @@ num-traits = { workspace = true }
 solana-program-error = { workspace = true, optional = true }
 thiserror = { workspace = true }
 light-hasher = { workspace = true }
-
-[target.'cfg(target_os = "solana")'.dependencies]
-light-heap = { workspace = true }
 
 [dev-dependencies]
 ark-bn254 = { workspace = true }

@@ -23,6 +23,7 @@ pub struct ProgramTestConfig {
     pub v1_address_queue_config: AddressQueueConfig,
     pub v2_state_tree_config: Option<InitStateTreeAccountsInstructionData>,
     pub v2_address_tree_config: Option<InitAddressTreeAccountsInstructionData>,
+    pub skip_protocol_init: bool,
 }
 
 impl ProgramTestConfig {
@@ -110,6 +111,7 @@ impl Default for ProgramTestConfig {
             v1_nullifier_queue_config: NullifierQueueConfig::default(),
             v2_state_tree_config: None,
             v2_address_tree_config: None,
+            skip_protocol_init: false,
         }
     }
 }

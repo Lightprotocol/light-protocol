@@ -1,6 +1,6 @@
 [package]
 name = "light-concurrent-merkle-tree"
-version = "1.1.0"
+version = "2.0.1"
 edition = "2021"
 description = "Concurrent Merkle tree implementation"
 repository = "https://github.com/Lightprotocol/light-protocol"

@@ -135,8 +135,8 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection + TestRpc + Index
                         &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
                     )
                     .unwrap();
-                unsafe {
-                    *merkle_tree_deserialized.next_index = next_index as usize;
+                while merkle_tree_deserialized.next_index() < next_index as usize {
+                    merkle_tree_deserialized.inc_next_index().unwrap();
                 }
             }
 
