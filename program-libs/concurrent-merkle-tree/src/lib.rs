@@ -51,9 +51,9 @@ where
     pub height: usize,
     pub canopy_depth: usize,
 
-    pub next_index: *mut usize,
-    pub sequence_number: *mut usize,
-    pub rightmost_leaf: *mut [u8; 32],
+    next_index: *mut usize,
+    sequence_number: *mut usize,
+    rightmost_leaf: *mut [u8; 32],
 
     /// Hashes of subtrees.
     pub filled_subtrees: BoundedVec<[u8; 32]>,
