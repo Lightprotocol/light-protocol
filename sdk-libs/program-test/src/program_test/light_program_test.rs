@@ -57,12 +57,15 @@ impl LightProgramTest {
         )
         .await?;
         airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000).await?;
-        let test_accounts = initialize_accounts(&mut context, &config, keypairs).await?;
-        let batch_size = config
-            .v2_state_tree_config
-            .as_ref()
-            .map(|config| config.output_queue_batch_size as usize);
-        context.add_indexer(&test_accounts, batch_size).await?;
+
+        if !config.skip_protocol_init {
+            let test_accounts = initialize_accounts(&mut context, &config, keypairs).await?;
+            let batch_size = config
+                .v2_state_tree_config
+                .as_ref()
+                .map(|config| config.output_queue_batch_size as usize);
+            context.add_indexer(&test_accounts, batch_size).await?;
+        }
 
         // Will always start a prover server.
         #[cfg(feature = "devenv")]
