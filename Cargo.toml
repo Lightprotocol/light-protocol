@@ -138,7 +138,7 @@ ark-std = "0.5"
 
 
 # Light Protocol
-light-hash-set = { version = "1.2.0", path = "program-libs/hash-set" }
+light-hash-set = { version = "2.0.0", path = "program-libs/hash-set" }
 light-indexed-merkle-tree = { version = "1.1.0", path = "program-libs/indexed-merkle-tree" }
 light-concurrent-merkle-tree = { version = "2.0.0", path = "program-libs/concurrent-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.9.1" }
