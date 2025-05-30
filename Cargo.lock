@@ -3303,6 +3303,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
+ "light-prover-client",
  "light-test-utils",
  "light-verifier",
  "light-zero-copy",

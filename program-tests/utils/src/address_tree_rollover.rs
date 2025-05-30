@@ -47,8 +47,8 @@ pub async fn set_address_merkle_tree_next_index<R: RpcConnection + TestRpc + Ind
             &mut merkle_tree.data[8 + std::mem::size_of::<AddressMerkleTreeAccount>()..],
         )
         .unwrap();
-    unsafe {
-        *merkle_tree_deserialized.next_index = next_index as usize;
+    while merkle_tree_deserialized.next_index() < next_index as usize {
+        merkle_tree_deserialized.inc_next_index().unwrap();
     }
     let mut account_share_data = AccountSharedData::from(merkle_tree);
     account_share_data.set_lamports(lamports);
