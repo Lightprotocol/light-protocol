@@ -63,6 +63,8 @@ pub fn pack_address_merkle_contexts<'a>(
 
 /// Returns a [`PackedAddressMerkleContext`] and fills up `remaining_accounts`
 /// based on the given `merkle_context`.
+/// Packs Merkle tree account first.
+/// Packs queue account second.
 pub fn pack_address_merkle_context(
     address_merkle_context: &AddressMerkleContext,
     remaining_accounts: &mut PackedAccounts,

@@ -19,14 +19,7 @@ impl Base58Conversions for [u8; 32] {
     }
 
     fn from_base58(s: &str) -> Result<Self, IndexerError> {
-        // TODO: remove vec conversion.
-        let result = bs58::decode(s)
-            .into_vec()
-            .map_err(|e| IndexerError::base58_decode_error(s, e))?
-            .try_into()
-            .map_err(|_| IndexerError::ApiError("Try into failed.".to_string()))?;
-
-        Ok(result)
+        decode_base58_to_fixed_array(s)
     }
 
     fn to_bytes(&self) -> [u8; 32] {
@@ -38,4 +31,17 @@ impl Base58Conversions for [u8; 32] {
         arr.copy_from_slice(bytes);
         Ok(arr)
     }
+}
+
+pub fn decode_base58_to_fixed_array<const N: usize>(input: &str) -> Result<[u8; N], IndexerError> {
+    let mut buffer = [0u8; N];
+    let decoded_len = bs58::decode(input)
+        .onto(&mut buffer)
+        .map_err(|_| IndexerError::InvalidResponseData)?;
+
+    if decoded_len != N {
+        return Err(IndexerError::InvalidResponseData);
+    }
+
+    Ok(buffer)
 }

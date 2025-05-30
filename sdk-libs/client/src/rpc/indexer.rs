@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 use light_compressed_account::{compressed_account::CompressedAccountWithMerkleContext, QueueType};
 use light_sdk::token::TokenDataWithMerkleContext;
-use photon_api::models::{Account, TokenBalanceList};
+use photon_api::models::TokenBalanceList;
 use solana_pubkey::Pubkey;
 
 use super::SolanaRpcConnection;
 use crate::indexer::{
-    Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer, IndexerError,
-    MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult,
+    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
+    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult,
     ProofRpcResultV2,
 };
 
@@ -57,6 +57,18 @@ impl Indexer for SolanaRpcConnection {
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
             .get_multiple_compressed_account_proofs(hashes)
+            .await?)
+    }
+
+    async fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_accounts_by_owner(owner)
             .await?)
     }
 

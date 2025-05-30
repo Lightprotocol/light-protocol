@@ -15,9 +15,10 @@ use light_batched_merkle_tree::{
 use light_client::{
     fee::FeeConfig,
     indexer::{
-        Address, AddressMerkleTreeAccounts, AddressWithTree, BatchAddressUpdateIndexerResponse,
-        Indexer, IndexerError, IntoPhotonAccount, MerkleProof, MerkleProofWithContext,
-        NewAddressProofWithContext, ProofRpcResult, ProofRpcResultV2, StateMerkleTreeAccounts,
+        Account, Address, AddressMerkleTreeAccounts, AddressWithTree,
+        BatchAddressUpdateIndexerResponse, Indexer, IndexerError, MerkleProof,
+        MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult, ProofRpcResultV2,
+        StateMerkleTreeAccounts,
     },
     rpc::{RpcConnection, RpcError},
 };
@@ -57,7 +58,7 @@ use light_sdk::{
 use log::info;
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
-use photon_api::models::{Account, TokenBalance};
+use photon_api::models::TokenBalance;
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -154,6 +155,13 @@ impl Indexer for TestIndexer {
         Ok(proofs)
     }
 
+    async fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+        Ok(<TestIndexer as TestIndexerExtensions>::get_compressed_accounts_with_merkle_context_by_owner(self,owner))
+    }
+
     async fn get_compressed_accounts_by_owner_v2(
         &self,
         owner: &Pubkey,
@@ -202,9 +210,10 @@ impl Indexer for TestIndexer {
             }
         };
 
-        account
-            .map(|acc| acc.clone().into_photon_account())
-            .ok_or(IndexerError::AccountNotFound)
+        Ok(account
+            .ok_or(IndexerError::AccountNotFound)?
+            .clone()
+            .try_into()?)
     }
 
     async fn get_compressed_token_accounts_by_owner(
@@ -274,8 +283,8 @@ impl Indexer for TestIndexer {
                             .address
                             .is_some_and(|addr| addresses.contains(&addr))
                     })
-                    .map(|acc| acc.clone().into_photon_account())
-                    .collect();
+                    .map(|acc| acc.clone().try_into())
+                    .collect::<Result<Vec<Account>, IndexerError>>()?;
                 Ok(accounts)
             }
             (_, Some(hashes)) => {
@@ -283,8 +292,8 @@ impl Indexer for TestIndexer {
                     .compressed_accounts
                     .iter()
                     .filter(|acc| acc.hash().is_ok_and(|hash| hashes.contains(&hash)))
-                    .map(|acc| acc.clone().into_photon_account())
-                    .collect();
+                    .map(|acc| acc.clone().try_into())
+                    .collect::<Result<Vec<Account>, IndexerError>>()?;
                 Ok(accounts)
             }
             (None, None) => Err(IndexerError::InvalidParameters(
@@ -340,12 +349,12 @@ impl Indexer for TestIndexer {
         let mut state_merkle_tree_pubkeys = Vec::new();
 
         for hash in hashes.iter() {
-            state_merkle_tree_pubkeys.push(Pubkey::from_str_const(
+            state_merkle_tree_pubkeys.push(
                 self.get_compressed_account(None, Some(*hash))
                     .await?
-                    .tree
-                    .as_str(),
-            ));
+                    .merkle_context
+                    .tree,
+            );
         }
 
         let state_merkle_tree_pubkeys = if state_merkle_tree_pubkeys.is_empty() {
@@ -768,7 +777,7 @@ impl Indexer for TestIndexer {
 
             for hash in hashes.iter() {
                 let account = self.get_compressed_account(None, Some(*hash)).await?;
-                state_merkle_tree_pubkeys.push(Pubkey::from_str_const(account.tree.as_str()));
+                state_merkle_tree_pubkeys.push(account.merkle_context.tree);
             }
 
             let mut indices_to_remove = Vec::new();

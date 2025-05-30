@@ -2,19 +2,22 @@ use std::{fmt::Debug, str::FromStr};
 
 use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
-    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_merkle_tree_metadata::QueueType;
 use light_sdk::token::{AccountState, TokenData, TokenDataWithMerkleContext};
 use num_bigint::BigUint;
-use photon_api::models::{Account, TokenAccount, TokenAccountList, TokenBalanceList};
+use photon_api::models::{
+    Account as PhotonAccount, TokenAccount, TokenAccountList, TokenBalanceList,
+};
 use solana_pubkey::Pubkey;
 
 pub mod photon_indexer;
 
 mod base58;
 mod error;
+pub(crate) mod tree_info;
 mod types;
 
 pub use base58::Base58Conversions;
@@ -22,8 +25,8 @@ pub use error::IndexerError;
 //
 pub use types::ProofRpcResultV2;
 pub use types::{
-    Address, AddressWithTree, Hash, MerkleProof, MerkleProofWithContext, ProofOfLeaf,
-    ProofRpcResult,
+    Account, Address, AddressWithTree, Hash, MerkleContext, MerkleProof, MerkleProofWithContext,
+    ProofOfLeaf, ProofRpcResult, TreeContextInfo,
 };
 
 #[derive(Debug, Clone)]
@@ -48,6 +51,11 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError>;
+
+    async fn get_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
 
     async fn get_compressed_accounts_by_owner_v2(
         &self,
@@ -179,7 +187,7 @@ pub struct AddressMerkleTreeAccounts {
 }
 
 pub trait IntoPhotonAccount {
-    fn into_photon_account(self) -> Account;
+    fn into_photon_account(self) -> PhotonAccount;
 }
 
 pub trait IntoPhotonTokenAccount {
@@ -187,7 +195,7 @@ pub trait IntoPhotonTokenAccount {
 }
 
 impl IntoPhotonAccount for CompressedAccountWithMerkleContext {
-    fn into_photon_account(self) -> Account {
+    fn into_photon_account(self) -> PhotonAccount {
         let address = self.compressed_account.address.map(|a| a.to_base58());
         let hash = self.hash().unwrap().to_base58();
 
@@ -202,7 +210,7 @@ impl IntoPhotonAccount for CompressedAccountWithMerkleContext {
             }));
         }
 
-        Account {
+        PhotonAccount {
             address,
             hash: hash.to_string(),
             lamports: self.compressed_account.lamports,
@@ -246,14 +254,14 @@ impl IntoPhotonTokenAccount for TokenDataWithMerkleContext {
     }
 }
 
-pub struct LocalPhotonAccount(Account);
+pub struct LocalPhotonAccount(PhotonAccount);
 
 impl TryFrom<LocalPhotonAccount> for CompressedAccountWithMerkleContext {
     type Error = Box<dyn std::error::Error>;
 
     fn try_from(local_account: LocalPhotonAccount) -> Result<Self, Self::Error> {
         let account = local_account.0;
-        let merkle_context = MerkleContext {
+        let merkle_context = light_compressed_account::compressed_account::MerkleContext {
             merkle_tree_pubkey: Pubkey::from_str(&account.tree)?,
             queue_pubkey: Default::default(),
             leaf_index: account.leaf_index,
