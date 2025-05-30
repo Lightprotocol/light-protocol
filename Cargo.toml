@@ -119,6 +119,7 @@ futures = "0.3.17"
 tokio = { version = "1.43.0", features = ["rt", "macros", "rt-multi-thread"] }
 async-trait = "0.1.82"
 bb8 = "0.8.6"
+lazy_static = "1.5.0"
 
 # Logging
 log = "0.4"

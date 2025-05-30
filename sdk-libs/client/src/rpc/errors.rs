@@ -54,6 +54,7 @@ impl From<light_compressed_account::indexer_event::error::ParseIndexerEventError
 impl Clone for RpcError {
     fn clone(&self) -> Self {
         match self {
+            #[cfg(feature = "program-test")]
             RpcError::BanksError(_) => RpcError::CustomError("BanksError".to_string()),
             RpcError::TransactionError(e) => RpcError::TransactionError(e.clone()),
             RpcError::ClientError(_) => RpcError::CustomError("ClientError".to_string()),

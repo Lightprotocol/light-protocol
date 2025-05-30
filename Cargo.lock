@@ -3352,6 +3352,7 @@ dependencies = [
  "base64 0.13.1",
  "borsh 0.10.4",
  "bs58",
+ "lazy_static",
  "light-compressed-account",
  "light-compressed-token",
  "light-concurrent-merkle-tree",

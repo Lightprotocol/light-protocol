@@ -170,10 +170,7 @@ async fn test_all_endpoints() {
         .unwrap();
 
     assert!(!accounts.is_empty());
-    assert_eq!(
-        Hash::from_base58(&accounts[0].hash).unwrap(),
-        first_account.hash().unwrap()
-    );
+    assert_eq!(accounts[0].hash, first_account.hash().unwrap());
 
     let result = rpc
         .indexer()
@@ -191,7 +188,7 @@ async fn test_all_endpoints() {
         .await
         .unwrap();
     assert_eq!(account.lamports, lamports);
-    assert_eq!(account.owner, rpc.get_payer().pubkey().to_string());
+    assert_eq!(account.owner, rpc.get_payer().pubkey());
 
     let balance = rpc
         .indexer()
