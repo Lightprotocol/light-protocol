@@ -1,6 +1,6 @@
 [package]
 name = "light-batched-merkle-tree"
-version = "0.1.0"
+version = "0.2.0"
 description = "Batch Merkle tree implementation."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -62,7 +62,7 @@ tokio = { workspace = true }
 serial_test = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
-light-test-utils = { workspace = true, features = [ "test-only"]}
+light-test-utils = { workspace = true, features = ["test-only"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
