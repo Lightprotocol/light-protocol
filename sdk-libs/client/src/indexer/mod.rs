@@ -281,7 +281,7 @@ impl TryFrom<LocalPhotonAccount> for CompressedAccountWithMerkleContext {
         if let Some(data) = account.data {
             let data_decoded = base64::decode(&data.data)?;
             compressed_account.data = Some(CompressedAccountData {
-                discriminator: data.discriminator.to_be_bytes(),
+                discriminator: data.discriminator.to_le_bytes(),
                 data: data_decoded,
                 data_hash: <[u8; 32]>::from_base58(&data.data_hash)?,
             });

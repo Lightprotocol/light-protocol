@@ -268,7 +268,7 @@ impl Indexer for PhotonIndexer {
                         .address
                         .map(|address| Hash::from_base58(&address).unwrap()),
                     data: acc.data.map(|data| CompressedAccountData {
-                        discriminator: data.discriminator.to_be_bytes(),
+                        discriminator: data.discriminator.to_le_bytes(),
                         data: base64::decode(data.data).unwrap(),
                         data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                     }),
@@ -333,7 +333,7 @@ impl Indexer for PhotonIndexer {
                             .address
                             .map(|address| Hash::from_base58(&address).unwrap()),
                         data: acc.data.map(|data| CompressedAccountData {
-                            discriminator: data.discriminator.to_be_bytes(),
+                            discriminator: data.discriminator.to_le_bytes(),
                             data: base64::decode(data.data).unwrap(),
                             data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                         }),
@@ -432,7 +432,7 @@ impl Indexer for PhotonIndexer {
                                     .map(|x| Hash::from_base58(x).unwrap()),
                                 data: account.account.data.as_ref().map(|data| {
                                     CompressedAccountData {
-                                        discriminator: data.discriminator.to_be_bytes(),
+                                        discriminator: data.discriminator.to_le_bytes(),
                                         data: base64::decode(&data.data).unwrap(),
                                         data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                                     }

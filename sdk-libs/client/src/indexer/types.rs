@@ -232,7 +232,7 @@ impl TryFrom<&photon_api::models::Account> for Account {
     fn try_from(account: &photon_api::models::Account) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
-                discriminator: data.discriminator.to_be_bytes(),
+                discriminator: data.discriminator.to_le_bytes(),
                 data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
