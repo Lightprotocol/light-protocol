@@ -1,10 +1,13 @@
 use std::{fmt::Debug, time::Duration};
 
-use super::{types::{Account, TokenAccount, TokenBalanceList}, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
-use crate::indexer::base58::Base58Conversions;
+use super::{
+    types::{Account, TokenAccount, TokenBalance},
+    BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
+};
+use crate::indexer::base58::{decode_base58_to_fixed_array, Base58Conversions};
 use crate::indexer::{
-    Address, AddressWithTree, Hash, Indexer, IndexerError,
-    MerkleProof, NewAddressProofWithContext,
+    indexer_trait::{Context, Response, ResponseWithCursor},
+    Address, AddressWithTree, Hash, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
 };
 use async_trait::async_trait;
 use bs58;
@@ -162,7 +165,7 @@ impl Indexer for PhotonIndexer {
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
-    ) -> Result<Vec<MerkleProof>, IndexerError> {
+    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
         self.retry(|| async {
             let hashes_for_async = hashes.clone();
 
@@ -199,7 +202,7 @@ impl Indexer for PhotonIndexer {
                 )
             })?;
 
-            photon_proofs
+            let proofs = photon_proofs
                 .value
                 .iter()
                 .map(|x| {
@@ -224,7 +227,14 @@ impl Indexer for PhotonIndexer {
                         root: [0u8; 32],
                     })
                 })
-                .collect()
+                .collect::<Result<Vec<MerkleProof>, IndexerError>>()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: photon_proofs.context.slot,
+                },
+                value: proofs,
+            })
         })
         .await
     }
@@ -232,7 +242,7 @@ impl Indexer for PhotonIndexer {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<super::types::Account>, IndexerError> {
+    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
         self.retry(|| async {
             #[cfg(feature = "v2")]
             {
@@ -252,13 +262,28 @@ impl Indexer for PhotonIndexer {
                         request,
                     )
                     .await?;
-                let accs = result.result.ok_or(IndexerError::AccountNotFound)?.value;
-                let accounts: Result<Vec<_>, _> = accs.items
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                let accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
                     .iter()
-                    .map(|acc| super::types::Account::try_from(acc))
+                    .map(|acc| Account::try_from(acc))
                     .collect();
-                
-                Ok(accounts?)
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: accounts?,
+                    cursor,
+                })
             }
             #[cfg(not(feature = "v2"))]
             {
@@ -277,25 +302,38 @@ impl Indexer for PhotonIndexer {
                     request,
                 )
                 .await?;
-                let accs = result.result.ok_or(IndexerError::AccountNotFound)?.value;
-                let accounts: Result<Vec<_>, _> = accs.items
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                let accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
                     .iter()
-                    .map(|acc| super::types::Account::try_from(acc))
+                    .map(|acc| Account::try_from(acc))
                     .collect();
-                
-                Ok(accounts?)
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: accounts?,
+                    cursor,
+                })
             }
         })
         .await
     }
 
-
-
     async fn get_compressed_account(
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<Account, IndexerError> {
+    ) -> Result<Response<Account>, IndexerError> {
         self.retry(|| async {
             let params = self.build_account_params(address, hash)?;
             let request = photon_api::models::GetCompressedAccountPostRequest {
@@ -308,12 +346,19 @@ impl Indexer for PhotonIndexer {
                 request,
             )
             .await?;
-            let response = Self::extract_result("get_compressed_account", result.result)?;
-            let response = response
+            let api_response = Self::extract_result("get_compressed_account", result.result)?;
+            let account_data = api_response
                 .value
                 .ok_or(IndexerError::AccountNotFound)
                 .map(|boxed| *boxed)?;
-            Account::try_from(&response)
+            let account = Account::try_from(&account_data)?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: account,
+            })
         })
         .await
     }
@@ -322,7 +367,7 @@ impl Indexer for PhotonIndexer {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenAccount>, IndexerError> {
+    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
         self.retry(|| async {
             #[cfg(feature = "v2")]
             {
@@ -343,13 +388,28 @@ impl Indexer for PhotonIndexer {
                         request,
                     )
                     .await?;
-                let accounts = result.result.ok_or(IndexerError::AccountNotFound)?.value;
-                let token_accounts: Result<Vec<_>, _> = accounts.items
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                let token_accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
                     .iter()
                     .map(|acc| TokenAccount::try_from(acc))
                     .collect();
-                
-                Ok(token_accounts?)
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: token_accounts?,
+                    cursor,
+                })
             }
             #[cfg(not(feature = "v2"))]
             {
@@ -374,12 +434,27 @@ impl Indexer for PhotonIndexer {
 
                 let response =
                     Self::extract_result("get_compressed_token_accounts_by_owner", result.result)?;
-                let token_accounts: Result<Vec<_>, _> = response.value.items
+                let token_accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
                     .iter()
                     .map(|acc| TokenAccount::try_from(acc))
                     .collect();
-                
-                Ok(token_accounts?)
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: token_accounts?,
+                    cursor,
+                })
             }
         })
         .await
@@ -389,7 +464,7 @@ impl Indexer for PhotonIndexer {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
+    ) -> Result<Response<u64>, IndexerError> {
         self.retry(|| async {
             let params = self.build_account_params(address, hash)?;
             let request = photon_api::models::GetCompressedAccountBalancePostRequest {
@@ -403,8 +478,14 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let response = Self::extract_result("get_compressed_account_balance", result.result)?;
-            Ok(response.value)
+            let api_response =
+                Self::extract_result("get_compressed_account_balance", result.result)?;
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: api_response.value,
+            })
         })
         .await
     }
@@ -413,7 +494,7 @@ impl Indexer for PhotonIndexer {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
+    ) -> Result<Response<u64>, IndexerError> {
         self.retry(|| async {
             let request = photon_api::models::GetCompressedTokenAccountBalancePostRequest {
                 params: Box::new(photon_api::models::GetCompressedAccountPostRequestParams {
@@ -429,9 +510,14 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let response =
+            let api_response =
                 Self::extract_result("get_compressed_token_account_balance", result.result)?;
-            Ok(response.value.amount)
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: api_response.value.amount,
+            })
         })
         .await
     }
@@ -440,7 +526,7 @@ impl Indexer for PhotonIndexer {
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<Account>, IndexerError> {
+    ) -> Result<Response<Vec<Account>>, IndexerError> {
         self.retry(|| async {
             let hashes = hashes.clone();
             let addresses = addresses.clone();
@@ -460,13 +546,21 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let response = Self::extract_result("get_multiple_compressed_accounts", result.result)?;
-            response
+            let api_response =
+                Self::extract_result("get_multiple_compressed_accounts", result.result)?;
+            let accounts = api_response
                 .value
                 .items
                 .iter()
                 .map(Account::try_from)
-                .collect::<Result<Vec<Account>, IndexerError>>()
+                .collect::<Result<Vec<Account>, IndexerError>>()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: accounts,
+            })
         })
         .await
     }
@@ -475,7 +569,7 @@ impl Indexer for PhotonIndexer {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<TokenBalanceList, IndexerError> {
+    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
         self.retry(|| async {
             #[cfg(feature = "v2")]
             {
@@ -498,11 +592,23 @@ impl Indexer for PhotonIndexer {
                     )
                     .await?;
 
-                let response =
+                let api_response =
                     Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
-                
-                let balance_list = TokenBalanceList::try_from(*response.value)?;
-                Ok(balance_list)
+
+                let token_balances: Result<Vec<_>, _> = api_response
+                    .value
+                    .items
+                    .iter()
+                    .map(|balance| TokenBalance::try_from(balance))
+                    .collect();
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: token_balances?,
+                    cursor: api_response.value.cursor,
+                })
             }
             #[cfg(not(feature = "v2"))]
             {
@@ -525,13 +631,23 @@ impl Indexer for PhotonIndexer {
                     )
                     .await?;
 
-                let response =
+                let api_response =
                     Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
-                
-                // For V1 API, we need to convert from the V1 TokenBalanceList
-                // We'll need to add a conversion from V1 to our internal type
-                let balance_list = TokenBalanceList::try_from(*response.value)?;
-                Ok(balance_list)
+
+                let token_balances: Result<Vec<_>, _> = api_response
+                    .value
+                    .token_balances
+                    .iter()
+                    .map(|balance| TokenBalance::try_from(balance))
+                    .collect();
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: token_balances?,
+                    cursor: api_response.value.cursor,
+                })
             }
         })
         .await
@@ -540,7 +656,7 @@ impl Indexer for PhotonIndexer {
     async fn get_compression_signatures_for_account(
         &self,
         hash: Hash,
-    ) -> Result<Vec<String>, IndexerError> {
+    ) -> Result<Response<Vec<String>>, IndexerError> {
         self.retry(|| async {
             let request = photon_api::models::GetCompressionSignaturesForAccountPostRequest {
                 params: Box::new(
@@ -558,14 +674,21 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-            let response =
+            let api_response =
                 Self::extract_result("get_compression_signatures_for_account", result.result)?;
-            Ok(response
+            let signatures = api_response
                 .value
                 .items
                 .iter()
                 .map(|x| x.signature.clone())
-                .collect())
+                .collect();
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: signatures,
+            })
         })
         .await
     }
@@ -574,7 +697,7 @@ impl Indexer for PhotonIndexer {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
+    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
         self.retry(|| async {
             let params: Vec<photon_api::models::address_with_tree::AddressWithTree> = addresses
                 .iter()
@@ -602,15 +725,15 @@ impl Indexer for PhotonIndexer {
 
             let result = result?;
 
-            let photon_proofs =
+            let api_response =
                 match Self::extract_result("get_multiple_new_address_proofs", result.result) {
                     Ok(proofs) => proofs,
                     Err(e) => {
                         error!("Failed to extract proofs: {:?}", e);
                         return Err(e);
                     }
-                }
-                .value;
+                };
+            let photon_proofs = api_response.value;
             let mut proofs = Vec::new();
             for photon_proof in photon_proofs {
                 let tree_pubkey = Hash::from_base58(&photon_proof.merkle_tree).map_err(|e| {
@@ -665,7 +788,12 @@ impl Indexer for PhotonIndexer {
                 proofs.push(proof);
             }
 
-            Ok(proofs)
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: proofs,
+            })
         })
         .await
     }
@@ -674,7 +802,7 @@ impl Indexer for PhotonIndexer {
         &self,
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<super::types::ProofRpcResult, IndexerError> {
+    ) -> Result<Response<super::types::ValidityProofWithContext>, IndexerError> {
         self.retry(|| async {
             #[cfg(feature = "v2")]
             {
@@ -699,8 +827,15 @@ impl Indexer for PhotonIndexer {
                     request,
                 )
                 .await?;
-                let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                super::types::ProofRpcResult::from_api_model_v2(*result.value)
+                let api_response = Self::extract_result("get_validity_proof_v2", result.result)?;
+                let validity_proof = super::types::ValidityProofWithContext::from_api_model_v2(*api_response.value)?;
+                
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: validity_proof,
+                })
             }
             #[cfg(not(feature = "v2"))]
             {
@@ -726,8 +861,15 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-                let result = Self::extract_result("get_validity_proof", result.result)?;
-                super::types::ProofRpcResult::from_api_model(*result.value, hashes.len())
+                let api_response = Self::extract_result("get_validity_proof", result.result)?;
+                let validity_proof = super::types::ValidityProofWithContext::from_api_model(*api_response.value, hashes.len())?;
+                
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: validity_proof,
+                })
             }
         })
         .await
@@ -737,7 +879,7 @@ impl Indexer for PhotonIndexer {
         &mut self,
         _merkle_tree_pubkey: &Pubkey,
         _zkp_batch_size: u16,
-    ) -> Result<BatchAddressUpdateIndexerResponse, IndexerError> {
+    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_address_queue_with_proofs");
         #[cfg(feature = "v2")]
@@ -762,10 +904,10 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-                let response =
-                    Self::extract_result("get_compressed_token_account_balance", result.result)?;
+                let api_response =
+                    Self::extract_result("get_batch_address_update_info", result.result)?;
 
-                let addresses = response
+                let addresses = api_response
                     .addresses
                     .iter()
                     .map(|x| crate::indexer::AddressQueueIndex {
@@ -775,7 +917,7 @@ impl Indexer for PhotonIndexer {
                     .collect();
 
                 let mut proofs: Vec<NewAddressProofWithContext> = vec![];
-                for proof in response.non_inclusion_proofs {
+                for proof in api_response.non_inclusion_proofs {
                     let proof = NewAddressProofWithContext {
                         merkle_tree: *merkle_tree_pubkey,
                         low_address_index: proof.low_element_leaf_index,
@@ -803,7 +945,7 @@ impl Indexer for PhotonIndexer {
                     proofs.push(proof);
                 }
 
-                let subtrees = response
+                let subtrees = api_response
                     .subtrees
                     .iter()
                     .map(|x| {
@@ -814,12 +956,17 @@ impl Indexer for PhotonIndexer {
                     .collect::<Vec<_>>();
 
                 let result = BatchAddressUpdateIndexerResponse {
-                    batch_start_index: response.start_index,
+                    batch_start_index: api_response.start_index,
                     addresses,
                     non_inclusion_proofs: proofs,
                     subtrees,
                 };
-                Ok(result)
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: result,
+                })
             })
             .await
         }
@@ -831,7 +978,7 @@ impl Indexer for PhotonIndexer {
         _queue_type: QueueType,
         _num_elements: u16,
         _start_offset: Option<u64>,
-    ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
+    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -857,10 +1004,10 @@ impl Indexer for PhotonIndexer {
                 )
                 .await;
 
-                let result: Result<Vec<MerkleProofWithContext>, IndexerError> = match result {
-                    Ok(response) => match response.result {
-                        Some(result) => {
-                            let response = result.value;
+                let result: Result<Response<Vec<MerkleProofWithContext>>, IndexerError> = match result {
+                    Ok(api_response) => match api_response.result {
+                        Some(api_result) => {
+                            let response = api_result.value;
                             let proofs = response
                                 .iter()
                                 .map(|x| {
@@ -889,14 +1036,22 @@ impl Indexer for PhotonIndexer {
                                 })
                                 .collect();
 
-                            Ok(proofs)
+                            Ok(Response {
+                                context: Context {
+                                    slot: api_result.context.slot,
+                                },
+                                value: proofs,
+                            })
                         }
                         None => {
-                            let error = response.error.unwrap();
+                            let error = api_response.error.ok_or_else(|| IndexerError::PhotonError {
+                                context: "get_queue_elements".to_string(),
+                                message: "No error details provided".to_string(),
+                            })?;
 
                             Err(IndexerError::PhotonError {
                                 context: "get_queue_elements".to_string(),
-                                message: error.message.unwrap(),
+                                message: error.message.unwrap_or_else(|| "Unknown error".to_string()),
                             })
                         }
                     },
@@ -915,7 +1070,7 @@ impl Indexer for PhotonIndexer {
     async fn get_subtrees(
         &self,
         _merkle_tree_pubkey: [u8; 32],
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!();
         #[cfg(feature = "v2")]

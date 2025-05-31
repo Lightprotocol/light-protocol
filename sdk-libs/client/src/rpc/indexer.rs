@@ -5,7 +5,8 @@ use solana_pubkey::Pubkey;
 use super::SolanaRpcConnection;
 use crate::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
-    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult, TokenAccount, TokenBalanceList,
+    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, Response,
+    ResponseWithCursor, TokenAccount, TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -14,7 +15,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResult, IndexerError> {
+    ) -> Result<Response<ValidityProofWithContext>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -22,7 +23,6 @@ impl Indexer for SolanaRpcConnection {
             .get_validity_proof(hashes, new_addresses_with_trees)
             .await?)
     }
-
 
     async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
         Ok(self
@@ -36,7 +36,7 @@ impl Indexer for SolanaRpcConnection {
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
-    ) -> Result<Vec<MerkleProof>, IndexerError> {
+    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -48,7 +48,7 @@ impl Indexer for SolanaRpcConnection {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<Account>, IndexerError> {
+    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -61,7 +61,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<Account, IndexerError> {
+    ) -> Result<Response<Account>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -74,7 +74,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenAccount>, IndexerError> {
+    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -87,7 +87,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
+    ) -> Result<Response<u64>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -100,7 +100,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
+    ) -> Result<Response<u64>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -113,7 +113,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<Account>, IndexerError> {
+    ) -> Result<Response<Vec<Account>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -126,7 +126,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<TokenBalanceList, IndexerError> {
+    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -138,7 +138,7 @@ impl Indexer for SolanaRpcConnection {
     async fn get_compression_signatures_for_account(
         &self,
         hash: Hash,
-    ) -> Result<Vec<String>, IndexerError> {
+    ) -> Result<Response<Vec<String>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -151,7 +151,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
+    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -160,12 +160,11 @@ impl Indexer for SolanaRpcConnection {
             .await?)
     }
 
-
     async fn get_address_queue_with_proofs(
         &mut self,
         merkle_tree_pubkey: &Pubkey,
         zkp_batch_size: u16,
-    ) -> Result<BatchAddressUpdateIndexerResponse, IndexerError> {
+    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -180,7 +179,7 @@ impl Indexer for SolanaRpcConnection {
         queue_type: QueueType,
         num_elements: u16,
         start_offset: Option<u64>,
-    ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
+    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -192,7 +191,7 @@ impl Indexer for SolanaRpcConnection {
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()

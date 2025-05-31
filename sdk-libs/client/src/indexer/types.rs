@@ -1,13 +1,23 @@
 use light_compressed_account::{
-    compressed_account::{CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext},
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
+    },
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
-use light_sdk::{verifier::CompressedProof, ValidityProof, token::{TokenData, AccountState}};
+use light_sdk::{
+    token::{AccountState, TokenData},
+    verifier::CompressedProof,
+    ValidityProof,
+};
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
 
-use super::{base58::{decode_base58_to_fixed_array, decode_base58_option_to_pubkey}, tree_info::QUEUE_TREE_MAPPING, IndexerError};
+use super::{
+    base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},
+    tree_info::QUEUE_TREE_MAPPING,
+    IndexerError,
+};
 
 pub struct ProofOfLeaf {
     pub leaf: [u8; 32],
@@ -60,9 +70,8 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-
 #[derive(Debug, Default, Clone)]
-pub struct ProofRpcResult {
+pub struct ValidityProofWithContext {
     pub compressed_proof: ValidityProof,
     pub accounts: Vec<AccountProofInputs>,
     pub addresses: Vec<AddressProofInputs>,
@@ -125,7 +134,7 @@ impl AddressProofInputs {
     }
 }
 
-impl ProofRpcResult {
+impl ValidityProofWithContext {
     pub fn from_api_model(
         value: photon_api::models::CompressedProofWithContext,
         num_hashes: usize,
@@ -151,11 +160,12 @@ impl ProofRpcResult {
         // Convert account data from V1 flat arrays to V2 structured format
         let accounts = (0..num_hashes)
             .map(|i| {
-                let tree_pubkey = Pubkey::new_from_array(decode_base58_to_fixed_array(&value.merkle_trees[i])?);
+                let tree_pubkey =
+                    Pubkey::new_from_array(decode_base58_to_fixed_array(&value.merkle_trees[i])?);
                 let tree_info = super::tree_info::QUEUE_TREE_MAPPING
                     .get(&value.merkle_trees[i])
                     .ok_or(IndexerError::InvalidResponseData)?;
-                
+
                 Ok(AccountProofInputs {
                     hash: decode_base58_to_fixed_array(&value.leaves[i])?,
                     root: decode_base58_to_fixed_array(&value.roots[i])?,
@@ -176,11 +186,13 @@ impl ProofRpcResult {
         let addresses = if value.root_indices.len() > num_hashes {
             (num_hashes..value.root_indices.len())
                 .map(|i| {
-                    let tree_pubkey = Pubkey::new_from_array(decode_base58_to_fixed_array(&value.merkle_trees[i])?);
+                    let tree_pubkey = Pubkey::new_from_array(decode_base58_to_fixed_array(
+                        &value.merkle_trees[i],
+                    )?);
                     let tree_info = super::tree_info::QUEUE_TREE_MAPPING
                         .get(&value.merkle_trees[i])
                         .ok_or(IndexerError::InvalidResponseData)?;
-                    
+
                     Ok(AddressProofInputs {
                         address: decode_base58_to_fixed_array(&value.leaves[i])?, // Address is in leaves
                         root: decode_base58_to_fixed_array(&value.roots[i])?,
@@ -308,7 +320,11 @@ impl MerkleContext {
         })
     }
 
-    pub fn to_light_merkle_context(&self, leaf_index: u32, prove_by_index: bool) -> light_compressed_account::compressed_account::MerkleContext {
+    pub fn to_light_merkle_context(
+        &self,
+        leaf_index: u32,
+        prove_by_index: bool,
+    ) -> light_compressed_account::compressed_account::MerkleContext {
         light_compressed_account::compressed_account::MerkleContext {
             merkle_tree_pubkey: self.tree,
             queue_pubkey: self.queue,
@@ -370,11 +386,10 @@ impl From<Account> for CompressedAccountWithMerkleContext {
             address: account.address,
             data: account.data,
         };
-        
-        let merkle_context = account.merkle_context.to_light_merkle_context(
-            account.leaf_index,
-            account.prove_by_index,
-        );
+
+        let merkle_context = account
+            .merkle_context
+            .to_light_merkle_context(account.leaf_index, account.prove_by_index);
 
         CompressedAccountWithMerkleContext {
             compressed_account,
@@ -407,11 +422,17 @@ impl TryFrom<&photon_api::models::AccountV2> for Account {
         let hash = decode_base58_to_fixed_array(&account.hash)?;
 
         let merkle_context = MerkleContext {
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.tree)?),
-            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.queue)?),
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(
+                &account.merkle_context.tree,
+            )?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(
+                &account.merkle_context.queue,
+            )?),
             tree_type: TreeType::from(account.merkle_context.tree_type as u64),
             cpi_context: decode_base58_option_to_pubkey(&account.merkle_context.cpi_context)?,
-            next_tree_context: account.merkle_context.next_tree_context
+            next_tree_context: account
+                .merkle_context
+                .next_tree_context
                 .as_ref()
                 .map(|ctx| TreeContextInfo::try_from(ctx.as_ref()))
                 .transpose()?,
@@ -525,12 +546,18 @@ impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
 
     fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
         let account = Account::try_from(token_account.account.as_ref())?;
-        
+
         let token = TokenData {
-            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.mint)?),
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.owner)?),
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
+                &token_account.token_data.mint,
+            )?),
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(
+                &token_account.token_data.owner,
+            )?),
             amount: token_account.token_data.amount,
-            delegate: token_account.token_data.delegate
+            delegate: token_account
+                .token_data
+                .delegate
                 .as_ref()
                 .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
                 .transpose()?,
@@ -538,7 +565,9 @@ impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
                 photon_api::models::AccountState::Initialized => AccountState::Initialized,
                 photon_api::models::AccountState::Frozen => AccountState::Frozen,
             },
-            tlv: token_account.token_data.tlv
+            tlv: token_account
+                .token_data
+                .tlv
                 .as_ref()
                 .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
                 .transpose()
@@ -554,12 +583,18 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
 
     fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
         let account = Account::try_from(token_account.account.as_ref())?;
-        
+
         let token = TokenData {
-            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.mint)?),
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.owner)?),
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
+                &token_account.token_data.mint,
+            )?),
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(
+                &token_account.token_data.owner,
+            )?),
             amount: token_account.token_data.amount,
-            delegate: token_account.token_data.delegate
+            delegate: token_account
+                .token_data
+                .delegate
                 .as_ref()
                 .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
                 .transpose()?,
@@ -567,7 +602,9 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
                 photon_api::models::AccountState::Initialized => AccountState::Initialized,
                 photon_api::models::AccountState::Frozen => AccountState::Frozen,
             },
-            tlv: token_account.token_data.tlv
+            tlv: token_account
+                .token_data
+                .tlv
                 .as_ref()
                 .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
                 .transpose()
@@ -581,7 +618,7 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
 impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     fn into(self) -> light_sdk::token::TokenDataWithMerkleContext {
         let compressed_account = CompressedAccountWithMerkleContext::from(self.account);
-        
+
         light_sdk::token::TokenDataWithMerkleContext {
             token_data: self.token,
             compressed_account,
@@ -606,40 +643,8 @@ impl TryFrom<&photon_api::models::TokenBalance> for TokenBalance {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct TokenBalanceList {
-    pub cursor: Option<String>,
-    pub token_balances: Vec<TokenBalance>,
-}
-
-impl TryFrom<photon_api::models::TokenBalanceListV2> for TokenBalanceList {
-    type Error = IndexerError;
-
-    fn try_from(list: photon_api::models::TokenBalanceListV2) -> Result<Self, Self::Error> {
-        let token_balances: Result<Vec<_>, _> = list.items
-            .iter()
-            .map(|balance| TokenBalance::try_from(balance))
-            .collect();
-
-        Ok(TokenBalanceList {
-            cursor: list.cursor,
-            token_balances: token_balances?,
-        })
-    }
-}
-
-impl TryFrom<photon_api::models::TokenBalanceList> for TokenBalanceList {
-    type Error = IndexerError;
-
-    fn try_from(list: photon_api::models::TokenBalanceList) -> Result<Self, Self::Error> {
-        let token_balances: Result<Vec<_>, _> = list.token_balances
-            .iter()
-            .map(|balance| TokenBalance::try_from(balance))
-            .collect();
-
-        Ok(TokenBalanceList {
-            cursor: list.cursor,
-            token_balances: token_balances?,
-        })
-    }
-}
+// #[derive(Clone, Default, Debug, PartialEq)]
+// pub struct TokenBalanceList {
+//     pub cursor: Option<String>,
+//     pub token_balances: Vec<TokenBalance>,
+// }

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use light_client::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
-    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult,
-    ProofRpcResultV2,
+    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext,
+    ProofRpcResultV2, ValidityProofWithContext,
 };
 use light_compressed_account::{compressed_account::CompressedAccountWithMerkleContext, QueueType};
 use light_sdk::token::TokenDataWithMerkleContext;
@@ -17,7 +17,7 @@ impl Indexer for LightProgramTest {
         &self,
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResult, IndexerError> {
+    ) -> Result<ValidityProofWithContext, IndexerError> {
         Ok(self
             .indexer
             .as_ref()

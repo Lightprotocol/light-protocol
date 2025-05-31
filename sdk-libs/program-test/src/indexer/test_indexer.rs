@@ -17,8 +17,8 @@ use light_client::{
     indexer::{
         Account, Address, AddressMerkleTreeAccounts, AddressWithTree,
         BatchAddressUpdateIndexerResponse, Indexer, IndexerError, MerkleProof,
-        MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult, ProofRpcResultV2,
-        StateMerkleTreeAccounts,
+        MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResultV2,
+        StateMerkleTreeAccounts, ValidityProofWithContext,
     },
     rpc::{RpcConnection, RpcError},
 };
@@ -345,7 +345,7 @@ impl Indexer for TestIndexer {
         &self,
         hashes: Vec<[u8; 32]>,
         new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResult, IndexerError> {
+    ) -> Result<ValidityProofWithContext, IndexerError> {
         let mut state_merkle_tree_pubkeys = Vec::new();
 
         for hash in hashes.iter() {
@@ -525,7 +525,7 @@ impl Indexer for TestIndexer {
                         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                         let (proof_a, proof_b, proof_c) =
                             compress_proof(&proof_a, &proof_b, &proof_c);
-                        return Ok(ProofRpcResult {
+                        return Ok(ValidityProofWithContext {
                             root_indices,
                             address_root_indices: address_root_indices.clone(),
                             proof: CompressedProof {
@@ -823,7 +823,7 @@ impl Indexer for TestIndexer {
             } else {
                 None
             };
-            let rpc_result: Option<ProofRpcResult> = if (compressed_accounts.is_some()
+            let rpc_result: Option<ValidityProofWithContext> = if (compressed_accounts.is_some()
                 && !compressed_accounts.as_ref().unwrap().is_empty())
                 || !new_addresses_with_trees.is_empty()
             {
