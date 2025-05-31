@@ -176,6 +176,86 @@ impl AddressProofInputs {
 
 impl ProofRpcResultV2 {
     pub fn from_api_model(
+        value: photon_api::models::CompressedProofWithContext,
+        num_hashes: usize,
+    ) -> Result<Self, IndexerError> {
+        let compressed_proof = ValidityProof::new(Some(CompressedProof {
+            a: value
+                .compressed_proof
+                .a
+                .try_into()
+                .map_err(|_| IndexerError::InvalidResponseData)?,
+            b: value
+                .compressed_proof
+                .b
+                .try_into()
+                .map_err(|_| IndexerError::InvalidResponseData)?,
+            c: value
+                .compressed_proof
+                .c
+                .try_into()
+                .map_err(|_| IndexerError::InvalidResponseData)?,
+        }));
+
+        // Convert account data from V1 flat arrays to V2 structured format
+        let accounts = (0..num_hashes)
+            .map(|i| {
+                let tree_pubkey = Pubkey::new_from_array(decode_base58_to_fixed_array(&value.merkle_trees[i])?);
+                let tree_info = super::tree_info::QUEUE_TREE_MAPPING
+                    .get(&value.merkle_trees[i])
+                    .ok_or(IndexerError::InvalidResponseData)?;
+                
+                Ok(AccountProofInputs {
+                    hash: decode_base58_to_fixed_array(&value.leaves[i])?,
+                    root: decode_base58_to_fixed_array(&value.roots[i])?,
+                    root_index: Some(value.root_indices[i] as u16),
+                    leaf_index: value.leaf_indices[i] as u64,
+                    merkle_context: MerkleContext {
+                        tree_type: tree_info.tree_type,
+                        tree: tree_pubkey,
+                        queue: tree_info.queue,
+                        cpi_context: None,
+                        next_tree_context: None,
+                    },
+                })
+            })
+            .collect::<Result<Vec<_>, IndexerError>>()?;
+
+        // Convert address data from remaining indices (if any)
+        let addresses = if value.root_indices.len() > num_hashes {
+            (num_hashes..value.root_indices.len())
+                .map(|i| {
+                    let tree_pubkey = Pubkey::new_from_array(decode_base58_to_fixed_array(&value.merkle_trees[i])?);
+                    let tree_info = super::tree_info::QUEUE_TREE_MAPPING
+                        .get(&value.merkle_trees[i])
+                        .ok_or(IndexerError::InvalidResponseData)?;
+                    
+                    Ok(AddressProofInputs {
+                        address: decode_base58_to_fixed_array(&value.leaves[i])?, // Address is in leaves
+                        root: decode_base58_to_fixed_array(&value.roots[i])?,
+                        root_index: value.root_indices[i] as u16,
+                        merkle_context: MerkleContext {
+                            tree_type: tree_info.tree_type,
+                            tree: tree_pubkey,
+                            queue: tree_info.queue,
+                            cpi_context: None,
+                            next_tree_context: None,
+                        },
+                    })
+                })
+                .collect::<Result<Vec<_>, IndexerError>>()?
+        } else {
+            Vec::new()
+        };
+
+        Ok(Self {
+            compressed_proof,
+            accounts,
+            addresses,
+        })
+    }
+
+    pub fn from_api_model_v2(
         value: photon_api::models::CompressedProofWithContextV2,
     ) -> Result<Self, IndexerError> {
         let compressed_proof = if let Some(proof) = value.compressed_proof {

@@ -842,7 +842,7 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
                 let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                super::types::ProofRpcResultV2::from_api_model(*result.value)
+                super::types::ProofRpcResultV2::from_api_model_v2(*result.value)
             })
             .await
         }
