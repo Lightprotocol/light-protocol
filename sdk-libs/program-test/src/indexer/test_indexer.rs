@@ -37,22 +37,27 @@ use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_merkle_tree_metadata::QueueType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
-    gnark::{
-        combined_json_formatter::CombinedJsonStruct,
-        combined_json_formatter_legacy::CombinedJsonStruct as CombinedJsonStructLegacy,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::{big_int_to_string, string_to_big_int, ProofType},
-        inclusion_json_formatter::BatchInclusionJsonStruct,
-        inclusion_json_formatter_legacy::BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
-        non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
-        non_inclusion_json_formatter_legacy::BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    constants::{PROVE_PATH, SERVER_ADDRESS},
+    helpers::{big_int_to_string, bigint_to_u8_32, string_to_big_int},
+    proof::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    proof_type::ProofType,
+    proof_types::{
+        combined::{v1::CombinedJsonStruct as CombinedJsonStructLegacy, v2::CombinedJsonStruct},
+        inclusion::{
+            v1::{
+                BatchInclusionJsonStruct as BatchInclusionJsonStructLegacy,
+                InclusionProofInputs as InclusionProofInputsLegacy,
+            },
+            v2::{BatchInclusionJsonStruct, InclusionMerkleProofInputs, InclusionProofInputs},
+        },
+        non_inclusion::{
+            v1::{
+                BatchNonInclusionJsonStruct as BatchNonInclusionJsonStructLegacy,
+                NonInclusionProofInputs as NonInclusionProofInputsLegacy,
+            },
+            v2::{BatchNonInclusionJsonStruct, NonInclusionProofInputs},
+        },
     },
-    helpers::bigint_to_u8_32,
-    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
-    inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy,
-    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
-    non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
 };
 use light_sdk::{
     token::{TokenData, TokenDataWithMerkleContext},

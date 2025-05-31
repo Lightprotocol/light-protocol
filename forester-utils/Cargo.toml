@@ -21,7 +21,7 @@ light-indexed-array = { workspace = true }
 light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
-light-merkle-tree-reference = { workspace = true }
+light-sparse-merkle-tree = { workspace = true }
 light-account-checks = { workspace = true }
 light-sdk = { workspace = true }
 

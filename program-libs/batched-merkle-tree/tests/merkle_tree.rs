@@ -38,7 +38,7 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
+use light_prover_client::prover::{spawn_prover, ProverConfig};
 use light_test_utils::mock_batched_forester::{
     MockBatchedAddressForester, MockBatchedForester, MockTxEvent,
 };

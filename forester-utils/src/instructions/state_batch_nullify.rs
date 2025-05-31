@@ -8,8 +8,8 @@ use light_compressed_account::instruction_data::compressed_proof::CompressedProo
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
-    batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
     proof_client::ProofClient,
+    proof_types::batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
 };
 use tracing::{error, trace};
 
@@ -247,8 +247,16 @@ async fn generate_nullify_zkp_proof(
     inputs: BatchUpdateCircuitInputs,
 ) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
     let proof_client = ProofClient::local();
-    proof_client
+    let (proof, new_root) = proof_client
         .generate_batch_update_proof(inputs)
         .await
-        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
+    Ok((
+        CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        },
+        new_root,
+    ))
 }

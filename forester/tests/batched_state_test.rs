@@ -9,12 +9,14 @@ use light_batched_merkle_tree::{
     batch::BatchState, initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_client::rpc::{
-    rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
-    SolanaRpcConnection,
+use light_client::{
+    local_test_validator::{LightValidatorConfig, ProverConfig},
+    rpc::{
+        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
+        SolanaRpcConnection,
+    },
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
 use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;

@@ -27,7 +27,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
+use light_prover_client::prover::{spawn_prover, ProverConfig};
 use light_sdk::{NewAddressParamsAssigned, ReadOnlyAddress, ValidityProof};
 use light_system_program::errors::SystemProgramError;
 use rand::{thread_rng, Rng};

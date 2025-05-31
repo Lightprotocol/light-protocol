@@ -9,12 +9,14 @@ use light_batched_merkle_tree::{
 };
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_account::hash_chain::create_hash_chain_from_slice;
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
-use light_indexed_array::changelog::IndexedChangelogEntry;
-use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_prover_client::{
-    batch_address_append::get_batch_address_append_circuit_inputs, proof_client::ProofClient,
+    proof_client::ProofClient,
+    proof_types::batch_address_append::get_batch_address_append_circuit_inputs,
+};
+use light_sdk::verifier::CompressedProof;
+use light_sparse_merkle_tree::{
+    changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
 use tracing::{debug, error, info, warn};
 
@@ -263,7 +265,11 @@ where
                 debug!("Successfully generated proof for batch {}", i);
                 instruction_data_vec.push(InstructionDataAddressAppendInputs {
                     new_root,
-                    compressed_proof,
+                    compressed_proof: CompressedProof {
+                        a: compressed_proof.a,
+                        b: compressed_proof.b,
+                        c: compressed_proof.c,
+                    },
                 });
             }
             Err(e) => {

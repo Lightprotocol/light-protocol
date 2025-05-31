@@ -23,7 +23,7 @@ use solana_sdk::{
     system_instruction,
     transaction::{Transaction, TransactionError},
 };
-use solana_transaction_status::TransactionStatus;
+use solana_transaction_status_client_types::TransactionStatus;
 
 use crate::{
     indexer::{TestIndexer, TestIndexerExtensions},

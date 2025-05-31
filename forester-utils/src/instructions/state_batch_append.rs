@@ -6,15 +6,15 @@ use light_batched_merkle_tree::{
 };
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
-    batch_append_with_proofs::{
+    proof_client::ProofClient,
+    proof_types::batch_append::{
         get_batch_append_with_proofs_inputs, BatchAppendWithProofsCircuitInputs,
     },
-    proof_client::ProofClient,
 };
+use light_sparse_merkle_tree::changelog::ChangelogEntry;
 use tracing::{error, trace};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
@@ -117,7 +117,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
         let adjusted_start_index =
             merkle_tree_next_index as u32 + (batch_idx * zkp_batch_size as usize) as u32;
 
-        let (circuit_inputs, batch_changelogs) = get_batch_append_with_proofs_inputs(
+        let (circuit_inputs, batch_changelogs) = get_batch_append_with_proofs_inputs::<32>(
             current_root,
             adjusted_start_index,
             leaves,
@@ -125,7 +125,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
             old_leaves,
             merkle_proofs,
             zkp_batch_size as u32,
-            &all_changelogs,
+            all_changelogs.as_slice(),
         )
         .map_err(|e| {
             error!("Failed to get circuit inputs: {:?}", e);
@@ -166,10 +166,18 @@ async fn generate_zkp_proof(
     circuit_inputs: BatchAppendWithProofsCircuitInputs,
 ) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
     let proof_client = ProofClient::local();
-    proof_client
+    let (proof, new_root) = proof_client
         .generate_batch_append_proof(circuit_inputs)
         .await
-        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
+    Ok((
+        CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        },
+        new_root,
+    ))
 }
 
 /// Get metadata from the Merkle tree account

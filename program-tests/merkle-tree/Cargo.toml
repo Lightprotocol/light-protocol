@@ -11,5 +11,6 @@ edition = "2021"
 light-hasher = { workspace = true }
 thiserror = { workspace = true }
 num-bigint = { workspace = true }
-light-indexed-array = { workspace = true }
 num-traits = { workspace = true }
+rand = { workspace = true }
+light-indexed-array = { workspace = true }

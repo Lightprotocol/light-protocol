@@ -1,7 +1,7 @@
 use light_client::rpc::RpcError;
 use light_sdk::utils::get_registered_program_pda;
 use solana_program_test::{ProgramTest, ProgramTestContext};
-use solana_sdk::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 use crate::{
     accounts::{

@@ -1,6 +1,24 @@
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
+use std::process::Command;
+
 use light_hasher::{Hasher, Poseidon};
-use num_bigint::BigInt;
+use light_sparse_merkle_tree::changelog::ChangelogEntry;
+use num_bigint::{BigInt, BigUint};
+use num_traits::{Num, ToPrimitive};
+use serde::Serialize;
+use serde_json::json;
+
+pub fn get_project_root() -> Option<String> {
+    let output = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        String::from_utf8(output.stdout).ok()
+    } else {
+        None
+    }
+}
 
 pub fn change_endianness(bytes: &[u8]) -> Vec<u8> {
     let mut vec = Vec::new();
@@ -49,4 +67,49 @@ pub fn compute_root_from_merkle_proof<const HEIGHT: usize>(
     }
 
     (current_hash, changelog_entry)
+}
+
+pub fn big_uint_to_string(big_uint: &BigUint) -> String {
+    format!("0x{}", big_uint.to_str_radix(16))
+}
+
+pub fn big_int_to_string(big_int: &BigInt) -> String {
+    format!("0x{}", big_int.to_str_radix(16))
+}
+pub fn string_to_big_int(hex_str: &str) -> Option<BigInt> {
+    if hex_str.starts_with("0x") || hex_str.starts_with("0X") {
+        BigInt::from_str_radix(&hex_str[2..], 16).ok()
+    } else {
+        None
+    }
+}
+
+pub fn create_vec_of_string(number_of_utxos: usize, element: &BigInt) -> Vec<String> {
+    vec![big_int_to_string(element); number_of_utxos]
+}
+
+pub fn create_vec_of_u32(number_of_utxos: usize, element: &BigInt) -> Vec<u32> {
+    vec![element.to_u32().unwrap(); number_of_utxos]
+}
+
+pub fn create_vec_of_vec_of_string(
+    number_of_utxos: usize,
+    elements: &[BigInt],
+) -> Vec<Vec<String>> {
+    let vec: Vec<String> = elements
+        .iter()
+        .map(|e| format!("0x{}", e.to_str_radix(16)))
+        .collect();
+    vec![vec; number_of_utxos]
+}
+
+pub fn create_json_from_struct<T>(json_struct: &T) -> String
+where
+    T: Serialize,
+{
+    let json = json!(json_struct);
+    match serde_json::to_string_pretty(&json) {
+        Ok(json) => json,
+        Err(_) => panic!("Merkle tree data invalid"),
+    }
 }

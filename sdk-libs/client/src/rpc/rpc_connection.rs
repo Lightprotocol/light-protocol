@@ -15,7 +15,7 @@ use solana_pubkey::Pubkey;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_signature::Signature;
 use solana_transaction::Transaction;
-use solana_transaction_status::TransactionStatus;
+use solana_transaction_status_client_types::TransactionStatus;
 
 use super::solana_rpc::SolanaRpcUrl;
 use crate::{indexer::Indexer, rpc::errors::RpcError};

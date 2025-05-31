@@ -11,6 +11,7 @@ use light_client::{
         photon_indexer::PhotonIndexer, AddressWithTree,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     },
+    local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{
         rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
         SolanaRpcConnection,
@@ -26,7 +27,7 @@ use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
 use light_program_test::accounts::test_accounts::TestAccounts;
-use light_prover_client::gnark::helpers::{spawn_prover, LightValidatorConfig, ProverConfig};
+use light_prover_client::prover::spawn_prover;
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     utils::get_protocol_config_pda_address,

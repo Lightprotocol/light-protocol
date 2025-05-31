@@ -113,14 +113,11 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
-use light_indexed_array::changelog::IndexedChangelogEntry;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_merkle_tree_metadata::QueueType;
-use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_program_test::{
     accounts::{
         state_tree::create_state_merkle_tree_and_queue_account, test_accounts::TestAccounts,
@@ -132,13 +129,11 @@ use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
 };
 use light_prover_client::{
-    batch_address_append::get_batch_address_append_circuit_inputs,
-    gnark::{
-        batch_address_append_json_formatter::to_json,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::{ProofType, ProverConfig},
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-    },
+    constants::{PROVE_PATH, SERVER_ADDRESS},
+    proof::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    proof_type::ProofType,
+    proof_types::batch_address_append::{get_batch_address_append_circuit_inputs, to_json},
+    prover::ProverConfig,
 };
 use light_registry::{
     account_compression_cpi::sdk::create_batch_update_address_tree_instruction,
@@ -151,6 +146,9 @@ use light_sdk::{
     token::{AccountState, TokenDataWithMerkleContext},
     NewAddressParamsAssignedPacked, ADDRESS_MERKLE_TREE_ROOTS, CPI_AUTHORITY_PDA_SEED,
     STATE_MERKLE_TREE_ROOTS,
+};
+use light_sparse_merkle_tree::{
+    changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
 use log::info;
 use num_bigint::{BigUint, RandBigInt};

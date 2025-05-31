@@ -7,41 +7,37 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-gnark = ["tokio", "reqwest"]
+gnark = ["reqwest"]
 default = ["gnark"]
 devenv = []
 
 [dependencies]
 
-light-merkle-tree-reference = { workspace = true }
 light-hasher = { workspace = true }
-light-indexed-merkle-tree = { workspace = true }
-light-concurrent-merkle-tree = { workspace = true }
-light-bounded-vec = { workspace = true }
-light-compressed-account = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
+light-sparse-merkle-tree = { workspace = true }
 
 ark-bn254 = { workspace = true }
 ark-serialize = { workspace = true }
 ark-std = { workspace = true, features = ["parallel"] }
-groth16-solana = { workspace = true }
 num-bigint = { workspace = true, features = ["serde"] }
-once_cell = "1.20"
 thiserror = { workspace = true }
 tracing = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 num-traits = { workspace = true }
-tokio = { workspace = true, optional = true }
 reqwest = { version = "0.11.24", features = [
     "json",
     "rustls-tls",
 ], optional = true }
 solana-bn254 = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }
+light-indexed-merkle-tree = { workspace = true }
+light-merkle-tree-reference = { workspace = true }
+once_cell = "1.20"
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

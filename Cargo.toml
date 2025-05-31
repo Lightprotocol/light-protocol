@@ -43,6 +43,7 @@ members = [
     "program-tests/merkle-tree",
     "forester-utils",
     "forester",
+    "sparse-merkle-tree",
 ]
 
 resolver = "2"
@@ -67,6 +68,8 @@ solana-client = "2.2.1"
 solana-cli-output = "2.2.1"
 solana-transaction-status = "2.2.1"
 solana-account-decoder = "2.2.1"
+solana-account-decoder-client-types = "2.2.1"
+solana-transaction-status-client-types = "2.2.1"
 solana-rpc = "2.2.1"
 solana-rpc-client-api = "2.2.1"
 solana-transaction-context = "2.2.1"
@@ -142,6 +145,7 @@ ark-std = "0.5"
 light-hash-set = { version = "2.0.0", path = "program-libs/hash-set" }
 light-indexed-merkle-tree = { version = "2.0.0", path = "program-libs/indexed-merkle-tree" }
 light-concurrent-merkle-tree = { version = "2.0.1", path = "program-libs/concurrent-merkle-tree" }
+light-sparse-merkle-tree = { version = "0.1.0", path = "sparse-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.9.1" }
 light-hasher = { path = "program-libs/hasher", version = "3.0.0" }
 light-macros = { path = "program-libs/macros", version = "2.0.0" }

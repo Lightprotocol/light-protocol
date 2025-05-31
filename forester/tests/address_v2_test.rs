@@ -9,6 +9,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
+    local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{
         merkle_tree::MerkleTreeExt, rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl,
         RpcConnection, SolanaRpcConnection,
@@ -26,7 +27,6 @@ use light_compressed_account::{
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{accounts::test_accounts::TestAccounts, Indexer};
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
 };

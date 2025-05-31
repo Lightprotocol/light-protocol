@@ -41,7 +41,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{
+use light_prover_client::prover::{
     spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
 };
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};

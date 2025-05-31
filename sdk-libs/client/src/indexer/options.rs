@@ -1,5 +1,5 @@
 use photon_api::models::{FilterSelector, Memcmp};
-use solana_account_decoder::UiDataSliceConfig;
+use solana_account_decoder_client_types::UiDataSliceConfig;
 use solana_pubkey::Pubkey;
 
 pub struct GetCompressedTokenAccountsByOwnerOrDelegateOptions {

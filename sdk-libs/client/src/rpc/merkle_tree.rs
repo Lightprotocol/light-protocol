@@ -22,6 +22,7 @@ pub enum MerkleTreeExtError {
     IndexedMerkleTree(#[from] IndexedMerkleTreeError),
 }
 
+// TODO: hide behind feature to make tree and poseidon deps optional
 /// Extension to the RPC connection which provides convenience utilities for
 /// fetching Merkle trees.
 #[async_trait]

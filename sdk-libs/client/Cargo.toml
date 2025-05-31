@@ -15,8 +15,8 @@ program-test = ["solana-banks-client"]
 # Solana dependencies
 solana-rpc-client = { workspace = true }
 solana-rpc-client-api = { workspace = true }
-solana-transaction-status = { workspace = true }
-solana-account-decoder = { workspace = true }
+solana-transaction-status-client-types = { workspace = true }
+solana-account-decoder-client-types = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-instruction = { workspace = true }
 solana-program-error = { workspace = true }
@@ -42,6 +42,7 @@ light-compressed-account = { workspace = true, features = ["solana"] }
 
 # unrelased
 photon-api = { workspace = true }
+light-prover-client = { workspace = true }
 
 # External dependencies
 borsh = { workspace = true }
@@ -64,4 +65,3 @@ spl-token = { workspace = true }
 rand = { workspace = true }
 solana-system-interface = { workspace = true }
 solana-signer = { workspace = true }
-light-prover-client = { workspace = true }
