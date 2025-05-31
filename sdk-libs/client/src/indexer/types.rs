@@ -3,7 +3,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
-use light_sdk::verifier::CompressedProof;
+use light_sdk::{verifier::CompressedProof, ValidityProof};
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
 
@@ -112,18 +112,74 @@ impl ProofRpcResult {
 
 #[derive(Debug, Default, Clone)]
 pub struct ProofRpcResultV2 {
-    pub proof: Option<CompressedProof>,
-    // If none -> proof by index and not included in zkp, else included in zkp
-    pub root_indices: Vec<Option<u16>>,
-    pub address_root_indices: Vec<u16>,
+    pub compressed_proof: ValidityProof,
+    pub accounts: Vec<AccountProofInputs>,
+    pub addresses: Vec<AddressProofInputs>,
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct AccountProofInputs {
+    pub hash: [u8; 32],
+    pub root: [u8; 32],
+    pub root_index: Option<u16>,
+    pub leaf_index: u64,
+    pub merkle_context: MerkleContext,
+}
+
+impl AccountProofInputs {
+    pub fn from_api_model(
+        value: &photon_api::models::compressed_proof_with_context_v2::AccountProofInputs,
+    ) -> Result<Self, IndexerError> {
+        let root_index = {
+            if value.root_index.prove_by_index {
+                None
+            } else {
+                Some(
+                    value
+                        .root_index
+                        .root_index
+                        .try_into()
+                        .map_err(|_| IndexerError::InvalidResponseData)?,
+                )
+            }
+        };
+        Ok(Self {
+            hash: decode_base58_to_fixed_array(&value.hash)?,
+            root: decode_base58_to_fixed_array(&value.root)?,
+            root_index,
+            leaf_index: value.leaf_index,
+            merkle_context: MerkleContext::from_api_model(&value.merkle_context)?,
+        })
+    }
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct AddressProofInputs {
+    pub address: [u8; 32],
+    pub root: [u8; 32],
+    pub root_index: u16,
+    pub merkle_context: MerkleContext,
+}
+
+impl AddressProofInputs {
+    pub fn from_api_model(
+        value: &photon_api::models::compressed_proof_with_context_v2::AddressProofInputs,
+    ) -> Result<Self, IndexerError> {
+        Ok(Self {
+            address: decode_base58_to_fixed_array(&value.address)?,
+            root: decode_base58_to_fixed_array(&value.root)?,
+            root_index: value.root_index,
+            merkle_context: MerkleContext::from_api_model(&value.merkle_context)?,
+        })
+    }
 }
 
 impl ProofRpcResultV2 {
     pub fn from_api_model(
         value: photon_api::models::CompressedProofWithContextV2,
     ) -> Result<Self, IndexerError> {
-        let proof = if let Some(proof) = value.compressed_proof {
-            let proof = CompressedProof {
+        let compressed_proof = if let Some(proof) = value.compressed_proof {
+            ValidityProof::new(Some(CompressedProof {
                 a: proof
                     .a
                     .try_into()
@@ -136,30 +192,27 @@ impl ProofRpcResultV2 {
                     .c
                     .try_into()
                     .map_err(|_| IndexerError::InvalidResponseData)?,
-            };
-            Some(proof)
+            }))
         } else {
-            None
+            ValidityProof::new(None)
         };
 
+        let accounts = value
+            .accounts
+            .iter()
+            .map(|account| AccountProofInputs::from_api_model(account))
+            .collect::<Result<Vec<_>, IndexerError>>()?;
+
+        let addresses = value
+            .addresses
+            .iter()
+            .map(|address| AddressProofInputs::from_api_model(address))
+            .collect::<Result<Vec<_>, IndexerError>>()?;
+
         Ok(Self {
-            proof,
-            root_indices: value
-                .accounts
-                .iter()
-                .map(|x| {
-                    if x.root_index.prove_by_index {
-                        None
-                    } else {
-                        Some(x.root_index.root_index as u16)
-                    }
-                })
-                .collect::<Vec<Option<u16>>>(),
-            address_root_indices: value
-                .addresses
-                .iter()
-                .map(|x| x.root_index)
-                .collect::<Vec<u16>>(),
+            compressed_proof,
+            accounts,
+            addresses,
         })
     }
 }
@@ -172,6 +225,24 @@ pub struct TreeContextInfo {
     pub tree_type: u16,
 }
 
+impl TreeContextInfo {
+    pub fn from_api_model(
+        value: &photon_api::models::compressed_proof_with_context_v2::TreeContextInfo,
+    ) -> Result<Self, IndexerError> {
+        Ok(Self {
+            tree_type: value.tree_type,
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
+            cpi_context: value
+                .cpi_context
+                .as_ref()
+                .map(|ctx| decode_base58_to_fixed_array(ctx))
+                .transpose()?
+                .map(Pubkey::new_from_array),
+        })
+    }
+}
+
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct MerkleContext {
     pub cpi_context: Option<Pubkey>,
@@ -179,6 +250,29 @@ pub struct MerkleContext {
     pub queue: Pubkey,
     pub tree: Pubkey,
     pub tree_type: TreeType,
+}
+
+impl MerkleContext {
+    pub fn from_api_model(
+        value: &photon_api::models::compressed_proof_with_context_v2::MerkleContextV2,
+    ) -> Result<Self, IndexerError> {
+        Ok(Self {
+            tree_type: TreeType::from(value.tree_type as u64),
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
+            cpi_context: value
+                .cpi_context
+                .as_ref()
+                .map(|ctx| decode_base58_to_fixed_array(ctx))
+                .transpose()?
+                .map(Pubkey::new_from_array),
+            next_tree_context: value
+                .next_tree_context
+                .as_ref()
+                .map(|ctx| TreeContextInfo::from_api_model(ctx))
+                .transpose()?,
+        })
+    }
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -290,7 +384,6 @@ pub struct BatchAddressUpdateIndexerResponse {
     pub non_inclusion_proofs: Vec<NewAddressProofWithContext>,
     pub subtrees: Vec<[u8; 32]>,
 }
-
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub struct StateMerkleTreeAccounts {
