@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use light_merkle_tree_metadata::QueueType;
-use photon_api::models::TokenBalanceList;
 use solana_pubkey::Pubkey;
 
-use super::types::{Account, ProofRpcResult, TokenAccount};
+use super::types::{Account, ProofRpcResult, TokenAccount, TokenBalanceList};
 use super::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, IndexerError, MerkleProof,
     MerkleProofWithContext, NewAddressProofWithContext,

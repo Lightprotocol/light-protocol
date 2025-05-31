@@ -1,6 +1,6 @@
 use std::{fmt::Debug, time::Duration};
 
-use super::{types::{Account, TokenAccount}, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
+use super::{types::{Account, TokenAccount, TokenBalanceList}, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
 use crate::indexer::base58::Base58Conversions;
 use crate::indexer::{
     Address, AddressWithTree, Hash, Indexer, IndexerError,
@@ -11,7 +11,7 @@ use bs58;
 use light_merkle_tree_metadata::QueueType;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
-    models::{GetCompressedAccountsByOwnerPostRequestParams, TokenBalanceList},
+    models::GetCompressedAccountsByOwnerPostRequestParams,
 };
 use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
@@ -477,28 +477,62 @@ impl Indexer for PhotonIndexer {
         mint: Option<Pubkey>,
     ) -> Result<TokenBalanceList, IndexerError> {
         self.retry(|| async {
-            let request = photon_api::models::GetCompressedTokenBalancesByOwnerPostRequest {
-                params: Box::new(
-                    photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
-                    },
-                ),
-                ..Default::default()
-            };
+            #[cfg(feature = "v2")]
+            {
+                let request = photon_api::models::GetCompressedTokenBalancesByOwnerV2PostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
+                            owner: owner.to_string(),
+                            mint: mint.map(|x| x.to_string()),
+                            cursor: None,
+                            limit: None,
+                        },
+                    ),
+                    ..Default::default()
+                };
 
-            let result =
-                photon_api::apis::default_api::get_compressed_token_balances_by_owner_post(
-                    &self.configuration,
-                    request,
-                )
-                .await?;
+                let result =
+                    photon_api::apis::default_api::get_compressed_token_balances_by_owner_v2_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
 
-            let response =
-                Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
-            Ok(*response.value)
+                let response =
+                    Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
+                
+                let balance_list = TokenBalanceList::try_from(*response.value)?;
+                Ok(balance_list)
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetCompressedTokenBalancesByOwnerPostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
+                            owner: owner.to_string(),
+                            mint: mint.map(|x| x.to_string()),
+                            cursor: None,
+                            limit: None,
+                        },
+                    ),
+                    ..Default::default()
+                };
+
+                let result =
+                    photon_api::apis::default_api::get_compressed_token_balances_by_owner_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
+
+                let response =
+                    Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
+                
+                // For V1 API, we need to convert from the V1 TokenBalanceList
+                // We'll need to add a conversion from V1 to our internal type
+                let balance_list = TokenBalanceList::try_from(*response.value)?;
+                Ok(balance_list)
+            }
         })
         .await
     }

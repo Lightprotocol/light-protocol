@@ -1,12 +1,11 @@
 use async_trait::async_trait;
 use light_compressed_account::QueueType;
-use photon_api::models::TokenBalanceList;
 use solana_pubkey::Pubkey;
 
 use super::SolanaRpcConnection;
 use crate::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
-    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult, TokenAccount,
+    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult, TokenAccount, TokenBalanceList,
 };
 
 #[async_trait]

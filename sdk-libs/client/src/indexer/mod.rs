@@ -16,5 +16,5 @@ pub use types::{
     Account, Address, AddressMerkleTreeAccounts, AddressQueueIndex, AddressWithTree,
     BatchAddressUpdateIndexerResponse, Hash, MerkleContext, MerkleProof, MerkleProofWithContext,
     NewAddressProofWithContext, ProofOfLeaf, ProofRpcResult, StateMerkleTreeAccounts,
-    TokenAccount, TreeContextInfo,
+    TokenAccount, TokenBalance, TokenBalanceList, TreeContextInfo,
 };

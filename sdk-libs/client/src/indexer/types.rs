@@ -588,3 +588,58 @@ impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
         }
     }
 }
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct TokenBalance {
+    pub balance: u64,
+    pub mint: Pubkey,
+}
+
+impl TryFrom<&photon_api::models::TokenBalance> for TokenBalance {
+    type Error = IndexerError;
+
+    fn try_from(token_balance: &photon_api::models::TokenBalance) -> Result<Self, Self::Error> {
+        Ok(TokenBalance {
+            balance: token_balance.balance,
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_balance.mint)?),
+        })
+    }
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct TokenBalanceList {
+    pub cursor: Option<String>,
+    pub token_balances: Vec<TokenBalance>,
+}
+
+impl TryFrom<photon_api::models::TokenBalanceListV2> for TokenBalanceList {
+    type Error = IndexerError;
+
+    fn try_from(list: photon_api::models::TokenBalanceListV2) -> Result<Self, Self::Error> {
+        let token_balances: Result<Vec<_>, _> = list.items
+            .iter()
+            .map(|balance| TokenBalance::try_from(balance))
+            .collect();
+
+        Ok(TokenBalanceList {
+            cursor: list.cursor,
+            token_balances: token_balances?,
+        })
+    }
+}
+
+impl TryFrom<photon_api::models::TokenBalanceList> for TokenBalanceList {
+    type Error = IndexerError;
+
+    fn try_from(list: photon_api::models::TokenBalanceList) -> Result<Self, Self::Error> {
+        let token_balances: Result<Vec<_>, _> = list.token_balances
+            .iter()
+            .map(|balance| TokenBalance::try_from(balance))
+            .collect();
+
+        Ok(TokenBalanceList {
+            cursor: list.cursor,
+            token_balances: token_balances?,
+        })
+    }
+}
