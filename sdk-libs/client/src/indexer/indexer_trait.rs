@@ -6,7 +6,7 @@ use photon_api::models::TokenBalanceList;
 use solana_pubkey::Pubkey;
 
 use super::{IndexerError, MerkleProof, Address, Hash, AddressWithTree, MerkleProofWithContext, NewAddressProofWithContext, BatchAddressUpdateIndexerResponse};
-use super::types::{Account, ProofRpcResult, ProofRpcResultV2};
+use super::types::{Account, ProofRpcResult};
 
 #[async_trait]
 pub trait Indexer: std::marker::Send + std::marker::Sync {
@@ -86,12 +86,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<ProofRpcResult, IndexerError>;
-
-    async fn get_validity_proof_v2(
-        &self,
-        hashes: Vec<Hash>,
-        new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResultV2, IndexerError>;
 
     async fn get_address_queue_with_proofs(
         &mut self,

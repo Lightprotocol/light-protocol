@@ -1,14 +1,11 @@
 use std::{fmt::Debug, time::Duration};
 
-use super::{
-    types::Account, BatchAddressUpdateIndexerResponse, MerkleProofWithContext, ProofRpcResult,
-};
+use super::{types::Account, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
 use crate::indexer::base58::Base58Conversions;
 use crate::indexer::conversions::FromPhotonTokenAccountList;
 use crate::indexer::{
-    tree_info::QUEUE_TREE_MAPPING, Address, AddressWithTree,
-    Hash, Indexer, IndexerError, MerkleProof,
-    NewAddressProofWithContext,
+    tree_info::QUEUE_TREE_MAPPING, Address, AddressWithTree, Hash, Indexer, IndexerError,
+    MerkleProof, NewAddressProofWithContext,
 };
 use async_trait::async_trait;
 use bs58;
@@ -774,53 +771,14 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
-
     async fn get_validity_proof(
         &self,
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResult, IndexerError> {
+    ) -> Result<super::types::ProofRpcResult, IndexerError> {
         self.retry(|| async {
-            let request = photon_api::models::GetValidityProofPostRequest {
-                params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
-                    hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
-                    new_addresses_with_trees: Some(
-                        new_addresses_with_trees
-                            .iter()
-                            .map(|x| photon_api::models::AddressWithTree {
-                                address: x.address.to_base58(),
-                                tree: x.tree.to_string(),
-                            })
-                            .collect(),
-                    ),
-                }),
-                ..Default::default()
-            };
-
-            let result = photon_api::apis::default_api::get_validity_proof_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
-
-            let result = Self::extract_result("get_validity_proof", result.result)?;
-            ProofRpcResult::from_api_model(*result.value, hashes.len())
-        })
-        .await
-    }
-
-    async fn get_validity_proof_v2(
-        &self,
-        _hashes: Vec<Hash>,
-        _new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<super::types::ProofRpcResultV2, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_validity_proof_v2");
-        #[cfg(feature = "v2")]
-        {
-            let hashes = _hashes;
-            let new_addresses_with_trees = _new_addresses_with_trees;
-            self.retry(|| async {
+            #[cfg(feature = "v2")]
+            {
                 let request = photon_api::models::GetValidityProofV2PostRequest {
                     params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
                         hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
@@ -836,16 +794,44 @@ impl Indexer for PhotonIndexer {
                     }),
                     ..Default::default()
                 };
+
                 let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
                 let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                super::types::ProofRpcResultV2::from_api_model_v2(*result.value)
-            })
-            .await
-        }
+                super::types::ProofRpcResult::from_api_model_v2(*result.value)
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetValidityProofPostRequest {
+                    params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
+                        hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
+                        new_addresses_with_trees: Some(
+                            new_addresses_with_trees
+                                .iter()
+                                .map(|x| photon_api::models::AddressWithTree {
+                                    address: x.address.to_base58(),
+                                    tree: x.tree.to_string(),
+                                })
+                                .collect(),
+                        ),
+                    }),
+                    ..Default::default()
+                };
+
+                let result = photon_api::apis::default_api::get_validity_proof_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+                let result = Self::extract_result("get_validity_proof", result.result)?;
+                super::types::ProofRpcResult::from_api_model(*result.value, hashes.len())
+            }
+        })
+        .await
     }
 
     async fn get_address_queue_with_proofs(

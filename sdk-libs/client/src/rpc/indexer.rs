@@ -8,7 +8,6 @@ use super::SolanaRpcConnection;
 use crate::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
     IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, ProofRpcResult,
-    ProofRpcResultV2,
 };
 
 #[async_trait]
@@ -26,18 +25,6 @@ impl Indexer for SolanaRpcConnection {
             .await?)
     }
 
-    async fn get_validity_proof_v2(
-        &self,
-        hashes: Vec<Hash>,
-        new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResultV2, IndexerError> {
-        Ok(self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_validity_proof_v2(hashes, new_addresses_with_trees)
-            .await?)
-    }
 
     async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
         Ok(self

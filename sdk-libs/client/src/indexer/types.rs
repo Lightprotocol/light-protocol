@@ -60,58 +60,9 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct ProofRpcResult {
-    pub proof: CompressedProof,
-    pub root_indices: Vec<u16>,
-    pub address_root_indices: Vec<u16>,
-}
-
-impl ProofRpcResult {
-    pub fn from_api_model(
-        value: photon_api::models::CompressedProofWithContext,
-        num_hashes: usize,
-    ) -> Result<Self, IndexerError> {
-        let proof = CompressedProof {
-            a: value
-                .compressed_proof
-                .a
-                .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
-            b: value
-                .compressed_proof
-                .b
-                .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
-            c: value
-                .compressed_proof
-                .c
-                .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
-        };
-
-        Ok(Self {
-            proof,
-            root_indices: value.root_indices[..num_hashes]
-                .iter()
-                .map(|x| {
-                    (*x).try_into()
-                        .map_err(|_| IndexerError::InvalidResponseData)
-                })
-                .collect::<Result<Vec<u16>, _>>()?,
-            address_root_indices: value.root_indices[num_hashes..]
-                .iter()
-                .map(|x| {
-                    (*x).try_into()
-                        .map_err(|_| IndexerError::InvalidResponseData)
-                })
-                .collect::<Result<Vec<u16>, _>>()?,
-        })
-    }
-}
 
 #[derive(Debug, Default, Clone)]
-pub struct ProofRpcResultV2 {
+pub struct ProofRpcResult {
     pub compressed_proof: ValidityProof,
     pub accounts: Vec<AccountProofInputs>,
     pub addresses: Vec<AddressProofInputs>,
@@ -174,7 +125,7 @@ impl AddressProofInputs {
     }
 }
 
-impl ProofRpcResultV2 {
+impl ProofRpcResult {
     pub fn from_api_model(
         value: photon_api::models::CompressedProofWithContext,
         num_hashes: usize,

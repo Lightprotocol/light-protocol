@@ -12,7 +12,6 @@ pub use indexer_trait::Indexer;
 pub use base58::Base58Conversions;
 pub use error::IndexerError;
 
-pub use types::ProofRpcResultV2;
 pub use types::{
     Account, Address, AddressMerkleTreeAccounts, AddressQueueIndex, AddressWithTree,
     BatchAddressUpdateIndexerResponse, Hash, MerkleContext, MerkleProof, MerkleProofWithContext,
