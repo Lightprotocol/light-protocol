@@ -7,7 +7,7 @@ mod indexer_trait;
 pub(crate) mod tree_info;
 mod types;
 
-pub use indexer_trait::{Indexer, Response, ResponseWithCursor};
+pub use indexer_trait::{Indexer, IndexerRpcConfig, Response, ResponseWithCursor, RetryConfig};
 
 pub use base58::Base58Conversions;
 pub use error::IndexerError;
