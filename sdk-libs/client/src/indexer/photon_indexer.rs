@@ -1,6 +1,7 @@
 use std::{fmt::Debug, time::Duration};
 
 use super::{
+    indexer_trait::RetryConfig,
     types::{Account, TokenAccount, TokenBalance},
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
@@ -30,15 +31,19 @@ impl PhotonIndexer {
 }
 
 impl PhotonIndexer {
-    async fn retry<F, Fut, T>(&self, mut operation: F) -> Result<T, IndexerError>
+    async fn retry<F, Fut, T>(
+        &self,
+        config: RetryConfig,
+        mut operation: F,
+    ) -> Result<T, IndexerError>
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<T, IndexerError>>,
     {
-        let max_retries = 10;
+        let max_retries = config.num_retries;
         let mut attempts = 0;
-        let mut delay_ms = 400;
-        let max_delay_ms = 8000;
+        let mut delay_ms = config.delay_ms;
+        let max_delay_ms = config.max_delay_ms;
 
         loop {
             attempts += 1;
@@ -146,8 +151,8 @@ impl Debug for PhotonIndexer {
 
 #[async_trait]
 impl Indexer for PhotonIndexer {
-    async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
-        self.retry(|| async {
+    async fn get_indexer_slot(&self, config: RetryConfig) -> Result<u64, IndexerError> {
+        self.retry(config, || async {
             let request = photon_api::models::GetIndexerSlotPostRequest {
                 ..Default::default()
             };
@@ -828,8 +833,9 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
                 let api_response = Self::extract_result("get_validity_proof_v2", result.result)?;
-                let validity_proof = super::types::ValidityProofWithContext::from_api_model_v2(*api_response.value)?;
-                
+                let validity_proof =
+                    super::types::ValidityProofWithContext::from_api_model_v2(*api_response.value)?;
+
                 Ok(Response {
                     context: Context {
                         slot: api_response.context.slot,
@@ -862,8 +868,11 @@ impl Indexer for PhotonIndexer {
                 .await?;
 
                 let api_response = Self::extract_result("get_validity_proof", result.result)?;
-                let validity_proof = super::types::ValidityProofWithContext::from_api_model(*api_response.value, hashes.len())?;
-                
+                let validity_proof = super::types::ValidityProofWithContext::from_api_model(
+                    *api_response.value,
+                    hashes.len(),
+                )?;
+
                 Ok(Response {
                     context: Context {
                         slot: api_response.context.slot,
@@ -1004,62 +1013,70 @@ impl Indexer for PhotonIndexer {
                 )
                 .await;
 
-                let result: Result<Response<Vec<MerkleProofWithContext>>, IndexerError> = match result {
-                    Ok(api_response) => match api_response.result {
-                        Some(api_result) => {
-                            let response = api_result.value;
-                            let proofs = response
-                                .iter()
-                                .map(|x| {
-                                    let proof = x
-                                        .proof
-                                        .iter()
-                                        .map(|x| Hash::from_base58(x).unwrap())
-                                        .collect();
-                                    let root = Hash::from_base58(&x.root).unwrap();
-                                    let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                    let merkle_tree = Hash::from_base58(&x.tree).unwrap();
-                                    let tx_hash =
-                                        x.tx_hash.as_ref().map(|x| Hash::from_base58(x).unwrap());
-                                    let account_hash = Hash::from_base58(&x.account_hash).unwrap();
+                let result: Result<Response<Vec<MerkleProofWithContext>>, IndexerError> =
+                    match result {
+                        Ok(api_response) => match api_response.result {
+                            Some(api_result) => {
+                                let response = api_result.value;
+                                let proofs = response
+                                    .iter()
+                                    .map(|x| {
+                                        let proof = x
+                                            .proof
+                                            .iter()
+                                            .map(|x| Hash::from_base58(x).unwrap())
+                                            .collect();
+                                        let root = Hash::from_base58(&x.root).unwrap();
+                                        let leaf = Hash::from_base58(&x.leaf).unwrap();
+                                        let merkle_tree = Hash::from_base58(&x.tree).unwrap();
+                                        let tx_hash = x
+                                            .tx_hash
+                                            .as_ref()
+                                            .map(|x| Hash::from_base58(x).unwrap());
+                                        let account_hash =
+                                            Hash::from_base58(&x.account_hash).unwrap();
 
-                                    MerkleProofWithContext {
-                                        proof,
-                                        root,
-                                        leaf_index: x.leaf_index,
-                                        leaf,
-                                        merkle_tree,
-                                        root_seq: x.root_seq,
-                                        tx_hash,
-                                        account_hash,
-                                    }
+                                        MerkleProofWithContext {
+                                            proof,
+                                            root,
+                                            leaf_index: x.leaf_index,
+                                            leaf,
+                                            merkle_tree,
+                                            root_seq: x.root_seq,
+                                            tx_hash,
+                                            account_hash,
+                                        }
+                                    })
+                                    .collect();
+
+                                Ok(Response {
+                                    context: Context {
+                                        slot: api_result.context.slot,
+                                    },
+                                    value: proofs,
                                 })
-                                .collect();
+                            }
+                            None => {
+                                let error = api_response.error.ok_or_else(|| {
+                                    IndexerError::PhotonError {
+                                        context: "get_queue_elements".to_string(),
+                                        message: "No error details provided".to_string(),
+                                    }
+                                })?;
 
-                            Ok(Response {
-                                context: Context {
-                                    slot: api_result.context.slot,
-                                },
-                                value: proofs,
-                            })
-                        }
-                        None => {
-                            let error = api_response.error.ok_or_else(|| IndexerError::PhotonError {
-                                context: "get_queue_elements".to_string(),
-                                message: "No error details provided".to_string(),
-                            })?;
-
-                            Err(IndexerError::PhotonError {
-                                context: "get_queue_elements".to_string(),
-                                message: error.message.unwrap_or_else(|| "Unknown error".to_string()),
-                            })
-                        }
-                    },
-                    Err(e) => Err(IndexerError::PhotonError {
-                        context: "get_queue_elements".to_string(),
-                        message: e.to_string(),
-                    }),
-                };
+                                Err(IndexerError::PhotonError {
+                                    context: "get_queue_elements".to_string(),
+                                    message: error
+                                        .message
+                                        .unwrap_or_else(|| "Unknown error".to_string()),
+                                })
+                            }
+                        },
+                        Err(e) => Err(IndexerError::PhotonError {
+                            context: "get_queue_elements".to_string(),
+                            message: e.to_string(),
+                        }),
+                    };
 
                 result
             })
