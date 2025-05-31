@@ -191,7 +191,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError> {
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -200,18 +200,6 @@ impl Indexer for SolanaRpcConnection {
             .await?)
     }
 
-    async fn get_multiple_new_address_proofs_h40(
-        &self,
-        merkle_tree_pubkey: [u8; 32],
-        addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_multiple_new_address_proofs_h40(merkle_tree_pubkey, addresses)
-            .await?)
-    }
 
     async fn get_address_queue_with_proofs(
         &mut self,

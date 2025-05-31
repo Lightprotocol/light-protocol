@@ -31,9 +31,9 @@ pub struct MerkleProofWithContext {
 
 #[derive(Debug, Clone)]
 pub struct MerkleProof {
-    pub hash: String,
+    pub hash: [u8; 32],
     pub leaf_index: u64,
-    pub merkle_tree: String,
+    pub merkle_tree: Pubkey,
     pub proof: Vec<[u8; 32]>,
     pub root_seq: u64,
     pub root: [u8; 32],
@@ -54,7 +54,7 @@ pub struct NewAddressProofWithContext {
     pub low_address_value: [u8; 32],
     pub low_address_next_index: u64,
     pub low_address_next_value: [u8; 32],
-    pub low_address_proof: [[u8; 32]; 16],
+    pub low_address_proof: Vec<[u8; 32]>,
     pub new_low_element: Option<IndexedElement<usize>>,
     pub new_element: Option<IndexedElement<usize>>,
     pub new_element_next_value: Option<BigUint>,
@@ -275,4 +275,32 @@ impl TryFrom<&photon_api::models::Account> for Account {
             prove_by_index: false,
         })
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct AddressQueueIndex {
+    pub address: [u8; 32],
+    pub queue_index: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct BatchAddressUpdateIndexerResponse {
+    pub batch_start_index: u64,
+    pub addresses: Vec<AddressQueueIndex>,
+    pub non_inclusion_proofs: Vec<NewAddressProofWithContext>,
+    pub subtrees: Vec<[u8; 32]>,
+}
+
+
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+pub struct StateMerkleTreeAccounts {
+    pub merkle_tree: Pubkey,
+    pub nullifier_queue: Pubkey,
+    pub cpi_context: Pubkey,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AddressMerkleTreeAccounts {
+    pub merkle_tree: Pubkey,
+    pub queue: Pubkey,
 }

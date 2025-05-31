@@ -1,5 +1,15 @@
 use std::{fmt::Debug, time::Duration};
 
+use super::{
+    types::Account, BatchAddressUpdateIndexerResponse, MerkleProofWithContext, ProofRpcResult,
+};
+use crate::indexer::base58::Base58Conversions;
+use crate::indexer::conversions::FromPhotonTokenAccountList;
+use crate::indexer::{
+    tree_info::QUEUE_TREE_MAPPING, Address, AddressWithTree,
+    Hash, Indexer, IndexerError, MerkleProof,
+    NewAddressProofWithContext,
+};
 use async_trait::async_trait;
 use bs58;
 use light_compressed_account::compressed_account::{
@@ -13,15 +23,6 @@ use photon_api::{
 };
 use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
-
-use super::{
-    types::Account, BatchAddressUpdateIndexerResponse, MerkleProofWithContext, ProofRpcResult,
-};
-use crate::indexer::{
-    tree_info::QUEUE_TREE_MAPPING, Address, AddressWithTree, Base58Conversions,
-    FromPhotonTokenAccountList, Hash, Indexer, IndexerError, MerkleProof,
-    NewAddressProofWithContext,
-};
 
 pub struct PhotonIndexer {
     configuration: Configuration,
@@ -223,9 +224,9 @@ impl Indexer for PhotonIndexer {
                         })?;
 
                     Ok(MerkleProof {
-                        hash: x.hash.clone(),
+                        hash: <[u8; 32] as Base58Conversions>::from_base58(&x.hash)?,
                         leaf_index: x.leaf_index,
-                        merkle_tree: x.merkle_tree.clone(),
+                        merkle_tree: Pubkey::from_str_const(x.merkle_tree.as_str()),
                         proof,
                         root_seq: x.root_seq,
                         root: [0u8; 32],
@@ -677,7 +678,7 @@ impl Indexer for PhotonIndexer {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError> {
+    ) -> Result<Vec<NewAddressProofWithContext>, IndexerError> {
         self.retry(|| async {
             let params: Vec<photon_api::models::address_with_tree::AddressWithTree> = addresses
                 .iter()
@@ -753,12 +754,12 @@ impl Indexer for PhotonIndexer {
                 })?;
 
                 let proof = NewAddressProofWithContext {
-                    merkle_tree: tree_pubkey,
+                    merkle_tree: tree_pubkey.into(),
                     low_address_index: photon_proof.low_element_leaf_index,
                     low_address_value,
                     low_address_next_index: photon_proof.next_index,
                     low_address_next_value: next_address_value,
-                    low_address_proof: proof_arr,
+                    low_address_proof: proof_arr.to_vec(),
                     root,
                     root_seq: photon_proof.root_seq,
                     new_low_element: None,
@@ -773,13 +774,6 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
-    async fn get_multiple_new_address_proofs_h40(
-        &self,
-        _merkle_tree_pubkey: [u8; 32],
-        _addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
-        unimplemented!()
-    }
 
     async fn get_validity_proof(
         &self,
@@ -895,10 +889,10 @@ impl Indexer for PhotonIndexer {
                     })
                     .collect();
 
-                let mut proofs: Vec<NewAddressProofWithContext<40>> = vec![];
+                let mut proofs: Vec<NewAddressProofWithContext> = vec![];
                 for proof in response.non_inclusion_proofs {
-                    let proof = NewAddressProofWithContext::<40> {
-                        merkle_tree: merkle_tree_pubkey.to_bytes(),
+                    let proof = NewAddressProofWithContext {
+                        merkle_tree: *merkle_tree_pubkey,
                         low_address_index: proof.low_element_leaf_index,
                         low_address_value: Hash::from_base58(
                             proof.lower_range_address.clone().as_ref(),
@@ -913,9 +907,7 @@ impl Indexer for PhotonIndexer {
                             .proof
                             .iter()
                             .map(|x| Hash::from_base58(x.clone().as_ref()).unwrap())
-                            .collect::<Vec<_>>()
-                            .try_into()
-                            .unwrap(),
+                            .collect(),
                         root: Hash::from_base58(proof.root.clone().as_ref()).unwrap(),
                         root_seq: proof.root_seq,
 
