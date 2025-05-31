@@ -1,20 +1,14 @@
 use std::{fmt::Debug, time::Duration};
 
-use super::{types::Account, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
+use super::{types::{Account, TokenAccount}, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
 use crate::indexer::base58::Base58Conversions;
-use crate::indexer::conversions::FromPhotonTokenAccountList;
 use crate::indexer::{
     Address, AddressWithTree, Hash, Indexer, IndexerError,
     MerkleProof, NewAddressProofWithContext,
 };
 use async_trait::async_trait;
 use bs58;
-#[cfg(feature = "v2")]
-use light_compressed_account::compressed_account::{
-    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
-};
 use light_merkle_tree_metadata::QueueType;
-use light_sdk::token::TokenDataWithMerkleContext;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::{GetCompressedAccountsByOwnerPostRequestParams, TokenBalanceList},
@@ -296,102 +290,6 @@ impl Indexer for PhotonIndexer {
     }
 
 
-    async fn get_compressed_token_accounts_by_owner_v2(
-        &self,
-        _owner: &Pubkey,
-        _mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_compressed_token_accounts_by_owner_v2");
-        #[cfg(feature = "v2")]
-        {
-            use std::str::FromStr;
-            let owner = _owner;
-            let mint = _mint;
-            self.retry(|| async {
-                let request = photon_api::models::GetCompressedTokenAccountsByOwnerV2PostRequest {
-                    params: Box::from(
-                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
-                            cursor: None,
-                            limit: None,
-                            mint: mint.map(|x| x.to_string()),
-                            owner: owner.to_string(),
-                        },
-                    ),
-                    ..Default::default()
-                };
-                let result =
-                    photon_api::apis::default_api::get_compressed_token_accounts_by_owner_v2_post(
-                        &self.configuration,
-                        request,
-                    )
-                    .await?;
-
-                let accounts = *result.result.unwrap().value;
-
-                let mut token_data: Vec<TokenDataWithMerkleContext> = Vec::new();
-                for account in accounts.items.iter() {
-                    let token_data_with_merkle_context = TokenDataWithMerkleContext {
-                        token_data: light_sdk::token::TokenData {
-                            mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
-                            owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
-                            amount: account.token_data.amount,
-                            delegate: account
-                                .token_data
-                                .delegate
-                                .as_ref()
-                                .map(|x| Pubkey::from_str(x).unwrap()),
-                            state: if account.token_data.state
-                                == photon_api::models::account_state::AccountState::Initialized
-                            {
-                                light_sdk::token::AccountState::Initialized
-                            } else {
-                                light_sdk::token::AccountState::Frozen
-                            },
-                            tlv: None,
-                        },
-                        compressed_account: CompressedAccountWithMerkleContext {
-                            compressed_account: CompressedAccount {
-                                owner: Pubkey::from_str(&account.account.owner).unwrap(),
-                                lamports: account.account.lamports,
-                                address: account
-                                    .account
-                                    .address
-                                    .as_ref()
-                                    .map(|x| Hash::from_base58(x).unwrap()),
-                                data: account.account.data.as_ref().map(|data| {
-                                    CompressedAccountData {
-                                        discriminator: data.discriminator.to_le_bytes(),
-                                        data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD).unwrap(),
-                                        data_hash: Hash::from_base58(&data.data_hash).unwrap(),
-                                    }
-                                }),
-                            },
-                            merkle_context: MerkleContext {
-                                merkle_tree_pubkey: Pubkey::from_str(
-                                    &account.account.merkle_context.tree,
-                                )
-                                .unwrap(),
-                                queue_pubkey: Pubkey::from_str(
-                                    &account.account.merkle_context.queue,
-                                )
-                                .unwrap(),
-                                leaf_index: account.account.leaf_index,
-                                tree_type: light_compressed_account::TreeType::from(
-                                    account.account.merkle_context.tree_type as u64,
-                                ),
-                                prove_by_index: account.account.prove_by_index,
-                            },
-                        },
-                    };
-                    token_data.push(token_data_with_merkle_context);
-                }
-
-                Ok(token_data)
-            })
-            .await
-        }
-    }
 
     async fn get_compressed_account(
         &self,
@@ -424,30 +322,65 @@ impl Indexer for PhotonIndexer {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+    ) -> Result<Vec<TokenAccount>, IndexerError> {
         self.retry(|| async {
-            let request = photon_api::models::GetCompressedTokenAccountsByOwnerPostRequest {
-                params: Box::new(
-                    photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
-                    },
-                ),
-                ..Default::default()
-            };
+            #[cfg(feature = "v2")]
+            {
+                let request = photon_api::models::GetCompressedTokenAccountsByOwnerV2PostRequest {
+                    params: Box::from(
+                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
+                            cursor: None,
+                            limit: None,
+                            mint: mint.map(|x| x.to_string()),
+                            owner: owner.to_string(),
+                        },
+                    ),
+                    ..Default::default()
+                };
+                let result =
+                    photon_api::apis::default_api::get_compressed_token_accounts_by_owner_v2_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
+                let accounts = result.result.ok_or(IndexerError::AccountNotFound)?.value;
+                let token_accounts: Result<Vec<_>, _> = accounts.items
+                    .iter()
+                    .map(|acc| TokenAccount::try_from(acc))
+                    .collect();
+                
+                Ok(token_accounts?)
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetCompressedTokenAccountsByOwnerPostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
+                            owner: owner.to_string(),
+                            mint: mint.map(|x| x.to_string()),
+                            cursor: None,
+                            limit: None,
+                        },
+                    ),
+                    ..Default::default()
+                };
 
-            let result =
-                photon_api::apis::default_api::get_compressed_token_accounts_by_owner_post(
-                    &self.configuration,
-                    request,
-                )
-                .await?;
+                let result =
+                    photon_api::apis::default_api::get_compressed_token_accounts_by_owner_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
 
-            let response =
-                Self::extract_result("get_compressed_token_accounts_by_owner", result.result)?;
-            Ok(response.value.into_token_data_vec())
+                let response =
+                    Self::extract_result("get_compressed_token_accounts_by_owner", result.result)?;
+                let token_accounts: Result<Vec<_>, _> = response.value.items
+                    .iter()
+                    .map(|acc| TokenAccount::try_from(acc))
+                    .collect();
+                
+                Ok(token_accounts?)
+            }
         })
         .await
     }

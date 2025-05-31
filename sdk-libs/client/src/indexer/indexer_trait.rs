@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 use light_merkle_tree_metadata::QueueType;
-use light_sdk::token::TokenDataWithMerkleContext;
 use photon_api::models::TokenBalanceList;
 use solana_pubkey::Pubkey;
 
-use super::types::{Account, ProofRpcResult};
+use super::types::{Account, ProofRpcResult, TokenAccount};
 use super::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, IndexerError, MerkleProof,
     MerkleProofWithContext, NewAddressProofWithContext,
@@ -24,12 +23,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         owner: &Pubkey,
     ) -> Result<Vec<Account>, IndexerError>;
 
-    async fn get_compressed_token_accounts_by_owner_v2(
-        &self,
-        owner: &Pubkey,
-        mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError>;
-
     async fn get_compressed_account(
         &self,
         address: Option<Address>,
@@ -40,7 +33,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError>;
+    ) -> Result<Vec<TokenAccount>, IndexerError>;
 
     async fn get_compressed_account_balance(
         &self,

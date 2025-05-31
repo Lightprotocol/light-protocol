@@ -2,14 +2,15 @@ use light_compressed_account::compressed_account::CompressedAccountWithMerkleCon
 
 use crate::{AnchorDeserialize, AnchorSerialize, Pubkey};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Default)]
 #[repr(u8)]
 pub enum AccountState {
+    #[default]
     Initialized,
     Frozen,
 }
 // TODO: extract token data from program into into a separate crate, import it and remove this file.
-#[derive(Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Clone)]
+#[derive(Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Clone, Default)]
 pub struct TokenData {
     /// The mint associated with this account
     pub mint: Pubkey,

@@ -3,7 +3,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
-use light_sdk::{verifier::CompressedProof, ValidityProof};
+use light_sdk::{verifier::CompressedProof, ValidityProof, token::{TokenData, AccountState}};
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
 
@@ -510,4 +510,81 @@ pub struct StateMerkleTreeAccounts {
 pub struct AddressMerkleTreeAccounts {
     pub merkle_tree: Pubkey,
     pub queue: Pubkey,
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct TokenAccount {
+    /// Token-specific data (mint, owner, amount, delegate, state, tlv)
+    pub token: TokenData,
+    /// General account information (address, hash, lamports, merkle context, etc.)
+    pub account: Account,
+}
+
+impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
+    type Error = IndexerError;
+
+    fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
+        let account = Account::try_from(token_account.account.as_ref())?;
+        
+        let token = TokenData {
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.mint)?),
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.owner)?),
+            amount: token_account.token_data.amount,
+            delegate: token_account.token_data.delegate
+                .as_ref()
+                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
+                .transpose()?,
+            state: match token_account.token_data.state {
+                photon_api::models::AccountState::Initialized => AccountState::Initialized,
+                photon_api::models::AccountState::Frozen => AccountState::Frozen,
+            },
+            tlv: token_account.token_data.tlv
+                .as_ref()
+                .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
+                .transpose()
+                .map_err(|_| IndexerError::InvalidResponseData)?,
+        };
+
+        Ok(TokenAccount { token, account })
+    }
+}
+
+impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
+    type Error = IndexerError;
+
+    fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
+        let account = Account::try_from(token_account.account.as_ref())?;
+        
+        let token = TokenData {
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.mint)?),
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_account.token_data.owner)?),
+            amount: token_account.token_data.amount,
+            delegate: token_account.token_data.delegate
+                .as_ref()
+                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
+                .transpose()?,
+            state: match token_account.token_data.state {
+                photon_api::models::AccountState::Initialized => AccountState::Initialized,
+                photon_api::models::AccountState::Frozen => AccountState::Frozen,
+            },
+            tlv: token_account.token_data.tlv
+                .as_ref()
+                .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
+                .transpose()
+                .map_err(|_| IndexerError::InvalidResponseData)?,
+        };
+
+        Ok(TokenAccount { token, account })
+    }
+}
+
+impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
+    fn into(self) -> light_sdk::token::TokenDataWithMerkleContext {
+        let compressed_account = CompressedAccountWithMerkleContext::from(self.account);
+        
+        light_sdk::token::TokenDataWithMerkleContext {
+            token_data: self.token,
+            compressed_account,
+        }
+    }
 }
