@@ -4,11 +4,12 @@ use super::{types::Account, BatchAddressUpdateIndexerResponse, MerkleProofWithCo
 use crate::indexer::base58::Base58Conversions;
 use crate::indexer::conversions::FromPhotonTokenAccountList;
 use crate::indexer::{
-    tree_info::QUEUE_TREE_MAPPING, Address, AddressWithTree, Hash, Indexer, IndexerError,
+    Address, AddressWithTree, Hash, Indexer, IndexerError,
     MerkleProof, NewAddressProofWithContext,
 };
 use async_trait::async_trait;
 use bs58;
+#[cfg(feature = "v2")]
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
@@ -237,72 +238,10 @@ impl Indexer for PhotonIndexer {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+    ) -> Result<Vec<super::types::Account>, IndexerError> {
         self.retry(|| async {
-            let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
-                params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
-                    cursor: None,
-                    data_slice: None,
-                    filters: None,
-                    limit: None,
-                    owner: owner.to_string(),
-                }),
-                ..Default::default()
-            };
-            let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
-            let accs = result.result.ok_or(IndexerError::AccountNotFound)?.value;
-            let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
-
-            for acc in accs.items {
-                let compressed_account = CompressedAccount {
-                    owner: Pubkey::from(Hash::from_base58(&acc.owner)?),
-                    lamports: acc.lamports,
-                    address: acc
-                        .address
-                        .map(|address| Hash::from_base58(&address).unwrap()),
-                    data: acc.data.map(|data| CompressedAccountData {
-                        discriminator: data.discriminator.to_le_bytes(),
-                        data: base64::decode(data.data).unwrap(),
-                        data_hash: Hash::from_base58(&data.data_hash).unwrap(),
-                    }),
-                };
-                let tree_info = QUEUE_TREE_MAPPING
-                    .get(&acc.tree)
-                    .ok_or(IndexerError::InvalidResponseData)?;
-                let merkle_context = MerkleContext {
-                    merkle_tree_pubkey: tree_info.tree,
-                    queue_pubkey: tree_info.queue,
-                    leaf_index: acc.leaf_index,
-                    tree_type: tree_info.tree_type,
-                    prove_by_index: false,
-                };
-
-                let account = CompressedAccountWithMerkleContext {
-                    compressed_account,
-                    merkle_context,
-                };
-                accounts.push(account);
-            }
-
-            Ok(accounts)
-        })
-        .await
-    }
-
-    async fn get_compressed_accounts_by_owner_v2(
-        &self,
-        _owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_multiple_compressed_account_proofs");
-        #[cfg(feature = "v2")]
-        {
-            let owner = _owner;
-            self.retry(|| async {
+            #[cfg(feature = "v2")]
+            {
                 let request = photon_api::models::GetCompressedAccountsByOwnerV2PostRequest {
                     params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
                         cursor: None,
@@ -320,49 +259,42 @@ impl Indexer for PhotonIndexer {
                     )
                     .await?;
                 let accs = result.result.ok_or(IndexerError::AccountNotFound)?.value;
-                let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
-
-                for acc in accs.items {
-                    let compressed_account = CompressedAccount {
-                        owner: Pubkey::from(Hash::from_base58(&acc.owner)?),
-                        lamports: acc.lamports,
-                        address: acc
-                            .address
-                            .map(|address| Hash::from_base58(&address).unwrap()),
-                        data: acc.data.map(|data| CompressedAccountData {
-                            discriminator: data.discriminator.to_le_bytes(),
-                            data: base64::decode(data.data).unwrap(),
-                            data_hash: Hash::from_base58(&data.data_hash).unwrap(),
-                        }),
-                    };
-
-                    let nullifier_queue_pubkey =
-                        Pubkey::from(Hash::from_base58(&acc.merkle_context.queue).unwrap());
-
-                    let merkle_context = MerkleContext {
-                        merkle_tree_pubkey: Pubkey::from(
-                            Hash::from_base58(&acc.merkle_context.tree).unwrap(),
-                        ),
-                        queue_pubkey: nullifier_queue_pubkey,
-                        leaf_index: acc.leaf_index,
-                        tree_type: light_compressed_account::TreeType::from(
-                            acc.merkle_context.tree_type as u64,
-                        ),
-                        prove_by_index: false, // TODO: implement
-                    };
-
-                    let account = CompressedAccountWithMerkleContext {
-                        compressed_account,
-                        merkle_context,
-                    };
-                    accounts.push(account);
-                }
-
-                Ok(accounts)
-            })
-            .await
-        }
+                let accounts: Result<Vec<_>, _> = accs.items
+                    .iter()
+                    .map(|acc| super::types::Account::try_from(acc))
+                    .collect();
+                
+                Ok(accounts?)
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
+                    params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
+                        cursor: None,
+                        data_slice: None,
+                        filters: None,
+                        limit: None,
+                        owner: owner.to_string(),
+                    }),
+                    ..Default::default()
+                };
+                let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+                let accs = result.result.ok_or(IndexerError::AccountNotFound)?.value;
+                let accounts: Result<Vec<_>, _> = accs.items
+                    .iter()
+                    .map(|acc| super::types::Account::try_from(acc))
+                    .collect();
+                
+                Ok(accounts?)
+            }
+        })
+        .await
     }
+
 
     async fn get_compressed_token_accounts_by_owner_v2(
         &self,
@@ -430,7 +362,7 @@ impl Indexer for PhotonIndexer {
                                 data: account.account.data.as_ref().map(|data| {
                                     CompressedAccountData {
                                         discriminator: data.discriminator.to_le_bytes(),
-                                        data: base64::decode(&data.data).unwrap(),
+                                        data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD).unwrap(),
                                         data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                                     }
                                 }),

@@ -1,12 +1,14 @@
 use async_trait::async_trait;
-use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_merkle_tree_metadata::QueueType;
 use light_sdk::token::TokenDataWithMerkleContext;
 use photon_api::models::TokenBalanceList;
 use solana_pubkey::Pubkey;
 
-use super::{IndexerError, MerkleProof, Address, Hash, AddressWithTree, MerkleProofWithContext, NewAddressProofWithContext, BatchAddressUpdateIndexerResponse};
 use super::types::{Account, ProofRpcResult};
+use super::{
+    Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, IndexerError, MerkleProof,
+    MerkleProofWithContext, NewAddressProofWithContext,
+};
 
 #[async_trait]
 pub trait Indexer: std::marker::Send + std::marker::Sync {
@@ -20,12 +22,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
-
-    async fn get_compressed_accounts_by_owner_v2(
-        &self,
-        owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
+    ) -> Result<Vec<Account>, IndexerError>;
 
     async fn get_compressed_token_accounts_by_owner_v2(
         &self,
@@ -79,7 +76,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext>, IndexerError>;
-
 
     async fn get_validity_proof(
         &self,

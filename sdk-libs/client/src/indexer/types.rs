@@ -1,5 +1,5 @@
 use light_compressed_account::{
-    compressed_account::{CompressedAccountData, CompressedAccountWithMerkleContext},
+    compressed_account::{CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext},
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
@@ -7,7 +7,7 @@ use light_sdk::{verifier::CompressedProof, ValidityProof};
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
 
-use super::{base58::decode_base58_to_fixed_array, tree_info::QUEUE_TREE_MAPPING, IndexerError};
+use super::{base58::{decode_base58_to_fixed_array, decode_base58_option_to_pubkey}, tree_info::QUEUE_TREE_MAPPING, IndexerError};
 
 pub struct ProofOfLeaf {
     pub leaf: [u8; 32],
@@ -264,12 +264,20 @@ impl TreeContextInfo {
             tree_type: value.tree_type,
             tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
             queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: value
-                .cpi_context
-                .as_ref()
-                .map(|ctx| decode_base58_to_fixed_array(ctx))
-                .transpose()?
-                .map(Pubkey::new_from_array),
+            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
+        })
+    }
+}
+
+impl TryFrom<&photon_api::models::TreeContextInfo> for TreeContextInfo {
+    type Error = IndexerError;
+
+    fn try_from(value: &photon_api::models::TreeContextInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            tree_type: value.tree_type,
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
+            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
         })
     }
 }
@@ -291,18 +299,23 @@ impl MerkleContext {
             tree_type: TreeType::from(value.tree_type as u64),
             tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
             queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: value
-                .cpi_context
-                .as_ref()
-                .map(|ctx| decode_base58_to_fixed_array(ctx))
-                .transpose()?
-                .map(Pubkey::new_from_array),
+            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
             next_tree_context: value
                 .next_tree_context
                 .as_ref()
                 .map(|ctx| TreeContextInfo::from_api_model(ctx))
                 .transpose()?,
         })
+    }
+
+    pub fn to_light_merkle_context(&self, leaf_index: u32, prove_by_index: bool) -> light_compressed_account::compressed_account::MerkleContext {
+        light_compressed_account::compressed_account::MerkleContext {
+            merkle_tree_pubkey: self.tree,
+            queue_pubkey: self.queue,
+            leaf_index,
+            tree_type: self.tree_type,
+            prove_by_index,
+        }
     }
 }
 
@@ -345,6 +358,76 @@ impl TryFrom<CompressedAccountWithMerkleContext> for Account {
             prove_by_index: account.merkle_context.prove_by_index,
             seq: None,
             slot_created: u64::MAX,
+        })
+    }
+}
+
+impl From<Account> for CompressedAccountWithMerkleContext {
+    fn from(account: Account) -> Self {
+        let compressed_account = CompressedAccount {
+            owner: account.owner,
+            lamports: account.lamports,
+            address: account.address,
+            data: account.data,
+        };
+        
+        let merkle_context = account.merkle_context.to_light_merkle_context(
+            account.leaf_index,
+            account.prove_by_index,
+        );
+
+        CompressedAccountWithMerkleContext {
+            compressed_account,
+            merkle_context,
+        }
+    }
+}
+
+impl TryFrom<&photon_api::models::AccountV2> for Account {
+    type Error = IndexerError;
+
+    fn try_from(account: &photon_api::models::AccountV2) -> Result<Self, Self::Error> {
+        let data = if let Some(data) = &account.data {
+            Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
+                discriminator: data.discriminator.to_le_bytes(),
+                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                    .map_err(|_| IndexerError::InvalidResponseData)?,
+                data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
+            }))
+        } else {
+            Ok::<Option<CompressedAccountData>, IndexerError>(None)
+        }?;
+
+        let owner = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner)?);
+        let address = account
+            .address
+            .as_ref()
+            .map(|address| decode_base58_to_fixed_array(address))
+            .transpose()?;
+        let hash = decode_base58_to_fixed_array(&account.hash)?;
+
+        let merkle_context = MerkleContext {
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.tree)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.queue)?),
+            tree_type: TreeType::from(account.merkle_context.tree_type as u64),
+            cpi_context: decode_base58_option_to_pubkey(&account.merkle_context.cpi_context)?,
+            next_tree_context: account.merkle_context.next_tree_context
+                .as_ref()
+                .map(|ctx| TreeContextInfo::try_from(ctx.as_ref()))
+                .transpose()?,
+        };
+
+        Ok(Account {
+            owner,
+            address,
+            data,
+            hash,
+            lamports: account.lamports,
+            leaf_index: account.leaf_index,
+            seq: account.seq,
+            slot_created: account.slot_created,
+            merkle_context,
+            prove_by_index: account.prove_by_index,
         })
     }
 }

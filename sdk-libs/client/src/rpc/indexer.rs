@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use light_compressed_account::{compressed_account::CompressedAccountWithMerkleContext, QueueType};
+use light_compressed_account::QueueType;
 use light_sdk::token::TokenDataWithMerkleContext;
 use photon_api::models::TokenBalanceList;
 use solana_pubkey::Pubkey;
@@ -50,24 +50,12 @@ impl Indexer for SolanaRpcConnection {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+    ) -> Result<Vec<Account>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
             .get_compressed_accounts_by_owner(owner)
-            .await?)
-    }
-
-    async fn get_compressed_accounts_by_owner_v2(
-        &self,
-        owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_accounts_by_owner_v2(owner)
             .await?)
     }
 
