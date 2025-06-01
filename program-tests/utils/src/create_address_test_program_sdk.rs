@@ -110,7 +110,7 @@ pub async fn perform_create_pda_with_event<
     };
 
     let rpc_result = test_indexer
-        .get_validity_proof(Vec::new(), vec![address_with_tree])
+        .get_validity_proof(Vec::new(), vec![address_with_tree], None)
         .await
         .unwrap();
 
@@ -118,13 +118,13 @@ pub async fn perform_create_pda_with_event<
         seed,
         address_merkle_tree_pubkey: env.v2_address_trees[0],
         address_queue_pubkey: env.v2_address_trees[0],
-        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+        address_merkle_tree_root_index: rpc_result.value.addresses[0].root_index,
     };
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
         data: *data,
         signer: &payer.pubkey(),
         output_compressed_account_merkle_tree_pubkey: &env.v2_state_trees[0].output_queue,
-        proof: &rpc_result.proof,
+        proof: &rpc_result.value.compressed_proof.0.unwrap(),
         new_address_params,
         registered_program_pda: &env.protocol.registered_program_pda,
     };
