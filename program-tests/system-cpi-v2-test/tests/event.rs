@@ -142,21 +142,21 @@ async fn parse_batched_event_functional() {
             .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await;
 
-        let proof_result = proof_res.unwrap();
+        let proof_result = proof_res.unwrap().value;
 
         let new_address_params = vec![
             NewAddressParamsAssigned {
                 seed: [1u8; 32],
                 address_queue_pubkey: env.v1_address_trees[0].queue,
                 address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
-                address_merkle_tree_root_index: proof_result.address_root_indices[0],
+                address_merkle_tree_root_index: proof_result.get_address_root_indices()[0],
                 assigned_account_index: None,
             },
             NewAddressParamsAssigned {
                 seed: [2u8; 32],
                 address_queue_pubkey: env.v1_address_trees[0].queue,
                 address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
-                address_merkle_tree_root_index: proof_result.address_root_indices[1],
+                address_merkle_tree_root_index: proof_result.get_address_root_indices()[1],
                 assigned_account_index: None,
             },
         ];
@@ -167,7 +167,7 @@ async fn parse_batched_event_functional() {
             output_accounts,
             new_address_params,
             None,
-            proof_result.proof,
+            proof_result.compressed_proof.0,
         )
         .await
         .unwrap()
@@ -295,21 +295,21 @@ async fn parse_batched_event_functional() {
             .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await;
 
-        let proof_result = proof_res.unwrap();
+        let proof_result = proof_res.unwrap().value;
 
         let new_address_params = vec![
             NewAddressParamsAssigned {
                 seed: [1u8; 32],
                 address_queue_pubkey: env.v2_address_trees[0],
                 address_merkle_tree_pubkey: env.v2_address_trees[0],
-                address_merkle_tree_root_index: proof_result.address_root_indices[0],
+                address_merkle_tree_root_index: proof_result.get_address_root_indices()[0],
                 assigned_account_index: None,
             },
             NewAddressParamsAssigned {
                 seed: [2u8; 32],
                 address_queue_pubkey: env.v2_address_trees[0],
                 address_merkle_tree_pubkey: env.v2_address_trees[0],
-                address_merkle_tree_root_index: proof_result.address_root_indices[1],
+                address_merkle_tree_root_index: proof_result.get_address_root_indices()[1],
                 assigned_account_index: None,
             },
         ];
@@ -320,7 +320,7 @@ async fn parse_batched_event_functional() {
             output_accounts,
             new_address_params,
             None,
-            proof_result.proof,
+            proof_result.compressed_proof.0,
         )
         .await
         .unwrap()

@@ -209,7 +209,7 @@ async fn create_escrow_ix(
         seed,
         address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
         address_queue_pubkey: env.v1_address_trees[0].queue,
-        address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
+        address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
     };
     let create_ix_inputs = CreateCompressedPdaEscrowInstructionInputs {
         input_token_data: &[sdk_to_program_token_data(

@@ -84,7 +84,6 @@ impl Default for RetryConfig {
 
 #[async_trait]
 pub trait Indexer: std::marker::Send + std::marker::Sync {
-    // No response type needed
     async fn get_indexer_slot(&self, config: Option<RetryConfig>) -> Result<u64, IndexerError>;
 
     async fn get_multiple_compressed_account_proofs(

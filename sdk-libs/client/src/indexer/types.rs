@@ -85,7 +85,7 @@ impl ValidityProofWithContext {
             .collect()
     }
 
-    pub fn get_address_indices(&self) -> Vec<u16> {
+    pub fn get_address_root_indices(&self) -> Vec<u16> {
         self.addresses
             .iter()
             .map(|address| address.root_index)

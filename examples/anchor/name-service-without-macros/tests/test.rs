@@ -316,7 +316,7 @@ where
     let account = LightAccountMeta::new_init(
         &env.v1_state_trees[0].merkle_tree,
         Some(&address_merkle_context),
-        Some(rpc_result.value.get_address_indices()[0]),
+        Some(rpc_result.value.get_address_root_indices()[0]),
         remaining_accounts,
     )
     .unwrap();

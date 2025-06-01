@@ -125,7 +125,7 @@ async fn with_nested_data(
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut remaining_accounts,
-        rpc_result.value.get_address_indices()[0],
+        rpc_result.value.get_address_root_indices()[0],
     );
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();

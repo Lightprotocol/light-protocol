@@ -105,7 +105,7 @@ pub async fn create_pda(
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut accounts,
-        rpc_result.value.get_address_indices()[0],
+        rpc_result.value.get_address_root_indices()[0],
     );
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 

@@ -204,7 +204,10 @@ async fn test_state_indexer_batched() {
         .iter()
         .zip(compressed_balance_test_indexer.value.iter())
     {
-        assert_eq!(photon_account, test_indexer_account);
+        let mut photon_account = photon_account.clone();
+        // Test indexer slot created is MAX
+        photon_account.slot_created = u64::MAX;
+        assert_eq!(photon_account, *test_indexer_account);
     }
 
     for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
@@ -243,7 +246,10 @@ async fn test_state_indexer_batched() {
             .iter()
             .zip(compressed_balance_test_indexer.value.iter())
         {
-            assert_eq!(photon_account, test_indexer_account);
+            let mut photon_account = photon_account.clone();
+            // Test indexer slot created is MAX
+            photon_account.slot_created = u64::MAX;
+            assert_eq!(photon_account, *test_indexer_account);
         }
 
         let to_pubkey = Pubkey::new_unique();

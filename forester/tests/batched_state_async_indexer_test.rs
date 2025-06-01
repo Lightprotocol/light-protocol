@@ -995,7 +995,7 @@ async fn create_v1_address<R: RpcConnection, I: Indexer>(
     let mut new_address_params = Vec::new();
     for (seed, root_index) in seeds
         .iter()
-        .zip(proof_for_addresses.value.get_address_indices().iter())
+        .zip(proof_for_addresses.value.get_address_root_indices().iter())
     {
         new_address_params.push(NewAddressParams {
             seed: *seed,

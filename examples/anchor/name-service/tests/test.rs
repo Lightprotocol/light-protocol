@@ -327,7 +327,7 @@ where
         merkle_context: *merkle_context,
         merkle_tree_root_index: 0,
         address_merkle_context: *address_merkle_context,
-        address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
+        address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
         name: name.to_string(),
         rdata: rdata.clone(),
     };

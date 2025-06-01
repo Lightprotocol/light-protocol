@@ -301,7 +301,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             seed: address_seeds[0],
             address_merkle_tree_pubkey: *batch_address_merkle_tree,
             address_queue_pubkey: *batch_address_merkle_tree,
-            address_merkle_tree_root_index: proof_result.value.get_address_indices()[0],
+            address_merkle_tree_root_index: proof_result.value.get_address_root_indices()[0],
         };
 
         let create_ix_inputs = CreateCompressedPdaInstructionInputs {
@@ -335,7 +335,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
                 seed: *seed,
                 address_queue_pubkey: *batch_address_merkle_tree,
                 address_merkle_tree_pubkey: *batch_address_merkle_tree,
-                address_merkle_tree_root_index: proof_result.value.get_address_indices()[i],
+                address_merkle_tree_root_index: proof_result.value.get_address_root_indices()[i],
                 assigned_account_index: None,
             })
             .collect::<Vec<_>>();
