@@ -3015,7 +3015,10 @@ where
             .await
             .unwrap();
         // clean up dust so that we don't run into issues that account balances are too low
-        user_token_accounts.value.items.retain(|t| t.token.amount > 1000);
+        user_token_accounts
+            .value
+            .items
+            .retain(|t| t.token.amount > 1000);
         let mut token_accounts_with_mint: Vec<TokenDataWithMerkleContext>;
         let mint;
         let tree_version;

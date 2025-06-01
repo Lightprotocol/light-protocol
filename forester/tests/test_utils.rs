@@ -144,8 +144,13 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
             panic!("Test indexer error: {:?}", address_proof_test_indexer);
         }
 
-        let photon_result: NewAddressProofWithContext =
-            address_proof_photon.unwrap().value.first().unwrap().clone();
+        let photon_result: NewAddressProofWithContext = address_proof_photon
+            .unwrap()
+            .value
+            .items
+            .first()
+            .unwrap()
+            .clone();
         let test_indexer_result: NewAddressProofWithContext = address_proof_test_indexer
             .unwrap()
             .value
@@ -211,20 +216,20 @@ pub async fn assert_accounts_by_owner<I: Indexer + TestIndexerExtensions>(
         .get_compressed_accounts_by_owner(&user.keypair.pubkey(), None, None)
         .await
         .unwrap();
-    test_accs.sort_by_key(|a| a.hash);
+    test_accs.value.items.sort_by_key(|a| a.hash);
 
     debug!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
         user.keypair.pubkey().to_string(),
-        test_accs.len(),
+        test_accs.value.items.len(),
         photon_accs.len()
     );
-    assert_eq!(test_accs.len(), photon_accs.len());
+    assert_eq!(test_accs.value.items.len(), photon_accs.len());
 
     debug!("test_accs: {:?}", test_accs);
     debug!("photon_accs: {:?}", photon_accs);
 
-    for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
+    for (test_acc, indexer_acc) in test_accs.value.items.iter().zip(photon_accs.iter()) {
         assert_eq!(test_acc, indexer_acc);
     }
 }
@@ -238,7 +243,7 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
     photon_indexer: &PhotonIndexer,
 ) {
     let accs = indexer
-        .get_compressed_accounts_by_owner(user_pubkey, None, None, None)
+        .get_compressed_accounts_by_owner(user_pubkey, None, None)
         .await;
     for account in accs.unwrap().value.items {
         let photon_result = photon_indexer
@@ -256,8 +261,8 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
             panic!("Test indexer error: {:?}", test_indexer_result);
         }
 
-        let photon_result = photon_result.unwrap().items;
-        let test_indexer_result = test_indexer_result.unwrap().items;
+        let photon_result = photon_result.unwrap().value.items;
+        let test_indexer_result = test_indexer_result.unwrap().value.items;
 
         assert_eq!(photon_result.len(), test_indexer_result.len());
         for (photon_proof, test_indexer_proof) in

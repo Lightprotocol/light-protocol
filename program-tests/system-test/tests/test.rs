@@ -2339,7 +2339,7 @@ async fn batch_invoke_test() {
             .get_compressed_accounts_by_owner(&payer_pubkey, None, None)
             .await
             .unwrap();
-        let accounts = accounts.value;
+        let accounts = accounts.value.items;
         let accounts = accounts
             .iter()
             .filter(|x| x.merkle_context.queue == output_queue_pubkey)

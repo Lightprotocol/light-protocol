@@ -80,7 +80,8 @@ async fn test_counter() {
         .get_compressed_accounts_by_owner(&counter::ID, None, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .items;
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account: CompressedAccountWithMerkleContext =
         compressed_accounts[0].clone().into();
@@ -103,7 +104,8 @@ async fn test_counter() {
         .get_compressed_accounts_by_owner(&counter::ID, None, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .items;
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account: CompressedAccountWithMerkleContext =
         compressed_accounts[0].clone().into();
@@ -126,7 +128,8 @@ async fn test_counter() {
         .get_compressed_accounts_by_owner(&counter::ID, None, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .items;
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account: CompressedAccountWithMerkleContext =
         compressed_accounts[0].clone().into();
@@ -149,7 +152,7 @@ async fn test_counter() {
         .get_compressed_accounts_by_owner(&counter::ID, None, None)
         .await
         .unwrap();
-    assert_eq!(compressed_accounts.value.len(), 0);
+    assert_eq!(compressed_accounts.value.items.len(), 0);
 }
 
 async fn create_counter<R>(
@@ -177,8 +180,7 @@ where
         )
         .await
         .unwrap()
-        .value
-        .items;
+        .value;
 
     let output_merkle_tree_index = remaining_accounts.insert_or_get(output_merkle_tree);
     let packed_address_merkle_context = pack_address_merkle_context(
@@ -231,7 +233,8 @@ where
     let rpc_result = rpc
         .get_validity_proof(Vec::from(&[hash]), vec![], None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
 
     let packed_merkle_context =
         pack_merkle_context(&compressed_account.merkle_context, &mut remaining_accounts);

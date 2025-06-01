@@ -7,7 +7,10 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer},
+    indexer::{
+        photon_indexer::PhotonIndexer, AddressWithTree,
+        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
+    },
     rpc::{
         rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
         SolanaRpcConnection,
@@ -347,10 +350,21 @@ async fn get_token_accounts<I: Indexer>(
     mint: &Pubkey,
 ) -> Vec<TokenDataWithMerkleContext> {
     let accounts = indexer
-        .get_compressed_token_accounts_by_owner(owner, Some(*mint), None)
+        .get_compressed_token_accounts_by_owner(
+            owner,
+            Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions {
+                mint: Some(*mint),
+                cursor: None,
+                limit: None,
+            }),
+            None,
+        )
         .await
         .unwrap();
-    println!("Found {} compressed token accounts", accounts.value.len());
+    println!(
+        "Found {} compressed token accounts",
+        accounts.value.items.len()
+    );
     accounts.into()
 }
 
@@ -658,7 +672,15 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
     let mut input_compressed_accounts: Vec<TokenDataWithMerkleContext> = indexer
-        .get_compressed_token_accounts_by_owner(&payer.pubkey(), Some(*mint), None)
+        .get_compressed_token_accounts_by_owner(
+            &payer.pubkey(),
+            Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions {
+                mint: Some(*mint),
+                cursor: None,
+                limit: None,
+            }),
+            None,
+        )
         .await
         .unwrap()
         .into();
@@ -785,7 +807,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
     let input_compressed_accounts = indexer
         .get_compressed_accounts_by_owner(&payer.pubkey(), None, None)
         .await
-        .map(|response| response.value)
+        .map(|response| response.value.items)
         .unwrap_or(vec![]);
     let mut input_compressed_accounts = if V2 {
         input_compressed_accounts

@@ -154,15 +154,15 @@ async fn test_all_endpoints() {
         .await
         .unwrap()
         .value;
-    assert!(!accounts.is_empty());
-    let first_account = accounts[0].clone();
+    assert!(!accounts.items.is_empty());
+    let first_account = accounts.items[0].clone();
     let seed = rand::random::<[u8; 32]>();
     let new_addresses = vec![AddressWithTree {
         address: hash_to_bn254_field_size_be(&seed),
         tree: test_accounts.v1_address_trees[0].merkle_tree,
     }];
 
-    let account_hashes: Vec<Hash> = accounts.iter().map(|a| a.hash).collect();
+    let account_hashes: Vec<Hash> = accounts.items.iter().map(|a| a.hash).collect();
     let accounts = rpc
         .indexer()
         .unwrap()
@@ -171,8 +171,8 @@ async fn test_all_endpoints() {
         .unwrap()
         .value;
 
-    assert!(!accounts.is_empty());
-    assert_eq!(accounts[0].hash, first_account.hash);
+    assert!(!accounts.items.is_empty());
+    assert_eq!(accounts.items[0].hash, first_account.hash);
 
     let result = rpc
         .indexer()
@@ -197,7 +197,7 @@ async fn test_all_endpoints() {
     let balance = rpc
         .indexer()
         .unwrap()
-        .get_compressed_account_balance(None, Some(first_account.hash), None)
+        .get_compressed_balance(None, Some(first_account.hash), None)
         .await
         .unwrap()
         .value;
@@ -211,7 +211,7 @@ async fn test_all_endpoints() {
         .unwrap()
         .value;
     assert_eq!(
-        signatures[0],
+        signatures.items[0].signature,
         tx_create_compressed_account.signatures[0].to_string()
     );
 
@@ -223,10 +223,10 @@ async fn test_all_endpoints() {
         .unwrap()
         .value;
 
-    assert_eq!(token_accounts[0].token.mint, mint.pubkey());
-    assert_eq!(token_accounts[0].token.owner, payer_pubkey);
+    assert_eq!(token_accounts.items[0].token.mint, mint.pubkey());
+    assert_eq!(token_accounts.items[0].token.owner, payer_pubkey);
 
-    let hash = token_accounts[0].account.hash;
+    let hash = token_accounts.items[0].account.hash;
 
     let balance = rpc
         .indexer()
@@ -237,10 +237,10 @@ async fn test_all_endpoints() {
         .value;
     assert_eq!(balance, amount);
 
-    assert_eq!(token_accounts[0].token.mint, mint.pubkey());
-    assert_eq!(token_accounts[0].token.owner, payer_pubkey);
+    assert_eq!(token_accounts.items[0].token.mint, mint.pubkey());
+    assert_eq!(token_accounts.items[0].token.owner, payer_pubkey);
 
-    let hash = token_accounts[0].account.hash;
+    let hash = token_accounts.items[0].account.hash;
 
     let balances = rpc
         .indexer()
@@ -249,7 +249,7 @@ async fn test_all_endpoints() {
         .await
         .unwrap();
 
-    assert_eq!(balances.value[0].balance, amount);
+    assert_eq!(balances.value.items[0].balance, amount);
 
     let balance = rpc
         .indexer()
@@ -266,8 +266,8 @@ async fn test_all_endpoints() {
         .await
         .unwrap()
         .value;
-    assert!(!proofs.is_empty());
-    assert_eq!(proofs[0].hash, account_hashes[0]);
+    assert!(!proofs.items.is_empty());
+    assert_eq!(proofs.items[0].hash, account_hashes[0]);
 
     let addresses = vec![hash_to_bn254_field_size_be(&seed)];
     let new_address_proofs = rpc
@@ -280,9 +280,9 @@ async fn test_all_endpoints() {
         )
         .await
         .unwrap();
-    assert!(!new_address_proofs.value.is_empty());
+    assert!(!new_address_proofs.value.items.is_empty());
     assert_eq!(
-        new_address_proofs.value[0].merkle_tree.to_bytes(),
+        new_address_proofs.value.items[0].merkle_tree.to_bytes(),
         test_accounts.v1_address_trees[0].merkle_tree.to_bytes()
     );
 }

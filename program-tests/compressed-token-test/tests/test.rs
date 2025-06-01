@@ -2553,7 +2553,7 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
                 .await
                 .unwrap()
                 .value
-                .item
+                .items
                 .iter()
                 .filter(|x| x.token.delegate.is_some())
                 .map(|x| x.clone().into())

@@ -7,6 +7,16 @@ pub struct GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     pub limit: Option<u64>,
 }
 
+impl GetCompressedTokenAccountsByOwnerOrDelegateOptions {
+    pub fn new(mint: Option<Pubkey>) -> Self {
+        Self {
+            mint,
+            cursor: None,
+            limit: None,
+        }
+    }
+}
+
 /// **Cursor** is a unique identifier for a page of results by which the next page can be fetched.
 ///
 /// **Limit** is the maximum number of results to return per page.

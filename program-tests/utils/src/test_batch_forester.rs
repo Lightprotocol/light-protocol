@@ -705,12 +705,14 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
         .await
         .unwrap();
-    let mut sparse_merkle_tree =
-        SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(
-            <[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value.items)
-                .unwrap(),
-            start_index,
-        );
+    let mut sparse_merkle_tree = SparseMerkleTree::<
+        Poseidon,
+        { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+    >::new(
+        <[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value.items)
+            .unwrap(),
+        start_index,
+    );
 
     let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> =
         Vec::new();

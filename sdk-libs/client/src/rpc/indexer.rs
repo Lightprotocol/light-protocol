@@ -4,11 +4,11 @@ use solana_pubkey::Pubkey;
 
 use super::SolanaRpcConnection;
 use crate::indexer::{
-    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
-    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, OwnerBalance, Response, Items, ItemsWithCursor, RetryConfig, TokenAccount,
-    TokenBalance, ValidityProofWithContext, GetCompressedAccountsByOwnerConfig,
-    GetCompressedTokenAccountsByOwnerOrDelegateOptions, PaginatedOptions, SignatureWithMetadata,
+    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
+    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
+    Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
+    MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response,
+    RetryConfig, SignatureWithMetadata, TokenAccount, TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]

@@ -194,6 +194,7 @@ async fn test_state_indexer_batched() {
     let compressed_balance_photon = photon_indexer
         .get_compressed_accounts_by_owner(
             &forester_keypair.pubkey(),
+            None,
             Some(IndexerRpcConfig {
                 slot,
                 retry_config: RetryConfig::default(),
@@ -208,8 +209,9 @@ async fn test_state_indexer_batched() {
         .unwrap();
     for (photon_account, test_indexer_account) in compressed_balance_photon
         .value
+        .items
         .iter()
-        .zip(compressed_balance_test_indexer.value.iter())
+        .zip(compressed_balance_test_indexer.value.items.iter())
     {
         let mut photon_account = photon_account.clone();
         // Test indexer slot created is MAX
@@ -251,8 +253,9 @@ async fn test_state_indexer_batched() {
 
         for (photon_account, test_indexer_account) in compressed_balance_photon
             .value
+            .items
             .iter()
-            .zip(compressed_balance_test_indexer.value.iter())
+            .zip(compressed_balance_test_indexer.value.items.iter())
         {
             let mut photon_account = photon_account.clone();
             // Test indexer slot created is MAX

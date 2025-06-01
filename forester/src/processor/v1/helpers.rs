@@ -8,7 +8,10 @@ use account_compression::{
     },
 };
 use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{
+    indexer::{Indexer, Items, MerkleProof, NewAddressProofWithContext},
+    rpc::RpcConnection,
+};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -102,7 +105,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
             } else {
                 Ok(light_client::indexer::Response {
                     context: light_client::indexer::Context::default(),
-                    value: vec![],
+                    value: Items::<NewAddressProofWithContext>::default(),
                 })
             }
         };
@@ -115,7 +118,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
             } else {
                 Ok(light_client::indexer::Response {
                     context: light_client::indexer::Context::default(),
-                    value: vec![],
+                    value: Items::<MerkleProof>::default(),
                 })
             }
         };
@@ -124,14 +127,14 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
     };
 
     let address_proofs = match address_proofs_result {
-        Ok(response) => response.value,
+        Ok(response) => response.value.items,
         Err(e) => {
             return Err(anyhow::anyhow!("Failed to get address proofs: {}", e));
         }
     };
 
     let state_proofs = match state_proofs_result {
-        Ok(response) => response.value,
+        Ok(response) => response.value.items,
         Err(e) => {
             return Err(anyhow::anyhow!("Failed to get state proofs: {}", e));
         }

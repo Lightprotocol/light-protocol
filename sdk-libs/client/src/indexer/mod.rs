@@ -12,8 +12,7 @@ pub use base58::Base58Conversions;
 pub use config::{IndexerRpcConfig, RetryConfig};
 pub use error::IndexerError;
 pub use indexer_trait::Indexer;
-pub use response::Context;
-pub use response::{Items, ItemsWithCursor, Response};
+pub use response::{Context, Items, ItemsWithCursor, Response};
 pub use types::{
     Account, AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
     AddressQueueIndex, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, MerkleContext,

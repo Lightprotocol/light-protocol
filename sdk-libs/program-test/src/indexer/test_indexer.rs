@@ -16,11 +16,12 @@ use light_client::{
     fee::FeeConfig,
     indexer::{
         Account, AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
-        AddressWithTree, BatchAddressUpdateIndexerResponse, Context, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-        GetCompressedAccountsByOwnerConfig, Indexer, IndexerError, IndexerRpcConfig, Items,
-        ItemsWithCursor, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext,
-        OwnerBalance, PaginatedOptions, Response, RetryConfig, SignatureWithMetadata,
-        StateMerkleTreeAccounts, TokenAccount, TokenBalance, ValidityProofWithContext,
+        AddressWithTree, BatchAddressUpdateIndexerResponse, Context,
+        GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
+        MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions,
+        Response, RetryConfig, SignatureWithMetadata, StateMerkleTreeAccounts, TokenAccount,
+        TokenBalance, ValidityProofWithContext,
     },
     rpc::{RpcConnection, RpcError},
 };
@@ -599,7 +600,9 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { items: merkle_proofs_with_context },
+                    value: Items {
+                        items: merkle_proofs_with_context,
+                    },
                 });
             }
 
@@ -670,7 +673,9 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: Items { items: merkle_proofs_with_context },
+                        value: Items {
+                            items: merkle_proofs_with_context,
+                        },
                     });
                 }
             }
@@ -741,7 +746,9 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: Items { items: merkle_proofs_with_context },
+                        value: Items {
+                            items: merkle_proofs_with_context,
+                        },
                     });
                 }
             }
@@ -771,7 +778,9 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { items: address_tree_bundle.get_subtrees() },
+                    value: Items {
+                        items: address_tree_bundle.get_subtrees(),
+                    },
                 })
             } else {
                 let state_tree_bundle = self
@@ -783,7 +792,9 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: Items { items: state_tree_bundle.merkle_tree.get_subtrees() },
+                        value: Items {
+                            items: state_tree_bundle.merkle_tree.get_subtrees(),
+                        },
                     })
                 } else {
                     Err(IndexerError::InvalidParameters(
@@ -844,7 +855,11 @@ impl Indexer for TestIndexer {
             let non_inclusion_proofs = self
                 .get_multiple_new_address_proofs(
                     merkle_tree_pubkey.to_bytes(),
-                    address_proofs.items.iter().map(|x| x.account_hash).collect(),
+                    address_proofs
+                        .items
+                        .iter()
+                        .map(|x| x.account_hash)
+                        .collect(),
                     None,
                 )
                 .await
@@ -1182,7 +1197,6 @@ impl TestIndexer {
         // For testing, we can use a fixed slot or MAX
         u64::MAX
     }
-
 
     pub async fn init_from_acounts(
         payer: &Keypair,

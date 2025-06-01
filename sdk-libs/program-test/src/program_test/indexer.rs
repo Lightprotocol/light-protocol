@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use light_client::indexer::{
-    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    GetCompressedAccountsByOwnerConfig, Hash, Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor,
-    MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions,
-    Response, RetryConfig, SignatureWithMetadata, TokenAccount, TokenBalance, ValidityProofWithContext,
+    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
+    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
+    Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
+    MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response,
+    RetryConfig, SignatureWithMetadata, TokenAccount, TokenBalance, ValidityProofWithContext,
 };
 use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;
@@ -96,10 +97,7 @@ impl Indexer for LightProgramTest {
         hash: Option<Hash>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<u64>, IndexerError> {
-        let indexer = self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?;
+        let indexer = self.indexer.as_ref().ok_or(IndexerError::NotInitialized)?;
         Ok(Indexer::get_compressed_balance(indexer, address, hash, config).await?)
     }
 
