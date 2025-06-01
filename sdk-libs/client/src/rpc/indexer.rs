@@ -6,8 +6,9 @@ use super::SolanaRpcConnection;
 use crate::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
     IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, Response, ResponseWithCursor, RetryConfig, TokenAccount,
-    TokenBalance, ValidityProofWithContext,
+    NewAddressProofWithContext, OwnerBalance, Response, Items, ItemsWithCursor, RetryConfig, TokenAccount,
+    TokenBalance, ValidityProofWithContext, GetCompressedAccountsByOwnerConfig,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions, PaginatedOptions, SignatureWithMetadata,
 };
 
 #[async_trait]
@@ -39,7 +40,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         hashes: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProof>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -51,13 +52,14 @@ impl Indexer for SolanaRpcConnection {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
+        options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<Account, [u8; 32]>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_accounts_by_owner(owner, config)
+            .get_compressed_accounts_by_owner(owner, options, config)
             .await?)
     }
 
@@ -78,18 +80,18 @@ impl Indexer for SolanaRpcConnection {
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_accounts_by_owner(owner, mint, config)
+            .get_compressed_token_accounts_by_owner(owner, options, config)
             .await?)
     }
 
-    async fn get_compressed_account_balance(
+    async fn get_compressed_balance(
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
@@ -99,7 +101,7 @@ impl Indexer for SolanaRpcConnection {
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_account_balance(address, hash, config)
+            .get_compressed_balance(address, hash, config)
             .await?)
     }
 
@@ -122,7 +124,7 @@ impl Indexer for SolanaRpcConnection {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<Account>>, IndexerError> {
+    ) -> Result<Response<Items<Account>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -134,14 +136,14 @@ impl Indexer for SolanaRpcConnection {
     async fn get_compressed_token_balances_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenBalance, String>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_balances_by_owner(owner, mint, config)
+            .get_compressed_token_balances_by_owner(owner, options, config)
             .await?)
     }
 
@@ -149,7 +151,7 @@ impl Indexer for SolanaRpcConnection {
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<String>>, IndexerError> {
+    ) -> Result<Response<Items<SignatureWithMetadata>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -163,7 +165,7 @@ impl Indexer for SolanaRpcConnection {
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<NewAddressProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -193,7 +195,7 @@ impl Indexer for SolanaRpcConnection {
         num_elements: u16,
         start_offset: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -212,12 +214,104 @@ impl Indexer for SolanaRpcConnection {
         &self,
         merkle_tree_pubkey: [u8; 32],
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
+    ) -> Result<Response<Items<[u8; 32]>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
             .get_subtrees(merkle_tree_pubkey, config)
+            .await?)
+    }
+
+    async fn get_compressed_balance_by_owner(
+        &self,
+        owner: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_balance_by_owner(owner, config)
+            .await?)
+    }
+
+    async fn get_compressed_mint_token_holders(
+        &self,
+        mint: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance, String>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_mint_token_holders(mint, options, config)
+            .await?)
+    }
+
+    async fn get_compressed_token_accounts_by_delegate(
+        &self,
+        delegate: &Pubkey,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_token_accounts_by_delegate(delegate, options, config)
+            .await?)
+    }
+
+    async fn get_compression_signatures_for_address(
+        &self,
+        address: &[u8; 32],
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compression_signatures_for_address(address, options, config)
+            .await?)
+    }
+
+    async fn get_compression_signatures_for_owner(
+        &self,
+        owner: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compression_signatures_for_owner(owner, options, config)
+            .await?)
+    }
+
+    async fn get_compression_signatures_for_token_owner(
+        &self,
+        owner: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compression_signatures_for_token_owner(owner, options, config)
+            .await?)
+    }
+
+    async fn get_indexer_health(&self, config: Option<RetryConfig>) -> Result<bool, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_indexer_health(config)
             .await?)
     }
 }

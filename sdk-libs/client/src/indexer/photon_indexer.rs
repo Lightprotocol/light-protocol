@@ -11,14 +11,16 @@ use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
 
 use super::{
-    indexer_trait::{IndexerRpcConfig, RetryConfig},
-    types::{Account, TokenAccount, TokenBalance},
+    types::{Account, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance},
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
 use crate::indexer::{
     base58::{decode_base58_to_fixed_array, Base58Conversions},
-    indexer_trait::{Context, Response, ResponseWithCursor},
-    Address, AddressWithTree, Hash, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
+    config::RetryConfig,
+    response::{Context, Items, ItemsWithCursor, Response},
+    Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
+    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
 };
 
 pub struct PhotonIndexer {
@@ -174,7 +176,7 @@ impl Indexer for PhotonIndexer {
         &self,
         hashes: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProof>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let hashes_for_async = hashes.clone();
@@ -249,7 +251,7 @@ impl Indexer for PhotonIndexer {
                 context: Context {
                     slot: photon_proofs.context.slot,
                 },
-                value: proofs,
+                value: Items { items: proofs },
             })
         })
         .await
@@ -258,18 +260,26 @@ impl Indexer for PhotonIndexer {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
+        options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<Account, [u8; 32]>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
                 let request = photon_api::models::GetCompressedAccountsByOwnerV2PostRequest {
                     params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
-                        cursor: None,
-                        data_slice: None,
-                        filters: None,
-                        limit: None,
+                        cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                        data_slice: options.as_ref().and_then(|o| {
+                            o.data_slice.as_ref().map(|ds| {
+                                Box::new(photon_api::models::DataSlice {
+                                    length: ds.length as u32,
+                                    offset: ds.offset as u32,
+                                })
+                            })
+                        }),
+                        filters: None, // TODO: Convert filters if needed
+                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
                         owner: owner.to_string(),
                     }),
                     ..Default::default()
@@ -291,25 +301,33 @@ impl Indexer for PhotonIndexer {
                     .value
                     .cursor
                     .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?
-                    .unwrap_or([0u8; 32]);
+                    .transpose()?;
 
-                Ok(ResponseWithCursor {
+                Ok(Response {
                     context: Context {
                         slot: response.context.slot,
                     },
-                    value: accounts?,
-                    cursor,
+                    value: ItemsWithCursor {
+                        items: accounts?,
+                        cursor,
+                    },
                 })
             }
             #[cfg(not(feature = "v2"))]
             {
                 let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
                     params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
-                        cursor: None,
-                        data_slice: None,
-                        filters: None,
-                        limit: None,
+                        cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                        data_slice: options.as_ref().and_then(|o| {
+                            o.data_slice.as_ref().map(|ds| {
+                                Box::new(photon_api::models::DataSlice {
+                                    length: ds.length as u32,
+                                    offset: ds.offset as u32,
+                                })
+                            })
+                        }),
+                        filters: None, // TODO: Convert filters if needed
+                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
                         owner: owner.to_string(),
                     }),
                     ..Default::default()
@@ -330,15 +348,16 @@ impl Indexer for PhotonIndexer {
                     .value
                     .cursor
                     .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?
-                    .unwrap_or([0u8; 32]);
+                    .transpose()?;
 
-                Ok(ResponseWithCursor {
+                Ok(Response {
                     context: Context {
                         slot: response.context.slot,
                     },
-                    value: accounts?,
-                    cursor,
+                    value: ItemsWithCursor {
+                        items: accounts?,
+                        cursor,
+                    },
                 })
             }
         })
@@ -387,9 +406,9 @@ impl Indexer for PhotonIndexer {
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -397,9 +416,12 @@ impl Indexer for PhotonIndexer {
                 let request = photon_api::models::GetCompressedTokenAccountsByOwnerV2PostRequest {
                     params: Box::from(
                         photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
-                            cursor: None,
-                            limit: None,
-                            mint: mint.map(|x| x.to_string()),
+                            cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            mint: options
+                                .as_ref()
+                                .and_then(|o| o.mint.as_ref())
+                                .map(|x| x.to_string()),
                             owner: owner.to_string(),
                         },
                     ),
@@ -426,15 +448,16 @@ impl Indexer for PhotonIndexer {
                     .value
                     .cursor
                     .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?
-                    .unwrap_or([0u8; 32]);
+                    .transpose()?;
 
-                Ok(ResponseWithCursor {
+                Ok(Response {
                     context: Context {
                         slot: response.context.slot,
                     },
-                    value: token_accounts?,
-                    cursor,
+                    value: ItemsWithCursor {
+                        items: token_accounts?,
+                        cursor,
+                    },
                 })
             }
             #[cfg(not(feature = "v2"))]
@@ -443,9 +466,12 @@ impl Indexer for PhotonIndexer {
                     params: Box::new(
                         photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                             owner: owner.to_string(),
-                            mint: mint.map(|x| x.to_string()),
-                            cursor: None,
-                            limit: None,
+                            mint: options
+                                .as_ref()
+                                .and_then(|o| o.mint.as_ref())
+                                .map(|x| x.to_string()),
+                            cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
                         },
                     ),
                     ..Default::default()
@@ -474,22 +500,23 @@ impl Indexer for PhotonIndexer {
                     .value
                     .cursor
                     .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?
-                    .unwrap_or([0u8; 32]);
+                    .transpose()?;
 
-                Ok(ResponseWithCursor {
+                Ok(Response {
                     context: Context {
                         slot: response.context.slot,
                     },
-                    value: token_accounts?,
-                    cursor,
+                    value: ItemsWithCursor {
+                        items: token_accounts?,
+                        cursor,
+                    },
                 })
             }
         })
         .await
     }
 
-    async fn get_compressed_account_balance(
+    async fn get_compressed_balance(
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
@@ -566,7 +593,7 @@ impl Indexer for PhotonIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<Account>>, IndexerError> {
+    ) -> Result<Response<Items<Account>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let hashes = hashes.clone();
@@ -603,7 +630,7 @@ impl Indexer for PhotonIndexer {
                 context: Context {
                     slot: api_response.context.slot,
                 },
-                value: accounts,
+                value: Items { items: accounts },
             })
         })
         .await
@@ -612,9 +639,9 @@ impl Indexer for PhotonIndexer {
     async fn get_compressed_token_balances_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenBalance, String>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -623,9 +650,12 @@ impl Indexer for PhotonIndexer {
                     params: Box::new(
                         photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                             owner: owner.to_string(),
-                            mint: mint.map(|x| x.to_string()),
-                            cursor: None,
-                            limit: None,
+                            mint: options
+                                .as_ref()
+                                .and_then(|o| o.mint.as_ref())
+                                .map(|x| x.to_string()),
+                            cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
                         },
                     ),
                     ..Default::default()
@@ -651,12 +681,14 @@ impl Indexer for PhotonIndexer {
                     .map(TokenBalance::try_from)
                     .collect();
 
-                Ok(ResponseWithCursor {
+                Ok(Response {
                     context: Context {
                         slot: api_response.context.slot,
                     },
-                    value: token_balances?,
-                    cursor: api_response.value.cursor,
+                    value: ItemsWithCursor {
+                        items: token_balances?,
+                        cursor: api_response.value.cursor,
+                    },
                 })
             }
             #[cfg(not(feature = "v2"))]
@@ -665,9 +697,12 @@ impl Indexer for PhotonIndexer {
                     params: Box::new(
                         photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                             owner: owner.to_string(),
-                            mint: mint.map(|x| x.to_string()),
-                            cursor: None,
-                            limit: None,
+                            mint: options
+                                .as_ref()
+                                .and_then(|o| o.mint.as_ref())
+                                .map(|x| x.to_string()),
+                            cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
                         },
                     ),
                     ..Default::default()
@@ -693,12 +728,14 @@ impl Indexer for PhotonIndexer {
                     .map(TokenBalance::try_from)
                     .collect();
 
-                Ok(ResponseWithCursor {
+                Ok(Response {
                     context: Context {
                         slot: api_response.context.slot,
                     },
-                    value: token_balances?,
-                    cursor: api_response.value.cursor,
+                    value: ItemsWithCursor {
+                        items: token_balances?,
+                        cursor: api_response.value.cursor,
+                    },
                 })
             }
         })
@@ -709,7 +746,7 @@ impl Indexer for PhotonIndexer {
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<String>>, IndexerError> {
+    ) -> Result<Response<Items<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressionSignaturesForAccountPostRequest {
@@ -737,14 +774,14 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(|x| x.signature.clone())
-                .collect();
+                .map(SignatureWithMetadata::try_from)
+                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
 
             Ok(Response {
                 context: Context {
                     slot: api_response.context.slot,
                 },
-                value: signatures,
+                value: Items { items: signatures },
             })
         })
         .await
@@ -755,7 +792,7 @@ impl Indexer for PhotonIndexer {
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<NewAddressProofWithContext>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let params: Vec<photon_api::models::address_with_tree::AddressWithTree> = addresses
@@ -854,7 +891,7 @@ impl Indexer for PhotonIndexer {
                 context: Context {
                     slot: api_response.context.slot,
                 },
-                value: proofs,
+                value: Items { items: proofs },
             })
         })
         .await
@@ -1058,7 +1095,7 @@ impl Indexer for PhotonIndexer {
         _num_elements: u16,
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -1085,7 +1122,7 @@ impl Indexer for PhotonIndexer {
                 )
                 .await;
 
-                let result: Result<Response<Vec<MerkleProofWithContext>>, IndexerError> =
+                let result: Result<Response<Items<MerkleProofWithContext>>, IndexerError> =
                     match result {
                         Ok(api_response) => match api_response.result {
                             Some(api_result) => {
@@ -1093,7 +1130,7 @@ impl Indexer for PhotonIndexer {
                                     return Err(IndexerError::IndexerNotSyncedToSlot);
                                 }
                                 let response = api_result.value;
-                                let proofs = response
+                                let proofs: Vec<MerkleProofWithContext> = response
                                     .iter()
                                     .map(|x| {
                                         let proof = x
@@ -1128,7 +1165,7 @@ impl Indexer for PhotonIndexer {
                                     context: Context {
                                         slot: api_result.context.slot,
                                     },
-                                    value: proofs,
+                                    value: Items { items: proofs },
                                 })
                             }
                             None => {
@@ -1163,12 +1200,402 @@ impl Indexer for PhotonIndexer {
         &self,
         _merkle_tree_pubkey: [u8; 32],
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
+    ) -> Result<Response<Items<[u8; 32]>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!();
         #[cfg(feature = "v2")]
         {
             todo!();
         }
+    }
+
+    async fn get_compressed_balance_by_owner(
+        &self,
+        owner: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetCompressedBalanceByOwnerPostRequest {
+                params: Box::new(
+                    photon_api::models::GetCompressedBalanceByOwnerPostRequestParams {
+                        owner: owner.to_string(),
+                    },
+                ),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_compressed_balance_by_owner_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response =
+                Self::extract_result("get_compressed_balance_by_owner", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: api_response.value,
+            })
+        })
+        .await
+    }
+
+    async fn get_compressed_mint_token_holders(
+        &self,
+        mint: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance, String>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetCompressedMintTokenHoldersPostRequest {
+                params: Box::new(
+                    photon_api::models::GetCompressedMintTokenHoldersPostRequestParams {
+                        mint: mint.to_string(),
+                        cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                    },
+                ),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_compressed_mint_token_holders_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response =
+                Self::extract_result("get_compressed_mint_token_holders", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            let owner_balances: Result<Vec<_>, _> = api_response
+                .value
+                .items
+                .iter()
+                .map(OwnerBalance::try_from)
+                .collect();
+
+            let cursor = api_response.value.cursor;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: ItemsWithCursor {
+                    items: owner_balances?,
+                    cursor,
+                },
+            })
+        })
+        .await
+    }
+
+    async fn get_compressed_token_accounts_by_delegate(
+        &self,
+        delegate: &Pubkey,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            #[cfg(feature = "v2")]
+            {
+                let request = photon_api::models::GetCompressedTokenAccountsByDelegateV2PostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByDelegatePostRequestParams {
+                            cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| x.to_string()),
+                            delegate: delegate.to_string(),
+                        },
+                    ),
+                    ..Default::default()
+                };
+
+                let result = photon_api::apis::default_api::get_compressed_token_accounts_by_delegate_v2_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                if response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+
+                let token_accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
+                    .iter()
+                    .map(TokenAccount::try_from)
+                    .collect();
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?;
+
+                Ok(Response {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: ItemsWithCursor {
+                        items: token_accounts?,
+                        cursor,
+                    },
+                })
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetCompressedTokenAccountsByDelegatePostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByDelegatePostRequestParams {
+                            delegate: delegate.to_string(),
+                            mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| x.to_string()),
+                            cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        },
+                    ),
+                    ..Default::default()
+                };
+
+                let result = photon_api::apis::default_api::get_compressed_token_accounts_by_delegate_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                if response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+
+                let token_accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
+                    .iter()
+                    .map(TokenAccount::try_from)
+                    .collect();
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?;
+
+                Ok(Response {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: ItemsWithCursor {
+                        items: token_accounts?,
+                        cursor,
+                    },
+                })
+            }
+        })
+        .await
+    }
+
+    async fn get_compression_signatures_for_address(
+        &self,
+        address: &[u8; 32],
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetCompressionSignaturesForAddressPostRequest {
+                params: Box::new(
+                    photon_api::models::GetCompressionSignaturesForAddressPostRequestParams {
+                        address: address.to_base58(),
+                        cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                    },
+                ),
+                ..Default::default()
+            };
+
+            let result =
+                photon_api::apis::default_api::get_compression_signatures_for_address_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+            let api_response =
+                Self::extract_result("get_compression_signatures_for_address", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let signatures = api_response
+                .value
+                .items
+                .iter()
+                .map(SignatureWithMetadata::try_from)
+                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
+
+            let cursor = api_response
+                .value
+                .cursor
+                .map(|c| decode_base58_to_fixed_array(&c))
+                .transpose()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: ItemsWithCursor {
+                    items: signatures,
+                    cursor,
+                },
+            })
+        })
+        .await
+    }
+
+    async fn get_compression_signatures_for_owner(
+        &self,
+        owner: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetCompressionSignaturesForOwnerPostRequest {
+                params: Box::new(
+                    photon_api::models::GetCompressionSignaturesForOwnerPostRequestParams {
+                        owner: owner.to_string(),
+                        cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                    },
+                ),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_compression_signatures_for_owner_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response =
+                Self::extract_result("get_compression_signatures_for_owner", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let signatures = api_response
+                .value
+                .items
+                .iter()
+                .map(SignatureWithMetadata::try_from)
+                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
+
+            let cursor = api_response
+                .value
+                .cursor
+                .map(|c| decode_base58_to_fixed_array(&c))
+                .transpose()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: ItemsWithCursor {
+                    items: signatures,
+                    cursor,
+                },
+            })
+        })
+        .await
+    }
+
+    async fn get_compression_signatures_for_token_owner(
+        &self,
+        owner: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetCompressionSignaturesForTokenOwnerPostRequest {
+                params: Box::new(
+                    photon_api::models::GetCompressionSignaturesForOwnerPostRequestParams {
+                        owner: owner.to_string(),
+                        cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                    },
+                ),
+                ..Default::default()
+            };
+
+            let result =
+                photon_api::apis::default_api::get_compression_signatures_for_token_owner_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+            let api_response =
+                Self::extract_result("get_compression_signatures_for_token_owner", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let signatures = api_response
+                .value
+                .items
+                .iter()
+                .map(SignatureWithMetadata::try_from)
+                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
+
+            let cursor = api_response
+                .value
+                .cursor
+                .map(|c| decode_base58_to_fixed_array(&c))
+                .transpose()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: ItemsWithCursor {
+                    items: signatures,
+                    cursor,
+                },
+            })
+        })
+        .await
+    }
+
+    async fn get_indexer_health(&self, config: Option<RetryConfig>) -> Result<bool, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config, || async {
+            let request = photon_api::models::GetIndexerHealthPostRequest {
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_indexer_health_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let _api_response = Self::extract_result("get_indexer_health", result.result)?;
+
+            Ok(true)
+        })
+        .await
     }
 }

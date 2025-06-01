@@ -1,14 +1,17 @@
-use std::fmt::Debug;
-
 use async_trait::async_trait;
 use light_merkle_tree_metadata::QueueType;
 use solana_pubkey::Pubkey;
 
 use super::{
-    types::{Account, SignatureWithMetadata, TokenAccount, TokenBalance, ValidityProofWithContext},
+    response::{Items, ItemsWithCursor, Response},
+    types::{
+        Account, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance,
+        ValidityProofWithContext,
+    },
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
-    GetCompressedAccountsByOwnerConfig, Hash, IndexerError, IndexerRpcConfig, MerkleProof,
-    MerkleProofWithContext, NewAddressProofWithContext, PaginatedOptions,
+    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
+    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
+    NewAddressProofWithContext, PaginatedOptions, RetryConfig,
 };
 
 #[async_trait]
@@ -50,7 +53,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         mint: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<u64>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance, String>>, IndexerError>;
 
     /// Returns the balance for a given token account.
     async fn get_compressed_token_account_balance(
@@ -97,7 +100,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         address: &[u8; 32],
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError>;
 
     /// Returns the signatures of the transactions that
     /// have modified an owner’s compressed accounts.
@@ -106,7 +109,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError>;
 
     /// Returns the signatures of the transactions that
     /// have modified an owner’s compressed token accounts.
@@ -115,7 +118,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError>;
 
     /// Returns an error if the indexer is stale
     /// by more than a configurable number of blocks.

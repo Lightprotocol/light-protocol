@@ -16,7 +16,7 @@ use solana_pubkey::Pubkey;
 use super::{
     base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},
     tree_info::QUEUE_TREE_MAPPING,
-    IndexerError, ResponseWithCursor,
+    IndexerError,
 };
 
 pub struct ProofOfLeaf {
@@ -27,7 +27,7 @@ pub struct ProofOfLeaf {
 pub type Address = [u8; 32];
 pub type Hash = [u8; 32];
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MerkleProofWithContext {
     pub proof: Vec<[u8; 32]>,
     pub root: [u8; 32],
@@ -39,7 +39,7 @@ pub struct MerkleProofWithContext {
     pub account_hash: [u8; 32],
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MerkleProof {
     pub hash: [u8; 32],
     pub leaf_index: u64,
@@ -645,10 +645,11 @@ impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
 
 #[allow(clippy::from_over_into)]
 impl Into<Vec<light_sdk::token::TokenDataWithMerkleContext>>
-    for ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>
+    for super::response::Response<super::response::ItemsWithCursor<TokenAccount, [u8; 32]>>
 {
     fn into(self) -> Vec<light_sdk::token::TokenDataWithMerkleContext> {
         self.value
+            .items
             .into_iter()
             .map(
                 |token_account| light_sdk::token::TokenDataWithMerkleContext {
@@ -694,9 +695,38 @@ impl TryFrom<&photon_api::models::TokenBalance> for TokenBalance {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SignatureWithMetadata {
     pub block_time: u64,
     pub signature: String,
     pub slot: u64,
+}
+
+impl TryFrom<&photon_api::models::SignatureInfo> for SignatureWithMetadata {
+    type Error = IndexerError;
+
+    fn try_from(sig_info: &photon_api::models::SignatureInfo) -> Result<Self, Self::Error> {
+        Ok(SignatureWithMetadata {
+            block_time: sig_info.block_time,
+            signature: sig_info.signature.clone(),
+            slot: sig_info.slot,
+        })
+    }
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct OwnerBalance {
+    pub balance: u64,
+    pub owner: Pubkey,
+}
+
+impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
+    type Error = IndexerError;
+
+    fn try_from(owner_balance: &photon_api::models::OwnerBalance) -> Result<Self, Self::Error> {
+        Ok(OwnerBalance {
+            balance: owner_balance.balance as u64,
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&owner_balance.owner)?),
+        })
+    }
 }

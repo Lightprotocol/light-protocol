@@ -1,8 +1,8 @@
-use solana_account_decoder_client_types::UiDataSliceConfig;
+use solana_account_decoder::UiDataSliceConfig;
 use solana_pubkey::Pubkey;
 
 pub struct GetCompressedTokenAccountsByOwnerOrDelegateOptions {
-    pub mint: Option<PublicKey>,
+    pub mint: Option<Pubkey>,
     pub cursor: Option<String>,
     pub limit: Option<u64>,
 }
@@ -23,6 +23,6 @@ pub struct GetCompressedAccountsByOwnerConfig {
 }
 
 pub struct GetCompressedAccountsFilter {
-    bytes: Vec<u8>,
-    offset: u64,
+    pub bytes: Vec<u8>,
+    pub offset: u64,
 }

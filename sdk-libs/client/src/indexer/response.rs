@@ -17,10 +17,12 @@ impl<T: Clone + PartialEq + Default + Debug> Response<T> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Items<T: Clone + PartialEq + Default + Debug> {
     pub items: Vec<T>,
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ItemsWithCursor<
     T: Clone + PartialEq + Default + Debug,
     C: Clone + PartialEq + Default + Debug,
