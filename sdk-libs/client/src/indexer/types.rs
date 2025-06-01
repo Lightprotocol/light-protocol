@@ -694,8 +694,9 @@ impl TryFrom<&photon_api::models::TokenBalance> for TokenBalance {
     }
 }
 
-// #[derive(Clone, Default, Debug, PartialEq)]
-// pub struct TokenBalanceList {
-//     pub cursor: Option<String>,
-//     pub token_balances: Vec<TokenBalance>,
-// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct SignatureWithMetadata {
+    pub block_time: u64,
+    pub signature: String,
+    pub slot: u64,
+}
