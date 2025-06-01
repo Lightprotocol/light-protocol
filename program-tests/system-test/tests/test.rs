@@ -2336,7 +2336,7 @@ async fn batch_invoke_test() {
             .await
             .unwrap();
         let accounts = rpc
-            .get_compressed_accounts_by_owner(&payer_pubkey, None)
+            .get_compressed_accounts_by_owner(&payer_pubkey, None, None)
             .await
             .unwrap();
         let accounts = accounts.value;

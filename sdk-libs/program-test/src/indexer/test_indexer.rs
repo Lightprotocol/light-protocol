@@ -16,10 +16,11 @@ use light_client::{
     fee::FeeConfig,
     indexer::{
         Account, AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
-        AddressWithTree, BatchAddressUpdateIndexerResponse, Context, Indexer, IndexerError,
-        IndexerRpcConfig, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext,
-        Response, ResponseWithCursor, RetryConfig, StateMerkleTreeAccounts, TokenAccount,
-        TokenBalance, ValidityProofWithContext,
+        AddressWithTree, BatchAddressUpdateIndexerResponse, Context, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        GetCompressedAccountsByOwnerConfig, Indexer, IndexerError, IndexerRpcConfig, Items,
+        ItemsWithCursor, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext,
+        OwnerBalance, PaginatedOptions, Response, RetryConfig, SignatureWithMetadata,
+        StateMerkleTreeAccounts, TokenAccount, TokenBalance, ValidityProofWithContext,
     },
     rpc::{RpcConnection, RpcError},
 };
@@ -125,7 +126,7 @@ impl Indexer for TestIndexer {
         &self,
         hashes: Vec<[u8; 32]>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProof>>, IndexerError> {
         info!("Getting proofs for {:?}", hashes);
         let mut proofs: Vec<MerkleProof> = Vec::new();
         hashes.iter().for_each(|hash| {
@@ -150,27 +151,30 @@ impl Indexer for TestIndexer {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: proofs,
+            value: Items { items: proofs },
         })
     }
 
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
+        _options: Option<GetCompressedAccountsByOwnerConfig>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
         let accounts_with_context = <TestIndexer as TestIndexerExtensions>::get_compressed_accounts_with_merkle_context_by_owner(self, owner);
         let accounts: Result<Vec<Account>, IndexerError> = accounts_with_context
             .into_iter()
             .map(|acc| acc.try_into())
             .collect();
 
-        Ok(ResponseWithCursor {
+        Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: accounts?,
-            cursor: Self::default_cursor(),
+            value: ItemsWithCursor {
+                items: accounts?,
+                cursor: None,
+            },
         })
     }
 
@@ -224,9 +228,10 @@ impl Indexer for TestIndexer {
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        _options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+        let mint = _options.as_ref().and_then(|opts| opts.mint);
         let token_accounts: Result<Vec<TokenAccount>, IndexerError> = self
             .token_compressed_accounts
             .iter()
@@ -236,16 +241,18 @@ impl Indexer for TestIndexer {
             .map(|acc| TokenAccount::try_from(acc.clone()))
             .collect();
 
-        Ok(ResponseWithCursor {
+        Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: token_accounts?,
-            cursor: Self::default_cursor(),
+            value: ItemsWithCursor {
+                items: token_accounts?,
+                cursor: None,
+            },
         })
     }
 
-    async fn get_compressed_account_balance(
+    async fn get_compressed_balance(
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
@@ -299,7 +306,7 @@ impl Indexer for TestIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<Account>>, IndexerError> {
+    ) -> Result<Response<Items<Account>>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
                 let accounts = self
@@ -316,7 +323,7 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: accounts,
+                    value: Items { items: accounts },
                 })
             }
             (_, Some(hashes)) => {
@@ -330,7 +337,7 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: accounts,
+                    value: Items { items: accounts },
                 })
             }
             (None, None) => Err(IndexerError::InvalidParameters(
@@ -342,9 +349,10 @@ impl Indexer for TestIndexer {
     async fn get_compressed_token_balances_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        _options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenBalance>>, IndexerError> {
+        let mint = _options.as_ref().and_then(|opts| opts.mint);
         let balances: Vec<TokenBalance> = self
             .token_compressed_accounts
             .iter()
@@ -357,12 +365,14 @@ impl Indexer for TestIndexer {
             })
             .collect();
 
-        Ok(ResponseWithCursor {
+        Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: balances,
-            cursor: Self::default_string_cursor(),
+            value: ItemsWithCursor {
+                items: balances,
+                cursor: None,
+            },
         })
     }
 
@@ -370,12 +380,12 @@ impl Indexer for TestIndexer {
         &self,
         _hash: Hash,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<String>>, IndexerError> {
+    ) -> Result<Response<Items<SignatureWithMetadata>>, IndexerError> {
         Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: vec![],
+            value: Items { items: vec![] },
         })
     }
 
@@ -384,7 +394,7 @@ impl Indexer for TestIndexer {
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<NewAddressProofWithContext>>, IndexerError> {
         let proofs = self
             ._get_multiple_new_address_proofs(merkle_tree_pubkey, addresses, false)
             .await?;
@@ -392,7 +402,7 @@ impl Indexer for TestIndexer {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: proofs,
+            value: Items { items: proofs },
         })
     }
 
@@ -552,7 +562,7 @@ impl Indexer for TestIndexer {
         _num_elements: u16,
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -589,7 +599,7 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: merkle_proofs_with_context,
+                    value: Items { items: merkle_proofs_with_context },
                 });
             }
 
@@ -660,7 +670,7 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: merkle_proofs_with_context,
+                        value: Items { items: merkle_proofs_with_context },
                     });
                 }
             }
@@ -731,7 +741,7 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: merkle_proofs_with_context,
+                        value: Items { items: merkle_proofs_with_context },
                     });
                 }
             }
@@ -746,7 +756,7 @@ impl Indexer for TestIndexer {
         &self,
         _merkle_tree_pubkey: [u8; 32],
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
+    ) -> Result<Response<Items<[u8; 32]>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_subtrees");
         #[cfg(feature = "v2")]
@@ -761,7 +771,7 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: address_tree_bundle.get_subtrees(),
+                    value: Items { items: address_tree_bundle.get_subtrees() },
                 })
             } else {
                 let state_tree_bundle = self
@@ -773,7 +783,7 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: state_tree_bundle.merkle_tree.get_subtrees(),
+                        value: Items { items: state_tree_bundle.merkle_tree.get_subtrees() },
                     })
                 } else {
                     Err(IndexerError::InvalidParameters(
@@ -823,6 +833,7 @@ impl Indexer for TestIndexer {
                 .value;
 
             let addresses: Vec<AddressQueueIndex> = address_proofs
+                .items
                 .iter()
                 .enumerate()
                 .map(|(i, proof)| AddressQueueIndex {
@@ -833,7 +844,7 @@ impl Indexer for TestIndexer {
             let non_inclusion_proofs = self
                 .get_multiple_new_address_proofs(
                     merkle_tree_pubkey.to_bytes(),
-                    address_proofs.iter().map(|x| x.account_hash).collect(),
+                    address_proofs.items.iter().map(|x| x.account_hash).collect(),
                     None,
                 )
                 .await
@@ -857,11 +868,69 @@ impl Indexer for TestIndexer {
                 value: BatchAddressUpdateIndexerResponse {
                     batch_start_index: batch_start_index as u64,
                     addresses,
-                    non_inclusion_proofs,
-                    subtrees,
+                    non_inclusion_proofs: non_inclusion_proofs.items,
+                    subtrees: subtrees.items,
                 },
             })
         }
+    }
+
+    // New required trait methods
+    async fn get_compressed_balance_by_owner(
+        &self,
+        _owner: &Pubkey,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
+        todo!("get_compressed_balance_by_owner not implemented")
+    }
+
+    async fn get_compressed_mint_token_holders(
+        &self,
+        _mint: &Pubkey,
+        _options: Option<PaginatedOptions>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance>>, IndexerError> {
+        todo!("get_compressed_mint_token_holders not implemented")
+    }
+
+    async fn get_compressed_token_accounts_by_delegate(
+        &self,
+        _delegate: &Pubkey,
+        _options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+        todo!("get_compressed_token_accounts_by_delegate not implemented")
+    }
+
+    async fn get_compression_signatures_for_address(
+        &self,
+        _address: &[u8; 32],
+        _options: Option<PaginatedOptions>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
+        todo!("get_compression_signatures_for_address not implemented")
+    }
+
+    async fn get_compression_signatures_for_owner(
+        &self,
+        _owner: &Pubkey,
+        _options: Option<PaginatedOptions>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
+        todo!("get_compression_signatures_for_owner not implemented")
+    }
+
+    async fn get_compression_signatures_for_token_owner(
+        &self,
+        _owner: &Pubkey,
+        _options: Option<PaginatedOptions>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
+        todo!("get_compression_signatures_for_token_owner not implemented")
+    }
+
+    async fn get_indexer_health(&self, _config: Option<RetryConfig>) -> Result<bool, IndexerError> {
+        todo!("get_indexer_health not implemented")
     }
 }
 
@@ -1114,13 +1183,6 @@ impl TestIndexer {
         u64::MAX
     }
 
-    fn default_cursor() -> [u8; 32] {
-        [0u8; 32]
-    }
-
-    fn default_string_cursor() -> Option<String> {
-        None
-    }
 
     pub async fn init_from_acounts(
         payer: &Keypair,

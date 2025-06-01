@@ -770,7 +770,7 @@ where
                                     .await
                                     .unwrap();
                                 let addresses =
-                                    addresses.value.iter().map(|x| x.account_hash).collect::<Vec<_>>();
+                                    addresses.value.items.iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
@@ -794,7 +794,7 @@ where
                                     )
                                     .await
                                     .unwrap();
-                                for non_inclusion_proof in &non_inclusion_proofs.value {
+                                for non_inclusion_proof in &non_inclusion_proofs.value.items {
                                     low_element_values.push(non_inclusion_proof.low_address_value);
                                     low_element_indices
                                         .push(non_inclusion_proof.low_address_index as usize);
@@ -811,7 +811,7 @@ where
                                     .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
                                     .await
                                     .unwrap();
-                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value).unwrap(), start_index);
+                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value.items).unwrap(), start_index);
 
                                 let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
                                 let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
@@ -3015,11 +3015,11 @@ where
             .await
             .unwrap();
         // clean up dust so that we don't run into issues that account balances are too low
-        user_token_accounts.value.retain(|t| t.token.amount > 1000);
+        user_token_accounts.value.items.retain(|t| t.token.amount > 1000);
         let mut token_accounts_with_mint: Vec<TokenDataWithMerkleContext>;
         let mint;
         let tree_version;
-        if user_token_accounts.value.is_empty() {
+        if user_token_accounts.value.items.is_empty() {
             mint = self.indexer.get_token_compressed_accounts()[self
                 .rng
                 .gen_range(0..self.indexer.get_token_compressed_accounts().len())]
@@ -3049,6 +3049,7 @@ where
                 .await
                 .unwrap()
                 .value
+                .items
                 .iter()
                 .filter(|token_account| {
                     let version = self
@@ -3066,8 +3067,8 @@ where
                 .map(|account| account.into())
                 .collect::<Vec<TokenDataWithMerkleContext>>();
         } else {
-            let token_account = &user_token_accounts.value
-                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.value.len(), 0)];
+            let token_account = &user_token_accounts.value.items
+                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.value.items.len(), 0)];
             mint = token_account.token.mint;
             tree_version = self
                 .indexer
@@ -3079,6 +3080,7 @@ where
 
             token_accounts_with_mint = user_token_accounts
                 .value
+                .items
                 .iter()
                 .filter(|token_account| {
                     let version = self

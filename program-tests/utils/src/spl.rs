@@ -1007,7 +1007,8 @@ pub async fn perform_compress_spl_token_account<
         .get_compressed_token_accounts_by_owner(&token_owner.pubkey(), None, None)
         .await
         .unwrap()
-        .value[0]
+        .value
+        .items[0]
         .clone();
     let expected_token_data = TokenData {
         amount: pre_token_account_amount - remaining_amount.unwrap_or_default(),

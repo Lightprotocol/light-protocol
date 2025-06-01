@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use light_client::indexer::{
-    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
-    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, Response, ResponseWithCursor, RetryConfig, TokenAccount,
-    TokenBalance, ValidityProofWithContext,
+    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    GetCompressedAccountsByOwnerConfig, Hash, Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor,
+    MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions,
+    Response, RetryConfig, SignatureWithMetadata, TokenAccount, TokenBalance, ValidityProofWithContext,
 };
 use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;
@@ -39,7 +39,7 @@ impl Indexer for LightProgramTest {
         &self,
         hashes: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProof>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -51,13 +51,14 @@ impl Indexer for LightProgramTest {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
+        options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_accounts_by_owner(owner, config)
+            .get_compressed_accounts_by_owner(owner, options, config)
             .await?)
     }
 
@@ -78,29 +79,28 @@ impl Indexer for LightProgramTest {
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_accounts_by_owner(owner, mint, config)
+            .get_compressed_token_accounts_by_owner(owner, options, config)
             .await?)
     }
 
-    async fn get_compressed_account_balance(
+    async fn get_compressed_balance(
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<u64>, IndexerError> {
-        Ok(self
+        let indexer = self
             .indexer
             .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_account_balance(address, hash, config)
-            .await?)
+            .ok_or(IndexerError::NotInitialized)?;
+        Ok(Indexer::get_compressed_balance(indexer, address, hash, config).await?)
     }
 
     async fn get_compressed_token_account_balance(
@@ -122,7 +122,7 @@ impl Indexer for LightProgramTest {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<Account>>, IndexerError> {
+    ) -> Result<Response<Items<Account>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -134,14 +134,14 @@ impl Indexer for LightProgramTest {
     async fn get_compressed_token_balances_by_owner(
         &self,
         owner: &Pubkey,
-        mint: Option<Pubkey>,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenBalance>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_balances_by_owner(owner, mint, config)
+            .get_compressed_token_balances_by_owner(owner, options, config)
             .await?)
     }
 
@@ -149,7 +149,7 @@ impl Indexer for LightProgramTest {
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<String>>, IndexerError> {
+    ) -> Result<Response<Items<SignatureWithMetadata>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -163,7 +163,7 @@ impl Indexer for LightProgramTest {
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<NewAddressProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -193,7 +193,7 @@ impl Indexer for LightProgramTest {
         num_elements: u16,
         start_offset: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -212,12 +212,105 @@ impl Indexer for LightProgramTest {
         &self,
         merkle_tree_pubkey: [u8; 32],
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
+    ) -> Result<Response<Items<[u8; 32]>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
             .get_subtrees(merkle_tree_pubkey, config)
+            .await?)
+    }
+
+    // New required trait methods
+    async fn get_compressed_balance_by_owner(
+        &self,
+        owner: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_balance_by_owner(owner, config)
+            .await?)
+    }
+
+    async fn get_compressed_mint_token_holders(
+        &self,
+        mint: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_mint_token_holders(mint, options, config)
+            .await?)
+    }
+
+    async fn get_compressed_token_accounts_by_delegate(
+        &self,
+        delegate: &Pubkey,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_token_accounts_by_delegate(delegate, options, config)
+            .await?)
+    }
+
+    async fn get_compression_signatures_for_address(
+        &self,
+        address: &[u8; 32],
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compression_signatures_for_address(address, options, config)
+            .await?)
+    }
+
+    async fn get_compression_signatures_for_owner(
+        &self,
+        owner: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compression_signatures_for_owner(owner, options, config)
+            .await?)
+    }
+
+    async fn get_compression_signatures_for_token_owner(
+        &self,
+        owner: &Pubkey,
+        options: Option<PaginatedOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compression_signatures_for_token_owner(owner, options, config)
+            .await?)
+    }
+
+    async fn get_indexer_health(&self, config: Option<RetryConfig>) -> Result<bool, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_indexer_health(config)
             .await?)
     }
 }

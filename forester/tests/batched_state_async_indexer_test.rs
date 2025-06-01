@@ -783,7 +783,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
     let input_compressed_accounts = indexer
-        .get_compressed_accounts_by_owner(&payer.pubkey(), None)
+        .get_compressed_accounts_by_owner(&payer.pubkey(), None, None)
         .await
         .map(|response| response.value)
         .unwrap_or(vec![]);

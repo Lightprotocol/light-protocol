@@ -2553,6 +2553,7 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
                 .await
                 .unwrap()
                 .value
+                .item
                 .iter()
                 .filter(|x| x.token.delegate.is_some())
                 .map(|x| x.clone().into())
@@ -3009,6 +3010,7 @@ async fn test_burn() {
                     .await
                     .unwrap()
                     .value
+                    .items
                     .iter()
                     .filter(|x| x.token.amount != 0)
                     .map(|x| x.clone().into())
@@ -3059,6 +3061,7 @@ async fn test_burn() {
                     .await
                     .unwrap()
                     .value
+                    .items
                     .iter()
                     .filter(|x| x.token.amount != 0)
                     .map(|x| x.clone().into())
@@ -3690,7 +3693,8 @@ async fn test_failing_freeze() {
                 .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
                 .await
                 .unwrap()
-                .value[0]
+                .value
+                .items[0]
                 .clone()
                 .into()];
         let outputs_merkle_tree = input_compressed_accounts[0]
@@ -3843,6 +3847,7 @@ async fn test_failing_freeze() {
                 .await
                 .unwrap()
                 .value
+                .items
                 .iter()
                 .filter(|x| x.token.state == AccountState::Frozen)
                 .cloned()
@@ -3956,7 +3961,8 @@ async fn test_failing_thaw() {
                     .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
                     .await
                     .unwrap()
-                    .value[0]
+                    .value
+                    .items[0]
                     .clone()
                     .into()];
             let output_merkle_tree = input_compressed_accounts[0]
