@@ -150,7 +150,7 @@ async fn test_all_endpoints() {
     let accounts = rpc
         .indexer()
         .unwrap()
-        .get_compressed_accounts_by_owner_v2(&pubkey)
+        .get_compressed_accounts_by_owner(&pubkey)
         .await
         .unwrap();
     assert!(!accounts.is_empty());

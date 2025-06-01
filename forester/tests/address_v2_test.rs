@@ -291,7 +291,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
         .collect::<Vec<_>>();
 
     let proof_result = rpc
-        .get_validity_proof_v2(Vec::new(), address_with_trees)
+        .get_validity_proof(Vec::new(), address_with_trees, None)
         .await
         .unwrap();
 

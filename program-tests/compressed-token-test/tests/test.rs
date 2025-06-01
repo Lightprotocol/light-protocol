@@ -3685,13 +3685,14 @@ async fn test_failing_freeze() {
         )
         .await;
 
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = vec![test_indexer
-            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-            .await
-            .unwrap()
-            .value[0]
-            .clone()
-            .into()];
+        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
+            vec![test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value[0]
+                .clone()
+                .into()];
         let outputs_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -3846,7 +3847,8 @@ async fn test_failing_freeze() {
                 .filter(|x| x.token.state == AccountState::Frozen)
                 .cloned()
                 .collect::<Vec<_>>();
-            let input_compressed_accounts: Vec<TokenDataWithMerkleContext> = vec![accounts[0].clone().into()];
+            let input_compressed_accounts: Vec<TokenDataWithMerkleContext> =
+                vec![accounts[0].clone().into()];
             let outputs_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3949,13 +3951,14 @@ async fn test_failing_thaw() {
 
         // Freeze tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = vec![test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .value[0]
-                .clone()
-                .into()];
+            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
+                vec![test_indexer
+                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                    .await
+                    .unwrap()
+                    .value[0]
+                    .clone()
+                    .into()];
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context

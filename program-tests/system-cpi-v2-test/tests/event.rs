@@ -139,7 +139,7 @@ async fn parse_batched_event_functional() {
             .collect::<Vec<_>>();
 
         let proof_res = rpc
-            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await;
 
         let proof_result = proof_res.unwrap();
@@ -292,7 +292,7 @@ async fn parse_batched_event_functional() {
             .collect::<Vec<_>>();
 
         let proof_res = rpc
-            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await;
 
         let proof_result = proof_res.unwrap();

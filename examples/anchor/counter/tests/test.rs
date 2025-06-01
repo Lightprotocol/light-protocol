@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use counter::CounterAccount;
@@ -53,11 +53,13 @@ async fn test_counter() {
 
     // Check that it was created correctly.
     let compressed_accounts = rpc
-        .get_compressed_accounts_by_owner_v2(&counter::ID)
+        .get_compressed_accounts_by_owner(&counter::ID, None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(compressed_accounts.len(), 1);
-    let compressed_account = &compressed_accounts[0];
+    let compressed_account: CompressedAccountWithMerkleContext =
+        compressed_accounts[0].clone().into();
     let counter = &compressed_account
         .compressed_account
         .data
@@ -68,17 +70,19 @@ async fn test_counter() {
     assert_eq!(counter.value, 0);
 
     // Increment the counter.
-    increment_counter(&mut rpc, &payer, compressed_account)
+    increment_counter(&mut rpc, &payer, &compressed_account)
         .await
         .unwrap();
 
     // Check that it was incremented correctly.
     let compressed_accounts = rpc
-        .get_compressed_accounts_by_owner_v2(&counter::ID)
+        .get_compressed_accounts_by_owner(&counter::ID, None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(compressed_accounts.len(), 1);
-    let compressed_account = &compressed_accounts[0];
+    let compressed_account: CompressedAccountWithMerkleContext =
+        compressed_accounts[0].clone().into();
     let counter = &compressed_account
         .compressed_account
         .data
@@ -89,17 +93,19 @@ async fn test_counter() {
     assert_eq!(counter.value, 1);
 
     // Decrement the counter.
-    decrement_counter(&mut rpc, &payer, compressed_account)
+    decrement_counter(&mut rpc, &payer, &compressed_account)
         .await
         .unwrap();
 
     // Check that it was decremented correctly.
     let compressed_accounts = rpc
-        .get_compressed_accounts_by_owner_v2(&counter::ID)
+        .get_compressed_accounts_by_owner(&counter::ID, None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(compressed_accounts.len(), 1);
-    let compressed_account = &compressed_accounts[0];
+    let compressed_account: CompressedAccountWithMerkleContext =
+        compressed_accounts[0].clone().into();
     let counter = &compressed_account
         .compressed_account
         .data
@@ -110,17 +116,19 @@ async fn test_counter() {
     assert_eq!(counter.value, 0);
 
     // Reset the counter.
-    reset_counter(&mut rpc, &payer, compressed_account)
+    reset_counter(&mut rpc, &payer, &compressed_account)
         .await
         .unwrap();
 
     // Check that it was reset correctly.
     let compressed_accounts = rpc
-        .get_compressed_accounts_by_owner_v2(&counter::ID)
+        .get_compressed_accounts_by_owner(&counter::ID, None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(compressed_accounts.len(), 1);
-    let compressed_account = &compressed_accounts[0];
+    let compressed_account: CompressedAccountWithMerkleContext =
+        compressed_accounts[0].clone().into();
     let counter = &compressed_account
         .compressed_account
         .data
@@ -131,16 +139,16 @@ async fn test_counter() {
     assert_eq!(counter.value, 0);
 
     // Close the counter.
-    close_counter(&mut rpc, &payer, compressed_account)
+    close_counter(&mut rpc, &payer, &compressed_account)
         .await
         .unwrap();
 
     // Check that it was closed correctly (no compressed accounts after closing).
     let compressed_accounts = rpc
-        .get_compressed_accounts_by_owner_v2(&counter::ID)
+        .get_compressed_accounts_by_owner(&counter::ID, None)
         .await
         .unwrap();
-    assert_eq!(compressed_accounts.len(), 0);
+    assert_eq!(compressed_accounts.value.len(), 0);
 }
 
 async fn create_counter<R>(
@@ -164,6 +172,7 @@ where
                 tree: address_merkle_context.address_merkle_tree_pubkey,
                 address: *address,
             }],
+            None,
         )
         .await
         .unwrap();
@@ -172,11 +181,11 @@ where
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut remaining_accounts,
-        rpc_result.address_root_indices[0],
+        rpc_result.value.get_address_indices()[0],
     );
 
     let instruction_data = counter::instruction::CreateCounter {
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.compressed_proof,
         address_merkle_context: packed_address_merkle_context,
         output_merkle_tree_index,
     };
@@ -204,7 +213,6 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn increment_counter<R>(
     rpc: &mut R,
-
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<Signature, RpcError>
@@ -218,7 +226,7 @@ where
     let hash = compressed_account.hash().unwrap();
 
     let rpc_result = rpc
-        .get_validity_proof_v2(Vec::from(&[hash]), vec![])
+        .get_validity_proof(Vec::from(&[hash]), vec![], None)
         .await
         .unwrap();
 
@@ -239,12 +247,12 @@ where
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
-        root_index: Some(rpc_result.root_indices[0].unwrap()),
+        root_index: Some(rpc_result.value.get_root_indices()[0].unwrap()),
         output_merkle_tree_index: packed_merkle_context.merkle_tree_pubkey_index,
     };
 
     let instruction_data = counter::instruction::IncrementCounter {
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.compressed_proof,
         counter_value: counter_account.value,
         account_meta,
     };
@@ -285,7 +293,7 @@ where
     let hash = compressed_account.hash().unwrap();
 
     let rpc_result = rpc
-        .get_validity_proof(Vec::from(&[hash]), vec![])
+        .get_validity_proof(Vec::from(&[hash]), vec![], None)
         .await
         .unwrap();
 
@@ -306,12 +314,12 @@ where
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
-        root_index: Some(rpc_result.root_indices[0]),
+        root_index: rpc_result.value.get_root_indices()[0],
         output_merkle_tree_index: packed_merkle_context.merkle_tree_pubkey_index,
     };
 
     let instruction_data = counter::instruction::DecrementCounter {
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.compressed_proof,
         counter_value: counter_account.value,
         account_meta,
     };
@@ -352,7 +360,7 @@ where
     let hash = compressed_account.hash().unwrap();
 
     let rpc_result = rpc
-        .get_validity_proof_v2(Vec::from(&[hash]), vec![])
+        .get_validity_proof(Vec::from(&[hash]), vec![], None)
         .await
         .unwrap();
 
@@ -373,12 +381,12 @@ where
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
-        root_index: Some(rpc_result.root_indices[0].unwrap()),
+        root_index: Some(rpc_result.value.get_root_indices()[0].unwrap()),
         output_merkle_tree_index: packed_merkle_context.merkle_tree_pubkey_index,
     };
 
     let instruction_data = counter::instruction::ResetCounter {
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.compressed_proof,
         counter_value: counter_account.value,
         account_meta,
     };
@@ -418,7 +426,7 @@ where
     let hash = compressed_account.hash().unwrap();
 
     let rpc_result = rpc
-        .get_validity_proof_v2(Vec::from(&[hash]), vec![])
+        .get_validity_proof(Vec::from(&[hash]), vec![], None)
         .await
         .unwrap();
 
@@ -439,12 +447,12 @@ where
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
-        root_index: Some(rpc_result.root_indices[0].unwrap()),
+        root_index: Some(rpc_result.value.get_root_indices()[0].unwrap()),
         output_merkle_tree_index: packed_merkle_context.merkle_tree_pubkey_index,
     };
 
     let instruction_data = counter::instruction::CloseCounter {
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.compressed_proof,
         counter_value: counter_account.value,
         account_meta,
     };

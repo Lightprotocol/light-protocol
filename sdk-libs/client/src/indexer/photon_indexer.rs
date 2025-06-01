@@ -1,15 +1,5 @@
 use std::{fmt::Debug, time::Duration};
 
-use super::{
-    indexer_trait::{IndexerRpcConfig, RetryConfig},
-    types::{Account, TokenAccount, TokenBalance},
-    BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
-};
-use crate::indexer::base58::{decode_base58_to_fixed_array, Base58Conversions};
-use crate::indexer::{
-    indexer_trait::{Context, Response, ResponseWithCursor},
-    Address, AddressWithTree, Hash, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
-};
 use async_trait::async_trait;
 use bs58;
 use light_merkle_tree_metadata::QueueType;
@@ -19,6 +9,17 @@ use photon_api::{
 };
 use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
+
+use super::{
+    indexer_trait::{IndexerRpcConfig, RetryConfig},
+    types::{Account, TokenAccount, TokenBalance},
+    BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
+};
+use crate::indexer::{
+    base58::{decode_base58_to_fixed_array, Base58Conversions},
+    indexer_trait::{Context, Response, ResponseWithCursor},
+    Address, AddressWithTree, Hash, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
+};
 
 pub struct PhotonIndexer {
     configuration: Configuration,

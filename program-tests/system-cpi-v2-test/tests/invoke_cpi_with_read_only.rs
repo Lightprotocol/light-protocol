@@ -274,9 +274,10 @@ async fn functional_read_only() {
                                 _ => vec![],
                             };
 
-                            rpc.get_validity_proof_v2(
+                            rpc.get_validity_proof(
                                 input_hashes.unwrap_or_default(),
                                 addresses_with_tree,
+                                None,
                             )
                             .await
                             .unwrap()
@@ -571,9 +572,10 @@ async fn functional_account_infos() {
                                 _ => vec![],
                             };
 
-                            rpc.get_validity_proof_v2(
+                            rpc.get_validity_proof(
                                 input_hashes.unwrap_or_default(),
                                 addresses_with_tree,
+                                None,
                             )
                             .await
                             .unwrap()
@@ -744,21 +746,21 @@ async fn create_addresses_with_account_info() {
         ];
 
         let rpc_result = rpc
-            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
             assigned_account_index: Some(1),
         };
         // 1. Create unassigned address and use it in account_info.
@@ -772,7 +774,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info.clone()]),
                 is_small_ix,
@@ -799,7 +801,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![]),
                 is_small_ix,
@@ -834,7 +836,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info]),
                 is_small_ix,
@@ -861,7 +863,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info1.clone()]),
                 is_small_ix,
@@ -890,7 +892,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone(), new_address_params1],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info.clone()]),
                 is_small_ix,
@@ -917,7 +919,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone(), new_address_params1.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info.clone(), account_info1.clone()]),
                 is_small_ix,
@@ -959,7 +961,7 @@ async fn create_addresses_with_account_info() {
                 derive_address_legacy(&address_tree, &seed1).unwrap()
             };
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![
                         AddressWithTree {
@@ -971,6 +973,7 @@ async fn create_addresses_with_account_info() {
                             tree: address_tree,
                         },
                     ],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -978,14 +981,14 @@ async fn create_addresses_with_account_info() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
                 assigned_account_index: None,
             };
             local_sdk::perform_test_transaction(
@@ -995,7 +998,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone(), new_address_params1.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![]),
                 is_small_ix,
@@ -1027,12 +1030,13 @@ async fn create_addresses_with_account_info() {
             };
 
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![AddressWithTree {
                         address,
                         tree: address_tree,
                     }],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -1040,7 +1044,7 @@ async fn create_addresses_with_account_info() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: None,
             };
             local_sdk::perform_test_transaction(
@@ -1050,7 +1054,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![]),
                 is_small_ix,
@@ -1101,7 +1105,7 @@ async fn create_addresses_with_account_info() {
             };
 
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![
                         AddressWithTree {
@@ -1113,6 +1117,7 @@ async fn create_addresses_with_account_info() {
                             tree: address_tree,
                         },
                     ],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -1120,14 +1125,14 @@ async fn create_addresses_with_account_info() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
                 assigned_account_index: Some(0),
             };
             local_sdk::perform_test_transaction(
@@ -1137,7 +1142,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params, new_address_params1],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info]),
                 is_small_ix,
@@ -1178,12 +1183,13 @@ async fn create_addresses_with_account_info() {
             };
 
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![AddressWithTree {
                         address,
                         tree: address_tree,
                     }],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -1191,7 +1197,7 @@ async fn create_addresses_with_account_info() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: Some(0),
             };
 
@@ -1202,7 +1208,7 @@ async fn create_addresses_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info]),
                 is_small_ix,
@@ -1331,21 +1337,21 @@ async fn create_addresses_with_read_only() {
         ];
 
         let rpc_result = rpc
-            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
             assigned_account_index: Some(1),
         };
         // 1. Create unassigned address and use it in account_info.
@@ -1360,7 +1366,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![output_1.clone()],
                 vec![new_address_params],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1388,7 +1394,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1424,7 +1430,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![output_1],
                 vec![new_address_params],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1452,7 +1458,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![output_2.clone()],
                 vec![new_address_params.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1482,7 +1488,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![output_1.clone()],
                 vec![new_address_params.clone(), new_address_params1],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1510,7 +1516,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![output_1, output_2],
                 vec![new_address_params.clone(), new_address_params1.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1553,7 +1559,7 @@ async fn create_addresses_with_read_only() {
                 derive_address_legacy(&address_tree, &seed1).unwrap()
             };
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![
                         AddressWithTree {
@@ -1565,6 +1571,7 @@ async fn create_addresses_with_read_only() {
                             tree: address_tree,
                         },
                     ],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -1572,14 +1579,14 @@ async fn create_addresses_with_read_only() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
                 assigned_account_index: None,
             };
             local_sdk::perform_test_transaction(
@@ -1589,7 +1596,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone(), new_address_params1.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1622,12 +1629,13 @@ async fn create_addresses_with_read_only() {
             };
 
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![AddressWithTree {
                         address,
                         tree: address_tree,
                     }],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -1635,7 +1643,7 @@ async fn create_addresses_with_read_only() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: None,
             };
             local_sdk::perform_test_transaction(
@@ -1645,7 +1653,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone()],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1693,7 +1701,7 @@ async fn create_addresses_with_read_only() {
             output_accounts[0].compressed_account.address = Some(address1);
 
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![
                         AddressWithTree {
@@ -1705,6 +1713,7 @@ async fn create_addresses_with_read_only() {
                             tree: address_tree,
                         },
                     ],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -1712,14 +1721,14 @@ async fn create_addresses_with_read_only() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
                 assigned_account_index: Some(0),
             };
             local_sdk::perform_test_transaction(
@@ -1729,7 +1738,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 output_accounts,
                 vec![new_address_params, new_address_params1],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -1767,12 +1776,13 @@ async fn create_addresses_with_read_only() {
             output_accounts[0].compressed_account.address = Some(address);
 
             let rpc_result = rpc
-                .get_validity_proof_v2(
+                .get_validity_proof(
                     Vec::new(),
                     vec![AddressWithTree {
                         address,
                         tree: address_tree,
                     }],
+                    None,
                 )
                 .await
                 .unwrap();
@@ -1780,7 +1790,7 @@ async fn create_addresses_with_read_only() {
                 seed,
                 address_queue_pubkey: address_queue,
                 address_merkle_tree_pubkey: address_tree,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
                 assigned_account_index: Some(0),
             };
 
@@ -1791,7 +1801,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 output_accounts,
                 vec![new_address_params],
-                rpc_result.proof.clone(),
+                rpc_result.value.compressed_proof.0.clone(),
                 None,
                 None,
                 is_small_ix,
@@ -2120,21 +2130,21 @@ async fn cpi_context_with_read_only() {
         ];
 
         let rpc_result = rpc
-            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
             assigned_account_index: Some(1),
         };
         let owner_account1 = Pubkey::new_unique();
@@ -2243,7 +2253,7 @@ async fn cpi_context_with_read_only() {
                 input_accounts,
                 vec![output_account],
                 vec![new_address_params, new_address_params1],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -2416,21 +2426,21 @@ async fn cpi_context_with_account_info() {
         ];
 
         let rpc_result = rpc
-            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .get_validity_proof(Vec::new(), addresses_with_tree, None)
             .await
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
             address_queue_pubkey: address_queue,
             address_merkle_tree_pubkey: address_tree,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+            address_merkle_tree_root_index: rpc_result.value.get_address_indices()[1],
             assigned_account_index: Some(2),
         };
         let owner_account1 = Pubkey::new_unique();
@@ -2561,7 +2571,7 @@ async fn cpi_context_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params, new_address_params1],
-                rpc_result.proof,
+                rpc_result.value.compressed_proof.0,
                 None,
                 Some(vec![account_info1, account_info2]),
                 is_small_ix,

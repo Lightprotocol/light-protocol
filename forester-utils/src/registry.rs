@@ -6,7 +6,6 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{RpcConnection, RpcError},
 };
-use light_sdk;
 use light_registry::{
     account_compression_cpi::sdk::{
         create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
@@ -16,6 +15,7 @@ use light_registry::{
     utils::get_forester_pda,
     ForesterConfig, ForesterPda,
 };
+use light_sdk;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,

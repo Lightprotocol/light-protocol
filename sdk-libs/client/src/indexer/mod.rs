@@ -7,13 +7,11 @@ mod indexer_trait;
 pub(crate) mod tree_info;
 mod types;
 
+pub use base58::Base58Conversions;
+pub use error::IndexerError;
 pub use indexer_trait::{
     Context, Indexer, IndexerRpcConfig, Response, ResponseWithCursor, RetryConfig,
 };
-
-pub use base58::Base58Conversions;
-pub use error::IndexerError;
-
 pub use types::{
     Account, AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
     AddressQueueIndex, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, MerkleContext,

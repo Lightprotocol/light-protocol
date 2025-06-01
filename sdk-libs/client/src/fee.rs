@@ -1,8 +1,7 @@
-use {
-    crate::rpc::{RpcConnection, RpcError},
-    solana_keypair::Keypair,
-    solana_pubkey::Pubkey,
-};
+use solana_keypair::Keypair;
+use solana_pubkey::Pubkey;
+
+use crate::rpc::{RpcConnection, RpcError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FeeConfig {

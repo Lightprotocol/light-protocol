@@ -369,7 +369,7 @@ async fn validate_compressed_accounts_proof<I: Indexer>(
             .collect::<Vec<_>>()
     );
     let proof = indexer
-        .get_validity_proof_v2(compressed_account_hashes, vec![])
+        .get_validity_proof(compressed_account_hashes, vec![], None)
         .await
         .unwrap();
     println!("proof_for_compressed_accounts: {:?}", proof);
@@ -682,7 +682,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
         .collect::<Vec<[u8; 32]>>();
     wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_compressed_accounts = indexer
-        .get_validity_proof_v2(compressed_account_hashes, vec![])
+        .get_validity_proof(compressed_account_hashes, vec![], None)
         .await
         .unwrap();
     let root_indices = proof_for_compressed_accounts.root_indices;
@@ -779,7 +779,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
     let input_compressed_accounts = indexer
-        .get_compressed_accounts_by_owner_v2(&payer.pubkey())
+        .get_compressed_accounts_by_owner(&payer.pubkey())
         .await
         .unwrap_or(vec![]);
     let mut input_compressed_accounts = if V2 {
@@ -822,7 +822,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
     wait_for_indexer(rpc, indexer).await.unwrap();
     println!("compressed_account_hashes: {:?}", compressed_account_hashes);
     let proof_for_compressed_accounts = indexer
-        .get_validity_proof_v2(compressed_account_hashes, vec![])
+        .get_validity_proof(compressed_account_hashes, vec![], None)
         .await
         .unwrap();
     let root_indices = proof_for_compressed_accounts.root_indices;
@@ -969,7 +969,7 @@ async fn create_v1_address<R: RpcConnection, I: Indexer>(
     }
     wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_addresses = indexer
-        .get_validity_proof_v2(vec![], address_proof_inputs)
+        .get_validity_proof(vec![], address_proof_inputs, None)
         .await
         .unwrap();
     let mut new_address_params = Vec::new();

@@ -66,7 +66,7 @@ async fn test_sdk_test() {
     let compressed_pda = rpc
         .indexer()
         .unwrap()
-        .get_compressed_accounts_by_owner_v2(&sdk_test::ID)
+        .get_compressed_accounts_by_owner(&sdk_test::ID)
         .await
         .unwrap()[0]
         .clone();
@@ -91,12 +91,13 @@ pub async fn create_pda(
     accounts.add_system_accounts(system_account_meta_config);
 
     let rpc_result = rpc
-        .get_validity_proof_v2(
+        .get_validity_proof(
             vec![],
             vec![AddressWithTree {
                 address,
                 tree: address_merkle_context.address_merkle_tree_pubkey,
             }],
+            None,
         )
         .await?;
 
@@ -104,12 +105,12 @@ pub async fn create_pda(
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut accounts,
-        rpc_result.address_root_indices[0],
+        rpc_result.value.get_address_indices()[0],
     );
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
     let instruction_data = CreatePdaInstructionData {
-        proof: rpc_result.proof.unwrap().into(),
+        proof: rpc_result.value.compressed_proof.0.unwrap().into(),
         address_merkle_context: packed_address_merkle_context,
         data: account_data,
         output_merkle_tree_index,
@@ -142,13 +143,13 @@ pub async fn update_pda(
     accounts.add_system_accounts(system_account_meta_config);
 
     let rpc_result = rpc
-        .get_validity_proof_v2(vec![compressed_account.hash().unwrap()], vec![])
+        .get_validity_proof(vec![compressed_account.hash().unwrap()], vec![], None)
         .await?;
 
     let meta = CompressedAccountMeta::from_compressed_account(
         &compressed_account,
         &mut accounts,
-        rpc_result.root_indices[0],
+        rpc_result.value.get_root_indices()[0],
         &output_merkle_tree,
     )
     .unwrap();
@@ -164,7 +165,7 @@ pub async fn update_pda(
                 .try_into()
                 .unwrap(),
         },
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.compressed_proof,
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };

@@ -2654,29 +2654,54 @@ where
                 .await
                 .unwrap();
 
-            root_indices = proof_rpc_res.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>();
+            root_indices = proof_rpc_res
+                .value
+                .accounts
+                .iter()
+                .map(|x| x.root_index)
+                .collect::<Vec<_>>();
 
             if let Some(proof_rpc_res) = proof_rpc_res.value.compressed_proof.0 {
                 proof = Some(proof_rpc_res);
             }
 
             if !new_address_params.is_empty() {
-                let address_root_indices: Vec<_> = proof_rpc_res.value.addresses.iter().map(|x| x.root_index).collect();
+                let address_root_indices: Vec<_> = proof_rpc_res
+                    .value
+                    .addresses
+                    .iter()
+                    .map(|x| x.root_index)
+                    .collect();
                 for (i, input_address) in new_address_params.iter_mut().enumerate() {
                     input_address.address_merkle_tree_root_index = address_root_indices[i];
                 }
             }
             if !read_only_addresses.is_empty() {
-                let address_root_indices: Vec<_> = proof_rpc_res.value.addresses.iter().map(|x| x.root_index).collect();
+                let address_root_indices: Vec<_> = proof_rpc_res
+                    .value
+                    .addresses
+                    .iter()
+                    .map(|x| x.root_index)
+                    .collect();
                 for (i, input_address) in read_only_addresses.iter_mut().enumerate() {
-                    input_address.address_merkle_tree_root_index = address_root_indices[i + new_address_params.len()];
+                    input_address.address_merkle_tree_root_index =
+                        address_root_indices[i + new_address_params.len()];
                 }
             }
 
             if !read_only_accounts.is_empty() {
-                let account_root_indices: Vec<_> = proof_rpc_res.value.accounts.iter().map(|x| x.root_index).collect();
+                let account_root_indices: Vec<_> = proof_rpc_res
+                    .value
+                    .accounts
+                    .iter()
+                    .map(|x| x.root_index)
+                    .collect();
                 for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
-                    if let Some(root_index) = account_root_indices.get(i + input_accounts.len()).copied().flatten() {
+                    if let Some(root_index) = account_root_indices
+                        .get(i + input_accounts.len())
+                        .copied()
+                        .flatten()
+                    {
                         input_account.root_index = root_index;
                     } else {
                         input_account.merkle_context.prove_by_index = true;
@@ -3023,18 +3048,15 @@ where
                 .get_compressed_token_accounts_by_owner(user, None, None)
                 .await
                 .unwrap()
-                .value.iter()
+                .value
+                .iter()
                 .filter(|token_account| {
                     let version = self
                         .indexer
                         .get_state_merkle_trees()
                         .iter()
                         .find(|x| {
-                            x.accounts.merkle_tree
-                                == token_account
-                                    .account
-                                    .merkle_context
-                                    .tree
+                            x.accounts.merkle_tree == token_account.account.merkle_context.tree
                         })
                         .unwrap()
                         .version;
@@ -3051,29 +3073,20 @@ where
                 .indexer
                 .get_state_merkle_trees()
                 .iter()
-                .find(|x| {
-                    x.accounts.merkle_tree
-                        == token_account
-                            .account
-                            .merkle_context
-                            .tree
-                })
+                .find(|x| x.accounts.merkle_tree == token_account.account.merkle_context.tree)
                 .unwrap()
                 .version;
 
             token_accounts_with_mint = user_token_accounts
-                .value.iter()
+                .value
+                .iter()
                 .filter(|token_account| {
                     let version = self
                         .indexer
                         .get_state_merkle_trees()
                         .iter()
                         .find(|x| {
-                            x.accounts.merkle_tree
-                                == token_account
-                                    .account
-                                    .merkle_context
-                                    .tree
+                            x.accounts.merkle_tree == token_account.account.merkle_context.tree
                         })
                         .unwrap()
                         .version;

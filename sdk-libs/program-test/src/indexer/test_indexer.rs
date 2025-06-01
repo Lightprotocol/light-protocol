@@ -12,16 +12,14 @@ use light_batched_merkle_tree::{
     },
     merkle_tree::BatchedMerkleTreeAccount,
 };
-use light_client::indexer::TokenAccount;
-use light_client::indexer::TokenBalance;
 use light_client::{
     fee::FeeConfig,
     indexer::{
         Account, AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
         AddressWithTree, BatchAddressUpdateIndexerResponse, Context, Indexer, IndexerError,
         IndexerRpcConfig, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext,
-        Response, ResponseWithCursor, RetryConfig, StateMerkleTreeAccounts,
-        ValidityProofWithContext,
+        Response, ResponseWithCursor, RetryConfig, StateMerkleTreeAccounts, TokenAccount,
+        TokenBalance, ValidityProofWithContext,
     },
     rpc::{RpcConnection, RpcError},
 };
@@ -518,7 +516,7 @@ impl Indexer for TestIndexer {
                     accounts,
                     addresses,
                     compressed_proof: rpc_result
-                        .map(|rpc_result| rpc_result.compressed_proof.clone().0.unwrap())
+                        .map(|rpc_result| rpc_result.compressed_proof.0.unwrap())
                         .into(),
                 },
             })

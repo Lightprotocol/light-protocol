@@ -106,7 +106,10 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer>(
             ForesterUtilsError::Indexer("Failed to get queue elements".into())
         })?;
 
-    trace!("Got {} queue elements in total", all_queue_elements.value.len());
+    trace!(
+        "Got {} queue elements in total",
+        all_queue_elements.value.len()
+    );
     if all_queue_elements.value.len() != total_elements {
         return Err(ForesterUtilsError::Indexer(format!(
             "Expected {} elements, got {}",

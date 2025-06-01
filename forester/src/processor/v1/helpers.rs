@@ -150,7 +150,11 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
                 low_address_value: proof.low_address_value,
                 low_address_next_index: proof.low_address_next_index,
                 low_address_next_value: proof.low_address_next_value,
-                low_address_proof: proof.low_address_proof.try_into().map_err(|_| ForesterError::General { error: "Failed to convert proof to fixed array".to_string() })?,
+                low_address_proof: proof.low_address_proof.try_into().map_err(|_| {
+                    ForesterError::General {
+                        error: "Failed to convert proof to fixed array".to_string(),
+                    }
+                })?,
                 changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
                 indexed_changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
                     as u16,

@@ -1,10 +1,11 @@
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 use light_merkle_tree_metadata::QueueType;
 use solana_pubkey::Pubkey;
-use std::fmt::Debug;
 
-use super::types::{Account, TokenAccount, TokenBalance, ValidityProofWithContext};
 use super::{
+    types::{Account, TokenAccount, TokenBalance, ValidityProofWithContext},
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, IndexerError, MerkleProof,
     MerkleProofWithContext, NewAddressProofWithContext,
 };

@@ -191,12 +191,12 @@ async fn test_state_indexer_batched() {
         &forester_keypair.pubkey()
     );
     let compressed_balance_photon = photon_indexer
-        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
         .await
         .unwrap();
     let compressed_balance_test_indexer = e2e_env
         .indexer
-        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
         .await
         .unwrap();
     for (photon_account, test_indexer_account) in compressed_balance_photon
@@ -222,12 +222,12 @@ async fn test_state_indexer_batched() {
             &forester_keypair.pubkey()
         );
         let compressed_balance_photon = photon_indexer
-            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
             .await
             .unwrap();
         let compressed_balance_test_indexer = e2e_env
             .indexer
-            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
             .await
             .unwrap();
 
