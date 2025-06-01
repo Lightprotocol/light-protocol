@@ -15,7 +15,7 @@ use super::{
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
 use crate::indexer::{
-    base58::{decode_base58_to_fixed_array, Base58Conversions},
+    base58::Base58Conversions,
     config::RetryConfig,
     response::{Context, Items, ItemsWithCursor, Response},
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
@@ -262,7 +262,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<Account, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -297,11 +297,7 @@ impl Indexer for PhotonIndexer {
                 let accounts: Result<Vec<_>, _> =
                     response.value.items.iter().map(Account::try_from).collect();
 
-                let cursor = response
-                    .value
-                    .cursor
-                    .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?;
+                let cursor = response.value.cursor;
 
                 Ok(Response {
                     context: Context {
@@ -344,11 +340,7 @@ impl Indexer for PhotonIndexer {
                 let accounts: Result<Vec<_>, _> =
                     response.value.items.iter().map(Account::try_from).collect();
 
-                let cursor = response
-                    .value
-                    .cursor
-                    .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?;
+                let cursor = response.value.cursor;
 
                 Ok(Response {
                     context: Context {
@@ -408,7 +400,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -444,11 +436,7 @@ impl Indexer for PhotonIndexer {
                     .map(TokenAccount::try_from)
                     .collect();
 
-                let cursor = response
-                    .value
-                    .cursor
-                    .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?;
+                let cursor = response.value.cursor;
 
                 Ok(Response {
                     context: Context {
@@ -496,11 +484,7 @@ impl Indexer for PhotonIndexer {
                     .map(TokenAccount::try_from)
                     .collect();
 
-                let cursor = response
-                    .value
-                    .cursor
-                    .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?;
+                let cursor = response.value.cursor;
 
                 Ok(Response {
                     context: Context {
@@ -641,7 +625,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenBalance, String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenBalance>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -1251,7 +1235,7 @@ impl Indexer for PhotonIndexer {
         mint: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<OwnerBalance, String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressedMintTokenHoldersPostRequest {
@@ -1303,7 +1287,7 @@ impl Indexer for PhotonIndexer {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -1338,11 +1322,7 @@ impl Indexer for PhotonIndexer {
                     .map(TokenAccount::try_from)
                     .collect();
 
-                let cursor = response
-                    .value
-                    .cursor
-                    .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?;
+                let cursor = response.value.cursor;
 
                 Ok(Response {
                     context: Context {
@@ -1386,11 +1366,7 @@ impl Indexer for PhotonIndexer {
                     .map(TokenAccount::try_from)
                     .collect();
 
-                let cursor = response
-                    .value
-                    .cursor
-                    .map(|c| decode_base58_to_fixed_array(&c))
-                    .transpose()?;
+                let cursor = response.value.cursor;
 
                 Ok(Response {
                     context: Context {
@@ -1411,7 +1387,7 @@ impl Indexer for PhotonIndexer {
         address: &[u8; 32],
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressionSignaturesForAddressPostRequest {
@@ -1445,11 +1421,7 @@ impl Indexer for PhotonIndexer {
                 .map(SignatureWithMetadata::try_from)
                 .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
 
-            let cursor = api_response
-                .value
-                .cursor
-                .map(|c| decode_base58_to_fixed_array(&c))
-                .transpose()?;
+            let cursor = api_response.value.cursor;
 
             Ok(Response {
                 context: Context {
@@ -1469,7 +1441,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressionSignaturesForOwnerPostRequest {
@@ -1502,11 +1474,7 @@ impl Indexer for PhotonIndexer {
                 .map(SignatureWithMetadata::try_from)
                 .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
 
-            let cursor = api_response
-                .value
-                .cursor
-                .map(|c| decode_base58_to_fixed_array(&c))
-                .transpose()?;
+            let cursor = api_response.value.cursor;
 
             Ok(Response {
                 context: Context {
@@ -1526,7 +1494,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressionSignaturesForTokenOwnerPostRequest {
@@ -1560,11 +1528,7 @@ impl Indexer for PhotonIndexer {
                 .map(SignatureWithMetadata::try_from)
                 .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
 
-            let cursor = api_response
-                .value
-                .cursor
-                .map(|c| decode_base58_to_fixed_array(&c))
-                .transpose()?;
+            let cursor = api_response.value.cursor;
 
             Ok(Response {
                 context: Context {

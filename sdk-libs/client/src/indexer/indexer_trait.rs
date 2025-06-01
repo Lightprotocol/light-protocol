@@ -30,7 +30,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         owner: &Pubkey,
         options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<Account, [u8; 32]>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError>;
 
     /// Returns the balance for the compressed account with the given address or hash.
     async fn get_compressed_balance(
@@ -53,7 +53,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         mint: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<OwnerBalance, String>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance>>, IndexerError>;
 
     /// Returns the balance for a given token account.
     async fn get_compressed_token_account_balance(
@@ -69,14 +69,14 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError>;
 
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError>;
 
     /// Returns the token balances for a given owner.
     async fn get_compressed_token_balances_by_owner(
@@ -84,7 +84,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenBalance, String>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<TokenBalance>>, IndexerError>;
 
     /// Returns the token balances for a given owner.
     async fn get_compression_signatures_for_account(
@@ -100,7 +100,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         address: &[u8; 32],
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError>;
 
     /// Returns the signatures of the transactions that
     /// have modified an owner’s compressed accounts.
@@ -109,7 +109,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError>;
 
     /// Returns the signatures of the transactions that
     /// have modified an owner’s compressed token accounts.
@@ -118,7 +118,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError>;
 
     /// Returns an error if the indexer is stale
     /// by more than a configurable number of blocks.

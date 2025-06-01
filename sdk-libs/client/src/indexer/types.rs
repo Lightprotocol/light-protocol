@@ -645,7 +645,7 @@ impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
 
 #[allow(clippy::from_over_into)]
 impl Into<Vec<light_sdk::token::TokenDataWithMerkleContext>>
-    for super::response::Response<super::response::ItemsWithCursor<TokenAccount, [u8; 32]>>
+    for super::response::Response<super::response::ItemsWithCursor<TokenAccount>>
 {
     fn into(self) -> Vec<light_sdk::token::TokenDataWithMerkleContext> {
         self.value

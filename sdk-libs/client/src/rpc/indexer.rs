@@ -54,7 +54,7 @@ impl Indexer for SolanaRpcConnection {
         owner: &Pubkey,
         options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<Account, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -82,7 +82,7 @@ impl Indexer for SolanaRpcConnection {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -138,7 +138,7 @@ impl Indexer for SolanaRpcConnection {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenBalance, String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenBalance>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -241,7 +241,7 @@ impl Indexer for SolanaRpcConnection {
         mint: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<OwnerBalance, String>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<OwnerBalance>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -255,7 +255,7 @@ impl Indexer for SolanaRpcConnection {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -269,7 +269,7 @@ impl Indexer for SolanaRpcConnection {
         address: &[u8; 32],
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -283,7 +283,7 @@ impl Indexer for SolanaRpcConnection {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -297,7 +297,7 @@ impl Indexer for SolanaRpcConnection {
         owner: &Pubkey,
         options: Option<PaginatedOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata, [u8; 32]>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()

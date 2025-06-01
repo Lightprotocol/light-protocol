@@ -23,10 +23,7 @@ pub struct Items<T: Clone + PartialEq + Default + Debug> {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ItemsWithCursor<
-    T: Clone + PartialEq + Default + Debug,
-    C: Clone + PartialEq + Default + Debug,
-> {
+pub struct ItemsWithCursor<T: Clone + PartialEq + Default + Debug> {
     pub items: Vec<T>,
-    pub cursor: Option<C>,
+    pub cursor: Option<String>,
 }
