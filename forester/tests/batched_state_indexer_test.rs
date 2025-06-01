@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer},
+    indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerRpcConfig, RetryConfig},
     rpc::{
         rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
         SolanaRpcConnection,
@@ -190,8 +190,15 @@ async fn test_state_indexer_batched() {
         "get_compressed_accounts_by_owner({}) initial",
         &forester_keypair.pubkey()
     );
+    let slot = e2e_env.rpc.get_slot().await.unwrap();
     let compressed_balance_photon = photon_indexer
-        .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None)
+        .get_compressed_accounts_by_owner(
+            &forester_keypair.pubkey(),
+            Some(IndexerRpcConfig {
+                slot,
+                retry_config: RetryConfig::default(),
+            }),
+        )
         .await
         .unwrap();
     let compressed_balance_test_indexer = e2e_env
@@ -207,7 +214,7 @@ async fn test_state_indexer_batched() {
         let mut photon_account = photon_account.clone();
         // Test indexer slot created is MAX
         photon_account.slot_created = u64::MAX;
-        photon_account.proof_by_index = false;
+        photon_account.prove_by_index = false;
         assert_eq!(photon_account, *test_indexer_account);
     }
 
@@ -250,7 +257,7 @@ async fn test_state_indexer_batched() {
             let mut photon_account = photon_account.clone();
             // Test indexer slot created is MAX
             photon_account.slot_created = u64::MAX;
-            photon_account.proof_by_index = false;
+            photon_account.prove_by_index = false;
             assert_eq!(photon_account, *test_indexer_account);
         }
 

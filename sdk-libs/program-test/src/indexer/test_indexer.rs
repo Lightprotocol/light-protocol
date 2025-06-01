@@ -402,6 +402,8 @@ impl Indexer for TestIndexer {
         new_addresses_with_trees: Vec<AddressWithTree>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError> {
+        println!("hashes: {:?}", hashes);
+        println!("new_addresses_with_trees: {:?}", new_addresses_with_trees);
         #[cfg(feature = "v2")]
         {
             // V2 implementation with queue handling
@@ -498,11 +500,17 @@ impl Indexer for TestIndexer {
                 } else {
                     Vec::new()
                 };
+                println!("rpc_result {:?}", rpc_result);
+                println!("root_indices: {:?}", root_indices);
                 // reverse so that we can pop elements.
                 proof_inputs.reverse();
-                // Insert None for indices that were removed due to queue handling
+                // Reinsert.
                 for index in indices_to_remove.iter().rev() {
-                    root_indices.insert(*index, proof_inputs.pop().unwrap());
+                    if root_indices.len() <= *index {
+                        root_indices.push(proof_inputs.pop().unwrap());
+                    } else {
+                        root_indices.insert(*index, proof_inputs.pop().unwrap());
+                    }
                 }
                 root_indices
                 // root_indices.into_iter().map(|x| x.unwrap_or(0)).collect()
