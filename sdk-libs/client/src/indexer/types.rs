@@ -627,6 +627,19 @@ impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     }
 }
 
+impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
+    type Error = IndexerError;
+
+    fn try_from(token_data_with_context: light_sdk::token::TokenDataWithMerkleContext) -> Result<Self, Self::Error> {
+        let account = Account::try_from(token_data_with_context.compressed_account)?;
+
+        Ok(TokenAccount {
+            token: token_data_with_context.token_data,
+            account,
+        })
+    }
+}
+
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct TokenBalance {
     pub balance: u64,

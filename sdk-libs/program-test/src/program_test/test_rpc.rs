@@ -18,7 +18,6 @@ use solana_sdk::{
 };
 
 use crate::program_test::LightProgramTest;
-
 #[async_trait]
 pub trait TestRpc: RpcConnection + Sized {
     async fn create_and_send_transaction_with_batched_event(
@@ -26,7 +25,7 @@ pub trait TestRpc: RpcConnection + Sized {
         instructions: &[Instruction],
         payer: &Pubkey,
         signers: &[&Keypair],
-        transaction_params: Option<TransactionParams>,
+        transaction_params: Option<light_client::fee::TransactionParams>,
     ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
         let pre_balance = self.get_balance(payer).await?;
 
@@ -37,7 +36,15 @@ pub trait TestRpc: RpcConnection + Sized {
             signers,
         )
         .await?;
-        assert_transaction_params(self, payer, signers, pre_balance, transaction_params).await?;
+
+        light_client::fee::assert_transaction_params(
+            self,
+            payer,
+            signers,
+            pre_balance,
+            transaction_params,
+        )
+        .await?;
 
         Ok(event)
     }

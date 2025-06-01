@@ -1,7 +1,7 @@
 use std::{fmt::Debug, time::Duration};
 
 use super::{
-    indexer_trait::{RetryConfig, IndexerRpcConfig},
+    indexer_trait::{IndexerRpcConfig, RetryConfig},
     types::{Account, TokenAccount, TokenBalance},
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
@@ -171,7 +171,7 @@ impl Indexer for PhotonIndexer {
 
     async fn get_multiple_compressed_account_proofs(
         &self,
-        hashes: Vec<String>,
+        hashes: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
         let config = config.unwrap_or_default();
@@ -180,7 +180,10 @@ impl Indexer for PhotonIndexer {
 
             let request: photon_api::models::GetMultipleCompressedAccountProofsPostRequest =
                 photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
-                    params: hashes_for_async,
+                    params: hashes_for_async
+                        .into_iter()
+                        .map(|hash| bs58::encode(hash).into_string())
+                        .collect(),
                     ..Default::default()
                 };
 
@@ -280,12 +283,8 @@ impl Indexer for PhotonIndexer {
                 if response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
-                let accounts: Result<Vec<_>, _> = response
-                    .value
-                    .items
-                    .iter()
-                    .map(Account::try_from)
-                    .collect();
+                let accounts: Result<Vec<_>, _> =
+                    response.value.items.iter().map(Account::try_from).collect();
 
                 let cursor = response
                     .value
@@ -323,12 +322,8 @@ impl Indexer for PhotonIndexer {
                 if response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
-                let accounts: Result<Vec<_>, _> = response
-                    .value
-                    .items
-                    .iter()
-                    .map(Account::try_from)
-                    .collect();
+                let accounts: Result<Vec<_>, _> =
+                    response.value.items.iter().map(Account::try_from).collect();
 
                 let cursor = response
                     .value

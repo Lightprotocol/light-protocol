@@ -5,8 +5,9 @@ use solana_pubkey::Pubkey;
 use super::SolanaRpcConnection;
 use crate::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
-    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, Response,
-    ResponseWithCursor, RetryConfig, TokenAccount, TokenBalance, ValidityProofWithContext,
+    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
+    NewAddressProofWithContext, Response, ResponseWithCursor, RetryConfig, TokenAccount,
+    TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -36,7 +37,7 @@ impl Indexer for SolanaRpcConnection {
 
     async fn get_multiple_compressed_account_proofs(
         &self,
-        hashes: Vec<String>,
+        hashes: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
         Ok(self
@@ -197,7 +198,13 @@ impl Indexer for SolanaRpcConnection {
             .indexer
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
-            .get_queue_elements(merkle_tree_pubkey, queue_type, num_elements, start_offset, config)
+            .get_queue_elements(
+                merkle_tree_pubkey,
+                queue_type,
+                num_elements,
+                start_offset,
+                config,
+            )
             .await?)
     }
 

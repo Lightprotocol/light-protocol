@@ -88,7 +88,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
 
     async fn get_multiple_compressed_account_proofs(
         &self,
-        hashes: Vec<String>,
+        hashes: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<MerkleProof>>, IndexerError>;
 

@@ -1,12 +1,11 @@
 use async_trait::async_trait;
 use light_client::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer,
-    IndexerError, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext,
-    ProofRpcResultV2, ValidityProofWithContext,
+    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
+    NewAddressProofWithContext, Response, ResponseWithCursor, RetryConfig, TokenAccount,
+    TokenBalance, ValidityProofWithContext,
 };
-use light_compressed_account::{compressed_account::CompressedAccountWithMerkleContext, QueueType};
-use light_sdk::token::TokenDataWithMerkleContext;
-use photon_api::models::TokenBalanceList;
+use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;
 
 use crate::program_test::LightProgramTest;
@@ -17,83 +16,48 @@ impl Indexer for LightProgramTest {
         &self,
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ValidityProofWithContext, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ValidityProofWithContext>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_validity_proof(hashes, new_addresses_with_trees)
+            .get_validity_proof(hashes, new_addresses_with_trees, config)
             .await?)
     }
 
-    async fn get_validity_proof_v2(
-        &self,
-        hashes: Vec<Hash>,
-        new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResultV2, IndexerError> {
+    async fn get_indexer_slot(&self, config: Option<RetryConfig>) -> Result<u64, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_validity_proof_v2(hashes, new_addresses_with_trees)
-            .await?)
-    }
-
-    async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
-        Ok(self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_indexer_slot()
+            .get_indexer_slot(config)
             .await?)
     }
 
     async fn get_multiple_compressed_account_proofs(
         &self,
-        hashes: Vec<String>,
-    ) -> Result<Vec<MerkleProof>, IndexerError> {
+        hashes: Vec<[u8; 32]>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_multiple_compressed_account_proofs(hashes)
+            .get_multiple_compressed_account_proofs(hashes, config)
             .await?)
     }
 
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_accounts_by_owner(owner)
-            .await?)
-    }
-
-    async fn get_compressed_accounts_by_owner_v2(
-        &self,
-        owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_accounts_by_owner_v2(owner)
-            .await?)
-    }
-
-    async fn get_compressed_token_accounts_by_owner_v2(
-        &self,
-        owner: &Pubkey,
-        mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_accounts_by_owner_v2(owner, mint)
+            .get_compressed_accounts_by_owner(owner, config)
             .await?)
     }
 
@@ -101,12 +65,13 @@ impl Indexer for LightProgramTest {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<Account, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Account>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_account(address, hash)
+            .get_compressed_account(address, hash, config)
             .await?)
     }
 
@@ -114,12 +79,13 @@ impl Indexer for LightProgramTest {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_accounts_by_owner(owner, mint)
+            .get_compressed_token_accounts_by_owner(owner, mint, config)
             .await?)
     }
 
@@ -127,12 +93,13 @@ impl Indexer for LightProgramTest {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_account_balance(address, hash)
+            .get_compressed_account_balance(address, hash, config)
             .await?)
     }
 
@@ -140,12 +107,13 @@ impl Indexer for LightProgramTest {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_account_balance(address, hash)
+            .get_compressed_token_account_balance(address, hash, config)
             .await?)
     }
 
@@ -153,12 +121,13 @@ impl Indexer for LightProgramTest {
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<Account>, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<Account>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_multiple_compressed_accounts(addresses, hashes)
+            .get_multiple_compressed_accounts(addresses, hashes, config)
             .await?)
     }
 
@@ -166,24 +135,26 @@ impl Indexer for LightProgramTest {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<TokenBalanceList, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_balances_by_owner(owner, mint)
+            .get_compressed_token_balances_by_owner(owner, mint, config)
             .await?)
     }
 
     async fn get_compression_signatures_for_account(
         &self,
         hash: Hash,
-    ) -> Result<Vec<String>, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<String>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compression_signatures_for_account(hash)
+            .get_compression_signatures_for_account(hash, config)
             .await?)
     }
 
@@ -191,25 +162,13 @@ impl Indexer for LightProgramTest {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_multiple_new_address_proofs(merkle_tree_pubkey, addresses)
-            .await?)
-    }
-
-    async fn get_multiple_new_address_proofs_h40(
-        &self,
-        merkle_tree_pubkey: [u8; 32],
-        addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_ref()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_multiple_new_address_proofs_h40(merkle_tree_pubkey, addresses)
+            .get_multiple_new_address_proofs(merkle_tree_pubkey, addresses, config)
             .await?)
     }
 
@@ -217,12 +176,13 @@ impl Indexer for LightProgramTest {
         &mut self,
         merkle_tree_pubkey: &Pubkey,
         zkp_batch_size: u16,
-    ) -> Result<BatchAddressUpdateIndexerResponse, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
-            .get_address_queue_with_proofs(merkle_tree_pubkey, zkp_batch_size)
+            .get_address_queue_with_proofs(merkle_tree_pubkey, zkp_batch_size, config)
             .await?)
     }
 
@@ -232,24 +192,32 @@ impl Indexer for LightProgramTest {
         queue_type: QueueType,
         num_elements: u16,
         start_offset: Option<u64>,
-    ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
-            .get_queue_elements(merkle_tree_pubkey, queue_type, num_elements, start_offset)
+            .get_queue_elements(
+                merkle_tree_pubkey,
+                queue_type,
+                num_elements,
+                start_offset,
+                config,
+            )
             .await?)
     }
 
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_subtrees(merkle_tree_pubkey)
+            .get_subtrees(merkle_tree_pubkey, config)
             .await?)
     }
 }

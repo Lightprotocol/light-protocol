@@ -27,7 +27,7 @@ pub struct TokenData {
     pub tlv: Option<Vec<u8>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TokenDataWithMerkleContext {
     pub token_data: TokenData,
     pub compressed_account: CompressedAccountWithMerkleContext,
