@@ -620,7 +620,7 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
-    async fn get_compressed_token_balances_by_owner(
+    async fn get_compressed_token_balances_by_owner_v2(
         &self,
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
@@ -652,8 +652,10 @@ impl Indexer for PhotonIndexer {
                     )
                     .await?;
 
-                let api_response =
-                    Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
+                let api_response = Self::extract_result(
+                    "get_compressed_token_balances_by_owner_v2",
+                    result.result,
+                )?;
                 if api_response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }

@@ -30,7 +30,7 @@ async fn test_all_endpoints() {
     // 6. get_compression_signatures_for_account
     // 7. get_compressed_token_accounts_by_owner
     // 8. get_compressed_token_account_balance
-    // 9. get_compressed_token_balances_by_owner
+    // 9. get_compressed_token_balances_by_owner_v2
     // 10. get_multiple_compressed_account_proofs
     // 11. get_multiple_new_address_proofs
 
@@ -245,7 +245,7 @@ async fn test_all_endpoints() {
     let balances = rpc
         .indexer()
         .unwrap()
-        .get_compressed_token_balances_by_owner(&pubkey, None, None)
+        .get_compressed_token_balances_by_owner_v2(&pubkey, None, None)
         .await
         .unwrap();
 

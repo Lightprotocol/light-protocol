@@ -129,7 +129,7 @@ impl Indexer for LightProgramTest {
             .await?)
     }
 
-    async fn get_compressed_token_balances_by_owner(
+    async fn get_compressed_token_balances_by_owner_v2(
         &self,
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
@@ -139,7 +139,7 @@ impl Indexer for LightProgramTest {
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_token_balances_by_owner(owner, options, config)
+            .get_compressed_token_balances_by_owner_v2(owner, options, config)
             .await?)
     }
 

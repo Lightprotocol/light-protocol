@@ -79,7 +79,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError>;
 
     /// Returns the token balances for a given owner.
-    async fn get_compressed_token_balances_by_owner(
+    async fn get_compressed_token_balances_by_owner_v2(
         &self,
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,

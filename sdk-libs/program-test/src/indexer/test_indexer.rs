@@ -347,7 +347,7 @@ impl Indexer for TestIndexer {
         }
     }
 
-    async fn get_compressed_token_balances_by_owner(
+    async fn get_compressed_token_balances_by_owner_v2(
         &self,
         owner: &Pubkey,
         _options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
