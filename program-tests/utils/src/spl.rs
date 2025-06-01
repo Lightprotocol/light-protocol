@@ -608,7 +608,7 @@ pub async fn compressed_transfer_22_test<
         input_compressed_account_hashes
     );
     let rpc_result = test_indexer
-        .get_validity_proof_v2(input_compressed_account_hashes.clone(), vec![])
+        .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
         .await
         .unwrap();
     output_compressed_accounts.sort_by(|a, b| a.merkle_tree.cmp(&b.merkle_tree));
@@ -626,8 +626,8 @@ pub async fn compressed_transfer_22_test<
         &authority_signer.pubkey(), // authority
         &input_merkle_tree_context,
         &output_compressed_accounts,
-        &rpc_result.root_indices,
-        &rpc_result.proof,
+        &rpc_result.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>(),
+        &rpc_result.value.compressed_proof.0,
         input_compressed_account_token_data
             .iter()
             .cloned()
@@ -776,7 +776,7 @@ pub async fn decompress_test<
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
-        .get_validity_proof_v2(input_compressed_account_hashes.clone(), vec![])
+        .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
         .await
         .unwrap();
     let mint = input_compressed_accounts[0].token_data.mint;
@@ -790,8 +790,8 @@ pub async fn decompress_test<
             .map(|x| x.compressed_account.merkle_context)
             .collect::<Vec<_>>(), // input_compressed_account_merkle_tree_pubkeys
         &[change_out_compressed_account], // output_compressed_accounts
-        &proof_rpc_result.root_indices, // root_indices
-        &Some(proof_rpc_result.proof.unwrap_or_default()),
+        &proof_rpc_result.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>(), // root_indices
+        &Some(proof_rpc_result.value.compressed_proof.0.unwrap_or_default()),
         input_compressed_accounts
             .iter()
             .cloned()
@@ -1160,7 +1160,7 @@ pub async fn approve_test<
     );
     println!("input compressed accounts: {:?}", input_compressed_accounts);
     let proof_rpc_result = rpc
-        .get_validity_proof_v2(input_compressed_account_hashes.clone(), vec![])
+        .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
         .await
         .unwrap();
     let mint = input_compressed_accounts[0].token_data.mint;
@@ -1187,8 +1187,8 @@ pub async fn approve_test<
         delegated_compressed_account_merkle_tree: *delegated_compressed_account_merkle_tree,
         change_compressed_account_merkle_tree: *change_compressed_account_merkle_tree,
         delegate: *delegate,
-        root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof.unwrap_or_default(),
+        root_indices: proof_rpc_result.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>(),
+        proof: proof_rpc_result.value.compressed_proof.0.unwrap_or_default(),
     };
 
     let instruction = create_approve_instruction(inputs).unwrap();
@@ -1322,7 +1322,7 @@ pub async fn revoke_test<
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
-        .get_validity_proof_v2(input_compressed_account_hashes.clone(), vec![])
+        .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
         .await
         .unwrap();
     let mint = input_compressed_accounts[0].token_data.mint;
@@ -1345,8 +1345,8 @@ pub async fn revoke_test<
             .collect::<Vec<_>>(),
         mint,
         output_account_merkle_tree: *output_account_merkle_tree,
-        root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof.unwrap_or_default(),
+        root_indices: proof_rpc_result.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>(),
+        proof: proof_rpc_result.value.compressed_proof.0.unwrap_or_default(),
     };
 
     let instruction = create_revoke_instruction(inputs).unwrap();
@@ -1481,7 +1481,7 @@ pub async fn freeze_or_thaw_test<
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
-        .get_validity_proof_v2(input_compressed_account_hashes.clone(), vec![])
+        .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
         .await
         .unwrap();
     let mint = input_compressed_accounts[0].token_data.mint;
@@ -1504,8 +1504,8 @@ pub async fn freeze_or_thaw_test<
             .cloned()
             .collect::<Vec<_>>(),
         outputs_merkle_tree: *outputs_merkle_tree,
-        root_indices: proof_rpc_result.root_indices,
-        proof: proof_rpc_result.proof.unwrap_or_default(),
+        root_indices: proof_rpc_result.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>(),
+        proof: proof_rpc_result.value.compressed_proof.0.unwrap_or_default(),
     };
 
     let instruction = create_instruction::<FREEZE>(inputs).unwrap();
@@ -1765,7 +1765,7 @@ pub async fn create_burn_test_instruction<
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
-        .get_validity_proof_v2(input_compressed_account_hashes.clone(), vec![])
+        .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
         .await
         .unwrap();
     let mint = if mode == BurnInstructionMode::InvalidMint {
@@ -1775,12 +1775,12 @@ pub async fn create_burn_test_instruction<
     };
     let proof = if mode == BurnInstructionMode::InvalidProof {
         CompressedProof {
-            a: proof_rpc_result.proof.as_ref().unwrap().a,
-            b: proof_rpc_result.proof.as_ref().unwrap().b,
-            c: proof_rpc_result.proof.as_ref().unwrap().a, // flip c to make proof invalid but not run into decompress errors
+            a: proof_rpc_result.value.compressed_proof.0.as_ref().unwrap().a,
+            b: proof_rpc_result.value.compressed_proof.0.as_ref().unwrap().b,
+            c: proof_rpc_result.value.compressed_proof.0.as_ref().unwrap().a, // flip c to make proof invalid but not run into decompress errors
         }
     } else {
-        proof_rpc_result.proof.unwrap_or_default()
+        proof_rpc_result.value.compressed_proof.0.unwrap_or_default()
     };
     let inputs = CreateBurnInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
@@ -1801,7 +1801,7 @@ pub async fn create_burn_test_instruction<
             .cloned()
             .collect::<Vec<_>>(),
         change_account_merkle_tree: *change_account_merkle_tree,
-        root_indices: proof_rpc_result.root_indices,
+        root_indices: proof_rpc_result.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>(),
         proof,
         mint,
         signer_is_delegate,

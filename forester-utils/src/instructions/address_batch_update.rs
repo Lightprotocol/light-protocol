@@ -81,7 +81,7 @@ where
     debug!("Requesting {} total elements from indexer", total_elements);
 
     let indexer_update_info = indexer
-        .get_address_queue_with_proofs(merkle_tree_pubkey, total_elements as u16)
+        .get_address_queue_with_proofs(merkle_tree_pubkey, total_elements as u16, None)
         .await
         .map_err(|e| {
             error!("Failed to get batch address update info: {:?}", e);
@@ -89,6 +89,7 @@ where
         })?;
     debug!("indexer_update_info {:?}", indexer_update_info);
     let indexer_root = indexer_update_info
+        .value
         .non_inclusion_proofs
         .first()
         .unwrap()
@@ -106,6 +107,7 @@ where
 
     let subtrees_array: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] =
         indexer_update_info
+            .value
             .subtrees
             .clone()
             .try_into()
@@ -119,6 +121,7 @@ where
     >::new(subtrees_array, start_index as usize);
 
     let all_addresses = indexer_update_info
+        .value
         .addresses
         .iter()
         .map(|x| x.address)
@@ -160,11 +163,11 @@ where
         let start_proof_idx = batch_idx * batch_size as usize;
         let end_proof_idx = start_proof_idx + batch_size as usize;
 
-        if end_proof_idx > indexer_update_info.non_inclusion_proofs.len() {
+        if end_proof_idx > indexer_update_info.value.non_inclusion_proofs.len() {
             error!(
                 "Not enough proofs from indexer. Expected at least {}, got {}",
                 end_proof_idx,
-                indexer_update_info.non_inclusion_proofs.len()
+                indexer_update_info.value.non_inclusion_proofs.len()
             );
             return Err(ForesterUtilsError::Indexer(
                 "Not enough proofs from indexer".into(),
@@ -172,7 +175,7 @@ where
         }
 
         let batch_proofs =
-            &indexer_update_info.non_inclusion_proofs[start_proof_idx..end_proof_idx];
+            &indexer_update_info.value.non_inclusion_proofs[start_proof_idx..end_proof_idx];
 
         let mut low_element_values = Vec::new();
         let mut low_element_indices = Vec::new();

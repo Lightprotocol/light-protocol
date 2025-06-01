@@ -1,27 +1,24 @@
 use std::{fmt::Debug, time::Duration};
 
+use super::{
+    indexer_trait::{IndexerRpcConfig, RetryConfig},
+    types::{Account, TokenAccount, TokenBalance},
+    BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
+};
+use crate::indexer::base58::{decode_base58_to_fixed_array, Base58Conversions};
+use crate::indexer::{
+    indexer_trait::{Context, Response, ResponseWithCursor},
+    Address, AddressWithTree, Hash, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
+};
 use async_trait::async_trait;
 use bs58;
-use light_compressed_account::compressed_account::{
-    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
-};
 use light_merkle_tree_metadata::QueueType;
-use light_sdk::token::TokenDataWithMerkleContext;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
-    models::{GetCompressedAccountsByOwnerPostRequestParams, TokenBalanceList},
+    models::GetCompressedAccountsByOwnerPostRequestParams,
 };
 use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
-
-use super::{
-    types::Account, BatchAddressUpdateIndexerResponse, MerkleProofWithContext, ProofRpcResult,
-};
-use crate::indexer::{
-    tree_info::QUEUE_TREE_MAPPING, Address, AddressWithTree, Base58Conversions,
-    FromPhotonTokenAccountList, Hash, Indexer, IndexerError, MerkleProof,
-    NewAddressProofWithContext,
-};
 
 pub struct PhotonIndexer {
     configuration: Configuration,
@@ -34,15 +31,19 @@ impl PhotonIndexer {
 }
 
 impl PhotonIndexer {
-    async fn retry<F, Fut, T>(&self, mut operation: F) -> Result<T, IndexerError>
+    async fn retry<F, Fut, T>(
+        &self,
+        config: RetryConfig,
+        mut operation: F,
+    ) -> Result<T, IndexerError>
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<T, IndexerError>>,
     {
-        let max_retries = 10;
+        let max_retries = config.num_retries;
         let mut attempts = 0;
-        let mut delay_ms = 400;
-        let max_delay_ms = 8000;
+        let mut delay_ms = config.delay_ms;
+        let max_delay_ms = config.max_delay_ms;
 
         loop {
             attempts += 1;
@@ -73,6 +74,7 @@ impl PhotonIndexer {
                             warn!("Operation failed, checking if retryable...");
                             true
                         }
+                        IndexerError::IndexerNotSyncedToSlot => true,
                         IndexerError::Base58DecodeError { .. } => false,
                         IndexerError::AccountNotFound => false,
                         IndexerError::InvalidParameters(_) => false,
@@ -150,8 +152,9 @@ impl Debug for PhotonIndexer {
 
 #[async_trait]
 impl Indexer for PhotonIndexer {
-    async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
-        self.retry(|| async {
+    async fn get_indexer_slot(&self, config: Option<RetryConfig>) -> Result<u64, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config, || async {
             let request = photon_api::models::GetIndexerSlotPostRequest {
                 ..Default::default()
             };
@@ -168,14 +171,19 @@ impl Indexer for PhotonIndexer {
 
     async fn get_multiple_compressed_account_proofs(
         &self,
-        hashes: Vec<String>,
-    ) -> Result<Vec<MerkleProof>, IndexerError> {
-        self.retry(|| async {
+        hashes: Vec<[u8; 32]>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
             let hashes_for_async = hashes.clone();
 
             let request: photon_api::models::GetMultipleCompressedAccountProofsPostRequest =
                 photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
-                    params: hashes_for_async,
+                    params: hashes_for_async
+                        .into_iter()
+                        .map(|hash| bs58::encode(hash).into_string())
+                        .collect(),
                     ..Default::default()
                 };
 
@@ -205,8 +213,11 @@ impl Indexer for PhotonIndexer {
                     "No result returned from Photon API",
                 )
             })?;
+            if photon_proofs.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
 
-            photon_proofs
+            let proofs = photon_proofs
                 .value
                 .iter()
                 .map(|x| {
@@ -223,15 +234,22 @@ impl Indexer for PhotonIndexer {
                         })?;
 
                     Ok(MerkleProof {
-                        hash: x.hash.clone(),
+                        hash: <[u8; 32] as Base58Conversions>::from_base58(&x.hash)?,
                         leaf_index: x.leaf_index,
-                        merkle_tree: x.merkle_tree.clone(),
+                        merkle_tree: Pubkey::from_str_const(x.merkle_tree.as_str()),
                         proof,
                         root_seq: x.root_seq,
                         root: [0u8; 32],
                     })
                 })
-                .collect()
+                .collect::<Result<Vec<MerkleProof>, IndexerError>>()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: photon_proofs.context.slot,
+                },
+                value: proofs,
+            })
         })
         .await
     }
@@ -239,72 +257,12 @@ impl Indexer for PhotonIndexer {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
-        self.retry(|| async {
-            let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
-                params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
-                    cursor: None,
-                    data_slice: None,
-                    filters: None,
-                    limit: None,
-                    owner: owner.to_string(),
-                }),
-                ..Default::default()
-            };
-            let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
-            let accs = result.result.ok_or(IndexerError::AccountNotFound)?.value;
-            let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
-
-            for acc in accs.items {
-                let compressed_account = CompressedAccount {
-                    owner: Pubkey::from(Hash::from_base58(&acc.owner)?),
-                    lamports: acc.lamports,
-                    address: acc
-                        .address
-                        .map(|address| Hash::from_base58(&address).unwrap()),
-                    data: acc.data.map(|data| CompressedAccountData {
-                        discriminator: data.discriminator.to_le_bytes(),
-                        data: base64::decode(data.data).unwrap(),
-                        data_hash: Hash::from_base58(&data.data_hash).unwrap(),
-                    }),
-                };
-                let tree_info = QUEUE_TREE_MAPPING
-                    .get(&acc.tree)
-                    .ok_or(IndexerError::InvalidResponseData)?;
-                let merkle_context = MerkleContext {
-                    merkle_tree_pubkey: tree_info.tree,
-                    queue_pubkey: tree_info.queue,
-                    leaf_index: acc.leaf_index,
-                    tree_type: tree_info.tree_type,
-                    prove_by_index: false,
-                };
-
-                let account = CompressedAccountWithMerkleContext {
-                    compressed_account,
-                    merkle_context,
-                };
-                accounts.push(account);
-            }
-
-            Ok(accounts)
-        })
-        .await
-    }
-
-    async fn get_compressed_accounts_by_owner_v2(
-        &self,
-        _owner: &Pubkey,
-    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_multiple_compressed_account_proofs");
-        #[cfg(feature = "v2")]
-        {
-            let owner = _owner;
-            self.retry(|| async {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            #[cfg(feature = "v2")]
+            {
                 let request = photon_api::models::GetCompressedAccountsByOwnerV2PostRequest {
                     params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
                         cursor: None,
@@ -321,64 +279,120 @@ impl Indexer for PhotonIndexer {
                         request,
                     )
                     .await?;
-                let accs = result.result.ok_or(IndexerError::AccountNotFound)?.value;
-                let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
-
-                for acc in accs.items {
-                    let compressed_account = CompressedAccount {
-                        owner: Pubkey::from(Hash::from_base58(&acc.owner)?),
-                        lamports: acc.lamports,
-                        address: acc
-                            .address
-                            .map(|address| Hash::from_base58(&address).unwrap()),
-                        data: acc.data.map(|data| CompressedAccountData {
-                            discriminator: data.discriminator.to_le_bytes(),
-                            data: base64::decode(data.data).unwrap(),
-                            data_hash: Hash::from_base58(&data.data_hash).unwrap(),
-                        }),
-                    };
-
-                    let nullifier_queue_pubkey =
-                        Pubkey::from(Hash::from_base58(&acc.merkle_context.queue).unwrap());
-
-                    let merkle_context = MerkleContext {
-                        merkle_tree_pubkey: Pubkey::from(
-                            Hash::from_base58(&acc.merkle_context.tree).unwrap(),
-                        ),
-                        queue_pubkey: nullifier_queue_pubkey,
-                        leaf_index: acc.leaf_index,
-                        tree_type: light_compressed_account::TreeType::from(
-                            acc.merkle_context.tree_type as u64,
-                        ),
-                        prove_by_index: false, // TODO: implement
-                    };
-
-                    let account = CompressedAccountWithMerkleContext {
-                        compressed_account,
-                        merkle_context,
-                    };
-                    accounts.push(account);
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                if response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
+                let accounts: Result<Vec<_>, _> =
+                    response.value.items.iter().map(Account::try_from).collect();
 
-                Ok(accounts)
-            })
-            .await
-        }
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: accounts?,
+                    cursor,
+                })
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
+                    params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
+                        cursor: None,
+                        data_slice: None,
+                        filters: None,
+                        limit: None,
+                        owner: owner.to_string(),
+                    }),
+                    ..Default::default()
+                };
+                let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                if response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+                let accounts: Result<Vec<_>, _> =
+                    response.value.items.iter().map(Account::try_from).collect();
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: accounts?,
+                    cursor,
+                })
+            }
+        })
+        .await
     }
 
-    async fn get_compressed_token_accounts_by_owner_v2(
+    async fn get_compressed_account(
         &self,
-        _owner: &Pubkey,
-        _mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_compressed_token_accounts_by_owner_v2");
-        #[cfg(feature = "v2")]
-        {
-            use std::str::FromStr;
-            let owner = _owner;
-            let mint = _mint;
-            self.retry(|| async {
+        address: Option<Address>,
+        hash: Option<Hash>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Account>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let params = self.build_account_params(address, hash)?;
+            let request = photon_api::models::GetCompressedAccountPostRequest {
+                params: Box::new(params),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_compressed_account_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+            let api_response = Self::extract_result("get_compressed_account", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            let account_data = api_response
+                .value
+                .ok_or(IndexerError::AccountNotFound)
+                .map(|boxed| *boxed)?;
+            let account = Account::try_from(&account_data)?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: account,
+            })
+        })
+        .await
+    }
+
+    async fn get_compressed_token_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            #[cfg(feature = "v2")]
+            {
                 let request = photon_api::models::GetCompressedTokenAccountsByOwnerV2PostRequest {
                     params: Box::from(
                         photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
@@ -396,128 +410,80 @@ impl Indexer for PhotonIndexer {
                         request,
                     )
                     .await?;
-
-                let accounts = *result.result.unwrap().value;
-
-                let mut token_data: Vec<TokenDataWithMerkleContext> = Vec::new();
-                for account in accounts.items.iter() {
-                    let token_data_with_merkle_context = TokenDataWithMerkleContext {
-                        token_data: light_sdk::token::TokenData {
-                            mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
-                            owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
-                            amount: account.token_data.amount,
-                            delegate: account
-                                .token_data
-                                .delegate
-                                .as_ref()
-                                .map(|x| Pubkey::from_str(x).unwrap()),
-                            state: if account.token_data.state
-                                == photon_api::models::account_state::AccountState::Initialized
-                            {
-                                light_sdk::token::AccountState::Initialized
-                            } else {
-                                light_sdk::token::AccountState::Frozen
-                            },
-                            tlv: None,
-                        },
-                        compressed_account: CompressedAccountWithMerkleContext {
-                            compressed_account: CompressedAccount {
-                                owner: Pubkey::from_str(&account.account.owner).unwrap(),
-                                lamports: account.account.lamports,
-                                address: account
-                                    .account
-                                    .address
-                                    .as_ref()
-                                    .map(|x| Hash::from_base58(x).unwrap()),
-                                data: account.account.data.as_ref().map(|data| {
-                                    CompressedAccountData {
-                                        discriminator: data.discriminator.to_le_bytes(),
-                                        data: base64::decode(&data.data).unwrap(),
-                                        data_hash: Hash::from_base58(&data.data_hash).unwrap(),
-                                    }
-                                }),
-                            },
-                            merkle_context: MerkleContext {
-                                merkle_tree_pubkey: Pubkey::from_str(
-                                    &account.account.merkle_context.tree,
-                                )
-                                .unwrap(),
-                                queue_pubkey: Pubkey::from_str(
-                                    &account.account.merkle_context.queue,
-                                )
-                                .unwrap(),
-                                leaf_index: account.account.leaf_index,
-                                tree_type: light_compressed_account::TreeType::from(
-                                    account.account.merkle_context.tree_type as u64,
-                                ),
-                                prove_by_index: account.account.prove_by_index,
-                            },
-                        },
-                    };
-                    token_data.push(token_data_with_merkle_context);
+                let response = result.result.ok_or(IndexerError::AccountNotFound)?;
+                if response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
+                let token_accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
+                    .iter()
+                    .map(TokenAccount::try_from)
+                    .collect();
 
-                Ok(token_data)
-            })
-            .await
-        }
-    }
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
 
-    async fn get_compressed_account(
-        &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
-    ) -> Result<Account, IndexerError> {
-        self.retry(|| async {
-            let params = self.build_account_params(address, hash)?;
-            let request = photon_api::models::GetCompressedAccountPostRequest {
-                params: Box::new(params),
-                ..Default::default()
-            };
-
-            let result = photon_api::apis::default_api::get_compressed_account_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
-            let response = Self::extract_result("get_compressed_account", result.result)?;
-            let response = response
-                .value
-                .ok_or(IndexerError::AccountNotFound)
-                .map(|boxed| *boxed)?;
-            Account::try_from(&response)
-        })
-        .await
-    }
-
-    async fn get_compressed_token_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-        mint: Option<Pubkey>,
-    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
-        self.retry(|| async {
-            let request = photon_api::models::GetCompressedTokenAccountsByOwnerPostRequest {
-                params: Box::new(
-                    photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
                     },
-                ),
-                ..Default::default()
-            };
+                    value: token_accounts?,
+                    cursor,
+                })
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetCompressedTokenAccountsByOwnerPostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
+                            owner: owner.to_string(),
+                            mint: mint.map(|x| x.to_string()),
+                            cursor: None,
+                            limit: None,
+                        },
+                    ),
+                    ..Default::default()
+                };
 
-            let result =
-                photon_api::apis::default_api::get_compressed_token_accounts_by_owner_post(
-                    &self.configuration,
-                    request,
-                )
-                .await?;
+                let result =
+                    photon_api::apis::default_api::get_compressed_token_accounts_by_owner_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
 
-            let response =
-                Self::extract_result("get_compressed_token_accounts_by_owner", result.result)?;
-            Ok(response.value.into_token_data_vec())
+                let response =
+                    Self::extract_result("get_compressed_token_accounts_by_owner", result.result)?;
+                if response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+                let token_accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
+                    .iter()
+                    .map(TokenAccount::try_from)
+                    .collect();
+
+                let cursor = response
+                    .value
+                    .cursor
+                    .map(|c| decode_base58_to_fixed_array(&c))
+                    .transpose()?
+                    .unwrap_or([0u8; 32]);
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: response.context.slot,
+                    },
+                    value: token_accounts?,
+                    cursor,
+                })
+            }
         })
         .await
     }
@@ -526,8 +492,10 @@ impl Indexer for PhotonIndexer {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
-        self.retry(|| async {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
             let params = self.build_account_params(address, hash)?;
             let request = photon_api::models::GetCompressedAccountBalancePostRequest {
                 params: Box::new(params),
@@ -540,8 +508,17 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let response = Self::extract_result("get_compressed_account_balance", result.result)?;
-            Ok(response.value)
+            let api_response =
+                Self::extract_result("get_compressed_account_balance", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: api_response.value,
+            })
         })
         .await
     }
@@ -550,8 +527,10 @@ impl Indexer for PhotonIndexer {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<u64, IndexerError> {
-        self.retry(|| async {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<u64>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressedTokenAccountBalancePostRequest {
                 params: Box::new(photon_api::models::GetCompressedAccountPostRequestParams {
                     address: address.map(|x| x.to_base58()),
@@ -566,9 +545,17 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let response =
+            let api_response =
                 Self::extract_result("get_compressed_token_account_balance", result.result)?;
-            Ok(response.value.amount)
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: api_response.value.amount,
+            })
         })
         .await
     }
@@ -577,8 +564,10 @@ impl Indexer for PhotonIndexer {
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<Account>, IndexerError> {
-        self.retry(|| async {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<Account>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
             let hashes = hashes.clone();
             let addresses = addresses.clone();
             let request = photon_api::models::GetMultipleCompressedAccountsPostRequest {
@@ -597,13 +586,24 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let response = Self::extract_result("get_multiple_compressed_accounts", result.result)?;
-            response
+            let api_response =
+                Self::extract_result("get_multiple_compressed_accounts", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            let accounts = api_response
                 .value
                 .items
                 .iter()
                 .map(Account::try_from)
-                .collect::<Result<Vec<Account>, IndexerError>>()
+                .collect::<Result<Vec<Account>, IndexerError>>()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: accounts,
+            })
         })
         .await
     }
@@ -612,30 +612,94 @@ impl Indexer for PhotonIndexer {
         &self,
         owner: &Pubkey,
         mint: Option<Pubkey>,
-    ) -> Result<TokenBalanceList, IndexerError> {
-        self.retry(|| async {
-            let request = photon_api::models::GetCompressedTokenBalancesByOwnerPostRequest {
-                params: Box::new(
-                    photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            #[cfg(feature = "v2")]
+            {
+                let request = photon_api::models::GetCompressedTokenBalancesByOwnerV2PostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
+                            owner: owner.to_string(),
+                            mint: mint.map(|x| x.to_string()),
+                            cursor: None,
+                            limit: None,
+                        },
+                    ),
+                    ..Default::default()
+                };
+
+                let result =
+                    photon_api::apis::default_api::get_compressed_token_balances_by_owner_v2_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
+
+                let api_response =
+                    Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
+                if api_response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+
+                let token_balances: Result<Vec<_>, _> = api_response
+                    .value
+                    .items
+                    .iter()
+                    .map(TokenBalance::try_from)
+                    .collect();
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: api_response.context.slot,
                     },
-                ),
-                ..Default::default()
-            };
+                    value: token_balances?,
+                    cursor: api_response.value.cursor,
+                })
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetCompressedTokenBalancesByOwnerPostRequest {
+                    params: Box::new(
+                        photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
+                            owner: owner.to_string(),
+                            mint: mint.map(|x| x.to_string()),
+                            cursor: None,
+                            limit: None,
+                        },
+                    ),
+                    ..Default::default()
+                };
 
-            let result =
-                photon_api::apis::default_api::get_compressed_token_balances_by_owner_post(
-                    &self.configuration,
-                    request,
-                )
-                .await?;
+                let result =
+                    photon_api::apis::default_api::get_compressed_token_balances_by_owner_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
 
-            let response =
-                Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
-            Ok(*response.value)
+                let api_response =
+                    Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
+                if api_response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+
+                let token_balances: Result<Vec<_>, _> = api_response
+                    .value
+                    .token_balances
+                    .iter()
+                    .map(TokenBalance::try_from)
+                    .collect();
+
+                Ok(ResponseWithCursor {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: token_balances?,
+                    cursor: api_response.value.cursor,
+                })
+            }
         })
         .await
     }
@@ -643,8 +707,10 @@ impl Indexer for PhotonIndexer {
     async fn get_compression_signatures_for_account(
         &self,
         hash: Hash,
-    ) -> Result<Vec<String>, IndexerError> {
-        self.retry(|| async {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<String>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressionSignaturesForAccountPostRequest {
                 params: Box::new(
                     photon_api::models::GetCompressedAccountProofPostRequestParams {
@@ -661,14 +727,24 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-            let response =
+            let api_response =
                 Self::extract_result("get_compression_signatures_for_account", result.result)?;
-            Ok(response
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            let signatures = api_response
                 .value
                 .items
                 .iter()
                 .map(|x| x.signature.clone())
-                .collect())
+                .collect();
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: signatures,
+            })
         })
         .await
     }
@@ -677,8 +753,10 @@ impl Indexer for PhotonIndexer {
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError> {
-        self.retry(|| async {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
             let params: Vec<photon_api::models::address_with_tree::AddressWithTree> = addresses
                 .iter()
                 .map(|x| photon_api::models::address_with_tree::AddressWithTree {
@@ -705,15 +783,18 @@ impl Indexer for PhotonIndexer {
 
             let result = result?;
 
-            let photon_proofs =
+            let api_response =
                 match Self::extract_result("get_multiple_new_address_proofs", result.result) {
                     Ok(proofs) => proofs,
                     Err(e) => {
                         error!("Failed to extract proofs: {:?}", e);
                         return Err(e);
                     }
-                }
-                .value;
+                };
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            let photon_proofs = api_response.value;
             let mut proofs = Vec::new();
             for photon_proof in photon_proofs {
                 let tree_pubkey = Hash::from_base58(&photon_proof.merkle_tree).map_err(|e| {
@@ -753,12 +834,12 @@ impl Indexer for PhotonIndexer {
                 })?;
 
                 let proof = NewAddressProofWithContext {
-                    merkle_tree: tree_pubkey,
+                    merkle_tree: tree_pubkey.into(),
                     low_address_index: photon_proof.low_element_leaf_index,
                     low_address_value,
                     low_address_next_index: photon_proof.next_index,
                     low_address_next_value: next_address_value,
-                    low_address_proof: proof_arr,
+                    low_address_proof: proof_arr.to_vec(),
                     root,
                     root_seq: photon_proof.root_seq,
                     new_low_element: None,
@@ -768,65 +849,26 @@ impl Indexer for PhotonIndexer {
                 proofs.push(proof);
             }
 
-            Ok(proofs)
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: proofs,
+            })
         })
         .await
-    }
-
-    async fn get_multiple_new_address_proofs_h40(
-        &self,
-        _merkle_tree_pubkey: [u8; 32],
-        _addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
-        unimplemented!()
     }
 
     async fn get_validity_proof(
         &self,
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<ProofRpcResult, IndexerError> {
-        self.retry(|| async {
-            let request = photon_api::models::GetValidityProofPostRequest {
-                params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
-                    hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
-                    new_addresses_with_trees: Some(
-                        new_addresses_with_trees
-                            .iter()
-                            .map(|x| photon_api::models::AddressWithTree {
-                                address: x.address.to_base58(),
-                                tree: x.tree.to_string(),
-                            })
-                            .collect(),
-                    ),
-                }),
-                ..Default::default()
-            };
-
-            let result = photon_api::apis::default_api::get_validity_proof_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
-
-            let result = Self::extract_result("get_validity_proof", result.result)?;
-            ProofRpcResult::from_api_model(*result.value, hashes.len())
-        })
-        .await
-    }
-
-    async fn get_validity_proof_v2(
-        &self,
-        _hashes: Vec<Hash>,
-        _new_addresses_with_trees: Vec<AddressWithTree>,
-    ) -> Result<super::types::ProofRpcResultV2, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_validity_proof_v2");
-        #[cfg(feature = "v2")]
-        {
-            let hashes = _hashes;
-            let new_addresses_with_trees = _new_addresses_with_trees;
-            self.retry(|| async {
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<super::types::ValidityProofWithContext>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            #[cfg(feature = "v2")]
+            {
                 let request = photon_api::models::GetValidityProofV2PostRequest {
                     params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
                         hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
@@ -842,30 +884,84 @@ impl Indexer for PhotonIndexer {
                     }),
                     ..Default::default()
                 };
+
                 let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
-                let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                super::types::ProofRpcResultV2::from_api_model(*result.value)
-            })
-            .await
-        }
+                let api_response = Self::extract_result("get_validity_proof_v2", result.result)?;
+                if api_response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+                let validity_proof =
+                    super::types::ValidityProofWithContext::from_api_model_v2(*api_response.value)?;
+
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: validity_proof,
+                })
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                let request = photon_api::models::GetValidityProofPostRequest {
+                    params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
+                        hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
+                        new_addresses_with_trees: Some(
+                            new_addresses_with_trees
+                                .iter()
+                                .map(|x| photon_api::models::AddressWithTree {
+                                    address: x.address.to_base58(),
+                                    tree: x.tree.to_string(),
+                                })
+                                .collect(),
+                        ),
+                    }),
+                    ..Default::default()
+                };
+
+                let result = photon_api::apis::default_api::get_validity_proof_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+                let api_response = Self::extract_result("get_validity_proof", result.result)?;
+                if api_response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+                let validity_proof = super::types::ValidityProofWithContext::from_api_model(
+                    *api_response.value,
+                    hashes.len(),
+                )?;
+
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: validity_proof,
+                })
+            }
+        })
+        .await
     }
 
     async fn get_address_queue_with_proofs(
         &mut self,
         _merkle_tree_pubkey: &Pubkey,
         _zkp_batch_size: u16,
-    ) -> Result<BatchAddressUpdateIndexerResponse, IndexerError> {
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_address_queue_with_proofs");
         #[cfg(feature = "v2")]
         {
             let merkle_tree_pubkey = _merkle_tree_pubkey;
             let zkp_batch_size = _zkp_batch_size;
-            self.retry(|| async {
+            let config = _config.unwrap_or_default();
+            self.retry(config.retry_config, || async {
                 let merkle_tree = Hash::from_bytes(merkle_tree_pubkey.to_bytes().as_ref())?;
                 let request = photon_api::models::GetBatchAddressUpdateInfoPostRequest {
                     params: Box::new(
@@ -883,10 +979,13 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-                let response =
-                    Self::extract_result("get_compressed_token_account_balance", result.result)?;
+                let api_response =
+                    Self::extract_result("get_batch_address_update_info", result.result)?;
+                if api_response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
 
-                let addresses = response
+                let addresses = api_response
                     .addresses
                     .iter()
                     .map(|x| crate::indexer::AddressQueueIndex {
@@ -895,10 +994,10 @@ impl Indexer for PhotonIndexer {
                     })
                     .collect();
 
-                let mut proofs: Vec<NewAddressProofWithContext<40>> = vec![];
-                for proof in response.non_inclusion_proofs {
-                    let proof = NewAddressProofWithContext::<40> {
-                        merkle_tree: merkle_tree_pubkey.to_bytes(),
+                let mut proofs: Vec<NewAddressProofWithContext> = vec![];
+                for proof in api_response.non_inclusion_proofs {
+                    let proof = NewAddressProofWithContext {
+                        merkle_tree: *merkle_tree_pubkey,
                         low_address_index: proof.low_element_leaf_index,
                         low_address_value: Hash::from_base58(
                             proof.lower_range_address.clone().as_ref(),
@@ -913,9 +1012,7 @@ impl Indexer for PhotonIndexer {
                             .proof
                             .iter()
                             .map(|x| Hash::from_base58(x.clone().as_ref()).unwrap())
-                            .collect::<Vec<_>>()
-                            .try_into()
-                            .unwrap(),
+                            .collect(),
                         root: Hash::from_base58(proof.root.clone().as_ref()).unwrap(),
                         root_seq: proof.root_seq,
 
@@ -926,7 +1023,7 @@ impl Indexer for PhotonIndexer {
                     proofs.push(proof);
                 }
 
-                let subtrees = response
+                let subtrees = api_response
                     .subtrees
                     .iter()
                     .map(|x| {
@@ -937,12 +1034,17 @@ impl Indexer for PhotonIndexer {
                     .collect::<Vec<_>>();
 
                 let result = BatchAddressUpdateIndexerResponse {
-                    batch_start_index: response.start_index,
+                    batch_start_index: api_response.start_index,
                     addresses,
                     non_inclusion_proofs: proofs,
                     subtrees,
                 };
-                Ok(result)
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: result,
+                })
             })
             .await
         }
@@ -954,7 +1056,8 @@ impl Indexer for PhotonIndexer {
         _queue_type: QueueType,
         _num_elements: u16,
         _start_offset: Option<u64>,
-    ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<MerkleProofWithContext>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -963,7 +1066,8 @@ impl Indexer for PhotonIndexer {
             let queue_type = _queue_type;
             let num_elements = _num_elements;
             let start_offset = _start_offset;
-            self.retry(|| async {
+            let config = _config.unwrap_or_default();
+            self.retry(config.retry_config, || async {
                 let request: photon_api::models::GetQueueElementsPostRequest =
                     photon_api::models::GetQueueElementsPostRequest {
                         params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
@@ -980,54 +1084,73 @@ impl Indexer for PhotonIndexer {
                 )
                 .await;
 
-                let result: Result<Vec<MerkleProofWithContext>, IndexerError> = match result {
-                    Ok(response) => match response.result {
-                        Some(result) => {
-                            let response = result.value;
-                            let proofs = response
-                                .iter()
-                                .map(|x| {
-                                    let proof = x
-                                        .proof
-                                        .iter()
-                                        .map(|x| Hash::from_base58(x).unwrap())
-                                        .collect();
-                                    let root = Hash::from_base58(&x.root).unwrap();
-                                    let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                    let merkle_tree = Hash::from_base58(&x.tree).unwrap();
-                                    let tx_hash =
-                                        x.tx_hash.as_ref().map(|x| Hash::from_base58(x).unwrap());
-                                    let account_hash = Hash::from_base58(&x.account_hash).unwrap();
+                let result: Result<Response<Vec<MerkleProofWithContext>>, IndexerError> =
+                    match result {
+                        Ok(api_response) => match api_response.result {
+                            Some(api_result) => {
+                                if api_result.context.slot < config.slot {
+                                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                                }
+                                let response = api_result.value;
+                                let proofs = response
+                                    .iter()
+                                    .map(|x| {
+                                        let proof = x
+                                            .proof
+                                            .iter()
+                                            .map(|x| Hash::from_base58(x).unwrap())
+                                            .collect();
+                                        let root = Hash::from_base58(&x.root).unwrap();
+                                        let leaf = Hash::from_base58(&x.leaf).unwrap();
+                                        let merkle_tree = Hash::from_base58(&x.tree).unwrap();
+                                        let tx_hash = x
+                                            .tx_hash
+                                            .as_ref()
+                                            .map(|x| Hash::from_base58(x).unwrap());
+                                        let account_hash =
+                                            Hash::from_base58(&x.account_hash).unwrap();
 
-                                    MerkleProofWithContext {
-                                        proof,
-                                        root,
-                                        leaf_index: x.leaf_index,
-                                        leaf,
-                                        merkle_tree,
-                                        root_seq: x.root_seq,
-                                        tx_hash,
-                                        account_hash,
-                                    }
+                                        MerkleProofWithContext {
+                                            proof,
+                                            root,
+                                            leaf_index: x.leaf_index,
+                                            leaf,
+                                            merkle_tree,
+                                            root_seq: x.root_seq,
+                                            tx_hash,
+                                            account_hash,
+                                        }
+                                    })
+                                    .collect();
+
+                                Ok(Response {
+                                    context: Context {
+                                        slot: api_result.context.slot,
+                                    },
+                                    value: proofs,
                                 })
-                                .collect();
+                            }
+                            None => {
+                                let error = api_response.error.ok_or_else(|| {
+                                    IndexerError::PhotonError {
+                                        context: "get_queue_elements".to_string(),
+                                        message: "No error details provided".to_string(),
+                                    }
+                                })?;
 
-                            Ok(proofs)
-                        }
-                        None => {
-                            let error = response.error.unwrap();
-
-                            Err(IndexerError::PhotonError {
-                                context: "get_queue_elements".to_string(),
-                                message: error.message.unwrap(),
-                            })
-                        }
-                    },
-                    Err(e) => Err(IndexerError::PhotonError {
-                        context: "get_queue_elements".to_string(),
-                        message: e.to_string(),
-                    }),
-                };
+                                Err(IndexerError::PhotonError {
+                                    context: "get_queue_elements".to_string(),
+                                    message: error
+                                        .message
+                                        .unwrap_or_else(|| "Unknown error".to_string()),
+                                })
+                            }
+                        },
+                        Err(e) => Err(IndexerError::PhotonError {
+                            context: "get_queue_elements".to_string(),
+                            message: e.to_string(),
+                        }),
+                    };
 
                 result
             })
@@ -1038,7 +1161,8 @@ impl Indexer for PhotonIndexer {
     async fn get_subtrees(
         &self,
         _merkle_tree_pubkey: [u8; 32],
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<[u8; 32]>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!();
         #[cfg(feature = "v2")]

@@ -44,16 +44,20 @@ pub async fn setup_light_programs(
     #[cfg(feature = "devenv")]
     program_test.add_program(
         "light_system_program_pinocchio",
-        light_system_program::ID,
+        light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
         None,
     );
     #[cfg(not(feature = "devenv"))]
-    program_test.add_program("light_system_program", light_system_program::ID, None);
+    program_test.add_program(
+        "light_system_program",
+        light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
+        None,
+    );
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     std::env::set_var("SBF_OUT_DIR", sbf_path);
     let registered_program = registered_program_test_account_system_program();
     program_test.add_account(
-        get_registered_program_pda(&light_system_program::ID),
+        get_registered_program_pda(&light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM),
         registered_program,
     );
     let registered_program = registered_program_test_account_registry_program();

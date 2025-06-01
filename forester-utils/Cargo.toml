@@ -8,27 +8,29 @@ description = "Utility library for Light's Forester node implementation"
 
 [features]
 default = ["v2"]
-devenv = ["v2", "light-client/devenv"]
+devenv = ["v2", "light-client/devenv", "light-prover-client/devenv"]
 v2 = ["light-client/v2"]
 
 [dependencies]
 
-account-compression = { workspace = true }
 light-hash-set = { workspace = true }
 light-hasher = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
-light-prover-client = { workspace = true, features = ["devenv"] }
-light-registry = { workspace = true }
-light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-light-client = { workspace = true }
 light-account-checks = { workspace = true }
-create-address-test-program = { workspace = true }
+light-sdk = { workspace = true }
+
+# unrelased
+light-client = { workspace = true }
+light-prover-client = { workspace = true }
+light-registry = { workspace = true, features = ["cpi"] }
+account-compression = { workspace = true, features = ["cpi"] }
+
 
 tokio = { workspace = true }
 futures = { workspace = true }

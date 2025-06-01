@@ -83,6 +83,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError>;
+    // TODO: add send transaction with config
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError>;
 

@@ -59,7 +59,7 @@ pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
         &payer.pubkey(),
         ProtocolConfig::default().cpi_context_size as usize,
         rent_cpi_config,
-        &light_system_program::ID,
+        &light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
         Some(cpi_context_keypair),
     );
     let instruction = if registry {

@@ -5,7 +5,6 @@ use light_registry::{
     sdk::create_register_program_instruction,
     utils::{get_forester_pda, get_protocol_config_pda_address},
 };
-use light_system_program;
 use solana_sdk::{
     pubkey,
     pubkey::Pubkey,
@@ -52,7 +51,9 @@ impl TestAccounts {
                 governance_authority_pda: Pubkey::default(),
                 group_pda: Pubkey::default(),
                 forester: Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap(),
-                registered_program_pda: get_registered_program_pda(&light_system_program::ID),
+                registered_program_pda: get_registered_program_pda(
+                    &light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
+                ),
                 registered_registry_program_pda: get_registered_program_pda(&light_registry::ID),
                 registered_forester_pda: Pubkey::default(),
                 forester_epoch: None, // Set to None or to an appropriate Epoch value if needed
@@ -89,7 +90,7 @@ impl TestAccounts {
             payer.pubkey(),
             protocol_config_pda,
             group_pda,
-            light_system_program::ID,
+            light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
         );
 
         let address_merkle_tree_keypair =

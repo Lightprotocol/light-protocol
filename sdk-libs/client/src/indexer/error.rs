@@ -48,6 +48,8 @@ pub enum IndexerError {
     CustomError(String),
     #[error("Indexer not initialized.")]
     NotInitialized,
+    #[error("Indexer slot has not reached the requested slot.")]
+    IndexerNotSyncedToSlot,
 }
 
 impl IndexerError {
@@ -129,6 +131,7 @@ impl Clone for IndexerError {
             IndexerError::InvalidResponseData => IndexerError::InvalidResponseData,
             IndexerError::CustomError(_) => IndexerError::CustomError("IndexerError".to_string()),
             IndexerError::NotInitialized => IndexerError::NotInitialized,
+            IndexerError::IndexerNotSyncedToSlot => IndexerError::IndexerNotSyncedToSlot,
         }
     }
 }

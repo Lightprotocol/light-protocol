@@ -765,11 +765,12 @@ where
                                         QueueType::AddressV2,
                                         batch.batch_size as u16,
                                         None,
+                                        None,
                                     )
                                     .await
                                     .unwrap();
                                 let addresses =
-                                    addresses.iter().map(|x| x.account_hash).collect::<Vec<_>>();
+                                    addresses.value.iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
@@ -786,13 +787,14 @@ where
                                 let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
                                 let non_inclusion_proofs = self
                                     .indexer
-                                    .get_multiple_new_address_proofs_h40(
+                                    .get_multiple_new_address_proofs(
                                         merkle_tree_pubkey.to_bytes(),
                                         addresses.clone(),
+                                        None,
                                     )
                                     .await
                                     .unwrap();
-                                for non_inclusion_proof in &non_inclusion_proofs {
+                                for non_inclusion_proof in &non_inclusion_proofs.value {
                                     low_element_values.push(non_inclusion_proof.low_address_value);
                                     low_element_indices
                                         .push(non_inclusion_proof.low_address_index as usize);
@@ -806,10 +808,10 @@ where
                                 }
 
                                 let subtrees =   self.indexer
-                                    .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                    .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
                                     .await
                                     .unwrap();
-                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index);
+                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value).unwrap(), start_index);
 
                                 let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
                                 let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
@@ -2648,13 +2650,13 @@ where
 
             let proof_rpc_res = self
                 .indexer
-                .get_validity_proof_v2(compressed_account_input_hashes, addresses_with_tree)
+                .get_validity_proof(compressed_account_input_hashes, addresses_with_tree, None)
                 .await
                 .unwrap();
 
-            root_indices = proof_rpc_res.root_indices.clone();
+            root_indices = proof_rpc_res.value.accounts.iter().map(|x| x.root_index).collect::<Vec<_>>();
 
-            if let Some(proof_rpc_res) = proof_rpc_res.proof {
+            if let Some(proof_rpc_res) = proof_rpc_res.value.compressed_proof.0 {
                 proof = Some(proof_rpc_res);
             }
 

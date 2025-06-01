@@ -664,10 +664,12 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             QueueType::AddressV2,
             batch.zkp_batch_size as u16,
             None,
+            None,
         )
         .await
         .unwrap();
     let addresses = addresses
+        .value
         .iter()
         .map(|x| x.account_hash)
         .collect::<Vec<[u8; 32]>>();
@@ -686,7 +688,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let mut low_element_next_values = Vec::new();
     let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
     let non_inclusion_proofs = indexer
-        .get_multiple_new_address_proofs_h40(merkle_tree_pubkey.to_bytes(), addresses.clone())
+        .get_multiple_new_address_proofs(merkle_tree_pubkey.to_bytes(), addresses.clone(), None)
         .await
         .unwrap();
     for non_inclusion_proof in &non_inclusion_proofs {
@@ -699,12 +701,13 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     }
 
     let subtrees = indexer
-        .get_subtrees(merkle_tree_pubkey.to_bytes())
+        .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
         .await
         .unwrap();
     let mut sparse_merkle_tree =
         SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(
-            <[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(),
+            <[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value)
+                .unwrap(),
             start_index,
         );
 
