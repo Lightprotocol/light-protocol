@@ -104,21 +104,18 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer>(
                 e
             );
             ForesterUtilsError::Indexer("Failed to get queue elements".into())
-        })?;
+        })?.value.items;
 
-    trace!(
-        "Got {} queue elements in total",
-        all_queue_elements.value.len()
-    );
-    if all_queue_elements.value.len() != total_elements {
+    trace!("Got {} queue elements in total", all_queue_elements.len());
+    if all_queue_elements.len() != total_elements {
         return Err(ForesterUtilsError::Indexer(format!(
             "Expected {} elements, got {}",
             total_elements,
-            all_queue_elements.value.len()
+            all_queue_elements.len()
         )));
     }
 
-    let indexer_root = all_queue_elements.value.first().unwrap().root;
+    let indexer_root = all_queue_elements.first().unwrap().root;
     debug_assert_eq!(
         indexer_root, old_root,
         "Root mismatch. Expected: {:?}, Got: {:?}. Root history: {:?}",
@@ -133,7 +130,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer>(
     for (batch_offset, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
         let start_idx = batch_offset * zkp_batch_size as usize;
         let end_idx = start_idx + zkp_batch_size as usize;
-        let batch_elements = &all_queue_elements.value[start_idx..end_idx];
+        let batch_elements = &all_queue_elements[start_idx..end_idx];
 
         trace!(
             "Processing batch {} with offset {}-{}",
