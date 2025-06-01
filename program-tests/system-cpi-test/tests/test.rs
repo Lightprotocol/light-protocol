@@ -1257,8 +1257,8 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         ref_data.delegate = Some(delegate.pubkey());
         assert_eq!(compressed_token_data.token, ref_data);
         assert_ne!(
-            ref_compressed_token_data.account.merkle_context,
-            compressed_token_data.account.merkle_context
+            ref_compressed_token_data.account.leaf_index,
+            compressed_token_data.account.leaf_index
         );
     }
     // 2. Revoke functional with cpi context

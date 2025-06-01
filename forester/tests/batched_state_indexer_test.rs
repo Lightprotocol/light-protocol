@@ -207,6 +207,7 @@ async fn test_state_indexer_batched() {
         let mut photon_account = photon_account.clone();
         // Test indexer slot created is MAX
         photon_account.slot_created = u64::MAX;
+        photon_account.proof_by_index = false;
         assert_eq!(photon_account, *test_indexer_account);
     }
 
@@ -249,6 +250,7 @@ async fn test_state_indexer_batched() {
             let mut photon_account = photon_account.clone();
             // Test indexer slot created is MAX
             photon_account.slot_created = u64::MAX;
+            photon_account.proof_by_index = false;
             assert_eq!(photon_account, *test_indexer_account);
         }
 
