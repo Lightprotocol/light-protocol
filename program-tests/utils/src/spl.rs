@@ -988,9 +988,9 @@ pub async fn perform_compress_spl_token_account<
     test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
 
     let created_compressed_token_account = test_indexer
-        .get_compressed_token_accounts_by_owner(&token_owner.pubkey(), None)
+        .get_compressed_token_accounts_by_owner(&token_owner.pubkey(), None, None)
         .await
-        .unwrap()[0]
+        .unwrap().value[0]
         .clone();
     let expected_token_data = TokenData {
         amount: pre_token_account_amount - remaining_amount.unwrap_or_default(),
@@ -1001,14 +1001,14 @@ pub async fn perform_compress_spl_token_account<
         tlv: None,
     };
     assert_eq!(
-        created_compressed_token_account.token_data,
+        created_compressed_token_account.token,
         program_to_sdk_token_data(expected_token_data)
     );
     assert_eq!(
         created_compressed_token_account
-            .compressed_account
+            .account
             .merkle_context
-            .merkle_tree_pubkey,
+            .tree,
         *merkle_tree_pubkey
     );
     if let Some(remaining_amount) = remaining_amount {

@@ -1003,11 +1003,13 @@ async fn only_test_create_pda() {
     .await;
 
     let compressed_account = test_indexer
-        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
         .await
-        .unwrap()[0]
-        .compressed_account
-        .clone();
+        .unwrap()
+        .value[0]
+        .account
+        .clone()
+        .into();
     println!("only_test_create_pda 8");
 
     // Failing 4 input account that is not owned by signer ----------------------------------------------
@@ -1085,9 +1087,10 @@ async fn only_test_create_pda() {
         .await
         .unwrap();
         let compressed_token_account_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
         println!("only_test_create_pda 12");
 
@@ -1098,7 +1101,7 @@ async fn only_test_create_pda() {
             &payer,
             None,
             &compressed_account,
-            Some(compressed_token_account_data),
+            Some(compressed_token_account_data.into()),
             SystemProgramError::CpiContextFeePayerMismatch.into(),
             WithInputAccountsMode::CpiContextFeePayerMismatch,
         )
@@ -1217,18 +1220,20 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     let delegate = Keypair::new();
 
     let ref_compressed_token_data = test_indexer
-        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
         .await
-        .unwrap()[0]
+        .unwrap()
+        .value[0]
         .clone();
     // 1. Approve functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1236,23 +1241,24 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             &payer,
             Some(&delegate),
             &compressed_account,
-            Some(compressed_token_data),
+            Some(compressed_token_data.into()),
             u32::MAX,
             WithInputAccountsMode::Approve,
         )
         .await
         .unwrap();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
-        let mut ref_data = ref_compressed_token_data.token_data.clone();
+        let mut ref_data = ref_compressed_token_data.token.clone();
         ref_data.delegate = Some(delegate.pubkey());
-        assert_eq!(compressed_token_data.token_data, ref_data);
+        assert_eq!(compressed_token_data.token, ref_data);
         assert_ne!(
-            ref_compressed_token_data.compressed_account.merkle_context,
-            compressed_token_data.compressed_account.merkle_context
+            ref_compressed_token_data.account.merkle_context,
+            compressed_token_data.account.merkle_context
         );
     }
     // 2. Revoke functional with cpi context
@@ -1260,11 +1266,12 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
             .unwrap()
+            .value
             .iter()
-            .filter(|x| x.token_data.delegate.is_some())
+            .filter(|x| x.token.delegate.is_some())
             .collect::<Vec<_>>()[0]
             .clone();
         perform_with_input_accounts(
@@ -1273,28 +1280,30 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             &payer,
             Some(&delegate),
             &compressed_account,
-            Some(compressed_token_data),
+            Some(compressed_token_data.into()),
             u32::MAX,
             WithInputAccountsMode::Revoke,
         )
         .await
         .unwrap();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
-        let ref_data = ref_compressed_token_data.token_data.clone();
-        assert_eq!(compressed_token_data.token_data, ref_data);
+        let ref_data = ref_compressed_token_data.token.clone();
+        assert_eq!(compressed_token_data.token, ref_data);
     }
     // 3. Freeze functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1302,29 +1311,31 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             &payer,
             None,
             &compressed_account,
-            Some(compressed_token_data),
+            Some(compressed_token_data.into()),
             u32::MAX,
             WithInputAccountsMode::Freeze,
         )
         .await
         .unwrap();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
-        let mut ref_data = ref_compressed_token_data.token_data.clone();
+        let mut ref_data = ref_compressed_token_data.token.clone();
         ref_data.state = AccountState::Frozen;
-        assert_eq!(compressed_token_data.token_data, ref_data);
+        assert_eq!(compressed_token_data.token, ref_data);
     }
     // 4. Thaw functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1332,28 +1343,30 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             &payer,
             None,
             &compressed_account,
-            Some(compressed_token_data),
+            Some(compressed_token_data.into()),
             u32::MAX,
             WithInputAccountsMode::Thaw,
         )
         .await
         .unwrap();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
-        let ref_data = ref_compressed_token_data.token_data.clone();
-        assert_eq!(compressed_token_data.token_data, ref_data);
+        let ref_data = ref_compressed_token_data.token.clone();
+        assert_eq!(compressed_token_data.token, ref_data);
     }
     // 5. Burn functional with cpi context
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
         perform_with_input_accounts(
             &mut test_indexer,
@@ -1361,20 +1374,21 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             &payer,
             None,
             &compressed_account,
-            Some(compressed_token_data),
+            Some(compressed_token_data.into()),
             u32::MAX,
             WithInputAccountsMode::Burn,
         )
         .await
         .unwrap();
         let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .value[0]
             .clone();
-        let mut ref_data = ref_compressed_token_data.token_data.clone();
+        let mut ref_data = ref_compressed_token_data.token.clone();
         ref_data.amount = 1;
-        assert_eq!(compressed_token_data.token_data, ref_data);
+        assert_eq!(compressed_token_data.token, ref_data);
     }
 }
 /// Test:
@@ -1747,23 +1761,35 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
     );
 
     let rpc_result = test_indexer
-        .get_validity_proof_v2(hashes, addresses_with_tree)
+        .get_validity_proof(hashes, addresses_with_tree, None)
         .await
         .unwrap();
     if mode == CreatePdaMode::InvalidBatchTreeAccount {
         address_merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
     }
+    let address_root_indices: Vec<_> = rpc_result
+        .value
+        .addresses
+        .iter()
+        .map(|x| x.root_index)
+        .collect();
+    let account_root_indices: Vec<_> = rpc_result
+        .value
+        .accounts
+        .iter()
+        .map(|x| x.root_index)
+        .collect();
     let new_address_params = NewAddressParams {
         seed,
         address_merkle_tree_pubkey,
         address_queue_pubkey,
-        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+        address_merkle_tree_root_index: address_root_indices[0],
     };
     let readonly_adresses = if addresses.len() == 2 && mode != CreatePdaMode::TwoReadOnlyAddresses {
         let read_only_address = vec![ReadOnlyAddress {
             address: addresses[1],
             address_merkle_tree_pubkey,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+            address_merkle_tree_root_index: address_root_indices[1],
         }];
         Some(read_only_address)
     } else if mode == CreatePdaMode::TwoReadOnlyAddresses {
@@ -1771,12 +1797,12 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
             ReadOnlyAddress {
                 address: addresses[0],
                 address_merkle_tree_pubkey,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+                address_merkle_tree_root_index: address_root_indices[0],
             },
             ReadOnlyAddress {
                 address: addresses[1],
                 address_merkle_tree_pubkey,
-                address_merkle_tree_root_index: rpc_result.address_root_indices[1],
+                address_merkle_tree_root_index: address_root_indices[1],
             },
         ];
         Some(read_only_address)
@@ -1789,7 +1815,7 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
     } else {
         let input_account_len = input_accounts.as_ref().unwrap().len();
         index += input_account_len;
-        Some(rpc_result.root_indices[..index].to_vec())
+        Some(account_root_indices[..index].iter().map(|x| *x).collect())
     };
 
     let read_only_accounts = if let Some(read_only_accounts) = read_only_accounts.as_ref() {
@@ -1798,8 +1824,7 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
                 .iter()
                 .map(|x| {
                     index += 1;
-                    x.into_read_only(rpc_result.root_indices[index - 1])
-                        .unwrap()
+                    x.into_read_only(account_root_indices[index - 1]).unwrap()
                 })
                 .collect::<Vec<_>>(),
         )
@@ -1811,7 +1836,7 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
         data: *data,
         signer: &payer_pubkey,
         output_compressed_account_merkle_tree_pubkey,
-        proof: &rpc_result.proof.unwrap(),
+        proof: &rpc_result.value.compressed_proof.0.unwrap(),
         new_address_params,
         cpi_context_account: &env.v1_state_trees[0].cpi_context,
         owner_program,
@@ -1924,9 +1949,10 @@ pub async fn perform_with_input_accounts<R: RpcConnection, I: Indexer + TestInde
         .accounts
         .cpi_context;
     let rpc_result = test_indexer
-        .get_validity_proof_v2(
+        .get_validity_proof(
             hashes,
             Vec::new(), // No addresses needed
+            None,
         )
         .await
         .unwrap();
@@ -1941,7 +1967,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection, I: Indexer + TestInde
                 } else {
                     None
                 },
-                root_index: rpc_result.root_indices[0].unwrap(),
+                root_index: rpc_result.value.accounts[0].root_index.unwrap(),
                 merkle_context: PackedMerkleContext {
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
@@ -1969,7 +1995,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection, I: Indexer + TestInde
         input_nullifier_pubkey: &nullifier_pubkey,
         cpi_context_account: &cpi_context_account_pubkey,
         cpi_context,
-        proof: &rpc_result.proof.unwrap(),
+        proof: &rpc_result.value.compressed_proof.0.unwrap(),
         compressed_account: &PackedCompressedAccountWithMerkleContext {
             compressed_account: compressed_account.compressed_account.clone(),
             merkle_context: PackedMerkleContext {
@@ -1978,7 +2004,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection, I: Indexer + TestInde
                 queue_pubkey_index: 1,
                 prove_by_index: false,
             },
-            root_index: rpc_result.root_indices[0].unwrap(),
+            root_index: rpc_result.value.accounts[0].root_index.unwrap(),
             read_only: false,
         },
         token_transfer_data,

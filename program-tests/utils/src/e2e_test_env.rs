@@ -2661,21 +2661,22 @@ where
             }
 
             if !new_address_params.is_empty() {
+                let address_root_indices: Vec<_> = proof_rpc_res.value.addresses.iter().map(|x| x.root_index).collect();
                 for (i, input_address) in new_address_params.iter_mut().enumerate() {
-                    input_address.address_merkle_tree_root_index =
-                        proof_rpc_res.address_root_indices[i];
+                    input_address.address_merkle_tree_root_index = address_root_indices[i];
                 }
             }
             if !read_only_addresses.is_empty() {
+                let address_root_indices: Vec<_> = proof_rpc_res.value.addresses.iter().map(|x| x.root_index).collect();
                 for (i, input_address) in read_only_addresses.iter_mut().enumerate() {
-                    input_address.address_merkle_tree_root_index =
-                        proof_rpc_res.address_root_indices[i + new_address_params.len()];
+                    input_address.address_merkle_tree_root_index = address_root_indices[i + new_address_params.len()];
                 }
             }
 
             if !read_only_accounts.is_empty() {
+                let account_root_indices: Vec<_> = proof_rpc_res.value.accounts.iter().map(|x| x.root_index).collect();
                 for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
-                    if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
+                    if let Some(root_index) = account_root_indices.get(i + input_accounts.len()).copied().flatten() {
                         input_account.root_index = root_index;
                     } else {
                         input_account.merkle_context.prove_by_index = true;
@@ -2985,15 +2986,15 @@ where
     ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         let user_token_accounts = &mut self
             .indexer
-            .get_compressed_token_accounts_by_owner(user, None)
+            .get_compressed_token_accounts_by_owner(user, None, None)
             .await
             .unwrap();
         // clean up dust so that we don't run into issues that account balances are too low
-        user_token_accounts.retain(|t| t.token_data.amount > 1000);
-        let mut token_accounts_with_mint;
+        user_token_accounts.value.retain(|t| t.token.amount > 1000);
+        let mut token_accounts_with_mint: Vec<TokenDataWithMerkleContext>;
         let mint;
         let tree_version;
-        if user_token_accounts.is_empty() {
+        if user_token_accounts.value.is_empty() {
             mint = self.indexer.get_token_compressed_accounts()[self
                 .rng
                 .gen_range(0..self.indexer.get_token_compressed_accounts().len())]
@@ -3019,10 +3020,10 @@ where
             // filter for token accounts with the same version and mint
             token_accounts_with_mint = self
                 .indexer
-                .get_compressed_token_accounts_by_owner(user, None)
+                .get_compressed_token_accounts_by_owner(user, None, None)
                 .await
                 .unwrap()
-                .iter()
+                .value.iter()
                 .filter(|token_account| {
                     let version = self
                         .indexer
@@ -3031,20 +3032,21 @@ where
                         .find(|x| {
                             x.accounts.merkle_tree
                                 == token_account
-                                    .compressed_account
+                                    .account
                                     .merkle_context
-                                    .merkle_tree_pubkey
+                                    .tree
                         })
                         .unwrap()
                         .version;
-                    token_account.token_data.mint == mint && tree_version == version
+                    token_account.token.mint == mint && tree_version == version
                 })
                 .cloned()
-                .collect::<Vec<_>>();
+                .map(|account| account.into())
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         } else {
-            let token_account = &user_token_accounts
-                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.len(), 0)];
-            mint = token_account.token_data.mint;
+            let token_account = &user_token_accounts.value
+                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.value.len(), 0)];
+            mint = token_account.token.mint;
             tree_version = self
                 .indexer
                 .get_state_merkle_trees()
@@ -3052,15 +3054,15 @@ where
                 .find(|x| {
                     x.accounts.merkle_tree
                         == token_account
-                            .compressed_account
+                            .account
                             .merkle_context
-                            .merkle_tree_pubkey
+                            .tree
                 })
                 .unwrap()
                 .version;
 
             token_accounts_with_mint = user_token_accounts
-                .iter()
+                .value.iter()
                 .filter(|token_account| {
                     let version = self
                         .indexer
@@ -3069,15 +3071,15 @@ where
                         .find(|x| {
                             x.accounts.merkle_tree
                                 == token_account
-                                    .compressed_account
+                                    .account
                                     .merkle_context
-                                    .merkle_tree_pubkey
+                                    .tree
                         })
                         .unwrap()
                         .version;
-                    token_account.token_data.mint == mint && tree_version == version
+                    token_account.token.mint == mint && tree_version == version
                 })
-                .map(|token_account| (*token_account).clone())
+                .map(|token_account| (*token_account).clone().into())
                 .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if delegated {

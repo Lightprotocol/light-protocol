@@ -691,7 +691,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .get_multiple_new_address_proofs(merkle_tree_pubkey.to_bytes(), addresses.clone(), None)
         .await
         .unwrap();
-    for non_inclusion_proof in &non_inclusion_proofs {
+    for non_inclusion_proof in &non_inclusion_proofs.value {
         low_element_values.push(non_inclusion_proof.low_address_value);
         low_element_indices.push(non_inclusion_proof.low_address_index as usize);
         low_element_next_indices.push(non_inclusion_proof.low_address_next_index as usize);
