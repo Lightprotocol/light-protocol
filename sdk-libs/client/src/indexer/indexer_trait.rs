@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use light_merkle_tree_metadata::QueueType;
 use solana_pubkey::Pubkey;
+use std::fmt::Debug;
 
 use super::types::{Account, TokenAccount, TokenBalance, ValidityProofWithContext};
 use super::{
@@ -8,16 +9,18 @@ use super::{
     MerkleProofWithContext, NewAddressProofWithContext,
 };
 
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct Context {
     pub slot: u64,
 }
 
-pub struct Response<T> {
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Response<T: Clone + PartialEq + Default + Debug> {
     pub context: Context,
     pub value: T,
 }
 
-impl<T> Response<T> {
+impl<T: Clone + PartialEq + Default + Debug> Response<T> {
     pub fn value(&self) -> &T {
         &self.value
     }
@@ -26,13 +29,19 @@ impl<T> Response<T> {
     }
 }
 
-pub struct ResponseWithCursor<T, C> {
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ResponseWithCursor<
+    T: Clone + PartialEq + Default + Debug,
+    C: Clone + PartialEq + Default + Debug,
+> {
     pub context: Context,
     pub value: T,
     pub cursor: C,
 }
 
-impl<T, C> ResponseWithCursor<T, C> {
+impl<T: Clone + PartialEq + Default + Debug, C: Clone + PartialEq + Default + Debug>
+    ResponseWithCursor<T, C>
+{
     pub fn value(&self) -> &T {
         &self.value
     }

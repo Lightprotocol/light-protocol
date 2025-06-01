@@ -56,6 +56,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
             QueueType::OutputStateV2,
             total_elements as u16,
             Some(offset),
+            None,
         )
         .await
         .map_err(|e| {
@@ -63,16 +64,16 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
             ForesterUtilsError::Indexer("Failed to get queue elements".into())
         })?;
 
-    trace!("Got {} queue elements in total", queue_elements.len());
+    trace!("Got {} queue elements in total", queue_elements.value.len());
 
-    if queue_elements.len() != total_elements {
+    if queue_elements.value.len() != total_elements {
         return Err(ForesterUtilsError::Indexer(format!(
             "Expected {} elements, got {}",
             total_elements,
-            queue_elements.len()
+            queue_elements.value.len()
         )));
     }
-    let indexer_root = queue_elements.first().unwrap().root;
+    let indexer_root = queue_elements.value.first().unwrap().root;
     debug_assert_eq!(
         indexer_root, current_root,
         "root_history: {:?}",
@@ -87,7 +88,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
     for (batch_idx, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
         let start_idx = batch_idx * zkp_batch_size as usize;
         let end_idx = start_idx + zkp_batch_size as usize;
-        let batch_elements = &queue_elements[start_idx..end_idx];
+        let batch_elements = &queue_elements.value[start_idx..end_idx];
 
         trace!(
             "Processing batch {}: index range {}-{}",

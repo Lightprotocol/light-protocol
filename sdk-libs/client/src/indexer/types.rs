@@ -27,7 +27,7 @@ pub struct ProofOfLeaf {
 pub type Address = [u8; 32];
 pub type Hash = [u8; 32];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MerkleProofWithContext {
     pub proof: Vec<[u8; 32]>,
     pub root: [u8; 32],
@@ -39,7 +39,7 @@ pub struct MerkleProofWithContext {
     pub account_hash: [u8; 32],
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MerkleProof {
     pub hash: [u8; 32],
     pub leaf_index: u64,
@@ -70,7 +70,7 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct ValidityProofWithContext {
     pub compressed_proof: ValidityProof,
     pub accounts: Vec<AccountProofInputs>,
@@ -506,13 +506,13 @@ impl TryFrom<&photon_api::models::Account> for Account {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct AddressQueueIndex {
     pub address: [u8; 32],
     pub queue_index: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct BatchAddressUpdateIndexerResponse {
     pub batch_start_index: u64,
     pub addresses: Vec<AddressQueueIndex>,

@@ -23,13 +23,13 @@ light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-account-checks = { workspace = true }
+light-sdk = { workspace = true }
 
 # unrelased
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-registry = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
-create-address-test-program = { workspace = true }
 
 
 tokio = { workspace = true }
