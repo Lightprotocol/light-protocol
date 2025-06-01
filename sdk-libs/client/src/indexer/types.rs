@@ -16,7 +16,7 @@ use solana_pubkey::Pubkey;
 use super::{
     base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},
     tree_info::QUEUE_TREE_MAPPING,
-    IndexerError,
+    IndexerError, ResponseWithCursor,
 };
 
 pub struct ProofOfLeaf {
@@ -75,6 +75,22 @@ pub struct ValidityProofWithContext {
     pub compressed_proof: ValidityProof,
     pub accounts: Vec<AccountProofInputs>,
     pub addresses: Vec<AddressProofInputs>,
+}
+
+impl ValidityProofWithContext {
+    pub fn get_root_indices(&self) -> Vec<Option<u16>> {
+        self.accounts
+            .iter()
+            .map(|account| account.root_index)
+            .collect()
+    }
+
+    pub fn get_address_indices(&self) -> Vec<u16> {
+        self.addresses
+            .iter()
+            .map(|address| address.root_index)
+            .collect()
+    }
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -627,10 +643,31 @@ impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     }
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<Vec<light_sdk::token::TokenDataWithMerkleContext>>
+    for ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>
+{
+    fn into(self) -> Vec<light_sdk::token::TokenDataWithMerkleContext> {
+        self.value
+            .into_iter()
+            .map(
+                |token_account| light_sdk::token::TokenDataWithMerkleContext {
+                    token_data: token_account.token,
+                    compressed_account: CompressedAccountWithMerkleContext::from(
+                        token_account.account.clone(),
+                    ),
+                },
+            )
+            .collect::<Vec<light_sdk::token::TokenDataWithMerkleContext>>()
+    }
+}
+
 impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     type Error = IndexerError;
 
-    fn try_from(token_data_with_context: light_sdk::token::TokenDataWithMerkleContext) -> Result<Self, Self::Error> {
+    fn try_from(
+        token_data_with_context: light_sdk::token::TokenDataWithMerkleContext,
+    ) -> Result<Self, Self::Error> {
         let account = Account::try_from(token_data_with_context.compressed_account)?;
 
         Ok(TokenAccount {
