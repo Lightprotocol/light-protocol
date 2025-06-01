@@ -4,11 +4,7 @@ use forester::{
     telemetry::setup_telemetry,
     ForesterConfig,
 };
-use light_client::indexer::{
-    photon_indexer::PhotonIndexer, Base58Conversions, Indexer, IndexerError,
-    NewAddressProofWithContext,
-};
-use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
+use light_client::indexer::{photon_indexer::PhotonIndexer, Indexer, NewAddressProofWithContext};
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
@@ -133,11 +129,11 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
 ) {
     for (tree, address) in trees.iter().zip(addresses.iter()) {
         let address_proof_test_indexer = indexer
-            .get_multiple_new_address_proofs(tree.to_bytes(), vec![address.to_bytes()])
+            .get_multiple_new_address_proofs(tree.to_bytes(), vec![address.to_bytes()], None)
             .await;
 
         let address_proof_photon = photon_indexer
-            .get_multiple_new_address_proofs(tree.to_bytes(), vec![address.to_bytes()])
+            .get_multiple_new_address_proofs(tree.to_bytes(), vec![address.to_bytes()], None)
             .await;
 
         if address_proof_photon.is_err() {
@@ -149,9 +145,13 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
         }
 
         let photon_result: NewAddressProofWithContext =
-            address_proof_photon.unwrap().first().unwrap().clone();
-        let test_indexer_result: NewAddressProofWithContext =
-            address_proof_test_indexer.unwrap().first().unwrap().clone();
+            address_proof_photon.unwrap().value.first().unwrap().clone();
+        let test_indexer_result: NewAddressProofWithContext = address_proof_test_indexer
+            .unwrap()
+            .value
+            .first()
+            .unwrap()
+            .clone();
         debug!(
             "assert proofs for address: {} photon result: {:?} test indexer result: {:?}",
             address, photon_result, test_indexer_result
@@ -199,29 +199,29 @@ pub async fn assert_accounts_by_owner<I: Indexer + TestIndexerExtensions>(
     photon_indexer: &PhotonIndexer,
 ) {
     let mut photon_accs = photon_indexer
-        .get_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .get_compressed_accounts_by_owner(&user.keypair.pubkey(), None)
         .await
         .unwrap();
-    photon_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
+    photon_accs.value.sort_by_key(|a| a.hash);
 
     let mut test_accs = indexer
-        .get_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .get_compressed_accounts_by_owner(&user.keypair.pubkey(), None)
         .await
         .unwrap();
-    test_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
+    test_accs.value.sort_by_key(|a| a.hash);
 
     debug!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
         user.keypair.pubkey().to_string(),
-        test_accs.len(),
-        photon_accs.len()
+        test_accs.value.len(),
+        photon_accs.value.len()
     );
-    assert_eq!(test_accs.len(), photon_accs.len());
+    assert_eq!(test_accs.value.len(), photon_accs.value.len());
 
     debug!("test_accs: {:?}", test_accs);
     debug!("photon_accs: {:?}", photon_accs);
 
-    for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
+    for (test_acc, indexer_acc) in test_accs.value.iter().zip(photon_accs.value.iter()) {
         assert_eq!(test_acc, indexer_acc);
     }
 }
@@ -234,14 +234,15 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer,
 ) {
-    let accs: Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> =
-        indexer.get_compressed_accounts_by_owner(user_pubkey).await;
-    for account in accs.unwrap() {
+    let accs = indexer
+        .get_compressed_accounts_by_owner(user_pubkey, None)
+        .await;
+    for account in accs.unwrap().value {
         let photon_result = photon_indexer
-            .get_multiple_compressed_account_proofs(vec![account.hash().unwrap().to_base58()])
+            .get_multiple_compressed_account_proofs(vec![account.hash], None)
             .await;
         let test_indexer_result = indexer
-            .get_multiple_compressed_account_proofs(vec![account.hash().unwrap().to_base58()])
+            .get_multiple_compressed_account_proofs(vec![account.hash], None)
             .await;
 
         if photon_result.is_err() {
@@ -255,9 +256,11 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
         let photon_result = photon_result.unwrap();
         let test_indexer_result = test_indexer_result.unwrap();
 
-        assert_eq!(photon_result.len(), test_indexer_result.len());
-        for (photon_proof, test_indexer_proof) in
-            photon_result.iter().zip(test_indexer_result.iter())
+        assert_eq!(photon_result.value.len(), test_indexer_result.value.len());
+        for (photon_proof, test_indexer_proof) in photon_result
+            .value
+            .iter()
+            .zip(test_indexer_result.value.iter())
         {
             assert_eq!(photon_proof.hash, test_indexer_proof.hash);
             assert_eq!(photon_proof.leaf_index, test_indexer_proof.leaf_index);

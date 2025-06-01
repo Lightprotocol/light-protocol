@@ -191,17 +191,18 @@ async fn test_state_indexer_batched() {
         &forester_keypair.pubkey()
     );
     let compressed_balance_photon = photon_indexer
-        .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None)
         .await
         .unwrap();
     let compressed_balance_test_indexer = e2e_env
         .indexer
-        .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None)
         .await
         .unwrap();
     for (photon_account, test_indexer_account) in compressed_balance_photon
+        .value
         .iter()
-        .zip(compressed_balance_test_indexer.iter())
+        .zip(compressed_balance_test_indexer.value.iter())
     {
         assert_eq!(photon_account, test_indexer_account);
     }
@@ -222,12 +223,12 @@ async fn test_state_indexer_batched() {
             &forester_keypair.pubkey()
         );
         let compressed_balance_photon = photon_indexer
-            .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None)
             .await
             .unwrap();
         let compressed_balance_test_indexer = e2e_env
             .indexer
-            .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None)
             .await
             .unwrap();
 
@@ -238,8 +239,9 @@ async fn test_state_indexer_batched() {
         println!("photon_account: {:?}", compressed_balance_photon);
 
         for (photon_account, test_indexer_account) in compressed_balance_photon
+            .value
             .iter()
-            .zip(compressed_balance_test_indexer.iter())
+            .zip(compressed_balance_test_indexer.value.iter())
         {
             assert_eq!(photon_account, test_indexer_account);
         }

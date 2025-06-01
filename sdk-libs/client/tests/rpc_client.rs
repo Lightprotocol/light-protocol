@@ -1,5 +1,5 @@
 use light_client::{
-    indexer::{AddressWithTree, Base58Conversions, Hash, Indexer},
+    indexer::{AddressWithTree, Hash, Indexer},
     rpc::{rpc_connection::RpcConnectionConfig, SolanaRpcConnection},
 };
 use light_compressed_account::{
@@ -150,9 +150,10 @@ async fn test_all_endpoints() {
     let accounts = rpc
         .indexer()
         .unwrap()
-        .get_compressed_accounts_by_owner(&pubkey)
+        .get_compressed_accounts_by_owner(&pubkey, None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert!(!accounts.is_empty());
     let first_account = accounts[0].clone();
     let seed = rand::random::<[u8; 32]>();
@@ -161,49 +162,54 @@ async fn test_all_endpoints() {
         tree: test_accounts.v1_address_trees[0].merkle_tree,
     }];
 
-    let account_hashes: Vec<Hash> = accounts.iter().map(|a| a.hash().unwrap()).collect();
+    let account_hashes: Vec<Hash> = accounts.iter().map(|a| a.hash).collect();
     let accounts = rpc
         .indexer()
         .unwrap()
-        .get_multiple_compressed_accounts(None, Some(account_hashes.clone()))
+        .get_multiple_compressed_accounts(None, Some(account_hashes.clone()), None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
 
     assert!(!accounts.is_empty());
-    assert_eq!(accounts[0].hash, first_account.hash().unwrap());
+    assert_eq!(accounts[0].hash, first_account.hash);
 
     let result = rpc
         .indexer()
         .unwrap()
-        .get_validity_proof(account_hashes.clone(), new_addresses.clone())
+        .get_validity_proof(account_hashes.clone(), new_addresses.clone(), None)
         .await
-        .unwrap();
-    assert_eq!(result.root_indices.len(), account_hashes.len());
-    assert_eq!(result.address_root_indices.len(), new_addresses.len());
+        .unwrap()
+        .value;
+    assert_eq!(result.accounts.len(), account_hashes.len());
+    assert_eq!(result.addresses.len(), new_addresses.len());
 
     let account = rpc
         .indexer()
         .unwrap()
-        .get_compressed_account(None, Some(first_account.hash().unwrap()))
+        .get_compressed_account(None, Some(first_account.hash), None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(account.lamports, lamports);
     assert_eq!(account.owner, rpc.get_payer().pubkey());
 
     let balance = rpc
         .indexer()
         .unwrap()
-        .get_compressed_account_balance(None, Some(first_account.hash().unwrap()))
+        .get_compressed_account_balance(None, Some(first_account.hash), None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(balance, lamports);
 
     let signatures = rpc
         .indexer()
         .unwrap()
-        .get_compression_signatures_for_account(first_account.hash().unwrap())
+        .get_compression_signatures_for_account(first_account.hash, None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(
         signatures[0],
         tx_create_compressed_account.signatures[0].to_string()
@@ -212,54 +218,56 @@ async fn test_all_endpoints() {
     let token_accounts = &rpc
         .indexer()
         .unwrap()
-        .get_compressed_token_accounts_by_owner(&pubkey, None)
+        .get_compressed_token_accounts_by_owner(&pubkey, None, None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
 
-    assert_eq!(token_accounts[0].token_data.mint, mint.pubkey());
-    assert_eq!(token_accounts[0].token_data.owner, payer_pubkey);
+    assert_eq!(token_accounts[0].token.mint, mint.pubkey());
+    assert_eq!(token_accounts[0].token.owner, payer_pubkey);
 
-    let hash = token_accounts[0].compressed_account.hash().unwrap();
+    let hash = token_accounts[0].account.hash;
 
     let balance = rpc
         .indexer()
         .unwrap()
-        .get_compressed_token_account_balance(None, Some(hash))
+        .get_compressed_token_account_balance(None, Some(hash), None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert_eq!(balance, amount);
 
-    assert_eq!(token_accounts[0].token_data.mint, mint.pubkey());
-    assert_eq!(token_accounts[0].token_data.owner, payer_pubkey);
+    assert_eq!(token_accounts[0].token.mint, mint.pubkey());
+    assert_eq!(token_accounts[0].token.owner, payer_pubkey);
 
-    let hash = token_accounts[0].compressed_account.hash().unwrap();
+    let hash = token_accounts[0].account.hash;
 
     let balances = rpc
         .indexer()
         .unwrap()
-        .get_compressed_token_balances_by_owner(&pubkey, None)
+        .get_compressed_token_balances_by_owner(&pubkey, None, None)
         .await
         .unwrap();
 
-    assert_eq!(balances.token_balances[0].balance, amount);
+    assert_eq!(balances.value[0].balance, amount);
 
     let balance = rpc
         .indexer()
         .unwrap()
-        .get_compressed_token_account_balance(None, Some(hash))
+        .get_compressed_token_account_balance(None, Some(hash), None)
         .await
         .unwrap();
-    assert_eq!(balance, amount);
+    assert_eq!(balance.value, amount);
 
-    let hashes_str = account_hashes.iter().map(|h| h.to_base58()).collect();
     let proofs = rpc
         .indexer()
         .unwrap()
-        .get_multiple_compressed_account_proofs(hashes_str)
+        .get_multiple_compressed_account_proofs(account_hashes.to_vec(), None)
         .await
-        .unwrap();
+        .unwrap()
+        .value;
     assert!(!proofs.is_empty());
-    assert_eq!(proofs[0].hash, account_hashes[0].to_base58());
+    assert_eq!(proofs[0].hash, account_hashes[0]);
 
     let addresses = vec![hash_to_bn254_field_size_be(&seed)];
     let new_address_proofs = rpc
@@ -268,12 +276,13 @@ async fn test_all_endpoints() {
         .get_multiple_new_address_proofs(
             test_accounts.v1_address_trees[0].merkle_tree.to_bytes(),
             addresses,
+            None,
         )
         .await
         .unwrap();
-    assert!(!new_address_proofs.is_empty());
+    assert!(!new_address_proofs.value.is_empty());
     assert_eq!(
-        new_address_proofs[0].merkle_tree.to_bytes(),
+        new_address_proofs.value[0].merkle_tree.to_bytes(),
         test_accounts.v1_address_trees[0].merkle_tree.to_bytes()
     );
 }

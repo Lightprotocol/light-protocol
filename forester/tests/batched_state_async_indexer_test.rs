@@ -17,6 +17,7 @@ use light_compressed_account::{
     address::derive_address_legacy,
     compressed_account::{CompressedAccount, MerkleContext},
     instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
+    TreeType,
 };
 use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
@@ -346,11 +347,11 @@ async fn get_token_accounts<I: Indexer>(
     mint: &Pubkey,
 ) -> Vec<TokenDataWithMerkleContext> {
     let accounts = indexer
-        .get_compressed_token_accounts_by_owner_v2(owner, Some(*mint))
+        .get_compressed_token_accounts_by_owner(owner, Some(*mint), None)
         .await
         .unwrap();
-    println!("Found {} compressed token accounts", accounts.len());
-    accounts
+    println!("Found {} compressed token accounts", accounts.value.len());
+    accounts.into()
 }
 
 async fn validate_compressed_accounts_proof<I: Indexer>(
@@ -656,10 +657,11 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
     counter: &mut u64,
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
-    let mut input_compressed_accounts = indexer
-        .get_compressed_token_accounts_by_owner_v2(&payer.pubkey(), Some(*mint))
+    let mut input_compressed_accounts: Vec<TokenDataWithMerkleContext> = indexer
+        .get_compressed_token_accounts_by_owner(&payer.pubkey(), Some(*mint), None)
         .await
-        .unwrap();
+        .unwrap()
+        .into();
     assert_eq!(
         std::cmp::min(input_compressed_accounts.len(), 1000),
         std::cmp::min(*counter as usize, 1000)
@@ -685,7 +687,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
         .get_validity_proof(compressed_account_hashes, vec![], None)
         .await
         .unwrap();
-    let root_indices = proof_for_compressed_accounts.root_indices;
+    let root_indices = proof_for_compressed_accounts.value.get_root_indices();
     let merkle_contexts = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.merkle_context)
@@ -711,7 +713,9 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
         None
     } else {
         proof_for_compressed_accounts
-            .proof
+            .value
+            .compressed_proof
+            .0
             .map(|proof| CompressedProof {
                 a: proof.a,
                 b: proof.b,
@@ -779,8 +783,9 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
     let input_compressed_accounts = indexer
-        .get_compressed_accounts_by_owner(&payer.pubkey())
+        .get_compressed_accounts_by_owner(&payer.pubkey(), None)
         .await
+        .map(|response| response.value)
         .unwrap_or(vec![]);
     let mut input_compressed_accounts = if V2 {
         input_compressed_accounts
@@ -789,7 +794,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
                 test_accounts
                     .v2_state_trees
                     .iter()
-                    .any(|y| y.merkle_tree == x.merkle_context.merkle_tree_pubkey)
+                    .any(|y| y.merkle_tree == x.merkle_context.tree)
             })
             .collect::<Vec<_>>()
     } else {
@@ -799,7 +804,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
                 test_accounts
                     .v1_state_trees
                     .iter()
-                    .any(|y| y.merkle_tree == x.merkle_context.merkle_tree_pubkey)
+                    .any(|y| y.merkle_tree == x.merkle_context.tree)
             })
             .collect::<Vec<_>>()
     };
@@ -813,11 +818,11 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
     input_compressed_accounts.truncate(num_inputs);
     let lamports = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.lamports)
+        .map(|x| x.lamports)
         .sum::<u64>();
     let compressed_account_hashes = input_compressed_accounts
         .iter()
-        .map(|x| x.hash().unwrap())
+        .map(|x| x.hash)
         .collect::<Vec<[u8; 32]>>();
     wait_for_indexer(rpc, indexer).await.unwrap();
     println!("compressed_account_hashes: {:?}", compressed_account_hashes);
@@ -825,11 +830,19 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
         .get_validity_proof(compressed_account_hashes, vec![], None)
         .await
         .unwrap();
-    let root_indices = proof_for_compressed_accounts.root_indices;
+    let root_indices = proof_for_compressed_accounts.value.get_root_indices();
     let merkle_contexts = input_compressed_accounts
         .iter()
-        .map(|x| x.merkle_context)
-        .collect::<Vec<MerkleContext>>();
+        .map(
+            |x| light_compressed_account::compressed_account::MerkleContext {
+                merkle_tree_pubkey: x.merkle_context.tree,
+                queue_pubkey: x.merkle_context.queue,
+                leaf_index: x.leaf_index,
+                prove_by_index: false,
+                tree_type: TreeType::StateV2,
+            },
+        )
+        .collect::<Vec<light_compressed_account::compressed_account::MerkleContext>>();
     let lamp = lamports / OUTPUT_ACCOUNT_NUM as u64;
     let lamport_remained = lamports % OUTPUT_ACCOUNT_NUM as u64;
     let mut compressed_accounts = vec![
@@ -851,7 +864,9 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
         None
     } else {
         proof_for_compressed_accounts
-            .proof
+            .value
+            .compressed_proof
+            .0
             .map(|proof| CompressedProof {
                 a: proof.a,
                 b: proof.b,
@@ -860,7 +875,12 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
     };
     let input_compressed_accounts_data = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.clone())
+        .map(|x| CompressedAccount {
+            lamports: x.lamports,
+            owner: x.owner,
+            address: x.address,
+            data: x.data.clone(),
+        })
         .collect::<Vec<CompressedAccount>>();
     let instruction = create_invoke_instruction(
         &payer.pubkey(),
@@ -973,20 +993,26 @@ async fn create_v1_address<R: RpcConnection, I: Indexer>(
         .await
         .unwrap();
     let mut new_address_params = Vec::new();
-    for (seed, root_index) in seeds.iter().zip(proof_for_addresses.root_indices.iter()) {
-        assert!(!root_index.is_some(), "Addresses have no proof by index.");
+    for (seed, root_index) in seeds
+        .iter()
+        .zip(proof_for_addresses.value.get_address_indices().iter())
+    {
         new_address_params.push(NewAddressParams {
             seed: *seed,
             address_queue_pubkey: *queue,
             address_merkle_tree_pubkey: *merkle_tree_pubkey,
-            address_merkle_tree_root_index: root_index.unwrap(),
+            address_merkle_tree_root_index: *root_index,
         });
     }
-    let proof = proof_for_addresses.proof.map(|proof| CompressedProof {
-        a: proof.a,
-        b: proof.b,
-        c: proof.c,
-    });
+    let proof = proof_for_addresses
+        .value
+        .compressed_proof
+        .0
+        .map(|proof| CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        });
     let instruction = create_invoke_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
@@ -994,7 +1020,7 @@ async fn create_v1_address<R: RpcConnection, I: Indexer>(
         &[],
         &[],
         &[],
-        &proof_for_addresses.root_indices,
+        &proof_for_addresses.value.get_root_indices(),
         &new_address_params,
         proof,
         None,

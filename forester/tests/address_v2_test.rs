@@ -301,14 +301,14 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             seed: address_seeds[0],
             address_merkle_tree_pubkey: *batch_address_merkle_tree,
             address_queue_pubkey: *batch_address_merkle_tree,
-            address_merkle_tree_root_index: proof_result.address_root_indices[0],
+            address_merkle_tree_root_index: proof_result.value.get_address_indices()[0],
         };
 
         let create_ix_inputs = CreateCompressedPdaInstructionInputs {
             data,
             signer: &payer.pubkey(),
             output_compressed_account_merkle_tree_pubkey: &env.v1_state_trees[0].merkle_tree,
-            proof: &proof_result.proof.unwrap(),
+            proof: &proof_result.value.compressed_proof.0.unwrap(),
             new_address_params,
             registered_program_pda,
         };
@@ -335,7 +335,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
                 seed: *seed,
                 address_queue_pubkey: *batch_address_merkle_tree,
                 address_merkle_tree_pubkey: *batch_address_merkle_tree,
-                address_merkle_tree_root_index: proof_result.address_root_indices[i],
+                address_merkle_tree_root_index: proof_result.value.get_address_indices()[i],
                 assigned_account_index: None,
             })
             .collect::<Vec<_>>();
@@ -364,7 +364,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             bump: 255,
             with_cpi_context: false,
             invoking_program_id: create_address_test_program::ID.into(),
-            proof: proof_result.proof,
+            proof: proof_result.value.compressed_proof.0,
             new_address_params: packed_new_address_params,
             is_compress: false,
             compress_or_decompress_lamports: 0,
