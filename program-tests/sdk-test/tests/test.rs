@@ -66,15 +66,22 @@ async fn test_sdk_test() {
     let compressed_pda = rpc
         .indexer()
         .unwrap()
-        .get_compressed_accounts_by_owner(&sdk_test::ID)
+        .get_compressed_accounts_by_owner(&sdk_test::ID, None)
         .await
-        .unwrap()[0]
+        .unwrap()
+        .value[0]
         .clone();
-    assert_eq!(compressed_pda.compressed_account.address.unwrap(), address);
+    assert_eq!(compressed_pda.address.unwrap(), address);
 
-    update_pda(&payer, &mut rpc, [2u8; 31], compressed_pda, ouput_queue)
-        .await
-        .unwrap();
+    update_pda(
+        &payer,
+        &mut rpc,
+        [2u8; 31],
+        compressed_pda.into(),
+        ouput_queue,
+    )
+    .await
+    .unwrap();
 }
 
 pub async fn create_pda(
