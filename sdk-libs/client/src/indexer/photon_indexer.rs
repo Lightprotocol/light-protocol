@@ -174,7 +174,7 @@ impl Indexer for PhotonIndexer {
         hashes: Vec<String>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<MerkleProof>>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let hashes_for_async = hashes.clone();
 
@@ -256,7 +256,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         config: Option<IndexerRpcConfig>,
     ) -> Result<ResponseWithCursor<Vec<Account>, [u8; 32]>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
@@ -284,7 +284,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(|acc| Account::try_from(acc))
+                    .map(Account::try_from)
                     .collect();
 
                 let cursor = response
@@ -327,7 +327,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(|acc| Account::try_from(acc))
+                    .map(Account::try_from)
                     .collect();
 
                 let cursor = response
@@ -355,7 +355,7 @@ impl Indexer for PhotonIndexer {
         hash: Option<Hash>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Account>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let params = self.build_account_params(address, hash)?;
             let request = photon_api::models::GetCompressedAccountPostRequest {
@@ -394,7 +394,7 @@ impl Indexer for PhotonIndexer {
         mint: Option<Pubkey>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<ResponseWithCursor<Vec<TokenAccount>, [u8; 32]>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
@@ -423,7 +423,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(|acc| TokenAccount::try_from(acc))
+                    .map(TokenAccount::try_from)
                     .collect();
 
                 let cursor = response
@@ -471,7 +471,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(|acc| TokenAccount::try_from(acc))
+                    .map(TokenAccount::try_from)
                     .collect();
 
                 let cursor = response
@@ -499,7 +499,7 @@ impl Indexer for PhotonIndexer {
         hash: Option<Hash>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<u64>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let params = self.build_account_params(address, hash)?;
             let request = photon_api::models::GetCompressedAccountBalancePostRequest {
@@ -534,7 +534,7 @@ impl Indexer for PhotonIndexer {
         hash: Option<Hash>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<u64>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressedTokenAccountBalancePostRequest {
                 params: Box::new(photon_api::models::GetCompressedAccountPostRequestParams {
@@ -571,7 +571,7 @@ impl Indexer for PhotonIndexer {
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<Account>>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let hashes = hashes.clone();
             let addresses = addresses.clone();
@@ -619,7 +619,7 @@ impl Indexer for PhotonIndexer {
         mint: Option<Pubkey>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<ResponseWithCursor<Vec<TokenBalance>, Option<String>>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
@@ -652,7 +652,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(|balance| TokenBalance::try_from(balance))
+                    .map(TokenBalance::try_from)
                     .collect();
 
                 Ok(ResponseWithCursor {
@@ -694,7 +694,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .token_balances
                     .iter()
-                    .map(|balance| TokenBalance::try_from(balance))
+                    .map(TokenBalance::try_from)
                     .collect();
 
                 Ok(ResponseWithCursor {
@@ -714,7 +714,7 @@ impl Indexer for PhotonIndexer {
         hash: Hash,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<String>>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressionSignaturesForAccountPostRequest {
                 params: Box::new(
@@ -760,7 +760,7 @@ impl Indexer for PhotonIndexer {
         addresses: Vec<[u8; 32]>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<NewAddressProofWithContext>>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let params: Vec<photon_api::models::address_with_tree::AddressWithTree> = addresses
                 .iter()
@@ -870,7 +870,7 @@ impl Indexer for PhotonIndexer {
         new_addresses_with_trees: Vec<AddressWithTree>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<super::types::ValidityProofWithContext>, IndexerError> {
-        let config = config.unwrap_or(IndexerRpcConfig::default());
+        let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
@@ -965,7 +965,7 @@ impl Indexer for PhotonIndexer {
         {
             let merkle_tree_pubkey = _merkle_tree_pubkey;
             let zkp_batch_size = _zkp_batch_size;
-            let config = _config.unwrap_or(IndexerRpcConfig::default());
+            let config = _config.unwrap_or_default();
             self.retry(config.retry_config, || async {
                 let merkle_tree = Hash::from_bytes(merkle_tree_pubkey.to_bytes().as_ref())?;
                 let request = photon_api::models::GetBatchAddressUpdateInfoPostRequest {
@@ -1071,7 +1071,7 @@ impl Indexer for PhotonIndexer {
             let queue_type = _queue_type;
             let num_elements = _num_elements;
             let start_offset = _start_offset;
-            let config = _config.unwrap_or(IndexerRpcConfig::default());
+            let config = _config.unwrap_or_default();
             self.retry(config.retry_config, || async {
                 let request: photon_api::models::GetQueueElementsPostRequest =
                     photon_api::models::GetQueueElementsPostRequest {

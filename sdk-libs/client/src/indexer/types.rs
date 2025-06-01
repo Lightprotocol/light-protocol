@@ -243,13 +243,13 @@ impl ValidityProofWithContext {
         let accounts = value
             .accounts
             .iter()
-            .map(|account| AccountProofInputs::from_api_model(account))
+            .map(AccountProofInputs::from_api_model)
             .collect::<Result<Vec<_>, IndexerError>>()?;
 
         let addresses = value
             .addresses
             .iter()
-            .map(|address| AddressProofInputs::from_api_model(address))
+            .map(AddressProofInputs::from_api_model)
             .collect::<Result<Vec<_>, IndexerError>>()?;
 
         Ok(Self {
@@ -315,7 +315,7 @@ impl MerkleContext {
             next_tree_context: value
                 .next_tree_context
                 .as_ref()
-                .map(|ctx| TreeContextInfo::from_api_model(ctx))
+                .map(TreeContextInfo::from_api_model)
                 .transpose()?,
         })
     }
@@ -615,6 +615,7 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     fn into(self) -> light_sdk::token::TokenDataWithMerkleContext {
         let compressed_account = CompressedAccountWithMerkleContext::from(self.account);
