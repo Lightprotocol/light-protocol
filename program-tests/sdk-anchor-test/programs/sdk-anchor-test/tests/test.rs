@@ -112,6 +112,7 @@ async fn with_nested_data(
                 address: *address,
                 tree: rpc.test_accounts.v1_address_trees[0].merkle_tree,
             }],
+            None,
         )
         .await?;
 
@@ -124,13 +125,13 @@ async fn with_nested_data(
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut remaining_accounts,
-        rpc_result.address_root_indices[0],
+        rpc_result.value.get_address_root_indices()[0],
     );
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.proof,
         address_merkle_context: packed_address_merkle_context,
         name,
         output_merkle_tree_index,
@@ -162,7 +163,7 @@ async fn update_nested_data(
     remaining_accounts.add_system_accounts(config);
     let hash = compressed_account.hash().unwrap();
 
-    let rpc_result = rpc.get_validity_proof_v2(vec![hash], vec![]).await?;
+    let rpc_result = rpc.get_validity_proof(vec![hash], vec![], None).await?;
 
     let packed_merkle_context =
         pack_merkle_context(&compressed_account.merkle_context, &mut remaining_accounts);
@@ -179,12 +180,12 @@ async fn update_nested_data(
     )
     .unwrap();
     let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
-        proof: rpc_result.proof.into(),
+        proof: rpc_result.value.proof,
         my_compressed_account,
         account_meta: CompressedAccountMeta {
             merkle_context: packed_merkle_context,
             address: compressed_account.compressed_account.address.unwrap(),
-            root_index: rpc_result.root_indices[0],
+            root_index: rpc_result.value.get_root_indices()[0],
             output_merkle_tree_index: packed_merkle_context.merkle_tree_pubkey_index,
         },
         nested_data,

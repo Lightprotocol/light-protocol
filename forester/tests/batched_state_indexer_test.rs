@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer},
+    indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerRpcConfig, RetryConfig},
     rpc::{
         rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
         SolanaRpcConnection,
@@ -190,20 +190,34 @@ async fn test_state_indexer_batched() {
         "get_compressed_accounts_by_owner({}) initial",
         &forester_keypair.pubkey()
     );
+    let slot = e2e_env.rpc.get_slot().await.unwrap();
     let compressed_balance_photon = photon_indexer
-        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner(
+            &forester_keypair.pubkey(),
+            None,
+            Some(IndexerRpcConfig {
+                slot,
+                retry_config: RetryConfig::default(),
+            }),
+        )
         .await
         .unwrap();
     let compressed_balance_test_indexer = e2e_env
         .indexer
-        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None, None)
         .await
         .unwrap();
     for (photon_account, test_indexer_account) in compressed_balance_photon
+        .value
+        .items
         .iter()
-        .zip(compressed_balance_test_indexer.iter())
+        .zip(compressed_balance_test_indexer.value.items.iter())
     {
-        assert_eq!(photon_account, test_indexer_account);
+        let mut photon_account = photon_account.clone();
+        // Test indexer slot created is MAX
+        photon_account.slot_created = u64::MAX;
+        photon_account.prove_by_index = false;
+        assert_eq!(photon_account, *test_indexer_account);
     }
 
     for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
@@ -222,12 +236,12 @@ async fn test_state_indexer_batched() {
             &forester_keypair.pubkey()
         );
         let compressed_balance_photon = photon_indexer
-            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None, None)
             .await
             .unwrap();
         let compressed_balance_test_indexer = e2e_env
             .indexer
-            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner(&forester_keypair.pubkey(), None, None)
             .await
             .unwrap();
 
@@ -238,10 +252,16 @@ async fn test_state_indexer_batched() {
         println!("photon_account: {:?}", compressed_balance_photon);
 
         for (photon_account, test_indexer_account) in compressed_balance_photon
+            .value
+            .items
             .iter()
-            .zip(compressed_balance_test_indexer.iter())
+            .zip(compressed_balance_test_indexer.value.items.iter())
         {
-            assert_eq!(photon_account, test_indexer_account);
+            let mut photon_account = photon_account.clone();
+            // Test indexer slot created is MAX
+            photon_account.slot_created = u64::MAX;
+            photon_account.prove_by_index = false;
+            assert_eq!(photon_account, *test_indexer_account);
         }
 
         let to_pubkey = Pubkey::new_unique();

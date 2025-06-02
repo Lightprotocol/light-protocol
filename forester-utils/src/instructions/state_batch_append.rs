@@ -56,12 +56,15 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
             QueueType::OutputStateV2,
             total_elements as u16,
             Some(offset),
+            None,
         )
         .await
         .map_err(|e| {
             error!("Failed to get queue elements from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get queue elements".into())
-        })?;
+        })?
+        .value
+        .items;
 
     trace!("Got {} queue elements in total", queue_elements.len());
 

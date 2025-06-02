@@ -200,6 +200,7 @@ async fn create_escrow_ix(
                 address,
                 tree: env.v1_address_trees[0].merkle_tree,
             }],
+            None,
         )
         .await
         .unwrap();
@@ -208,7 +209,7 @@ async fn create_escrow_ix(
         seed,
         address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
         address_queue_pubkey: env.v1_address_trees[0].queue,
-        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+        address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
     };
     let create_ix_inputs = CreateCompressedPdaEscrowInstructionInputs {
         input_token_data: &[sdk_to_program_token_data(
@@ -230,12 +231,8 @@ async fn create_escrow_ix(
             env.v1_state_trees[0].merkle_tree,
         ],
         output_compressed_accounts: &Vec::new(),
-        root_indices: &rpc_result
-            .root_indices
-            .iter()
-            .map(|x| Some(*x))
-            .collect::<Vec<_>>(),
-        proof: &Some(rpc_result.proof),
+        root_indices: &rpc_result.value.get_root_indices(),
+        proof: &rpc_result.value.proof.0,
         mint: &input_compressed_token_account_data.token_data.mint,
         new_address_params,
         cpi_context_account: &env.v1_state_trees[0].cpi_context,
@@ -410,7 +407,11 @@ pub async fn perform_withdrawal(
     // compressed pda will go first into the proof because in the program
     // the compressed pda program executes the transaction
     let rpc_result = rpc
-        .get_validity_proof(vec![compressed_pda_hash, token_escrow_account_hash], vec![])
+        .get_validity_proof(
+            vec![compressed_pda_hash, token_escrow_account_hash],
+            vec![],
+            None,
+        )
         .await
         .unwrap();
 
@@ -437,12 +438,8 @@ pub async fn perform_withdrawal(
             env.v1_state_trees[0].merkle_tree,
         ],
         output_compressed_accounts: &Vec::new(),
-        root_indices: &rpc_result
-            .root_indices
-            .iter()
-            .map(|x| Some(*x))
-            .collect::<Vec<_>>(),
-        proof: &Some(rpc_result.proof),
+        root_indices: &rpc_result.value.get_root_indices(),
+        proof: &rpc_result.value.proof.0,
         mint: &token_escrow.token_data.mint,
         cpi_context_account: &env.v1_state_trees[0].cpi_context,
         old_lock_up_time,

@@ -4,11 +4,6 @@ use light_client::{
     indexer::Indexer,
     rpc::{RpcConnection, RpcError},
 };
-use light_compressed_account::address::derive_address;
-use light_hasher::Poseidon;
-use light_merkle_tree_reference::indexed::IndexedMerkleTree;
-use num_bigint::BigUint;
-use rand::{prelude::StdRng, Rng, SeedableRng};
 use solana_sdk::{signature::Signer, transaction::Transaction};
 use tokio::time::sleep;
 use tracing::{debug, error};
@@ -42,7 +37,7 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer>(
         .await
         .map_err(|_| ForesterUtilsError::Rpc("Failed to get rpc slot".into()))?;
 
-    let indexer_slot = indexer.get_indexer_slot().await;
+    let indexer_slot = indexer.get_indexer_slot(None).await;
 
     let mut indexer_slot = match indexer_slot {
         Ok(slot) => slot,
@@ -71,7 +66,7 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer>(
 
         tokio::task::yield_now().await;
         sleep(std::time::Duration::from_millis(500)).await;
-        indexer_slot = indexer.get_indexer_slot().await.map_err(|e| {
+        indexer_slot = indexer.get_indexer_slot(None).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get indexer slot".into())
         })?;
@@ -79,23 +74,4 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer>(
         attempts += 1;
     }
     Ok(())
-}
-
-pub fn create_reference_address_tree(
-    tree_pubkey: &Pubkey,
-    seed: u64,
-    addresses_count: u64,
-) -> IndexedMerkleTree<Poseidon, usize> {
-    let mut rng = StdRng::seed_from_u64(seed);
-    let mut tree = IndexedMerkleTree::<Poseidon, usize>::new(40, 0).unwrap();
-    for _ in 0..addresses_count {
-        let seed = rng.gen();
-        let address = derive_address(
-            &seed,
-            &tree_pubkey.to_bytes(),
-            &create_address_test_program::ID.to_bytes(),
-        );
-        tree.append(&BigUint::from_bytes_be(&address)).unwrap();
-    }
-    tree
 }

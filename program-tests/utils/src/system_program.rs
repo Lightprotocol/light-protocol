@@ -356,15 +356,21 @@ pub async fn compressed_transaction_test<
             .collect::<Vec<_>>();
         let proof_rpc_res = inputs
             .test_indexer
-            .get_validity_proof_v2(
+            .get_validity_proof(
                 compressed_account_input_hashes.unwrap_or_else(Vec::new),
                 address_with_trees,
+                None,
             )
             .await
             .unwrap();
-        root_indices = proof_rpc_res.root_indices;
+        root_indices = proof_rpc_res
+            .value
+            .accounts
+            .iter()
+            .map(|x| x.root_index)
+            .collect::<Vec<_>>();
 
-        if let Some(proof_rpc_res) = proof_rpc_res.proof {
+        if let Some(proof_rpc_res) = proof_rpc_res.value.proof.0 {
             proof = Some(proof_rpc_res);
         }
 
@@ -378,7 +384,7 @@ pub async fn compressed_transaction_test<
             for (i, input_address_params) in inputs.new_address_params.iter().enumerate() {
                 address_params.push(input_address_params.clone());
                 address_params[i].address_merkle_tree_root_index =
-                    proof_rpc_res.address_root_indices[i];
+                    proof_rpc_res.value.addresses[i].root_index;
             }
         }
     }

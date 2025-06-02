@@ -224,18 +224,19 @@ pub async fn failing_transaction_inputs(
     let (root_indices, proof) = if !addresses_with_tree.is_empty() || !hashes.is_empty() {
         // || proof_input_derived_addresses.is_some()
         let proof_rpc_res = rpc
-            .get_validity_proof(hashes, addresses_with_tree)
+            .get_validity_proof(hashes, addresses_with_tree, None)
             .await
             .unwrap();
-        for (i, root_index) in proof_rpc_res.address_root_indices.iter().enumerate() {
-            new_address_params[i].address_merkle_tree_root_index = *root_index;
+        for (i, root_index) in proof_rpc_res.value.addresses.iter().enumerate() {
+            new_address_params[i].address_merkle_tree_root_index = root_index.root_index;
         }
         let root_indices = proof_rpc_res
-            .root_indices
+            .value
+            .accounts
             .iter()
-            .map(|x| Some(*x))
+            .map(|x| x.root_index)
             .collect::<Vec<_>>();
-        (root_indices, Some(proof_rpc_res.proof))
+        (root_indices, proof_rpc_res.value.proof.0)
     } else {
         (Vec::new(), None)
     };
@@ -1012,13 +1013,14 @@ async fn invoke_test() {
     let compressed_account_with_context =
         rpc.indexer.as_ref().unwrap().compressed_accounts[0].clone();
     let proof_rpc_res = rpc
-        .get_validity_proof_v2(
+        .get_validity_proof(
             vec![compressed_account_with_context.hash().unwrap()],
             vec![],
+            None,
         )
         .await
         .unwrap();
-    let proof = proof_rpc_res.proof.unwrap();
+    let proof = proof_rpc_res.value.proof.0.unwrap();
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
 
     let instruction = create_invoke_instruction(
@@ -1034,7 +1036,12 @@ async fn invoke_test() {
             tree_type: TreeType::StateV1,
         }],
         &[merkle_tree_pubkey],
-        &proof_rpc_res.root_indices,
+        &proof_rpc_res
+            .value
+            .accounts
+            .iter()
+            .map(|x| x.root_index)
+            .collect::<Vec<_>>(),
         &Vec::new(),
         Some(proof),
         None,
@@ -1082,7 +1089,12 @@ async fn invoke_test() {
             tree_type: TreeType::StateV1,
         }],
         &[merkle_tree_pubkey],
-        &proof_rpc_res.root_indices,
+        &proof_rpc_res
+            .value
+            .accounts
+            .iter()
+            .map(|x| x.root_index)
+            .collect::<Vec<_>>(),
         &Vec::new(),
         Some(proof),
         None,
@@ -1114,7 +1126,12 @@ async fn invoke_test() {
             tree_type: TreeType::StateV1,
         }],
         &[merkle_tree_pubkey],
-        &proof_rpc_res.root_indices,
+        &proof_rpc_res
+            .value
+            .accounts
+            .iter()
+            .map(|x| x.root_index)
+            .collect::<Vec<_>>(),
         &Vec::new(),
         Some(proof),
         None,
@@ -1535,13 +1552,14 @@ async fn test_with_compression() {
         .unwrap()
         .clone();
     let proof_rpc_res = rpc
-        .get_validity_proof_v2(
+        .get_validity_proof(
             vec![compressed_account_with_context.hash().unwrap()],
             vec![],
+            None,
         )
         .await
         .unwrap();
-    let proof = proof_rpc_res.proof;
+    let proof = proof_rpc_res.value.proof.0.unwrap();
     let input_compressed_accounts =
         vec![compressed_account_with_context.clone().compressed_account];
     let recipient_pubkey = Keypair::new().pubkey();
@@ -1565,9 +1583,14 @@ async fn test_with_compression() {
             tree_type: TreeType::StateV1,
         }],
         &[merkle_tree_pubkey],
-        &proof_rpc_res.root_indices,
+        &proof_rpc_res
+            .value
+            .accounts
+            .iter()
+            .map(|x| x.root_index)
+            .collect::<Vec<_>>(),
         &Vec::new(),
-        proof,
+        Some(proof),
         Some(compress_amount),
         true,
         Some(recipient),
@@ -1920,16 +1943,17 @@ async fn batch_invoke_test() {
         );
         println!("hash {:?}", compressed_account_with_context.hash());
         let proof_rpc_result = rpc
-            .get_validity_proof_v2(
+            .get_validity_proof(
                 vec![compressed_account_with_context.hash().unwrap()],
                 vec![],
+                None,
             )
             .await
             .unwrap();
         // No proof since value is in output queue
-        assert!(proof_rpc_result.proof.is_none());
+        assert!(proof_rpc_result.value.proof.0.is_none());
         // No root index since value is in output queue
-        assert!(proof_rpc_result.root_indices[0].is_none());
+        assert!(proof_rpc_result.value.accounts[0].root_index.is_none());
 
         let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
 
@@ -2098,17 +2122,18 @@ async fn batch_invoke_test() {
             .collect::<Vec<_>>()[0]
             .clone();
         let proof_rpc_result = rpc
-            .get_validity_proof_v2(
+            .get_validity_proof(
                 vec![
                     compressed_account_with_context_1.hash().unwrap(),
                     compressed_account_with_context_2.hash().unwrap(),
                 ],
                 vec![],
+                None,
             )
             .await
             .unwrap();
 
-        let proof = proof_rpc_result.proof;
+        let proof = proof_rpc_result.value.proof.0.unwrap();
 
         let input_compressed_accounts = vec![
             compressed_account_with_context_1.compressed_account,
@@ -2145,9 +2170,14 @@ async fn batch_invoke_test() {
                 merkle_context_1.queue_pubkey, // output queue
                 merkle_context_2.merkle_tree_pubkey,
             ],
-            &proof_rpc_result.root_indices,
+            &proof_rpc_result
+                .value
+                .accounts
+                .iter()
+                .map(|x| x.root_index)
+                .collect::<Vec<_>>(),
             &Vec::new(),
-            proof,
+            Some(proof),
             None,
             false,
             None,
@@ -2306,12 +2336,13 @@ async fn batch_invoke_test() {
             .await
             .unwrap();
         let accounts = rpc
-            .get_compressed_accounts_by_owner_v2(&payer_pubkey)
+            .get_compressed_accounts_by_owner(&payer_pubkey, None, None)
             .await
             .unwrap();
+        let accounts = accounts.value.items;
         let accounts = accounts
             .iter()
-            .filter(|x| x.merkle_context.queue_pubkey == output_queue_pubkey)
+            .filter(|x| x.merkle_context.queue == output_queue_pubkey)
             .collect::<Vec<_>>();
         let compressed_account_with_context_1 = accounts[1].clone();
         // overwrite both output queue batches -> all prior values only exist in the Merkle tree not in the output queue
@@ -2321,16 +2352,20 @@ async fn batch_invoke_test() {
                 .unwrap();
         }
 
-        let mut merkle_context = compressed_account_with_context_1.merkle_context;
-        merkle_context.prove_by_index = true;
+        // Convert to CompressedAccountWithMerkleContext
+        let account_with_context: CompressedAccountWithMerkleContext =
+            compressed_account_with_context_1.clone().into();
+        let light_merkle_context = compressed_account_with_context_1
+            .merkle_context
+            .to_light_merkle_context(compressed_account_with_context_1.leaf_index, true);
 
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
-            &[compressed_account_with_context_1.compressed_account],
+            &[account_with_context.compressed_account],
             &output_compressed_accounts,
-            &[merkle_context],
-            &[merkle_context.queue_pubkey],
+            &[light_merkle_context],
+            &[compressed_account_with_context_1.merkle_context.queue],
             &[None],
             &Vec::new(),
             None,
@@ -2415,13 +2450,13 @@ pub async fn double_spend_compressed_account<R: RpcConnection + Indexer + TestRp
     compressed_account_with_context_1: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError> {
     let proof_rpc_result = rpc
-        .get_validity_proof_v2(
+        .get_validity_proof(
             vec![compressed_account_with_context_1.hash().unwrap()],
             vec![],
+            None,
         )
         .await
         .unwrap();
-    let proof = proof_rpc_result.proof;
     let input_compressed_accounts = vec![compressed_account_with_context_1.compressed_account];
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -2437,9 +2472,14 @@ pub async fn double_spend_compressed_account<R: RpcConnection + Indexer + TestRp
         &output_compressed_accounts,
         &[merkle_context_1],
         &[merkle_context_1.queue_pubkey],
-        &proof_rpc_result.root_indices,
+        &proof_rpc_result
+            .value
+            .accounts
+            .iter()
+            .map(|x| x.root_index)
+            .collect::<Vec<_>>(),
         &Vec::new(),
-        proof,
+        proof_rpc_result.value.proof.0,
         None,
         false,
         None,

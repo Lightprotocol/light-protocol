@@ -765,11 +765,12 @@ where
                                         QueueType::AddressV2,
                                         batch.batch_size as u16,
                                         None,
+                                        None,
                                     )
                                     .await
                                     .unwrap();
                                 let addresses =
-                                    addresses.iter().map(|x| x.account_hash).collect::<Vec<_>>();
+                                    addresses.value.items.iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
@@ -786,13 +787,14 @@ where
                                 let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
                                 let non_inclusion_proofs = self
                                     .indexer
-                                    .get_multiple_new_address_proofs_h40(
+                                    .get_multiple_new_address_proofs(
                                         merkle_tree_pubkey.to_bytes(),
                                         addresses.clone(),
+                                        None,
                                     )
                                     .await
                                     .unwrap();
-                                for non_inclusion_proof in &non_inclusion_proofs {
+                                for non_inclusion_proof in &non_inclusion_proofs.value.items {
                                     low_element_values.push(non_inclusion_proof.low_address_value);
                                     low_element_indices
                                         .push(non_inclusion_proof.low_address_index as usize);
@@ -806,10 +808,10 @@ where
                                 }
 
                                 let subtrees =   self.indexer
-                                    .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                    .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
                                     .await
                                     .unwrap();
-                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index);
+                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees.value.items).unwrap(), start_index);
 
                                 let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
                                 let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
@@ -2648,32 +2650,58 @@ where
 
             let proof_rpc_res = self
                 .indexer
-                .get_validity_proof_v2(compressed_account_input_hashes, addresses_with_tree)
+                .get_validity_proof(compressed_account_input_hashes, addresses_with_tree, None)
                 .await
                 .unwrap();
 
-            root_indices = proof_rpc_res.root_indices.clone();
+            root_indices = proof_rpc_res
+                .value
+                .accounts
+                .iter()
+                .map(|x| x.root_index)
+                .collect::<Vec<_>>();
 
-            if let Some(proof_rpc_res) = proof_rpc_res.proof {
+            if let Some(proof_rpc_res) = proof_rpc_res.value.proof.0 {
                 proof = Some(proof_rpc_res);
             }
 
             if !new_address_params.is_empty() {
+                let address_root_indices: Vec<_> = proof_rpc_res
+                    .value
+                    .addresses
+                    .iter()
+                    .map(|x| x.root_index)
+                    .collect();
                 for (i, input_address) in new_address_params.iter_mut().enumerate() {
-                    input_address.address_merkle_tree_root_index =
-                        proof_rpc_res.address_root_indices[i];
+                    input_address.address_merkle_tree_root_index = address_root_indices[i];
                 }
             }
             if !read_only_addresses.is_empty() {
+                let address_root_indices: Vec<_> = proof_rpc_res
+                    .value
+                    .addresses
+                    .iter()
+                    .map(|x| x.root_index)
+                    .collect();
                 for (i, input_address) in read_only_addresses.iter_mut().enumerate() {
                     input_address.address_merkle_tree_root_index =
-                        proof_rpc_res.address_root_indices[i + new_address_params.len()];
+                        address_root_indices[i + new_address_params.len()];
                 }
             }
 
             if !read_only_accounts.is_empty() {
+                let account_root_indices: Vec<_> = proof_rpc_res
+                    .value
+                    .accounts
+                    .iter()
+                    .map(|x| x.root_index)
+                    .collect();
                 for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
-                    if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
+                    if let Some(root_index) = account_root_indices
+                        .get(i + input_accounts.len())
+                        .copied()
+                        .flatten()
+                    {
                         input_account.root_index = root_index;
                     } else {
                         input_account.merkle_context.prove_by_index = true;
@@ -2983,15 +3011,18 @@ where
     ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         let user_token_accounts = &mut self
             .indexer
-            .get_compressed_token_accounts_by_owner(user, None)
+            .get_compressed_token_accounts_by_owner(user, None, None)
             .await
             .unwrap();
         // clean up dust so that we don't run into issues that account balances are too low
-        user_token_accounts.retain(|t| t.token_data.amount > 1000);
-        let mut token_accounts_with_mint;
+        user_token_accounts
+            .value
+            .items
+            .retain(|t| t.token.amount > 1000);
+        let mut token_accounts_with_mint: Vec<TokenDataWithMerkleContext>;
         let mint;
         let tree_version;
-        if user_token_accounts.is_empty() {
+        if user_token_accounts.value.items.is_empty() {
             mint = self.indexer.get_token_compressed_accounts()[self
                 .rng
                 .gen_range(0..self.indexer.get_token_compressed_accounts().len())]
@@ -3017,9 +3048,11 @@ where
             // filter for token accounts with the same version and mint
             token_accounts_with_mint = self
                 .indexer
-                .get_compressed_token_accounts_by_owner(user, None)
+                .get_compressed_token_accounts_by_owner(user, None, None)
                 .await
                 .unwrap()
+                .value
+                .items
                 .iter()
                 .filter(|token_account| {
                     let version = self
@@ -3027,37 +3060,30 @@ where
                         .get_state_merkle_trees()
                         .iter()
                         .find(|x| {
-                            x.accounts.merkle_tree
-                                == token_account
-                                    .compressed_account
-                                    .merkle_context
-                                    .merkle_tree_pubkey
+                            x.accounts.merkle_tree == token_account.account.merkle_context.tree
                         })
                         .unwrap()
                         .version;
-                    token_account.token_data.mint == mint && tree_version == version
+                    token_account.token.mint == mint && tree_version == version
                 })
                 .cloned()
-                .collect::<Vec<_>>();
+                .map(|account| account.into())
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         } else {
-            let token_account = &user_token_accounts
-                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.len(), 0)];
-            mint = token_account.token_data.mint;
+            let token_account = &user_token_accounts.value.items
+                [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.value.items.len(), 0)];
+            mint = token_account.token.mint;
             tree_version = self
                 .indexer
                 .get_state_merkle_trees()
                 .iter()
-                .find(|x| {
-                    x.accounts.merkle_tree
-                        == token_account
-                            .compressed_account
-                            .merkle_context
-                            .merkle_tree_pubkey
-                })
+                .find(|x| x.accounts.merkle_tree == token_account.account.merkle_context.tree)
                 .unwrap()
                 .version;
 
             token_accounts_with_mint = user_token_accounts
+                .value
+                .items
                 .iter()
                 .filter(|token_account| {
                     let version = self
@@ -3065,17 +3091,13 @@ where
                         .get_state_merkle_trees()
                         .iter()
                         .find(|x| {
-                            x.accounts.merkle_tree
-                                == token_account
-                                    .compressed_account
-                                    .merkle_context
-                                    .merkle_tree_pubkey
+                            x.accounts.merkle_tree == token_account.account.merkle_context.tree
                         })
                         .unwrap()
                         .version;
-                    token_account.token_data.mint == mint && tree_version == version
+                    token_account.token.mint == mint && tree_version == version
                 })
-                .map(|token_account| (*token_account).clone())
+                .map(|token_account| (*token_account).clone().into())
                 .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if delegated {

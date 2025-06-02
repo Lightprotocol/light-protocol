@@ -15,6 +15,7 @@ use light_registry::{
     utils::get_forester_pda,
     ForesterConfig, ForesterPda,
 };
+use light_sdk;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -323,7 +324,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
         rpc.get_minimum_balance_for_rent_exemption(account_size)
             .await
             .unwrap(),
-        &light_system_program::ID,
+        &light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
         Some(new_cpi_context_keypair),
     );
     let instruction = create_rollover_state_merkle_tree_instruction(

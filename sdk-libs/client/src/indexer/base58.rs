@@ -1,4 +1,5 @@
 use bs58;
+use solana_pubkey::Pubkey;
 
 use crate::indexer::error::IndexerError;
 
@@ -44,4 +45,13 @@ pub fn decode_base58_to_fixed_array<const N: usize>(input: &str) -> Result<[u8; 
     }
 
     Ok(buffer)
+}
+
+pub fn decode_base58_option_to_pubkey(
+    value: &Option<String>,
+) -> Result<Option<Pubkey>, IndexerError> {
+    value
+        .as_ref()
+        .map(|ctx| decode_base58_to_fixed_array(ctx).map(Pubkey::new_from_array))
+        .transpose()
 }

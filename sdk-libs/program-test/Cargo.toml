@@ -5,12 +5,15 @@ edition = "2021"
 
 [features]
 default = []
-devenv = ["v2", "light-client/devenv", "forester-utils/devenv"]
+devenv = [
+    "v2",
+    "light-client/devenv",
+    "forester-utils/devenv",
+    "light-prover-client/devenv",
+]
 v2 = ["light-client/v2", "forester-utils/v2"]
 
 [dependencies]
-light-client = { workspace = true, features = ["program-test", "devenv"] }
-light-prover-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-array = { workspace = true }
@@ -18,13 +21,19 @@ light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-hasher = { workspace = true }
-light-registry = { workspace = true, features = ["cpi"] }
-light-system-program-anchor = { workspace = true, features = ["cpi"] }
-light-compressed-token = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
-photon-api = { workspace = true }
-account-compression = { workspace = true, features = ["cpi"] }
+light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
+
+# unreleased
+light-client = { workspace = true, features = ["program-test"] }
 forester-utils = { workspace = true }
+light-prover-client = { workspace = true }
+
+
+light-registry = { workspace = true, features = ["cpi"] }
+light-compressed-token = { workspace = true, features = ["cpi"] }
+account-compression = { workspace = true, features = ["cpi"] }
+photon-api = { workspace = true }
 
 log = { workspace = true }
 borsh = { workspace = true }
@@ -34,7 +43,6 @@ num-bigint = { workspace = true }
 num-traits = { workspace = true }
 reqwest = { workspace = true }
 anchor-lang = { workspace = true }
-light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 
 solana-transaction-status = { workspace = true }
 solana-rpc-client-api = { workspace = true }

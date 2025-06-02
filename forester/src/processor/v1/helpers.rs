@@ -8,7 +8,10 @@ use account_compression::{
     },
 };
 use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{
+    indexer::{Indexer, Items, MerkleProof, NewAddressProofWithContext},
+    rpc::RpcConnection,
+};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -77,9 +80,9 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
     };
 
     let state_data = if !state_items.is_empty() {
-        let states: Vec<String> = state_items
+        let states: Vec<[u8; 32]> = state_items
             .iter()
-            .map(|item| bs58::encode(&item.queue_item_data.hash).into_string())
+            .map(|item| item.queue_item_data.hash)
             .collect();
         Some(states)
     } else {
@@ -97,20 +100,26 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
         let address_future = async {
             if let Some((merkle_tree, addresses)) = address_data {
                 indexer_guard
-                    .get_multiple_new_address_proofs(merkle_tree, addresses)
+                    .get_multiple_new_address_proofs(merkle_tree, addresses, None)
                     .await
             } else {
-                Ok(vec![])
+                Ok(light_client::indexer::Response {
+                    context: light_client::indexer::Context::default(),
+                    value: Items::<NewAddressProofWithContext>::default(),
+                })
             }
         };
 
         let state_future = async {
             if let Some(states) = state_data {
                 indexer_guard
-                    .get_multiple_compressed_account_proofs(states)
+                    .get_multiple_compressed_account_proofs(states, None)
                     .await
             } else {
-                Ok(vec![])
+                Ok(light_client::indexer::Response {
+                    context: light_client::indexer::Context::default(),
+                    value: Items::<MerkleProof>::default(),
+                })
             }
         };
 
@@ -118,14 +127,14 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
     };
 
     let address_proofs = match address_proofs_result {
-        Ok(proofs) => proofs,
+        Ok(response) => response.value.items,
         Err(e) => {
             return Err(anyhow::anyhow!("Failed to get address proofs: {}", e));
         }
     };
 
     let state_proofs = match state_proofs_result {
-        Ok(proofs) => proofs,
+        Ok(response) => response.value.items,
         Err(e) => {
             return Err(anyhow::anyhow!("Failed to get state proofs: {}", e));
         }
@@ -144,7 +153,11 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
                 low_address_value: proof.low_address_value,
                 low_address_next_index: proof.low_address_next_index,
                 low_address_next_value: proof.low_address_next_value,
-                low_address_proof: proof.low_address_proof,
+                low_address_proof: proof.low_address_proof.try_into().map_err(|_| {
+                    ForesterError::General {
+                        error: "Failed to convert proof to fixed array".to_string(),
+                    }
+                })?,
                 changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG) as u16,
                 indexed_changelog_index: (proof.root_seq % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG)
                     as u16,

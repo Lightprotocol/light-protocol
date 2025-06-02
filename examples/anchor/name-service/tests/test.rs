@@ -137,7 +137,7 @@ async fn test_name_service() {
     }
 
     // Check that it was created correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner_v2(&name_service::ID);
+    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -217,7 +217,7 @@ async fn test_name_service() {
     }
 
     // Check that it was updated correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner_v2(&name_service::ID);
+    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&name_service::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -323,11 +323,11 @@ where
 
     let instruction_data = name_service::instruction::CreateRecord {
         inputs: Vec::new(),
-        proof: rpc_result.proof,
+        proof: rpc_result.value.proof.0,
         merkle_context: *merkle_context,
         merkle_tree_root_index: 0,
         address_merkle_context: *address_merkle_context,
-        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+        address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
         name: name.to_string(),
         rdata: rdata.clone(),
     };
@@ -404,9 +404,9 @@ where
 
     let instruction_data = name_service::instruction::UpdateRecord {
         inputs,
-        proof: rpc_result.proof,
+        proof: rpc_result.value.proof.0,
         merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0].unwrap(),
+        merkle_tree_root_index: rpc_result.value.get_root_indices()[0].unwrap(),
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: 0,
         new_rdata: new_rdata.clone(),
@@ -483,9 +483,9 @@ where
 
     let instruction_data = name_service::instruction::DeleteRecord {
         inputs,
-        proof: rpc_result.proof,
+        proof: rpc_result.value.proof.0,
         merkle_context,
-        merkle_tree_root_index: rpc_result.root_indices[0].unwrap(),
+        merkle_tree_root_index: rpc_result.value.get_root_indices()[0].unwrap(),
         address_merkle_context: *address_merkle_context,
         address_merkle_tree_root_index: 0,
     };

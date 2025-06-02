@@ -1,9 +1,7 @@
-#[cfg(feature = "devenv")]
-use {
-    crate::rpc::{RpcConnection, RpcError},
-    solana_keypair::Keypair,
-    solana_pubkey::Pubkey,
-};
+use solana_keypair::Keypair;
+use solana_pubkey::Pubkey;
+
+use crate::rpc::{RpcConnection, RpcError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FeeConfig {
@@ -46,7 +44,6 @@ impl FeeConfig {
     }
 }
 
-#[cfg(feature = "devenv")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransactionParams {
     pub num_input_compressed_accounts: u8,
@@ -56,7 +53,6 @@ pub struct TransactionParams {
     pub fee_config: FeeConfig,
 }
 
-#[cfg(feature = "devenv")]
 pub async fn assert_transaction_params(
     rpc: &mut impl RpcConnection,
     payer: &Pubkey,

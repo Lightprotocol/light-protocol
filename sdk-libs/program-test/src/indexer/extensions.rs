@@ -32,7 +32,7 @@ pub trait TestIndexerExtensions {
     fn address_tree_updated(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        context: &NewAddressProofWithContext<16>,
+        context: &NewAddressProofWithContext,
     );
 
     fn get_state_merkle_tree_accounts(&self, pubkeys: &[Pubkey]) -> Vec<StateMerkleTreeAccounts>;

@@ -127,7 +127,7 @@ async fn test_name_service() {
 
     // Check that it was created correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner_v2(&name_service_without_macros::ID)
+        .get_compressed_accounts_by_owner(&name_service_without_macros::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -207,7 +207,7 @@ async fn test_name_service() {
 
     // Check that it was updated correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner_v2(&name_service_without_macros::ID)
+        .get_compressed_accounts_by_owner(&name_service_without_macros::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -316,7 +316,7 @@ where
     let account = LightAccountMeta::new_init(
         &env.v1_state_trees[0].merkle_tree,
         Some(&address_merkle_context),
-        Some(rpc_result.address_root_indices[0]),
+        Some(rpc_result.value.get_address_root_indices()[0]),
         remaining_accounts,
     )
     .unwrap();
@@ -397,7 +397,7 @@ where
 
     let compressed_account = LightAccountMeta::new_mut(
         compressed_account,
-        rpc_result.root_indices[0].unwrap(),
+        rpc_result.value.get_root_indices()[0].unwrap(),
         &merkle_tree_pubkey,
         remaining_accounts,
     );
@@ -476,7 +476,7 @@ where
 
     let compressed_account = LightAccountMeta::new_close(
         compressed_account,
-        rpc_result.root_indices[0].unwrap(),
+        rpc_result.value.get_root_indices()[0].unwrap(),
         remaining_accounts,
     );
 

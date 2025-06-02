@@ -54,7 +54,7 @@ impl TestIndexerExtensions for LightProgramTest {
     fn address_tree_updated(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        context: &NewAddressProofWithContext<16>,
+        context: &NewAddressProofWithContext,
     ) {
         self.indexer_mut()
             .expect("Indexer not initialized")

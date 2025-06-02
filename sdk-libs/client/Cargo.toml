@@ -33,12 +33,14 @@ solana-compute-budget-interface = { workspace = true }
 solana-banks-client = { workspace = true, optional = true }
 
 # Light Protocol dependencies
-light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
-light-sdk = { workspace = true, features = ["anchor"] }
+light-sdk = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true }
-light-compressed-account = { workspace = true, features = ["anchor"] }
+light-compressed-account = { workspace = true, features = ["solana"] }
+
+# unrelased
 photon-api = { workspace = true }
 
 # External dependencies

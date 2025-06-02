@@ -181,7 +181,7 @@ pub async fn perform_escrow(
     let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = rpc
-        .get_validity_proof_v2(vec![input_compressed_account_hash], vec![])
+        .get_validity_proof(vec![input_compressed_account_hash], vec![], None)
         .await
         .unwrap();
 
@@ -205,8 +205,8 @@ pub async fn perform_escrow(
             env.v1_state_trees[0].merkle_tree,
         ],
         output_compressed_accounts: &Vec::new(),
-        root_indices: &rpc_result.root_indices,
-        proof: &rpc_result.proof,
+        root_indices: &rpc_result.value.get_root_indices(),
+        proof: &rpc_result.value.proof.0,
         mint: &input_compressed_token_account_data.token_data.mint,
         input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
@@ -317,7 +317,7 @@ pub async fn perform_withdrawal(
     let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = rpc
-        .get_validity_proof(vec![input_compressed_account_hash], vec![])
+        .get_validity_proof(vec![input_compressed_account_hash], vec![], None)
         .await
         .unwrap();
 
@@ -341,12 +341,8 @@ pub async fn perform_withdrawal(
             env.v1_state_trees[0].merkle_tree,
         ],
         output_compressed_accounts: &Vec::new(),
-        root_indices: &rpc_result
-            .root_indices
-            .iter()
-            .map(|x| Some(*x))
-            .collect::<Vec<_>>(),
-        proof: &Some(rpc_result.proof),
+        root_indices: &rpc_result.value.get_root_indices(),
+        proof: &rpc_result.value.proof.0,
         mint: &escrow_token_data_with_context.token_data.mint,
         input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
