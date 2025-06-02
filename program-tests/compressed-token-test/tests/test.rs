@@ -12,8 +12,10 @@ use anchor_spl::{
     token_2022::spl_token_2022::{self, extension::ExtensionType},
 };
 use forester_utils::{instructions::create_account_instruction, utils::airdrop_lamports};
-use light_client::{indexer::Indexer, rpc::rpc_connection::RpcConnectionConfig};
-use light_client::{spawn_validator, LightValidatorConfig};
+use light_client::{
+    indexer::Indexer, rpc::rpc_connection::RpcConnectionConfig, spawn_validator,
+    LightValidatorConfig,
+};
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,

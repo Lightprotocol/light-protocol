@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
-use light_client::local_test_validator::{spawn_validator, LightValidatorConfig};
 use light_client::{
     indexer::{AddressWithTree, Indexer},
+    local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::rpc_connection::RpcConnectionConfig,
 };
 use light_compressed_account::{
