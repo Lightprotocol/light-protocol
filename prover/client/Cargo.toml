@@ -7,8 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-gnark = ["reqwest"]
-default = ["gnark"]
+default = []
 devenv = []
 
 [dependencies]
@@ -26,10 +25,7 @@ tracing = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 num-traits = { workspace = true }
-reqwest = { version = "0.11.24", features = [
-    "json",
-    "rustls-tls",
-], optional = true }
+reqwest = { version = "0.11.24", features = ["json", "rustls-tls"] }
 solana-bn254 = { workspace = true }
 tokio = { workspace = true }
 

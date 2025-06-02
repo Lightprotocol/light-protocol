@@ -27,14 +27,6 @@ use light_compressed_account::{
 };
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
-    // batch_address_append::get_batch_address_append_circuit_inputs,
-    // batch_append_with_proofs::get_batch_append_with_proofs_inputs,
-    // batch_update::get_batch_update_inputs,
-    // gnark::{
-    //     batch_address_append_json_formatter::to_json,
-    //     batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
-    //     batch_update_json_formatter::update_inputs_string,
-    // },
     proof_client::ProofClient,
     proof_types::{
         batch_address_append::{get_batch_address_append_circuit_inputs, to_json},
