@@ -13,8 +13,9 @@ use anchor_spl::{
 };
 use forester_utils::{instructions::create_account_instruction, utils::airdrop_lamports};
 use light_client::{
-    indexer::Indexer, rpc::rpc_connection::RpcConnectionConfig, spawn_validator,
-    LightValidatorConfig,
+    indexer::Indexer,
+    local_test_validator::{spawn_validator, LightValidatorConfig},
+    rpc::rpc_connection::RpcConnectionConfig,
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
