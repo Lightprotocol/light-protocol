@@ -212,7 +212,7 @@ async fn functional_read_only() {
                             .collect::<Vec<_>>();
                         let proof_res = if read_only_addresses.is_empty() && num_inputs == 0 {
                             ValidityProofWithContext {
-                                compressed_proof: ValidityProof::default(),
+                                proof: ValidityProof::default(),
                                 accounts: vec![],
                                 addresses: vec![],
                             }
@@ -512,7 +512,7 @@ async fn functional_account_infos() {
                                 Response::<ValidityProofWithContext> {
                                     context: Context { slot: 0 },
                                     value: ValidityProofWithContext {
-                                        compressed_proof: ValidityProof::default(),
+                                        proof: ValidityProof::default(),
                                         accounts: vec![],
                                         addresses: vec![],
                                     },
