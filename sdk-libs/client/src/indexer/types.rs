@@ -217,7 +217,7 @@ impl ValidityProofWithContext {
                             tree_type: tree_info.tree_type,
                             tree: tree_pubkey,
                             queue: tree_info.queue,
-                            cpi_context: None,
+                            cpi_context: tree_info.cpi_context,
                             next_tree_context: None,
                         },
                     })
@@ -500,7 +500,7 @@ impl TryFrom<&photon_api::models::Account> for Account {
             .ok_or(IndexerError::InvalidResponseData)?;
 
         let merkle_context = MerkleContext {
-            cpi_context: None,
+            cpi_context: tree_info.cpi_context,
             queue: tree_info.tree,
             tree_type: tree_info.tree_type,
             next_tree_context: None,
