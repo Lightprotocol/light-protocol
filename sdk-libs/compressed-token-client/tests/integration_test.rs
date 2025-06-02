@@ -48,12 +48,13 @@ mod tests {
         let output_state_tree = Pubkey::new_unique();
 
         let recipients = vec![
-            (Pubkey::new_unique(), 500),
-            (Pubkey::new_unique(), 300),
-            (Pubkey::new_unique(), 200),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
         ];
+        let amounts = vec![500, 300, 200];
 
-        let total_amount: u64 = recipients.iter().map(|(_, amt)| amt).sum();
+        let total_amount: u64 = amounts.iter().sum();
         assert_eq!(total_amount, 1000);
 
         let instruction = batch_compress(
@@ -61,7 +62,8 @@ mod tests {
             owner,
             source_token_account,
             mint,
-            recipients.clone(),
+            recipients,
+            amounts,
             output_state_tree,
         )
         .expect("Failed to create batch compress instruction");
