@@ -124,7 +124,7 @@ pub async fn perform_create_pda_with_event<
         data: *data,
         signer: &payer.pubkey(),
         output_compressed_account_merkle_tree_pubkey: &env.v2_state_trees[0].output_queue,
-        proof: &rpc_result.value.compressed_proof.0.unwrap(),
+        proof: &rpc_result.value.proof.0.unwrap(),
         new_address_params,
         registered_program_pda: &env.protocol.registered_program_pda,
     };

@@ -131,7 +131,7 @@ async fn with_nested_data(
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
-        proof: rpc_result.value.compressed_proof,
+        proof: rpc_result.value.proof,
         address_merkle_context: packed_address_merkle_context,
         name,
         output_merkle_tree_index,
@@ -180,7 +180,7 @@ async fn update_nested_data(
     )
     .unwrap();
     let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
-        proof: rpc_result.value.compressed_proof,
+        proof: rpc_result.value.proof,
         my_compressed_account,
         account_meta: CompressedAccountMeta {
             merkle_context: packed_merkle_context,

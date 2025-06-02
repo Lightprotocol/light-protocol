@@ -72,7 +72,7 @@ pub struct NewAddressProofWithContext {
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct ValidityProofWithContext {
-    pub compressed_proof: ValidityProof,
+    pub proof: ValidityProof,
     pub accounts: Vec<AccountProofInputs>,
     pub addresses: Vec<AddressProofInputs>,
 }
@@ -155,7 +155,7 @@ impl ValidityProofWithContext {
         value: photon_api::models::CompressedProofWithContext,
         num_hashes: usize,
     ) -> Result<Self, IndexerError> {
-        let compressed_proof = ValidityProof::new(Some(CompressedProof {
+        let proof = ValidityProof::new(Some(CompressedProof {
             a: value
                 .compressed_proof
                 .a
@@ -228,7 +228,7 @@ impl ValidityProofWithContext {
         };
 
         Ok(Self {
-            compressed_proof,
+            proof,
             accounts,
             addresses,
         })
@@ -237,7 +237,7 @@ impl ValidityProofWithContext {
     pub fn from_api_model_v2(
         value: photon_api::models::CompressedProofWithContextV2,
     ) -> Result<Self, IndexerError> {
-        let compressed_proof = if let Some(proof) = value.compressed_proof {
+        let proof = if let Some(proof) = value.compressed_proof {
             ValidityProof::new(Some(CompressedProof {
                 a: proof
                     .a
@@ -269,7 +269,7 @@ impl ValidityProofWithContext {
             .collect::<Result<Vec<_>, IndexerError>>()?;
 
         Ok(Self {
-            compressed_proof,
+            proof,
             accounts,
             addresses,
         })

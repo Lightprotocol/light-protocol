@@ -53,8 +53,8 @@ impl Into<FilterSelector> for GetCompressedAccountsFilter {
 
 impl GetCompressedAccountsByOwnerConfig {
     pub fn filters_to_photon(&self) -> Option<Vec<FilterSelector>> {
-        self.filters.as_ref().map(|filters| {
-            filters.iter().map(|f| f.clone().into()).collect()
-        })
+        self.filters
+            .as_ref()
+            .map(|filters| filters.iter().map(|f| f.clone().into()).collect())
     }
 }

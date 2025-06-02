@@ -2279,7 +2279,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.value.get_root_indices().clone(),
-            proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+            proof: proof_rpc_result.value.proof.0.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2325,7 +2325,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: invalid_change_merkle_tree.pubkey(),
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.value.get_root_indices().clone(),
-            proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+            proof: proof_rpc_result.value.proof.0.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2421,7 +2421,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.value.get_root_indices().clone(),
-            proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+            proof: proof_rpc_result.value.proof.0.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2470,7 +2470,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.value.get_root_indices().clone(),
-            proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+            proof: proof_rpc_result.value.proof.0.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2712,7 +2712,7 @@ async fn test_revoke_failing() {
             mint,
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: invalid_root_indices,
-            proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+            proof: proof_rpc_result.value.proof.0.unwrap(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2754,7 +2754,7 @@ async fn test_revoke_failing() {
             mint,
             output_account_merkle_tree: invalid_merkle_tree.pubkey(),
             root_indices: proof_rpc_result.value.get_root_indices(),
-            proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+            proof: proof_rpc_result.value.proof.0.unwrap(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2797,7 +2797,7 @@ async fn test_revoke_failing() {
             mint: invalid_mint.pubkey(),
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: proof_rpc_result.value.get_root_indices(),
-            proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+            proof: proof_rpc_result.value.proof.0.unwrap(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -3735,7 +3735,7 @@ async fn test_failing_freeze() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
-                proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+                proof: proof_rpc_result.value.proof.0.unwrap(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -3770,7 +3770,7 @@ async fn test_failing_freeze() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
-                proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+                proof: proof_rpc_result.value.proof.0.unwrap(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -3886,7 +3886,7 @@ async fn test_failing_freeze() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
-                proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+                proof: proof_rpc_result.value.proof.0.unwrap(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -4030,7 +4030,7 @@ async fn test_failing_thaw() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
-                proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+                proof: proof_rpc_result.value.proof.0.unwrap(),
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -4065,7 +4065,7 @@ async fn test_failing_thaw() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
-                proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+                proof: proof_rpc_result.value.proof.0.unwrap(),
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -4171,7 +4171,7 @@ async fn test_failing_thaw() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
-                proof: proof_rpc_result.value.compressed_proof.0.unwrap(),
+                proof: proof_rpc_result.value.proof.0.unwrap(),
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -4765,7 +4765,7 @@ pub async fn failing_compress_decompress<R: RpcConnection + Indexer>(
             .unwrap();
         (
             proof_rpc_result.value.get_root_indices(),
-            proof_rpc_result.value.compressed_proof.0,
+            proof_rpc_result.value.proof.0,
         )
     } else {
         (Vec::new(), None)
@@ -4908,7 +4908,7 @@ async fn test_invalid_inputs() {
         )
         .await
         .unwrap();
-    let proof = proof_rpc_result.value.compressed_proof.0;
+    let proof = proof_rpc_result.value.proof.0;
 
     let change_out_compressed_account_0 = TokenTransferOutputData {
         amount: input_compressed_account_token_data.amount - 1000,
@@ -4935,7 +4935,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &proof_rpc_result.value.compressed_proof.0,
+            &proof_rpc_result.value.proof.0,
             proof_rpc_result.value.get_root_indices().as_slice(),
             &input_compressed_accounts,
             false,
@@ -4960,7 +4960,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &proof_rpc_result.value.compressed_proof.0,
+            &proof_rpc_result.value.proof.0,
             proof_rpc_result.value.get_root_indices().as_slice(),
             &input_compressed_accounts,
             false,
@@ -5009,7 +5009,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &proof_rpc_result.value.compressed_proof.0,
+            &proof_rpc_result.value.proof.0,
             proof_rpc_result.value.get_root_indices().as_slice(),
             &input_compressed_accounts,
             false,
@@ -5033,7 +5033,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &proof_rpc_result.value.compressed_proof.0,
+            &proof_rpc_result.value.proof.0,
             proof_rpc_result.value.get_root_indices().as_slice(),
             &input_compressed_accounts,
             false,

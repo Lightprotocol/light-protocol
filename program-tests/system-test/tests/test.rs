@@ -236,7 +236,7 @@ pub async fn failing_transaction_inputs(
             .iter()
             .map(|x| x.root_index)
             .collect::<Vec<_>>();
-        (root_indices, proof_rpc_res.value.compressed_proof.0)
+        (root_indices, proof_rpc_res.value.proof.0)
     } else {
         (Vec::new(), None)
     };
@@ -1020,7 +1020,7 @@ async fn invoke_test() {
         )
         .await
         .unwrap();
-    let proof = proof_rpc_res.value.compressed_proof.0.unwrap();
+    let proof = proof_rpc_res.value.proof.0.unwrap();
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
 
     let instruction = create_invoke_instruction(
@@ -1559,7 +1559,7 @@ async fn test_with_compression() {
         )
         .await
         .unwrap();
-    let proof = proof_rpc_res.value.compressed_proof.0.unwrap();
+    let proof = proof_rpc_res.value.proof.0.unwrap();
     let input_compressed_accounts =
         vec![compressed_account_with_context.clone().compressed_account];
     let recipient_pubkey = Keypair::new().pubkey();
@@ -1951,7 +1951,7 @@ async fn batch_invoke_test() {
             .await
             .unwrap();
         // No proof since value is in output queue
-        assert!(proof_rpc_result.value.compressed_proof.0.is_none());
+        assert!(proof_rpc_result.value.proof.0.is_none());
         // No root index since value is in output queue
         assert!(proof_rpc_result.value.accounts[0].root_index.is_none());
 
@@ -2133,7 +2133,7 @@ async fn batch_invoke_test() {
             .await
             .unwrap();
 
-        let proof = proof_rpc_result.value.compressed_proof.0.unwrap();
+        let proof = proof_rpc_result.value.proof.0.unwrap();
 
         let input_compressed_accounts = vec![
             compressed_account_with_context_1.compressed_account,
@@ -2479,7 +2479,7 @@ pub async fn double_spend_compressed_account<R: RpcConnection + Indexer + TestRp
             .map(|x| x.root_index)
             .collect::<Vec<_>>(),
         &Vec::new(),
-        proof_rpc_result.value.compressed_proof.0,
+        proof_rpc_result.value.proof.0,
         None,
         false,
         None,

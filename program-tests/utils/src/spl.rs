@@ -632,7 +632,7 @@ pub async fn compressed_transfer_22_test<
             .iter()
             .map(|x| x.root_index)
             .collect::<Vec<_>>(),
-        &rpc_result.value.compressed_proof.0,
+        &rpc_result.value.proof.0,
         input_compressed_account_token_data
             .iter()
             .cloned()
@@ -801,13 +801,7 @@ pub async fn decompress_test<
             .iter()
             .map(|x| x.root_index)
             .collect::<Vec<_>>(), // root_indices
-        &Some(
-            proof_rpc_result
-                .value
-                .compressed_proof
-                .0
-                .unwrap_or_default(),
-        ),
+        &Some(proof_rpc_result.value.proof.0.unwrap_or_default()),
         input_compressed_accounts
             .iter()
             .cloned()
@@ -1208,11 +1202,7 @@ pub async fn approve_test<
             .iter()
             .map(|x| x.root_index)
             .collect::<Vec<_>>(),
-        proof: proof_rpc_result
-            .value
-            .compressed_proof
-            .0
-            .unwrap_or_default(),
+        proof: proof_rpc_result.value.proof.0.unwrap_or_default(),
     };
 
     let instruction = create_approve_instruction(inputs).unwrap();
@@ -1375,11 +1365,7 @@ pub async fn revoke_test<
             .iter()
             .map(|x| x.root_index)
             .collect::<Vec<_>>(),
-        proof: proof_rpc_result
-            .value
-            .compressed_proof
-            .0
-            .unwrap_or_default(),
+        proof: proof_rpc_result.value.proof.0.unwrap_or_default(),
     };
 
     let instruction = create_revoke_instruction(inputs).unwrap();
@@ -1543,11 +1529,7 @@ pub async fn freeze_or_thaw_test<
             .iter()
             .map(|x| x.root_index)
             .collect::<Vec<_>>(),
-        proof: proof_rpc_result
-            .value
-            .compressed_proof
-            .0
-            .unwrap_or_default(),
+        proof: proof_rpc_result.value.proof.0.unwrap_or_default(),
     };
 
     let instruction = create_instruction::<FREEZE>(inputs).unwrap();
@@ -1817,34 +1799,12 @@ pub async fn create_burn_test_instruction<
     };
     let proof = if mode == BurnInstructionMode::InvalidProof {
         CompressedProof {
-            a: proof_rpc_result
-                .value
-                .compressed_proof
-                .0
-                .as_ref()
-                .unwrap()
-                .a,
-            b: proof_rpc_result
-                .value
-                .compressed_proof
-                .0
-                .as_ref()
-                .unwrap()
-                .b,
-            c: proof_rpc_result
-                .value
-                .compressed_proof
-                .0
-                .as_ref()
-                .unwrap()
-                .a, // flip c to make proof invalid but not run into decompress errors
+            a: proof_rpc_result.value.proof.0.as_ref().unwrap().a,
+            b: proof_rpc_result.value.proof.0.as_ref().unwrap().b,
+            c: proof_rpc_result.value.proof.0.as_ref().unwrap().a, // flip c to make proof invalid but not run into decompress errors
         }
     } else {
-        proof_rpc_result
-            .value
-            .compressed_proof
-            .0
-            .unwrap_or_default()
+        proof_rpc_result.value.proof.0.unwrap_or_default()
     };
     let inputs = CreateBurnInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),

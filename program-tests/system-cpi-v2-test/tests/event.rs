@@ -167,7 +167,7 @@ async fn parse_batched_event_functional() {
             output_accounts,
             new_address_params,
             None,
-            proof_result.compressed_proof.0,
+            proof_result.proof.0,
         )
         .await
         .unwrap()
@@ -320,7 +320,7 @@ async fn parse_batched_event_functional() {
             output_accounts,
             new_address_params,
             None,
-            proof_result.compressed_proof.0,
+            proof_result.proof.0,
         )
         .await
         .unwrap()

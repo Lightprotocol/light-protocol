@@ -206,7 +206,7 @@ pub async fn perform_escrow(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.value.get_root_indices(),
-        proof: &rpc_result.value.compressed_proof.0,
+        proof: &rpc_result.value.proof.0,
         mint: &input_compressed_token_account_data.token_data.mint,
         input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };
@@ -342,7 +342,7 @@ pub async fn perform_withdrawal(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.value.get_root_indices(),
-        proof: &rpc_result.value.compressed_proof.0,
+        proof: &rpc_result.value.proof.0,
         mint: &escrow_token_data_with_context.token_data.mint,
         input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
     };

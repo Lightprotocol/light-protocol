@@ -308,7 +308,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             data,
             signer: &payer.pubkey(),
             output_compressed_account_merkle_tree_pubkey: &env.v1_state_trees[0].merkle_tree,
-            proof: &proof_result.value.compressed_proof.0.unwrap(),
+            proof: &proof_result.value.proof.0.unwrap(),
             new_address_params,
             registered_program_pda,
         };
@@ -364,7 +364,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
             bump: 255,
             with_cpi_context: false,
             invoking_program_id: create_address_test_program::ID.into(),
-            proof: proof_result.value.compressed_proof.0,
+            proof: proof_result.value.proof.0,
             new_address_params: packed_new_address_params,
             is_compress: false,
             compress_or_decompress_lamports: 0,

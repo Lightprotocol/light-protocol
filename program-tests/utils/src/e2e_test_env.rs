@@ -2661,7 +2661,7 @@ where
                 .map(|x| x.root_index)
                 .collect::<Vec<_>>();
 
-            if let Some(proof_rpc_res) = proof_rpc_res.value.compressed_proof.0 {
+            if let Some(proof_rpc_res) = proof_rpc_res.value.proof.0 {
                 proof = Some(proof_rpc_res);
             }
 

@@ -1849,7 +1849,7 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
         data: *data,
         signer: &payer_pubkey,
         output_compressed_account_merkle_tree_pubkey,
-        proof: &rpc_result.value.compressed_proof.0.unwrap(),
+        proof: &rpc_result.value.proof.0.unwrap(),
         new_address_params,
         cpi_context_account: &env.v1_state_trees[0].cpi_context,
         owner_program,
@@ -2008,7 +2008,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection, I: Indexer + TestInde
         input_nullifier_pubkey: &nullifier_pubkey,
         cpi_context_account: &cpi_context_account_pubkey,
         cpi_context,
-        proof: &rpc_result.value.compressed_proof.0.unwrap(),
+        proof: &rpc_result.value.proof.0.unwrap(),
         compressed_account: &PackedCompressedAccountWithMerkleContext {
             compressed_account: compressed_account.compressed_account.clone(),
             merkle_context: PackedMerkleContext {

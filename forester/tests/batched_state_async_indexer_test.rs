@@ -736,7 +736,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
     } else {
         proof_for_compressed_accounts
             .value
-            .compressed_proof
+            .proof
             .0
             .map(|proof| CompressedProof {
                 a: proof.a,
@@ -887,7 +887,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
     } else {
         proof_for_compressed_accounts
             .value
-            .compressed_proof
+            .proof
             .0
             .map(|proof| CompressedProof {
                 a: proof.a,
@@ -1028,7 +1028,7 @@ async fn create_v1_address<R: RpcConnection, I: Indexer>(
     }
     let proof = proof_for_addresses
         .value
-        .compressed_proof
+        .proof
         .0
         .map(|proof| CompressedProof {
             a: proof.a,

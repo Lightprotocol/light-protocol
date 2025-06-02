@@ -190,7 +190,7 @@ where
     );
 
     let instruction_data = counter::instruction::CreateCounter {
-        proof: rpc_result.compressed_proof,
+        proof: rpc_result.proof,
         address_merkle_context: packed_address_merkle_context,
         output_merkle_tree_index,
     };
@@ -258,7 +258,7 @@ where
     };
 
     let instruction_data = counter::instruction::IncrementCounter {
-        proof: rpc_result.compressed_proof,
+        proof: rpc_result.proof,
         counter_value: counter_account.value,
         account_meta,
     };
@@ -326,7 +326,7 @@ where
     };
 
     let instruction_data = counter::instruction::DecrementCounter {
-        proof: rpc_result.compressed_proof,
+        proof: rpc_result.proof,
         counter_value: counter_account.value,
         account_meta,
     };
@@ -393,7 +393,7 @@ where
     };
 
     let instruction_data = counter::instruction::ResetCounter {
-        proof: rpc_result.value.compressed_proof,
+        proof: rpc_result.value.proof,
         counter_value: counter_account.value,
         account_meta,
     };
@@ -459,7 +459,7 @@ where
     };
 
     let instruction_data = counter::instruction::CloseCounter {
-        proof: rpc_result.value.compressed_proof,
+        proof: rpc_result.value.proof,
         counter_value: counter_account.value,
         account_meta,
     };

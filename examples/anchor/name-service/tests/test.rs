@@ -323,7 +323,7 @@ where
 
     let instruction_data = name_service::instruction::CreateRecord {
         inputs: Vec::new(),
-        proof: rpc_result.value.compressed_proof.0,
+        proof: rpc_result.value.proof.0,
         merkle_context: *merkle_context,
         merkle_tree_root_index: 0,
         address_merkle_context: *address_merkle_context,
@@ -404,7 +404,7 @@ where
 
     let instruction_data = name_service::instruction::UpdateRecord {
         inputs,
-        proof: rpc_result.value.compressed_proof.0,
+        proof: rpc_result.value.proof.0,
         merkle_context,
         merkle_tree_root_index: rpc_result.value.get_root_indices()[0].unwrap(),
         address_merkle_context: *address_merkle_context,
@@ -483,7 +483,7 @@ where
 
     let instruction_data = name_service::instruction::DeleteRecord {
         inputs,
-        proof: rpc_result.value.compressed_proof.0,
+        proof: rpc_result.value.proof.0,
         merkle_context,
         merkle_tree_root_index: rpc_result.value.get_root_indices()[0].unwrap(),
         address_merkle_context: *address_merkle_context,

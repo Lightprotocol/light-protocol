@@ -534,8 +534,8 @@ impl Indexer for TestIndexer {
                 value: ValidityProofWithContext {
                     accounts,
                     addresses,
-                    compressed_proof: rpc_result
-                        .map(|rpc_result| rpc_result.compressed_proof.0.unwrap())
+                    proof: rpc_result
+                        .map(|rpc_result| rpc_result.proof.0.unwrap())
                         .into(),
                 },
             })
@@ -2203,7 +2203,7 @@ impl TestIndexer {
                         return Ok(ValidityProofWithContext {
                             accounts: account_proof_inputs,
                             addresses: address_proof_inputs,
-                            compressed_proof: CompressedProof {
+                            proof: CompressedProof {
                                 a: proof_a,
                                 b: proof_b,
                                 c: proof_c,

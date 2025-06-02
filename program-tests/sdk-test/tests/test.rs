@@ -118,7 +118,7 @@ pub async fn create_pda(
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
     let instruction_data = CreatePdaInstructionData {
-        proof: rpc_result.value.compressed_proof.0.unwrap().into(),
+        proof: rpc_result.value.proof.0.unwrap().into(),
         address_merkle_context: packed_address_merkle_context,
         data: account_data,
         output_merkle_tree_index,
@@ -173,7 +173,7 @@ pub async fn update_pda(
                 .try_into()
                 .unwrap(),
         },
-        proof: rpc_result.value.compressed_proof,
+        proof: rpc_result.value.proof,
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };
