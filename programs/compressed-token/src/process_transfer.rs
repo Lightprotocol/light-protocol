@@ -838,11 +838,9 @@ pub mod transfer_sdk {
             system_program: solana_sdk::system_program::ID,
         };
 
-        let mut all_accounts = [accounts.to_account_metas(Some(true)), remaining_accounts].concat();
-        all_accounts.push(AccountMeta::new(mint, false));
         Ok(Instruction {
             program_id: crate::ID,
-            accounts: all_accounts,
+            accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
             data: instruction_data,
         })
     }
