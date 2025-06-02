@@ -725,7 +725,7 @@ impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
 
     fn try_from(owner_balance: &photon_api::models::OwnerBalance) -> Result<Self, Self::Error> {
         Ok(OwnerBalance {
-            balance: owner_balance.balance as u64,
+            balance: owner_balance.balance,
             owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&owner_balance.owner)?),
         })
     }

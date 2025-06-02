@@ -278,7 +278,7 @@ impl Indexer for PhotonIndexer {
                                 })
                             })
                         }),
-                        filters: None, // TODO: Convert filters if needed
+                        filters: options.as_ref().and_then(|o| o.filters_to_photon()),
                         limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
                         owner: owner.to_string(),
                     }),
@@ -322,7 +322,7 @@ impl Indexer for PhotonIndexer {
                                 })
                             })
                         }),
-                        filters: None, // TODO: Convert filters if needed
+                        filters: options.as_ref().and_then(|o| o.filters_to_photon()),
                         limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
                         owner: owner.to_string(),
                     }),
