@@ -13,7 +13,7 @@
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/node": "^22.13.0",
+    "@types/node": "^22.15.29",
     "typescript": "^5.7.2"
   },
   "dependencies": {
