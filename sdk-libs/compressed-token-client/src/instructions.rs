@@ -122,13 +122,7 @@ pub fn create_compress_instruction(
             )))
         }
     };
-    // PATCH: For batch compress, add all recipient pubkeys as writable accounts
-    if let Some(ref batch_recipients) = params.batch_recipients {
-        for (recipient, _) in batch_recipients {
-            ix.accounts
-                .push(solana_sdk::instruction::AccountMeta::new(*recipient, false));
-        }
-    }
+
     Ok(ix)
 }
 

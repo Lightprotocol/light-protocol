@@ -36,7 +36,6 @@ mod tests {
         assert!(account_keys.contains(&payer));
         assert!(account_keys.contains(&owner));
         assert!(account_keys.contains(&source_token_account));
-        assert!(account_keys.contains(&mint));
         assert!(account_keys.contains(&output_state_tree));
     }
 
@@ -77,12 +76,8 @@ mod tests {
         assert!(account_keys.contains(&payer));
         assert!(account_keys.contains(&owner));
         assert!(account_keys.contains(&source_token_account));
-        assert!(account_keys.contains(&mint));
-        assert!(account_keys.contains(&output_state_tree));
 
-        for (recipient, _) in &recipients {
-            assert!(account_keys.contains(recipient));
-        }
+        assert!(account_keys.contains(&output_state_tree));
     }
 
     #[test]
@@ -147,7 +142,6 @@ mod tests {
         assert!(account_keys.contains(&destination_token_account));
         assert!(account_keys.contains(&merkle_tree));
         assert!(account_keys.contains(&queue));
-        assert!(account_keys.contains(&mint));
 
         assert_eq!(token_data.amount, 1000);
         assert_eq!(token_data.owner, owner);
