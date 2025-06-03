@@ -16,6 +16,7 @@ pub struct ProgramTestConfig {
     pub with_prover: bool,
     pub prover_config: Option<ProverConfig>,
     pub skip_register_programs: bool,
+    pub skip_v1_trees: bool,
     pub skip_second_v1_tree: bool,
     pub v1_state_tree_config: StateMerkleTreeConfig,
     pub v1_nullifier_queue_config: NullifierQueueConfig,
@@ -112,6 +113,7 @@ impl Default for ProgramTestConfig {
             v2_state_tree_config: None,
             v2_address_tree_config: None,
             skip_protocol_init: false,
+            skip_v1_trees: false,
         }
     }
 }

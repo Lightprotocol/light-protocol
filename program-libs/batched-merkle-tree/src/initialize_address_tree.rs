@@ -6,15 +6,17 @@ use light_merkle_tree_metadata::{
 };
 
 // Import feature-gated types from lib.rs
-use crate::AccountInfo;
 #[cfg(not(feature = "pinocchio"))]
 use crate::AccountInfoTrait;
 use crate::{
-    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE},
+    constants::{
+        DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_SIZE,
+        DEFAULT_ZKP_BATCH_SIZE,
+    },
     errors::BatchedMerkleTreeError,
     initialize_state_tree::match_circuit_size,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
-    BorshDeserialize, BorshSerialize,
+    AccountInfo, BorshDeserialize, BorshSerialize,
 };
 
 #[repr(C)]
@@ -42,7 +44,7 @@ impl Default for InitAddressTreeAccountsInstructionData {
             forester: None,
             bloom_filter_num_iters: 3,
             input_queue_batch_size: DEFAULT_BATCH_SIZE,
-            input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
+            input_queue_zkp_batch_size: DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
             height: 40,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
             bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,

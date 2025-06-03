@@ -45,7 +45,7 @@ use crate::{
 pub async fn initialize_accounts<R: RpcConnection + TestRpc>(
     context: &mut R,
     config: &ProgramTestConfig,
-    keypairs: TestKeypairs,
+    keypairs: &TestKeypairs,
 ) -> Result<TestAccounts, RpcError> {
     let ProgramTestConfig {
         protocol_config,
@@ -134,38 +134,54 @@ pub async fn initialize_accounts<R: RpcConnection + TestRpc>(
     }
     let merkle_tree_pubkey = keypairs.state_merkle_tree.pubkey();
     let nullifier_queue_pubkey = keypairs.nullifier_queue.pubkey();
-    create_state_merkle_tree_and_queue_account(
-        &keypairs.governance_authority,
-        true,
-        context,
-        &keypairs.state_merkle_tree,
-        &keypairs.nullifier_queue,
-        Some(&keypairs.cpi_context_account),
-        None,
-        None,
-        1,
-        v1_state_tree_config,
-        v1_nullifier_queue_config,
-    )
-    .await?;
-
-    if !skip_second_v1_tree {
+    if !config.skip_v1_trees {
         create_state_merkle_tree_and_queue_account(
             &keypairs.governance_authority,
             true,
             context,
-            &keypairs.state_merkle_tree_2,
-            &keypairs.nullifier_queue_2,
-            Some(&keypairs.cpi_context_2),
+            &keypairs.state_merkle_tree,
+            &keypairs.nullifier_queue,
+            Some(&keypairs.cpi_context_account),
             None,
             None,
-            2,
+            1,
             v1_state_tree_config,
             v1_nullifier_queue_config,
         )
         .await?;
+
+        if !skip_second_v1_tree {
+            create_state_merkle_tree_and_queue_account(
+                &keypairs.governance_authority,
+                true,
+                context,
+                &keypairs.state_merkle_tree_2,
+                &keypairs.nullifier_queue_2,
+                Some(&keypairs.cpi_context_2),
+                None,
+                None,
+                2,
+                v1_state_tree_config,
+                v1_nullifier_queue_config,
+            )
+            .await?;
+        }
+
+        create_address_merkle_tree_and_queue_account(
+            &keypairs.governance_authority,
+            true,
+            context,
+            &keypairs.address_merkle_tree,
+            &keypairs.address_merkle_tree_queue,
+            None,
+            None,
+            v1_address_tree_config,
+            v1_address_queue_config,
+            0,
+        )
+        .await?;
     }
-    #[cfg(feature = "devenv")]
+    #[cfg(feature = "v2")]
     if let Some(v2_state_tree_config) = _v2_state_tree_config {
         create_batched_state_merkle_tree(
             &keypairs.governance_authority,
@@ -178,7 +194,7 @@ pub async fn initialize_accounts<R: RpcConnection + TestRpc>(
         )
         .await?;
     }
-    #[cfg(feature = "devenv")]
+    #[cfg(feature = "v2")]
     if let Some(params) = _v2_address_tree_config {
         create_batch_address_merkle_tree(
             context,
@@ -188,19 +204,6 @@ pub async fn initialize_accounts<R: RpcConnection + TestRpc>(
         )
         .await?;
     }
-    create_address_merkle_tree_and_queue_account(
-        &keypairs.governance_authority,
-        true,
-        context,
-        &keypairs.address_merkle_tree,
-        &keypairs.address_merkle_tree_queue,
-        None,
-        None,
-        v1_address_tree_config,
-        v1_address_queue_config,
-        0,
-    )
-    .await?;
 
     let registered_system_program_pda =
         get_registered_program_pda(&light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM);
@@ -291,7 +294,7 @@ pub async fn setup_accounts(
     initialize_accounts(
         &mut rpc,
         &ProgramTestConfig::default_with_batched_trees(false),
-        keypairs,
+        &keypairs,
     )
     .await
 }
