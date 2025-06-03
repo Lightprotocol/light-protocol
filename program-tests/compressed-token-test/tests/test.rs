@@ -12,7 +12,11 @@ use anchor_spl::{
     token_2022::spl_token_2022::{self, extension::ExtensionType},
 };
 use forester_utils::{instructions::create_account_instruction, utils::airdrop_lamports};
-use light_client::{indexer::Indexer, rpc::rpc_connection::RpcConnectionConfig};
+use light_client::{
+    indexer::Indexer,
+    local_test_validator::{spawn_validator, LightValidatorConfig},
+    rpc::rpc_connection::RpcConnectionConfig,
+};
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
@@ -41,9 +45,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{
-    spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
-};
+use light_prover_client::prover::{spawn_prover, ProverConfig, ProverMode};
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{errors::SystemProgramError, utils::get_sol_pool_pda};
 use light_test_utils::{

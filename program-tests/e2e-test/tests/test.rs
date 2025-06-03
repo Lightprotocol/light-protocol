@@ -5,7 +5,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_program_test::{indexer::TestIndexer, LightProgramTest, ProgramTestConfig};
-use light_prover_client::gnark::helpers::ProverConfig;
+use light_prover_client::prover::ProverConfig;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::{
     e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig},

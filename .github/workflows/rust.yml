@@ -62,6 +62,7 @@ jobs:
               cargo test -p light-sdk
               cargo test -p light-program-test
               cargo test -p light-client
+              cargo test -p light-sparse-merkle-tree
               cargo test -p light-batched-merkle-tree --features test-only -- --skip test_simulate_transactions --skip test_e2e
 
     name: Test ${{ matrix.group.name }}

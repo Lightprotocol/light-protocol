@@ -1,16 +1,20 @@
 use std::time::{Duration, Instant};
 
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use reqwest::Client;
 use serde::Deserialize;
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
 use crate::{
+    constants::PROVE_PATH,
     errors::ProverClientError,
-    gnark::{
-        constants::PROVE_PATH,
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    proof::{
+        compress_proof, deserialize_gnark_proof_json, proof_from_json_struct, ProofCompressed,
+    },
+    proof_types::{
+        batch_address_append::{to_json, BatchAddressAppendInputs},
+        batch_append::{BatchAppendWithProofsCircuitInputs, BatchAppendWithProofsInputsJson},
+        batch_update::{update_inputs_string, BatchUpdateCircuitInputs},
     },
 };
 
@@ -77,7 +81,7 @@ impl ProofClient {
         &self,
         inputs_json: String,
         circuit_type: &str,
-    ) -> Result<CompressedProof, ProverClientError> {
+    ) -> Result<ProofCompressed, ProverClientError> {
         let start_time = Instant::now();
         let mut retries = 0;
 
@@ -130,7 +134,7 @@ impl ProofClient {
         circuit_type: &str,
         attempt: u32,
         elapsed: Duration,
-    ) -> Result<CompressedProof, ProverClientError> {
+    ) -> Result<ProofCompressed, ProverClientError> {
         debug!(
             "Generating proof for circuit type: {} (attempt {}, elapsed: {:?})",
             circuit_type, attempt, elapsed
@@ -181,7 +185,7 @@ impl ProofClient {
         status_code: reqwest::StatusCode,
         response_text: &str,
         start_elapsed: Duration,
-    ) -> Result<CompressedProof, ProverClientError> {
+    ) -> Result<ProofCompressed, ProverClientError> {
         match status_code {
             reqwest::StatusCode::OK => {
                 debug!("Received synchronous proof response");
@@ -207,7 +211,7 @@ impl ProofClient {
         &self,
         job_response: ProofResponse,
         start_elapsed: Duration,
-    ) -> Result<CompressedProof, ProverClientError> {
+    ) -> Result<ProofCompressed, ProverClientError> {
         match job_response {
             ProofResponse::Async { job_id, .. } => {
                 info!("Proof job queued with ID: {}", job_id);
@@ -219,7 +223,7 @@ impl ProofClient {
     fn handle_error_response(
         &self,
         response_text: &str,
-    ) -> Result<CompressedProof, ProverClientError> {
+    ) -> Result<ProofCompressed, ProverClientError> {
         if let Ok(error_response) = serde_json::from_str::<ErrorResponse>(response_text) {
             error!(
                 "Prover server error: {} - {}",
@@ -261,7 +265,7 @@ impl ProofClient {
         &self,
         job_id: &str,
         start_elapsed: Duration,
-    ) -> Result<CompressedProof, ProverClientError> {
+    ) -> Result<ProofCompressed, ProverClientError> {
         let poll_start_time = Instant::now();
         let status_url = format!("{}/prove/status?job_id={}", self.server_address, job_id);
 
@@ -406,7 +410,7 @@ impl ProofClient {
         job_id: &str,
         elapsed: Duration,
         poll_count: u32,
-    ) -> Result<Option<CompressedProof>, ProverClientError> {
+    ) -> Result<Option<ProofCompressed>, ProverClientError> {
         info!(
             "Poll #{} for job {}: status='{}', message='{}'",
             poll_count,
@@ -458,7 +462,7 @@ impl ProofClient {
         &self,
         result: Option<serde_json::Value>,
         job_id: &str,
-    ) -> Result<CompressedProof, ProverClientError> {
+    ) -> Result<ProofCompressed, ProverClientError> {
         match result {
             Some(result) => {
                 debug!("Job {} has result, parsing proof JSON", job_id);
@@ -486,7 +490,7 @@ impl ProofClient {
         error_str.contains("503") || error_str.contains("502") || error_str.contains("500")
     }
 
-    fn parse_proof_from_json(&self, json_str: &str) -> Result<CompressedProof, ProverClientError> {
+    fn parse_proof_from_json(&self, json_str: &str) -> Result<ProofCompressed, ProverClientError> {
         let proof_json = deserialize_gnark_proof_json(json_str).map_err(|e| {
             ProverClientError::ProverServerError(format!("Failed to deserialize proof JSON: {}", e))
         })?;
@@ -494,7 +498,7 @@ impl ProofClient {
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
-        Ok(CompressedProof {
+        Ok(ProofCompressed {
             a: proof_a,
             b: proof_b,
             c: proof_c,
@@ -503,22 +507,22 @@ impl ProofClient {
 
     pub async fn generate_batch_address_append_proof(
         &self,
-        inputs: crate::batch_address_append::BatchAddressAppendInputs,
-    ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
+        inputs: BatchAddressAppendInputs,
+    ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(&inputs.new_root)?;
-        let inputs_json = crate::gnark::batch_address_append_json_formatter::to_json(&inputs);
+        let inputs_json = to_json(&inputs);
         let proof = self.generate_proof(inputs_json, "address-append").await?;
         Ok((proof, new_root))
     }
 
     pub async fn generate_batch_append_proof(
         &self,
-        circuit_inputs: crate::batch_append_with_proofs::BatchAppendWithProofsCircuitInputs,
-    ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
+        circuit_inputs: BatchAppendWithProofsCircuitInputs,
+    ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
-        let inputs_json = crate::gnark::batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
+        let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
         let proof = self
             .generate_proof(inputs_json, "append-with-proofs")
             .await?;
@@ -527,12 +531,12 @@ impl ProofClient {
 
     pub async fn generate_batch_update_proof(
         &self,
-        inputs: crate::batch_update::BatchUpdateCircuitInputs,
-    ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
+        inputs: BatchUpdateCircuitInputs,
+    ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &inputs.new_root.to_biguint().unwrap(),
         )?;
-        let json_str = crate::gnark::batch_update_json_formatter::update_inputs_string(&inputs);
+        let json_str = update_inputs_string(&inputs);
         let proof = self.generate_proof(json_str, "update").await?;
         Ok((proof, new_root))
     }

@@ -1,5 +1,6 @@
 use light_client::{
     indexer::{AddressWithTree, Hash, Indexer},
+    local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{rpc_connection::RpcConnectionConfig, SolanaRpcConnection},
 };
 use light_compressed_account::{
@@ -9,7 +10,7 @@ use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
 use light_program_test::accounts::test_accounts::TestAccounts;
-use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig, ProverConfig};
+use light_prover_client::prover::ProverConfig;
 use light_test_utils::{system_program::create_invoke_instruction, RpcConnection};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
@@ -19,21 +20,20 @@ use solana_transaction::Transaction;
 // Constants
 const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 
+/// Endpoints tested:
+/// 1. get_rpc_compressed_accounts_by_owner
+/// 2. get_multiple_compressed_accounts
+/// 3. get_validity_proof
+/// 4. get_compressed_account
+/// 5. get_compressed_account_balance
+/// 6. get_compression_signatures_for_account
+/// 7. get_compressed_token_accounts_by_owner
+/// 8. get_compressed_token_account_balance
+/// 9. get_compressed_token_balances_by_owner_v2
+/// 10. get_multiple_compressed_account_proofs
+/// 11. get_multiple_new_address_proofs
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_all_endpoints() {
-    // Endpoints tested:
-    // 1. get_rpc_compressed_accounts_by_owner
-    // 2. get_multiple_compressed_accounts
-    // 3. get_validity_proof
-    // 4. get_compressed_account
-    // 5. get_compressed_account_balance
-    // 6. get_compression_signatures_for_account
-    // 7. get_compressed_token_accounts_by_owner
-    // 8. get_compressed_token_account_balance
-    // 9. get_compressed_token_balances_by_owner_v2
-    // 10. get_multiple_compressed_account_proofs
-    // 11. get_multiple_new_address_proofs
-
     let config = LightValidatorConfig {
         enable_indexer: true,
         prover_config: Some(ProverConfig::default()),

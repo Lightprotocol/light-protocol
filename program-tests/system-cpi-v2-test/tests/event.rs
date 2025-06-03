@@ -6,6 +6,7 @@ use anchor_lang::prelude::borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
+    local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::rpc_connection::RpcConnectionConfig,
 };
 use light_compressed_account::{
@@ -32,7 +33,6 @@ use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{
     accounts::test_accounts::TestAccounts, LightProgramTest, ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_sdk::NewAddressParamsAssigned;
 use light_test_utils::{RpcConnection, RpcError, SolanaRpcConnection};
 use serial_test::serial;

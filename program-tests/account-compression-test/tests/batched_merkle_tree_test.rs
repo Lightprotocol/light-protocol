@@ -42,7 +42,7 @@ use light_program_test::{
     program_test::LightProgramTest,
     utils::assert::assert_rpc_error,
 };
-use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
+use light_prover_client::prover::{spawn_prover, ProverConfig};
 use light_test_utils::{
     address::insert_addresses,
     airdrop_lamports, create_account_instruction,

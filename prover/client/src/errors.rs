@@ -1,6 +1,5 @@
-use groth16_solana::errors::Groth16Error;
-use light_compressed_account::CompressedAccountError;
 use light_hasher::HasherError;
+use solana_bn254::compression::AltBn128CompressionError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -20,9 +19,6 @@ pub enum ProverClientError {
     #[error("Arkworks serialization error: {0}")]
     ArkworksSerializationError(String),
 
-    #[error("Groth16-Solana Error: {0}")]
-    Groth16SolanaError(Groth16Error),
-
     #[error("Cannot change endianness")]
     ChangeEndiannessError,
 
@@ -31,13 +27,14 @@ pub enum ProverClientError {
 
     #[error("Wrong number of UTXO's")]
     WrongNumberOfUtxos,
-    #[error("Compressed account error: {0}")]
-    CompressedAccountError(#[from] CompressedAccountError),
+
+    #[error("AltBn128Error error: {0}")]
+    AltBn128CompressionError(String),
 }
 
-impl From<Groth16Error> for ProverClientError {
-    fn from(error: Groth16Error) -> Self {
-        ProverClientError::Groth16SolanaError(error)
+impl From<AltBn128CompressionError> for ProverClientError {
+    fn from(error: AltBn128CompressionError) -> Self {
+        ProverClientError::AltBn128CompressionError(error.to_string())
     }
 }
 

@@ -21,7 +21,7 @@ use solana_rpc_client::rpc_client::RpcClient;
 use solana_rpc_client_api::config::{RpcSendTransactionConfig, RpcTransactionConfig};
 use solana_signature::Signature;
 use solana_transaction::Transaction;
-use solana_transaction_status::{
+use solana_transaction_status_client_types::{
     option_serializer::OptionSerializer, TransactionStatus, UiInstruction, UiTransactionEncoding,
 };
 use tokio::time::{sleep, Instant};

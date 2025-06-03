@@ -11,13 +11,13 @@ use forester_utils::{
 };
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
+    local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{
         rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError,
         SolanaRpcConnection,
     },
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig};
 use light_registry::{utils::get_forester_epoch_pda_from_authority, ForesterEpochPda};
 use light_test_utils::{e2e_test_env::E2ETestEnv, update_test_forester};
 use serial_test::serial;

@@ -1,0 +1,19 @@
+[package]
+name = "light-sparse-merkle-tree"
+version = "0.1.0"
+description = "Implementation of a sparse indexed (and concurrent) Merkle tree in Rust"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[dependencies]
+light-hasher = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+light-indexed-array = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
+num-bigint = { workspace = true, features = ["rand"] }
+light-merkle-tree-reference = { workspace = true }

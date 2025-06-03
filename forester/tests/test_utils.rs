@@ -4,9 +4,11 @@ use forester::{
     telemetry::setup_telemetry,
     ForesterConfig,
 };
-use light_client::indexer::{photon_indexer::PhotonIndexer, Indexer, NewAddressProofWithContext};
+use light_client::{
+    indexer::{photon_indexer::PhotonIndexer, Indexer, NewAddressProofWithContext},
+    local_test_validator::{spawn_validator, LightValidatorConfig},
+};
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
-use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use solana_sdk::{
     pubkey::Pubkey,

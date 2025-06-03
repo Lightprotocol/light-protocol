@@ -1,6 +1,7 @@
 pub mod bigint;
 mod data_hasher;
 pub mod errors;
+pub mod hash_chain;
 pub mod hash_to_field_size;
 pub mod keccak;
 pub mod poseidon;

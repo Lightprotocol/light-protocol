@@ -25,19 +25,14 @@ use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
     QueueType,
 };
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
-use light_indexed_array::changelog::IndexedChangelogEntry;
 use light_prover_client::{
-    batch_address_append::get_batch_address_append_circuit_inputs,
-    batch_append_with_proofs::get_batch_append_with_proofs_inputs,
-    batch_update::get_batch_update_inputs,
-    gnark::{
-        batch_address_append_json_formatter::to_json,
-        batch_append_with_proofs_json_formatter::BatchAppendWithProofsInputsJson,
-        batch_update_json_formatter::update_inputs_string,
-    },
     proof_client::ProofClient,
+    proof_types::{
+        batch_address_append::{get_batch_address_append_circuit_inputs, to_json},
+        batch_append::{get_batch_append_with_proofs_inputs, BatchAppendWithProofsInputsJson},
+        batch_update::{get_batch_update_inputs, update_inputs_string},
+    },
 };
 use light_registry::{
     account_compression_cpi::sdk::{
@@ -45,6 +40,9 @@ use light_registry::{
     },
     protocol_config::state::ProtocolConfigPda,
     utils::get_protocol_config_pda_address,
+};
+use light_sparse_merkle_tree::{
+    changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry,
 };
 use solana_sdk::{
     pubkey::Pubkey,
@@ -327,8 +325,8 @@ use forester_utils::{
     account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
 };
 use light_client::indexer::Indexer;
-use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_program_test::indexer::state_tree::StateMerkleTreeBundle;
+use light_sparse_merkle_tree::SparseMerkleTree;
 
 pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
@@ -749,7 +747,11 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         Ok(compressed_proof) => {
             let instruction_data = InstructionDataBatchNullifyInputs {
                 new_root: circuit_inputs_new_root,
-                compressed_proof,
+                compressed_proof: CompressedProof {
+                    a: compressed_proof.a,
+                    b: compressed_proof.b,
+                    c: compressed_proof.c,
+                },
             };
             Ok(instruction_data)
         }

@@ -44,7 +44,8 @@ num-traits = { workspace = true }
 reqwest = { workspace = true }
 anchor-lang = { workspace = true }
 
-solana-transaction-status = { workspace = true }
+solana-transaction = { workspace = true }
+solana-transaction-status-client-types = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }

@@ -5,7 +5,7 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{merkle_tree::MerkleTreeExt, RpcError},
 };
-use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
+use light_prover_client::prover::{spawn_prover, ProverConfig};
 use solana_program_test::ProgramTestContext;
 use solana_sdk::signature::Signer;
 

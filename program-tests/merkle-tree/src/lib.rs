@@ -1,5 +1,4 @@
 pub mod indexed;
-pub mod sparse_merkle_tree;
 
 use std::marker::PhantomData;
 

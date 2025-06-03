@@ -9,7 +9,7 @@ pub mod address;
 pub mod compressed_account;
 pub mod constants;
 pub mod discriminators;
-pub mod hash_chain;
+pub use light_hasher::hash_chain;
 pub mod indexer_event;
 pub mod instruction_data;
 pub mod nullifier;

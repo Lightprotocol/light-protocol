@@ -24,6 +24,7 @@ test = []
 
 
 [dependencies]
+light-heap = { workspace = true, optional = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
@@ -31,7 +32,6 @@ bytemuck = { workspace = true, features = ["min_const_generics"] }
 light-bounded-vec = { workspace = true, features = ["solana"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["solana"] }
-light-heap = { workspace = true, optional = true }
 light-concurrent-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
 light-account-checks = { workspace = true }

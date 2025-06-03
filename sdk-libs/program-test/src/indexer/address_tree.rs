@@ -10,9 +10,7 @@ use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement, IndexedElementBundle},
     reference::IndexedMerkleTree,
 };
-use light_prover_client::non_inclusion::merkle_non_inclusion_proof_inputs::{
-    get_non_inclusion_proof_inputs, NonInclusionMerkleProofInputs,
-};
+use light_prover_client::proof_types::non_inclusion::v2::NonInclusionMerkleProofInputs;
 use light_sdk::STATE_MERKLE_TREE_ROOTS;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
@@ -349,5 +347,35 @@ impl AddressMerkleTreeBundle {
                 Ok(())
             }
         }
+    }
+}
+
+// TODO: eliminate use of BigInt in favor of BigUint
+pub fn get_non_inclusion_proof_inputs(
+    value: &[u8; 32],
+    merkle_tree: &light_indexed_merkle_tree::reference::IndexedMerkleTree<
+        light_hasher::Poseidon,
+        usize,
+    >,
+    indexed_array: &IndexedArray<light_hasher::Poseidon, usize>,
+) -> NonInclusionMerkleProofInputs {
+    let non_inclusion_proof = merkle_tree
+        .get_non_inclusion_proof(&BigUint::from_be_bytes(value), indexed_array)
+        .unwrap();
+    let proof = non_inclusion_proof
+        .merkle_proof
+        .iter()
+        .map(|x| BigInt::from_be_bytes(x))
+        .collect();
+    NonInclusionMerkleProofInputs {
+        root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
+        value: BigInt::from_be_bytes(value),
+        leaf_lower_range_value: BigInt::from_be_bytes(&non_inclusion_proof.leaf_lower_range_value),
+        leaf_higher_range_value: BigInt::from_be_bytes(
+            &non_inclusion_proof.leaf_higher_range_value,
+        ),
+        merkle_proof_hashed_indexed_element_leaf: proof,
+        index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.leaf_index),
+        next_index: BigInt::from(non_inclusion_proof.next_index),
     }
 }

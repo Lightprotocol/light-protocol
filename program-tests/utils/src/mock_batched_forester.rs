@@ -1,16 +1,18 @@
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
-use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
-use light_indexed_array::changelog::IndexedChangelogEntry;
-use light_merkle_tree_reference::{
-    indexed::IndexedMerkleTree, sparse_merkle_tree::SparseMerkleTree, MerkleTree,
-};
+use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use light_prover_client::{
-    batch_address_append::get_batch_address_append_circuit_inputs,
-    batch_append_with_proofs::get_batch_append_with_proofs_inputs,
-    batch_update::get_batch_update_inputs, errors::ProverClientError, proof_client::ProofClient,
+    errors::ProverClientError,
+    proof_client::ProofClient,
+    proof_types::{
+        batch_address_append::get_batch_address_append_circuit_inputs,
+        batch_append::get_batch_append_with_proofs_inputs, batch_update::get_batch_update_inputs,
+    },
+};
+use light_sparse_merkle_tree::{
+    changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
 use num_bigint::BigUint;
 
@@ -142,7 +144,12 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 )));
             }
         };
-        Ok(proof_result)
+        let proof = CompressedProof {
+            a: proof_result.0.a,
+            b: proof_result.0.b,
+            c: proof_result.0.c,
+        };
+        Ok((proof, proof_result.1))
     }
 
     pub async fn get_batched_update_proof(
@@ -203,7 +210,12 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             .generate_batch_update_proof(inputs)
             .await?;
         let new_root = self.merkle_tree.root();
-        Ok((proof_result.0, new_root))
+        let proof = CompressedProof {
+            a: proof_result.0.a,
+            b: proof_result.0.b,
+            c: proof_result.0.c,
+        };
+        Ok((proof, new_root))
     }
 }
 
@@ -306,7 +318,12 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
                 )));
             }
         };
-        Ok(proof_result)
+        let proof = CompressedProof {
+            a: proof_result.0.a,
+            b: proof_result.0.b,
+            c: proof_result.0.c,
+        };
+        Ok((proof, proof_result.1))
     }
 
     pub fn finalize_batch_address_update(&mut self, batch_size: usize) {
