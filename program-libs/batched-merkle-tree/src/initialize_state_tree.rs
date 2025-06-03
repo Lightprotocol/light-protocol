@@ -238,7 +238,7 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
 }
 
 pub fn match_circuit_size(size: u64) -> bool {
-    matches!(size, 10 | 100 | 500 | 1000)
+    matches!(size, 10 | 100 | 250 | 500 | 1000)
 }
 #[cfg(feature = "test-only")]
 pub mod test_utils {

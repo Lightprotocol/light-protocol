@@ -59,7 +59,7 @@ impl LightProgramTest {
         airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000).await?;
 
         if !config.skip_protocol_init {
-            let test_accounts = initialize_accounts(&mut context, &config, keypairs).await?;
+            let test_accounts = initialize_accounts(&mut context, &config, &keypairs).await?;
             let batch_size = config
                 .v2_state_tree_config
                 .as_ref()

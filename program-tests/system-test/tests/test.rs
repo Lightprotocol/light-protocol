@@ -1663,7 +1663,7 @@ async fn regenerate_accounts() {
     let mut config = ProgramTestConfig::default_with_batched_trees(false);
     config.skip_register_programs = true;
     config.protocol_config = protocol_config;
-    let env = initialize_accounts(&mut rpc, &config, keypairs)
+    let env = initialize_accounts(&mut rpc, &config, &keypairs)
         .await
         .unwrap();
     let keypairs = for_regenerate_accounts();

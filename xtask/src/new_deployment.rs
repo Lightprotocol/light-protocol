@@ -10,7 +10,13 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
-use light_program_test::accounts::test_keypairs::TestKeypairs;
+use light_program_test::{
+    accounts::{
+        address_tree_v2::create_batch_address_merkle_tree, initialize::initialize_accounts,
+        state_tree_v2::create_batched_state_merkle_tree, test_keypairs::TestKeypairs,
+    },
+    ProgramTestConfig,
+};
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL,
     signature::{read_keypair_file, write_keypair_file, Keypair, Signer},
@@ -32,6 +38,8 @@ pub struct Options {
     num_foresters: Option<u32>,
     #[clap(long)]
     config: Option<String>,
+    #[clap(long)]
+    num_v2_trees: Option<u32>,
 }
 
 pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
@@ -53,10 +61,6 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
         commitment_config: None,
         with_indexer: false,
     });
-
-    let test_keypairs = new_testnet_setup();
-    write_to_files(&test_keypairs, &format!("{}/", options.keypairs)); // Fixed string concatenation
-
     let payer = if let Some(payer) = options.payer.as_ref() {
         read_keypair_file(payer).unwrap_or_else(|_| panic!("{:?}", options.payer))
     } else {
@@ -69,6 +73,23 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
     };
     println!("read payer: {:?}", payer.pubkey());
 
+    let mut test_keypairs = new_testnet_setup();
+    test_keypairs.governance_authority = payer.insecure_clone();
+    write_to_files(&test_keypairs, &format!("{}/", options.keypairs)); // Fixed string concatenation
+    println!("forester {:?}", test_keypairs.forester.pubkey());
+    let transfer_instruction = system_instruction::transfer(
+        &payer.pubkey(),
+        &test_keypairs.forester.pubkey(),
+        1_000_000_000,
+    );
+    let latest_blockhash = rpc.get_latest_blockhash().await?;
+    let transaction = Transaction::new_signed_with_payer(
+        &[transfer_instruction],
+        Some(&payer.pubkey()),
+        &vec![&payer],
+        latest_blockhash.0,
+    );
+    rpc.process_transaction_with_context(transaction).await?;
     let (
         _merkle_tree_config,
         _queue_config,
@@ -134,21 +155,20 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
         rpc.process_transaction(transaction).await?;
     }
     let governance_authority = test_keypairs.governance_authority.insecure_clone();
-    // initialize_accounts(
-    //     &mut rpc,
-    //     test_keypairs,
-    //     light_registry::protocol_config::state::ProtocolConfig::testnet_default(),
-    //     false,
-    //     false,
-    //     true,
-    //     merkle_tree_config,
-    //     queue_config,
-    //     address_tree_config,
-    //     address_queue_config,
-    //     batched_state_tree_config,
-    //     None,
-    // )
-    // .await;
+    let config = ProgramTestConfig {
+        protocol_config: light_registry::protocol_config::state::ProtocolConfig::testnet_default(),
+        with_prover: false,
+        additional_programs: None,
+        skip_second_v1_tree: true,
+        v1_state_tree_config: StateMerkleTreeConfig::default(),
+        v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::default()),
+        v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::default()),
+        register_forester_and_advance_to_active_phase: false,
+        ..Default::default()
+    };
+    initialize_accounts(&mut rpc, &config, &test_keypairs)
+        .await
+        .unwrap();
     println!("initialized accounts");
 
     if let Some(num_foresters) = options.num_foresters {
@@ -158,7 +178,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
 
             write_keypair_file(
                 &forester,
-                format!("{}/forester-{}", options.keypairs, forester.pubkey()),
+                format!("{}/forester-{}.json", options.keypairs, forester.pubkey()),
             )
             .unwrap();
             let ix = light_registry::sdk::create_register_forester_instruction(
@@ -176,11 +196,87 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
         }
     }
 
+    if let Some(num_v2_trees) = options.num_v2_trees {
+        for i in 1..=num_v2_trees {
+            let prefix = options.keypairs.clone();
+            let v2_state_tree = Keypair::new();
+            println!("new v2_state_tree: {:?}", v2_state_tree.pubkey());
+            let v2_state_tree_queue = Keypair::new();
+            println!(
+                "new v2_state_tree_queue: {:?}",
+                v2_state_tree_queue.pubkey()
+            );
+            let v2_state_tree_cpi = Keypair::new();
+            println!("new v2_state_tree_cpi: {:?}", v2_state_tree_cpi.pubkey());
+
+            let v2_address_mt = Keypair::new();
+            println!("new v2_address_mt: {:?}", v2_address_mt.pubkey());
+
+            write_keypair_file(
+                &v2_state_tree,
+                format!(
+                    "{}batched-state{}_{}.json",
+                    prefix,
+                    i,
+                    v2_state_tree.pubkey()
+                ),
+            )
+            .unwrap();
+            write_keypair_file(
+                &v2_state_tree_queue,
+                format!(
+                    "{}batched-state/batched_output_queue_{}_{}.json",
+                    prefix,
+                    i,
+                    v2_state_tree_queue.pubkey()
+                ),
+            )
+            .unwrap();
+            write_keypair_file(
+                &v2_state_tree_cpi,
+                format!(
+                    "{}batched_cpi_context_{}_{}.json",
+                    prefix,
+                    i,
+                    v2_state_tree_cpi.pubkey()
+                ),
+            )
+            .unwrap();
+            write_keypair_file(
+                &v2_address_mt,
+                format!(
+                    "{}batched_amt_{}_{}.json",
+                    prefix,
+                    i,
+                    v2_address_mt.pubkey()
+                ),
+            )
+            .unwrap();
+            create_batched_state_merkle_tree(
+                &test_keypairs.governance_authority,
+                true,
+                &mut rpc,
+                &v2_state_tree,
+                &v2_state_tree_queue,
+                &v2_state_tree_cpi,
+                config.v2_state_tree_config.unwrap(),
+            )
+            .await?;
+            create_batch_address_merkle_tree(
+                &mut rpc,
+                &test_keypairs.governance_authority,
+                &v2_address_mt,
+                config.v2_address_tree_config.unwrap(),
+            )
+            .await?;
+        }
+    }
+
     Ok(())
 }
 
 pub fn new_testnet_setup() -> TestKeypairs {
-    let prefix = String::from("../light-keypairs/testnet/");
+    let prefix = String::from("target/deploy/");
     let state_merkle_tree = Keypair::new();
     let nullifier_queue = Keypair::new();
     let governance_authority = Keypair::new();
