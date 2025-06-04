@@ -80,8 +80,13 @@ pub fn decompress_token_instruction_data(
     // transfer discriminator
     inputs.extend_from_slice(&[163, 52, 200, 231, 140, 3, 69, 186]);
 
+    let mut serialized_data = Vec::new();
     compressed_token_instruction_data_transfer
-        .serialize(&mut inputs)
+        .serialize(&mut serialized_data)
         .unwrap();
+
+    // Add length buffer
+    inputs.extend_from_slice(&(serialized_data.len() as u32).to_le_bytes());
+    inputs.extend_from_slice(&serialized_data);
     inputs
 }
