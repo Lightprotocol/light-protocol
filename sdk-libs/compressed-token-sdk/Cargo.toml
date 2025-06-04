@@ -25,6 +25,7 @@ anchor = ["light-compressed-account/anchor"]
 
 [dependencies]
 light-compressed-account = { workspace = true, features = ["anchor"] }
+light-compressed-token = { workspace = true }
 solana-program = { workspace = true }
 anchor-lang = { workspace = true }
 num-bigint = { workspace = true }

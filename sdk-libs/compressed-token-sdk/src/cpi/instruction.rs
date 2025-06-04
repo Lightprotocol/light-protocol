@@ -1,3 +1,4 @@
+use crate::cpi::accounts::CompressedTokenDecompressCpiAccounts;
 #[cfg(feature = "anchor")]
 use anchor_lang::AnchorSerialize;
 #[cfg(not(feature = "anchor"))]
@@ -5,15 +6,11 @@ use borsh::BorshSerialize as AnchorSerialize;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
 };
+use light_compressed_token::process_transfer::CompressedTokenInstructionDataTransfer;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
-};
-
-use crate::{
-    cpi::accounts::CompressedTokenDecompressCpiAccounts,
-    state::{CompressedTokenInstructionDataTransfer, InputTokenDataWithContext},
 };
 
 /// Return Instruction to decompress compressed token accounts.
@@ -75,9 +72,12 @@ pub fn decompress_token_instruction_data(
         compress_or_decompress_amount: Some(amount),
         cpi_context: cpi_context.copied(),
         lamports_change_account_merkle_tree_index: None,
+        with_transaction_hash: false,
     };
 
     let mut inputs = Vec::new();
+    // transfer discriminator
+    inputs.extend_from_slice(&[163, 52, 200, 231, 140, 3, 69, 186]);
 
     compressed_token_instruction_data_transfer
         .serialize(&mut inputs)

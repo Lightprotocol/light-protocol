@@ -3606,6 +3606,7 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
  "light-compressed-account",
+ "light-compressed-token",
  "light-heap",
  "num-bigint 0.4.6",
  "solana-program",
