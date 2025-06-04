@@ -1,10 +1,13 @@
 import { Command, Flags } from "@oclif/core";
+import { initTestEnv, stopTestEnv } from "../../utils/initTestEnv";
 import {
-  initTestEnv,
-  stopTestEnv,
-  SYSTEM_PROGRAMS,
-} from "../../utils/initTestEnv";
-import { CustomLoader } from "../../utils/index";
+  CustomLoader,
+  LIGHT_ACCOUNT_COMPRESSION_TAG,
+  LIGHT_COMPRESSED_TOKEN_TAG,
+  LIGHT_REGISTRY_TAG,
+  LIGHT_SYSTEM_PROGRAM_TAG,
+  SPL_NOOP_PROGRAM_TAG,
+} from "../../utils/index";
 import path from "path";
 import fs from "fs";
 
@@ -234,10 +237,79 @@ class SetupCommand extends Command {
         circuits: flags["circuit"],
         geyserConfig: flags["geyser-config"],
         validatorArgs: flags["validator-args"],
+        additionalPrograms: programs,
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
+    }
+  }
+
+  validatePrograms(programs: { address: string; path: string }[]): void {
+    // Check for duplicate addresses among provided programs
+    const addresses = new Set<string>();
+    for (const program of programs) {
+      if (addresses.has(program.address)) {
+        this.error(`Duplicate program address detected: ${program.address}`);
+      }
+      addresses.add(program.address);
+
+      // Get the program filename from the path
+      const programFileName = path.basename(program.path);
+
+      // Check for collisions with system programs (both address and filename)
+      const systemProgramCollision = SYSTEM_PROGRAMS.find(
+        (sysProg) =>
+          sysProg.id === program.address ||
+          (sysProg.name && programFileName === sysProg.name),
+      );
+
+      if (systemProgramCollision) {
+        const collisionType =
+          systemProgramCollision.id === program.address
+            ? `address (${program.address})`
+            : `filename (${programFileName})`;
+
+        this.error(
+          `Program ${collisionType} collides with system program ` +
+            `"${systemProgramCollision.name || systemProgramCollision.id}". ` +
+            `System programs cannot be overwritten.`,
+        );
+      }
+
+      // Validate program file exists
+      const programPath = path.resolve(program.path);
+      if (!fs.existsSync(programPath)) {
+        this.error(`Program file not found: ${programPath}`);
+      }
     }
   }
 }
 
 export default SetupCommand;
+
+export const SYSTEM_PROGRAMS = [
+  {
+    id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+    name: "spl_noop.so",
+    tag: SPL_NOOP_PROGRAM_TAG,
+  },
+  {
+    id: "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
+    name: "light_system_program.so",
+    tag: LIGHT_SYSTEM_PROGRAM_TAG,
+  },
+  {
+    id: "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+    name: "light_compressed_token.so",
+    tag: LIGHT_COMPRESSED_TOKEN_TAG,
+  },
+  {
+    id: "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq",
+    name: "account_compression.so",
+    tag: LIGHT_ACCOUNT_COMPRESSION_TAG,
+  },
+  {
+    id: "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX",
+    name: "light_registry.so",
+    tag: LIGHT_REGISTRY_TAG,
+  },
+];
