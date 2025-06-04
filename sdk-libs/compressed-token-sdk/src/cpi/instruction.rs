@@ -47,7 +47,7 @@ pub fn decompress(
     ];
 
     Ok(Instruction {
-        program_id: *light_cpi_accounts.token_program.key,
+        program_id: *light_cpi_accounts.self_program.key,
         accounts,
         data,
     })
