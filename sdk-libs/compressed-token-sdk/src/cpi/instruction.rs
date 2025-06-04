@@ -6,7 +6,7 @@ use borsh::BorshSerialize as AnchorSerialize;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
 };
-use light_compressed_token::process_transfer::{
+pub use light_compressed_token::process_transfer::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
 };
 use solana_program::{
