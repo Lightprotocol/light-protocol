@@ -6,24 +6,13 @@ use borsh::BorshSerialize as AnchorSerialize;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
 };
-pub use light_compressed_token::process_transfer::CompressedTokenInstructionDataTransfer;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
 };
 
-/// From light-compressed-token::process_transfer::InputTokenDataWithContext.
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InputTokenDataWithContext {
-    pub amount: u64,
-    pub delegate_index: Option<u8>,
-    pub merkle_context: PackedMerkleContext,
-    pub root_index: u16,
-    pub lamports: Option<u64>,
-    /// Placeholder for TokenExtension tlv data (unimplemented)
-    pub tlv: Option<Vec<u8>>,
-}
+use crate::state::{CompressedTokenInstructionDataTransfer, InputTokenDataWithContext};
 
 /// Return Instruction to decompress compressed token accounts.
 /// Proof can be None if prove_by_index is used.
