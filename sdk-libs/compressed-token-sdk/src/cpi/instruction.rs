@@ -29,7 +29,7 @@ pub fn decompress(
     let accounts = vec![
         AccountMeta::new(*light_cpi_accounts.fee_payer.key, true),
         AccountMeta::new_readonly(*light_cpi_accounts.authority.key, true),
-        AccountMeta::new_readonly(*light_cpi_accounts.cpi_authority_pda.key, true),
+        AccountMeta::new_readonly(*light_cpi_accounts.cpi_authority_pda.key, false),
         AccountMeta::new_readonly(*light_cpi_accounts.light_system_program.key, false),
         AccountMeta::new_readonly(*light_cpi_accounts.registered_program_pda.key, false),
         AccountMeta::new_readonly(*light_cpi_accounts.noop_program.key, false),
