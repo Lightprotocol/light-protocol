@@ -1,6 +1,6 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
+use light_compressed_token::process_transfer::InputTokenDataWithContext;
 
-use crate::state::InputTokenDataWithContext;
 /// Get an existing compressed token account from token_data in optimized
 /// format.
 ///
