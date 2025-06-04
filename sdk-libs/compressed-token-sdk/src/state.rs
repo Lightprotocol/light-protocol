@@ -6,7 +6,18 @@ use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, PackedMerkleContext},
     instruction_data::{compressed_proof::CompressedProof, cpi_context::CompressedCpiContext},
 };
+
 use solana_program::pubkey::Pubkey;
+
+#[derive(Clone, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedTokenTransferOutputData {
+    pub owner: Pubkey,
+    pub amount: u64,
+    pub lamports: Option<u64>,
+    pub merkle_tree_index: u8,
+    /// Placeholder for TokenExtension tlv data (unimplemented)
+    pub tlv: Option<Vec<u8>>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 #[repr(u8)]
