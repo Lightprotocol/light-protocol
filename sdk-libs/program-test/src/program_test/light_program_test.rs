@@ -75,34 +75,32 @@ impl LightProgramTest {
                 .map(|config| config.output_queue_batch_size as usize);
             let test_accounts = context.test_accounts.clone();
             context.add_indexer(&test_accounts, batch_size).await?;
-        }
-        // Fails due to a runtime db error
-        // thread '<unnamed>' panicked at /home/ananas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-accounts-db-2.2.6/src/accounts_hash.rs:48:13:
-        // Unable to create file within /tmp/.tmpOMRLnc/accounts_hash_cache/.tmpVnQurN: Too many open files (os error 24)
-        // TODO: add the same for v2 trees once we have grinded a mainnet keypair.
-        // ensure that address tree pubkey is amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2
-        {
-            let address_mt = context.test_accounts.v1_address_trees[0].merkle_tree;
-            let address_queue_pubkey = context.test_accounts.v1_address_trees[0].queue;
-            let mut account = context
-                .context
-                .get_account(&keypairs.address_merkle_tree.pubkey())
-                .unwrap();
-            let merkle_tree_account = bytemuck::from_bytes_mut::<AddressMerkleTreeAccount>(
-                &mut account.data_as_mut_slice()[8..AddressMerkleTreeAccount::LEN],
-            );
-            merkle_tree_account.metadata.associated_queue = address_queue_pubkey.into();
-            context.set_account(address_mt, account);
 
-            let mut account = context
-                .context
-                .get_account(&keypairs.address_merkle_tree_queue.pubkey())
-                .unwrap();
-            let queue_account = bytemuck::from_bytes_mut::<QueueAccount>(
-                &mut account.data_as_mut_slice()[8..QueueAccount::LEN],
-            );
-            queue_account.metadata.associated_merkle_tree = address_mt.into();
-            context.set_account(address_queue_pubkey, account);
+            // TODO: add the same for v2 trees once we have grinded a mainnet keypair.
+            // ensure that address tree pubkey is amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2
+            {
+                let address_mt = context.test_accounts.v1_address_trees[0].merkle_tree;
+                let address_queue_pubkey = context.test_accounts.v1_address_trees[0].queue;
+                let mut account = context
+                    .context
+                    .get_account(&keypairs.address_merkle_tree.pubkey())
+                    .unwrap();
+                let merkle_tree_account = bytemuck::from_bytes_mut::<AddressMerkleTreeAccount>(
+                    &mut account.data_as_mut_slice()[8..AddressMerkleTreeAccount::LEN],
+                );
+                merkle_tree_account.metadata.associated_queue = address_queue_pubkey.into();
+                context.set_account(address_mt, account);
+
+                let mut account = context
+                    .context
+                    .get_account(&keypairs.address_merkle_tree_queue.pubkey())
+                    .unwrap();
+                let queue_account = bytemuck::from_bytes_mut::<QueueAccount>(
+                    &mut account.data_as_mut_slice()[8..QueueAccount::LEN],
+                );
+                queue_account.metadata.associated_merkle_tree = address_mt.into();
+                context.set_account(address_queue_pubkey, account);
+            }
         }
         // Will always start a prover server.
         #[cfg(feature = "devenv")]

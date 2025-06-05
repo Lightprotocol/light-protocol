@@ -2064,7 +2064,7 @@ pub async fn set_nullifier_queue_to_full<R: Rpc + TestRpc>(
     account.data = data;
     account.lamports = lamports;
 
-    rpc.set_account(*nullifier_queue_pubkey, account);
+    rpc.set_account(*nullifier_queue_pubkey, account.clone());
     let new_data = account.data.clone();
     let account = rpc
         .get_account(*nullifier_queue_pubkey)
