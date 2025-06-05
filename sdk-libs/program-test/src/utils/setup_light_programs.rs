@@ -1,6 +1,7 @@
 use light_client::rpc::RpcError;
 use light_sdk::utils::get_registered_program_pda;
-use solana_program_test::{ProgramTest, ProgramTestContext};
+use litesvm::LiteSVM;
+use solana_compute_budget::compute_budget::ComputeBudget;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -23,8 +24,13 @@ use crate::{
 /// 4. light_system_program program
 pub async fn setup_light_programs(
     additional_programs: Option<Vec<(&'static str, Pubkey)>>,
-) -> Result<ProgramTestContext, RpcError> {
-    let mut program_test = ProgramTest::default();
+) -> Result<LiteSVM, RpcError> {
+    let program_test = LiteSVM::new();
+    let program_test = program_test.with_compute_budget(ComputeBudget {
+        compute_unit_limit: 1_400_000,
+        ..Default::default()
+    });
+    let mut program_test = program_test.with_transaction_history(0);
     let sbf_path = std::env::var("SBF_OUT_DIR")
         .map_err(|_| RpcError::CustomError("SBF_OUT_DIR not set.".to_string()))?;
     // find path to bin where light cli stores program binaries.
@@ -38,38 +44,60 @@ pub async fn setup_light_programs(
             path
         )))?,
     );
-    program_test.add_program("light_registry", light_registry::ID, None);
-    program_test.add_program("account_compression", account_compression::ID, None);
-    program_test.add_program("light_compressed_token", light_compressed_token::ID, None);
+    let path = format!("{}/light_registry.so", sbf_path);
+    program_test
+        .add_program_from_file(light_registry::ID, path)
+        .unwrap();
+    let path = format!("{}/account_compression.so", sbf_path);
+    program_test
+        .add_program_from_file(account_compression::ID, path)
+        .unwrap();
+    let path = format!("{}/light_compressed_token.so", sbf_path);
+    program_test
+        .add_program_from_file(light_compressed_token::ID, path)
+        .unwrap();
+    let path = format!("{}/spl_noop.so", sbf_path);
+    program_test
+        .add_program_from_file(NOOP_PROGRAM_ID, path)
+        .unwrap();
     #[cfg(feature = "devenv")]
-    program_test.add_program(
-        "light_system_program_pinocchio",
-        light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
-        None,
-    );
+    {
+        let path = format!("{}/light_system_program_pinocchio.so", sbf_path);
+        program_test
+            .add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)
+            .unwrap();
+    }
+
     #[cfg(not(feature = "devenv"))]
-    program_test.add_program(
-        "light_system_program",
-        light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
-        None,
-    );
-    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
-    std::env::set_var("SBF_OUT_DIR", sbf_path);
+    {
+        let path = format!("{}/light_system_program.so", sbf_path);
+        program_test
+            .add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)
+            .unwrap();
+    }
+    // program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let registered_program = registered_program_test_account_system_program();
-    program_test.add_account(
-        get_registered_program_pda(&light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM),
-        registered_program,
-    );
+    program_test
+        .set_account(
+            get_registered_program_pda(&light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM),
+            registered_program,
+        )
+        .expect("Setting account failed.");
     let registered_program = registered_program_test_account_registry_program();
-    program_test.add_account(
-        get_registered_program_pda(&light_registry::ID),
-        registered_program,
-    );
+    program_test
+        .set_account(
+            get_registered_program_pda(&light_registry::ID),
+            registered_program,
+        )
+        .expect("Setting account failed.");
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
-            program_test.add_program(name, id, None);
+            let path = format!("{}/{}.so", sbf_path, name);
+            program_test
+                .add_program_from_file(id, path.clone())
+                .unwrap_or_else(|_| panic!("Program {} bin not found in {}", name, path));
         }
     }
-    program_test.set_compute_max_units(1_400_000u64);
-    Ok(program_test.start_with_context().await)
+    std::env::set_var("SBF_OUT_DIR", sbf_path);
+    Ok(program_test)
 }

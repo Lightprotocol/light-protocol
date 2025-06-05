@@ -35,14 +35,11 @@ use light_compressed_account::{
 use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
-    accounts::{
-        state_tree_v2::create_batched_state_merkle_tree,
-        test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
-    },
+    accounts::{state_tree_v2::create_batched_state_merkle_tree, test_accounts::NOOP_PROGRAM_ID},
     program_test::LightProgramTest,
     utils::assert::assert_rpc_error,
+    ProgramTestConfig,
 };
-use light_prover_client::prover::{spawn_prover, ProverConfig};
 use light_test_utils::{
     address::insert_addresses,
     airdrop_lamports, create_account_instruction,
@@ -54,7 +51,6 @@ use light_test_utils::{
 use light_verifier::VerifierError;
 use num_bigint::ToBigUint;
 use serial_test::serial;
-use solana_program_test::ProgramTest;
 use solana_sdk::{
     account::WritableAccount,
     instruction::Instruction,
@@ -88,26 +84,17 @@ pub enum TestMode {
 #[serial]
 #[tokio::test]
 async fn test_batch_state_merkle_tree() {
-    spawn_prover(ProverConfig::default()).await;
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        ..Default::default()
+    };
+    let mut context = LightProgramTest::new(config).await.unwrap();
 
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::new();
     let output_queue_pubkey = nullifier_queue_keypair.pubkey();
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
-    };
+
     let payer_pubkey = context.get_payer().pubkey();
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
@@ -762,19 +749,20 @@ pub async fn perform_insert_into_input_queue(
     let accounts = account_compression::accounts::GenericInstruction {
         authority: payer.pubkey(),
     };
-    let mut account_metas = Vec::new();
-    account_metas.push(AccountMeta {
-        pubkey: output_queue_pubkey,
-        is_signer: false,
-        is_writable: true,
-    });
-    account_metas.push(AccountMeta {
-        pubkey: merkle_tree_pubkey,
-        is_signer: false,
-        is_writable: true,
-    });
+    let account_metas = vec![
+        AccountMeta {
+            pubkey: output_queue_pubkey,
+            is_signer: false,
+            is_writable: true,
+        },
+        AccountMeta {
+            pubkey: merkle_tree_pubkey,
+            is_signer: false,
+            is_writable: true,
+        },
+    ];
 
-    let accounts = vec![accounts.to_account_metas(Some(true)), account_metas].concat();
+    let accounts = [accounts.to_account_metas(Some(true)), account_metas].concat();
 
     let instruction = Instruction {
         program_id: ID,
@@ -896,20 +884,26 @@ pub async fn create_nullify_batch_ix_data(
 #[serial]
 #[tokio::test]
 async fn test_init_batch_state_merkle_trees() {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
+    // let mut program_test = ProgramTest::default();
+    // program_test.add_program("account_compression", ID, None);
+    // program_test.add_program(
+    //     "spl_noop",
+    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+    //     None,
+    // );
+    // program_test.set_compute_max_units(1_400_000u64);
+    // let context = program_test.start_with_context().await;
+    // let mut context = LightProgramTest {
+    //     context,
+    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
+    //     indexer: None,
+    // };
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitStateTreeAccountsInstructionData::e2e_test_default();
@@ -1053,20 +1047,27 @@ pub async fn perform_init_batch_state_merkle_tree(
 #[serial]
 #[tokio::test]
 async fn test_rollover_batch_state_merkle_trees() {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
+    // let mut program_test = ProgramTest::default();
+    // program_test.add_program("account_compression", ID, None);
+    // program_test.add_program(
+    //     "spl_noop",
+    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+    //     None,
+    // );
+    // program_test.set_compute_max_units(1_400_000u64);
+    // let context = program_test.start_with_context().await;
+    // let mut context = LightProgramTest {
+    //     context,
+    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
+    //     indexer: None,
+    // };
     let payer = context.get_payer().insecure_clone();
     let mut params = InitStateTreeAccountsInstructionData::test_default();
     params.rollover_threshold = Some(0);
@@ -1242,7 +1243,7 @@ async fn test_rollover_batch_state_merkle_trees() {
     airdrop_lamports(
         &mut context,
         &nullifier_queue_keypair.pubkey(),
-        1000_000_000_000,
+        1_000_000_000_000,
     )
     .await
     .unwrap();
@@ -1486,20 +1487,27 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
 #[serial]
 #[tokio::test]
 async fn test_init_batch_address_merkle_trees() {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
+    // let mut program_test = ProgramTest::default();
+    // program_test.add_program("account_compression", ID, None);
+    // program_test.add_program(
+    //     "spl_noop",
+    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+    //     None,
+    // );
+    // program_test.set_compute_max_units(1_400_000u64);
+    // let context = program_test.start_with_context().await;
+    // let mut context = LightProgramTest {
+    //     context,
+    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
+    //     indexer: None,
+    // };
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
@@ -1590,21 +1598,27 @@ pub async fn perform_init_batch_address_merkle_tree(
 #[serial]
 #[tokio::test]
 async fn test_batch_address_merkle_trees() {
-    spawn_prover(ProverConfig::default()).await;
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
+    // spawn_prover(ProverConfig::default()).await;
+    // let mut program_test = ProgramTest::default();
+    // program_test.add_program("account_compression", ID, None);
+    // program_test.add_program(
+    //     "spl_noop",
+    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+    //     None,
+    // );
+    // program_test.set_compute_max_units(1_400_000u64);
+    // let context = program_test.start_with_context().await;
+    // let mut context = LightProgramTest {
+    //     context,
+    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
+    //     indexer: None,
+    // };
     let mut mock_indexer = MockBatchedAddressForester::<40>::default();
     let payer = context.get_payer().insecure_clone();
     let mut params = InitAddressTreeAccountsInstructionData::test_default();

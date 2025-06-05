@@ -11,17 +11,17 @@ use light_compressed_account::indexer_event::{
     event::{BatchPublicTransactionEvent, PublicTransactionEvent},
     parse::event_from_light_transaction,
 };
-use solana_banks_client::BanksClientError;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::{
     account::Account,
-    clock::Slot,
+    clock::{Clock, Slot},
     hash::Hash,
     instruction::Instruction,
     pubkey::Pubkey,
+    rent::Rent,
     signature::{Keypair, Signature, Signer},
     system_instruction,
-    transaction::{Transaction, TransactionError},
+    transaction::Transaction,
 };
 use solana_transaction_status_client_types::TransactionStatus;
 
@@ -40,7 +40,7 @@ impl RpcConnection for LightProgramTest {
     }
 
     fn get_payer(&self) -> &Keypair {
-        &self.context.payer
+        &self.payer
     }
 
     fn get_url(&self) -> String {
@@ -63,25 +63,16 @@ impl RpcConnection for LightProgramTest {
     }
 
     async fn get_account(&self, address: Pubkey) -> Result<Option<Account>, RpcError> {
-        self.context
-            .banks_client
-            .get_account(address)
-            .await
-            .map_err(RpcError::from)
+        Ok(self.context.get_account(&address))
     }
 
     async fn get_minimum_balance_for_rent_exemption(
         &self,
         data_len: usize,
     ) -> Result<u64, RpcError> {
-        let rent = self
-            .context
-            .banks_client
-            .get_rent()
-            .await
-            .map_err(RpcError::from);
+        let rent = self.context.get_sysvar::<Rent>();
 
-        Ok(rent?.minimum_balance(data_len))
+        Ok(rent.minimum_balance(data_len))
     }
 
     async fn airdrop_lamports(
@@ -91,7 +82,7 @@ impl RpcConnection for LightProgramTest {
     ) -> Result<Signature, RpcError> {
         // Create a transfer instruction
         let transfer_instruction =
-            system_instruction::transfer(&self.context.payer.pubkey(), to, lamports);
+            system_instruction::transfer(&self.get_payer().pubkey(), to, lamports);
         let latest_blockhash = self.get_latest_blockhash().await?.0;
 
         // Use the RpcConnection implementation of get_payer to avoid ambiguity
@@ -107,53 +98,30 @@ impl RpcConnection for LightProgramTest {
         let sig = *transaction.signatures.first().unwrap();
 
         // Send the transaction
-        self.context
-            .banks_client
-            .process_transaction(transaction)
-            .await?;
+        self.context.send_transaction(transaction).map_err(|x| {
+            println!("{}", x.meta.pretty_logs());
+            RpcError::TransactionError(x.err)
+        })?;
 
         Ok(sig)
     }
 
     async fn get_balance(&self, pubkey: &Pubkey) -> Result<u64, RpcError> {
-        self.context
-            .banks_client
-            .get_balance(*pubkey)
-            .await
-            .map_err(RpcError::from)
+        Ok(self.context.get_balance(pubkey).unwrap())
     }
 
     async fn get_latest_blockhash(&mut self) -> Result<(Hash, u64), RpcError> {
         let slot = self.get_slot().await?;
-        let hash = self
-            .context
-            .get_new_latest_blockhash()
-            .await
-            .map_err(|e| RpcError::from(BanksClientError::from(e)))?;
+        let hash = self.context.latest_blockhash();
         Ok((hash, slot))
     }
 
     async fn get_slot(&self) -> Result<u64, RpcError> {
-        self.context
-            .banks_client
-            .get_root_slot()
-            .await
-            .map_err(RpcError::from)
+        Ok(self.context.get_sysvar::<Clock>().slot)
     }
 
-    async fn get_transaction_slot(&self, signature: &Signature) -> Result<u64, RpcError> {
-        self.context
-            .banks_client
-            .get_transaction_status(*signature)
-            .await
-            .map_err(RpcError::from)
-            .and_then(|status| {
-                status
-                    .ok_or(RpcError::TransactionError(
-                        TransactionError::SignatureFailure,
-                    ))
-                    .map(|status| status.slot)
-            })
+    async fn get_transaction_slot(&self, _signature: &Signature) -> Result<u64, RpcError> {
+        unimplemented!();
     }
 
     async fn get_signature_statuses(
@@ -190,13 +158,11 @@ impl RpcConnection for LightProgramTest {
             self._send_transaction_with_batched_event(transaction)
                 .await?;
         } else {
-            self.context
-                .banks_client
-                .process_transaction(transaction)
-                .await
-                .map_err(RpcError::from)?;
+            self.context.send_transaction(transaction).map_err(|x| {
+                println!("{}", x.meta.pretty_logs());
+                RpcError::TransactionError(x.err)
+            })?;
         }
-
         Ok(sig)
     }
 
@@ -205,14 +171,11 @@ impl RpcConnection for LightProgramTest {
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
-        let result = self
-            .context
-            .banks_client
-            .process_transaction_with_metadata(transaction)
-            .await
-            .map_err(RpcError::from)?;
-        result.result.map_err(RpcError::TransactionError)?;
-        let slot = self.context.banks_client.get_root_slot().await?;
+        self.context.send_transaction(transaction).map_err(|x| {
+            println!("{}", x.meta.pretty_logs());
+            RpcError::TransactionError(x.err)
+        })?;
+        let slot = self.context.get_sysvar::<Clock>().slot;
         Ok((sig, slot))
     }
 
@@ -275,28 +238,21 @@ impl LightProgramTest {
         // only way to retrieve the event.
         let simulation_result = self
             .context
-            .banks_client
             .simulate_transaction(transaction.clone())
-            .await?;
-        // Handle an error nested in the simulation result.
-        if let Some(Err(e)) = simulation_result.result {
-            let error = match e {
-                TransactionError::InstructionError(_, _) => RpcError::TransactionError(e),
-                _ => RpcError::from(BanksClientError::TransactionError(e)),
-            };
-            return Err(error);
-        }
+            .map_err(|x| {
+                println!("{}", x.meta.pretty_logs());
+                RpcError::TransactionError(x.err)
+            })?;
+
         // Try old event deserialization.
         let event = simulation_result
-            .simulation_details
-            .as_ref()
-            .and_then(|details| details.inner_instructions.clone())
-            .and_then(|instructions| {
-                instructions.iter().flatten().find_map(|inner_instruction| {
-                    PublicTransactionEvent::try_from_slice(&inner_instruction.instruction.data).ok()
-                })
+            .meta
+            .inner_instructions
+            .iter()
+            .flatten()
+            .find_map(|inner_instruction| {
+                PublicTransactionEvent::try_from_slice(&inner_instruction.instruction.data).ok()
             });
-        println!("event {:?}", event);
         let event = if let Some(event) = event {
             Some(vec![BatchPublicTransactionEvent {
                 event,
@@ -318,25 +274,25 @@ impl LightProgramTest {
                 );
             });
             simulation_result
-                .simulation_details
-                .and_then(|details| details.inner_instructions)
-                .and_then(|instructions| {
-                    instructions.iter().flatten().find_map(|inner_instruction| {
-                        vec.push(inner_instruction.instruction.data.clone());
-                        program_ids.push(
-                            transaction.message.account_keys
-                                [inner_instruction.instruction.program_id_index as usize],
-                        );
-                        vec_accounts.push(
-                            inner_instruction
-                                .instruction
-                                .accounts
-                                .iter()
-                                .map(|x| transaction.message.account_keys[*x as usize])
-                                .collect(),
-                        );
-                        None::<PublicTransactionEvent>
-                    })
+                .meta
+                .inner_instructions
+                .iter()
+                .flatten()
+                .find_map(|inner_instruction| {
+                    vec.push(inner_instruction.instruction.data.clone());
+                    program_ids.push(
+                        transaction.message.account_keys
+                            [inner_instruction.instruction.program_id_index as usize],
+                    );
+                    vec_accounts.push(
+                        inner_instruction
+                            .instruction
+                            .accounts
+                            .iter()
+                            .map(|x| transaction.message.account_keys[*x as usize])
+                            .collect(),
+                    );
+                    None::<PublicTransactionEvent>
                 });
 
             event_from_light_transaction(
@@ -349,20 +305,13 @@ impl LightProgramTest {
                 ParseIndexerEventError,
             >(None))?
         };
-        // If transaction was successful, execute it.
-        if let Some(Ok(())) = simulation_result.result {
-            let result = self
-                .context
-                .banks_client
-                .process_transaction(transaction)
-                .await;
-            if let Err(e) = result {
-                let error = RpcError::from(e);
-                return Err(error);
-            }
-        }
+        // Transaction was successful, execute it.
+        self.context.send_transaction(transaction).map_err(|x| {
+            println!("{}", x.meta.pretty_logs());
+            RpcError::TransactionError(x.err)
+        })?;
 
-        let slot = self.context.banks_client.get_root_slot().await?;
+        let slot = self.context.get_sysvar::<Clock>().slot;
         let event = event.map(|e| (e, signature, slot));
 
         if let Some(indexer) = self.indexer.as_mut() {
@@ -393,7 +342,7 @@ impl LightProgramTest {
             instruction,
             Some(payer),
             signers,
-            self.context.get_new_latest_blockhash().await?,
+            self.context.latest_blockhash(),
         );
 
         let signature = transaction.signatures[0];
@@ -402,39 +351,24 @@ impl LightProgramTest {
         // only way to retrieve the event.
         let simulation_result = self
             .context
-            .banks_client
             .simulate_transaction(transaction.clone())
-            .await?;
-        // Handle an error nested in the simulation result.
-        if let Some(Err(e)) = simulation_result.result {
-            let error = match e {
-                TransactionError::InstructionError(_, _) => RpcError::TransactionError(e),
-                _ => RpcError::from(BanksClientError::TransactionError(e)),
-            };
-            return Err(error);
-        }
+            .map_err(|x| RpcError::from(x.err))?;
+
         let event = simulation_result
-            .simulation_details
-            .and_then(|details| details.inner_instructions)
-            .and_then(|instructions| {
-                instructions.iter().flatten().find_map(|inner_instruction| {
-                    T::try_from_slice(&inner_instruction.instruction.data).ok()
-                })
+            .meta
+            .inner_instructions
+            .iter()
+            .flatten()
+            .find_map(|inner_instruction| {
+                T::try_from_slice(&inner_instruction.instruction.data).ok()
             });
         // If transaction was successful, execute it.
-        if let Some(Ok(())) = simulation_result.result {
-            let result = self
-                .context
-                .banks_client
-                .process_transaction(transaction)
-                .await;
-            if let Err(e) = result {
-                let error = RpcError::from(e);
-                return Err(error);
-            }
-        }
+        self.context.send_transaction(transaction).map_err(|x| {
+            println!("{}", x.meta.pretty_logs());
+            RpcError::TransactionError(x.err)
+        })?;
 
-        let slot = self.context.banks_client.get_root_slot().await?;
+        let slot = self.get_slot().await?;
         let result = event.map(|event| (event, signature, slot));
         Ok(result)
     }
@@ -449,7 +383,7 @@ impl LightProgramTest {
             instruction,
             Some(payer),
             signers,
-            self.context.get_new_latest_blockhash().await?,
+            self.context.latest_blockhash(),
         );
 
         self._send_transaction_with_batched_event(transaction).await

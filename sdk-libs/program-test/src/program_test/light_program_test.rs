@@ -3,11 +3,11 @@ use std::fmt::{self, Debug, Formatter};
 use forester_utils::utils::airdrop_lamports;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{merkle_tree::MerkleTreeExt, RpcError},
+    rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
 };
 use light_prover_client::prover::{spawn_prover, ProverConfig};
-use solana_program_test::ProgramTestContext;
-use solana_sdk::signature::Signer;
+use litesvm::LiteSVM;
+use solana_sdk::signature::{Keypair, Signer};
 
 use crate::{
     accounts::{
@@ -19,9 +19,10 @@ use crate::{
 };
 
 pub struct LightProgramTest {
-    pub context: ProgramTestContext,
+    pub context: LiteSVM,
     pub indexer: Option<TestIndexer>,
     pub test_accounts: TestAccounts,
+    pub payer: Keypair,
 }
 
 impl LightProgramTest {
@@ -43,11 +44,16 @@ impl LightProgramTest {
     /// - advances to the active phase slot 2
     /// - active phase doesn't end
     pub async fn new(config: ProgramTestConfig) -> Result<LightProgramTest, RpcError> {
-        let context = setup_light_programs(config.additional_programs.clone()).await?;
+        let mut context = setup_light_programs(config.additional_programs.clone()).await?;
+        let payer = Keypair::new();
+        context
+            .airdrop(&payer.pubkey(), 100_000_000_000_000)
+            .expect("Payer airdrop failed.");
         let mut context = Self {
             context,
             indexer: None,
             test_accounts: TestAccounts::get_program_test_test_accounts(),
+            payer,
         };
         let keypairs = TestKeypairs::program_test_default();
         airdrop_lamports(
@@ -125,7 +131,7 @@ impl LightProgramTest {
         batch_size: Option<usize>,
     ) -> Result<(), RpcError> {
         let indexer = TestIndexer::init_from_acounts(
-            &self.context.payer,
+            self.get_payer(),
             test_accounts,
             batch_size.unwrap_or_default(),
         )

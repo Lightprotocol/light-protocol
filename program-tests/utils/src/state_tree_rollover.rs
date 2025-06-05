@@ -19,7 +19,7 @@ use light_concurrent_merkle_tree::{
 use light_hasher::Poseidon;
 use light_program_test::{program_test::test_rpc::TestRpc, Indexer};
 use solana_sdk::{
-    account::{AccountSharedData, WritableAccount},
+    account::WritableAccount,
     account_info::AccountInfo,
     clock::Slot,
     instruction::{AccountMeta, Instruction},
@@ -140,7 +140,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection + TestRpc + Index
                 }
             }
 
-            let mut account_share_data = AccountSharedData::from(merkle_tree);
+            let mut account_share_data = merkle_tree;
             account_share_data.set_lamports(lamports);
             rpc.set_account(merkle_tree_pubkey, &account_share_data);
             let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();

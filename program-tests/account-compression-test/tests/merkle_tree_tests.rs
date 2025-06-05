@@ -26,12 +26,12 @@ use light_hasher::{
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::{
-    accounts::{
-        state_tree::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
-        test_accounts::TestAccounts,
+    accounts::state_tree::{
+        create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
     },
     program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
+    ProgramTestConfig,
 };
 use light_test_utils::{
     airdrop_lamports,
@@ -46,9 +46,7 @@ use light_test_utils::{
     RpcConnection, RpcError,
 };
 use num_bigint::{BigUint, ToBigUint};
-use solana_program_test::ProgramTest;
 use solana_sdk::{
-    account::{AccountSharedData, WritableAccount},
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
@@ -65,24 +63,16 @@ async fn test_init_and_insert_into_nullifier_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
+    };
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::new();
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut rpc = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
-    };
     let payer_pubkey = rpc.get_payer().pubkey();
     fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes(
         &mut rpc,
@@ -242,24 +232,18 @@ async fn test_full_nullifier_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
+    };
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::new();
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut rpc = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
-    };
+
     let payer_pubkey = rpc.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut rpc,
@@ -446,24 +430,18 @@ async fn failing_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
+    };
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::new();
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut rpc = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
-    };
+
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = rpc.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -626,25 +604,17 @@ async fn test_init_and_rollover_state_merkle_tree(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
+    };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+    let payer_pubkey = context.get_payer().pubkey();
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::new();
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
-    };
-    let payer_pubkey = context.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
         &payer_pubkey,
@@ -892,21 +862,12 @@ async fn test_append_functional_and_failing(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
-
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
     let payer_pubkey = context.get_payer().pubkey();
     let merkle_tree_keypair = Keypair::new();
     let queue_keypair = Keypair::new();
@@ -1023,24 +984,15 @@ async fn test_nullify_leaves(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program(
-        "spl_noop",
-        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        None,
-    );
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        ..Default::default()
+    };
+    let mut context = LightProgramTest::new(config).await.unwrap();
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::new();
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
-    };
     let payer = context.get_payer().insecure_clone();
     let payer_pubkey = context.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -2114,15 +2066,17 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection + TestRpc>(
     }
     assert_ne!(account.data, data);
     account.data = data;
-    let mut account_share_data = AccountSharedData::from(account);
-    account_share_data.set_lamports(lamports);
-    rpc.set_account(nullifier_queue_pubkey, &account_share_data);
+    account.lamports = lamports;
+
+    rpc.set_account(nullifier_queue_pubkey, &account);
+    let new_data = account.data.clone();
     let account = rpc
         .get_account(*nullifier_queue_pubkey)
         .await
         .unwrap()
         .unwrap();
     let mut data = account.data.clone();
+    assert_eq!(new_data, data);
     let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
     for i in 0..capacity {
         assert!(nullifier_queue
@@ -2190,9 +2144,8 @@ pub async fn set_state_merkle_tree_sequence<R: RpcConnection + TestRpc>(
             merkle_tree_deserialized.inc_sequence_number().unwrap();
         }
     }
-    let mut account_share_data = AccountSharedData::from(merkle_tree);
-    account_share_data.set_lamports(lamports);
-    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    merkle_tree.lamports = lamports;
+    rpc.set_account(merkle_tree_pubkey, &merkle_tree);
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
         ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(

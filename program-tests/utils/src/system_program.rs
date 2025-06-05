@@ -440,7 +440,7 @@ pub async fn compressed_transaction_test<
             None => 0,
         };
     }
-    let event = TestRpc::create_and_send_transaction_with_public_event(
+    let (event, signature, slot) = TestRpc::create_and_send_transaction_with_public_event(
         inputs.rpc,
         &[instruction],
         &inputs.fee_payer.pubkey(),
@@ -450,16 +450,15 @@ pub async fn compressed_transaction_test<
     .await?
     .unwrap();
 
-    let slot = inputs.rpc.get_transaction_slot(&event.1).await.unwrap();
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
-        .add_event_and_compressed_accounts(slot, &event.0.clone());
+        .add_event_and_compressed_accounts(slot, &event.clone());
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
         output_compressed_accounts: inputs.output_compressed_accounts,
         created_output_compressed_accounts: created_output_compressed_accounts.as_slice(),
-        event: &event.0,
+        event: &event,
         input_merkle_tree_snapshots: input_merkle_tree_snapshots.as_slice(),
         output_merkle_tree_snapshots: output_merkle_tree_snapshots.as_slice(),
         recipient_balance_pre,
@@ -478,7 +477,7 @@ pub async fn compressed_transaction_test<
             .collect::<Vec<Pubkey>>(),
     };
     assert_compressed_transaction(input).await;
-    Ok(event.1)
+    Ok(signature)
 }
 
 pub fn get_sol_pool_pda() -> Pubkey {

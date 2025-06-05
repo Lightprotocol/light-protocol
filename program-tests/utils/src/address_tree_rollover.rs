@@ -20,14 +20,8 @@ use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use light_program_test::{program_test::TestRpc, Indexer};
 use solana_sdk::{
-    account::{AccountSharedData, WritableAccount},
-    account_info::AccountInfo,
-    clock::Slot,
-    instruction::Instruction,
-    pubkey::Pubkey,
-    signature::Keypair,
-    signer::Signer,
-    transaction::Transaction,
+    account::WritableAccount, account_info::AccountInfo, clock::Slot, instruction::Instruction,
+    pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction,
 };
 
 use crate::assert_rollover::{
@@ -50,7 +44,7 @@ pub async fn set_address_merkle_tree_next_index<R: RpcConnection + TestRpc + Ind
     while merkle_tree_deserialized.next_index() < next_index as usize {
         merkle_tree_deserialized.inc_next_index().unwrap();
     }
-    let mut account_share_data = AccountSharedData::from(merkle_tree);
+    let mut account_share_data = merkle_tree;
     account_share_data.set_lamports(lamports);
     rpc.set_account(merkle_tree_pubkey, &account_share_data);
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
