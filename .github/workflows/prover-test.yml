@@ -73,13 +73,6 @@ jobs:
           cd prover/server
           go build
 
-      - name: Verify Redis connectivity
-        run: |
-          echo "Waiting for Redis to be ready..."
-          timeout 30 bash -c 'until redis-cli -h localhost -p 6379 ping | grep -q PONG; do sleep 1; done'
-          echo "Redis is ready!"
-          redis-cli -h localhost -p 6379 info server | head -5
-
       - name: Unit tests
         run: |
           cd prover/server
