@@ -73,15 +73,9 @@ async fn test_sdk_test() {
         .clone();
     assert_eq!(compressed_pda.address.unwrap(), address);
 
-    update_pda(
-        &payer,
-        &mut rpc,
-        [2u8; 31],
-        compressed_pda.into(),
-        ouput_queue,
-    )
-    .await
-    .unwrap();
+    update_pda(&payer, &mut rpc, [2u8; 31], compressed_pda.into())
+        .await
+        .unwrap();
 }
 
 pub async fn create_pda(
@@ -142,7 +136,6 @@ pub async fn update_pda(
     rpc: &mut LightProgramTest,
     new_account_data: [u8; 31],
     compressed_account: CompressedAccountWithMerkleContext,
-    output_merkle_tree: Pubkey,
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
     let mut accounts = PackedAccounts::default();
@@ -151,15 +144,17 @@ pub async fn update_pda(
 
     let rpc_result = rpc
         .get_validity_proof(vec![compressed_account.hash().unwrap()], vec![], None)
-        .await?;
+        .await?
+        .value;
 
-    let meta = CompressedAccountMeta::from_compressed_account(
-        &compressed_account,
-        &mut accounts,
-        rpc_result.value.get_root_indices()[0],
-        &output_merkle_tree,
-    )
-    .unwrap();
+    let packed_accounts = rpc_result.pack_tree_accounts(&mut accounts);
+
+    let meta = CompressedAccountMeta {
+        tree_info: packed_accounts.packed_tree_infos[0],
+        address: compressed_account.compressed_account.address.unwrap(),
+        output_tree_index: packed_accounts.output_tree_index.unwrap(),
+    };
+
     let (accounts, system_accounts_offset, _) = accounts.to_account_metas();
     let instruction_data = UpdatePdaInstructionData {
         my_compressed_account: UpdateMyCompressedAccount {
@@ -172,7 +167,7 @@ pub async fn update_pda(
                 .try_into()
                 .unwrap(),
         },
-        proof: rpc_result.value.proof,
+        proof: rpc_result.proof,
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };

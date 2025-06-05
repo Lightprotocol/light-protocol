@@ -4,6 +4,15 @@ use super::pack_accounts::PackedAccounts;
 use crate::{AccountInfo, AnchorDeserialize, AnchorSerialize, Pubkey};
 
 #[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
+pub struct PackedTreeInfo {
+    pub root_index: u16,
+    pub prove_by_index: bool,
+    pub merkle_tree_pubkey_index: u8,
+    pub queue_pubkey_index: u8,
+    pub leaf_index: u32,
+}
+
+#[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
 pub struct AddressMerkleContext {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_queue_pubkey: Pubkey,

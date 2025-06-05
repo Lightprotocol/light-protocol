@@ -133,21 +133,20 @@ where
             }],
             None,
         )
-        .await
-        .unwrap()
+        .await?
         .value;
 
-    let output_merkle_tree_index = rpc
+    let output_tree_index = rpc
         .get_random_state_tree_info()
         .get_output_tree_index(&mut remaining_accounts)?;
     let packed_address_tree_info = rpc_result
-        .pack_merkle_tree_accounts(&mut remaining_accounts)
-        .new_address_merkle_contexts[0];
+        .pack_tree_accounts(&mut remaining_accounts)
+        .packed_new_address_tree_infos[0];
 
     let instruction_data = counter::instruction::CreateCounter {
         proof: rpc_result.proof,
         address_merkle_context: packed_address_tree_info,
-        output_merkle_tree_index,
+        output_tree_index,
     };
 
     let accounts = counter::accounts::GenericAnchorAccounts {
@@ -187,21 +186,19 @@ where
 
     let rpc_result = rpc
         .get_validity_proof(vec![hash], vec![], None)
-        .await
-        .unwrap()
+        .await?
         .value;
 
-    let merkle_context = rpc_result.pack_merkle_tree_accounts(&mut remaining_accounts);
+    let merkle_context = rpc_result.pack_tree_accounts(&mut remaining_accounts);
 
     let counter_account =
         CounterAccount::deserialize(&mut compressed_account.data.as_ref().unwrap().data.as_slice())
             .unwrap();
 
     let account_meta = CompressedAccountMeta {
-        merkle_context: merkle_context.input_merkle_contexts[0], // TODO: think about whether we can pull root index into packed Merkle context
+        tree_info: merkle_context.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        root_index: rpc_result.accounts[0].root_index,
-        output_merkle_tree_index: merkle_context.output_merkle_tree_indices[0], // TODO: consider just returning 1 output tree index
+        output_tree_index: merkle_context.output_tree_index.unwrap(),
     };
 
     let instruction_data = counter::instruction::IncrementCounter {
@@ -247,21 +244,19 @@ where
 
     let rpc_result = rpc
         .get_validity_proof(Vec::from(&[hash]), vec![], None)
-        .await
-        .unwrap()
+        .await?
         .value;
 
-    let packed_merkle_contexts = rpc_result.pack_merkle_tree_accounts(&mut remaining_accounts);
+    let packed_merkle_contexts = rpc_result.pack_tree_accounts(&mut remaining_accounts);
 
     let counter_account =
         CounterAccount::deserialize(&mut compressed_account.data.as_ref().unwrap().data.as_slice())
             .unwrap();
 
     let account_meta = CompressedAccountMeta {
-        merkle_context: packed_merkle_contexts.input_merkle_contexts[0],
+        tree_info: packed_merkle_contexts.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        root_index: rpc_result.accounts[0].root_index,
-        output_merkle_tree_index: packed_merkle_contexts.output_merkle_tree_indices[0],
+        output_tree_index: packed_merkle_contexts.output_tree_index.unwrap(),
     };
 
     let instruction_data = counter::instruction::DecrementCounter {
@@ -309,17 +304,16 @@ where
         .await?
         .value;
 
-    let packed_merkle_context = rpc_result.pack_merkle_tree_accounts(&mut remaining_accounts);
+    let packed_merkle_context = rpc_result.pack_tree_accounts(&mut remaining_accounts);
 
     let counter_account =
         CounterAccount::deserialize(&mut compressed_account.data.as_ref().unwrap().data.as_slice())
             .unwrap();
 
     let account_meta = CompressedAccountMeta {
-        merkle_context: packed_merkle_context.input_merkle_contexts[0],
+        tree_info: packed_merkle_context.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        root_index: rpc_result.accounts[0].root_index,
-        output_merkle_tree_index: packed_merkle_context.output_merkle_tree_indices[0],
+        output_tree_index: packed_merkle_context.output_tree_index.unwrap(),
     };
 
     let instruction_data = counter::instruction::ResetCounter {
@@ -368,17 +362,16 @@ where
         .unwrap()
         .value;
 
-    let packed_merkle_contexts = rpc_result.pack_merkle_tree_accounts(&mut remaining_accounts);
+    let packed_merkle_contexts = rpc_result.pack_tree_accounts(&mut remaining_accounts);
 
     let counter_account =
         CounterAccount::deserialize(&mut compressed_account.data.as_ref().unwrap().data.as_slice())
             .unwrap();
 
     let account_meta = CompressedAccountMeta {
-        merkle_context: packed_merkle_contexts.input_merkle_contexts[0],
+        tree_info: packed_merkle_contexts.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        root_index: rpc_result.accounts[0].root_index,
-        output_merkle_tree_index: packed_merkle_contexts.output_merkle_tree_indices[0],
+        output_tree_index: packed_merkle_contexts.output_tree_index.unwrap(),
     };
 
     let instruction_data = counter::instruction::CloseCounter {

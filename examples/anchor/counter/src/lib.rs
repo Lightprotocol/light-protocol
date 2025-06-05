@@ -22,7 +22,7 @@ pub mod counter {
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
         proof: ValidityProof,
         address_merkle_context: PackedAddressMerkleContext,
-        output_merkle_tree_index: u8,
+        output_tree_index: u8,
     ) -> Result<()> {
         let program_id = crate::ID.into();
         // LightAccount::new_init will create an account with empty output state (no input state).
@@ -56,7 +56,7 @@ pub mod counter {
         let mut counter = LightAccount::<'_, CounterAccount>::new_init(
             &program_id,
             Some(address),
-            output_merkle_tree_index,
+            output_tree_index,
         );
 
         counter.owner = ctx.accounts.signer.key();

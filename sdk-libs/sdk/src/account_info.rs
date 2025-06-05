@@ -1,6 +1,7 @@
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
     },
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext,
@@ -35,7 +36,13 @@ impl InAccountInfoTrait for InAccountInfo {
         if let Some(root_index) = meta.get_root_index().as_ref() {
             self.root_index = *root_index;
         }
-        self.merkle_context = *meta.get_merkle_context();
+        let tree_info = meta.get_tree_info();
+        self.merkle_context = PackedMerkleContext {
+            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+            queue_pubkey_index: tree_info.queue_pubkey_index,
+            leaf_index: tree_info.leaf_index,
+            prove_by_index: tree_info.prove_by_index,
+        };
     }
 }
 

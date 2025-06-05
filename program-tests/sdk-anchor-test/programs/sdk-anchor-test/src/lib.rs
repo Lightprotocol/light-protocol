@@ -22,7 +22,7 @@ pub mod sdk_anchor_test {
         ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
         proof: ValidityProof,
         address_merkle_context: PackedAddressMerkleContext,
-        output_merkle_tree_index: u8,
+        output_tree_index: u8,
         name: String,
     ) -> Result<()> {
         let program_id = crate::ID.into();
@@ -51,7 +51,7 @@ pub mod sdk_anchor_test {
         let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
             &program_id,
             Some(address),
-            output_merkle_tree_index,
+            output_tree_index,
         );
 
         my_compressed_account.name = name;

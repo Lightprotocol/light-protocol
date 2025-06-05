@@ -1,13 +1,16 @@
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount as ProgramCompressedAccount, CompressedAccountData,
-        CompressedAccountWithMerkleContext, PackedMerkleContext,
+        CompressedAccountWithMerkleContext,
     },
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::{
-    instruction::{merkle_context::PackedAddressMerkleContext, pack_accounts::PackedAccounts},
+    instruction::{
+        merkle_context::{PackedAddressMerkleContext, PackedTreeInfo},
+        pack_accounts::PackedAccounts,
+    },
     token::{AccountState, TokenData},
     verifier::CompressedProof,
     ValidityProof,
@@ -153,31 +156,29 @@ impl AddressProofInputs {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct PackedMerkleTreeAccounts {
-    pub input_merkle_contexts: Vec<PackedMerkleContext>,
-    pub output_merkle_tree_indices: Vec<u8>,
-    pub new_address_merkle_contexts: Vec<PackedAddressMerkleContext>,
+pub struct PackedTreeAccounts {
+    pub packed_tree_infos: Vec<PackedTreeInfo>,
+    pub output_tree_index: Option<u8>,
+    pub packed_new_address_tree_infos: Vec<PackedAddressMerkleContext>,
 }
 
 impl ValidityProofWithContext {
-    pub fn pack_merkle_tree_accounts(
-        &self,
-        packed_accounts: &mut PackedAccounts,
-    ) -> PackedMerkleTreeAccounts {
-        let mut packed_merkle_contexts = Vec::new();
-        let mut packed_address_merkle_contexts = Vec::new();
-        let mut output_merkle_tree_indices = Vec::new();
+    pub fn pack_tree_accounts(&self, packed_accounts: &mut PackedAccounts) -> PackedTreeAccounts {
+        let mut packed_tree_infos = Vec::new();
+        let mut packed_new_address_tree_infos = Vec::new();
+        let mut output_tree_index = None;
         for account in self.accounts.iter() {
             // Pack TreeInfo
             let merkle_tree_pubkey_index = packed_accounts.insert_or_get(account.tree_info.tree);
             let queue_pubkey_index = packed_accounts.insert_or_get(account.tree_info.queue);
-            let merkle_context_packed = PackedMerkleContext {
+            let merkle_context_packed = PackedTreeInfo {
+                root_index: account.root_index.unwrap_or_default(),
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,
                 leaf_index: account.leaf_index as u32,
                 prove_by_index: account.root_index.is_none(),
             };
-            packed_merkle_contexts.push(merkle_context_packed);
+            packed_tree_infos.push(merkle_context_packed);
 
             // If a next Merkle tree exists the Merkle tree is full -> use the next Merkle tree for new state.
             // Else use the current Merkle tree for new state.
@@ -185,7 +186,9 @@ impl ValidityProofWithContext {
                 // SAFETY: account will always have a state Merkle tree context.
                 // get_output_tree_index only panics on an address Merkle tree context.
                 let index = next.get_output_tree_index(packed_accounts).unwrap();
-                output_merkle_tree_indices.push(index);
+                if output_tree_index.is_none() {
+                    output_tree_index = Some(index);
+                }
             } else {
                 // SAFETY: account will always have a state Merkle tree context.
                 // get_output_tree_index only panics on an address Merkle tree context.
@@ -193,7 +196,9 @@ impl ValidityProofWithContext {
                     .tree_info
                     .get_output_tree_index(packed_accounts)
                     .unwrap();
-                output_merkle_tree_indices.push(index);
+                if output_tree_index.is_none() {
+                    output_tree_index = Some(index);
+                }
             }
         }
 
@@ -202,17 +207,17 @@ impl ValidityProofWithContext {
             let address_merkle_tree_pubkey_index =
                 packed_accounts.insert_or_get(address.tree_info.tree);
             let address_queue_pubkey_index = packed_accounts.insert_or_get(address.tree_info.queue);
-            packed_address_merkle_contexts.push(PackedAddressMerkleContext {
+            packed_new_address_tree_infos.push(PackedAddressMerkleContext {
                 address_merkle_tree_pubkey_index,
                 address_queue_pubkey_index,
                 root_index: address.root_index,
             });
         }
 
-        PackedMerkleTreeAccounts {
-            input_merkle_contexts: packed_merkle_contexts,
-            new_address_merkle_contexts: packed_address_merkle_contexts,
-            output_merkle_tree_indices,
+        PackedTreeAccounts {
+            packed_tree_infos,
+            packed_new_address_tree_infos,
+            output_tree_index,
         }
     }
 

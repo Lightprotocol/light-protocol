@@ -57,8 +57,7 @@ pub fn unpack_new_address_params(
 }
 
 pub mod v1 {
-    use light_compressed_account::hashv_to_bn254_field_size_be;
-    use light_hasher::{Hasher, Keccak};
+    use light_hasher::{hash_to_field_size::hashv_to_bn254_field_size_be, Hasher, Keccak};
 
     use crate::Pubkey;
 

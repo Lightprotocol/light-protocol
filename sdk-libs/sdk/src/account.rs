@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use light_compressed_account::{
+    compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
     pubkey::Pubkey,
 };
@@ -52,10 +53,16 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     ) -> Result<Self, LightSdkError> {
         let input_account_info = {
             let input_data_hash = input_account.hash::<Poseidon>()?;
+            let tree_info = input_account_meta.get_tree_info();
             InAccountInfo {
                 data_hash: input_data_hash,
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
-                merkle_context: *input_account_meta.get_merkle_context(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                    queue_pubkey_index: tree_info.queue_pubkey_index,
+                    leaf_index: tree_info.leaf_index,
+                    prove_by_index: tree_info.prove_by_index,
+                },
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
                 discriminator: A::LIGHT_DISCRIMINATOR,
             }
@@ -87,10 +94,16 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     ) -> Result<Self, LightSdkError> {
         let input_account_info = {
             let input_data_hash = input_account.hash::<Poseidon>()?;
+            let tree_info = input_account_meta.get_tree_info();
             InAccountInfo {
                 data_hash: input_data_hash,
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
-                merkle_context: *input_account_meta.get_merkle_context(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                    queue_pubkey_index: tree_info.queue_pubkey_index,
+                    leaf_index: tree_info.leaf_index,
+                    prove_by_index: tree_info.prove_by_index,
+                },
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
                 discriminator: A::LIGHT_DISCRIMINATOR,
             }
