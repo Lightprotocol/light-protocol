@@ -3055,9 +3055,7 @@ where
                         .indexer
                         .get_state_merkle_trees()
                         .iter()
-                        .find(|x| {
-                            x.accounts.merkle_tree == token_account.account.merkle_context.tree
-                        })
+                        .find(|x| x.accounts.merkle_tree == token_account.account.tree_info.tree)
                         .unwrap()
                         .tree_type;
                     token_account.token.mint == mint && tree_version == version
@@ -3073,7 +3071,7 @@ where
                 .indexer
                 .get_state_merkle_trees()
                 .iter()
-                .find(|x| x.accounts.merkle_tree == token_account.account.merkle_context.tree)
+                .find(|x| x.accounts.merkle_tree == token_account.account.tree_info.tree)
                 .unwrap()
                 .tree_type;
 
@@ -3086,9 +3084,7 @@ where
                         .indexer
                         .get_state_merkle_trees()
                         .iter()
-                        .find(|x| {
-                            x.accounts.merkle_tree == token_account.account.merkle_context.tree
-                        })
+                        .find(|x| x.accounts.merkle_tree == token_account.account.tree_info.tree)
                         .unwrap()
                         .tree_type;
                     token_account.token.mint == mint && tree_version == version

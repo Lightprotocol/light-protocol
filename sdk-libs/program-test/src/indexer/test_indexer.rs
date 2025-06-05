@@ -427,7 +427,7 @@ impl Indexer for TestIndexer {
 
             for hash in hashes.iter() {
                 let account = self.get_compressed_account(None, Some(*hash), None).await?;
-                state_merkle_tree_pubkeys.push(account.value.merkle_context.tree);
+                state_merkle_tree_pubkeys.push(account.value.tree_info.tree);
             }
             let mut proof_inputs = vec![];
 
@@ -2034,7 +2034,7 @@ impl TestIndexer {
                 self.get_compressed_account(None, Some(*hash), None)
                     .await?
                     .value
-                    .merkle_context
+                    .tree_info
                     .tree,
             );
         }

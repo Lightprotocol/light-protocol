@@ -1003,7 +1003,7 @@ pub async fn perform_compress_spl_token_account<R: Rpc, I: Indexer + TestIndexer
         program_to_sdk_token_data(expected_token_data)
     );
     assert_eq!(
-        created_compressed_token_account.account.merkle_context.tree,
+        created_compressed_token_account.account.tree_info.tree,
         *merkle_tree_pubkey
     );
     if let Some(remaining_amount) = remaining_amount {

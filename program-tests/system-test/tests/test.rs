@@ -2342,7 +2342,7 @@ async fn batch_invoke_test() {
         let accounts = accounts.value.items;
         let accounts = accounts
             .iter()
-            .filter(|x| x.merkle_context.queue == output_queue_pubkey)
+            .filter(|x| x.tree_info.queue == output_queue_pubkey)
             .collect::<Vec<_>>();
         let compressed_account_with_context_1 = accounts[1].clone();
         // overwrite both output queue batches -> all prior values only exist in the Merkle tree not in the output queue
@@ -2356,7 +2356,7 @@ async fn batch_invoke_test() {
         let account_with_context: CompressedAccountWithMerkleContext =
             compressed_account_with_context_1.clone().into();
         let light_merkle_context = compressed_account_with_context_1
-            .merkle_context
+            .tree_info
             .to_light_merkle_context(compressed_account_with_context_1.leaf_index, true);
 
         let instruction = create_invoke_instruction(
@@ -2365,7 +2365,7 @@ async fn batch_invoke_test() {
             &[account_with_context.compressed_account],
             &output_compressed_accounts,
             &[light_merkle_context],
-            &[compressed_account_with_context_1.merkle_context.queue],
+            &[compressed_account_with_context_1.tree_info.queue],
             &[None],
             &Vec::new(),
             None,

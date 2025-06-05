@@ -454,7 +454,7 @@ pub struct CompressedAccount {
     pub hash: [u8; 32],
     pub lamports: u64,
     pub leaf_index: u32,
-    pub merkle_context: TreeInfo,
+    pub tree_info: TreeInfo,
     pub owner: Pubkey,
     pub prove_by_index: bool,
     pub seq: Option<u64>,
@@ -475,7 +475,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             hash,
             lamports: account.compressed_account.lamports,
             leaf_index: account.merkle_context.leaf_index,
-            merkle_context: TreeInfo {
+            tree_info: TreeInfo {
                 tree: account.merkle_context.merkle_tree_pubkey,
                 queue: account.merkle_context.queue_pubkey,
                 tree_type: account.merkle_context.tree_type,
@@ -500,7 +500,7 @@ impl From<CompressedAccount> for CompressedAccountWithMerkleContext {
         };
 
         let merkle_context = account
-            .merkle_context
+            .tree_info
             .to_light_merkle_context(account.leaf_index, account.prove_by_index);
 
         CompressedAccountWithMerkleContext {
@@ -533,7 +533,7 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
             .transpose()?;
         let hash = decode_base58_to_fixed_array(&account.hash)?;
 
-        let merkle_context = TreeInfo {
+        let tree_info = TreeInfo {
             tree: Pubkey::new_from_array(decode_base58_to_fixed_array(
                 &account.merkle_context.tree,
             )?),
@@ -559,7 +559,7 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
             leaf_index: account.leaf_index,
             seq: account.seq,
             slot_created: account.slot_created,
-            merkle_context,
+            tree_info,
             prove_by_index: account.prove_by_index,
         })
     }
@@ -595,7 +595,7 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
             .get(&account.tree)
             .ok_or(IndexerError::InvalidResponseData)?;
 
-        let merkle_context = TreeInfo {
+        let tree_info = TreeInfo {
             cpi_context: tree_info.cpi_context,
             queue: tree_info.tree,
             tree_type: tree_info.tree_type,
@@ -612,7 +612,7 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
             leaf_index,
             seq,
             slot_created,
-            merkle_context,
+            tree_info,
             prove_by_index: false,
         })
     }

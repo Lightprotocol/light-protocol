@@ -813,7 +813,7 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
                 test_accounts
                     .v2_state_trees
                     .iter()
-                    .any(|y| y.merkle_tree == x.merkle_context.tree)
+                    .any(|y| y.merkle_tree == x.tree_info.tree)
             })
             .collect::<Vec<_>>()
     } else {
@@ -823,7 +823,7 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
                 test_accounts
                     .v1_state_trees
                     .iter()
-                    .any(|y| y.merkle_tree == x.merkle_context.tree)
+                    .any(|y| y.merkle_tree == x.tree_info.tree)
             })
             .collect::<Vec<_>>()
     };
@@ -854,8 +854,8 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
         .iter()
         .map(
             |x| light_compressed_account::compressed_account::MerkleContext {
-                merkle_tree_pubkey: x.merkle_context.tree,
-                queue_pubkey: x.merkle_context.queue,
+                merkle_tree_pubkey: x.tree_info.tree,
+                queue_pubkey: x.tree_info.queue,
                 leaf_index: x.leaf_index,
                 prove_by_index: false,
                 tree_type: TreeType::StateV2,
