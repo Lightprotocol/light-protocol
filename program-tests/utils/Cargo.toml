@@ -16,7 +16,6 @@ anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
 num-traits = { workspace = true }
-solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 thiserror = { workspace = true }
 account-compression = { workspace = true, features = ["cpi"] }
@@ -44,3 +43,4 @@ light-merkle-tree-metadata = { workspace = true }
 reqwest = { workspace = true }
 light-account-checks = { workspace = true }
 light-sparse-merkle-tree = { workspace = true }
+solana-banks-client = { workspace = true }

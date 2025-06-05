@@ -1857,7 +1857,12 @@ async fn batch_invoke_test() {
     create_output_accounts(&mut rpc, &payer, output_queue_pubkey, 1, true)
         .await
         .unwrap();
-
+    let compressed_account_with_context =
+        rpc.indexer.as_ref().unwrap().compressed_accounts[0].clone();
+    println!(
+        "compressed_account_with_context {:?}",
+        compressed_account_with_context
+    );
     let input_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
@@ -2279,7 +2284,7 @@ async fn batch_invoke_test() {
                 x.compressed_account.owner == payer_pubkey
                     && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
-            .last()
+            .next_back()
             .unwrap()
             .clone();
         let result = double_spend_compressed_account(
@@ -2312,7 +2317,7 @@ async fn batch_invoke_test() {
                 x.compressed_account.owner == payer_pubkey
                     && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
-            .last()
+            .next_back()
             .unwrap()
             .clone();
         let result = double_spend_compressed_account(
@@ -2400,7 +2405,7 @@ async fn batch_invoke_test() {
                 x.compressed_account.owner == payer_pubkey
                     && x.merkle_context.queue_pubkey != output_queue_pubkey
             })
-            .last()
+            .next_back()
             .unwrap()
             .clone();
 

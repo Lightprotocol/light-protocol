@@ -37,9 +37,7 @@ light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
 light-account-checks = { workspace = true }
 num-bigint = { workspace = true }
 solana-security-txt = { workspace = true }
-light-batched-merkle-tree = { workspace = true, default-features = false, features = [
-    "solana",
-] }
+light-batched-merkle-tree = { workspace = true, features = ["solana"] }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-zero-copy = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }

@@ -10,17 +10,14 @@ use account_compression::{
 };
 use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_program_test::{
-    accounts::{
-        initialize::get_group_pda, test_accounts::TestAccounts,
-        test_keypairs::OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR,
-    },
-    program_test::LightProgramTest,
+    accounts::{initialize::get_group_pda, test_keypairs::OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR},
+    program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
+    ProgramTestConfig,
 };
 use light_test_utils::{
     airdrop_lamports, registered_program_accounts_v1::get_registered_program_pda, RpcConnection,
 };
-use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -36,19 +33,12 @@ use solana_sdk::{
 /// 5. Cannot add program to group with invalid authority
 #[tokio::test]
 async fn test_create_and_update_group() {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    let system_program_id =
-        Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
-    program_test.add_program("light_system_program_pinocchio", system_program_id, None);
-
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
 
     let seed = Keypair::new();
     let group_accounts = Pubkey::find_program_address(
@@ -334,7 +324,7 @@ async fn test_create_and_update_group() {
             .unwrap();
         let closed_registered_program_account =
             context.get_account(registered_program_pda).await.unwrap();
-        assert!(closed_registered_program_account.is_none());
+        assert_eq!(closed_registered_program_account.unwrap().data.len(), 0);
         let recipient_balance = context.get_balance(&close_recipient).await.unwrap();
         let rent_exemption = context
             .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
@@ -346,8 +336,11 @@ async fn test_create_and_update_group() {
 
 #[tokio::test]
 async fn test_resize_registered_program_pda() {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        ..Default::default()
+    };
+    let mut context = LightProgramTest::new(config).await.unwrap();
     let system_program_id =
         Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
     let registered_program = Pubkey::find_program_address(
@@ -355,14 +348,8 @@ async fn test_resize_registered_program_pda() {
         &account_compression::ID,
     )
     .0;
-    program_test.add_account(registered_program, get_registered_program_pda());
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
-    };
+    context.set_account(&registered_program, &get_registered_program_pda());
+
     let payer = context.get_payer().insecure_clone();
 
     let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
@@ -429,8 +416,11 @@ async fn test_resize_registered_program_pda() {
     {
         let mut account = get_registered_program_pda();
         account.owner = Pubkey::new_unique();
-        let mut program_test = ProgramTest::default();
-        program_test.add_program("account_compression", ID, None);
+        let config = ProgramTestConfig {
+            skip_protocol_init: true,
+            ..Default::default()
+        };
+        let mut context = LightProgramTest::new(config).await.unwrap();
         let system_program_id =
             Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
         let registered_program = Pubkey::find_program_address(
@@ -438,14 +428,7 @@ async fn test_resize_registered_program_pda() {
             &account_compression::ID,
         )
         .0;
-        program_test.add_account(registered_program, account);
-        program_test.set_compute_max_units(1_400_000u64);
-        let context = program_test.start_with_context().await;
-        let mut context = LightProgramTest {
-            context,
-            test_accounts: TestAccounts::get_local_test_validator_accounts(),
-            indexer: None,
-        };
+        context.set_account(&registered_program, &account);
         let payer = context.get_payer().insecure_clone();
 
         let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
@@ -475,8 +458,8 @@ async fn test_resize_registered_program_pda() {
     {
         let mut account = get_registered_program_pda();
         account.data[0..8].copy_from_slice(&[1u8; 8]);
-        let mut program_test = ProgramTest::default();
-        program_test.add_program("account_compression", ID, None);
+        // let mut program_test = ProgramTest::default();
+        // program_test.add_program("account_compression", ID, None);
         let system_program_id =
             Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
         let registered_program = Pubkey::find_program_address(
@@ -484,14 +467,20 @@ async fn test_resize_registered_program_pda() {
             &account_compression::ID,
         )
         .0;
-        program_test.add_account(registered_program, account);
-        program_test.set_compute_max_units(1_400_000u64);
-        let context = program_test.start_with_context().await;
-        let mut context = LightProgramTest {
-            context,
-            test_accounts: TestAccounts::get_local_test_validator_accounts(),
-            indexer: None,
+        let config = ProgramTestConfig {
+            skip_protocol_init: true,
+            ..Default::default()
         };
+        let mut context = LightProgramTest::new(config).await.unwrap();
+        context.set_account(&registered_program, &account);
+        // program_test.add_account(registered_program, account);
+        // program_test.set_compute_max_units(1_400_000u64);
+        // let context = program_test.start_with_context().await;
+        // let mut context = LightProgramTest {
+        //     context,
+        //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        //     indexer: None,
+        // };
         let payer = context.get_payer().insecure_clone();
         let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
         let accounts = account_compression::accounts::ResizeRegisteredProgramPda {

@@ -180,12 +180,16 @@ fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfi
 
 #[tokio::test]
 async fn test_initialize_protocol_config() {
-    let context = setup_light_programs(None).await.unwrap();
-
+    let mut context = setup_light_programs(None).await.unwrap();
+    let payer = Keypair::new();
+    context
+        .airdrop(&payer.pubkey(), 100_000_000_000_000)
+        .unwrap();
     let mut rpc = LightProgramTest {
         context,
         indexer: None,
         test_accounts: TestAccounts::get_program_test_test_accounts(),
+        payer,
     };
     let payer = rpc.get_payer().insecure_clone();
     let program_account_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();

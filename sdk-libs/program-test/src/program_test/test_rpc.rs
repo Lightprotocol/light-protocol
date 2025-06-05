@@ -9,8 +9,8 @@ use light_client::{
 use light_compressed_account::indexer_event::event::{
     BatchPublicTransactionEvent, PublicTransactionEvent,
 };
+use solana_account::Account;
 use solana_sdk::{
-    account::AccountSharedData,
     clock::Slot,
     instruction::Instruction,
     pubkey::Pubkey,
@@ -96,14 +96,14 @@ pub trait TestRpc: RpcConnection + Sized {
         Ok(event)
     }
 
-    fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData);
+    fn set_account(&mut self, address: &Pubkey, account: &Account);
     fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
 }
 
 // Implementation required for E2ETestEnv.
 #[async_trait]
 impl TestRpc for SolanaRpcConnection {
-    fn set_account(&mut self, _address: &Pubkey, _account: &AccountSharedData) {
+    fn set_account(&mut self, _address: &Pubkey, _account: &Account) {
         unimplemented!()
     }
 
@@ -114,13 +114,14 @@ impl TestRpc for SolanaRpcConnection {
 
 #[async_trait]
 impl TestRpc for LightProgramTest {
-    fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData) {
-        self.context.set_account(address, account);
+    fn set_account(&mut self, address: &Pubkey, account: &Account) {
+        self.context
+            .set_account(*address, account.clone())
+            .expect("Setting account failed.");
     }
 
     fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
-        self.context
-            .warp_to_slot(slot)
-            .map_err(|_| RpcError::InvalidWarpSlot)
+        self.context.warp_to_slot(slot);
+        Ok(())
     }
 }

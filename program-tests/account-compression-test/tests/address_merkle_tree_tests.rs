@@ -20,13 +20,9 @@ use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
-    accounts::{
-        address_tree::create_initialize_address_merkle_tree_and_queue_instruction,
-        test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
-    },
-    indexer::address_tree::AddressMerkleTreeBundle,
-    program_test::LightProgramTest,
-    utils::assert::assert_rpc_error,
+    accounts::address_tree::create_initialize_address_merkle_tree_and_queue_instruction,
+    indexer::address_tree::AddressMerkleTreeBundle, program_test::LightProgramTest,
+    utils::assert::assert_rpc_error, ProgramTestConfig,
 };
 use light_test_utils::{
     address::insert_addresses,
@@ -42,7 +38,6 @@ use light_test_utils::{
 };
 use num_bigint::ToBigUint;
 use rand::thread_rng;
-use solana_program_test::ProgramTest;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
@@ -226,16 +221,13 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
 
 #[tokio::test]
 async fn test_address_queue_and_tree_invalid_sizes() {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
-    program_test.set_compute_max_units(1_400_000u64);
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -325,17 +317,13 @@ async fn test_address_queue_and_tree_invalid_sizes() {
 /// 6. Queue sequence threshold (lower than roots + safety margin).
 #[tokio::test]
 async fn test_address_queue_and_tree_invalid_config() {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
-    program_test.set_compute_max_units(1_400_000u64);
-
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -1423,17 +1411,13 @@ pub async fn test_setup_with_address_merkle_tree(
     Keypair,          // payer
     AddressMerkleTreeBundle,
 ) {
-    let mut program_test = ProgramTest::default();
-    program_test.add_program("account_compression", ID, None);
-    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
-    program_test.set_compute_max_units(1_400_000u64);
-
-    let context = program_test.start_with_context().await;
-    let mut context = LightProgramTest {
-        context,
-        test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        indexer: None,
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        ..Default::default()
     };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();

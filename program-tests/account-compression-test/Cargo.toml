@@ -22,7 +22,6 @@ default = ["custom-heap"]
 [dev-dependencies]
 ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
-solana-program-test = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true, features = ["devenv", "program-test"] }
@@ -47,3 +46,4 @@ light-bloom-filter = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-account-checks = { workspace = true }
+litesvm = { workspace = true }

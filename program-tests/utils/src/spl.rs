@@ -30,7 +30,7 @@ use light_compressed_token::{
 use light_hasher::Poseidon;
 use light_program_test::{indexer::TestIndexerExtensions, program_test::TestRpc};
 use light_sdk::token::TokenDataWithMerkleContext;
-use solana_program_test::BanksClientError;
+use solana_banks_client::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,
     program_pack::Pack,
@@ -985,7 +985,7 @@ pub async fn perform_compress_spl_token_account<
         is_token_22,
         token_pool_index,
     );
-    let (event, _, _) = rpc
+    let (event, _, slot) = rpc
         .create_and_send_transaction_with_public_event(
             &[instruction],
             &token_owner.pubkey(),
@@ -993,8 +993,6 @@ pub async fn perform_compress_spl_token_account<
         )
         .await?
         .unwrap();
-    // TODO: replace with get_transaction_slot() this only works with Program test
-    let slot = rpc.get_slot().await.unwrap();
     test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
 
     let created_compressed_token_account = test_indexer

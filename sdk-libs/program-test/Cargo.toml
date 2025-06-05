@@ -28,7 +28,7 @@ light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-client = { workspace = true, features = ["program-test"] }
 forester-utils = { workspace = true }
 light-prover-client = { workspace = true }
-
+litesvm = { workspace = true }
 
 light-registry = { workspace = true, features = ["cpi"] }
 light-compressed-token = { workspace = true, features = ["cpi"] }
@@ -49,6 +49,7 @@ solana-transaction-status-client-types = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }
-solana-program-test = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-instruction = { workspace = true }
+solana-account = { workspace = true }
+solana-compute-budget = { workspace = true }

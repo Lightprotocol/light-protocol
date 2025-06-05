@@ -21,38 +21,22 @@ readonly = []
 
 [dependencies]
 light-concurrent-merkle-tree = { workspace = true, features = ["pinocchio"] }
-light-indexed-merkle-tree = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
+light-indexed-merkle-tree = { workspace = true, features = ["pinocchio"] }
 bytemuck = { workspace = true }
 thiserror = { workspace = true }
 aligned-sized = { workspace = true }
 borsh = { workspace = true }
-light-hasher = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
-light-macros = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
-light-merkle-tree-metadata = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
+light-hasher = { workspace = true, features = ["pinocchio"] }
+light-macros = { workspace = true, features = ["pinocchio"] }
+light-merkle-tree-metadata = { workspace = true, features = ["pinocchio"] }
 
-light-compressed-account = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
-light-verifier = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
+light-compressed-account = { workspace = true, features = ["pinocchio"] }
+light-verifier = { workspace = true, features = ["pinocchio"] }
 solana-security-txt = "1.1.0"
-light-batched-merkle-tree = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
+light-batched-merkle-tree = { workspace = true, features = ["pinocchio"] }
 light-zero-copy = { workspace = true, features = ["pinocchio"] }
 zerocopy = { workspace = true }
-light-account-checks = { workspace = true, default-features = false, features = [
-    "pinocchio",
-] }
+light-account-checks = { workspace = true, features = ["pinocchio"] }
 pinocchio = { workspace = true }
 pinocchio-system = { version = "0.2.3" }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
@@ -62,8 +46,8 @@ rand = { workspace = true }
 light-compressed-account = { workspace = true, features = [
     "pinocchio",
     "new-unique",
-], default-features = false }
-light-account-checks = { workspace = true, default-features = false, features = [
+] }
+light-account-checks = { workspace = true, features = [
     "pinocchio",
     "test-only",
 ] }
