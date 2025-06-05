@@ -1,0 +1,22 @@
+services:
+  redis:
+    image: redis:7.4.4-alpine3.21
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  prover:
+    image: sergeytimoshin/prover-light:1.0.0
+    container_name: prover
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./proving-keys:/proving-keys/:ro
+    command: >
+      start
+      --run-mode forester-test
+      --redis-url=redis://redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped

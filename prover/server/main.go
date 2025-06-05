@@ -444,11 +444,6 @@ func runCli() {
 						Usage: "Run only HTTP server (no queue workers)",
 						Value: false,
 					},
-					&cli.IntFlag{
-						Name:  "queue-workers",
-						Usage: "Number of queue worker goroutines",
-						Value: 1,
-					},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
@@ -481,14 +476,13 @@ func runCli() {
 
 					queueOnly := context.Bool("queue-only")
 					serverOnly := context.Bool("server-only")
-					numWorkers := context.Int("queue-workers")
 
 					enableQueue := redisURL != "" && !serverOnly
 					enableServer := !queueOnly
 
 					if os.Getenv("QUEUE_MODE") == "true" {
 						enableQueue = true
-						if os.Getenv("SERVER _MODE") != "true" {
+						if os.Getenv("SERVER_MODE") != "true" {
 							enableServer = false
 						}
 					}
@@ -497,10 +491,9 @@ func runCli() {
 						Bool("enable_queue", enableQueue).
 						Bool("enable_server", enableServer).
 						Str("redis_url", redisURL).
-						Int("queue_workers", numWorkers).
 						Msg("Starting ZK Prover service")
 
-					var workers []*server.QueueWorker
+					var workers []server.QueueWorker
 					var redisQueue *server.RedisQueue
 					var instance server.RunningJob
 
@@ -514,22 +507,49 @@ func runCli() {
 							return fmt.Errorf("failed to connect to Redis: %w", err)
 						}
 
-						startResultCleanup(redisQueue)
+						startCleanupRoutines(redisQueue)
 
 						if stats, err := redisQueue.GetQueueStats(); err == nil {
 							logging.Logger().Info().Interface("initial_queue_stats", stats).Msg("Redis connection successful")
 						}
 
-						if numWorkers <= 0 {
-							numWorkers = 1
+						logging.Logger().Info().Msg("Starting queue workers")
+
+						startAllWorkers := runMode == prover.Forester || runMode == prover.ForesterTest
+
+						var workersStarted []string
+
+						// Start update worker for batch-update circuits or forester modes
+						if startAllWorkers || containsCircuit(circuits, "update") || containsCircuit(circuits, "update-test") {
+							updateWorker := server.NewUpdateQueueWorker(redisQueue, psv1, psv2)
+							workers = append(workers, updateWorker)
+							go updateWorker.Start()
+							workersStarted = append(workersStarted, "update")
 						}
 
-						logging.Logger().Info().Int("workers", numWorkers).Msg("Starting queue workers")
+						// Start append worker for batch-append circuits or forester modes
+						if startAllWorkers || containsCircuit(circuits, "append-with-proofs") || containsCircuit(circuits, "append-with-proofs-test") {
+							appendWorker := server.NewAppendQueueWorker(redisQueue, psv1, psv2)
+							workers = append(workers, appendWorker)
+							go appendWorker.Start()
+							workersStarted = append(workersStarted, "append")
+						}
 
-						for i := 0; i < numWorkers; i++ {
-							worker := server.NewQueueWorker(i+1, redisQueue, psv1, psv2)
-							workers = append(workers, worker)
-							go worker.Start()
+						// Start address append worker for address-append circuits or forester modes
+						if startAllWorkers || containsCircuit(circuits, "address-append") || containsCircuit(circuits, "address-append-test") {
+							addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, psv1, psv2)
+							workers = append(workers, addressAppendWorker)
+							go addressAppendWorker.Start()
+							workersStarted = append(workersStarted, "address-append")
+						}
+
+						if len(workersStarted) == 0 {
+							logging.Logger().Warn().Msg("No queue workers started - no matching circuits found")
+						} else {
+							logging.Logger().Info().
+								Strs("workers_started", workersStarted).
+								Bool("forester_mode", startAllWorkers).
+								Msg("Queue workers started")
 						}
 					}
 
@@ -931,17 +951,68 @@ func debugProvingSystemKeys(keysDirPath string, runMode prover.RunMode, circuits
 	}
 }
 
-func startResultCleanup(redisQueue *server.RedisQueue) {
-	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
+func startCleanupRoutines(redisQueue *server.RedisQueue) {
+	logging.Logger().Info().Msg("Running immediate cleanup on startup")
 
-		for range ticker.C {
+	if err := redisQueue.CleanupOldRequests(); err != nil {
+		logging.Logger().Error().
+			Err(err).
+			Msg("Failed to cleanup old proof requests on startup")
+	} else {
+		logging.Logger().Info().Msg("Startup cleanup of old proof requests completed")
+	}
+
+	if err := redisQueue.CleanupOldResults(); err != nil {
+		logging.Logger().Error().
+			Err(err).
+			Msg("Failed to cleanup old results on startup")
+	} else {
+		logging.Logger().Info().Msg("Startup cleanup of old results completed")
+	}
+
+	// Start cleanup for old proof requests (every 10 minutes)
+	go func() {
+		requestTicker := time.NewTicker(10 * time.Minute)
+		defer requestTicker.Stop()
+
+		logging.Logger().Info().Msg("Started old proof requests cleanup routine (every 10 minutes)")
+
+		for range requestTicker.C {
+			if err := redisQueue.CleanupOldRequests(); err != nil {
+				logging.Logger().Error().
+					Err(err).
+					Msg("Failed to cleanup old proof requests")
+			} else {
+				logging.Logger().Debug().Msg("Old proof requests cleanup completed")
+			}
+		}
+	}()
+
+	// Start less frequent cleanup for old results (every 1 hour)
+	go func() {
+		resultTicker := time.NewTicker(1 * time.Hour)
+		defer resultTicker.Stop()
+
+		logging.Logger().Info().Msg("Started old results cleanup routine (every 1 hour)")
+
+		for range resultTicker.C {
 			if err := redisQueue.CleanupOldResults(); err != nil {
 				logging.Logger().Error().
 					Err(err).
 					Msg("Failed to cleanup old results")
+			} else {
+				logging.Logger().Debug().Msg("Old results cleanup completed")
 			}
 		}
 	}()
+}
+
+// containsCircuit checks if the circuits slice contains the specified circuit
+func containsCircuit(circuits []string, circuit string) bool {
+	for _, c := range circuits {
+		if c == circuit {
+			return true
+		}
+	}
+	return false
 }

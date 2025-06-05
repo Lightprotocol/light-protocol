@@ -78,7 +78,7 @@ func (rq *RedisQueue) DequeueProof(queueName string, timeout time.Duration) (*Pr
 func (rq *RedisQueue) GetQueueStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 
-	queues := []string{"zk_proof_queue", "zk_priority_queue", "zk_processing_queue", "zk_failed_queue", "zk_results_queue"}
+	queues := []string{"zk_update_queue", "zk_append_queue", "zk_address_append_queue", "zk_update_processing_queue", "zk_append_processing_queue", "zk_address_append_processing_queue", "zk_failed_queue", "zk_results_queue"}
 
 	for _, queue := range queues {
 		length, err := rq.Client.LLen(rq.Ctx, queue).Result()
@@ -186,4 +186,75 @@ func (rq *RedisQueue) CleanupOldResults() error {
 	}
 
 	return nil
+}
+
+func (rq *RedisQueue) CleanupOldRequests() error {
+	cutoffTime := time.Now().Add(-30 * time.Minute)
+	
+	// Queues to clean up old requests from
+	queuesToClean := []string{
+		"zk_update_queue",
+		"zk_append_queue", 
+		"zk_address_append_queue",
+	}
+
+	totalRemoved := int64(0)
+	
+	for _, queueName := range queuesToClean {
+		removed, err := rq.cleanupOldRequestsFromQueue(queueName, cutoffTime)
+		if err != nil {
+			logging.Logger().Error().
+				Err(err).
+				Str("queue", queueName).
+				Msg("Failed to cleanup old requests from queue")
+			continue
+		}
+		totalRemoved += removed
+	}
+
+	if totalRemoved > 0 {
+		logging.Logger().Info().
+			Int64("removed_items", totalRemoved).
+			Time("cutoff_time", cutoffTime).
+			Msg("Cleaned up old proof requests")
+	}
+
+	return nil
+}
+
+func (rq *RedisQueue) cleanupOldRequestsFromQueue(queueName string, cutoffTime time.Time) (int64, error) {
+	items, err := rq.Client.LRange(rq.Ctx, queueName, 0, -1).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get queue items: %w", err)
+	}
+
+	var removedCount int64
+	
+	for _, item := range items {
+		var job ProofJob
+		if json.Unmarshal([]byte(item), &job) == nil {
+			if job.CreatedAt.Before(cutoffTime) {
+				// Remove this old job
+				count, err := rq.Client.LRem(rq.Ctx, queueName, 1, item).Result()
+				if err != nil {
+					logging.Logger().Error().
+						Err(err).
+						Str("job_id", job.ID).
+						Str("queue", queueName).
+						Msg("Failed to remove old job")
+					continue
+				}
+				if count > 0 {
+					removedCount++
+					logging.Logger().Debug().
+						Str("job_id", job.ID).
+						Str("queue", queueName).
+						Time("created_at", job.CreatedAt).
+						Msg("Removed old proof request")
+				}
+			}
+		}
+	}
+
+	return removedCount, nil
 }
