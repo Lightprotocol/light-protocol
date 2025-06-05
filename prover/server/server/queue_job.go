@@ -13,34 +13,80 @@ type ProofJob struct {
 	Type      string          `json:"type"`
 	Payload   json.RawMessage `json:"payload"`
 	CreatedAt time.Time       `json:"created_at"`
-	Priority  int             `json:"priority,omitempty"`
 }
 
-type QueueWorker struct {
-	queue            *RedisQueue
-	provingSystemsV1 []*prover.ProvingSystemV1
-	provingSystemsV2 []*prover.ProvingSystemV2
-	workerID         int
-	stopChan         chan struct{}
+type QueueWorker interface {
+	Start()
+	Stop()
 }
 
-func NewQueueWorker(workerID int, redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1, psv2 []*prover.ProvingSystemV2) *QueueWorker {
-	return &QueueWorker{
-		queue:            redisQueue,
-		provingSystemsV1: psv1,
-		provingSystemsV2: psv2,
-		workerID:         workerID,
-		stopChan:         make(chan struct{}),
+type BaseQueueWorker struct {
+	queue               *RedisQueue
+	provingSystemsV1    []*prover.ProvingSystemV1
+	provingSystemsV2    []*prover.ProvingSystemV2
+	stopChan            chan struct{}
+	queueName           string
+	processingQueueName string
+}
+
+type UpdateQueueWorker struct {
+	*BaseQueueWorker
+}
+
+type AppendQueueWorker struct {
+	*BaseQueueWorker
+}
+
+type AddressAppendQueueWorker struct {
+	*BaseQueueWorker
+}
+
+func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1, psv2 []*prover.ProvingSystemV2) *UpdateQueueWorker {
+	return &UpdateQueueWorker{
+		BaseQueueWorker: &BaseQueueWorker{
+			queue:               redisQueue,
+			provingSystemsV1:    psv1,
+			provingSystemsV2:    psv2,
+			stopChan:            make(chan struct{}),
+			queueName:           "zk_update_queue",
+			processingQueueName: "zk_update_processing_queue",
+		},
 	}
 }
 
-func (w *QueueWorker) Start() {
-	logging.Logger().Info().Int("worker_id", w.workerID).Msg("Starting queue worker")
+func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1, psv2 []*prover.ProvingSystemV2) *AppendQueueWorker {
+	return &AppendQueueWorker{
+		BaseQueueWorker: &BaseQueueWorker{
+			queue:               redisQueue,
+			provingSystemsV1:    psv1,
+			provingSystemsV2:    psv2,
+			stopChan:            make(chan struct{}),
+			queueName:           "zk_append_queue",
+			processingQueueName: "zk_append_processing_queue",
+		},
+	}
+}
+
+func NewAddressAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1, psv2 []*prover.ProvingSystemV2) *AddressAppendQueueWorker {
+	return &AddressAppendQueueWorker{
+		BaseQueueWorker: &BaseQueueWorker{
+			queue:               redisQueue,
+			provingSystemsV1:    psv1,
+			provingSystemsV2:    psv2,
+			stopChan:            make(chan struct{}),
+			queueName:           "zk_address_append_queue",
+			processingQueueName: "zk_address_append_processing_queue",
+		},
+	}
+}
+
+func (w *BaseQueueWorker) Start() {
+	logging.Logger().Info().Str("queue", w.queueName).Msg("Starting queue worker")
 
 	for {
 		select {
 		case <-w.stopChan:
-			logging.Logger().Info().Int("worker_id", w.workerID).Msg("Queue worker stopping")
+			logging.Logger().Info().Str("queue", w.queueName).Msg("Queue worker stopping")
 			return
 		default:
 			w.processJobs()
@@ -48,25 +94,16 @@ func (w *QueueWorker) Start() {
 	}
 }
 
-func (w *QueueWorker) Stop() {
+func (w *BaseQueueWorker) Stop() {
 	close(w.stopChan)
 }
 
-func (w *QueueWorker) processJobs() {
-	job, err := w.queue.DequeueProof("zk_priority_queue", 1*time.Second)
+func (w *BaseQueueWorker) processJobs() {
+	job, err := w.queue.DequeueProof(w.queueName, 5*time.Second)
 	if err != nil {
-		logging.Logger().Error().Err(err).Msg("Error dequeuing from priority queue")
+		logging.Logger().Error().Err(err).Str("queue", w.queueName).Msg("Error dequeuing from queue")
 		time.Sleep(2 * time.Second)
 		return
-	}
-
-	if job == nil {
-		job, err = w.queue.DequeueProof("zk_proof_queue", 5*time.Second)
-		if err != nil {
-			logging.Logger().Error().Err(err).Msg("Error dequeuing from regular queue")
-			time.Sleep(2 * time.Second)
-			return
-		}
 	}
 
 	if job == nil {
@@ -76,8 +113,8 @@ func (w *QueueWorker) processJobs() {
 
 	logging.Logger().Info().
 		Str("job_id", job.ID).
-		Int("worker_id", w.workerID).
 		Str("job_type", job.Type).
+		Str("queue", w.queueName).
 		Msg("Processing proof job")
 
 	processingJob := &ProofJob{
@@ -86,7 +123,7 @@ func (w *QueueWorker) processJobs() {
 		Payload:   job.Payload,
 		CreatedAt: time.Now(),
 	}
-	w.queue.EnqueueProof("zk_processing_queue", processingJob)
+	w.queue.EnqueueProof(w.processingQueueName, processingJob)
 
 	err = w.processProofJob(job)
 	w.removeFromProcessingQueue(job.ID)
@@ -95,14 +132,38 @@ func (w *QueueWorker) processJobs() {
 		logging.Logger().Error().
 			Err(err).
 			Str("job_id", job.ID).
-			Int("worker_id", w.workerID).
+			Str("queue", w.queueName).
 			Msg("Failed to process proof job")
 
 		w.addToFailedQueue(job, err)
 	}
 }
 
-func (w *QueueWorker) processProofJob(job *ProofJob) error {
+func (w *UpdateQueueWorker) Start() {
+	w.BaseQueueWorker.Start()
+}
+
+func (w *UpdateQueueWorker) Stop() {
+	w.BaseQueueWorker.Stop()
+}
+
+func (w *AppendQueueWorker) Start() {
+	w.BaseQueueWorker.Start()
+}
+
+func (w *AppendQueueWorker) Stop() {
+	w.BaseQueueWorker.Stop()
+}
+
+func (w *AddressAppendQueueWorker) Start() {
+	w.BaseQueueWorker.Start()
+}
+
+func (w *AddressAppendQueueWorker) Stop() {
+	w.BaseQueueWorker.Stop()
+}
+
+func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 	proofRequestMeta, err := prover.ParseProofRequestMeta(job.Payload)
 	if err != nil {
 		return fmt.Errorf("failed to parse proof request: %w", err)
@@ -143,7 +204,7 @@ func (w *QueueWorker) processProofJob(job *ProofJob) error {
 	return w.queue.StoreResult(job.ID, proof)
 }
 
-func (w *QueueWorker) processInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
+func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == uint32(meta.NumInputs) &&
@@ -176,7 +237,7 @@ func (w *QueueWorker) processInclusionProof(payload json.RawMessage, meta prover
 	return nil, fmt.Errorf("unsupported version: %d", meta.Version)
 }
 
-func (w *QueueWorker) processNonInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
+func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(meta.NumAddresses) &&
@@ -208,7 +269,7 @@ func (w *QueueWorker) processNonInclusionProof(payload json.RawMessage, meta pro
 	return nil, fmt.Errorf("unsupported address tree height: %d", meta.AddressTreeHeight)
 }
 
-func (w *QueueWorker) processCombinedProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
+func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
 	var ps *prover.ProvingSystemV1
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == meta.NumInputs &&
@@ -241,7 +302,7 @@ func (w *QueueWorker) processCombinedProof(payload json.RawMessage, meta prover.
 	return nil, fmt.Errorf("unsupported address tree height: %d", meta.AddressTreeHeight)
 }
 
-func (w *QueueWorker) processBatchUpdateProof(payload json.RawMessage) (*prover.Proof, error) {
+func (w *BaseQueueWorker) processBatchUpdateProof(payload json.RawMessage) (*prover.Proof, error) {
 	var params prover.BatchUpdateParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch update parameters: %w", err)
@@ -258,7 +319,7 @@ func (w *QueueWorker) processBatchUpdateProof(payload json.RawMessage) (*prover.
 	return nil, fmt.Errorf("no proving system found for batch update with height %d and batch size %d", params.Height, params.BatchSize)
 }
 
-func (w *QueueWorker) processBatchAppendWithProofsProof(payload json.RawMessage) (*prover.Proof, error) {
+func (w *BaseQueueWorker) processBatchAppendWithProofsProof(payload json.RawMessage) (*prover.Proof, error) {
 	var params prover.BatchAppendWithProofsParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch append parameters: %w", err)
@@ -275,7 +336,7 @@ func (w *QueueWorker) processBatchAppendWithProofsProof(payload json.RawMessage)
 	return nil, fmt.Errorf("no proving system found for batch append with height %d and batch size %d", params.Height, params.BatchSize)
 }
 
-func (w *QueueWorker) processBatchAddressAppendProof(payload json.RawMessage) (*prover.Proof, error) {
+func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage) (*prover.Proof, error) {
 	var params prover.BatchAddressAppendParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch address append parameters: %w", err)
@@ -292,29 +353,28 @@ func (w *QueueWorker) processBatchAddressAppendProof(payload json.RawMessage) (*
 	return nil, fmt.Errorf("no proving system found for batch address append with height %d and batch size %d", params.TreeHeight, params.BatchSize)
 }
 
-func (w *QueueWorker) removeFromProcessingQueue(jobID string) {
-	processingQueueLength, _ := w.queue.Client.LLen(w.queue.Ctx, "zk_processing_queue").Result()
+func (w *BaseQueueWorker) removeFromProcessingQueue(jobID string) {
+	processingQueueLength, _ := w.queue.Client.LLen(w.queue.Ctx, w.processingQueueName).Result()
 
 	for i := int64(0); i < processingQueueLength; i++ {
-		item, err := w.queue.Client.LIndex(w.queue.Ctx, "zk_processing_queue", i).Result()
+		item, err := w.queue.Client.LIndex(w.queue.Ctx, w.processingQueueName, i).Result()
 		if err != nil {
 			continue
 		}
 
 		var job ProofJob
 		if json.Unmarshal([]byte(item), &job) == nil && job.ID == jobID+"_processing" {
-			w.queue.Client.LRem(w.queue.Ctx, "zk_processing_queue", 1, item)
+			w.queue.Client.LRem(w.queue.Ctx, w.processingQueueName, 1, item)
 			break
 		}
 	}
 }
 
-func (w *QueueWorker) addToFailedQueue(job *ProofJob, err error) {
+func (w *BaseQueueWorker) addToFailedQueue(job *ProofJob, err error) {
 	failedJob := map[string]interface{}{
 		"original_job": job,
 		"error":        err.Error(),
 		"failed_at":    time.Now(),
-		"worker_id":    w.workerID,
 	}
 
 	failedData, _ := json.Marshal(failedJob)

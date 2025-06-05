@@ -98,20 +98,48 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		Msg("Job found but not completed")
 
 	response := map[string]interface{}{
-		"job_id":  jobID,
-		"status":  jobStatus,
-		"message": getStatusMessage(jobStatus),
+		"job_id": jobID,
+		"status": jobStatus,
 	}
 
-	if jobInfo != nil {
-		if createdAt, ok := jobInfo["created_at"]; ok {
-			response["created_at"] = createdAt
+	// Handle failed jobs specially - extract actual error details
+	if jobStatus == "failed" && jobInfo != nil {
+		if payloadRaw, ok := jobInfo["payload"]; ok {
+			if payloadStr, ok := payloadRaw.(string); ok {
+				var failureDetails map[string]interface{}
+				if err := json.Unmarshal([]byte(payloadStr), &failureDetails); err == nil {
+					if errorMsg, ok := failureDetails["error"].(string); ok {
+						response["message"] = fmt.Sprintf("Job processing failed: %s", errorMsg)
+						response["error"] = errorMsg
+					}
+					if failedAt, ok := failureDetails["failed_at"]; ok {
+						response["failed_at"] = failedAt
+					}
+					if originalJob, ok := failureDetails["original_job"].(map[string]interface{}); ok {
+						if circuitType, ok := originalJob["circuit_type"]; ok {
+							response["circuit_type"] = circuitType
+						}
+					}
+				} else {
+					response["message"] = "Job processing failed. Unable to parse failure details."
+				}
+			} else {
+				response["message"] = "Job processing failed. Unable to access failure details."
+			}
+		} else {
+			response["message"] = "Job processing failed. No failure details available."
 		}
-		if circuitType, ok := jobInfo["circuit_type"]; ok {
-			response["circuit_type"] = circuitType
-		}
-		if priority, ok := jobInfo["priority"]; ok {
-			response["priority"] = priority
+	} else {
+		// Use generic message for non-failed jobs
+		response["message"] = getStatusMessage(jobStatus)
+
+		if jobInfo != nil {
+			if createdAt, ok := jobInfo["created_at"]; ok {
+				response["created_at"] = createdAt
+			}
+			if circuitType, ok := jobInfo["circuit_type"]; ok {
+				response["circuit_type"] = circuitType
+			}
 		}
 	}
 
@@ -141,15 +169,27 @@ func getStatusMessage(status string) string {
 }
 
 func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, string, map[string]interface{}) {
-	if job, found := handler.findJobInQueue("zk_proof_queue", jobID); found {
+	if job, found := handler.findJobInQueue("zk_update_queue", jobID); found {
 		return true, "queued", job
 	}
 
-	if job, found := handler.findJobInQueue("zk_priority_queue", jobID); found {
+	if job, found := handler.findJobInQueue("zk_append_queue", jobID); found {
 		return true, "queued", job
 	}
 
-	if job, found := handler.findJobInQueue("zk_processing_queue", jobID); found {
+	if job, found := handler.findJobInQueue("zk_address_append_queue", jobID); found {
+		return true, "queued", job
+	}
+
+	if job, found := handler.findJobInQueue("zk_update_processing_queue", jobID); found {
+		return true, "processing", job
+	}
+
+	if job, found := handler.findJobInQueue("zk_append_processing_queue", jobID); found {
+		return true, "processing", job
+	}
+
+	if job, found := handler.findJobInQueue("zk_address_append_processing_queue", jobID); found {
 		return true, "processing", job
 	}
 
@@ -180,10 +220,12 @@ func (handler proofStatusHandler) findJobInQueue(queueName, jobID string) (map[s
 
 				jobInfo := map[string]interface{}{
 					"created_at": job.CreatedAt,
-					"priority":   job.Priority,
 				}
 
+				// Include payload for all jobs, especially important for failed jobs
 				if len(job.Payload) > 0 {
+					jobInfo["payload"] = string(job.Payload)
+
 					var meta map[string]interface{}
 					if json.Unmarshal(job.Payload, &meta) == nil {
 						if circuitType, ok := meta["circuit_type"]; ok {
@@ -247,27 +289,38 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	forceAsync := r.Header.Get("X-Async") == "true" || r.URL.Query().Get("async") == "true"
 	forceSync := r.Header.Get("X-Sync") == "true" || r.URL.Query().Get("sync") == "true"
-	priority := r.Header.Get("X-Priority") == "true" || r.URL.Query().Get("priority") == "true"
 
-	shouldUseQueue := handler.shouldUseQueueForCircuit(proofRequestMeta.CircuitType, forceAsync, forceSync, priority)
+	shouldUseQueue := handler.shouldUseQueueForCircuit(proofRequestMeta.CircuitType, forceAsync, forceSync)
 
 	logging.Logger().Info().
 		Str("circuit_type", string(proofRequestMeta.CircuitType)).
 		Bool("force_async", forceAsync).
 		Bool("force_sync", forceSync).
-		Bool("priority", priority).
 		Bool("use_queue", shouldUseQueue).
 		Bool("queue_available", handler.enableQueue && handler.redisQueue != nil).
 		Msg("Processing prove request")
 
 	if shouldUseQueue && handler.enableQueue && handler.redisQueue != nil {
-		handler.handleAsyncProof(w, r, buf, priority, proofRequestMeta)
+		handler.handleAsyncProof(w, r, buf, proofRequestMeta)
 	} else {
 		handler.handleSyncProof(w, r, buf, proofRequestMeta)
 	}
 }
 
-func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitType, forceAsync, forceSync, priority bool) bool {
+func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitType, forceAsync, forceSync bool) bool {
+	if !handler.enableQueue || handler.redisQueue == nil {
+		return false
+	}
+
+	// Always use queue for batch operations when queue is available
+	// This prevents cross-contamination in clustered deployments
+	if circuitType == prover.BatchUpdateCircuitType ||
+		circuitType == prover.BatchAppendWithProofsCircuitType ||
+		circuitType == prover.BatchAddressAppendCircuitType {
+		return true
+	}
+
+	// For non-batch operations, respect sync/async preferences
 	if forceAsync {
 		return true
 	}
@@ -275,21 +328,8 @@ func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitT
 		return false
 	}
 
-	if priority {
-		return true
-	}
-
-	if !handler.enableQueue || handler.redisQueue == nil {
-		return false
-	}
-
-	if circuitType == prover.InclusionCircuitType ||
-		circuitType == prover.NonInclusionCircuitType ||
-		circuitType == prover.CombinedCircuitType {
-		return false
-	}
-
-	return true
+	// Non-batch operations default to local processing
+	return false
 }
 
 type queueStatsHandler struct {
@@ -310,8 +350,8 @@ func (handler queueStatsHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 	response := map[string]interface{}{
 		"queues":        stats,
-		"total_pending": stats["zk_proof_queue"] + stats["zk_priority_queue"],
-		"total_active":  stats["zk_processing_queue"],
+		"total_pending": stats["zk_update_queue"] + stats["zk_append_queue"] + stats["zk_address_append_queue"],
+		"total_active":  stats["zk_update_processing_queue"] + stats["zk_append_processing_queue"] + stats["zk_address_append_processing_queue"],
 		"total_failed":  stats["zk_failed_queue"],
 		"timestamp":     time.Now().Unix(),
 	}
@@ -372,24 +412,15 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 			}
 
 			jobID := uuid.New().String()
-			priority := r.Header.Get("X-Priority") == "true"
 
 			job := &ProofJob{
 				ID:        jobID,
 				Type:      "zk_proof",
 				Payload:   json.RawMessage(buf),
 				CreatedAt: time.Now(),
-				Priority:  0,
 			}
 
-			if priority {
-				job.Priority = 1
-			}
-
-			queueName := "zk_proof_queue"
-			if priority {
-				queueName = "zk_priority_queue"
-			}
+			queueName := GetQueueNameForCircuit(proofRequestMeta.CircuitType)
 
 			err = redisQueue.EnqueueProof(queueName, job)
 			if err != nil {
@@ -402,7 +433,6 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 				"status":       "queued",
 				"queue":        queueName,
 				"circuit_type": string(proofRequestMeta.CircuitType),
-				"priority":     priority,
 				"message":      fmt.Sprintf("Job queued in %s", queueName),
 			}
 
@@ -419,7 +449,6 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 			"Authorization",
 			"X-Async",
 			"X-Sync",
-			"X-Priority",
 		}),
 		handlers.AllowedOrigins([]string{"*"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
@@ -510,7 +539,7 @@ func spawnServerJob(server *http.Server, label string) RunningJob {
 type healthHandler struct {
 }
 
-func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, priority bool, meta prover.ProofRequestMeta) {
+func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta prover.ProofRequestMeta) {
 	jobID := uuid.New().String()
 
 	job := &ProofJob{
@@ -518,17 +547,9 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		Type:      "zk_proof",
 		Payload:   json.RawMessage(buf),
 		CreatedAt: time.Now(),
-		Priority:  0,
 	}
 
-	if priority {
-		job.Priority = 1
-	}
-
-	queueName := "zk_proof_queue"
-	if priority {
-		queueName = "zk_priority_queue"
-	}
+	queueName := GetQueueNameForCircuit(meta.CircuitType)
 
 	err := handler.redisQueue.EnqueueProof(queueName, job)
 	if err != nil {
@@ -555,7 +576,6 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		"job_id":         jobID,
 		"status":         "queued",
 		"circuit_type":   string(meta.CircuitType),
-		"priority":       priority,
 		"queue":          queueName,
 		"estimated_time": estimatedTime,
 		"status_url":     fmt.Sprintf("/prove/status?job_id=%s", jobID),
@@ -650,6 +670,19 @@ func (handler proveHandler) isBatchOperation(circuitType prover.CircuitType) boo
 		return true
 	default:
 		return false
+	}
+}
+
+func GetQueueNameForCircuit(circuitType prover.CircuitType) string {
+	switch circuitType {
+	case prover.BatchUpdateCircuitType:
+		return "zk_update_queue"
+	case prover.BatchAppendWithProofsCircuitType:
+		return "zk_append_queue"
+	case prover.BatchAddressAppendCircuitType:
+		return "zk_address_append_queue"
+	default:
+		return "zk_update_queue"
 	}
 }
 
