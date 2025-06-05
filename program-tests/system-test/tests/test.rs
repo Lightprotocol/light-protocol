@@ -42,7 +42,7 @@ use light_test_utils::{
     },
     test_batch_forester::perform_batch_append,
     test_keypairs::for_regenerate_accounts,
-    FeeConfig, RpcConnection, RpcError, TransactionParams,
+    FeeConfig, Rpc, RpcError, TransactionParams,
 };
 use quote::format_ident;
 use serial_test::serial;
@@ -308,7 +308,7 @@ pub async fn failing_transaction_inputs(
     Ok(())
 }
 
-pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
+pub async fn failing_transaction_inputs_inner<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     env: &TestAccounts,
@@ -569,7 +569,7 @@ fn create_address_test_inputs(
     (new_address_params, derived_addresses)
 }
 
-pub async fn failing_transaction_address<R: RpcConnection>(
+pub async fn failing_transaction_address<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     env: &TestAccounts,
@@ -689,7 +689,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
 /// 2. data but signer is not a program
 /// 3. invalid output Merkle tree
 /// 4. address that doesn't exist
-pub async fn failing_transaction_output<R: RpcConnection>(
+pub async fn failing_transaction_output<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     env: &TestAccounts,
@@ -824,7 +824,7 @@ pub async fn perform_tx_with_output_compressed_accounts(
     assert_rpc_error(result, 0, expected_error_code)
 }
 
-pub async fn create_instruction_and_failing_transaction<R: RpcConnection>(
+pub async fn create_instruction_and_failing_transaction<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     inputs_struct: InstructionDataInvoke,
@@ -2190,14 +2190,9 @@ async fn batch_invoke_test() {
         );
         println!("Combined Transaction with index and zkp -------------------------");
 
-        RpcConnection::create_and_send_transaction(
-            &mut rpc,
-            &[instruction],
-            &payer_pubkey,
-            &[&payer],
-        )
-        .await
-        .unwrap();
+        Rpc::create_and_send_transaction(&mut rpc, &[instruction], &payer_pubkey, &[&payer])
+            .await
+            .unwrap();
     }
     create_compressed_accounts_in_batch_merkle_tree(&mut rpc, &payer, output_queue_pubkey)
         .await
@@ -2448,7 +2443,7 @@ pub enum TestMode {
     ByZkpThenZkp,
 }
 
-pub async fn double_spend_compressed_account<R: RpcConnection + Indexer + TestRpc>(
+pub async fn double_spend_compressed_account<R: Rpc + Indexer + TestRpc>(
     rpc: &mut R,
     payer: &Keypair,
     mode: TestMode,

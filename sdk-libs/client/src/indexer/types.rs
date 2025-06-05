@@ -1,11 +1,13 @@
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
+        PackedMerkleContext,
     },
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::{
+    instruction::{merkle_context::PackedAddressMerkleContext, pack_accounts::PackedAccounts},
     token::{AccountState, TokenData},
     verifier::CompressedProof,
     ValidityProof,
@@ -99,7 +101,7 @@ pub struct AccountProofInputs {
     pub root: [u8; 32],
     pub root_index: Option<u16>,
     pub leaf_index: u64,
-    pub merkle_context: MerkleContext,
+    pub tree_info: TreeInfo,
 }
 
 impl AccountProofInputs {
@@ -124,7 +126,7 @@ impl AccountProofInputs {
             root: decode_base58_to_fixed_array(&value.root)?,
             root_index,
             leaf_index: value.leaf_index,
-            merkle_context: MerkleContext::from_api_model(&value.merkle_context)?,
+            tree_info: TreeInfo::from_api_model(&value.merkle_context)?,
         })
     }
 }
@@ -134,7 +136,7 @@ pub struct AddressProofInputs {
     pub address: [u8; 32],
     pub root: [u8; 32],
     pub root_index: u16,
-    pub merkle_context: MerkleContext,
+    pub tree_info: TreeInfo,
 }
 
 impl AddressProofInputs {
@@ -145,12 +147,75 @@ impl AddressProofInputs {
             address: decode_base58_to_fixed_array(&value.address)?,
             root: decode_base58_to_fixed_array(&value.root)?,
             root_index: value.root_index,
-            merkle_context: MerkleContext::from_api_model(&value.merkle_context)?,
+            tree_info: TreeInfo::from_api_model(&value.merkle_context)?,
         })
     }
 }
 
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct PackedMerkleTreeAccounts {
+    pub input_merkle_contexts: Vec<PackedMerkleContext>,
+    pub output_merkle_tree_indices: Vec<u8>,
+    pub new_address_merkle_contexts: Vec<PackedAddressMerkleContext>,
+}
+
 impl ValidityProofWithContext {
+    pub fn pack_merkle_tree_accounts(
+        &self,
+        packed_accounts: &mut PackedAccounts,
+    ) -> PackedMerkleTreeAccounts {
+        let mut packed_merkle_contexts = Vec::new();
+        let mut packed_address_merkle_contexts = Vec::new();
+        let mut output_merkle_tree_indices = Vec::new();
+        for account in self.accounts.iter() {
+            // Pack TreeInfo
+            let merkle_tree_pubkey_index = packed_accounts.insert_or_get(account.tree_info.tree);
+            let queue_pubkey_index = packed_accounts.insert_or_get(account.tree_info.queue);
+            let merkle_context_packed = PackedMerkleContext {
+                merkle_tree_pubkey_index,
+                queue_pubkey_index,
+                leaf_index: account.leaf_index as u32,
+                prove_by_index: account.root_index.is_none(),
+            };
+            packed_merkle_contexts.push(merkle_context_packed);
+
+            // If a next Merkle tree exists the Merkle tree is full -> use the next Merkle tree for new state.
+            // Else use the current Merkle tree for new state.
+            if let Some(next) = account.tree_info.next_tree_info {
+                // SAFETY: account will always have a state Merkle tree context.
+                // get_output_tree_index only panics on an address Merkle tree context.
+                let index = next.get_output_tree_index(packed_accounts).unwrap();
+                output_merkle_tree_indices.push(index);
+            } else {
+                // SAFETY: account will always have a state Merkle tree context.
+                // get_output_tree_index only panics on an address Merkle tree context.
+                let index = account
+                    .tree_info
+                    .get_output_tree_index(packed_accounts)
+                    .unwrap();
+                output_merkle_tree_indices.push(index);
+            }
+        }
+
+        for address in self.addresses.iter() {
+            // Pack AddressMerkleContext
+            let address_merkle_tree_pubkey_index =
+                packed_accounts.insert_or_get(address.tree_info.tree);
+            let address_queue_pubkey_index = packed_accounts.insert_or_get(address.tree_info.queue);
+            packed_address_merkle_contexts.push(PackedAddressMerkleContext {
+                address_merkle_tree_pubkey_index,
+                address_queue_pubkey_index,
+                root_index: address.root_index,
+            });
+        }
+
+        PackedMerkleTreeAccounts {
+            input_merkle_contexts: packed_merkle_contexts,
+            new_address_merkle_contexts: packed_address_merkle_contexts,
+            output_merkle_tree_indices,
+        }
+    }
+
     pub fn from_api_model(
         value: photon_api::models::CompressedProofWithContext,
         num_hashes: usize,
@@ -187,12 +252,12 @@ impl ValidityProofWithContext {
                     root: decode_base58_to_fixed_array(&value.roots[i])?,
                     root_index: Some(value.root_indices[i] as u16),
                     leaf_index: value.leaf_indices[i] as u64,
-                    merkle_context: MerkleContext {
+                    tree_info: TreeInfo {
                         tree_type: tree_info.tree_type,
                         tree: tree_pubkey,
                         queue: tree_info.queue,
                         cpi_context: None,
-                        next_tree_context: None,
+                        next_tree_info: None,
                     },
                 })
             })
@@ -213,12 +278,12 @@ impl ValidityProofWithContext {
                         address: decode_base58_to_fixed_array(&value.leaves[i])?, // Address is in leaves
                         root: decode_base58_to_fixed_array(&value.roots[i])?,
                         root_index: value.root_indices[i] as u16,
-                        merkle_context: MerkleContext {
+                        tree_info: TreeInfo {
                             tree_type: tree_info.tree_type,
                             tree: tree_pubkey,
                             queue: tree_info.queue,
                             cpi_context: tree_info.cpi_context,
-                            next_tree_context: None,
+                            next_tree_info: None,
                         },
                     })
                 })
@@ -276,50 +341,81 @@ impl ValidityProofWithContext {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct TreeContextInfo {
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+pub struct NextTreeInfo {
     pub cpi_context: Option<Pubkey>,
-    pub queue: Pubkey,
-    pub tree: Pubkey,
-    pub tree_type: u16,
-}
-
-impl TreeContextInfo {
-    pub fn from_api_model(
-        value: &photon_api::models::compressed_proof_with_context_v2::TreeContextInfo,
-    ) -> Result<Self, IndexerError> {
-        Ok(Self {
-            tree_type: value.tree_type,
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
-            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
-        })
-    }
-}
-
-impl TryFrom<&photon_api::models::TreeContextInfo> for TreeContextInfo {
-    type Error = IndexerError;
-
-    fn try_from(value: &photon_api::models::TreeContextInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
-            tree_type: value.tree_type,
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
-            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
-        })
-    }
-}
-
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct MerkleContext {
-    pub cpi_context: Option<Pubkey>,
-    pub next_tree_context: Option<TreeContextInfo>,
     pub queue: Pubkey,
     pub tree: Pubkey,
     pub tree_type: TreeType,
 }
 
-impl MerkleContext {
+impl NextTreeInfo {
+    /// Get the index of the output tree in the packed accounts.
+    /// For StateV1, it returns the index of the tree account.
+    /// For StateV2, it returns the index of the queue account.
+    /// (For V2 trees new state is inserted into the output queue.
+    /// The forester updates the tree from the queue asynchronously.)
+    pub fn get_output_tree_index(
+        &self,
+        packed_accounts: &mut PackedAccounts,
+    ) -> Result<u8, IndexerError> {
+        match self.tree_type {
+            TreeType::StateV1 => Ok(packed_accounts.insert_or_get(self.tree)),
+            TreeType::StateV2 => Ok(packed_accounts.insert_or_get(self.queue)),
+            _ => Err(IndexerError::InvalidPackTreeType),
+        }
+    }
+    pub fn from_api_model(
+        value: &photon_api::models::compressed_proof_with_context_v2::TreeContextInfo,
+    ) -> Result<Self, IndexerError> {
+        Ok(Self {
+            tree_type: TreeType::from(value.tree_type as u64),
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
+            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
+        })
+    }
+}
+
+impl TryFrom<&photon_api::models::TreeContextInfo> for NextTreeInfo {
+    type Error = IndexerError;
+
+    fn try_from(value: &photon_api::models::TreeContextInfo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            tree_type: TreeType::from(value.tree_type as u64),
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
+            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+pub struct TreeInfo {
+    pub cpi_context: Option<Pubkey>,
+    pub next_tree_info: Option<NextTreeInfo>,
+    pub queue: Pubkey,
+    pub tree: Pubkey,
+    pub tree_type: TreeType,
+}
+
+impl TreeInfo {
+    /// Get the index of the output tree in the packed accounts.
+    /// For StateV1, it returns the index of the tree account.
+    /// For StateV2, it returns the index of the queue account.
+    /// (For V2 trees new state is inserted into the output queue.
+    /// The forester updates the tree from the queue asynchronously.)
+    pub fn get_output_tree_index(
+        &self,
+        packed_accounts: &mut PackedAccounts,
+    ) -> Result<u8, IndexerError> {
+        match self.tree_type {
+            TreeType::StateV1 => Ok(packed_accounts.insert_or_get(self.tree)),
+            TreeType::StateV2 => Ok(packed_accounts.insert_or_get(self.queue)),
+            _ => Err(IndexerError::InvalidPackTreeType),
+        }
+    }
+
     pub fn from_api_model(
         value: &photon_api::models::compressed_proof_with_context_v2::MerkleContextV2,
     ) -> Result<Self, IndexerError> {
@@ -328,10 +424,10 @@ impl MerkleContext {
             tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
             queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
             cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
-            next_tree_context: value
+            next_tree_info: value
                 .next_tree_context
                 .as_ref()
-                .map(TreeContextInfo::from_api_model)
+                .map(NextTreeInfo::from_api_model)
                 .transpose()?,
         })
     }
@@ -358,7 +454,7 @@ pub struct Account {
     pub hash: [u8; 32],
     pub lamports: u64,
     pub leaf_index: u32,
-    pub merkle_context: MerkleContext,
+    pub merkle_context: TreeInfo,
     pub owner: Pubkey,
     pub prove_by_index: bool,
     pub seq: Option<u64>,
@@ -379,12 +475,12 @@ impl TryFrom<CompressedAccountWithMerkleContext> for Account {
             hash,
             lamports: account.compressed_account.lamports,
             leaf_index: account.merkle_context.leaf_index,
-            merkle_context: MerkleContext {
+            merkle_context: TreeInfo {
                 tree: account.merkle_context.merkle_tree_pubkey,
                 queue: account.merkle_context.queue_pubkey,
                 tree_type: account.merkle_context.tree_type,
                 cpi_context: None,
-                next_tree_context: None,
+                next_tree_info: None,
             },
             owner: account.compressed_account.owner,
             prove_by_index: account.merkle_context.prove_by_index,
@@ -437,7 +533,7 @@ impl TryFrom<&photon_api::models::AccountV2> for Account {
             .transpose()?;
         let hash = decode_base58_to_fixed_array(&account.hash)?;
 
-        let merkle_context = MerkleContext {
+        let merkle_context = TreeInfo {
             tree: Pubkey::new_from_array(decode_base58_to_fixed_array(
                 &account.merkle_context.tree,
             )?),
@@ -446,11 +542,11 @@ impl TryFrom<&photon_api::models::AccountV2> for Account {
             )?),
             tree_type: TreeType::from(account.merkle_context.tree_type as u64),
             cpi_context: decode_base58_option_to_pubkey(&account.merkle_context.cpi_context)?,
-            next_tree_context: account
+            next_tree_info: account
                 .merkle_context
                 .next_tree_context
                 .as_ref()
-                .map(|ctx| TreeContextInfo::try_from(ctx.as_ref()))
+                .map(|ctx| NextTreeInfo::try_from(ctx.as_ref()))
                 .transpose()?,
         };
 
@@ -499,11 +595,11 @@ impl TryFrom<&photon_api::models::Account> for Account {
             .get(&account.tree)
             .ok_or(IndexerError::InvalidResponseData)?;
 
-        let merkle_context = MerkleContext {
+        let merkle_context = TreeInfo {
             cpi_context: tree_info.cpi_context,
             queue: tree_info.tree,
             tree_type: tree_info.tree_type,
-            next_tree_context: None,
+            next_tree_info: None,
             tree: tree_info.tree,
         };
 
@@ -541,6 +637,19 @@ pub struct StateMerkleTreeAccounts {
     pub merkle_tree: Pubkey,
     pub nullifier_queue: Pubkey,
     pub cpi_context: Pubkey,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<TreeInfo> for StateMerkleTreeAccounts {
+    fn into(self) -> TreeInfo {
+        TreeInfo {
+            tree: self.merkle_tree,
+            queue: self.nullifier_queue,
+            cpi_context: Some(self.cpi_context),
+            tree_type: TreeType::StateV1,
+            next_tree_info: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

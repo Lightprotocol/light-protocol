@@ -1,7 +1,7 @@
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::TreeType;
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
@@ -41,7 +41,7 @@ impl Forester {
 
     pub async fn report_work(
         &mut self,
-        rpc: &mut impl RpcConnection,
+        rpc: &mut impl Rpc,
         forester_keypair: &Keypair,
         derivation: &Pubkey,
     ) -> Result<Signature, RpcError> {
@@ -292,7 +292,7 @@ pub struct EpochRegistration {
 impl Epoch {
     /// returns slots until next epoch and that epoch
     /// registration is open if
-    pub async fn slots_until_next_epoch_registration<R: RpcConnection>(
+    pub async fn slots_until_next_epoch_registration<R: Rpc>(
         rpc: &mut R,
         protocol_config: &ProtocolConfig,
     ) -> Result<EpochRegistration, RpcError> {
@@ -325,7 +325,7 @@ impl Epoch {
     }
 
     /// creates forester account and fetches epoch account
-    pub async fn register<R: RpcConnection>(
+    pub async fn register<R: Rpc>(
         rpc: &mut R,
         protocol_config: &ProtocolConfig,
         authority: &Keypair,
@@ -372,7 +372,7 @@ impl Epoch {
     /// -> fetch accounts and init
     pub fn fetch_registered() {}
 
-    pub async fn fetch_account_and_add_trees_with_schedule<R: RpcConnection>(
+    pub async fn fetch_account_and_add_trees_with_schedule<R: Rpc>(
         &mut self,
         rpc: &mut R,
         trees: &[TreeAccounts],

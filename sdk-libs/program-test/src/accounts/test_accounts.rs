@@ -1,5 +1,6 @@
 use forester_utils::forester_epoch::Epoch;
-use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TreeInfo};
+use light_compressed_account::TreeType;
 use light_registry::{
     account_compression_cpi::sdk::get_registered_program_pda,
     sdk::create_register_program_instruction,
@@ -32,6 +33,18 @@ pub struct StateMerkleTreeAccountsV2 {
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
     pub cpi_context: Pubkey,
+}
+
+impl From<StateMerkleTreeAccountsV2> for TreeInfo {
+    fn from(value: StateMerkleTreeAccountsV2) -> Self {
+        TreeInfo {
+            tree: value.merkle_tree,
+            queue: value.output_queue,
+            cpi_context: Some(value.cpi_context),
+            tree_type: TreeType::StateV2,
+            next_tree_info: None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -93,11 +106,11 @@ impl TestAccounts {
             light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
         );
 
-        let address_merkle_tree_keypair =
-            Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap();
+        // let address_merkle_tree_keypair =
+        //     Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap();
 
-        let address_merkle_tree_queue_keypair =
-            Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
+        // let address_merkle_tree_queue_keypair =
+        //     Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
 
         let cpi_context_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
         let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
@@ -121,8 +134,8 @@ impl TestAccounts {
                 cpi_context: cpi_context_keypair.pubkey(),
             }],
             v1_address_trees: vec![AddressMerkleTreeAccounts {
-                merkle_tree: address_merkle_tree_keypair.pubkey(),
-                queue: address_merkle_tree_queue_keypair.pubkey(),
+                merkle_tree: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
+                queue: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
             }],
             v2_state_trees: vec![StateMerkleTreeAccountsV2 {
                 merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)

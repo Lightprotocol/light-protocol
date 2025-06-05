@@ -15,7 +15,7 @@ use forester_utils::{instructions::create_account_instruction, utils::airdrop_la
 use light_client::{
     indexer::Indexer,
     local_test_validator::{spawn_validator, LightValidatorConfig},
-    rpc::rpc_connection::RpcConnectionConfig,
+    rpc::RpcConfig,
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -61,7 +61,7 @@ use light_test_utils::{
         mint_tokens_helper_with_lamports, mint_wrapped_sol, perform_compress_spl_token_account,
         revoke_test, thaw_test, BurnInstructionMode,
     },
-    RpcConnection, RpcError, SolanaRpcConnection,
+    LightClient, Rpc, RpcError,
 };
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
@@ -526,7 +526,7 @@ pub enum FailingTestsAddTokenPool {
     InvalidTokenProgramId,
 }
 
-pub async fn add_token_pool<R: RpcConnection>(
+pub async fn add_token_pool<R: Rpc>(
     rpc: &mut R,
     fee_payer: &Keypair,
     mint: &Pubkey,
@@ -1510,10 +1510,7 @@ async fn test_decompression() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn mint_tokens_to_all_token_pools<
-    R: RpcConnection,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn mint_tokens_to_all_token_pools<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
@@ -1553,7 +1550,7 @@ pub async fn mint_tokens_to_all_token_pools<
 }
 
 /// Assert that every token pool account contains `amount` tokens.
-pub async fn assert_minted_to_all_token_pools<R: RpcConnection>(
+pub async fn assert_minted_to_all_token_pools<R: Rpc>(
     rpc: &mut R,
     amount: u64,
     mint: &Pubkey,
@@ -4727,7 +4724,7 @@ async fn test_failing_decompression() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn failing_compress_decompress<R: RpcConnection + Indexer>(
+pub async fn failing_compress_decompress<R: Rpc + Indexer>(
     payer: &Keypair,
     rpc: &mut R,
     input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
@@ -5232,7 +5229,7 @@ async fn test_invalid_inputs() {
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_transfer_failing_test<R: RpcConnection>(
+async fn perform_transfer_failing_test<R: Rpc>(
     rpc: &mut R,
     change_token_transfer_output: TokenTransferOutputData,
     transfer_recipient_token_transfer_output: TokenTransferOutputData,
@@ -5467,7 +5464,9 @@ async fn test_transfer_with_photon_and_batched_tree() {
     })
     .await;
 
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig::local_no_indexer());
+    let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+        .await
+        .unwrap();
     let env = TestAccounts::get_local_test_validator_accounts();
     let keypairs = TestKeypairs::program_test_default();
     // Deterministic keypair

@@ -30,6 +30,7 @@ pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 pub mod mock_batched_forester;
 pub mod registered_program_accounts_v1;
+pub mod setup_accounts;
 #[allow(unused)]
 pub mod spl;
 pub mod state_tree_rollover;
@@ -50,7 +51,7 @@ pub use forester_utils::{
 };
 pub use light_client::{
     fee::{FeeConfig, TransactionParams},
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
+    rpc::{client::RpcUrl, LightClient, Rpc, RpcError},
 };
 use light_hasher::Poseidon;
 use light_program_test::accounts::address_tree::create_address_merkle_tree_and_queue_account;
@@ -60,7 +61,7 @@ use crate::assert_queue::assert_address_queue_initialized;
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]
-pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConnection>(
+pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: Rpc>(
     payer: &Keypair,
     registry: bool,
     context: &mut R,

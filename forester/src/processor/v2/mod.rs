@@ -5,7 +5,7 @@ mod state;
 
 use common::BatchProcessor;
 use error::Result;
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use tracing::{instrument, trace};
 
 #[instrument(
@@ -17,7 +17,7 @@ use tracing::{instrument, trace};
     ),
     skip(context)
 )]
-pub async fn process_batched_operations<R: RpcConnection, I: Indexer + IndexerType<R>>(
+pub async fn process_batched_operations<R: Rpc, I: Indexer + IndexerType<R>>(
     context: BatchContext<R, I>,
     tree_type: TreeType,
 ) -> Result<usize> {

@@ -20,7 +20,7 @@ use light_batched_merkle_tree::{
     },
     rollover_state_tree::test_utils::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
 };
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
     QueueType,
@@ -49,8 +49,8 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 
-pub async fn perform_batch_append<Rpc: RpcConnection>(
-    rpc: &mut Rpc,
+pub async fn perform_batch_append<R: Rpc>(
+    rpc: &mut R,
     bundle: &mut StateMerkleTreeBundle,
     forester: &Keypair,
     epoch: u64,
@@ -77,8 +77,8 @@ pub async fn perform_batch_append<Rpc: RpcConnection>(
     Ok(res)
 }
 
-pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
-    rpc: &mut Rpc,
+pub async fn create_append_batch_ix_data<R: Rpc>(
+    rpc: &mut R,
     bundle: &mut StateMerkleTreeBundle,
 ) -> InstructionDataBatchAppendInputs {
     let output_queue_pubkey = bundle.accounts.nullifier_queue;
@@ -192,8 +192,8 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     }
 }
 
-pub async fn perform_batch_nullify<Rpc: RpcConnection>(
-    rpc: &mut Rpc,
+pub async fn perform_batch_nullify<R: Rpc>(
+    rpc: &mut R,
     bundle: &mut StateMerkleTreeBundle,
     forester: &Keypair,
     epoch: u64,
@@ -218,8 +218,8 @@ pub async fn perform_batch_nullify<Rpc: RpcConnection>(
         .await
 }
 
-pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
-    rpc: &mut Rpc,
+pub async fn get_batched_nullify_ix_data<R: Rpc>(
+    rpc: &mut R,
     bundle: &mut StateMerkleTreeBundle,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, RpcError> {
@@ -328,7 +328,7 @@ use light_client::indexer::Indexer;
 use light_program_test::indexer::state_tree::StateMerkleTreeBundle;
 use light_sparse_merkle_tree::SparseMerkleTree;
 
-pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>(
+pub async fn assert_registry_created_batched_state_merkle_tree<R: Rpc>(
     rpc: &mut R,
     payer_pubkey: Pubkey,
     merkle_tree_pubkey: Pubkey,
@@ -393,7 +393,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
+pub async fn perform_rollover_batch_state_merkle_tree<R: Rpc>(
     rpc: &mut R,
     forester: &Keypair,
     derivation_pubkey: Pubkey,
@@ -501,7 +501,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
+pub async fn assert_perform_state_mt_roll_over<R: Rpc>(
     rpc: &mut R,
     owner: Pubkey,
     old_state_merkle_tree_pubkey: Pubkey,
@@ -601,7 +601,7 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
     assert_state_mt_roll_over(params);
 }
 
-pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnection>(
+pub async fn assert_registry_created_batched_address_merkle_tree<R: Rpc>(
     rpc: &mut R,
     payer_pubkey: Pubkey,
     merkle_tree_pubkey: Pubkey,
@@ -636,10 +636,7 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
     Ok(())
 }
 
-pub async fn create_batch_update_address_tree_instruction_data_with_proof<
-    R: RpcConnection,
-    I: Indexer,
->(
+pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
@@ -765,7 +762,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     }
 }
 
-pub async fn perform_rollover_batch_address_merkle_tree<R: RpcConnection>(
+pub async fn perform_rollover_batch_address_merkle_tree<R: Rpc>(
     rpc: &mut R,
     forester: &Keypair,
     derivation_pubkey: Pubkey,

@@ -2,7 +2,7 @@ use std::{cmp::min, time::Duration};
 
 use async_trait::async_trait;
 use bb8::{Pool, PooledConnection};
-use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, RpcError};
+use light_client::rpc::{Rpc, RpcConfig, RpcError};
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
@@ -24,16 +24,16 @@ pub enum PoolError {
     BuilderMissingField(String),
 }
 
-pub struct SolanaConnectionManager<R: RpcConnection + 'static> {
+pub struct SolanaConnectionManager<R: Rpc + 'static> {
     url: String,
     commitment: CommitmentConfig,
-    // TODO: implement RpcConnection for SolanaConnectionManager and rate limit requests.
+    // TODO: implement Rpc for SolanaConnectionManager and rate limit requests.
     _rpc_rate_limiter: Option<RateLimiter>,
     _send_tx_rate_limiter: Option<RateLimiter>,
     _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R: RpcConnection + 'static> SolanaConnectionManager<R> {
+impl<R: Rpc + 'static> SolanaConnectionManager<R> {
     pub fn new(
         url: String,
         commitment: CommitmentConfig,
@@ -51,18 +51,19 @@ impl<R: RpcConnection + 'static> SolanaConnectionManager<R> {
 }
 
 #[async_trait]
-impl<R: RpcConnection + 'static> bb8::ManageConnection for SolanaConnectionManager<R> {
+impl<R: Rpc + 'static> bb8::ManageConnection for SolanaConnectionManager<R> {
     type Connection = R;
     type Error = PoolError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        let config = RpcConnectionConfig {
+        let config = RpcConfig {
             url: self.url.to_string(),
             commitment_config: Some(self.commitment),
             with_indexer: false,
+            fetch_active_tree: false,
         };
 
-        Ok(R::new(config))
+        Ok(R::new(config).await?)
     }
 
     async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
@@ -75,7 +76,7 @@ impl<R: RpcConnection + 'static> bb8::ManageConnection for SolanaConnectionManag
 }
 
 #[derive(Debug)]
-pub struct SolanaRpcPool<R: RpcConnection + 'static> {
+pub struct SolanaRpcPool<R: Rpc + 'static> {
     pool: Pool<SolanaConnectionManager<R>>,
     max_retries: u32,
     initial_retry_delay: Duration,
@@ -83,7 +84,7 @@ pub struct SolanaRpcPool<R: RpcConnection + 'static> {
 }
 
 #[derive(Debug)]
-pub struct SolanaRpcPoolBuilder<R: RpcConnection> {
+pub struct SolanaRpcPoolBuilder<R: Rpc> {
     url: Option<String>,
     commitment: Option<CommitmentConfig>,
 
@@ -99,13 +100,13 @@ pub struct SolanaRpcPoolBuilder<R: RpcConnection> {
     _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R: RpcConnection> Default for SolanaRpcPoolBuilder<R> {
+impl<R: Rpc> Default for SolanaRpcPoolBuilder<R> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<R: RpcConnection> SolanaRpcPoolBuilder<R> {
+impl<R: Rpc> SolanaRpcPoolBuilder<R> {
     pub fn new() -> Self {
         Self {
             url: None,
@@ -204,7 +205,7 @@ impl<R: RpcConnection> SolanaRpcPoolBuilder<R> {
     }
 }
 
-impl<R: RpcConnection> SolanaRpcPool<R> {
+impl<R: Rpc> SolanaRpcPool<R> {
     pub async fn get_connection(
         &self,
     ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {

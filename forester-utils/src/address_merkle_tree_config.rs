@@ -7,7 +7,7 @@ use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::RpcConnection,
+    rpc::Rpc,
 };
 use light_hasher::Poseidon;
 use num_traits::Zero;
@@ -17,7 +17,7 @@ use crate::account_zero_copy::{
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
 };
 
-pub async fn get_address_bundle_config<R: RpcConnection>(
+pub async fn get_address_bundle_config<R: Rpc>(
     rpc: &mut R,
     address_bundle: AddressMerkleTreeAccounts,
 ) -> (AddressMerkleTreeConfig, AddressQueueConfig) {
@@ -64,7 +64,7 @@ pub async fn get_address_bundle_config<R: RpcConnection>(
     (address_merkle_tree_config, queue_config)
 }
 
-pub async fn get_state_bundle_config<R: RpcConnection>(
+pub async fn get_state_bundle_config<R: Rpc>(
     rpc: &mut R,
     state_tree_bundle: StateMerkleTreeAccounts,
 ) -> (StateMerkleTreeConfig, NullifierQueueConfig) {
@@ -110,10 +110,7 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
     (address_merkle_tree_config, queue_config)
 }
 
-pub async fn address_tree_ready_for_rollover<R: RpcConnection>(
-    rpc: &mut R,
-    merkle_tree: Pubkey,
-) -> bool {
+pub async fn address_tree_ready_for_rollover<R: Rpc>(rpc: &mut R, merkle_tree: Pubkey) -> bool {
     let account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, merkle_tree).await;
     let rent_exemption = rpc
         .get_minimum_balance_for_rent_exemption(account.account.data.len())
@@ -138,10 +135,7 @@ pub async fn address_tree_ready_for_rollover<R: RpcConnection>(
  && address_tree_meta_data.rollover_metadata.rolledover_slot == u64::MAX
 }
 
-pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
-    rpc: &mut R,
-    merkle_tree: Pubkey,
-) -> bool {
+pub async fn state_tree_ready_for_rollover<R: Rpc>(rpc: &mut R, merkle_tree: Pubkey) -> bool {
     let mut account = rpc.get_account(merkle_tree).await.unwrap().unwrap();
     let rent_exemption = rpc
         .get_minimum_balance_for_rent_exemption(account.data.len())

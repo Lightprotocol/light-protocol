@@ -4,7 +4,7 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::{
     indexer::{AddressWithTree, Indexer},
-    rpc::{RpcConnection, RpcError},
+    rpc::{Rpc, RpcError},
 };
 use light_compressed_account::{
     address::{derive_address, pack_new_address_params},
@@ -69,7 +69,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
 }
 
 pub async fn perform_create_pda_with_event_rnd<
-    R: RpcConnection + light_program_test::program_test::TestRpc + Indexer,
+    R: Rpc + light_program_test::program_test::TestRpc + Indexer,
     I: Indexer + TestIndexerExtensions,
 >(
     test_indexer: &mut I,
@@ -83,7 +83,7 @@ pub async fn perform_create_pda_with_event_rnd<
 }
 
 pub async fn perform_create_pda_with_event<
-    R: RpcConnection + light_program_test::program_test::TestRpc + Indexer,
+    R: Rpc + light_program_test::program_test::TestRpc + Indexer,
     I: Indexer + TestIndexerExtensions,
 >(
     test_indexer: &mut I,

@@ -1,6 +1,6 @@
 use account_compression::processor::initialize_address_merkle_tree::AnchorDeserialize;
 use clap::Parser;
-use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{LightClient, Rpc, RpcConfig};
 use light_registry::{
     protocol_config::state::ProtocolConfigPda, sdk::create_update_protocol_config_instruction,
     utils::get_protocol_config_pda_address,
@@ -32,11 +32,14 @@ pub struct Options {
 /// 5. print bs58
 pub async fn create_update_protocol_config_ix(options: Options) -> anyhow::Result<()> {
     let rpc_url = String::from("https://api.mainnet-beta.solana.com");
-    let rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+    let rpc = LightClient::new(RpcConfig {
         url: rpc_url,
         commitment_config: None,
+        fetch_active_tree: false,
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
     let (protocol_config_pda, _) = get_protocol_config_pda_address();
     let account = rpc
         .get_account(protocol_config_pda)

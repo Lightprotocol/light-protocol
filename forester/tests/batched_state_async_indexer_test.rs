@@ -12,10 +12,7 @@ use light_client::{
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     },
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{
-        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
-        SolanaRpcConnection,
-    },
+    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig},
 };
 use light_compressed_account::{
     address::derive_address_legacy,
@@ -98,7 +95,7 @@ async fn test_state_indexer_async_batched() {
     config.payer_keypair = env.protocol.forester.insecure_clone();
     config.derivation_pubkey = env.protocol.forester.pubkey();
 
-    let mut rpc = setup_rpc_connection(&env.protocol.forester);
+    let mut rpc = setup_rpc_connection(&env.protocol.forester).await;
     ensure_sufficient_balance(
         &mut rpc,
         &env.protocol.forester.pubkey(),
@@ -224,21 +221,20 @@ async fn test_state_indexer_async_batched() {
 // HELPER FUNCTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn setup_rpc_connection(forester: &Keypair) -> SolanaRpcConnection {
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: SolanaRpcUrl::Localnet.to_string(),
+async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
+    let mut rpc = LightClient::new(RpcConfig {
+        url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::processed()),
+        fetch_active_tree: false,
         with_indexer: true,
-    });
+    })
+    .await
+    .unwrap();
     rpc.payer = forester.insecure_clone();
     rpc
 }
 
-async fn ensure_sufficient_balance(
-    rpc: &mut SolanaRpcConnection,
-    pubkey: &Pubkey,
-    target_balance: u64,
-) {
+async fn ensure_sufficient_balance(rpc: &mut LightClient, pubkey: &Pubkey, target_balance: u64) {
     if rpc.get_balance(pubkey).await.unwrap() < LAMPORTS_PER_SOL {
         rpc.airdrop_lamports(pubkey, target_balance).await.unwrap();
     }
@@ -248,7 +244,7 @@ fn create_photon_indexer() -> PhotonIndexer {
     PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None)
 }
 
-async fn get_protocol_config(rpc: &mut SolanaRpcConnection) -> ProtocolConfig {
+async fn get_protocol_config(rpc: &mut LightClient) -> ProtocolConfig {
     let protocol_config_pda_address = get_protocol_config_pda_address().0;
     rpc.get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
         .await
@@ -258,7 +254,7 @@ async fn get_protocol_config(rpc: &mut SolanaRpcConnection) -> ProtocolConfig {
 }
 
 async fn get_initial_merkle_tree_state(
-    rpc: &mut SolanaRpcConnection,
+    rpc: &mut LightClient,
     merkle_tree_pubkey: &Pubkey,
 ) -> (u64, u64, [u8; 32]) {
     let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
@@ -277,7 +273,7 @@ async fn get_initial_merkle_tree_state(
     )
 }
 
-async fn get_batch_size<R: RpcConnection>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {
+async fn get_batch_size<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {
     let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
         merkle_tree_account.data.as_mut_slice(),
@@ -299,7 +295,7 @@ async fn setup_forester_pipeline(
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
     let forester_photon_indexer = create_photon_indexer();
-    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, PhotonIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient, PhotonIndexer>(
         Arc::from(config.clone()),
         None,
         None,
@@ -311,7 +307,7 @@ async fn setup_forester_pipeline(
     (service_handle, shutdown_sender, work_report_receiver)
 }
 
-async fn wait_for_slot(rpc: &mut SolanaRpcConnection, target_slot: u64) {
+async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
     while rpc.get_slot().await.unwrap() < target_slot {
         println!(
             "waiting for active phase slot: {}, current slot: {}",
@@ -323,7 +319,7 @@ async fn wait_for_slot(rpc: &mut SolanaRpcConnection, target_slot: u64) {
 }
 
 async fn print_queue_states(
-    rpc: &mut SolanaRpcConnection,
+    rpc: &mut LightClient,
     merkle_tree_pubkey: &Pubkey,
     output_queue_pubkey: &Pubkey,
 ) {
@@ -392,7 +388,7 @@ async fn validate_compressed_accounts_proof<I: Indexer>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn execute_test_transactions<R: RpcConnection + Indexer, I: Indexer>(
+async fn execute_test_transactions<R: Rpc + Indexer, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     rng: &mut StdRng,
@@ -488,7 +484,7 @@ async fn execute_test_transactions<R: RpcConnection + Indexer, I: Indexer>(
     );
 }
 
-async fn verify_queue_states<R: RpcConnection>(
+async fn verify_queue_states<R: Rpc>(
     rpc: &mut R,
     env: &TestAccounts,
     sender_batched_accs_counter: u64,
@@ -603,7 +599,7 @@ async fn wait_for_work_report(
 }
 
 async fn verify_root_changed(
-    rpc: &mut SolanaRpcConnection,
+    rpc: &mut LightClient,
     merkle_tree_pubkey: &Pubkey,
     pre_root: &[u8; 32],
 ) {
@@ -621,7 +617,7 @@ async fn verify_root_changed(
     );
 }
 
-pub async fn get_active_phase_start_slot<R: RpcConnection>(
+pub async fn get_active_phase_start_slot<R: Rpc>(
     rpc: &mut R,
     protocol_config: &ProtocolConfig,
 ) -> u64 {
@@ -635,7 +631,7 @@ pub async fn get_active_phase_start_slot<R: RpcConnection>(
 // TRANSACTION OPERATIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-async fn mint_to<R: RpcConnection>(
+async fn mint_to<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     payer: &Keypair,
@@ -663,7 +659,7 @@ async fn mint_to<R: RpcConnection>(
         .unwrap()
 }
 
-async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
+async fn compressed_token_transfer<R: Rpc, I: Indexer>(
     rpc: &mut R,
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
@@ -796,7 +792,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
     sig
 }
 
-async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
+async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
     rpc: &mut R,
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
@@ -940,7 +936,7 @@ async fn transfer<const V2: bool, R: RpcConnection + Indexer, I: Indexer>(
     sig
 }
 
-async fn compress<R: RpcConnection>(
+async fn compress<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     payer: &Keypair,
@@ -989,7 +985,7 @@ async fn compress<R: RpcConnection>(
     }
 }
 
-async fn create_v1_address<R: RpcConnection, I: Indexer>(
+async fn create_v1_address<R: Rpc, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     rng: &mut StdRng,

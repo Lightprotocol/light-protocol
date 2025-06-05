@@ -6,6 +6,7 @@ use account_compression::{
     StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use light_compressed_account::TreeType;
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
 use light_program_test::{
@@ -30,7 +31,7 @@ use light_registry::{
 };
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
-    get_concurrent_merkle_tree, spl::create_mint_helper, FeeConfig, RpcConnection, RpcError,
+    get_concurrent_merkle_tree, spl::create_mint_helper, FeeConfig, Rpc, RpcError,
     TransactionParams,
 };
 use serial_test::serial;
@@ -75,7 +76,7 @@ async fn test_program_owned_merkle_tree() {
             &cpi_context_keypair,
             Some(light_compressed_token::ID),
             None,
-            1,
+            TreeType::StateV1,
         )
         .await;
     rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
@@ -142,7 +143,7 @@ async fn test_program_owned_merkle_tree() {
             &cpi_context_keypair,
             Some(Keypair::new().pubkey()),
             None,
-            1,
+            TreeType::StateV1,
         )
         .await;
     let recipient_keypair = Keypair::new();
@@ -733,7 +734,7 @@ pub async fn register_program(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
+pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
     payer: &Keypair,
     rpc: &mut R,
     merkle_tree_keypair: &Keypair,
@@ -798,7 +799,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]
-pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
+pub async fn create_address_merkle_tree_and_queue_account<R: Rpc>(
     payer: &Keypair,
     context: &mut R,
     address_merkle_tree_keypair: &Keypair,

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use light_compressed_account::QueueType;
 use solana_pubkey::Pubkey;
 
-use super::SolanaRpcConnection;
+use super::LightClient;
 use crate::indexer::{
     Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
@@ -12,7 +12,7 @@ use crate::indexer::{
 };
 
 #[async_trait]
-impl Indexer for SolanaRpcConnection {
+impl Indexer for LightClient {
     async fn get_validity_proof(
         &self,
         hashes: Vec<Hash>,

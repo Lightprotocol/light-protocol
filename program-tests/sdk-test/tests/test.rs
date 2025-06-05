@@ -6,8 +6,7 @@ use light_compressed_account::{
     hashv_to_bn254_field_size_be,
 };
 use light_program_test::{
-    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, RpcConnection,
-    RpcError,
+    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::instruction::{
     account_meta::CompressedAccountMeta,

@@ -11,7 +11,7 @@ use forester::{
     ForesterConfig,
 };
 use forester_utils::rate_limiter::RateLimiter;
-use light_client::{indexer::photon_indexer::PhotonIndexer, rpc::SolanaRpcConnection};
+use light_client::{indexer::photon_indexer::PhotonIndexer, rpc::LightClient};
 use tokio::{
     signal::ctrl_c,
     sync::{mpsc, oneshot},
@@ -65,7 +65,7 @@ async fn main() -> Result<(), ForesterError> {
 
             let indexer = Arc::new(tokio::sync::Mutex::new(indexer));
 
-            run_pipeline::<SolanaRpcConnection, PhotonIndexer>(
+            run_pipeline::<LightClient, PhotonIndexer>(
                 config,
                 rpc_rate_limiter,
                 send_tx_limiter,

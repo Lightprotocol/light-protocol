@@ -17,52 +17,60 @@ use solana_signature::Signature;
 use solana_transaction::Transaction;
 use solana_transaction_status_client_types::TransactionStatus;
 
-use super::solana_rpc::SolanaRpcUrl;
-use crate::{indexer::Indexer, rpc::errors::RpcError};
+use super::client::RpcUrl;
+use crate::{
+    indexer::{Indexer, TreeInfo},
+    rpc::errors::RpcError,
+};
 
 #[derive(Debug, Clone)]
-pub struct RpcConnectionConfig {
+pub struct RpcConfig {
     pub url: String,
     pub commitment_config: Option<CommitmentConfig>,
     pub with_indexer: bool,
+    pub fetch_active_tree: bool,
 }
 
-impl RpcConnectionConfig {
+impl RpcConfig {
     pub fn new(url: String) -> Self {
         Self {
             url,
             commitment_config: Some(CommitmentConfig::confirmed()),
             with_indexer: true,
+            fetch_active_tree: true,
         }
     }
     pub fn local_no_indexer() -> Self {
         Self {
-            url: SolanaRpcUrl::Localnet.to_string(),
+            url: RpcUrl::Localnet.to_string(),
             commitment_config: Some(CommitmentConfig::confirmed()),
             with_indexer: false,
+            fetch_active_tree: false,
         }
     }
 
     pub fn local() -> Self {
         Self {
-            url: SolanaRpcUrl::Localnet.to_string(),
+            url: RpcUrl::Localnet.to_string(),
             commitment_config: Some(CommitmentConfig::confirmed()),
             with_indexer: true,
+            fetch_active_tree: false,
         }
     }
 
     pub fn devnet() -> Self {
         Self {
-            url: SolanaRpcUrl::Devnet.to_string(),
+            url: RpcUrl::Devnet.to_string(),
             commitment_config: Some(CommitmentConfig::confirmed()),
             with_indexer: true,
+            fetch_active_tree: true,
         }
     }
 }
 
 #[async_trait]
-pub trait RpcConnection: Send + Sync + Debug + 'static {
-    fn new(config: RpcConnectionConfig) -> Self
+pub trait Rpc: Send + Sync + Debug + 'static {
+    async fn new(config: RpcConfig) -> Result<Self, RpcError>
     where
         Self: Sized;
 
@@ -177,4 +185,20 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
 
     fn indexer(&self) -> Result<&impl Indexer, RpcError>;
     fn indexer_mut(&mut self) -> Result<&mut impl Indexer, RpcError>;
+
+    /// Fetch the latest state tree addresses from the cluster.
+    async fn get_latest_active_state_trees(&mut self) -> Result<Vec<TreeInfo>, RpcError>;
+
+    /// Gets state tree infos.
+    /// State trees are cached and have to be fetched or set.
+    fn get_state_tree_infos(&self) -> Vec<TreeInfo>;
+
+    /// Gets a random state tree info.
+    /// State trees are cached and have to be fetched or set.
+    fn get_random_state_tree_info(&self) -> TreeInfo;
+
+    fn get_address_tree_v1(&self) -> TreeInfo;
+
+    // TODO: add with v2 release
+    // fn get_address_tree_v2(&self) -> Result<Vec<Pubkey>, RpcError>;
 }

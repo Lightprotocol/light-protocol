@@ -10,10 +10,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{
-        merkle_tree::MerkleTreeExt, rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl,
-        RpcConnection, SolanaRpcConnection,
-    },
+    rpc::{client::RpcUrl, merkle_tree::MerkleTreeExt, LightClient, Rpc, RpcConfig},
 };
 use light_compressed_account::{
     address::{derive_address, pack_new_address_params_assigned},
@@ -72,11 +69,14 @@ async fn test_create_v2_address() {
     config.derivation_pubkey = env.protocol.forester.pubkey();
     config.general_config = GeneralConfig::test_address_v2();
 
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: SolanaRpcUrl::Localnet.to_string(),
+    let mut rpc = LightClient::new(RpcConfig {
+        url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::processed()),
+        fetch_active_tree: false,
         with_indexer: true,
-    });
+    })
+    .await
+    .unwrap();
     rpc.payer = env.protocol.forester.insecure_clone();
 
     ensure_sufficient_balance(
@@ -165,11 +165,7 @@ async fn test_create_v2_address() {
     service_handle.await.unwrap().unwrap();
 }
 
-async fn ensure_sufficient_balance(
-    rpc: &mut SolanaRpcConnection,
-    pubkey: &Pubkey,
-    target_balance: u64,
-) {
+async fn ensure_sufficient_balance(rpc: &mut LightClient, pubkey: &Pubkey, target_balance: u64) {
     if rpc.get_balance(pubkey).await.unwrap() < target_balance {
         rpc.airdrop_lamports(pubkey, target_balance).await.unwrap();
     }
@@ -187,7 +183,7 @@ async fn setup_forester_pipeline(
 
     let forester_photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None);
 
-    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, PhotonIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient, PhotonIndexer>(
         Arc::from(config.clone()),
         None,
         None,
@@ -247,7 +243,7 @@ async fn wait_for_work_report(
     );
 }
 
-async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
+async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
     rpc: &mut R,
     batch_address_merkle_tree: &Pubkey,
     registered_program_pda: &Pubkey,
@@ -419,7 +415,7 @@ async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt + Indexer>(
     }
 }
 
-async fn get_batch_size<R: RpcConnection>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {
+async fn get_batch_size<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {
     let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
         merkle_tree_account.data.as_mut_slice(),
@@ -431,7 +427,7 @@ async fn get_batch_size<R: RpcConnection>(rpc: &mut R, merkle_tree_pubkey: &Pubk
 }
 
 async fn get_initial_merkle_tree_state(
-    rpc: &mut SolanaRpcConnection,
+    rpc: &mut LightClient,
     merkle_tree_pubkey: &Pubkey,
 ) -> (u64, u64, [u8; 32]) {
     let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
@@ -451,7 +447,7 @@ async fn get_initial_merkle_tree_state(
 }
 
 async fn verify_root_changed(
-    rpc: &mut SolanaRpcConnection,
+    rpc: &mut LightClient,
     merkle_tree_pubkey: &Pubkey,
     pre_root: &[u8; 32],
 ) {

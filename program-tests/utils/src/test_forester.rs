@@ -8,7 +8,7 @@ use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use forester_utils::account_zero_copy::{
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
 };
-use light_client::rpc::{errors::RpcError, RpcConnection};
+use light_client::rpc::{errors::RpcError, Rpc};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
@@ -49,7 +49,7 @@ use thiserror::Error;
 /// 2. State tree root is updated
 /// 3. TODO: add event is emitted (after rebase)
 ///    optional: assert that the Merkle tree doesn't change except the updated leaf
-pub async fn nullify_compressed_accounts<R: RpcConnection + TestRpc + Indexer + Indexer>(
+pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
     rpc: &mut R,
     forester: &Keypair,
     state_tree_bundle: &mut StateMerkleTreeBundle,
@@ -136,7 +136,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection + TestRpc + Indexer + 
         );
         let instructions = [ix];
 
-        let event = RpcConnection::create_and_send_transaction_with_event::<MerkleTreeEvent>(
+        let event = Rpc::create_and_send_transaction_with_event::<MerkleTreeEvent>(
             rpc,
             &instructions,
             &forester.pubkey(),
@@ -215,7 +215,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection + TestRpc + Indexer + 
     Ok(())
 }
 
-async fn assert_value_is_marked_in_queue<R: RpcConnection>(
+async fn assert_value_is_marked_in_queue<R: Rpc>(
     rpc: &mut R,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     index_in_nullifier_queue: &usize,
@@ -245,7 +245,7 @@ async fn assert_value_is_marked_in_queue<R: RpcConnection>(
     );
 }
 
-pub async fn assert_forester_counter<R: RpcConnection>(
+pub async fn assert_forester_counter<R: Rpc>(
     rpc: &mut R,
     pubkey: &Pubkey,
     pre: u64,
@@ -280,7 +280,7 @@ pub enum RelayerUpdateError {
 /// 2. Merkle tree has been updated correctly
 ///
 /// TODO: Event has been emitted, event doesn't exist yet
-pub async fn empty_address_queue_test<R: RpcConnection>(
+pub async fn empty_address_queue_test<R: Rpc>(
     forester: &Keypair,
     rpc: &mut R,
     address_tree_bundle: &mut AddressMerkleTreeBundle,
@@ -553,7 +553,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn update_merkle_tree<R: RpcConnection>(
+pub async fn update_merkle_tree<R: Rpc>(
     rpc: &mut R,
     forester: &Keypair,
     address_queue_pubkey: Pubkey,

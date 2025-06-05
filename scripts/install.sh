@@ -10,7 +10,7 @@ VERSIONS=(
     "go:1.21.7"
     "node:20.9.0"
     "pnpm:9.5.0"
-    "solana:2.2.1"
+    "solana:2.2.15"
     "anchor:anchor-v0.29.0"
     "jq:jq-1.7.1"
     "photon:0.50.0"

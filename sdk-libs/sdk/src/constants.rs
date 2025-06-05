@@ -24,3 +24,6 @@ pub const ADDRESS_MERKLE_TREE_CANOPY_DEPTH: usize = 10;
 pub const ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG: usize = 1400;
 
 pub const TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR: [u8; 8] = [2, 0, 0, 0, 0, 0, 0, 0];
+
+pub const ADDRESS_TREE_V1: Pubkey = pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2");
+pub const ADDRESS_QUEUE_V1: Pubkey = pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F");

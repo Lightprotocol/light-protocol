@@ -12,10 +12,7 @@ use forester_utils::{
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{
-        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError,
-        SolanaRpcConnection,
-    },
+    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig, RpcError},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_registry::{utils::get_forester_epoch_pda_from_authority, ForesterEpochPda};
@@ -56,18 +53,21 @@ async fn test_epoch_monitor_with_2_foresters() {
     let mut config2 = forester_config();
     config2.payer_keypair = forester_keypair2.insecure_clone();
 
-    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+    let pool = SolanaRpcPoolBuilder::<LightClient>::default()
         .url(config1.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::confirmed())
         .build()
         .await
         .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: SolanaRpcUrl::Localnet.to_string(),
+    let mut rpc = LightClient::new(RpcConfig {
+        url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::confirmed()),
+        fetch_active_tree: false,
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
     rpc.payer = forester_keypair1.insecure_clone();
 
     // Airdrop to both foresters and governance authority
@@ -134,7 +134,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     let indexer: TestIndexer =
         TestIndexer::init_from_acounts(&config1.payer_keypair, &test_accounts, 0).await;
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer>::new(
+    let mut env = E2ETestEnv::<LightClient, TestIndexer>::new(
         rpc,
         indexer,
         &test_accounts,
@@ -222,7 +222,7 @@ async fn test_epoch_monitor_with_2_foresters() {
 
     let indexer = Arc::new(Mutex::new(env.indexer));
 
-    let service_handle1 = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
+    let service_handle1 = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
         config1.clone(),
         None,
         None,
@@ -230,7 +230,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         shutdown_receiver1,
         work_report_sender1,
     ));
-    let service_handle2 = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
+    let service_handle2 = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
         config2.clone(),
         None,
         None,
@@ -315,7 +315,7 @@ async fn test_epoch_monitor_with_2_foresters() {
     service_handle2.await.unwrap().unwrap();
 }
 pub async fn assert_trees_are_rolledover(
-    pool: &SolanaRpcPool<SolanaRpcConnection>,
+    pool: &SolanaRpcPool<LightClient>,
     state_tree_with_rollover_threshold_0: &Pubkey,
     address_tree_with_rollover_threshold_0: &Pubkey,
 ) {
@@ -349,7 +349,7 @@ pub async fn assert_trees_are_rolledover(
 
 async fn assert_foresters_registered(
     foresters: &[Pubkey],
-    rpc: &mut SolanaRpcConnection,
+    rpc: &mut LightClient,
     epoch: u64,
 ) -> Result<u64, RpcError> {
     let mut performed_work = 0;
@@ -401,18 +401,21 @@ async fn test_epoch_double_registration() {
     let mut config = forester_config();
     config.payer_keypair = forester_keypair.insecure_clone();
 
-    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+    let pool = SolanaRpcPoolBuilder::<LightClient>::default()
         .url(config.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::confirmed())
         .build()
         .await
         .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: SolanaRpcUrl::Localnet.to_string(),
+    let mut rpc = LightClient::new(RpcConfig {
+        url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::confirmed()),
+        fetch_active_tree: false,
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -465,7 +468,7 @@ async fn test_epoch_double_registration() {
         let (work_report_sender, _work_report_receiver) = mpsc::channel(100);
 
         // Run the forester pipeline
-        let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
+        let service_handle = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
             config.clone(),
             None,
             None,
@@ -508,7 +511,7 @@ async fn test_epoch_double_registration() {
 }
 
 pub async fn assert_queue_len(
-    pool: &SolanaRpcPool<SolanaRpcConnection>,
+    pool: &SolanaRpcPool<LightClient>,
     state_trees: &[StateMerkleTreeAccounts],
     address_trees: &[AddressMerkleTreeAccounts],
     total_expected_work: &mut u64,

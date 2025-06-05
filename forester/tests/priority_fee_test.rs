@@ -6,8 +6,8 @@ use forester::{
     },
     ForesterConfig,
 };
-use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
-use light_test_utils::SolanaRpcUrl;
+use light_client::rpc::{LightClient, Rpc, RpcConfig};
+use light_test_utils::RpcUrl;
 use reqwest::Url;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
 
@@ -79,11 +79,14 @@ async fn test_priority_fee_request() {
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
 
     // Setup RPC connection using config
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: SolanaRpcUrl::Localnet.to_string(),
+    let mut rpc = LightClient::new(RpcConfig {
+        url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::confirmed()),
+        fetch_active_tree: false,
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
     rpc.payer = config.payer_keypair.insecure_clone();
 
     let account_keys = vec![config.payer_keypair.pubkey()];

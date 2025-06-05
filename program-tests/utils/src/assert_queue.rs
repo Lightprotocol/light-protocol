@@ -1,6 +1,6 @@
 use account_compression::QueueAccount;
 use forester_utils::account_zero_copy::{get_hash_set, AccountZeroCopy};
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, queue::QueueMetadata,
     rollover::RolloverMetadata, QueueType,
@@ -8,7 +8,7 @@ use light_merkle_tree_metadata::{
 use solana_sdk::pubkey::Pubkey;
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_address_queue_initialized<R: RpcConnection>(
+pub async fn assert_address_queue_initialized<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,
@@ -38,7 +38,7 @@ pub async fn assert_address_queue_initialized<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_nullifier_queue_initialized<R: RpcConnection>(
+pub async fn assert_nullifier_queue_initialized<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::NullifierQueueConfig,
@@ -82,7 +82,7 @@ pub async fn assert_nullifier_queue_initialized<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_address_queue<R: RpcConnection>(
+pub async fn assert_address_queue<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,
@@ -139,7 +139,7 @@ pub async fn assert_address_queue<R: RpcConnection>(
     .await;
 }
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_queue<R: RpcConnection>(
+pub async fn assert_queue<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,

@@ -4,7 +4,7 @@ use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_client::{
     fee::TransactionParams,
     indexer::{AddressWithTree, Indexer},
-    rpc::{errors::RpcError, RpcConnection},
+    rpc::{errors::RpcError, Rpc},
 };
 use light_compressed_account::{
     address::derive_address_legacy,
@@ -37,7 +37,7 @@ use crate::assert_compressed_tx::{
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_addresses_test<
-    R: RpcConnection + TestRpc + Indexer,
+    R: Rpc + TestRpc + Indexer,
     I: Indexer + TestIndexerExtensions,
 >(
     rpc: &mut R,
@@ -117,10 +117,7 @@ pub async fn create_addresses_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_sol_test<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn compress_sol_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -179,10 +176,7 @@ pub async fn compress_sol_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_sol_test<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn decompress_sol_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -227,7 +221,7 @@ pub async fn decompress_sol_test<
 
 #[allow(clippy::too_many_arguments)]
 pub async fn transfer_compressed_sol_test<
-    R: RpcConnection + TestRpc + Indexer,
+    R: Rpc + TestRpc + Indexer,
     I: Indexer + TestIndexerExtensions,
 >(
     rpc: &mut R,
@@ -296,7 +290,7 @@ pub async fn transfer_compressed_sol_test<
 }
 
 #[derive(Debug)]
-pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer> {
+pub struct CompressedTransactionTestInputs<'a, R: Rpc, I: Indexer> {
     rpc: &'a mut R,
     test_indexer: &'a mut I,
     fee_payer: &'a Keypair,
@@ -316,7 +310,7 @@ pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer> {
 
 #[allow(clippy::too_many_arguments)]
 pub async fn compressed_transaction_test<
-    R: RpcConnection + TestRpc + Indexer,
+    R: Rpc + TestRpc + Indexer,
     I: Indexer + TestIndexerExtensions,
 >(
     inputs: CompressedTransactionTestInputs<'_, R, I>,

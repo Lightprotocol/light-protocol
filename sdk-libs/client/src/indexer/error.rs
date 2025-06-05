@@ -50,6 +50,8 @@ pub enum IndexerError {
     NotInitialized,
     #[error("Indexer slot has not reached the requested slot.")]
     IndexerNotSyncedToSlot,
+    #[error("Address Merkle trees cannot be packed as output Merkle trees.")]
+    InvalidPackTreeType,
 }
 
 impl IndexerError {
@@ -132,6 +134,7 @@ impl Clone for IndexerError {
             IndexerError::CustomError(_) => IndexerError::CustomError("IndexerError".to_string()),
             IndexerError::NotInitialized => IndexerError::NotInitialized,
             IndexerError::IndexerNotSyncedToSlot => IndexerError::IndexerNotSyncedToSlot,
+            IndexerError::InvalidPackTreeType => IndexerError::InvalidPackTreeType,
         }
     }
 }

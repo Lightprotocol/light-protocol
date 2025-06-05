@@ -88,7 +88,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     fee::{FeeConfig, TransactionParams},
     indexer::{AddressMerkleTreeAccounts, AddressWithTree, Indexer, StateMerkleTreeAccounts},
-    rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, RpcConnection},
+    rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, Rpc},
 };
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
@@ -254,7 +254,7 @@ impl Stats {
     }
 }
 
-pub async fn init_program_test_env<R: RpcConnection + MerkleTreeExt + Indexer + TestRpc>(
+pub async fn init_program_test_env<R: Rpc + MerkleTreeExt + Indexer + TestRpc>(
     rpc: R,
     test_accounts: &TestAccounts,
     batch_size: usize,
@@ -309,10 +309,7 @@ pub struct TestForester {
     is_registered: Option<u64>,
 }
 
-pub struct E2ETestEnv<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + Clone + TestIndexerExtensions,
-> {
+pub struct E2ETestEnv<R: Rpc + TestRpc + Indexer, I: Indexer + Clone + TestIndexerExtensions> {
     pub payer: Keypair,
     pub governance_keypair: Keypair,
     pub indexer: I,
@@ -335,10 +332,9 @@ pub struct E2ETestEnv<
     pub registration_epoch: u64,
 }
 
-impl<R: RpcConnection + TestRpc + Indexer, I: Indexer + Clone + TestIndexerExtensions>
-    E2ETestEnv<R, I>
+impl<R: Rpc + TestRpc + Indexer, I: Indexer + Clone + TestIndexerExtensions> E2ETestEnv<R, I>
 where
-    R: RpcConnection,
+    R: Rpc,
     I: Indexer,
 {
     pub async fn new(
@@ -515,9 +511,9 @@ where
                 .unwrap_or_default(),
         ) {
             for state_tree_bundle in self.indexer.get_state_merkle_trees_mut().iter_mut() {
-                println!("state tree bundle version {}", state_tree_bundle.version);
-                match state_tree_bundle.version {
-                    1 => {
+                println!("state tree bundle version {}", state_tree_bundle.tree_type);
+                match state_tree_bundle.tree_type {
+                    TreeType::StateV1 => {
                         println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES v1\n --------------------------------------------------");
                         // find forester which is eligible this slot for this tree
                         if let Some(payer) = Self::get_eligible_forester_for_queue(
@@ -539,7 +535,7 @@ where
                             println!("No forester found for nullifier queue");
                         };
                     }
-                    2 => {
+                    TreeType::StateV2 => {
                         let merkle_tree_pubkey = state_tree_bundle.accounts.merkle_tree;
                         let queue_pubkey = state_tree_bundle.accounts.nullifier_queue;
                         // Check input queue
@@ -642,7 +638,7 @@ where
                         }
                     }
                     _ => {
-                        println!("Version skipped {}", state_tree_bundle.version);
+                        println!("Version skipped {}", state_tree_bundle.tree_type);
                     }
                 }
             }
@@ -1130,10 +1126,12 @@ where
                     .get_state_merkle_trees()
                     .iter()
                     .map(|state_merkle_tree_bundle| {
-                        let tree_type = match state_merkle_tree_bundle.version {
-                            1 => TreeType::StateV1,
-                            2 => TreeType::StateV2,
-                            _ => panic!("unsupported version {}", state_merkle_tree_bundle.version),
+                        let tree_type = match state_merkle_tree_bundle.tree_type {
+                            TreeType::StateV1 => TreeType::StateV1,
+                            TreeType::StateV2 => TreeType::StateV2,
+                            _ => {
+                                panic!("unsupported version {}", state_merkle_tree_bundle.tree_type)
+                            }
                         };
 
                         TreeAccounts {
@@ -1293,7 +1291,7 @@ where
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
                     cpi_context: cpi_context_keypair.pubkey(),
                 },
-                version: 1,
+                tree_type: TreeType::StateV1,
                 merkle_tree,
                 output_queue_elements: vec![],
                 input_leaf_indices: vec![],
@@ -1546,10 +1544,10 @@ where
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
         let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
         let rollover_fee = bundle.rollover_fee;
-        let output_merkle_tree = match bundle.version {
-            1 => bundle.accounts.merkle_tree,
+        let output_merkle_tree = match bundle.tree_type {
+            TreeType::StateV1 => bundle.accounts.merkle_tree,
             // Output queue for batched trees
-            2 => bundle.accounts.nullifier_queue,
+            TreeType::StateV2 => bundle.accounts.nullifier_queue,
             _ => panic!("Unsupported version"),
         };
         let recipients = vec![*to];
@@ -1697,10 +1695,10 @@ where
         };
         let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
         let rollover_fee = bundle.rollover_fee;
-        let output_merkle_tree = match bundle.version {
-            1 => bundle.accounts.merkle_tree,
+        let output_merkle_tree = match bundle.tree_type {
+            TreeType::StateV1 => bundle.accounts.merkle_tree,
             // Output queue for batched trees
-            2 => bundle.accounts.nullifier_queue,
+            TreeType::StateV2 => bundle.accounts.nullifier_queue,
             _ => panic!("Unsupported version"),
         };
 
@@ -2392,7 +2390,7 @@ where
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),
                     cpi_context: new_cpi_signature_keypair.pubkey(),
                 },
-                version: 1,
+                tree_type: TreeType::StateV1,
                 merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
                     STATE_MERKLE_TREE_HEIGHT as usize,
                     STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
@@ -2871,7 +2869,7 @@ where
             .iter()
             .find(|x| x.accounts.merkle_tree == first_account.merkle_context.merkle_tree_pubkey)
             .unwrap()
-            .version;
+            .tree_type;
         let input_compressed_accounts_with_same_version = input_compressed_accounts
             .iter()
             .filter(|x| {
@@ -2880,7 +2878,7 @@ where
                     .iter()
                     .find(|y| y.accounts.merkle_tree == x.merkle_context.merkle_tree_pubkey)
                     .unwrap()
-                    .version
+                    .tree_type
                     == first_mt
             })
             .cloned()
@@ -2916,7 +2914,7 @@ where
             let accounts = &bundle.accounts;
 
             // For batched trees we need to use the output queue
-            if bundle.version == 2 {
+            if bundle.tree_type == TreeType::StateV2 {
                 pubkeys.push(accounts.nullifier_queue);
             } else {
                 pubkeys.push(accounts.merkle_tree);
@@ -3029,7 +3027,7 @@ where
             let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 1..8, 1);
             let bundle = &self.indexer.get_state_merkle_trees()[0];
             let mt_pubkey = bundle.accounts.merkle_tree;
-            tree_version = bundle.version;
+            tree_version = bundle.tree_type;
             mint_tokens_helper(
                 &mut self.rpc,
                 &mut self.indexer,
@@ -3061,7 +3059,7 @@ where
                             x.accounts.merkle_tree == token_account.account.merkle_context.tree
                         })
                         .unwrap()
-                        .version;
+                        .tree_type;
                     token_account.token.mint == mint && tree_version == version
                 })
                 .cloned()
@@ -3077,7 +3075,7 @@ where
                 .iter()
                 .find(|x| x.accounts.merkle_tree == token_account.account.merkle_context.tree)
                 .unwrap()
-                .version;
+                .tree_type;
 
             token_accounts_with_mint = user_token_accounts
                 .value
@@ -3092,7 +3090,7 @@ where
                             x.accounts.merkle_tree == token_account.account.merkle_context.tree
                         })
                         .unwrap()
-                        .version;
+                        .tree_type;
                     token_account.token.mint == mint && tree_version == version
                 })
                 .map(|token_account| (*token_account).clone().into())

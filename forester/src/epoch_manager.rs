@@ -16,10 +16,7 @@ use forester_utils::{
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
-    rpc::{
-        rpc_connection::RpcConnectionConfig, RetryConfig, RpcConnection, RpcError,
-        SolanaRpcConnection,
-    },
+    rpc::{LightClient, RetryConfig, Rpc, RpcConfig, RpcError},
 };
 use light_compressed_account::TreeType;
 use light_registry::{
@@ -92,7 +89,7 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: RpcConnection, I: Indexer> {
+pub struct EpochManager<R: Rpc, I: Indexer> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -106,7 +103,7 @@ pub struct EpochManager<R: RpcConnection, I: Indexer> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
-impl<R: RpcConnection, I: Indexer> Clone for EpochManager<R, I> {
+impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
@@ -124,7 +121,7 @@ impl<R: RpcConnection, I: Indexer> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
+impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -476,11 +473,15 @@ impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I>
         max_retries: u32,
         retry_delay: Duration,
     ) -> Result<ForesterEpochInfo> {
-        let rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        let rpc = LightClient::new(RpcConfig {
             url: self.config.external_services.rpc_url.to_string(),
             commitment_config: None,
+            fetch_active_tree: false,
+
             with_indexer: false,
-        });
+        })
+        .await
+        .unwrap();
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -542,11 +543,15 @@ impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I>
     ))]
     async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         info!("Registering for epoch: {}", epoch);
-        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        let mut rpc = LightClient::new(RpcConfig {
             url: self.config.external_services.rpc_url.to_string(),
             commitment_config: None,
+            fetch_active_tree: false,
+
             with_indexer: false,
-        });
+        })
+        .await
+        .unwrap();
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -1191,11 +1196,14 @@ impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I>
     ))]
     async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         info!("Reporting work");
-        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        let mut rpc = LightClient::new(RpcConfig {
             url: self.config.external_services.rpc_url.to_string(),
             commitment_config: None,
+            fetch_active_tree: false,
             with_indexer: false,
-        });
+        })
+        .await
+        .unwrap();
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
             &self.config.derivation_pubkey,
@@ -1336,7 +1344,7 @@ fn calculate_remaining_time_or_default(
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_service<R: RpcConnection, I: Indexer + IndexerType<R> + 'static>(
+pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,

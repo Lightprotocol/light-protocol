@@ -23,7 +23,7 @@ use light_client::{
         Response, RetryConfig, SignatureWithMetadata, StateMerkleTreeAccounts, TokenAccount,
         TokenBalance, ValidityProofWithContext,
     },
-    rpc::{RpcConnection, RpcError},
+    rpc::{Rpc, RpcError},
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -441,7 +441,8 @@ impl Indexer for TestIndexer {
                     zipped_accounts.enumerate()
                 {
                     let accounts = self.state_merkle_trees.iter().find(|x| {
-                        x.accounts.merkle_tree == *state_merkle_tree_pubkey && x.version == 2
+                        x.accounts.merkle_tree == *state_merkle_tree_pubkey
+                            && x.tree_type == TreeType::StateV2
                     });
 
                     if let Some(accounts) = accounts {
@@ -458,13 +459,18 @@ impl Indexer for TestIndexer {
                                     hash: *compressed_account,
                                     root: [0u8; 32],
                                     root_index: None,
-                                    leaf_index: 0,
-                                    merkle_context: light_client::indexer::MerkleContext {
+                                    leaf_index: accounts
+                                        .output_queue_elements
+                                        .iter()
+                                        .position(|(x, _)| x == compressed_account)
+                                        .unwrap()
+                                        as u64,
+                                    tree_info: light_client::indexer::TreeInfo {
                                         cpi_context: Some(accounts.accounts.cpi_context),
                                         tree: accounts.accounts.merkle_tree,
                                         queue: accounts.accounts.nullifier_queue,
-                                        next_tree_context: None,
-                                        tree_type: TreeType::from(accounts.version),
+                                        next_tree_info: None,
+                                        tree_type: accounts.tree_type,
                                     },
                                 })
                             }
@@ -1252,7 +1258,7 @@ impl TestIndexer {
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
             let test_batched_output_queue =
                 Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap();
-            let (version, merkle_tree, output_queue_batch_size) = if state_merkle_tree_account
+            let (tree_type, merkle_tree, output_queue_batch_size) = if state_merkle_tree_account
                 .nullifier_queue
                 == test_batched_output_queue.pubkey()
             {
@@ -1262,7 +1268,11 @@ impl TestIndexer {
                     0,
                     DEFAULT_BATCH_STATE_ROOT_HISTORY_LEN as usize,
                 ));
-                (2, merkle_tree, Some(output_queue_batch_size))
+                (
+                    TreeType::StateV2,
+                    merkle_tree,
+                    Some(output_queue_batch_size),
+                )
             } else {
                 let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
                     account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
@@ -1270,14 +1280,14 @@ impl TestIndexer {
                     0,
                     account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
                 ));
-                (1, merkle_tree, None)
+                (TreeType::StateV1, merkle_tree, None)
             };
 
             state_merkle_trees.push(StateMerkleTreeBundle {
                 accounts: *state_merkle_tree_account,
                 merkle_tree,
                 rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
-                version,
+                tree_type,
                 output_queue_elements: vec![],
                 input_leaf_indices: vec![],
                 output_queue_batch_size,
@@ -1315,7 +1325,7 @@ impl TestIndexer {
         }
     }
 
-    async fn add_address_merkle_tree_v1<R: RpcConnection>(
+    async fn add_address_merkle_tree_v1<R: Rpc>(
         &mut self,
         rpc: &mut R,
         merkle_tree_keypair: &Keypair,
@@ -1346,7 +1356,7 @@ impl TestIndexer {
     }
 
     #[cfg(feature = "devenv")]
-    async fn add_address_merkle_tree_v2<R: RpcConnection>(
+    async fn add_address_merkle_tree_v2<R: Rpc>(
         &mut self,
         rpc: &mut R,
         merkle_tree_keypair: &Keypair,
@@ -1378,15 +1388,15 @@ impl TestIndexer {
         Ok(accounts)
     }
 
-    pub async fn add_address_merkle_tree<R: RpcConnection>(
+    pub async fn add_address_merkle_tree<R: Rpc>(
         &mut self,
         rpc: &mut R,
         merkle_tree_keypair: &Keypair,
         queue_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
-        version: u64,
+        tree_type: TreeType,
     ) -> Result<AddressMerkleTreeAccounts, RpcError> {
-        if version == 1 {
+        if tree_type == TreeType::AddressV1 {
             self.add_address_merkle_tree_v1(
                 rpc,
                 merkle_tree_keypair,
@@ -1394,7 +1404,7 @@ impl TestIndexer {
                 owning_program_id,
             )
             .await
-        } else if version == 2 {
+        } else if tree_type == TreeType::AddressV2 {
             #[cfg(not(feature = "devenv"))]
             panic!("Batched address merkle trees require the 'devenv' feature to be enabled");
             #[cfg(feature = "devenv")]
@@ -1407,14 +1417,14 @@ impl TestIndexer {
             .await
         } else {
             Err(RpcError::CustomError(format!(
-                "add_address_merkle_tree: Version not supported, {}. Versions: 1, 2",
-                version
+                "add_address_merkle_tree: Version not supported, {}. Versions: AddressV1, AddressV2",
+                tree_type
             )))
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn add_state_merkle_tree<R: RpcConnection>(
+    pub async fn add_state_merkle_tree<R: Rpc>(
         &mut self,
         rpc: &mut R,
         merkle_tree_keypair: &Keypair,
@@ -1422,10 +1432,10 @@ impl TestIndexer {
         cpi_context_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
         forester: Option<Pubkey>,
-        version: u64,
+        tree_type: TreeType,
     ) {
-        let (rollover_fee, merkle_tree, output_queue_batch_size) = match version {
-            1 => {
+        let (rollover_fee, merkle_tree, output_queue_batch_size) = match tree_type {
+            TreeType::StateV1 => {
                 create_state_merkle_tree_and_queue_account(
                     &self.payer,
                     true,
@@ -1450,7 +1460,7 @@ impl TestIndexer {
                 ));
                 (FeeConfig::default().state_merkle_tree_rollover as i64,merkle_tree, None)
             }
-            2 => {
+            TreeType::StateV2 => {
                 #[cfg(feature = "devenv")]
                 {
                     let params =  light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData::test_default();
@@ -1478,8 +1488,8 @@ impl TestIndexer {
                 panic!("Batched state merkle trees require the 'devenv' feature to be enabled")
             }
             _ => panic!(
-                "add_state_merkle_tree: Version not supported, {}. Versions: 1 concurrent, 2 batched",
-                version
+                "add_state_merkle_tree: tree_type not supported, {}. tree_type: 1 concurrent, 2 batched",
+                tree_type
             ),
         };
         let state_merkle_tree_account = StateMerkleTreeAccounts {
@@ -1492,7 +1502,7 @@ impl TestIndexer {
             merkle_tree,
             accounts: state_merkle_tree_account,
             rollover_fee,
-            version,
+            tree_type,
             output_queue_elements: vec![],
             input_leaf_indices: vec![],
             num_inserted_batches: 0,
@@ -1599,7 +1609,7 @@ impl TestIndexer {
                     .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
                     .unwrap();
             // Store leaf indices of input accounts for batched trees
-            if bundle.version == 2 {
+            if bundle.tree_type == TreeType::StateV2 {
                 let leaf_hash = event.input_compressed_account_hashes[i];
                 bundle.input_leaf_indices.push(LeafIndexInfo {
                     leaf_index,
@@ -1656,9 +1666,7 @@ impl TestIndexer {
                                         merkle_tree_pubkey,
                                         queue_pubkey: nullifier_queue_pubkey,
                                         prove_by_index: false,
-                                        tree_type: if merkle_tree.version == 2 {
-                                            TreeType::StateV2
-                                        } else {TreeType::StateV1}
+                                        tree_type:merkle_tree.tree_type,
                                     },
                                 },
                             };
@@ -1673,9 +1681,7 @@ impl TestIndexer {
                                 merkle_tree_pubkey,
                                 queue_pubkey: nullifier_queue_pubkey,
                                 prove_by_index: false,
-                                tree_type: if merkle_tree.version == 2 {
-                                    TreeType::StateV2
-                                } else {TreeType::StateV1}
+                                tree_type: merkle_tree.tree_type
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());
@@ -1690,11 +1696,7 @@ impl TestIndexer {
                             merkle_tree_pubkey,
                             queue_pubkey: nullifier_queue_pubkey,
                             prove_by_index: false,
-                            tree_type: if merkle_tree.version == 2 {
-                                TreeType::StateV2
-                            } else {
-                                TreeType::StateV1
-                            },
+                            tree_type: merkle_tree.tree_type,
                         },
                     };
                     compressed_accounts.push(compressed_account.clone());
@@ -1849,7 +1851,7 @@ impl TestIndexer {
                 let merkle_tree = &bundle.merkle_tree;
                 queues.push(bundle.accounts.nullifier_queue);
                 cpi_contextes.push(bundle.accounts.cpi_context);
-                tree_types.push(TreeType::from(bundle.version));
+                tree_types.push(bundle.tree_type);
                 let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
                 let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 
@@ -1861,7 +1863,7 @@ impl TestIndexer {
                 } else {
                     assert_eq!(height, merkle_tree.height);
                 }
-                let root_index = if bundle.version == 1 {
+                let root_index = if bundle.tree_type == TreeType::StateV1 {
                     merkle_tree.get_history_root_index().unwrap()
                 } else {
                     merkle_tree.get_history_root_index_v2().unwrap()
@@ -1886,9 +1888,9 @@ impl TestIndexer {
                 root: merkle_root,
                 leaf_index: leaf_index as u64,
                 hash: accounts[i],
-                merkle_context: light_client::indexer::MerkleContext {
+                tree_info: light_client::indexer::TreeInfo {
                     cpi_context: Some(cpi_contextes[i]),
-                    next_tree_context: None,
+                    next_tree_info: None,
                     queue: queues[i],
                     tree: merkle_tree_pubkeys[i],
                     tree_type: tree_types[i],
@@ -1967,9 +1969,9 @@ impl TestIndexer {
                 root_index,
                 root,
                 address: *address,
-                merkle_context: light_client::indexer::MerkleContext {
+                tree_info: light_client::indexer::TreeInfo {
                     cpi_context: None,
-                    next_tree_context: None,
+                    next_tree_info: None,
                     queue: address_tree.accounts.queue,
                     tree: address_tree.accounts.merkle_tree,
                     tree_type,

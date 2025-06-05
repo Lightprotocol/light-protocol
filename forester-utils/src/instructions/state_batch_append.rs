@@ -4,7 +4,7 @@ use light_batched_merkle_tree::{
     merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs},
     queue::BatchedQueueAccount,
 };
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::QueueType;
@@ -19,7 +19,7 @@ use tracing::{error, trace};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
-pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer>(
+pub async fn create_append_batch_ix_data<R: Rpc, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
@@ -182,7 +182,7 @@ async fn generate_zkp_proof(
 
 /// Get metadata from the Merkle tree account
 async fn get_merkle_tree_metadata(
-    rpc: &mut impl RpcConnection,
+    rpc: &mut impl Rpc,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<(u64, [u8; 32], Vec<[u8; 32]>), ForesterUtilsError> {
     let mut merkle_tree_account = rpc
@@ -206,7 +206,7 @@ async fn get_merkle_tree_metadata(
 
 /// Get metadata and hash chains from the output queue
 async fn get_output_queue_metadata(
-    rpc: &mut impl RpcConnection,
+    rpc: &mut impl Rpc,
     output_queue_pubkey: Pubkey,
 ) -> Result<(u16, Vec<[u8; 32]>), ForesterUtilsError> {
     let mut output_queue_account = rpc

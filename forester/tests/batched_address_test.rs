@@ -12,10 +12,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{
-        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
-        SolanaRpcConnection,
-    },
+    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_test_utils::{
@@ -58,7 +55,7 @@ async fn test_address_batched() {
     config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
 
-    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+    let pool = SolanaRpcPoolBuilder::<LightClient>::default()
         .url(config.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::processed())
         .build()
@@ -66,11 +63,14 @@ async fn test_address_batched() {
         .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: SolanaRpcUrl::Localnet.to_string(),
+    let mut rpc = LightClient::new(RpcConfig {
+        url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(commitment_config),
+        fetch_active_tree: false,
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -117,7 +117,7 @@ async fn test_address_batched() {
 
     let mut photon_indexer = PhotonIndexer::new(PhotonIndexer::default_path(), None);
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer>::new(
+    let mut env = E2ETestEnv::<LightClient, TestIndexer>::new(
         rpc,
         indexer,
         &test_accounts,
@@ -261,7 +261,7 @@ async fn test_address_batched() {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
         config.clone(),
         None,
         None,

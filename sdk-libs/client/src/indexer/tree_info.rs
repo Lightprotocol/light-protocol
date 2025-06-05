@@ -5,9 +5,8 @@ use lazy_static::lazy_static;
 use light_compressed_account::TreeType;
 use solana_pubkey::{pubkey, Pubkey};
 
-// TODO: add cpi context
 #[derive(Debug, Clone)]
-pub struct TreeInfo {
+pub struct TreeMeta {
     pub tree: Pubkey,
     pub queue: Pubkey,
     pub cpi_context: Option<Pubkey>,
@@ -15,8 +14,8 @@ pub struct TreeInfo {
     pub tree_type: TreeType,
 }
 
-impl TreeInfo {
-    pub fn get(pubkey: &str) -> Option<&TreeInfo> {
+impl TreeMeta {
+    pub fn get(pubkey: &str) -> Option<&TreeMeta> {
         QUEUE_TREE_MAPPING.get(pubkey)
     }
 
@@ -27,7 +26,7 @@ impl TreeInfo {
 
 // TODO: keep updated with new trees. We could put it into a separate crate.
 lazy_static! {
-    pub static ref QUEUE_TREE_MAPPING: HashMap<String, TreeInfo> = {
+    pub static ref QUEUE_TREE_MAPPING: HashMap<String, TreeMeta> = {
         let legacy_state_trees = [
             (
                 pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
@@ -217,7 +216,7 @@ lazy_static! {
         for (legacy_tree, legacy_queue, cpi_context) in legacy_state_trees.iter() {
             m.insert(
                 legacy_queue.to_string(),
-                TreeInfo {
+                TreeMeta {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
@@ -228,7 +227,7 @@ lazy_static! {
 
             m.insert(
                 legacy_tree.to_string(),
-                TreeInfo {
+                TreeMeta {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
@@ -241,7 +240,7 @@ lazy_static! {
         for (legacy_tree, legacy_queue, cpi_context) in address_trees_v1.iter() {
             m.insert(
                 legacy_queue.to_string(),
-                TreeInfo {
+                TreeMeta {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
@@ -252,7 +251,7 @@ lazy_static! {
 
             m.insert(
                 legacy_tree.to_string(),
-                TreeInfo {
+                TreeMeta {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
@@ -264,7 +263,7 @@ lazy_static! {
 
         m.insert(
             "6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU".to_string(),
-            TreeInfo {
+            TreeMeta {
                 tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
                 queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
                 cpi_context: None,
@@ -275,7 +274,7 @@ lazy_static! {
 
         m.insert(
             "HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu".to_string(),
-            TreeInfo {
+            TreeMeta {
                 tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
                 queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
                 cpi_context: None,
@@ -286,7 +285,7 @@ lazy_static! {
 
         m.insert(
             "EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK".to_string(),
-            TreeInfo {
+            TreeMeta {
                 tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
                 queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
                 cpi_context: None,

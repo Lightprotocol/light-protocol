@@ -21,14 +21,14 @@ use light_batched_merkle_tree::{
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::BatchedQueueAccount,
 };
-use light_client::{indexer::Indexer, rpc::rpc_connection::RpcConnectionConfig};
+use light_client::{indexer::Indexer, rpc::RpcConfig};
 use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{
     accounts::{
         address_tree::create_address_merkle_tree_and_queue_account,
         address_tree_v2::create_batch_address_merkle_tree,
-        initialize::{initialize_new_group, setup_accounts},
+        initialize::initialize_new_group,
         register_program::{
             deregister_program_with_registry_program, register_program_with_registry_program,
         },
@@ -73,6 +73,7 @@ use light_test_utils::{
     create_rollover_state_merkle_tree_instructions,
     e2e_test_env::init_program_test_env,
     register_test_forester,
+    setup_accounts::setup_accounts,
     test_batch_forester::{
         assert_perform_state_mt_roll_over, create_append_batch_ix_data,
         create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
@@ -81,8 +82,8 @@ use light_test_utils::{
     },
     test_forester::{empty_address_queue_test, nullify_compressed_accounts},
     test_keypairs::from_target_folder,
-    update_test_forester, Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
-    TreeAccounts, CREATE_ADDRESS_TEST_PROGRAM_ID,
+    update_test_forester, Epoch, LightClient, Rpc, RpcError, RpcUrl, TreeAccounts,
+    CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
 use serial_test::serial;
 use solana_sdk::{
@@ -574,7 +575,7 @@ async fn test_custom_forester() {
                     &cpi_context_keypair,
                     None,
                     Some(unregistered_forester_keypair.pubkey()),
-                    1,
+                    TreeType::StateV1,
                 )
                 .await;
 
@@ -657,7 +658,7 @@ async fn test_custom_forester_batched() {
                     &cpi_context_keypair,
                     None,
                     None,
-                    2,
+                    TreeType::StateV2,
                 )
                 .await;
             let state_merkle_tree_pubkey =
@@ -1281,7 +1282,9 @@ async fn failing_test_forester() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_forester_on_testnet() {
     let test_accounts = TestAccounts::get_program_test_test_accounts();
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig::local_no_indexer());
+    let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+        .await
+        .unwrap();
     rpc.airdrop_lamports(
         &test_accounts.protocol.forester.pubkey(),
         LAMPORTS_PER_SOL * 100,
@@ -1323,7 +1326,9 @@ async fn update_forester_on_testnet() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_registry_governance_on_testnet() {
     let test_accounts = TestAccounts::get_program_test_test_accounts();
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig::local_no_indexer());
+    let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+        .await
+        .unwrap();
     rpc.airdrop_lamports(
         &test_accounts.protocol.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100,
@@ -1386,9 +1391,7 @@ async fn init_accounts() {
         keypairs.governance_authority.pubkey()
     );
     println!("forester pubkey: {:?}", keypairs.forester.pubkey());
-    setup_accounts(keypairs, SolanaRpcUrl::Localnet)
-        .await
-        .unwrap();
+    setup_accounts(keypairs, RpcUrl::Localnet).await.unwrap();
 }
 
 /// Tests:
@@ -1985,7 +1988,7 @@ async fn test_batch_address_tree() {
 }
 
 pub async fn perform_batch_address_merkle_tree_update<
-    R: RpcConnection,
+    R: Rpc,
     I: Indexer + TestIndexerExtensions,
 >(
     rpc: &mut R,

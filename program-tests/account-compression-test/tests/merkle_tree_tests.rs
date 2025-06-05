@@ -43,7 +43,7 @@ use light_test_utils::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
         set_state_merkle_tree_next_index, StateMerkleTreeRolloverMode,
     },
-    RpcConnection, RpcError,
+    Rpc, RpcError,
 };
 use num_bigint::{BigUint, ToBigUint};
 use solana_sdk::{
@@ -1207,7 +1207,7 @@ async fn test_nullify_leaves_default() {
     .await
 }
 
-async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
+async fn functional_2_test_insert_into_nullifier_queues<R: Rpc>(
     rpc: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
@@ -1235,7 +1235,7 @@ async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
     assert_eq!(array_element_1.sequence_number(), None);
 }
 
-async fn fail_3_insert_same_elements_into_nullifier_queue<R: RpcConnection>(
+async fn fail_3_insert_same_elements_into_nullifier_queue<R: Rpc>(
     context: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
@@ -1260,7 +1260,7 @@ async fn fail_3_insert_same_elements_into_nullifier_queue<R: RpcConnection>(
     .unwrap();
 }
 
-async fn fail_4_insert_with_invalid_signer<R: RpcConnection>(
+async fn fail_4_insert_with_invalid_signer<R: Rpc>(
     rpc: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
@@ -1287,7 +1287,7 @@ async fn fail_4_insert_with_invalid_signer<R: RpcConnection>(
     .unwrap();
 }
 
-async fn functional_5_test_insert_into_nullifier_queue<R: RpcConnection>(
+async fn functional_5_test_insert_into_nullifier_queue<R: Rpc>(
     rpc: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
@@ -1312,7 +1312,7 @@ async fn functional_5_test_insert_into_nullifier_queue<R: RpcConnection>(
     assert_eq!(array_element.sequence_number(), None);
 }
 
-async fn insert_into_single_nullifier_queue<R: RpcConnection>(
+async fn insert_into_single_nullifier_queue<R: Rpc>(
     elements: &[[u8; 32]],
     fee_payer: &Keypair,
     payer: &Keypair,
@@ -1365,7 +1365,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
     context.process_transaction(transaction.clone()).await
 }
 
-async fn insert_into_nullifier_queues<R: RpcConnection>(
+async fn insert_into_nullifier_queues<R: Rpc>(
     elements: &[[u8; 32]],
     fee_payer: &Keypair,
     payer: &Keypair,
@@ -1430,7 +1430,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
+async fn initialize_state_merkle_tree_and_nullifier_queue<R: Rpc>(
     rpc: &mut R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
@@ -1488,9 +1488,7 @@ async fn initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
     rpc.process_transaction(transaction.clone()).await
 }
 
-pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes<
-    R: RpcConnection,
->(
+pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes<R: Rpc>(
     rpc: &mut R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
@@ -1543,9 +1541,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
 /// 4. Merkle tree roots size (zero).
 /// 5. Merkle tree close threshold (any).
 /// 6. Queue sequence threshold (lower than roots + safety margin).
-pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_config<
-    R: RpcConnection,
->(
+pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_config<R: Rpc>(
     rpc: &mut R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
@@ -1721,7 +1717,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_confi
     }
 }
 
-async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcConnection>(
+async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: Rpc>(
     rpc: &mut R,
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
@@ -1785,7 +1781,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
     merkle_tree_keypair.pubkey()
 }
 
-pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
+pub async fn fail_2_append_leaves_with_invalid_inputs<R: Rpc>(
     context: &mut R,
     merkle_tree_pubkeys: &[Pubkey],
     leaves: Vec<(u8, [u8; 32])>,
@@ -1848,7 +1844,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
     assert_rpc_error(result, 0, expected_error)
 }
 
-pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
+pub async fn functional_3_append_leaves_to_merkle_tree<R: Rpc>(
     context: &mut R,
     reference_merkle_trees: &mut [&mut MerkleTree<Poseidon>],
     merkle_tree_pubkeys: &Vec<Pubkey>,
@@ -1919,7 +1915,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
     }
 }
 
-pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
+pub async fn fail_4_append_leaves_with_invalid_authority<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
 ) {
@@ -1964,7 +1960,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn nullify<R: RpcConnection>(
+pub async fn nullify<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
@@ -2040,7 +2036,7 @@ pub async fn nullify<R: RpcConnection>(
     Ok(())
 }
 
-pub async fn set_nullifier_queue_to_full<R: RpcConnection + TestRpc>(
+pub async fn set_nullifier_queue_to_full<R: Rpc + TestRpc>(
     rpc: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     left_over_indices: usize,
@@ -2106,7 +2102,7 @@ fn find_overlapping_probe_index(
     }
     panic!("No value with overlapping probe index found!");
 }
-async fn fail_insert_into_full_queue<R: RpcConnection>(
+async fn fail_insert_into_full_queue<R: Rpc>(
     context: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
@@ -2127,7 +2123,7 @@ async fn fail_insert_into_full_queue<R: RpcConnection>(
     assert_rpc_error(result, 0, HashSetError::Full.into()).unwrap();
 }
 
-pub async fn set_state_merkle_tree_sequence<R: RpcConnection + TestRpc>(
+pub async fn set_state_merkle_tree_sequence<R: Rpc + TestRpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     sequence_number: u64,

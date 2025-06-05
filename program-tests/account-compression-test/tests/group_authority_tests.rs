@@ -16,7 +16,7 @@ use light_program_test::{
     ProgramTestConfig,
 };
 use light_test_utils::{
-    airdrop_lamports, registered_program_accounts_v1::get_registered_program_pda, RpcConnection,
+    airdrop_lamports, registered_program_accounts_v1::get_registered_program_pda, Rpc,
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -458,8 +458,6 @@ async fn test_resize_registered_program_pda() {
     {
         let mut account = get_registered_program_pda();
         account.data[0..8].copy_from_slice(&[1u8; 8]);
-        // let mut program_test = ProgramTest::default();
-        // program_test.add_program("account_compression", ID, None);
         let system_program_id =
             Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
         let registered_program = Pubkey::find_program_address(
@@ -473,14 +471,7 @@ async fn test_resize_registered_program_pda() {
         };
         let mut context = LightProgramTest::new(config).await.unwrap();
         context.set_account(&registered_program, &account);
-        // program_test.add_account(registered_program, account);
-        // program_test.set_compute_max_units(1_400_000u64);
-        // let context = program_test.start_with_context().await;
-        // let mut context = LightProgramTest {
-        //     context,
-        //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
-        //     indexer: None,
-        // };
+
         let payer = context.get_payer().insecure_clone();
         let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
         let accounts = account_compression::accounts::ResizeRegisteredProgramPda {

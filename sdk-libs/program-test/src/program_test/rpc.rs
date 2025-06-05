@@ -1,15 +1,19 @@
 use std::{fmt::Debug, marker::Send};
 
+use anchor_lang::pubkey;
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_client::{
-    indexer::Indexer,
-    rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, RpcError},
+    indexer::{Indexer, TreeInfo},
+    rpc::{Rpc, RpcConfig, RpcError},
 };
-use light_compressed_account::indexer_event::{
-    error::ParseIndexerEventError,
-    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
-    parse::event_from_light_transaction,
+use light_compressed_account::{
+    indexer_event::{
+        error::ParseIndexerEventError,
+        event::{BatchPublicTransactionEvent, PublicTransactionEvent},
+        parse::event_from_light_transaction,
+    },
+    TreeType,
 };
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::{
@@ -31,8 +35,8 @@ use crate::{
 };
 
 #[async_trait]
-impl RpcConnection for LightProgramTest {
-    fn new(_config: RpcConnectionConfig) -> Self
+impl Rpc for LightProgramTest {
+    async fn new(_config: RpcConfig) -> Result<Self, RpcError>
     where
         Self: Sized,
     {
@@ -85,8 +89,8 @@ impl RpcConnection for LightProgramTest {
             system_instruction::transfer(&self.get_payer().pubkey(), to, lamports);
         let latest_blockhash = self.get_latest_blockhash().await?.0;
 
-        // Use the RpcConnection implementation of get_payer to avoid ambiguity
-        let payer = <Self as RpcConnection>::get_payer(self);
+        // Use the Rpc implementation of get_payer to avoid ambiguity
+        let payer = <Self as Rpc>::get_payer(self);
 
         // Create and sign a transaction
         let transaction = Transaction::new_signed_with_payer(
@@ -223,6 +227,78 @@ impl RpcConnection for LightProgramTest {
     fn indexer_mut(&mut self) -> Result<&mut impl Indexer, RpcError> {
         self.indexer.as_mut().ok_or(RpcError::IndexerNotInitialized)
     }
+
+    /// Fetch the latest state tree addresses from the cluster.
+    async fn get_latest_active_state_trees(&mut self) -> Result<Vec<TreeInfo>, RpcError> {
+        #[cfg(not(feature = "v2"))]
+        return Ok(self
+            .test_accounts
+            .v1_state_trees
+            .to_vec()
+            .into_iter()
+            .map(|tree| tree.into())
+            .collect());
+        #[cfg(feature = "v2")]
+        return Ok(self
+            .test_accounts
+            .v2_state_trees
+            .iter()
+            .map(|tree| (*tree).into())
+            .collect());
+    }
+
+    /// Fetch the latest state tree addresses from the cluster.
+    fn get_state_tree_infos(&self) -> Vec<TreeInfo> {
+        #[cfg(not(feature = "v2"))]
+        return self
+            .test_accounts
+            .v1_state_trees
+            .to_vec()
+            .into_iter()
+            .map(|tree| tree.into())
+            .collect();
+        #[cfg(feature = "v2")]
+        return self
+            .test_accounts
+            .v2_state_trees
+            .iter()
+            .map(|tree| (*tree).into())
+            .collect();
+    }
+
+    /// Gets a random active state tree.
+    /// State trees are cached and have to be fetched or set.
+    fn get_random_state_tree_info(&self) -> TreeInfo {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        #[cfg(not(feature = "v2"))]
+        return self.test_accounts.v1_state_trees
+            [rng.gen_range(0..self.test_accounts.v1_state_trees.len())]
+        .into();
+        #[cfg(feature = "v2")]
+        return self.test_accounts.v2_state_trees
+            [rng.gen_range(0..self.test_accounts.v2_state_trees.len())]
+        .into();
+    }
+
+    fn get_address_tree_v1(&self) -> TreeInfo {
+        TreeInfo {
+            tree: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
+            queue: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
+            cpi_context: None,
+            next_tree_info: None,
+            tree_type: TreeType::AddressV1,
+        }
+    }
+    // fn get_address_tree_v2(&self) -> MerkleContext {
+    //         MerkleContext {
+    //             tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+    //             queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+    //             cpi_context: None,
+    //             next_tree_info: None,
+    //             tree_type: TreeType::AddressV2,
+    //         }
+    // }
 }
 
 impl LightProgramTest {
@@ -313,7 +389,10 @@ impl LightProgramTest {
 
         let slot = self.context.get_sysvar::<Clock>().slot;
         let event = event.map(|e| (e, signature, slot));
-
+        #[cfg(debug_assertions)]
+        {
+            println!("event {:?}", event);
+        }
         if let Some(indexer) = self.indexer.as_mut() {
             if let Some(events) = event.as_ref() {
                 for event in events.0.iter() {

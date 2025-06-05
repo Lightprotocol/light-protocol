@@ -1,6 +1,6 @@
 use account_compression::instruction::InsertIntoQueues;
 use anchor_lang::{prelude::AccountMeta, InstructionData, ToAccountMetas};
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 use solana_sdk::{
     instruction::Instruction,
@@ -9,7 +9,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-pub async fn insert_addresses<R: RpcConnection>(
+pub async fn insert_addresses<R: Rpc>(
     context: &mut R,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,

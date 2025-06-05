@@ -15,7 +15,7 @@ use light_sdk::{
         pack_accounts::PackedAccounts,
     },
 };
-use light_test_utils::{RpcConnection, RpcError};
+use light_test_utils::{Rpc, RpcError};
 use sdk_anchor_test::{MyCompressedAccount, NestedData};
 use solana_sdk::{
     instruction::Instruction,
@@ -32,7 +32,7 @@ async fn test_sdk_test() {
         address_merkle_tree_pubkey: rpc.test_accounts.v1_address_trees[0].merkle_tree,
         address_queue_pubkey: rpc.test_accounts.v1_address_trees[0].queue,
     };
-    rpc.get_state_merkle_tree();
+    rpc.get_state_merkle_tree_account();
 
     let (address, _) = derive_address(
         &[b"compressed", b"test".as_slice()],

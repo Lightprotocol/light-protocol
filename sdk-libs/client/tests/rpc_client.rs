@@ -1,7 +1,7 @@
 use light_client::{
     indexer::{AddressWithTree, Hash, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
-    rpc::{rpc_connection::RpcConnectionConfig, SolanaRpcConnection},
+    rpc::{LightClient, RpcConfig},
 };
 use light_compressed_account::{
     compressed_account::CompressedAccount, hash_to_bn254_field_size_be,
@@ -11,7 +11,7 @@ use light_compressed_token::mint_sdk::{
 };
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::ProverConfig;
-use light_test_utils::{system_program::create_invoke_instruction, RpcConnection};
+use light_test_utils::{system_program::create_invoke_instruction, Rpc};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 use solana_system_interface::instruction::create_account;
@@ -45,7 +45,7 @@ async fn test_all_endpoints() {
     spawn_validator(config).await;
 
     let test_accounts = TestAccounts::get_local_test_validator_accounts();
-    let mut rpc: SolanaRpcConnection = SolanaRpcConnection::new(RpcConnectionConfig::local());
+    let mut rpc: LightClient = LightClient::new(RpcConfig::local()).await.unwrap();
 
     let payer_pubkey = rpc.get_payer().pubkey();
     rpc.airdrop_lamports(&payer_pubkey, LAMPORTS_PER_SOL)

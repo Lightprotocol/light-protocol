@@ -15,7 +15,7 @@ use forester_utils::{
         create_rollover_state_merkle_tree_instructions,
     },
 };
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::{Rpc, RpcError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use light_program_test::{program_test::TestRpc, Indexer};
@@ -29,7 +29,7 @@ use crate::assert_rollover::{
     assert_rolledover_queues_metadata,
 };
 
-pub async fn set_address_merkle_tree_next_index<R: RpcConnection + TestRpc + Indexer>(
+pub async fn set_address_merkle_tree_next_index<R: Rpc + TestRpc + Indexer>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,
@@ -56,7 +56,7 @@ pub async fn set_address_merkle_tree_next_index<R: RpcConnection + TestRpc + Ind
     assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
 }
 
-pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
+pub async fn perform_address_merkle_tree_roll_over<R: Rpc>(
     context: &mut R,
     new_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
@@ -124,7 +124,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     context.process_transaction(transaction).await
 }
 
-pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
+pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
     payer: &Pubkey,
     rpc: &mut R,
     fee_payer_prior_balance: &u64,
@@ -274,7 +274,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_address_merkle_tree_roll_over_forester<R: RpcConnection>(
+pub async fn perform_address_merkle_tree_roll_over_forester<R: Rpc>(
     payer: &Keypair,
     context: &mut R,
     new_queue_keypair: &Keypair,
@@ -307,7 +307,7 @@ pub async fn perform_address_merkle_tree_roll_over_forester<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
+pub async fn perform_state_merkle_tree_roll_over_forester<R: Rpc>(
     payer: &Keypair,
     context: &mut R,
     new_queue_keypair: &Keypair,

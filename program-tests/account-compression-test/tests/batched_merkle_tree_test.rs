@@ -46,7 +46,7 @@ use light_test_utils::{
     mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
     spl::create_initialize_mint_instructions,
     test_batch_forester::assert_perform_state_mt_roll_over,
-    AccountZeroCopy, RpcConnection, RpcError,
+    AccountZeroCopy, Rpc, RpcError,
 };
 use light_verifier::VerifierError;
 use num_bigint::ToBigUint;
@@ -890,20 +890,6 @@ async fn test_init_batch_state_merkle_trees() {
     };
     let mut context = LightProgramTest::new(config).await.unwrap();
 
-    // let mut program_test = ProgramTest::default();
-    // program_test.add_program("account_compression", ID, None);
-    // program_test.add_program(
-    //     "spl_noop",
-    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-    //     None,
-    // );
-    // program_test.set_compute_max_units(1_400_000u64);
-    // let context = program_test.start_with_context().await;
-    // let mut context = LightProgramTest {
-    //     context,
-    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
-    //     indexer: None,
-    // };
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitStateTreeAccountsInstructionData::e2e_test_default();
@@ -1054,20 +1040,6 @@ async fn test_rollover_batch_state_merkle_trees() {
     };
     let mut context = LightProgramTest::new(config).await.unwrap();
 
-    // let mut program_test = ProgramTest::default();
-    // program_test.add_program("account_compression", ID, None);
-    // program_test.add_program(
-    //     "spl_noop",
-    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-    //     None,
-    // );
-    // program_test.set_compute_max_units(1_400_000u64);
-    // let context = program_test.start_with_context().await;
-    // let mut context = LightProgramTest {
-    //     context,
-    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
-    //     indexer: None,
-    // };
     let payer = context.get_payer().insecure_clone();
     let mut params = InitStateTreeAccountsInstructionData::test_default();
     params.rollover_threshold = Some(0);
@@ -1291,7 +1263,7 @@ pub enum BatchStateMerkleTreeRollOverTestMode {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
+pub async fn perform_rollover_batch_state_merkle_tree<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     old_merkle_tree_pubkey: Pubkey,
@@ -1494,21 +1466,6 @@ async fn test_init_batch_address_merkle_trees() {
     };
     let mut context = LightProgramTest::new(config).await.unwrap();
 
-    // let mut program_test = ProgramTest::default();
-    // program_test.add_program("account_compression", ID, None);
-    // program_test.add_program(
-    //     "spl_noop",
-    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-    //     None,
-    // );
-    // program_test.set_compute_max_units(1_400_000u64);
-    // let context = program_test.start_with_context().await;
-    // let mut context = LightProgramTest {
-    //     context,
-    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
-    //     indexer: None,
-    // };
-
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
     let default_params = InitAddressTreeAccountsInstructionData::default();
@@ -1604,21 +1561,6 @@ async fn test_batch_address_merkle_trees() {
     };
     let mut context = LightProgramTest::new(config).await.unwrap();
 
-    // spawn_prover(ProverConfig::default()).await;
-    // let mut program_test = ProgramTest::default();
-    // program_test.add_program("account_compression", ID, None);
-    // program_test.add_program(
-    //     "spl_noop",
-    //     Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-    //     None,
-    // );
-    // program_test.set_compute_max_units(1_400_000u64);
-    // let context = program_test.start_with_context().await;
-    // let mut context = LightProgramTest {
-    //     context,
-    //     test_accounts: TestAccounts::get_local_test_validator_accounts(),
-    //     indexer: None,
-    // };
     let mut mock_indexer = MockBatchedAddressForester::<40>::default();
     let payer = context.get_payer().insecure_clone();
     let mut params = InitAddressTreeAccountsInstructionData::test_default();

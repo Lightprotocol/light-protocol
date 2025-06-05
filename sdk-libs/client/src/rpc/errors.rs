@@ -12,6 +12,15 @@ pub enum RpcError {
     #[error("BanksError: {0}")]
     BanksError(#[from] solana_banks_client::BanksClientError),
 
+    #[error("State tree lookup table not found")]
+    StateTreeLookupTableNotFound,
+
+    #[error("State tree lookup table must have a multiple of 3 addresses")]
+    InvalidStateTreeLookupTable,
+
+    #[error("Nullify table not found")]
+    NullifyTableNotFound,
+
     #[error("TransactionError: {0}")]
     TransactionError(#[from] TransactionError),
 
@@ -65,6 +74,9 @@ impl Clone for RpcError {
             RpcError::InvalidResponseData => RpcError::InvalidResponseData,
             RpcError::IndexerNotInitialized => RpcError::IndexerNotInitialized,
             RpcError::IndexerError(e) => RpcError::IndexerError(e.clone()),
+            RpcError::StateTreeLookupTableNotFound => RpcError::StateTreeLookupTableNotFound,
+            RpcError::InvalidStateTreeLookupTable => RpcError::InvalidStateTreeLookupTable,
+            RpcError::NullifyTableNotFound => RpcError::NullifyTableNotFound,
         }
     }
 }

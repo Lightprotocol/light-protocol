@@ -6,7 +6,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
     queue::BatchedQueueAccount,
 };
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
@@ -17,7 +17,7 @@ use super::{address, error::Result, state, BatchProcessError};
 use crate::indexer_type::IndexerType;
 
 #[derive(Debug)]
-pub struct BatchContext<R: RpcConnection, I: Indexer> {
+pub struct BatchContext<R: Rpc, I: Indexer> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
     pub indexer: Arc<Mutex<I>>,
     pub authority: Keypair,
@@ -36,12 +36,12 @@ pub enum BatchReadyState {
 }
 
 #[derive(Debug)]
-pub struct BatchProcessor<R: RpcConnection, I: Indexer + IndexerType<R>> {
+pub struct BatchProcessor<R: Rpc, I: Indexer + IndexerType<R>> {
     context: BatchContext<R, I>,
     tree_type: TreeType,
 }
 
-impl<R: RpcConnection, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
+impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
     pub fn new(context: BatchContext<R, I>, tree_type: TreeType) -> Self {
         Self { context, tree_type }
     }

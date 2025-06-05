@@ -34,7 +34,7 @@ use light_test_utils::{
     create_address_merkle_tree_and_queue_account_with_assert, get_hash_set,
     get_indexed_merkle_tree,
     test_forester::{empty_address_queue_test, update_merkle_tree},
-    RpcConnection, RpcError,
+    Rpc, RpcError,
 };
 use num_bigint::ToBigUint;
 use rand::thread_rng;
@@ -167,7 +167,7 @@ async fn test_address_queue_and_tree_functional_custom() {
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
+async fn initialize_address_merkle_tree_and_queue<R: Rpc>(
     context: &mut R,
     payer: &Keypair,
     merkle_tree_keypair: &Keypair,
