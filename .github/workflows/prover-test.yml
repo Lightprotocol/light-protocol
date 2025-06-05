@@ -26,6 +26,16 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: buildjet-8vcpu-ubuntu-2204
     timeout-minutes: 120
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -63,10 +73,55 @@ jobs:
           cd prover/server
           go build
 
+      - name: Verify Redis connectivity
+        run: |
+          echo "Waiting for Redis to be ready..."
+          timeout 30 bash -c 'until redis-cli -h localhost -p 6379 ping | grep -q PONG; do sleep 1; done'
+          echo "Redis is ready!"
+          redis-cli -h localhost -p 6379 info server | head -5
+
       - name: Unit tests
         run: |
           cd prover/server
           go test ./prover -timeout 60m
+
+      - name: Redis Queue tests
+        env:
+          TEST_REDIS_URL: redis://localhost:6379/15
+        run: |
+          cd prover/server
+          go test -v -run TestRedis -timeout 10m
+
+      - name: Queue cleanup tests
+        env:
+          TEST_REDIS_URL: redis://localhost:6379/15
+        run: |
+          cd prover/server
+          go test -v -run TestCleanup -timeout 5m
+
+      - name: Worker selection tests
+        run: |
+          cd prover/server
+          go test -v -run TestWorkerSelection -timeout 5m
+
+      - name: Batch operations queue routing tests
+        run: |
+          cd prover/server
+          go test -v -run TestBatchOperations -timeout 5m
+
+      - name: Queue processing flow tests
+        env:
+          TEST_REDIS_URL: redis://localhost:6379/15
+        run: |
+          cd prover/server
+          go test -v -run TestJobProcessingFlow -timeout 5m
+
+      - name: Failed job status tests
+        env:
+          TEST_REDIS_URL: redis://localhost:6379/15
+        run: |
+          cd prover/server
+          go test -v -run TestFailedJobStatus -timeout 5m
 
       - name: Lightweight integration tests
         if: ${{ github.event.pull_request.base.ref == 'main' }}
