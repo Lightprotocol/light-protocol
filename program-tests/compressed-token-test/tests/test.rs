@@ -617,7 +617,7 @@ async fn test_wrapped_sol() {
             use light_program_test::program_test::TestRpc;
             let mint = create_mint_helper(&mut rpc, &payer).await;
             let account = rpc.get_account(mint).await.unwrap().unwrap();
-            rpc.set_account(&native_mint, &account);
+            rpc.set_account(native_mint, account);
         }
         let token_account_keypair = Keypair::new();
         create_token_2022_account(

@@ -4,7 +4,7 @@ use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use forester_utils::utils::airdrop_lamports;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
+    rpc::{merkle_tree::MerkleTreeExt, RpcError},
 };
 use light_prover_client::prover::{spawn_prover, ProverConfig};
 use litesvm::LiteSVM;
@@ -92,7 +92,7 @@ impl LightProgramTest {
                 &mut account.data_as_mut_slice()[8..AddressMerkleTreeAccount::LEN],
             );
             merkle_tree_account.metadata.associated_queue = address_queue_pubkey.into();
-            context.set_account(&address_mt, &account);
+            context.set_account(address_mt, account);
 
             let mut account = context
                 .context
@@ -102,7 +102,7 @@ impl LightProgramTest {
                 &mut account.data_as_mut_slice()[8..QueueAccount::LEN],
             );
             queue_account.metadata.associated_merkle_tree = address_mt.into();
-            context.set_account(&address_queue_pubkey, &account);
+            context.set_account(address_queue_pubkey, account);
         }
         // Will always start a prover server.
         #[cfg(feature = "devenv")]

@@ -46,7 +46,7 @@ pub async fn set_address_merkle_tree_next_index<R: Rpc + TestRpc + Indexer>(
     }
     let mut account_share_data = merkle_tree;
     account_share_data.set_lamports(lamports);
-    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    rpc.set_account(*merkle_tree_pubkey, account_share_data);
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
         IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26, 16>::from_bytes_zero_copy_mut(

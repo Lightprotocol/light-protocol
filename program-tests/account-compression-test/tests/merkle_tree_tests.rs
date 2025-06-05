@@ -2064,7 +2064,7 @@ pub async fn set_nullifier_queue_to_full<R: Rpc + TestRpc>(
     account.data = data;
     account.lamports = lamports;
 
-    rpc.set_account(nullifier_queue_pubkey, &account);
+    rpc.set_account(*nullifier_queue_pubkey, account);
     let new_data = account.data.clone();
     let account = rpc
         .get_account(*nullifier_queue_pubkey)
@@ -2141,7 +2141,7 @@ pub async fn set_state_merkle_tree_sequence<R: Rpc + TestRpc>(
         }
     }
     merkle_tree.lamports = lamports;
-    rpc.set_account(merkle_tree_pubkey, &merkle_tree);
+    rpc.set_account(*merkle_tree_pubkey, merkle_tree);
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
         ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(

@@ -348,7 +348,7 @@ async fn test_resize_registered_program_pda() {
         &account_compression::ID,
     )
     .0;
-    context.set_account(&registered_program, &get_registered_program_pda());
+    context.set_account(registered_program, get_registered_program_pda());
 
     let payer = context.get_payer().insecure_clone();
 
@@ -428,7 +428,7 @@ async fn test_resize_registered_program_pda() {
             &account_compression::ID,
         )
         .0;
-        context.set_account(&registered_program, &account);
+        context.set_account(registered_program, account);
         let payer = context.get_payer().insecure_clone();
 
         let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
@@ -470,7 +470,7 @@ async fn test_resize_registered_program_pda() {
             ..Default::default()
         };
         let mut context = LightProgramTest::new(config).await.unwrap();
-        context.set_account(&registered_program, &account);
+        context.set_account(registered_program, account);
 
         let payer = context.get_payer().insecure_clone();
         let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};

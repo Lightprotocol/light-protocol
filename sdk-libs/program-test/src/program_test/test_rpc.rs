@@ -99,14 +99,14 @@ pub trait TestRpc: Rpc + Sized {
         Ok(event)
     }
 
-    fn set_account(&mut self, address: &Pubkey, account: &Account);
+    fn set_account(&mut self, address: Pubkey, account: Account);
     fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
 }
 
 // Implementation required for E2ETestEnv.
 #[async_trait]
 impl TestRpc for LightClient {
-    fn set_account(&mut self, _address: &Pubkey, _account: &Account) {
+    fn set_account(&mut self, _address: Pubkey, _account: Account) {
         unimplemented!()
     }
 
@@ -117,9 +117,9 @@ impl TestRpc for LightClient {
 
 #[async_trait]
 impl TestRpc for LightProgramTest {
-    fn set_account(&mut self, address: &Pubkey, account: &Account) {
+    fn set_account(&mut self, address: Pubkey, account: Account) {
         self.context
-            .set_account(*address, account.clone())
+            .set_account(address, account)
             .expect("Setting account failed.");
     }
 
