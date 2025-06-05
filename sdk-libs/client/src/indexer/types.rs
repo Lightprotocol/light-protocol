@@ -54,7 +54,7 @@ pub struct MerkleProof {
     pub root: [u8; 32],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AddressWithTree {
     pub address: Address,
     pub tree: Pubkey,

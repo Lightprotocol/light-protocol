@@ -3,30 +3,28 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 use light_compressed_account::TreeType;
-use solana_pubkey::{pubkey, Pubkey};
-// TODO: remove height, add height getter to TreeInfo and use tree info instead.
-#[derive(Debug, Clone)]
-pub struct TreeMeta {
-    pub tree: Pubkey,
-    pub queue: Pubkey,
-    pub cpi_context: Option<Pubkey>,
-    pub height: u32,
-    pub tree_type: TreeType,
-}
+use solana_pubkey::pubkey;
 
-impl TreeMeta {
-    pub fn get(pubkey: &str) -> Option<&TreeMeta> {
+use crate::indexer::TreeInfo;
+
+impl TreeInfo {
+    pub(crate) fn get(pubkey: &str) -> Option<&TreeInfo> {
         QUEUE_TREE_MAPPING.get(pubkey)
     }
 
-    pub fn height(pubkey: &str) -> Option<u32> {
-        QUEUE_TREE_MAPPING.get(pubkey).map(|x| x.height)
+    pub fn height(&self) -> u32 {
+        match self.tree_type {
+            TreeType::StateV1 => 26,
+            TreeType::StateV2 => 32,
+            TreeType::AddressV1 => 26,
+            TreeType::AddressV2 => 40,
+        }
     }
 }
 
 // TODO: keep updated with new trees. We could put it into a separate crate.
 lazy_static! {
-    pub static ref QUEUE_TREE_MAPPING: HashMap<String, TreeMeta> = {
+    pub(crate) static ref QUEUE_TREE_MAPPING: HashMap<String, TreeInfo> = {
         let legacy_state_trees = [
             (
                 pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
@@ -216,23 +214,23 @@ lazy_static! {
         for (legacy_tree, legacy_queue, cpi_context) in legacy_state_trees.iter() {
             m.insert(
                 legacy_queue.to_string(),
-                TreeMeta {
+                TreeInfo {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
-                    height: 26,
                     tree_type: TreeType::StateV1,
+                    next_tree_info: None,
                 },
             );
 
             m.insert(
                 legacy_tree.to_string(),
-                TreeMeta {
+                TreeInfo {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
-                    height: 26,
                     tree_type: TreeType::StateV1,
+                    next_tree_info: None,
                 },
             );
         }
@@ -240,57 +238,57 @@ lazy_static! {
         for (legacy_tree, legacy_queue, cpi_context) in address_trees_v1.iter() {
             m.insert(
                 legacy_queue.to_string(),
-                TreeMeta {
+                TreeInfo {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
-                    height: 26,
                     tree_type: TreeType::AddressV1,
+                    next_tree_info: None,
                 },
             );
 
             m.insert(
                 legacy_tree.to_string(),
-                TreeMeta {
+                TreeInfo {
                     tree: *legacy_tree,
                     queue: *legacy_queue,
                     cpi_context: *cpi_context,
-                    height: 26,
                     tree_type: TreeType::AddressV1,
+                    next_tree_info: None,
                 },
             );
         }
 
         m.insert(
             "6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU".to_string(),
-            TreeMeta {
+            TreeInfo {
                 tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
                 queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
                 cpi_context: None,
-                height: 32,
                 tree_type: TreeType::StateV2,
+                next_tree_info: None,
             },
         );
 
         m.insert(
             "HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu".to_string(),
-            TreeMeta {
+            TreeInfo {
                 tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
                 queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
                 cpi_context: None,
-                height: 32,
                 tree_type: TreeType::StateV2,
+                next_tree_info: None,
             },
         );
 
         m.insert(
             "EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK".to_string(),
-            TreeMeta {
+            TreeInfo {
                 tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
                 queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
                 cpi_context: None,
-                height: 40,
                 tree_type: TreeType::AddressV2,
+                next_tree_info: None,
             },
         );
 
