@@ -1,7 +1,7 @@
 use light_compressed_account::{
     compressed_account::{
-        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-        PackedMerkleContext,
+        CompressedAccount as ProgramCompressedAccount, CompressedAccountData,
+        CompressedAccountWithMerkleContext, PackedMerkleContext,
     },
     TreeType,
 };
@@ -448,7 +448,7 @@ impl TreeInfo {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct Account {
+pub struct CompressedAccount {
     pub address: Option<[u8; 32]>,
     pub data: Option<CompressedAccountData>,
     pub hash: [u8; 32],
@@ -461,7 +461,7 @@ pub struct Account {
     pub slot_created: u64,
 }
 
-impl TryFrom<CompressedAccountWithMerkleContext> for Account {
+impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
     type Error = IndexerError;
 
     fn try_from(account: CompressedAccountWithMerkleContext) -> Result<Self, Self::Error> {
@@ -469,7 +469,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for Account {
             .hash()
             .map_err(|_| IndexerError::InvalidResponseData)?;
 
-        Ok(Account {
+        Ok(CompressedAccount {
             address: account.compressed_account.address,
             data: account.compressed_account.data,
             hash,
@@ -490,9 +490,9 @@ impl TryFrom<CompressedAccountWithMerkleContext> for Account {
     }
 }
 
-impl From<Account> for CompressedAccountWithMerkleContext {
-    fn from(account: Account) -> Self {
-        let compressed_account = CompressedAccount {
+impl From<CompressedAccount> for CompressedAccountWithMerkleContext {
+    fn from(account: CompressedAccount) -> Self {
+        let compressed_account = ProgramCompressedAccount {
             owner: account.owner,
             lamports: account.lamports,
             address: account.address,
@@ -510,7 +510,7 @@ impl From<Account> for CompressedAccountWithMerkleContext {
     }
 }
 
-impl TryFrom<&photon_api::models::AccountV2> for Account {
+impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
     type Error = IndexerError;
 
     fn try_from(account: &photon_api::models::AccountV2) -> Result<Self, Self::Error> {
@@ -550,7 +550,7 @@ impl TryFrom<&photon_api::models::AccountV2> for Account {
                 .transpose()?,
         };
 
-        Ok(Account {
+        Ok(CompressedAccount {
             owner,
             address,
             data,
@@ -565,7 +565,7 @@ impl TryFrom<&photon_api::models::AccountV2> for Account {
     }
 }
 
-impl TryFrom<&photon_api::models::Account> for Account {
+impl TryFrom<&photon_api::models::Account> for CompressedAccount {
     type Error = IndexerError;
 
     fn try_from(account: &photon_api::models::Account) -> Result<Self, Self::Error> {
@@ -603,7 +603,7 @@ impl TryFrom<&photon_api::models::Account> for Account {
             tree: tree_info.tree,
         };
 
-        Ok(Account {
+        Ok(CompressedAccount {
             owner,
             address,
             data,
@@ -663,14 +663,14 @@ pub struct TokenAccount {
     /// Token-specific data (mint, owner, amount, delegate, state, tlv)
     pub token: TokenData,
     /// General account information (address, hash, lamports, merkle context, etc.)
-    pub account: Account,
+    pub account: CompressedAccount,
 }
 
 impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
-        let account = Account::try_from(token_account.account.as_ref())?;
+        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
 
         let token = TokenData {
             mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
@@ -707,7 +707,7 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
-        let account = Account::try_from(token_account.account.as_ref())?;
+        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
 
         let token = TokenData {
             mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
@@ -778,7 +778,7 @@ impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     fn try_from(
         token_data_with_context: light_sdk::token::TokenDataWithMerkleContext,
     ) -> Result<Self, Self::Error> {
-        let account = Account::try_from(token_data_with_context.compressed_account)?;
+        let account = CompressedAccount::try_from(token_data_with_context.compressed_account)?;
 
         Ok(TokenAccount {
             token: token_data_with_context.token_data,

@@ -2,7 +2,7 @@
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use counter::CounterAccount;
-use light_client::indexer::{Account, TreeInfo};
+use light_client::indexer::{CompressedAccount, TreeInfo};
 use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
@@ -174,7 +174,7 @@ where
 async fn increment_counter<R>(
     rpc: &mut R,
     payer: &Keypair,
-    compressed_account: &Account,
+    compressed_account: &CompressedAccount,
 ) -> Result<Signature, RpcError>
 where
     R: Rpc + Indexer,
@@ -234,7 +234,7 @@ where
 async fn decrement_counter<R>(
     rpc: &mut R,
     payer: &Keypair,
-    compressed_account: &Account,
+    compressed_account: &CompressedAccount,
 ) -> Result<Signature, RpcError>
 where
     R: Rpc + Indexer,
@@ -293,7 +293,7 @@ where
 async fn reset_counter<R>(
     rpc: &mut R,
     payer: &Keypair,
-    compressed_account: &Account,
+    compressed_account: &CompressedAccount,
 ) -> Result<Signature, RpcError>
 where
     R: Rpc + Indexer,
@@ -351,7 +351,7 @@ where
 async fn close_counter<R>(
     rpc: &mut R,
     payer: &Keypair,
-    compressed_account: &Account,
+    compressed_account: &CompressedAccount,
 ) -> Result<Signature, RpcError>
 where
     R: Rpc + Indexer,

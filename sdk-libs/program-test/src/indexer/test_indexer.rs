@@ -15,8 +15,8 @@ use light_batched_merkle_tree::{
 use light_client::{
     fee::FeeConfig,
     indexer::{
-        Account, AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
-        AddressWithTree, BatchAddressUpdateIndexerResponse, Context,
+        AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
+        AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount, Context,
         GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
         Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
         MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions,
@@ -166,9 +166,9 @@ impl Indexer for TestIndexer {
         owner: &Pubkey,
         _options: Option<GetCompressedAccountsByOwnerConfig>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedAccount>>, IndexerError> {
         let accounts_with_context = <TestIndexer as TestIndexerExtensions>::get_compressed_accounts_with_merkle_context_by_owner(self, owner);
-        let accounts: Result<Vec<Account>, IndexerError> = accounts_with_context
+        let accounts: Result<Vec<CompressedAccount>, IndexerError> = accounts_with_context
             .into_iter()
             .map(|acc| acc.try_into())
             .collect();
@@ -189,7 +189,7 @@ impl Indexer for TestIndexer {
         address: Option<Address>,
         hash: Option<Hash>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Account>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         let account = match (address, hash) {
             (Some(address), _) => self
                 .compressed_accounts
@@ -312,7 +312,7 @@ impl Indexer for TestIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Account>>, IndexerError> {
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
                 let accounts = self
@@ -324,7 +324,7 @@ impl Indexer for TestIndexer {
                             .is_some_and(|addr| addresses.contains(&addr))
                     })
                     .map(|acc| acc.clone().try_into())
-                    .collect::<Result<Vec<Account>, IndexerError>>()?;
+                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
@@ -338,7 +338,7 @@ impl Indexer for TestIndexer {
                     .iter()
                     .filter(|acc| acc.hash().is_ok_and(|hash| hashes.contains(&hash)))
                     .map(|acc| acc.clone().try_into())
-                    .collect::<Result<Vec<Account>, IndexerError>>()?;
+                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
