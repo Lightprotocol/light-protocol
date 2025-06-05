@@ -459,11 +459,11 @@ pub struct CompressedAccount {
     pub hash: [u8; 32],
     pub lamports: u64,
     pub leaf_index: u32,
-    pub tree_info: TreeInfo,
     pub owner: Pubkey,
     pub prove_by_index: bool,
     pub seq: Option<u64>,
     pub slot_created: u64,
+    pub tree_info: TreeInfo,
 }
 
 impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {

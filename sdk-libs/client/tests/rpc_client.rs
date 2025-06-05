@@ -187,7 +187,7 @@ async fn test_all_endpoints() {
     let account = rpc
         .indexer()
         .unwrap()
-        .get_compressed_account(None, Some(first_account.hash), None)
+        .get_compressed_account_by_hash(first_account.hash, None)
         .await
         .unwrap()
         .value;

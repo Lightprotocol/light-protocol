@@ -19,8 +19,14 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     /// Returns the compressed account with the given address or hash.
     async fn get_compressed_account(
         &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
+        address: Address,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<CompressedAccount>, IndexerError>;
+
+    /// Returns the compressed account with the given address or hash.
+    async fn get_compressed_account_by_hash(
+        &self,
+        hash: Hash,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<CompressedAccount>, IndexerError>;
 

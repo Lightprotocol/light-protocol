@@ -44,7 +44,7 @@ async fn test_sdk_test() {
 
     // Check that it was created correctly.
     let compressed_account = rpc
-        .get_compressed_account(Some(address), None, None)
+        .get_compressed_account(address, None)
         .await
         .unwrap()
         .value;

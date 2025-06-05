@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use lazy_static::lazy_static;
 use light_compressed_account::TreeType;
 use solana_pubkey::{pubkey, Pubkey};
-
+// TODO: remove height, add height getter to TreeInfo and use tree info instead.
 #[derive(Debug, Clone)]
 pub struct TreeMeta {
     pub tree: Pubkey,

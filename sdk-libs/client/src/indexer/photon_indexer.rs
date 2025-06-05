@@ -366,13 +366,50 @@ impl Indexer for PhotonIndexer {
 
     async fn get_compressed_account(
         &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
+        address: Address,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<CompressedAccount>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = self.build_account_params(address, hash)?;
+            let params = self.build_account_params(Some(address), None)?;
+            let request = photon_api::models::GetCompressedAccountPostRequest {
+                params: Box::new(params),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_compressed_account_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+            let api_response = Self::extract_result("get_compressed_account", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            let account_data = api_response
+                .value
+                .ok_or(IndexerError::AccountNotFound)
+                .map(|boxed| *boxed)?;
+            let account = CompressedAccount::try_from(&account_data)?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: account,
+            })
+        })
+        .await
+    }
+
+    async fn get_compressed_account_by_hash(
+        &self,
+        hash: Hash,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let params = self.build_account_params(None, Some(hash))?;
             let request = photon_api::models::GetCompressedAccountPostRequest {
                 params: Box::new(params),
                 ..Default::default()

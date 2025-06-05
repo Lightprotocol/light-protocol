@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use counter::CounterAccount;
@@ -39,7 +39,7 @@ async fn test_counter() {
 
     // Check that it was created correctly.
     let compressed_account = rpc
-        .get_compressed_account(Some(address), None, None)
+        .get_compressed_account(address, None)
         .await
         .unwrap()
         .value;
@@ -55,7 +55,7 @@ async fn test_counter() {
 
     // Check that it was incremented correctly.
     let compressed_account = rpc
-        .get_compressed_account(Some(address), None, None)
+        .get_compressed_account(address, None)
         .await
         .unwrap()
         .value;
@@ -72,7 +72,7 @@ async fn test_counter() {
 
     // Check that it was decremented correctly.
     let compressed_account = rpc
-        .get_compressed_account(Some(address), None, None)
+        .get_compressed_account(address, None)
         .await
         .unwrap()
         .value;
@@ -90,7 +90,7 @@ async fn test_counter() {
 
     // Check that it was reset correctly.
     let compressed_account = rpc
-        .get_compressed_account(Some(address), None, None)
+        .get_compressed_account(address, None)
         .await
         .unwrap()
         .value;

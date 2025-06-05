@@ -65,15 +65,27 @@ impl Indexer for LightProgramTest {
 
     async fn get_compressed_account(
         &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
+        address: Address,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<CompressedAccount>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_account(address, hash, config)
+            .get_compressed_account(address, config)
+            .await?)
+    }
+
+    async fn get_compressed_account_by_hash(
+        &self,
+        hash: Hash,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_account_by_hash(hash, config)
             .await?)
     }
 

@@ -186,36 +186,46 @@ impl Indexer for TestIndexer {
 
     async fn get_compressed_account(
         &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
+        address: Address,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<CompressedAccount>, IndexerError> {
-        let account = match (address, hash) {
-            (Some(address), _) => self
-                .compressed_accounts
+        let account = self
+            .compressed_accounts
+            .iter()
+            .find(|acc| acc.compressed_account.address == Some(address));
+
+        let account_data = account
+            .ok_or(IndexerError::AccountNotFound)?
+            .clone()
+            .try_into()?;
+
+        Ok(Response {
+            context: Context {
+                slot: self.get_current_slot(),
+            },
+            value: account_data,
+        })
+    }
+
+    async fn get_compressed_account_by_hash(
+        &self,
+        hash: Hash,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
+        let res = self
+            .compressed_accounts
+            .iter()
+            .find(|acc| acc.hash() == Ok(hash));
+
+        // TODO: unify token accounts with compressed accounts.
+        let account = if res.is_none() {
+            let res = self
+                .token_compressed_accounts
                 .iter()
-                .find(|acc| acc.compressed_account.address == Some(address)),
-            (_, Some(hash)) => {
-                let res = self
-                    .compressed_accounts
-                    .iter()
-                    .find(|acc| acc.hash() == Ok(hash));
-                // TODO: unify token accounts with compressed accounts.
-                if res.is_none() {
-                    let res = self
-                        .token_compressed_accounts
-                        .iter()
-                        .find(|acc| acc.compressed_account.hash() == Ok(hash));
-                    res.map(|x| &x.compressed_account)
-                } else {
-                    res
-                }
-            }
-            (None, None) => {
-                return Err(IndexerError::InvalidParameters(
-                    "Either address or hash must be provided".to_string(),
-                ))
-            }
+                .find(|acc| acc.compressed_account.hash() == Ok(hash));
+            res.map(|x| &x.compressed_account)
+        } else {
+            res
         };
 
         let account_data = account
@@ -264,7 +274,15 @@ impl Indexer for TestIndexer {
         hash: Option<Hash>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<u64>, IndexerError> {
-        let account_response = self.get_compressed_account(address, hash, None).await?;
+        let account_response = match (address, hash) {
+            (Some(addr), _) => self.get_compressed_account(addr, None).await?,
+            (_, Some(h)) => self.get_compressed_account_by_hash(h, None).await?,
+            _ => {
+                return Err(IndexerError::InvalidParameters(
+                    "Either address or hash must be provided".to_string(),
+                ))
+            }
+        };
         Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
@@ -426,7 +444,7 @@ impl Indexer for TestIndexer {
             let mut state_merkle_tree_pubkeys = Vec::new();
 
             for hash in hashes.iter() {
-                let account = self.get_compressed_account(None, Some(*hash), None).await?;
+                let account = self.get_compressed_account_by_hash(*hash, None).await?;
                 state_merkle_tree_pubkeys.push(account.value.tree_info.tree);
             }
             let mut proof_inputs = vec![];
@@ -2031,7 +2049,7 @@ impl TestIndexer {
 
         for hash in hashes.iter() {
             state_merkle_tree_pubkeys.push(
-                self.get_compressed_account(None, Some(*hash), None)
+                self.get_compressed_account_by_hash(*hash, None)
                     .await?
                     .value
                     .tree_info
