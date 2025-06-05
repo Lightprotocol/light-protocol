@@ -106,12 +106,6 @@ impl TestAccounts {
             light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
         );
 
-        // let address_merkle_tree_keypair =
-        //     Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap();
-
-        // let address_merkle_tree_queue_keypair =
-        //     Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
-
         let cpi_context_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
         let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
         let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
