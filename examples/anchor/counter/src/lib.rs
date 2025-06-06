@@ -5,10 +5,8 @@ use light_sdk::{
     account::LightAccount,
     address::v1::derive_address,
     cpi::{CpiAccounts, CpiInputs},
-    instruction::{
-        account_meta::CompressedAccountMeta, merkle_context::PackedAddressMerkleContext,
-    },
-    LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
+    instruction::{account_meta::CompressedAccountMeta, tree_info::PackedAddressTreeInfo},
+    LightDiscriminator, LightHasher, ValidityProof,
 };
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
@@ -21,7 +19,7 @@ pub mod counter {
     pub fn create_counter<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
         proof: ValidityProof,
-        address_merkle_context: PackedAddressMerkleContext,
+        address_tree_info: PackedAddressTreeInfo,
         output_tree_index: u8,
     ) -> Result<()> {
         let program_id = crate::ID.into();
@@ -40,18 +38,12 @@ pub mod counter {
         let (address, address_seed) = derive_address(
             &[b"counter", ctx.accounts.signer.key().as_ref()],
             &light_cpi_accounts.tree_accounts()
-                [address_merkle_context.address_merkle_tree_pubkey_index as usize]
+                [address_tree_info.address_merkle_tree_pubkey_index as usize]
                 .key(),
             &crate::ID,
         );
 
-        let new_address_params = NewAddressParamsPacked {
-            seed: address_seed,
-            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-            address_merkle_tree_root_index: address_merkle_context.root_index,
-            address_merkle_tree_account_index: address_merkle_context
-                .address_merkle_tree_pubkey_index,
-        };
+        let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
         let mut counter = LightAccount::<'_, CounterAccount>::new_init(
             &program_id,

@@ -1,25 +1,25 @@
-use crate::{instruction::merkle_context::PackedTreeInfo, AnchorDeserialize, AnchorSerialize};
+use crate::{instruction::tree_info::PackedStateTreeInfo, AnchorDeserialize, AnchorSerialize};
 
 /// CompressedAccountMeta (context, address, root_index, output_tree_index)
 /// CompressedAccountMetaNoLamportsNoAddress (context, root_index, output_tree_index)
 /// CompressedAccountMetaWithLamportsNoAddress (context, root_index, output_tree_index)
 /// CompressedAccountMetaWithLamports (context, lamports, address, root_index, output_tree_index)
 pub trait CompressedAccountMetaTrait {
-    fn get_tree_info(&self) -> &PackedTreeInfo;
+    fn get_tree_info(&self) -> &PackedStateTreeInfo;
     fn get_lamports(&self) -> Option<u64>;
     fn get_root_index(&self) -> Option<u16>;
     fn get_address(&self) -> Option<[u8; 32]>;
-    fn get_output_merkle_tree_index(&self) -> u8;
+    fn get_output_tree_index(&self) -> u8;
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaNoLamportsNoAddress {
-    pub tree_info: PackedTreeInfo,
+    pub tree_info: PackedStateTreeInfo,
     pub output_tree_index: u8,
 }
 
 impl CompressedAccountMetaTrait for CompressedAccountMetaNoLamportsNoAddress {
-    fn get_tree_info(&self) -> &PackedTreeInfo {
+    fn get_tree_info(&self) -> &PackedStateTreeInfo {
         &self.tree_info
     }
 
@@ -39,20 +39,20 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaNoLamportsNoAddress {
         None
     }
 
-    fn get_output_merkle_tree_index(&self) -> u8 {
+    fn get_output_tree_index(&self) -> u8 {
         self.output_tree_index
     }
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaNoAddress {
-    pub tree_info: PackedTreeInfo,
+    pub tree_info: PackedStateTreeInfo,
     pub output_tree_index: u8,
     pub lamports: u64,
 }
 
 impl CompressedAccountMetaTrait for CompressedAccountMetaNoAddress {
-    fn get_tree_info(&self) -> &PackedTreeInfo {
+    fn get_tree_info(&self) -> &PackedStateTreeInfo {
         &self.tree_info
     }
 
@@ -72,7 +72,7 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaNoAddress {
         None
     }
 
-    fn get_output_merkle_tree_index(&self) -> u8 {
+    fn get_output_tree_index(&self) -> u8 {
         self.output_tree_index
     }
 }
@@ -80,7 +80,7 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaNoAddress {
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMeta {
     /// Merkle tree context.
-    pub tree_info: PackedTreeInfo,
+    pub tree_info: PackedStateTreeInfo,
     /// Address.
     pub address: [u8; 32],
     /// Output merkle tree index.
@@ -88,7 +88,7 @@ pub struct CompressedAccountMeta {
 }
 
 impl CompressedAccountMetaTrait for CompressedAccountMeta {
-    fn get_tree_info(&self) -> &PackedTreeInfo {
+    fn get_tree_info(&self) -> &PackedStateTreeInfo {
         &self.tree_info
     }
 
@@ -108,7 +108,7 @@ impl CompressedAccountMetaTrait for CompressedAccountMeta {
         Some(self.address)
     }
 
-    fn get_output_merkle_tree_index(&self) -> u8 {
+    fn get_output_tree_index(&self) -> u8 {
         self.output_tree_index
     }
 }
@@ -116,7 +116,7 @@ impl CompressedAccountMetaTrait for CompressedAccountMeta {
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaWithLamports {
     /// Merkle tree context.
-    pub tree_info: PackedTreeInfo,
+    pub tree_info: PackedStateTreeInfo,
     /// Lamports.
     pub lamports: u64,
     /// Address.
@@ -126,7 +126,7 @@ pub struct CompressedAccountMetaWithLamports {
 }
 
 impl CompressedAccountMetaTrait for CompressedAccountMetaWithLamports {
-    fn get_tree_info(&self) -> &PackedTreeInfo {
+    fn get_tree_info(&self) -> &PackedStateTreeInfo {
         &self.tree_info
     }
 
@@ -146,7 +146,7 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaWithLamports {
         Some(self.address)
     }
 
-    fn get_output_merkle_tree_index(&self) -> u8 {
+    fn get_output_tree_index(&self) -> u8 {
         self.output_tree_index
     }
 }

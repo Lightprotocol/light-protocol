@@ -54,8 +54,10 @@ pub(crate) fn generate_data_hasher_impl(
                     #(#hash_to_field_size_code)*
                     #[cfg(debug_assertions)]
                    {
-                       let debug_prints: Vec<[u8;32]> = vec![#(#data_hasher_assignments,)*];
-                       println!("DataHasher::hash inputs {:?}", debug_prints);
+                       if std::env::var("RUST_BACKTRACE").is_ok() {
+                            let debug_prints: Vec<[u8;32]> = vec![#(#data_hasher_assignments,)*];
+                            println!("DataHasher::hash inputs {:?}", debug_prints);
+                       }
                    }
                     H::hashv(&[
                         #(#data_hasher_assignments.as_slice(),)*

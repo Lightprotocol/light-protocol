@@ -140,12 +140,12 @@ where
         .get_random_state_tree_info()
         .get_output_tree_index(&mut remaining_accounts)?;
     let packed_address_tree_info = rpc_result
-        .pack_tree_accounts(&mut remaining_accounts)
+        .pack_tree_infos(&mut remaining_accounts)
         .address_trees[0];
 
     let instruction_data = counter::instruction::CreateCounter {
         proof: rpc_result.proof,
-        address_merkle_context: packed_address_tree_info,
+        address_tree_info: packed_address_tree_info,
         output_tree_index,
     };
 
@@ -190,7 +190,7 @@ where
         .value;
 
     let packed_tree_accounts = rpc_result
-        .pack_tree_accounts(&mut remaining_accounts)
+        .pack_tree_infos(&mut remaining_accounts)
         .account_trees
         .unwrap();
 
@@ -251,7 +251,7 @@ where
         .value;
 
     let packed_tree_accounts = rpc_result
-        .pack_tree_accounts(&mut remaining_accounts)
+        .pack_tree_infos(&mut remaining_accounts)
         .account_trees
         .unwrap();
 
@@ -311,7 +311,7 @@ where
         .value;
 
     let packed_merkle_context = rpc_result
-        .pack_tree_accounts(&mut remaining_accounts)
+        .pack_tree_infos(&mut remaining_accounts)
         .account_trees
         .unwrap();
 
@@ -372,7 +372,7 @@ where
         .value;
 
     let packed_tree_infos = rpc_result
-        .pack_tree_accounts(&mut remaining_accounts)
+        .pack_tree_infos(&mut remaining_accounts)
         .account_trees
         .unwrap();
 

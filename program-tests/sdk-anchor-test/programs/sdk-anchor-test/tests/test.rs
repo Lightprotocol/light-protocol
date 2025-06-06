@@ -10,7 +10,7 @@ use light_sdk::{
     address::v1::derive_address,
     instruction::{
         account_meta::CompressedAccountMeta, accounts::SystemAccountMetaConfig,
-        merkle_context::AddressMerkleContext, pack_accounts::PackedAccounts,
+        pack_accounts::PackedAccounts, tree_info::AddressTreeInfo,
     },
 };
 use light_test_utils::{Rpc, RpcError};
@@ -27,15 +27,13 @@ async fn test_sdk_test() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: rpc.test_accounts.v1_address_trees[0].merkle_tree,
-        address_queue_pubkey: rpc.test_accounts.v1_address_trees[0].queue,
-    };
+    let address_tree_info = rpc.get_address_tree_v1();
+
     rpc.get_state_merkle_tree_account();
 
     let (address, _) = derive_address(
         &[b"compressed", b"test".as_slice()],
-        &address_merkle_context.address_merkle_tree_pubkey,
+        &address_tree_info.address_merkle_tree_pubkey,
         &sdk_anchor_test::ID,
     );
 
@@ -114,7 +112,7 @@ async fn with_nested_data(
         )
         .await?
         .value;
-    let packed_accounts = rpc_result.pack_tree_accounts(&mut remaining_accounts);
+    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
 
     let output_tree_index = rpc
         .get_random_state_tree_info()
@@ -125,7 +123,7 @@ async fn with_nested_data(
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
         proof: rpc_result.proof,
-        address_merkle_context: packed_accounts.address_trees[0],
+        address_tree_info: packed_accounts.address_trees[0],
         name,
         output_tree_index,
     };
@@ -162,7 +160,7 @@ async fn update_nested_data(
         .value;
 
     let packed_tree_accounts = rpc_result
-        .pack_tree_accounts(&mut remaining_accounts)
+        .pack_tree_infos(&mut remaining_accounts)
         .account_trees
         .unwrap();
 

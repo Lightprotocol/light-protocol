@@ -3,13 +3,13 @@ use light_compressed_account::instruction_data::data::{
 };
 
 use crate::{
-    instruction::{merkle_context::AddressMerkleContext, pack_accounts::PackedAccounts},
+    instruction::{pack_accounts::PackedAccounts, tree_info::AddressTreeInfo},
     AccountInfo,
 };
 
 pub struct AddressWithMerkleContext {
     pub address: [u8; 32],
-    pub address_merkle_context: AddressMerkleContext,
+    pub address_tree_info: AddressTreeInfo,
 }
 
 pub fn pack_new_addresses_params(
@@ -112,13 +112,13 @@ pub mod v1 {
     /// ```ignore
     /// use light_sdk::{address::derive_address, pubkey};
     ///
-    /// let address_merkle_context = {
+    /// let address_tree_info = {
     ///     address_merkle_tree_pubkey: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
     ///     address_queue_pubkey: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
     /// };
     /// let address = derive_address(
     ///     &[b"my_compressed_account"],
-    ///     &address_merkle_context,
+    ///     &address_tree_info,
     ///     &crate::ID,
     /// );
     /// ```
@@ -165,7 +165,7 @@ mod test {
 
     #[test]
     fn test_derive_address() {
-        let address_merkle_context = AddressMerkleContext {
+        let address_tree_info = AddressTreeInfo {
             address_merkle_tree_pubkey: pubkey!("11111111111111111111111111111111"),
             address_queue_pubkey: pubkey!("22222222222222222222222222222222222222222222"),
         };
@@ -180,14 +180,12 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address = derive_address_from_seed(
-            &address_seed,
-            &address_merkle_context.address_merkle_tree_pubkey,
-        );
+        let address =
+            derive_address_from_seed(&address_seed, &address_tree_info.address_merkle_tree_pubkey);
         assert_eq!(address, expected_address.to_bytes());
         let (address, address_seed) = derive_address(
             seeds,
-            &address_merkle_context.address_merkle_tree_pubkey,
+            &address_tree_info.address_merkle_tree_pubkey,
             &program_id,
         );
         assert_eq!(address_seed, expected_address_seed);
@@ -202,14 +200,12 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address = derive_address_from_seed(
-            &address_seed,
-            &address_merkle_context.address_merkle_tree_pubkey,
-        );
+        let address =
+            derive_address_from_seed(&address_seed, &address_tree_info.address_merkle_tree_pubkey);
         assert_eq!(address, expected_address.to_bytes());
         let (address, address_seed) = derive_address(
             seeds,
-            &address_merkle_context.address_merkle_tree_pubkey,
+            &address_tree_info.address_merkle_tree_pubkey,
             &program_id,
         );
         assert_eq!(address_seed, expected_address_seed);

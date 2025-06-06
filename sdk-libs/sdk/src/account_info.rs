@@ -51,7 +51,7 @@ pub trait AccountInfoTrait {
         &mut self,
         discriminator: [u8; 8],
         address: Option<[u8; 32]>,
-        output_merkle_tree_index: u8,
+        output_tree_index: u8,
     ) -> Result<(), CompressedAccountError>;
 
     fn meta_mut<M: CompressedAccountMetaTrait>(
@@ -59,7 +59,7 @@ pub trait AccountInfoTrait {
         input_account_meta: &M,
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
-        output_merkle_tree_index: u8,
+        output_tree_index: u8,
     ) -> Result<(), CompressedAccountError>;
 
     fn meta_close<M: CompressedAccountMetaTrait>(
@@ -86,7 +86,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
         &mut self,
         discriminator: [u8; 8],
         address: Option<[u8; 32]>,
-        output_merkle_tree_index: u8,
+        output_tree_index: u8,
     ) -> Result<(), CompressedAccountError> {
         if let Some(self_address) = self.address.as_mut() {
             if let Some(address) = address {
@@ -100,7 +100,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
             return Err(CompressedAccountError::InvalidAccountSize);
         }
         if let Some(output) = self.output.as_mut() {
-            output.output_merkle_tree_index = output_merkle_tree_index;
+            output.output_merkle_tree_index = output_tree_index;
             output.discriminator = discriminator;
         } else {
             msg!("init_with_address: output is none");
@@ -114,7 +114,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
         input_account_meta: &M,
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
-        output_merkle_tree_index: u8,
+        output_tree_index: u8,
     ) -> Result<(), CompressedAccountError> {
         if let Some(self_address) = self.address.as_mut() {
             if let Some(address) = input_account_meta.get_address().as_ref() {
@@ -136,7 +136,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
         }
 
         if let Some(output) = self.output.as_mut() {
-            output.output_merkle_tree_index = output_merkle_tree_index;
+            output.output_merkle_tree_index = output_tree_index;
             output.discriminator = discriminator;
 
             if let Some(input_lamports) = input_account_meta.get_lamports() {

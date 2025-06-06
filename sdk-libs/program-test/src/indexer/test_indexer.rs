@@ -436,8 +436,6 @@ impl Indexer for TestIndexer {
         new_addresses_with_trees: Vec<AddressWithTree>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError> {
-        println!("hashes: {:?}", hashes);
-        println!("new_addresses_with_trees: {:?}", new_addresses_with_trees);
         #[cfg(feature = "v2")]
         {
             // V2 implementation with queue handling
@@ -540,8 +538,13 @@ impl Indexer for TestIndexer {
                 } else {
                     Vec::new()
                 };
-                println!("rpc_result {:?}", rpc_result);
-                println!("root_indices: {:?}", root_indices);
+                #[cfg(debug_assertions)]
+                {
+                    if std::env::var("RUST_BACKTRACE").is_ok() {
+                        println!("get_validit_proof: rpc_result {:?}", rpc_result);
+                    }
+                }
+
                 // reverse so that we can pop elements.
                 proof_inputs.reverse();
                 // Reinsert.

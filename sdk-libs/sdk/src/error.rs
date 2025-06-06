@@ -14,7 +14,7 @@ pub enum LightSdkError {
     #[error("Expected accounts in the instruction")]
     ExpectedAccounts,
     #[error("Expected address Merkle context to be provided")]
-    ExpectedAddressMerkleContext,
+    ExpectedAddressTreeInfo,
     #[error("Expected address root index to be provided")]
     ExpectedAddressRootIndex,
     #[error("Accounts with a specified input are expected to have data")]
@@ -57,7 +57,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::ConstraintViolation => 14001,
             LightSdkError::InvalidLightSystemProgram => 14002,
             LightSdkError::ExpectedAccounts => 14003,
-            LightSdkError::ExpectedAddressMerkleContext => 14004,
+            LightSdkError::ExpectedAddressTreeInfo => 14004,
             LightSdkError::ExpectedAddressRootIndex => 14005,
             LightSdkError::ExpectedData => 14006,
             LightSdkError::ExpectedDiscriminator => 14007,

@@ -6,7 +6,7 @@ use light_hasher::bytes::AsByteVec;
 use light_sdk::{
     account::{LightAccount, LightAccounts},
     light_account, light_accounts, light_program,
-    merkle_context::PackedAddressMerkleContext,
+    tree_info::PackedAddressTreeInfo,
 };
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");

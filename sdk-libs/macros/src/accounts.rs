@@ -290,7 +290,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             ) -> Result<()>;
             fn derive_address_seeds(
                 &mut self,
-                address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext,
+                address_merkle_context: ::light_sdk::tree_info::PackedAddressTreeInfo,
                 inputs: &#params_name,
             );
         }
@@ -318,7 +318,7 @@ pub(crate) fn process_light_accounts(input: ItemStruct) -> Result<TokenStream> {
             #[allow(unused_variables)]
             fn derive_address_seeds(
                 &mut self,
-                address_merkle_context: PackedAddressMerkleContext,
+                address_merkle_context: PackedAddressTreeInfo,
                 inputs: &#params_name,
             ) {
                 let #anchor_accounts_name {
@@ -558,7 +558,7 @@ pub(crate) fn process_light_accounts_derive(input: ItemStruct) -> Result<TokenSt
                 inputs: Vec<Vec<u8>>,
                 merkle_context: ::light_sdk::merkle_context::PackedMerkleContext,
                 merkle_tree_root_index: u16,
-                address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext,
+                address_merkle_context: ::light_sdk::tree_info::PackedAddressTreeInfo,
                 address_merkle_tree_root_index: u16,
                 remaining_accounts: &[::anchor_lang::prelude::AccountInfo],
             ) -> Result<Self> {

@@ -8,8 +8,8 @@ use light_compressed_account::{
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::{
     instruction::{
-        merkle_context::{PackedAddressMerkleContext, PackedTreeInfo},
         pack_accounts::PackedAccounts,
+        tree_info::{PackedAddressTreeInfo, PackedStateTreeInfo},
     },
     token::{AccountState, TokenData},
     verifier::CompressedProof,
@@ -156,34 +156,34 @@ impl AddressProofInputs {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct PackedAccountTreeInfos {
-    pub packed_tree_infos: Vec<PackedTreeInfo>,
+pub struct PackedStateTreeInfos {
+    pub packed_tree_infos: Vec<PackedStateTreeInfo>,
     pub output_tree_index: u8,
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct PackedTreeAccounts {
-    pub account_trees: Option<PackedAccountTreeInfos>,
-    pub address_trees: Vec<PackedAddressMerkleContext>,
+pub struct PackedTreeInfos {
+    pub account_trees: Option<PackedStateTreeInfos>,
+    pub address_trees: Vec<PackedAddressTreeInfo>,
 }
 
 impl ValidityProofWithContext {
-    pub fn pack_tree_accounts(&self, packed_accounts: &mut PackedAccounts) -> PackedTreeAccounts {
-        let mut account_trees = Vec::new();
+    pub fn pack_tree_infos(&self, packed_accounts: &mut PackedAccounts) -> PackedTreeInfos {
+        let mut packed_tree_infos = Vec::new();
         let mut address_trees = Vec::new();
         let mut output_tree_index = None;
         for account in self.accounts.iter() {
             // Pack TreeInfo
             let merkle_tree_pubkey_index = packed_accounts.insert_or_get(account.tree_info.tree);
             let queue_pubkey_index = packed_accounts.insert_or_get(account.tree_info.queue);
-            let merkle_context_packed = PackedTreeInfo {
+            let tree_info_packed = PackedStateTreeInfo {
                 root_index: account.root_index.unwrap_or_default(),
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,
                 leaf_index: account.leaf_index as u32,
                 prove_by_index: account.root_index.is_none(),
             };
-            account_trees.push(merkle_context_packed);
+            packed_tree_infos.push(tree_info_packed);
 
             // If a next Merkle tree exists the Merkle tree is full -> use the next Merkle tree for new state.
             // Else use the current Merkle tree for new state.
@@ -208,26 +208,26 @@ impl ValidityProofWithContext {
         }
 
         for address in self.addresses.iter() {
-            // Pack AddressMerkleContext
+            // Pack AddressTreeInfo
             let address_merkle_tree_pubkey_index =
                 packed_accounts.insert_or_get(address.tree_info.tree);
             let address_queue_pubkey_index = packed_accounts.insert_or_get(address.tree_info.queue);
-            address_trees.push(PackedAddressMerkleContext {
+            address_trees.push(PackedAddressTreeInfo {
                 address_merkle_tree_pubkey_index,
                 address_queue_pubkey_index,
                 root_index: address.root_index,
             });
         }
-        let account_trees = if account_trees.is_empty() {
+        let packed_tree_infos = if packed_tree_infos.is_empty() {
             None
         } else {
-            Some(PackedAccountTreeInfos {
-                packed_tree_infos: account_trees,
+            Some(PackedStateTreeInfos {
+                packed_tree_infos,
                 output_tree_index: output_tree_index.unwrap(),
             })
         };
-        PackedTreeAccounts {
-            account_trees,
+        PackedTreeInfos {
+            account_trees: packed_tree_infos,
             address_trees,
         }
     }

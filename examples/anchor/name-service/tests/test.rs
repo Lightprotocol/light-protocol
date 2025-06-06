@@ -16,9 +16,9 @@ use light_sdk::{
     address::{derive_address, derive_address_seed},
     compressed_account::CompressedAccountWithMerkleContext,
     error::LightSdkError,
-    merkle_context::{
-        pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
-        PackedAddressMerkleContext, PackedMerkleContext, PackedAccounts,
+    tree_info::{
+        pack_address_merkle_context, pack_merkle_context, AddressTreeInfo, MerkleContext,
+        PackedAddressTreeInfo, PackedMerkleContext, PackedAccounts,
     },
     utils::get_cpi_authority_pda,
     verify::find_cpi_signer,
@@ -71,7 +71,7 @@ async fn test_name_service() {
     };
     let merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
 
-    let address_merkle_context = AddressMerkleContext {
+    let address_merkle_context = AddressTreeInfo {
         address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
         address_queue_pubkey: env.v1_address_trees[0].queue,
     };
@@ -303,7 +303,7 @@ async fn create_record<R>(
     payer: &Keypair,
     address: &[u8; 32],
     merkle_context: &PackedMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
+    address_merkle_context: &PackedAddressTreeInfo,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,
@@ -369,7 +369,7 @@ async fn update_record<R>(
     new_rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
+    address_merkle_context: &PackedAddressTreeInfo,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,
@@ -448,7 +448,7 @@ async fn delete_record<R>(
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    address_merkle_context: &PackedAddressMerkleContext,
+    address_merkle_context: &PackedAddressTreeInfo,
     account_compression_authority: &Pubkey,
     registered_program_pda: &Pubkey,
     light_system_program: &Pubkey,

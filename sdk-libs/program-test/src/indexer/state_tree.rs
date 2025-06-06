@@ -29,10 +29,8 @@ impl StateMerkleTreeBundle {
     pub fn leaf_index_in_queue_range(&self, index: usize) -> Result<bool, IndexerError> {
         if let Some(output_queue_batch_size) = self.output_queue_batch_size {
             let start_offset = self.num_inserted_batches * output_queue_batch_size;
-            println!("start offset {}", start_offset);
             // There is always 2 batches.
             let end_offset = start_offset + (output_queue_batch_size * 2);
-            println!("end offset {}", end_offset);
             Ok(start_offset <= index && index < end_offset)
         } else {
             Err(IndexerError::CustomError(format!(
