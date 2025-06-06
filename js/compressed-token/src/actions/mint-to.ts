@@ -11,8 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeInfo,
     selectStateTreeInfo,
+    TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import {
@@ -48,7 +48,7 @@ export async function mintTo(
     toPubkey: PublicKey | PublicKey[],
     authority: Signer,
     amount: number | BN | number[] | BN[],
-    outputStateTreeInfo?: StateTreeInfo,
+    outputStateTreeInfo?: TreeInfo,
     tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {

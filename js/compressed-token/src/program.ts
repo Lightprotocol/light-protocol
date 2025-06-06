@@ -20,7 +20,7 @@ import {
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
-    StateTreeInfo,
+    TreeInfo,
     CompressedProof,
     featureFlags,
 } from '@lightprotocol/stateless.js';
@@ -93,7 +93,7 @@ export type CompressParams = {
     /**
      * State tree to write to
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */
@@ -124,7 +124,7 @@ export type CompressSplTokenAccountParams = {
     /**
      * State tree to write to
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */
@@ -330,7 +330,7 @@ export type MintToParams = {
     /**
      * State tree for minted tokens
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */
@@ -406,7 +406,7 @@ export type ApproveAndMintToParams = {
     /**
      * State tree to write to
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */

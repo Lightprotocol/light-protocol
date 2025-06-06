@@ -4,9 +4,9 @@ import {
     getIndexOrAdd,
     bn,
     padOutputStateMerkleTrees,
-    StateTreeInfo,
     TreeType,
     featureFlags,
+    TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
 import {
@@ -22,7 +22,7 @@ export type PackCompressedTokenAccountsParams = {
      * state tree of the input state. Gets padded to the length of
      * outputCompressedAccounts.
      */
-    outputStateTreeInfo?: StateTreeInfo;
+    outputStateTreeInfo?: TreeInfo;
     /** Optional remaining accounts to append to */
     remainingAccounts?: PublicKey[];
     /**
@@ -102,7 +102,7 @@ export function packCompressedTokenAccounts(
         );
     }
 
-    let treeInfo: StateTreeInfo;
+    let treeInfo: TreeInfo;
     if (inputCompressedTokenAccounts.length > 0) {
         treeInfo = inputCompressedTokenAccounts[0].compressedAccount.treeInfo;
     } else if (outputStateTreeInfo) {

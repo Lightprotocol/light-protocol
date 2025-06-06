@@ -3,7 +3,7 @@ import {
     CompressedAccount,
     CompressedAccountData,
     CompressedAccountLegacy,
-    StateTreeInfo,
+    TreeInfo,
 } from './types';
 import BN from 'bn.js';
 import { BN254 } from './BN254';
@@ -15,7 +15,7 @@ import { bn } from './bn';
 //         readOnly: boolean;
 //     };
 
-export type CompressedAccount = MerkleContext & {
+export type CompressedAccountWithMerkleContext = MerkleContext & {
     /**
      * Public key of program or user owning the account.
      */
@@ -71,7 +71,7 @@ export type MerkleContext = {
     /**
      * Tree info
      */
-    treeInfo: StateTreeInfo;
+    treeInfo: TreeInfo;
     /**
      * Poseidon hash of the account. Stored as leaf in state tree
      */
@@ -129,7 +129,7 @@ export const createCompressedAccountWithMerkleContext = (
 });
 
 export const createMerkleContext = (
-    treeInfo: StateTreeInfo,
+    treeInfo: TreeInfo,
     hash: BN254,
     leafIndex: number,
     proveByIndex: boolean = false,

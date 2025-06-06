@@ -3,7 +3,7 @@ import {
     CompressedAccount,
     OutputCompressedAccountWithPackedContext,
     PackedCompressedAccountWithMerkleContext,
-    StateTreeInfo,
+    TreeInfo,
     TreeType,
 } from '../../state';
 import { CompressedAccountWithMerkleContext } from '../../state/compressed-account';
@@ -89,7 +89,7 @@ export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
     inputStateRootIndices: number[],
     outputCompressedAccounts: CompressedAccount[],
-    outputStateTreeInfo?: StateTreeInfo,
+    outputStateTreeInfo?: TreeInfo,
     remainingAccounts: PublicKey[] = [],
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
@@ -139,7 +139,7 @@ export function packCompressedAccounts(
         );
     }
 
-    let treeInfo: StateTreeInfo;
+    let treeInfo: TreeInfo;
     if (inputCompressedAccounts.length > 0) {
         treeInfo = inputCompressedAccounts[0].treeInfo;
     } else if (outputStateTreeInfo) {

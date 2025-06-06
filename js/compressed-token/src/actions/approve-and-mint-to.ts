@@ -11,9 +11,9 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeInfo,
     selectStateTreeInfo,
     toArray,
+    TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
@@ -48,7 +48,7 @@ export async function approveAndMintTo(
     toPubkey: PublicKey,
     authority: Signer,
     amount: number | BN,
-    outputStateTreeInfo?: StateTreeInfo,
+    outputStateTreeInfo?: TreeInfo,
     tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {

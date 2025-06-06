@@ -1,37 +1,37 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { StateTreeInfo, TreeType } from '../state/types';
+import { TreeInfo, TreeType } from '../state/types';
 import { featureFlags, StateTreeLUTPair } from '../constants';
 
 /**
- * Get the info for a given tree or queue
- *
- * @param info          The active state tree addresses
- * @param treeOrQueue   The tree or queue to get the info for
- * @returns The info for the given tree or queue, or throws an error if not
- * found
+ * @deprecated use {@link getTreeInfoByPubkey} instead
  */
 export function getStateTreeInfoByPubkey(
-    treeInfos: StateTreeInfo[],
+    treeInfos: TreeInfo[],
     treeOrQueue: PublicKey,
-): StateTreeInfo {
-    const info = treeInfos.find(
-        t => t.queue?.equals(treeOrQueue) || t.tree.equals(treeOrQueue),
-    );
+): TreeInfo {
+    return getTreeInfoByPubkey(treeInfos, treeOrQueue);
+}
 
-    if (!info) {
+export function getTreeInfoByPubkey(
+    treeInfos: TreeInfo[],
+    treeOrQueue: PublicKey,
+): TreeInfo {
+    const treeInfo = treeInfos.find(
+        info => info.tree.equals(treeOrQueue) || info.queue.equals(treeOrQueue),
+    );
+    if (!treeInfo) {
         throw new Error(
-            `No associated StateTreeInfo found for tree or queue. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. Pubkey: ${treeOrQueue.toBase58()}`,
+            `No associated TreeInfo found for tree or queue. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. Pubkey: ${treeOrQueue.toBase58()}`,
         );
     }
-
-    if (!info.queue) {
+    if (!treeInfo.queue) {
         throw new Error(
             'Queue must not be null for state tree. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. Pubkey: ' +
                 treeOrQueue.toBase58(),
         );
     }
 
-    return info;
+    return treeInfo;
 }
 
 /**
@@ -42,20 +42,26 @@ export function getStateTreeInfoByPubkey(
  * @param infos Set of state tree infos
  * @returns A random tree and queue
  */
-export function pickRandomTreeAndQueue(infos: StateTreeInfo[]): {
+export function pickRandomTreeAndQueue(infos: TreeInfo[]): {
     tree: PublicKey;
     queue: PublicKey;
 } {
     const length = infos.length;
     const index = Math.floor(Math.random() * length);
 
-    if (!infos[index].queue) {
-        throw new Error('Queue must not be null for state tree');
+    let selectedIndex: number;
+    if (index !== undefined) {
+        if (index < 0 || index >= infos.length) {
+            throw new Error(
+                `Index ${index} out of bounds for infos array of length ${infos.length}`,
+            );
+        }
+        selectedIndex = index;
+    } else {
+        selectedIndex = Math.floor(Math.random() * infos.length);
     }
-    return {
-        tree: infos[index].tree,
-        queue: infos[index].queue,
-    };
+
+    return infos[selectedIndex];
 }
 
 const MAX_HOTSPOTS = 5;
@@ -76,12 +82,12 @@ const MAX_HOTSPOTS = 5;
  * @returns A pseudo-randomly selected tree info
  */
 export function selectStateTreeInfo(
-    infos: StateTreeInfo[],
+    infos: TreeInfo[],
     treeType: TreeType = featureFlags.isV2()
         ? TreeType.StateV2
         : TreeType.StateV1,
     useMaxConcurrency: boolean = false,
-): StateTreeInfo {
+): TreeInfo {
     const activeInfos = infos.filter(t => !t.nextTreeInfo);
     const filteredInfos = activeInfos.filter(t => t.treeType === treeType);
 
@@ -117,7 +123,7 @@ export async function getAllStateTreeInfos({
 }: {
     connection: Connection;
     stateTreeLUTPairs: StateTreeLUTPair[];
-}): Promise<StateTreeInfo[]> {
+}): Promise<TreeInfo[]> {
     const stateTreeLookupTablesAndNullifyLookupTables = await Promise.all(
         stateTreeLUTPairs.map(async lutPair => {
             return {
@@ -131,7 +137,7 @@ export async function getAllStateTreeInfos({
         }),
     );
 
-    const contexts: StateTreeInfo[] = [];
+    const contexts: TreeInfo[] = [];
 
     for (const {
         stateTreeLookupTable,
@@ -159,7 +165,7 @@ export async function getAllStateTreeInfos({
             const tree = stateTreePubkeys[i];
             const queue = stateTreePubkeys[i + 1];
             const cpiContext = stateTreePubkeys[i + 2];
-            let nextTreeInfo: StateTreeInfo | null = null;
+            let nextTreeInfo: TreeInfo | null = null;
 
             if (!tree || !queue || !cpiContext) {
                 throw new Error('Invalid state tree pubkeys structure');

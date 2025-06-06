@@ -15,7 +15,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     getTestRpc,
-    StateTreeInfo,
+    TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
@@ -98,7 +98,7 @@ describe('compress', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
     let lut: PublicKey;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
     let tokenPoolInfo: TokenPoolInfo;
 
     const maxBatchSize = 26;

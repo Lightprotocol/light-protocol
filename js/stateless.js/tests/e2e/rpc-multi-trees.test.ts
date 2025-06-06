@@ -4,7 +4,7 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
-    StateTreeInfo,
+    TreeInfo,
     bn,
     compress,
     createAccount,
@@ -28,7 +28,7 @@ describe('rpc-multi-trees', () => {
 
     const randTrees: PublicKey[] = [];
     const randQueues: PublicKey[] = [];
-    let stateTreeInfo2: StateTreeInfo;
+    let stateTreeInfo2: TreeInfo;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
@@ -123,13 +123,13 @@ describe('rpc-multi-trees', () => {
 
         /// Executes transfers using random output trees
         const tree1 = selectStateTreeInfo(await rpc.getStateTreeInfos());
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree1);
+        await transfer(rpc, payer, 1e5, payer, bob.publicKey);
         executedTxs++;
         randTrees.push(tree1.tree);
         randQueues.push(tree1.queue);
 
         const tree2 = selectStateTreeInfo(await rpc.getStateTreeInfos());
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree2);
+        await transfer(rpc, payer, 1e5, payer, bob.publicKey);
         executedTxs++;
         randTrees.push(tree2.tree);
         randQueues.push(tree2.queue);
@@ -232,14 +232,7 @@ describe('rpc-multi-trees', () => {
             });
 
             const tree = selectStateTreeInfo(await rpc.getStateTreeInfos());
-            await transfer(
-                rpc,
-                payer,
-                transferAmount,
-                payer,
-                bob.publicKey,
-                tree,
-            );
+            await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
             executedTxs++;
         }
     });
