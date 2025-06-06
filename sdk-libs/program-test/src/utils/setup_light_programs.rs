@@ -31,39 +31,39 @@ pub fn setup_light_programs(
         ..Default::default()
     });
     let mut program_test = program_test.with_transaction_history(0);
-    let sbf_path = std::env::var("SBF_OUT_DIR")
+    let project_root_target_deploy_path = std::env::var("SBF_OUT_DIR")
         .map_err(|_| RpcError::CustomError("SBF_OUT_DIR not set.".to_string()))?;
     // find path to bin where light cli stores program binaries.
-    let path = find_light_bin().ok_or(RpcError::CustomError(
+    let light_bin_path = find_light_bin().ok_or(RpcError::CustomError(
         "Failed to find light binary path. To use light-program-test zk compression cli needs to be installed and light system programs need to be downloaded. Light system programs are downloaded the first time light test-validator is run.".to_string(),
     ))?;
-    std::env::set_var(
-        "SBF_OUT_DIR",
-        path.to_str().ok_or(RpcError::CustomError(format!(
+    let light_bin_path = light_bin_path
+        .to_str()
+        .ok_or(RpcError::CustomError(format!(
             "Found invalid light binary path {:?}",
-            path
-        )))?,
-    );
-    let path = format!("{}/light_registry.so", sbf_path);
+            light_bin_path
+        )))?;
+    std::env::set_var("SBF_OUT_DIR", light_bin_path);
+    let path = format!("{}/light_registry.so", light_bin_path);
     program_test.add_program_from_file(light_registry::ID, path)?;
-    let path = format!("{}/account_compression.so", sbf_path);
+    let path = format!("{}/account_compression.so", light_bin_path);
     program_test.add_program_from_file(account_compression::ID, path)?;
-    let path = format!("{}/light_compressed_token.so", sbf_path);
+    let path = format!("{}/light_compressed_token.so", light_bin_path);
     program_test.add_program_from_file(light_compressed_token::ID, path)?;
-    let path = format!("{}/spl_noop.so", sbf_path);
+    let path = format!("{}/spl_noop.so", light_bin_path);
     program_test.add_program_from_file(NOOP_PROGRAM_ID, path)?;
     #[cfg(feature = "devenv")]
     {
-        let path = format!("{}/light_system_program_pinocchio.so", sbf_path);
+        let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
         program_test.add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)?;
     }
 
     #[cfg(not(feature = "devenv"))]
     {
-        let path = format!("{}/light_system_program.so", sbf_path);
+        let path = format!("{}/light_system_program.so", light_bin_path);
         program_test.add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)?;
     }
-    // program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
+
     let registered_program = registered_program_test_account_system_program();
     program_test
         .set_account(
@@ -84,7 +84,7 @@ pub fn setup_light_programs(
         })?;
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
-            let path = format!("{}/{}.so", sbf_path, name);
+            let path = format!("{}/{}.so", project_root_target_deploy_path, name);
             program_test
                 .add_program_from_file(id, path.clone())
                 .inspect_err(|_| {
@@ -92,6 +92,6 @@ pub fn setup_light_programs(
                 })?;
         }
     }
-    std::env::set_var("SBF_OUT_DIR", sbf_path);
+    std::env::set_var("SBF_OUT_DIR", project_root_target_deploy_path);
     Ok(program_test)
 }
