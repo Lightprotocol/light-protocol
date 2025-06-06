@@ -191,6 +191,7 @@ async fn test_initialize_protocol_config() {
         indexer: None,
         test_accounts: TestAccounts::get_program_test_test_accounts(),
         payer,
+        config: ProgramTestConfig::default(),
     };
     let payer = rpc.get_payer().insecure_clone();
     let program_account_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
