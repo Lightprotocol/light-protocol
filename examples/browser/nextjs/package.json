@@ -11,7 +11,7 @@
         "lint": "next lint"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "^0.30.1",
+        "@coral-xyz/anchor": "^0.31.1",
         "@lightprotocol/compressed-token": "workspace:*",
         "@lightprotocol/stateless.js": "workspace:*",
         "@solana/wallet-adapter-base": "^0.9.26",
