@@ -171,6 +171,31 @@ export interface CompressedAccount {
 }
 
 /**
+ * @deprecated Use {@link CompressedAccount} instead.
+ *
+ * Describe the generic compressed account details applicable to every
+ * compressed account.
+ *
+ * */
+export interface CompressedAccountLegacy {
+    /**
+     * Public key of program or user owning the account.
+     */
+    owner: PublicKey;
+    /**
+     * Lamports attached to the account.
+     */
+    lamports: BN;
+    /**
+     * Optional unique account ID that is persistent across transactions.
+     */
+    address: number[] | null;
+    /**
+     * Optional data attached to the account.
+     */
+    data: CompressedAccountData | null;
+}
+/**
  * Describe the generic compressed account details applicable to every
  * compressed account.
  */

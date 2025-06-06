@@ -2,19 +2,43 @@ import { PublicKey } from '@solana/web3.js';
 import {
     CompressedAccount,
     CompressedAccountData,
+    CompressedAccountLegacy,
     StateTreeInfo,
 } from './types';
 import BN from 'bn.js';
 import { BN254 } from './BN254';
 import { bn } from './bn';
 
-export type CompressedAccountWithMerkleContext = CompressedAccount &
-    MerkleContext & {
-        readOnly: boolean;
-    };
+// @deprecated use {@link CompressedAccount} instead
+// export type CompressedAccountWithMerkleContext = CompressedAccount &
+//     MerkleContext & {
+//         readOnly: boolean;
+//     };
 
-export type CompressedAccountWithMerkleContextLegacy = CompressedAccount &
-    MerkleContextLegacy;
+export type CompressedAccount = MerkleContext & {
+    /**
+     * Public key of program or user owning the account.
+     */
+    owner: PublicKey;
+    /**
+     * Lamports attached to the account.
+     */
+    lamports: BN;
+    /**
+     * Optional unique account ID that is persistent across transactions.
+     */
+    address: number[] | null;
+    /**
+     * Optional data attached to the account.
+     */
+    data: CompressedAccountData | null;
+} & {
+    readOnly: boolean;
+};
+
+// @deprecated use {@link CompressedAccount} instead
+// export type CompressedAccountWithMerkleContextLegacy = CompressedAccount &
+//     MerkleContextLegacy;
 
 /**
  * @deprecated use {@link MerkleContext} instead.
