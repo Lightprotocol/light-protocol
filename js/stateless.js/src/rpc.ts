@@ -1879,14 +1879,24 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return {
             value: {
                 compressedProof: value.compressedProof,
-                roots: value.roots,
-                rootIndices: value.rootIndices.map((r: any) => r.rootIndex),
-                leafIndices: value.leafIndices,
-                leaves: value.leaves,
-                treeInfos: value.merkleContexts,
-                proveByIndices: value.rootIndices.map(
-                    (r: any) => r.proveByIndex,
-                ),
+                leaves: value.accounts
+                    .map((r: any) => r.hash)
+                    .concat(value.addresses.map((r: any) => r.address)),
+                roots: value.accounts
+                    .map((r: any) => r.root)
+                    .concat(value.addresses.map((r: any) => r.root)),
+                rootIndices: value.accounts
+                    .map((r: any) => r.rootIndex.rootIndex)
+                    .concat(value.addresses.map((r: any) => r.rootIndex)),
+                proveByIndices: value.accounts
+                    .map((r: any) => r.rootIndex.proveByIndex)
+                    .concat(value.addresses.map((r: any) => false)),
+                treeInfos: value.accounts
+                    .map((r: any) => r.merkleContext)
+                    .concat(value.addresses.map((r: any) => r.merkleContext)),
+                leafIndices: value.accounts
+                    .map((r: any) => r.leafIndex)
+                    .concat(value.addresses.map((r: any) => 0)),
             },
             context: res.result.context,
         };

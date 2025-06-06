@@ -767,7 +767,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             throw new Error('AddressWithTree is not supported in test-rpc');
         }
         let validityProof: ValidityProofWithContext | null;
-        const treeInfos = await this.getStateTreeInfos();
+
         const treeInfosUsed: TreeInfo[] = [];
 
         if (hashes.length === 0 && newAddresses.length === 0) {
@@ -802,7 +802,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     'inclusion',
                     inputs,
                     this.log,
-                    // true,
                 );
                 validityProof = {
                     compressedProof,
@@ -862,9 +861,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             validityProof = {
                 compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
-                // TODO(crank): make dynamic to enable forester support in
-                // test-rpc.ts. Currently this is a static root because the
-                // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(proof =>
                     proof.indexHashedIndexedElementLeaf.toNumber(),

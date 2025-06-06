@@ -615,17 +615,16 @@ export const ValidityProofResult = pick({
 // });
 
 const AccountProofInputsResult = pick({
-    root: BN254FromString,
-    leaf: BN254FromString,
     hash: BN254FromString,
+    root: BN254FromString,
     rootIndex: RootIndexResultV2,
-    leafIndex: number(),
     merkleContext: TreeInfoResultV2,
+    leafIndex: number(),
 });
 const AddressProofInputsResult = pick({
     address: BN254FromString,
     root: BN254FromString,
-    rootIndex: RootIndexResultV2,
+    rootIndex: number(),
     merkleContext: TreeInfoResultV2,
 });
 
