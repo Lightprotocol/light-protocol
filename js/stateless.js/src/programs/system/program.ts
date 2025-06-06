@@ -215,7 +215,6 @@ export class LightSystemProgram {
         const outputCompressedAccounts: CompressedAccount[] = [
             createCompressedAccount(
                 inputCompressedAccounts[0].owner,
-
                 changeLamports,
             ),
             createCompressedAccount(toAddress, lamports),
