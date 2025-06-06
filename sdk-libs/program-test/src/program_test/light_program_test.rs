@@ -22,6 +22,7 @@ use crate::{
 };
 
 pub struct LightProgramTest {
+    pub config: ProgramTestConfig,
     pub context: LiteSVM,
     pub indexer: Option<TestIndexer>,
     pub test_accounts: TestAccounts,
@@ -47,7 +48,7 @@ impl LightProgramTest {
     /// - advances to the active phase slot 2
     /// - active phase doesn't end
     pub async fn new(config: ProgramTestConfig) -> Result<LightProgramTest, RpcError> {
-        let mut context = setup_light_programs(config.additional_programs.clone()).await?;
+        let mut context = setup_light_programs(config.additional_programs.clone())?;
         let payer = Keypair::new();
         context
             .airdrop(&payer.pubkey(), 100_000_000_000_000)
@@ -57,6 +58,7 @@ impl LightProgramTest {
             indexer: None,
             test_accounts: TestAccounts::get_program_test_test_accounts(),
             payer,
+            config: config.clone(),
         };
         let keypairs = TestKeypairs::program_test_default();
         airdrop_lamports(

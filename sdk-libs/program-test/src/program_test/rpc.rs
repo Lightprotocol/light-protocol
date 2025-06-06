@@ -102,10 +102,19 @@ impl Rpc for LightProgramTest {
         let sig = *transaction.signatures.first().unwrap();
 
         // Send the transaction
-        self.context.send_transaction(transaction).map_err(|x| {
-            println!("{}", x.meta.pretty_logs());
+        let _res = self.context.send_transaction(transaction).map_err(|x| {
+            #[cfg(not(debug_assertions))]
+            {
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
+                }
+            }
             RpcError::TransactionError(x.err)
         })?;
+        #[cfg(debug_assertions)]
+        {
+            println!("{:?}", _res.pretty_logs());
+        }
 
         Ok(sig)
     }
@@ -162,10 +171,19 @@ impl Rpc for LightProgramTest {
             self._send_transaction_with_batched_event(transaction)
                 .await?;
         } else {
-            self.context.send_transaction(transaction).map_err(|x| {
-                println!("{}", x.meta.pretty_logs());
+            let _res = self.context.send_transaction(transaction).map_err(|x| {
+                #[cfg(not(debug_assertions))]
+                {
+                    if self.config.log_failed_tx {
+                        println!("{}", x.meta.pretty_logs());
+                    }
+                }
                 RpcError::TransactionError(x.err)
             })?;
+            #[cfg(debug_assertions)]
+            {
+                println!("{:?}", _res.pretty_logs());
+            }
         }
         Ok(sig)
     }
@@ -175,10 +193,20 @@ impl Rpc for LightProgramTest {
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
-        self.context.send_transaction(transaction).map_err(|x| {
-            println!("{}", x.meta.pretty_logs());
+        let _res = self.context.send_transaction(transaction).map_err(|x| {
+            #[cfg(not(debug_assertions))]
+            {
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
+                }
+            }
             RpcError::TransactionError(x.err)
         })?;
+        #[cfg(debug_assertions)]
+        {
+            println!("{:?}", _res.pretty_logs());
+        }
+
         let slot = self.context.get_sysvar::<Clock>().slot;
         Ok((sig, slot))
     }
@@ -316,7 +344,12 @@ impl LightProgramTest {
             .context
             .simulate_transaction(transaction.clone())
             .map_err(|x| {
-                println!("{}", x.meta.pretty_logs());
+                #[cfg(not(debug_assertions))]
+                {
+                    if self.config.log_failed_tx {
+                        println!("{}", x.meta.pretty_logs());
+                    }
+                }
                 RpcError::TransactionError(x.err)
             })?;
 
@@ -381,18 +414,27 @@ impl LightProgramTest {
                 ParseIndexerEventError,
             >(None))?
         };
+
         // Transaction was successful, execute it.
-        self.context.send_transaction(transaction).map_err(|x| {
-            println!("{}", x.meta.pretty_logs());
+        let _res = self.context.send_transaction(transaction).map_err(|x| {
+            // Prevent duplicate prints for failing tx.
+            #[cfg(not(debug_assertions))]
+            {
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
+                }
+            }
             RpcError::TransactionError(x.err)
         })?;
-
-        let slot = self.context.get_sysvar::<Clock>().slot;
-        let event = event.map(|e| (e, signature, slot));
         #[cfg(debug_assertions)]
         {
-            println!("event {:?}", event);
+            // Print all tx logs and events.
+            println!("{:?}", _res.pretty_logs());
+            println!("event:\n {:?}", event);
         }
+        let slot = self.context.get_sysvar::<Clock>().slot;
+        let event = event.map(|e| (e, signature, slot));
+
         if let Some(indexer) = self.indexer.as_mut() {
             if let Some(events) = event.as_ref() {
                 for event in events.0.iter() {
@@ -442,10 +484,19 @@ impl LightProgramTest {
                 T::try_from_slice(&inner_instruction.instruction.data).ok()
             });
         // If transaction was successful, execute it.
-        self.context.send_transaction(transaction).map_err(|x| {
-            println!("{}", x.meta.pretty_logs());
+        let _res = self.context.send_transaction(transaction).map_err(|x| {
+            #[cfg(not(debug_assertions))]
+            {
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
+                }
+            }
             RpcError::TransactionError(x.err)
         })?;
+        #[cfg(debug_assertions)]
+        {
+            println!("{:?}", _res.pretty_logs());
+        }
 
         let slot = self.get_slot().await?;
         let result = event.map(|event| (event, signature, slot));

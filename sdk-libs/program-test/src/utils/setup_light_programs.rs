@@ -22,7 +22,7 @@ use crate::{
 /// 2. account_compression program
 /// 3. light_compressed_token program
 /// 4. light_system_program program
-pub async fn setup_light_programs(
+pub fn setup_light_programs(
     additional_programs: Option<Vec<(&'static str, Pubkey)>>,
 ) -> Result<LiteSVM, RpcError> {
     let program_test = LiteSVM::new();
@@ -45,35 +45,23 @@ pub async fn setup_light_programs(
         )))?,
     );
     let path = format!("{}/light_registry.so", sbf_path);
-    program_test
-        .add_program_from_file(light_registry::ID, path)
-        .unwrap();
+    program_test.add_program_from_file(light_registry::ID, path)?;
     let path = format!("{}/account_compression.so", sbf_path);
-    program_test
-        .add_program_from_file(account_compression::ID, path)
-        .unwrap();
+    program_test.add_program_from_file(account_compression::ID, path)?;
     let path = format!("{}/light_compressed_token.so", sbf_path);
-    program_test
-        .add_program_from_file(light_compressed_token::ID, path)
-        .unwrap();
+    program_test.add_program_from_file(light_compressed_token::ID, path)?;
     let path = format!("{}/spl_noop.so", sbf_path);
-    program_test
-        .add_program_from_file(NOOP_PROGRAM_ID, path)
-        .unwrap();
+    program_test.add_program_from_file(NOOP_PROGRAM_ID, path)?;
     #[cfg(feature = "devenv")]
     {
         let path = format!("{}/light_system_program_pinocchio.so", sbf_path);
-        program_test
-            .add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)
-            .unwrap();
+        program_test.add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)?;
     }
 
     #[cfg(not(feature = "devenv"))]
     {
         let path = format!("{}/light_system_program.so", sbf_path);
-        program_test
-            .add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)
-            .unwrap();
+        program_test.add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)?;
     }
     // program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let registered_program = registered_program_test_account_system_program();
@@ -82,20 +70,26 @@ pub async fn setup_light_programs(
             get_registered_program_pda(&light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM),
             registered_program,
         )
-        .expect("Setting account failed.");
+        .map_err(|e| {
+            RpcError::CustomError(format!("Setting registered program account failed {}", e))
+        })?;
     let registered_program = registered_program_test_account_registry_program();
     program_test
         .set_account(
             get_registered_program_pda(&light_registry::ID),
             registered_program,
         )
-        .expect("Setting account failed.");
+        .map_err(|e| {
+            RpcError::CustomError(format!("Setting registered program account failed {}", e))
+        })?;
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
             let path = format!("{}/{}.so", sbf_path, name);
             program_test
                 .add_program_from_file(id, path.clone())
-                .unwrap_or_else(|_| panic!("Program {} bin not found in {}", name, path));
+                .inspect_err(|_| {
+                    println!("Program {} bin not found in {}", name, path);
+                })?;
         }
     }
     std::env::set_var("SBF_OUT_DIR", sbf_path);

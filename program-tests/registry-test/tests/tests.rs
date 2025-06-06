@@ -181,7 +181,7 @@ fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfi
 
 #[tokio::test]
 async fn test_initialize_protocol_config() {
-    let mut context = setup_light_programs(None).await.unwrap();
+    let mut context = setup_light_programs(None).unwrap();
     let payer = Keypair::new();
     context
         .airdrop(&payer.pubkey(), 100_000_000_000_000)
