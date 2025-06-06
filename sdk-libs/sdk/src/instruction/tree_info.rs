@@ -37,6 +37,7 @@ impl PackedAddressTreeInfo {
     }
 }
 
+#[deprecated(since = "0.13.0", note = "please use PackedStateTreeInfo")]
 pub fn pack_merkle_contexts<'a, I>(
     merkle_contexts: I,
     remaining_accounts: &'a mut PackedAccounts,
@@ -44,9 +45,11 @@ pub fn pack_merkle_contexts<'a, I>(
 where
     I: Iterator<Item = &'a MerkleContext> + 'a,
 {
+    #[allow(deprecated)]
     merkle_contexts.map(|x| pack_merkle_context(x, remaining_accounts))
 }
 
+#[deprecated(since = "0.13.0", note = "please use PackedStateTreeInfo")]
 pub fn pack_merkle_context(
     merkle_context: &MerkleContext,
     remaining_accounts: &mut PackedAccounts,
