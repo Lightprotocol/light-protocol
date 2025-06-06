@@ -156,16 +156,21 @@ impl AddressProofInputs {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct PackedTreeAccounts {
+pub struct PackedAccountTreeInfos {
     pub packed_tree_infos: Vec<PackedTreeInfo>,
-    pub output_tree_index: Option<u8>,
-    pub packed_new_address_tree_infos: Vec<PackedAddressMerkleContext>,
+    pub output_tree_index: u8,
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct PackedTreeAccounts {
+    pub account_trees: Option<PackedAccountTreeInfos>,
+    pub address_trees: Vec<PackedAddressMerkleContext>,
 }
 
 impl ValidityProofWithContext {
     pub fn pack_tree_accounts(&self, packed_accounts: &mut PackedAccounts) -> PackedTreeAccounts {
-        let mut packed_tree_infos = Vec::new();
-        let mut packed_new_address_tree_infos = Vec::new();
+        let mut account_trees = Vec::new();
+        let mut address_trees = Vec::new();
         let mut output_tree_index = None;
         for account in self.accounts.iter() {
             // Pack TreeInfo
@@ -178,7 +183,7 @@ impl ValidityProofWithContext {
                 leaf_index: account.leaf_index as u32,
                 prove_by_index: account.root_index.is_none(),
             };
-            packed_tree_infos.push(merkle_context_packed);
+            account_trees.push(merkle_context_packed);
 
             // If a next Merkle tree exists the Merkle tree is full -> use the next Merkle tree for new state.
             // Else use the current Merkle tree for new state.
@@ -207,17 +212,23 @@ impl ValidityProofWithContext {
             let address_merkle_tree_pubkey_index =
                 packed_accounts.insert_or_get(address.tree_info.tree);
             let address_queue_pubkey_index = packed_accounts.insert_or_get(address.tree_info.queue);
-            packed_new_address_tree_infos.push(PackedAddressMerkleContext {
+            address_trees.push(PackedAddressMerkleContext {
                 address_merkle_tree_pubkey_index,
                 address_queue_pubkey_index,
                 root_index: address.root_index,
             });
         }
-
+        let account_trees = if account_trees.is_empty() {
+            None
+        } else {
+            Some(PackedAccountTreeInfos {
+                packed_tree_infos: account_trees,
+                output_tree_index: output_tree_index.unwrap(),
+            })
+        };
         PackedTreeAccounts {
-            packed_tree_infos,
-            packed_new_address_tree_infos,
-            output_tree_index,
+            account_trees,
+            address_trees,
         }
     }
 

@@ -22,7 +22,8 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_sdk_test() {
-    let config = ProgramTestConfig::new(true, Some(vec![("sdk_anchor_test", sdk_anchor_test::ID)]));
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("sdk_anchor_test", sdk_anchor_test::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -115,13 +116,18 @@ async fn with_nested_data(
         .value;
     let packed_accounts = rpc_result.pack_tree_accounts(&mut remaining_accounts);
 
+    let output_tree_index = rpc
+        .get_random_state_tree_info()
+        .get_output_tree_index(&mut remaining_accounts)
+        .unwrap();
+
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
         proof: rpc_result.proof,
-        address_merkle_context: packed_accounts.packed_new_address_tree_infos[0],
+        address_merkle_context: packed_accounts.address_trees[0],
         name,
-        output_tree_index: packed_accounts.output_tree_index.unwrap(),
+        output_tree_index,
     };
 
     let accounts = sdk_anchor_test::accounts::WithNestedData {
@@ -155,7 +161,10 @@ async fn update_nested_data(
         .await?
         .value;
 
-    let packed_tree_accounts = rpc_result.pack_tree_accounts(&mut remaining_accounts);
+    let packed_tree_accounts = rpc_result
+        .pack_tree_accounts(&mut remaining_accounts)
+        .account_trees
+        .unwrap();
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
@@ -169,7 +178,7 @@ async fn update_nested_data(
         account_meta: CompressedAccountMeta {
             tree_info: packed_tree_accounts.packed_tree_infos[0],
             address: compressed_account.address.unwrap(),
-            output_tree_index: packed_tree_accounts.output_tree_index.unwrap(),
+            output_tree_index: packed_tree_accounts.output_tree_index,
         },
         nested_data,
     };

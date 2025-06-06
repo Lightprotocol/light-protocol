@@ -9,10 +9,8 @@ use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::instruction::{
-    account_meta::CompressedAccountMeta,
-    accounts::SystemAccountMetaConfig,
-    merkle_context::{pack_address_merkle_context, AddressMerkleContext},
-    pack_accounts::PackedAccounts,
+    account_meta::CompressedAccountMeta, accounts::SystemAccountMetaConfig,
+    merkle_context::AddressMerkleContext, pack_accounts::PackedAccounts,
 };
 use sdk_test::{
     create_pda::CreatePdaInstructionData,
@@ -100,18 +98,16 @@ pub async fn create_pda(
             }],
             None,
         )
-        .await?;
+        .await?
+        .value;
 
     let output_merkle_tree_index = accounts.insert_or_get(*merkle_tree_pubkey);
-    let packed_address_merkle_context = pack_address_merkle_context(
-        &address_merkle_context,
-        &mut accounts,
-        rpc_result.value.get_address_root_indices()[0],
-    );
+    let packed_address_merkle_context =
+        rpc_result.pack_tree_accounts(&mut accounts).address_trees[0];
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
     let instruction_data = CreatePdaInstructionData {
-        proof: rpc_result.value.proof.0.unwrap().into(),
+        proof: rpc_result.proof.0.unwrap().into(),
         address_merkle_context: packed_address_merkle_context,
         data: account_data,
         output_merkle_tree_index,
@@ -147,12 +143,15 @@ pub async fn update_pda(
         .await?
         .value;
 
-    let packed_accounts = rpc_result.pack_tree_accounts(&mut accounts);
+    let packed_accounts = rpc_result
+        .pack_tree_accounts(&mut accounts)
+        .account_trees
+        .unwrap();
 
     let meta = CompressedAccountMeta {
         tree_info: packed_accounts.packed_tree_infos[0],
         address: compressed_account.compressed_account.address.unwrap(),
-        output_tree_index: packed_accounts.output_tree_index.unwrap(),
+        output_tree_index: packed_accounts.output_tree_index,
     };
 
     let (accounts, system_accounts_offset, _) = accounts.to_account_metas();
