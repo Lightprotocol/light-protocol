@@ -97,18 +97,69 @@ export type MerkleContextWithMerkleProof = MerkleContext & {
     root: BN254;
 };
 
-export const PackedTre
+/**
+ * Packed compressed account and state tree info.
+ */
+export type PackedStateTreeInfo = {
+    /**
+     * Recent valid root index.
+     */
+    rootIndex: number;
+    /**
+     * Whether the account can be proven by index or by merkle proof
+     */
+    proveByIndex: boolean;
+    /**
+     * Index of the merkle tree in which the account is stored.
+     */
+    merkleTreePubkeyIndex: number;
+    /**
+     * Index of the queue in which the account is stored.
+     */
+    queuePubkeyIndex: number;
+    /**
+     * Index of the leaf in the state tree.
+     */
+    leafIndex: number;
+};
 
-export const CompressedAccountMeta = {
-    /// Merkle tree context.
-    pub merkle_context: PackedMerkleContext,
-    /// Address.
-    pub address: [u8; 32],
-    /// Root index.
-    pub root_index: Option<u16>,
-    pub output_merkle_tree_index: u8,
-}
+export type PackedAddressTreeInfo = {
+    /**
+     * Index of the merkle tree in which the account is stored.
+     */
+    addressMerkleTreePubkeyIndex: number;
+    /**
+     * Index of the queue in which the account is stored.
+     */
+    addressQueuePubkeyIndex: number;
+    /**
+     * Recent valid root index.
+     */
+    rootIndex: number;
+};
 
+/**
+ * Metadata of compressed account when used in a CPI instruction.
+ *
+ * */
+export type CompressedAccountMeta = {
+    /**
+     * Packed Tree info.
+     */
+    tree_info: PackedStateTreeInfo;
+    /**
+     * Address.
+     */
+    address: number[] | null;
+    /**
+     * Lamports.
+     */
+    lamports: BN | null;
+    /**
+     * index of state tree in which the new account state is stored.
+     */
+    outputStateTreeIndex: number;
+};
 
 export const createCompressedAccountMeta = (
     owner: PublicKey,
