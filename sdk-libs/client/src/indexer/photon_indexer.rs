@@ -23,6 +23,7 @@ use crate::indexer::{
     IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
 };
 
+// Tests are in program-tests/client-test/tests/light-client.rs
 pub struct PhotonIndexer {
     configuration: Configuration,
 }
