@@ -41,6 +41,7 @@ members = [
     "program-tests/create-address-test-program",
     "program-tests/utils",
     "program-tests/merkle-tree",
+    "program-tests/client-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",

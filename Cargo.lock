@@ -1229,6 +1229,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "client-test"
+version = "1.0.0"
+dependencies = [
+ "light-client",
+ "light-compressed-account",
+ "light-compressed-token",
+ "light-program-test",
+ "light-sdk",
+ "light-test-utils",
+ "rand 0.8.5",
+ "solana-sdk",
+ "spl-token",
+ "tokio",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

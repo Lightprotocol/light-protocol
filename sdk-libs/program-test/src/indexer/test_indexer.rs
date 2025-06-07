@@ -244,10 +244,10 @@ impl Indexer for TestIndexer {
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
-        _options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
+        options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
-        let mint = _options.as_ref().and_then(|opts| opts.mint);
+        let mint = options.as_ref().and_then(|opts| opts.mint);
         let token_accounts: Result<Vec<TokenAccount>, IndexerError> = self
             .token_compressed_accounts
             .iter()
@@ -256,13 +256,23 @@ impl Indexer for TestIndexer {
             })
             .map(|acc| TokenAccount::try_from(acc.clone()))
             .collect();
+        let token_accounts = token_accounts?;
+        let token_accounts = if let Some(options) = options {
+            if let Some(limit) = options.limit {
+                token_accounts.into_iter().take(limit as usize).collect()
+            } else {
+                token_accounts
+            }
+        } else {
+            token_accounts
+        };
 
         Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
             },
             value: ItemsWithCursor {
-                items: token_accounts?,
+                items: token_accounts,
                 cursor: None,
             },
         })
@@ -383,10 +393,12 @@ impl Indexer for TestIndexer {
             .filter(|acc| {
                 acc.token_data.owner == *owner && mint.is_none_or(|m| acc.token_data.mint == m)
             })
-            .map(|acc| TokenBalance {
-                balance: acc.token_data.amount,
-                mint: acc.token_data.mint,
+            .fold(std::collections::HashMap::new(), |mut map, acc| {
+                *map.entry(acc.token_data.mint).or_insert(0) += acc.token_data.amount;
+                map
             })
+            .into_iter()
+            .map(|(mint, balance)| TokenBalance { balance, mint })
             .collect();
 
         Ok(Response {
@@ -405,12 +417,7 @@ impl Indexer for TestIndexer {
         _hash: Hash,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Items<SignatureWithMetadata>>, IndexerError> {
-        Ok(Response {
-            context: Context {
-                slot: self.get_current_slot(),
-            },
-            value: Items { items: vec![] },
-        })
+        todo!()
     }
 
     async fn get_multiple_new_address_proofs(

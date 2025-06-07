@@ -82,12 +82,6 @@ where
 
     pub fn get_history_root_index(&self) -> Result<u16, ReferenceMerkleTreeError> {
         if let Some(root_history_array_len) = self.root_history_array_len {
-            println!("root_history_array_len {}", root_history_array_len);
-            println!("rightmost_index {}", self.rightmost_index);
-            println!(
-                "root_history_start_offset {}",
-                self.root_history_start_offset
-            );
             Ok(
                 ((self.rightmost_index - self.root_history_start_offset) % root_history_array_len)
                     .try_into()

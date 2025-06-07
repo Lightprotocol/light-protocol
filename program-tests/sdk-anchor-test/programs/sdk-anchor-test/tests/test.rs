@@ -10,7 +10,7 @@ use light_sdk::{
     address::v1::derive_address,
     instruction::{
         account_meta::CompressedAccountMeta, accounts::SystemAccountMetaConfig,
-        pack_accounts::PackedAccounts, tree_info::AddressTreeInfo,
+        pack_accounts::PackedAccounts,
     },
 };
 use light_test_utils::{Rpc, RpcError};
@@ -33,7 +33,7 @@ async fn test_sdk_test() {
 
     let (address, _) = derive_address(
         &[b"compressed", b"test".as_slice()],
-        &address_tree_info.address_merkle_tree_pubkey,
+        &address_tree_info.tree,
         &sdk_anchor_test::ID,
     );
 
