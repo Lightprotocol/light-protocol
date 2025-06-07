@@ -484,6 +484,9 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
         let hash = account
             .hash()
             .map_err(|_| IndexerError::InvalidResponseData)?;
+        let tree_info = QUEUE_TREE_MAPPING
+            .get(&account.merkle_context.merkle_tree_pubkey.to_string())
+            .ok_or(IndexerError::InvalidResponseData)?;
 
         Ok(CompressedAccount {
             address: account.compressed_account.address,
@@ -495,7 +498,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
                 tree: account.merkle_context.merkle_tree_pubkey,
                 queue: account.merkle_context.queue_pubkey,
                 tree_type: account.merkle_context.tree_type,
-                cpi_context: None,
+                cpi_context: tree_info.cpi_context,
                 next_tree_info: None,
             },
             owner: account.compressed_account.owner,
@@ -613,7 +616,7 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
 
         let tree_info = TreeInfo {
             cpi_context: tree_info.cpi_context,
-            queue: tree_info.tree,
+            queue: tree_info.queue,
             tree_type: tree_info.tree_type,
             next_tree_info: None,
             tree: tree_info.tree,

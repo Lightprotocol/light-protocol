@@ -279,7 +279,7 @@ impl Indexer for PhotonIndexer {
                             })
                         }),
                         filters: options.as_ref().and_then(|o| o.filters_to_photon()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                         owner: owner.to_string(),
                     }),
                     ..Default::default()
@@ -327,7 +327,7 @@ impl Indexer for PhotonIndexer {
                             })
                         }),
                         filters: options.as_ref().and_then(|o| o.filters_to_photon()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                         owner: owner.to_string(),
                     }),
                     ..Default::default()
@@ -454,7 +454,7 @@ impl Indexer for PhotonIndexer {
                     params: Box::from(
                         photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                             mint: options
                                 .as_ref()
                                 .and_then(|o| o.mint.as_ref())
@@ -504,7 +504,7 @@ impl Indexer for PhotonIndexer {
                                 .and_then(|o| o.mint.as_ref())
                                 .map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -684,7 +684,7 @@ impl Indexer for PhotonIndexer {
                                 .and_then(|o| o.mint.as_ref())
                                 .map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -733,7 +733,7 @@ impl Indexer for PhotonIndexer {
                                 .and_then(|o| o.mint.as_ref())
                                 .map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -1290,7 +1290,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressedMintTokenHoldersPostRequestParams {
                         mint: mint.to_string(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()
@@ -1343,7 +1343,7 @@ impl Indexer for PhotonIndexer {
                     params: Box::new(
                         photon_api::models::GetCompressedTokenAccountsByDelegatePostRequestParams {
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                             mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| x.to_string()),
                             delegate: delegate.to_string(),
                         },
@@ -1389,7 +1389,7 @@ impl Indexer for PhotonIndexer {
                             delegate: delegate.to_string(),
                             mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -1442,7 +1442,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressionSignaturesForAddressPostRequestParams {
                         address: address.to_base58(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()
@@ -1496,7 +1496,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressionSignaturesForOwnerPostRequestParams {
                         owner: owner.to_string(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()
@@ -1549,7 +1549,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressionSignaturesForOwnerPostRequestParams {
                         owner: owner.to_string(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()

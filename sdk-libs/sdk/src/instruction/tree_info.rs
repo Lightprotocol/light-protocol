@@ -152,6 +152,7 @@ mod test {
             ..Default::default()
         };
 
+        #[allow(deprecated)]
         let packed_merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
         assert_eq!(
             packed_merkle_context,
@@ -192,6 +193,7 @@ mod test {
             },
         ];
 
+        #[allow(deprecated)]
         let packed_merkle_contexts =
             pack_merkle_contexts(merkle_contexts.iter(), &mut remaining_accounts);
         assert_eq!(

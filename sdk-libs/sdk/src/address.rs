@@ -116,7 +116,7 @@ pub mod v1 {
     ///     address_merkle_tree_pubkey: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
     ///     address_queue_pubkey: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
     /// };
-    /// let address = derive_address(
+    /// let (address, address_seed) = derive_address(
     ///     &[b"my_compressed_account"],
     ///     &address_tree_info,
     ///     &crate::ID,

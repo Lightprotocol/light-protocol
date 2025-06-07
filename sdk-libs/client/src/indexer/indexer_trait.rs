@@ -13,7 +13,7 @@ use super::{
     IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
     NewAddressProofWithContext, PaginatedOptions, RetryConfig,
 };
-
+// TODO: remove all references in input types.
 #[async_trait]
 pub trait Indexer: std::marker::Send + std::marker::Sync {
     /// Returns the compressed account with the given address or hash.
