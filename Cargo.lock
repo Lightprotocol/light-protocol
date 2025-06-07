@@ -1230,16 +1230,37 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "client-test"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
  "light-program-test",
+ "light-prover-client",
  "light-sdk",
  "light-test-utils",
  "rand 0.8.5",
+ "solana-account",
+ "solana-account-decoder-client-types",
+ "solana-address-lookup-table-interface",
+ "solana-clock",
+ "solana-commitment-config",
+ "solana-compute-budget-interface",
+ "solana-epoch-info",
+ "solana-hash",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-program-error",
+ "solana-pubkey",
+ "solana-rpc-client",
+ "solana-rpc-client-api",
  "solana-sdk",
+ "solana-signature",
+ "solana-signer",
+ "solana-system-interface",
+ "solana-transaction",
+ "solana-transaction-error",
+ "solana-transaction-status-client-types",
  "spl-token",
  "tokio",
 ]

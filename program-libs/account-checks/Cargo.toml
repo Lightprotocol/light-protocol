@@ -18,7 +18,7 @@ pinocchio = ["dep:pinocchio"]
 test-only = ["dep:rand"]
 
 [dependencies]
-solana-sysvar = { workspace = true, optional = true }
+solana-sysvar = { workspace = true, optional = true, features = ["bincode"] }
 solana-program-error = { workspace = true, optional = true }
 solana-account-info = { workspace = true, optional = true }
 solana-pubkey = { workspace = true, optional = true, features = [

@@ -116,7 +116,7 @@ async fn with_nested_data(
 
     let output_tree_index = rpc
         .get_random_state_tree_info()
-        .get_output_tree_index(&mut remaining_accounts)
+        .pack_output_tree_index(&mut remaining_accounts)
         .unwrap();
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
@@ -161,7 +161,7 @@ async fn update_nested_data(
 
     let packed_tree_accounts = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
-        .account_trees
+        .state_trees
         .unwrap();
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();

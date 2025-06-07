@@ -138,7 +138,7 @@ where
 
     let output_tree_index = rpc
         .get_random_state_tree_info()
-        .get_output_tree_index(&mut remaining_accounts)?;
+        .pack_output_tree_index(&mut remaining_accounts)?;
     let packed_address_tree_info = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
         .address_trees[0];
@@ -191,7 +191,7 @@ where
 
     let packed_tree_accounts = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
-        .account_trees
+        .state_trees
         .unwrap();
 
     let counter_account =
@@ -252,7 +252,7 @@ where
 
     let packed_tree_accounts = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
-        .account_trees
+        .state_trees
         .unwrap();
 
     let counter_account =
@@ -312,7 +312,7 @@ where
 
     let packed_merkle_context = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
-        .account_trees
+        .state_trees
         .unwrap();
 
     let counter_account =
@@ -373,7 +373,7 @@ where
 
     let packed_tree_infos = rpc_result
         .pack_tree_infos(&mut remaining_accounts)
-        .account_trees
+        .state_trees
         .unwrap();
 
     let counter_account =

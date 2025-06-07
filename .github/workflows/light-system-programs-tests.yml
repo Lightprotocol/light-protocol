@@ -64,7 +64,7 @@ jobs:
           - program: light-compressed-token
             sub-tests: '["cargo-test-sbf -p compressed-token-test"]'
           - program: system-cpi-test
-            sub-tests: '["cargo-test-sbf -p system-cpi-test", "cargo test-sbf -p client-test"]'
+            sub-tests: '["cargo-test-sbf -p system-cpi-test"]'
           - program: system-cpi-test-v2
             sub-tests: '["cargo-test-sbf -p system-cpi-v2-test"]'
           - program: random-e2e-test

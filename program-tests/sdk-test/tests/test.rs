@@ -140,7 +140,7 @@ pub async fn update_pda(
 
     let packed_accounts = rpc_result
         .pack_tree_infos(&mut accounts)
-        .account_trees
+        .state_trees
         .unwrap();
 
     let meta = CompressedAccountMeta {

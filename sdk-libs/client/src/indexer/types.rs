@@ -82,6 +82,8 @@ pub struct ValidityProofWithContext {
     pub addresses: Vec<AddressProofInputs>,
 }
 
+// TODO: add get_public_inputs
+// -> to make it easier to use light-verifier with get_validity_proof()
 impl ValidityProofWithContext {
     pub fn get_root_indices(&self) -> Vec<Option<u16>> {
         self.accounts
@@ -163,7 +165,7 @@ pub struct PackedStateTreeInfos {
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct PackedTreeInfos {
-    pub account_trees: Option<PackedStateTreeInfos>,
+    pub state_trees: Option<PackedStateTreeInfos>,
     pub address_trees: Vec<PackedAddressTreeInfo>,
 }
 
@@ -189,17 +191,17 @@ impl ValidityProofWithContext {
             // Else use the current Merkle tree for new state.
             if let Some(next) = account.tree_info.next_tree_info {
                 // SAFETY: account will always have a state Merkle tree context.
-                // get_output_tree_index only panics on an address Merkle tree context.
-                let index = next.get_output_tree_index(packed_accounts).unwrap();
+                // pack_output_tree_index only panics on an address Merkle tree context.
+                let index = next.pack_output_tree_index(packed_accounts).unwrap();
                 if output_tree_index.is_none() {
                     output_tree_index = Some(index);
                 }
             } else {
                 // SAFETY: account will always have a state Merkle tree context.
-                // get_output_tree_index only panics on an address Merkle tree context.
+                // pack_output_tree_index only panics on an address Merkle tree context.
                 let index = account
                     .tree_info
-                    .get_output_tree_index(packed_accounts)
+                    .pack_output_tree_index(packed_accounts)
                     .unwrap();
                 if output_tree_index.is_none() {
                     output_tree_index = Some(index);
@@ -227,7 +229,7 @@ impl ValidityProofWithContext {
             })
         };
         PackedTreeInfos {
-            account_trees: packed_tree_infos,
+            state_trees: packed_tree_infos,
             address_trees,
         }
     }
@@ -371,7 +373,7 @@ impl NextTreeInfo {
     /// For StateV2, it returns the index of the queue account.
     /// (For V2 trees new state is inserted into the output queue.
     /// The forester updates the tree from the queue asynchronously.)
-    pub fn get_output_tree_index(
+    pub fn pack_output_tree_index(
         &self,
         packed_accounts: &mut PackedAccounts,
     ) -> Result<u8, IndexerError> {
@@ -421,7 +423,7 @@ impl TreeInfo {
     /// For StateV2, it returns the index of the queue account.
     /// (For V2 trees new state is inserted into the output queue.
     /// The forester updates the tree from the queue asynchronously.)
-    pub fn get_output_tree_index(
+    pub fn pack_output_tree_index(
         &self,
         packed_accounts: &mut PackedAccounts,
     ) -> Result<u8, IndexerError> {
