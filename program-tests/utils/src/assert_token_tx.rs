@@ -1,5 +1,5 @@
 use anchor_lang::AnchorSerialize;
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::{
     compressed_account::CompressedAccountWithMerkleContext,
     indexer_event::event::PublicTransactionEvent,
@@ -23,7 +23,7 @@ use crate::assert_compressed_tx::{
 /// 6. Check compression amount was transferred (outside of this function)
 ///    No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn assert_transfer<R: Rpc, I: Indexer + TestIndexerExtensions>(
     context: &mut R,
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
@@ -80,7 +80,7 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer + TestIndexerExtension
     );
 }
 
-pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub fn assert_compressed_token_accounts<R: Rpc, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     lamports: Option<Vec<Option<u64>>>,
@@ -190,7 +190,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer + TestIndex
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn assert_mint_to<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     recipients: &[Pubkey],
@@ -229,7 +229,7 @@ pub async fn assert_mint_to<R: RpcConnection, I: Indexer + TestIndexerExtensions
     assert_eq!(pool_account.amount, previous_sol_pool_amount + sum_amounts);
 }
 
-pub async fn assert_create_mint<R: RpcConnection>(
+pub async fn assert_create_mint<R: Rpc>(
     context: &mut R,
     authority: &Pubkey,
     mint: &Pubkey,

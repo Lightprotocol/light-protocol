@@ -2,10 +2,11 @@ use photon_api::models::{FilterSelector, Memcmp};
 use solana_account_decoder_client_types::UiDataSliceConfig;
 use solana_pubkey::Pubkey;
 
+#[derive(Debug, Clone)]
 pub struct GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     pub mint: Option<Pubkey>,
     pub cursor: Option<String>,
-    pub limit: Option<u64>,
+    pub limit: Option<u16>,
 }
 
 impl GetCompressedTokenAccountsByOwnerOrDelegateOptions {
@@ -23,14 +24,14 @@ impl GetCompressedTokenAccountsByOwnerOrDelegateOptions {
 /// **Limit** is the maximum number of results to return per page.
 pub struct PaginatedOptions {
     pub cursor: Option<String>,
-    pub limit: Option<u64>,
+    pub limit: Option<u16>,
 }
 
 pub struct GetCompressedAccountsByOwnerConfig {
     pub filters: Option<Vec<GetCompressedAccountsFilter>>,
     pub data_slice: Option<UiDataSliceConfig>,
     pub cursor: Option<String>,
-    pub limit: Option<u64>,
+    pub limit: Option<u16>,
 }
 
 #[derive(Clone)]

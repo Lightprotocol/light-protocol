@@ -27,7 +27,7 @@ pub fn find_light_bin() -> Option<PathBuf> {
     }
     #[cfg(feature = "devenv")]
     {
-        println!("Using 'git rev-parse --show-toplevel' to find the location of 'light' binary");
+        println!("Use only in light protocol monorepo. Using 'git rev-parse --show-toplevel' to find the location of 'light' binary");
         let light_protocol_toplevel = String::from_utf8_lossy(
             &std::process::Command::new("git")
                 .arg("rev-parse")

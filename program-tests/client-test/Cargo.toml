@@ -1,0 +1,60 @@
+[package]
+name = "client-test"
+version = "0.1.0"
+description = "Tests for light-client and light-program-test."
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "client_test"
+
+[features]
+test-sbf = []
+
+[dev-dependencies]
+light-client = { workspace = true, features = ["devenv"] }
+light-program-test = { workspace = true, features = ["devenv"] }
+light-prover-client = { workspace = true, features = ["devenv"] }
+light-test-utils = { workspace = true }
+light-sdk = { workspace = true }
+light-compressed-account = { workspace = true }
+light-compressed-token = { workspace = true }
+
+tokio = { workspace = true }
+rand = { workspace = true }
+
+solana-sdk = { workspace = true }
+spl-token = { workspace = true }
+solana-rpc-client = { workspace = true }
+solana-rpc-client-api = { workspace = true }
+solana-transaction-status-client-types = { workspace = true }
+solana-account-decoder-client-types = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-instruction = { workspace = true }
+solana-program-error = { workspace = true }
+solana-transaction = { workspace = true }
+solana-transaction-error = { workspace = true }
+solana-hash = { workspace = true }
+solana-clock = { workspace = true }
+solana-signature = { workspace = true }
+solana-commitment-config = { workspace = true }
+solana-account = { workspace = true }
+solana-signer = { workspace = true }
+solana-epoch-info = { workspace = true }
+solana-keypair = { workspace = true }
+solana-compute-budget-interface = { workspace = true }
+solana-address-lookup-table-interface = { version = "2.2.1", features = [
+    "bytemuck",
+    "bincode",
+] }
+solana-system-interface = { workspace = true }
+
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

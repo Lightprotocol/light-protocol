@@ -6,7 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use tokio::time::{sleep, Duration};
 use tracing::{error, trace};
 
@@ -62,7 +62,7 @@ impl SlotTracker {
         estimated_slot
     }
 
-    pub async fn run<R: RpcConnection + Send>(self: Arc<Self>, rpc: &mut R) {
+    pub async fn run<R: Rpc + Send>(self: Arc<Self>, rpc: &mut R) {
         loop {
             match rpc.get_slot().await {
                 Ok(slot) => {
@@ -76,7 +76,7 @@ impl SlotTracker {
     }
 }
 
-pub async fn wait_until_slot_reached<R: RpcConnection>(
+pub async fn wait_until_slot_reached<R: Rpc>(
     rpc: &mut R,
     slot_tracker: &Arc<SlotTracker>,
     target_slot: u64,

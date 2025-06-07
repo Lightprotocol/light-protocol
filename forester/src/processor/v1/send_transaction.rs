@@ -9,7 +9,7 @@ use std::{
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
 use futures::StreamExt;
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use light_compressed_account::TreeType;
 use light_registry::utils::get_forester_epoch_pda_from_authority;
 use reqwest::Url;
@@ -53,7 +53,7 @@ enum TransactionSendResult {
 /// Setting:
 /// 1. We have 1 light slot (n solana slots), and elements in queue
 /// 2. we want to send as many elements from the queue as possible
-pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
+pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
     payer: &Keypair,
     derivation: &Pubkey,
     pool: Arc<SolanaRpcPool<R>>,
@@ -155,7 +155,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     Ok(total_sent_successfully)
 }
 
-async fn prepare_batch_prerequisites<R: RpcConnection, T: TransactionBuilder>(
+async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
     payer_pubkey: &Pubkey,
     derivation: &Pubkey,
     pool: &Arc<SolanaRpcPool<R>>,
@@ -268,7 +268,7 @@ async fn prepare_batch_prerequisites<R: RpcConnection, T: TransactionBuilder>(
     }))
 }
 
-async fn execute_transaction_chunk_sending<R: RpcConnection>(
+async fn execute_transaction_chunk_sending<R: Rpc>(
     transactions: Vec<Transaction>,
     pool: Arc<SolanaRpcPool<R>>,
     max_concurrent_sends: usize,

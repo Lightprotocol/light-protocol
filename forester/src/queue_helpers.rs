@@ -1,5 +1,5 @@
 use account_compression::QueueAccount;
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use light_hash_set::HashSet;
 use solana_sdk::pubkey::Pubkey;
 use tracing::trace;
@@ -12,7 +12,7 @@ pub struct QueueItemData {
     pub index: usize,
 }
 
-pub async fn fetch_queue_item_data<R: RpcConnection>(
+pub async fn fetch_queue_item_data<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     start_index: u16,

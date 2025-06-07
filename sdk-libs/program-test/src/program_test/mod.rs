@@ -1,7 +1,8 @@
 pub mod config;
+#[cfg(feature = "devenv")]
 pub mod extensions;
 mod light_program_test;
-pub mod rpc_connection;
+mod rpc;
 pub mod test_rpc;
 
 pub use light_program_test::LightProgramTest;

@@ -16,12 +16,12 @@ use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
     instruction_data::LightInstructionData,
-    merkle_context::{AddressMerkleContext, PackedAccounts},
+    tree_info::{AddressTreeInfo, PackedAccounts},
     utils::get_cpi_authority_pda,
     verify::find_cpi_signer,
     PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
-use light_test_utils::{RpcConnection, RpcError};
+use light_test_utils::{Rpc, RpcError};
 use memo::MemoAccount;
 use solana_sdk::{
     instruction::Instruction,
@@ -55,7 +55,7 @@ async fn test_memo_program() {
 
     let mut remaining_accounts = PackedAccounts::default();
 
-    let address_merkle_context = AddressMerkleContext {
+    let address_merkle_context = AddressTreeInfo {
         address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
         address_queue_pubkey: env.v1_address_trees[0].queue,
     };
@@ -170,7 +170,7 @@ async fn create_memo<R>(
     light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: Rpc + MerkleTreeExt,
 {
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -183,7 +183,7 @@ where
         .await
         .unwrap();
 
-    let address_merkle_context = AddressMerkleContext {
+    let address_merkle_context = AddressTreeInfo {
         address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
         address_queue_pubkey: env.v1_address_trees[0].queue,
     };
@@ -253,7 +253,7 @@ async fn update_memo<R>(
     light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: Rpc + MerkleTreeExt,
 {
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
@@ -333,7 +333,7 @@ async fn delete_memo<R>(
     light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: Rpc + MerkleTreeExt,
 {
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;

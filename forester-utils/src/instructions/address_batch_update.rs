@@ -7,7 +7,7 @@ use light_batched_merkle_tree::{
         InstructionDataBatchNullifyInputs,
     },
 };
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::hash_chain::create_hash_chain_from_slice;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
@@ -28,7 +28,7 @@ pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     merkle_tree_pubkey: &Pubkey,
 ) -> Result<(Vec<InstructionDataBatchNullifyInputs>, u16), ForesterUtilsError>
 where
-    R: RpcConnection,
+    R: Rpc,
     I: Indexer,
 {
     info!("Creating batch update address tree instruction data");

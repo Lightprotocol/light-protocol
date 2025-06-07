@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use borsh::BorshSerialize;
 use light_compressed_account::{
@@ -6,13 +6,10 @@ use light_compressed_account::{
     hashv_to_bn254_field_size_be,
 };
 use light_program_test::{
-    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, RpcConnection,
-    RpcError,
+    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::instruction::{
-    account_meta::CompressedAccountMeta,
-    accounts::SystemAccountMetaConfig,
-    merkle_context::{pack_address_merkle_context, AddressMerkleContext},
+    account_meta::CompressedAccountMeta, accounts::SystemAccountMetaConfig,
     pack_accounts::PackedAccounts,
 };
 use sdk_test::{
@@ -31,24 +28,20 @@ async fn test_sdk_test() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: rpc.get_address_merkle_tree_v2(),
-        address_queue_pubkey: rpc.get_address_merkle_tree_v2(), // v2 queue is part of the tree account
-    };
-
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
     let account_data = [1u8; 31];
 
     // // V1 trees
     // let (address, _) = light_sdk::address::derive_address(
     //     &[b"compressed", &account_data],
-    //     &address_merkle_context,
+    //     &address_tree_info,
     //     &sdk_test::ID,
     // );
     // Batched trees
     let address_seed = hashv_to_bn254_field_size_be(&[b"compressed", account_data.as_slice()]);
     let address = derive_address(
         &address_seed,
-        &address_merkle_context.address_merkle_tree_pubkey.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
         &sdk_test::ID.to_bytes(),
     );
     let ouput_queue = rpc.get_state_merkle_tree_v2().output_queue;
@@ -57,7 +50,7 @@ async fn test_sdk_test() {
         &mut rpc,
         &ouput_queue,
         account_data,
-        address_merkle_context,
+        address_tree_pubkey,
         address,
     )
     .await
@@ -74,15 +67,9 @@ async fn test_sdk_test() {
         .clone();
     assert_eq!(compressed_pda.address.unwrap(), address);
 
-    update_pda(
-        &payer,
-        &mut rpc,
-        [2u8; 31],
-        compressed_pda.into(),
-        ouput_queue,
-    )
-    .await
-    .unwrap();
+    update_pda(&payer, &mut rpc, [2u8; 31], compressed_pda.into())
+        .await
+        .unwrap();
 }
 
 pub async fn create_pda(
@@ -90,7 +77,7 @@ pub async fn create_pda(
     rpc: &mut LightProgramTest,
     merkle_tree_pubkey: &Pubkey,
     account_data: [u8; 31],
-    address_merkle_context: AddressMerkleContext,
+    address_tree_pubkey: Pubkey,
     address: [u8; 32],
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
@@ -103,23 +90,20 @@ pub async fn create_pda(
             vec![],
             vec![AddressWithTree {
                 address,
-                tree: address_merkle_context.address_merkle_tree_pubkey,
+                tree: address_tree_pubkey,
             }],
             None,
         )
-        .await?;
+        .await?
+        .value;
 
     let output_merkle_tree_index = accounts.insert_or_get(*merkle_tree_pubkey);
-    let packed_address_merkle_context = pack_address_merkle_context(
-        &address_merkle_context,
-        &mut accounts,
-        rpc_result.value.get_address_root_indices()[0],
-    );
+    let packed_address_tree_info = rpc_result.pack_tree_infos(&mut accounts).address_trees[0];
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
     let instruction_data = CreatePdaInstructionData {
-        proof: rpc_result.value.proof.0.unwrap().into(),
-        address_merkle_context: packed_address_merkle_context,
+        proof: rpc_result.proof.0.unwrap().into(),
+        address_tree_info: packed_address_tree_info,
         data: account_data,
         output_merkle_tree_index,
         system_accounts_offset: system_accounts_offset as u8,
@@ -143,7 +127,6 @@ pub async fn update_pda(
     rpc: &mut LightProgramTest,
     new_account_data: [u8; 31],
     compressed_account: CompressedAccountWithMerkleContext,
-    output_merkle_tree: Pubkey,
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
     let mut accounts = PackedAccounts::default();
@@ -152,15 +135,20 @@ pub async fn update_pda(
 
     let rpc_result = rpc
         .get_validity_proof(vec![compressed_account.hash().unwrap()], vec![], None)
-        .await?;
+        .await?
+        .value;
 
-    let meta = CompressedAccountMeta::from_compressed_account(
-        &compressed_account,
-        &mut accounts,
-        rpc_result.value.get_root_indices()[0],
-        &output_merkle_tree,
-    )
-    .unwrap();
+    let packed_accounts = rpc_result
+        .pack_tree_infos(&mut accounts)
+        .state_trees
+        .unwrap();
+
+    let meta = CompressedAccountMeta {
+        tree_info: packed_accounts.packed_tree_infos[0],
+        address: compressed_account.compressed_account.address.unwrap(),
+        output_state_tree_index: packed_accounts.output_tree_index,
+    };
+
     let (accounts, system_accounts_offset, _) = accounts.to_account_metas();
     let instruction_data = UpdatePdaInstructionData {
         my_compressed_account: UpdateMyCompressedAccount {
@@ -173,7 +161,7 @@ pub async fn update_pda(
                 .try_into()
                 .unwrap(),
         },
-        proof: rpc_result.value.proof,
+        proof: rpc_result.proof,
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };

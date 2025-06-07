@@ -6,9 +6,12 @@ use std::{
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use bs58;
-use light_compressed_account::indexer_event::{
-    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
-    parse::event_from_light_transaction,
+use light_compressed_account::{
+    indexer_event::{
+        event::{BatchPublicTransactionEvent, PublicTransactionEvent},
+        parse::event_from_light_transaction,
+    },
+    TreeType,
 };
 use solana_account::Account;
 use solana_clock::Slot;
@@ -16,7 +19,7 @@ use solana_commitment_config::CommitmentConfig;
 use solana_hash::Hash;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
-use solana_pubkey::Pubkey;
+use solana_pubkey::{pubkey, Pubkey};
 use solana_rpc_client::rpc_client::RpcClient;
 use solana_rpc_client_api::config::{RpcSendTransactionConfig, RpcTransactionConfig};
 use solana_signature::Signature;
@@ -27,13 +30,20 @@ use solana_transaction_status_client_types::{
 use tokio::time::{sleep, Instant};
 use tracing::warn;
 
-use super::rpc_connection::RpcConnectionConfig;
+use super::RpcConfig;
 use crate::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer},
-    rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, rpc_connection::RpcConnection},
+    indexer::{photon_indexer::PhotonIndexer, Indexer, TreeInfo},
+    rpc::{
+        errors::RpcError,
+        get_light_state_tree_infos::{
+            default_state_tree_lookup_tables, get_light_state_tree_infos,
+        },
+        merkle_tree::MerkleTreeExt,
+        Rpc,
+    },
 };
 
-pub enum SolanaRpcUrl {
+pub enum RpcUrl {
     Testnet,
     Devnet,
     Localnet,
@@ -41,14 +51,14 @@ pub enum SolanaRpcUrl {
     Custom(String),
 }
 
-impl Display for SolanaRpcUrl {
+impl Display for RpcUrl {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let str = match self {
-            SolanaRpcUrl::Testnet => "https://api.testnet.solana.com".to_string(),
-            SolanaRpcUrl::Devnet => "https://api.devnet.solana.com".to_string(),
-            SolanaRpcUrl::Localnet => "http://localhost:8899".to_string(),
-            SolanaRpcUrl::ZKTestnet => "https://zk-testnet.helius.dev:8899".to_string(),
-            SolanaRpcUrl::Custom(url) => url.clone(),
+            RpcUrl::Testnet => "https://api.testnet.solana.com".to_string(),
+            RpcUrl::Devnet => "https://api.devnet.solana.com".to_string(),
+            RpcUrl::Localnet => "http://localhost:8899".to_string(),
+            RpcUrl::ZKTestnet => "https://zk-testnet.helius.dev:8899".to_string(),
+            RpcUrl::Custom(url) => url.clone(),
         };
         write!(f, "{}", str)
     }
@@ -74,25 +84,25 @@ impl Default for RetryConfig {
 }
 
 #[allow(dead_code)]
-pub struct SolanaRpcConnection {
+pub struct LightClient {
     pub client: RpcClient,
     pub payer: Keypair,
     pub retry_config: RetryConfig,
     pub indexer: Option<PhotonIndexer>,
+    pub active_state_merkle_trees: Vec<TreeInfo>,
 }
 
-impl Debug for SolanaRpcConnection {
+impl Debug for LightClient {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "SolanaRpcConnection {{ client: {:?} }}",
-            self.client.url()
-        )
+        write!(f, "LightClient {{ client: {:?} }}", self.client.url())
     }
 }
 
-impl SolanaRpcConnection {
-    pub fn new_with_retry(config: RpcConnectionConfig, retry_config: Option<RetryConfig>) -> Self {
+impl LightClient {
+    pub async fn new_with_retry(
+        config: RpcConfig,
+        retry_config: Option<RetryConfig>,
+    ) -> Result<Self, RpcError> {
         let payer = Keypair::new();
         let commitment_config = config
             .commitment_config
@@ -101,19 +111,31 @@ impl SolanaRpcConnection {
         let retry_config = retry_config.unwrap_or_default();
 
         let indexer = if config.with_indexer {
-            Some(PhotonIndexer::new(
-                "http://127.0.0.1:8784".to_string(),
-                None,
-            ))
+            if config.url == RpcUrl::Localnet.to_string() {
+                Some(PhotonIndexer::new(
+                    "http://127.0.0.1:8784".to_string(),
+                    None,
+                ))
+            } else {
+                Some(PhotonIndexer::new(
+                    config.url.to_string(),
+                    None, // TODO: test that this is not required
+                ))
+            }
         } else {
             None
         };
-        Self {
+        let mut new = Self {
             client,
             payer,
             retry_config,
             indexer,
+            active_state_merkle_trees: Vec::new(),
+        };
+        if config.fetch_active_tree {
+            new.get_latest_active_state_trees().await?;
         }
+        Ok(new)
     }
 
     pub fn add_indexer(&mut self, path: String, api_key: Option<String>) {
@@ -324,7 +346,7 @@ impl SolanaRpcConnection {
     }
 }
 
-impl SolanaRpcConnection {
+impl LightClient {
     #[allow(clippy::result_large_err)]
     fn parse_inner_instructions<T: BorshDeserialize>(
         &self,
@@ -394,12 +416,12 @@ impl SolanaRpcConnection {
 }
 
 #[async_trait]
-impl RpcConnection for SolanaRpcConnection {
-    fn new(config: RpcConnectionConfig) -> Self
+impl Rpc for LightClient {
+    async fn new(config: RpcConfig) -> Result<Self, RpcError>
     where
         Self: Sized,
     {
-        Self::new_with_retry(config, None)
+        Self::new_with_retry(config, None).await
     }
 
     fn get_payer(&self) -> &Keypair {
@@ -638,6 +660,43 @@ impl RpcConnection for SolanaRpcConnection {
     fn indexer_mut(&mut self) -> Result<&mut impl Indexer, RpcError> {
         self.indexer.as_mut().ok_or(RpcError::IndexerNotInitialized)
     }
+
+    /// Fetch the latest state tree addresses from the cluster.
+    async fn get_latest_active_state_trees(&mut self) -> Result<Vec<TreeInfo>, RpcError> {
+        let res = default_state_tree_lookup_tables().0;
+        let res = get_light_state_tree_infos(
+            self,
+            &res[0].state_tree_lookup_table,
+            &res[0].nullify_table,
+        )
+        .await?;
+        self.active_state_merkle_trees = res.clone();
+        Ok(res)
+    }
+
+    /// Fetch the latest state tree addresses from the cluster.
+    fn get_state_tree_infos(&self) -> Vec<TreeInfo> {
+        self.active_state_merkle_trees.to_vec()
+    }
+
+    /// Gets a random active state tree.
+    /// State trees are cached and have to be fetched or set.
+    fn get_random_state_tree_info(&self) -> TreeInfo {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+
+        self.active_state_merkle_trees[rng.gen_range(0..self.active_state_merkle_trees.len())]
+    }
+
+    fn get_address_tree_v1(&self) -> TreeInfo {
+        TreeInfo {
+            tree: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
+            queue: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
+            cpi_context: None,
+            next_tree_info: None,
+            tree_type: TreeType::AddressV1,
+        }
+    }
 }
 
-impl MerkleTreeExt for SolanaRpcConnection {}
+impl MerkleTreeExt for LightClient {}

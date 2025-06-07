@@ -3,7 +3,7 @@ use account_compression::{
 };
 use anchor_lang::InstructionData;
 use forester_utils::instructions::create_account::create_account_instruction;
-use light_client::rpc::{errors::RpcError, RpcConnection};
+use light_client::rpc::{errors::RpcError, Rpc};
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
@@ -49,7 +49,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]
-pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
+pub async fn create_address_merkle_tree_and_queue_account<R: Rpc>(
     payer: &Keypair,
     registry: bool,
     context: &mut R,

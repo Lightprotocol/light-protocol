@@ -8,7 +8,7 @@ use light_indexed_merkle_tree::{copy::IndexedMerkleTreeCopy, errors::IndexedMerk
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
-use super::{state::MerkleTreeMetadata, RpcConnection, RpcError};
+use super::{state::MerkleTreeMetadata, Rpc, RpcError};
 
 #[derive(Error, Debug)]
 pub enum MerkleTreeExtError {
@@ -26,9 +26,9 @@ pub enum MerkleTreeExtError {
 /// Extension to the RPC connection which provides convenience utilities for
 /// fetching Merkle trees.
 #[async_trait]
-pub trait MerkleTreeExt: RpcConnection {
+pub trait MerkleTreeExt: Rpc {
     // TODO: add v2 state tree
-    async fn get_state_merkle_tree(
+    async fn get_state_merkle_tree_account(
         &mut self,
         pubkey: Pubkey,
     ) -> Result<ConcurrentMerkleTreeCopy<Poseidon, 26>, MerkleTreeExtError> {
@@ -41,7 +41,7 @@ pub trait MerkleTreeExt: RpcConnection {
     }
 
     // TODO: add v2 state tree
-    async fn get_address_merkle_tree(
+    async fn get_address_merkle_tree_account(
         &mut self,
         pubkey: Pubkey,
     ) -> Result<IndexedMerkleTreeCopy<Poseidon, usize, 26, 16>, MerkleTreeExtError> {

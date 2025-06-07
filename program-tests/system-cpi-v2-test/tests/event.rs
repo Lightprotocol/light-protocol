@@ -7,7 +7,7 @@ use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
-    rpc::rpc_connection::RpcConnectionConfig,
+    rpc::RpcConfig,
 };
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy, pack_new_address_params_assigned},
@@ -34,7 +34,7 @@ use light_program_test::{
     accounts::test_accounts::TestAccounts, LightProgramTest, ProgramTestConfig,
 };
 use light_sdk::NewAddressParamsAssigned;
-use light_test_utils::{RpcConnection, RpcError, SolanaRpcConnection};
+use light_test_utils::{LightClient, Rpc, RpcError};
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -521,7 +521,9 @@ async fn generate_photon_test_data_multiple_events() {
         })
         .await;
 
-        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig::local_no_indexer());
+        let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+            .await
+            .unwrap();
         let env = TestAccounts::get_local_test_validator_accounts();
 
         let payer = rpc.get_payer().insecure_clone();
@@ -633,7 +635,7 @@ pub fn get_compressed_output_account(
     }
 }
 
-pub async fn perform_test_transaction<R: RpcConnection>(
+pub async fn perform_test_transaction<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     input_accounts: Vec<CompressedAccountWithMerkleContext>,

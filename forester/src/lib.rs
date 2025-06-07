@@ -29,7 +29,7 @@ use forester_utils::{
 };
 use light_client::{
     indexer::Indexer,
-    rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection},
+    rpc::{LightClient, Rpc, RpcConfig},
 };
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -51,11 +51,15 @@ pub async fn run_queue_info(
     trees: Vec<TreeAccounts>,
     queue_type: TreeType,
 ) {
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+    let mut rpc = LightClient::new(RpcConfig {
         url: config.external_services.rpc_url.to_string(),
         commitment_config: None,
+        fetch_active_tree: false,
+
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
     let trees: Vec<_> = trees
         .iter()
         .filter(|t| t.tree_type == queue_type)
@@ -87,7 +91,7 @@ pub async fn run_queue_info(
     }
 }
 
-pub async fn run_pipeline<R: RpcConnection, I: Indexer + IndexerType<R> + 'static>(
+pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
     config: Arc<ForesterConfig>,
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,

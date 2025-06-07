@@ -1,12 +1,12 @@
 use account_compression::StateMerkleTreeAccount;
 use forester_utils::account_zero_copy::{get_concurrent_merkle_tree, AccountZeroCopy};
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::fee::compute_rollover_fee;
 use solana_sdk::pubkey::Pubkey;
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_merkle_tree_initialized<R: RpcConnection>(
+pub async fn assert_merkle_tree_initialized<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     queue_pubkey: &Pubkey,

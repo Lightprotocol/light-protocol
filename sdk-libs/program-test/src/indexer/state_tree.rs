@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use light_client::indexer::{IndexerError, StateMerkleTreeAccounts};
+use light_compressed_account::TreeType;
 use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
 
@@ -16,7 +17,7 @@ pub struct StateMerkleTreeBundle {
     pub rollover_fee: i64,
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
-    pub version: u64,
+    pub tree_type: TreeType,
     pub output_queue_elements: Vec<([u8; 32], u64)>,
     pub input_leaf_indices: Vec<LeafIndexInfo>,
     pub output_queue_batch_size: Option<usize>,
@@ -28,10 +29,8 @@ impl StateMerkleTreeBundle {
     pub fn leaf_index_in_queue_range(&self, index: usize) -> Result<bool, IndexerError> {
         if let Some(output_queue_batch_size) = self.output_queue_batch_size {
             let start_offset = self.num_inserted_batches * output_queue_batch_size;
-            println!("start offset {}", start_offset);
             // There is always 2 batches.
             let end_offset = start_offset + (output_queue_batch_size * 2);
-            println!("end offset {}", end_offset);
             Ok(start_offset <= index && index < end_offset)
         } else {
             Err(IndexerError::CustomError(format!(

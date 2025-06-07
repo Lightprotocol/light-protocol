@@ -1,4 +1,4 @@
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     utils::{get_epoch_pda_address, get_forester_pda, get_protocol_config_pda_address},
@@ -6,7 +6,7 @@ use light_registry::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-pub async fn assert_finalized_epoch_registration<R: RpcConnection>(
+pub async fn assert_finalized_epoch_registration<R: Rpc>(
     rpc: &mut R,
     forester_epoch_pda_pubkey: &Pubkey,
     epoch_pda_pubkey: &Pubkey,
@@ -29,11 +29,7 @@ pub async fn assert_finalized_epoch_registration<R: RpcConnection>(
     );
 }
 
-pub async fn assert_epoch_pda<R: RpcConnection>(
-    rpc: &mut R,
-    epoch: u64,
-    expected_registered_weight: u64,
-) {
+pub async fn assert_epoch_pda<R: Rpc>(rpc: &mut R, epoch: u64, expected_registered_weight: u64) {
     let epoch_pda_pubkey = get_epoch_pda_address(epoch);
     let epoch_pda = rpc
         .get_anchor_account::<EpochPda>(&epoch_pda_pubkey)
@@ -53,7 +49,7 @@ pub async fn assert_epoch_pda<R: RpcConnection>(
 }
 /// Helper function to fetch the forester epoch and epoch account to assert diff
 /// after transaction.
-pub async fn fetch_epoch_and_forester_pdas<R: RpcConnection>(
+pub async fn fetch_epoch_and_forester_pdas<R: Rpc>(
     rpc: &mut R,
     forester_epoch_pda: &Pubkey,
     epoch_pda: &Pubkey,
@@ -77,7 +73,7 @@ pub async fn fetch_epoch_and_forester_pdas<R: RpcConnection>(
 /// Asserts:
 /// 1. ForesterEpochPda has reported work
 /// 2. EpochPda has updated total work by forester work counter
-pub async fn assert_report_work<R: RpcConnection>(
+pub async fn assert_report_work<R: Rpc>(
     rpc: &mut R,
     forester_epoch_pda_pubkey: &Pubkey,
     epoch_pda_pubkey: &Pubkey,
@@ -101,7 +97,7 @@ pub async fn assert_report_work<R: RpcConnection>(
 }
 
 /// Asserts the correct creation of a ForesterEpochPda.
-pub async fn assert_registered_forester_pda<R: RpcConnection>(
+pub async fn assert_registered_forester_pda<R: Rpc>(
     rpc: &mut R,
     forester_epoch_pda_pubkey: &Pubkey,
     forester_derivation_pubkey: &Pubkey,

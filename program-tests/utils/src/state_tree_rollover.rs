@@ -12,7 +12,7 @@ use anchor_lang::{
 use forester_utils::{account_zero_copy::get_hash_set, instructions::create_account_instruction};
 use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_client::rpc::{errors::RpcError, RpcConnection};
+use light_client::rpc::{errors::RpcError, Rpc};
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
@@ -39,7 +39,7 @@ pub enum StateMerkleTreeRolloverMode {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
+pub async fn perform_state_merkle_tree_roll_over<R: Rpc>(
     rpc: &mut R,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
@@ -119,7 +119,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc.process_transaction_with_context(transaction).await
 }
 
-pub async fn set_state_merkle_tree_next_index<R: RpcConnection + TestRpc + Indexer>(
+pub async fn set_state_merkle_tree_next_index<R: Rpc + TestRpc + Indexer>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,
@@ -139,10 +139,9 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection + TestRpc + Index
                     merkle_tree_deserialized.inc_next_index().unwrap();
                 }
             }
+            merkle_tree.set_lamports(lamports);
 
-            let mut account_share_data = merkle_tree;
-            account_share_data.set_lamports(lamports);
-            rpc.set_account(merkle_tree_pubkey, &account_share_data);
+            rpc.set_account(*merkle_tree_pubkey, merkle_tree);
             let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
             let merkle_tree_deserialized =
                 ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
@@ -157,7 +156,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection + TestRpc + Index
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_rolled_over_pair<R: RpcConnection>(
+pub async fn assert_rolled_over_pair<R: Rpc>(
     payer: &Pubkey,
     rpc: &mut R,
     fee_payer_prior_balance: &u64,

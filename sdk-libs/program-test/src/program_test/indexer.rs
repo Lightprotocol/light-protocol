@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use light_client::indexer::{
-    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
+    Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
     Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
     MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response,
@@ -54,7 +54,7 @@ impl Indexer for LightProgramTest {
         owner: &Pubkey,
         options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -65,15 +65,27 @@ impl Indexer for LightProgramTest {
 
     async fn get_compressed_account(
         &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
+        address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Account>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_account(address, hash, config)
+            .get_compressed_account(address, config)
+            .await?)
+    }
+
+    async fn get_compressed_account_by_hash(
+        &self,
+        hash: Hash,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_account_by_hash(hash, config)
             .await?)
     }
 
@@ -120,7 +132,7 @@ impl Indexer for LightProgramTest {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Account>>, IndexerError> {
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()

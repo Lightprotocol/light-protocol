@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{AddressWithTree, Context, Indexer, Response, ValidityProofWithContext},
-    rpc::RpcConnection,
+    rpc::Rpc,
 };
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
@@ -2855,7 +2855,7 @@ pub mod local_sdk {
         OutputCompressedAccountWithPackedContext, ReadOnlyAddress, CPI_AUTHORITY_PDA_SEED,
     };
     use light_system_program::constants::SOL_POOL_PDA_SEED;
-    use light_test_utils::{RpcConnection, RpcError};
+    use light_test_utils::{Rpc, RpcError};
     use solana_sdk::{
         pubkey::Pubkey,
         signature::{Keypair, Signer},
@@ -2874,7 +2874,7 @@ pub mod local_sdk {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn perform_test_transaction<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+    pub async fn perform_test_transaction<R: Rpc, I: Indexer + TestIndexerExtensions>(
         rpc: &mut R,
         test_indexer: &mut I,
         payer: &Keypair,

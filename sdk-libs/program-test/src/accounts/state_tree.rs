@@ -4,7 +4,7 @@ use account_compression::{
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::instructions::create_account::create_account_instruction;
-use light_client::rpc::{errors::RpcError, RpcConnection};
+use light_client::rpc::{errors::RpcError, Rpc};
 use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 use light_registry::protocol_config::state::ProtocolConfig;
 use solana_sdk::{
@@ -102,7 +102,7 @@ pub fn create_insert_leaves_instruction(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
+pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
     payer: &Keypair,
     registry: bool,
     rpc: &mut R,

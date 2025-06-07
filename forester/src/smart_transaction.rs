@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use forester_utils::rpc_pool::SolanaConnectionManager;
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
@@ -32,7 +32,7 @@ pub struct CreateSmartTransactionConfig {
 ///
 /// # Returns
 /// The confirmed transaction signature or an error if the confirmation times out
-pub async fn poll_transaction_confirmation<R: RpcConnection>(
+pub async fn poll_transaction_confirmation<R: Rpc>(
     connection: &mut bb8::PooledConnection<'_, SolanaConnectionManager<R>>,
     txt_sig: Signature,
     abort_timeout: Duration,
@@ -80,7 +80,7 @@ pub async fn poll_transaction_confirmation<R: RpcConnection>(
 }
 
 // Sends a transaction and handles its confirmation. Retries until timeout or last_valid_block_height is reached.
-pub async fn send_and_confirm_transaction<R: RpcConnection>(
+pub async fn send_and_confirm_transaction<R: Rpc>(
     connection: &mut bb8::PooledConnection<'_, SolanaConnectionManager<R>>,
     transaction: &Transaction,
     send_transaction_config: RpcSendTransactionConfig,

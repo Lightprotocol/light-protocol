@@ -11,11 +11,9 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{
-        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
-        SolanaRpcConnection,
-    },
+    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig},
 };
+use light_compressed_account::TreeType;
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
 use serial_test::serial;
@@ -61,7 +59,7 @@ async fn test_state_batched() {
     config.payer_keypair = forester_keypair.insecure_clone();
     config.general_config = GeneralConfig::test_state_v2();
 
-    let pool = SolanaRpcPoolBuilder::<SolanaRpcConnection>::default()
+    let pool = SolanaRpcPoolBuilder::<LightClient>::default()
         .url(config.external_services.rpc_url.to_string())
         .commitment(CommitmentConfig::processed())
         .build()
@@ -69,11 +67,14 @@ async fn test_state_batched() {
         .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
-        url: SolanaRpcUrl::Localnet.to_string(),
+    let mut rpc = LightClient::new(RpcConfig {
+        url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(commitment_config),
+        fetch_active_tree: false,
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -114,14 +115,14 @@ async fn test_state_batched() {
     config.derivation_pubkey = forester_keypair.pubkey();
     config.payer_keypair = new_forester_keypair.insecure_clone();
 
-    let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer> =
+    let mut e2e_env: E2ETestEnv<LightClient, TestIndexer> =
         init_program_test_env(rpc, &env, tree_params.output_queue_batch_size as usize).await;
 
     for tree in e2e_env.indexer.state_merkle_trees.iter() {
         println!("====================");
         println!("state merkle tree pub key: {}", tree.accounts.merkle_tree);
         println!("output queue pub key: {}", tree.accounts.nullifier_queue);
-        println!("version: {}", tree.version);
+        println!("tree type: {}", tree.tree_type);
     }
 
     let (batched_state_merkle_tree_index, batched_state_merkle_tree_pubkey, nullifier_queue_pubkey) =
@@ -130,7 +131,7 @@ async fn test_state_batched() {
             .state_merkle_trees
             .iter()
             .enumerate()
-            .find(|(_, tree)| tree.version == 2)
+            .find(|(_, tree)| tree.tree_type == TreeType::StateV2)
             .map(|(index, tree)| {
                 (
                     index,
@@ -233,7 +234,7 @@ async fn test_state_batched() {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
         Arc::from(config.clone()),
         None,
         None,

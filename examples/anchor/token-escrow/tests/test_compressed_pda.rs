@@ -26,7 +26,7 @@ use light_program_test::{
 use light_test_utils::{
     conversions::sdk_to_program_token_data,
     spl::{create_mint_helper, mint_tokens_helper},
-    FeeConfig, RpcConnection, RpcError, TransactionParams,
+    FeeConfig, Rpc, RpcError, TransactionParams,
 };
 use solana_sdk::{
     instruction::{Instruction, InstructionError},

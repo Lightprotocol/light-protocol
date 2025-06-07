@@ -3,7 +3,7 @@ use std::sync::Arc;
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
 use forester_utils::rpc_pool::SolanaRpcPool;
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use solana_program::hash::Hash;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -38,7 +38,7 @@ pub trait TransactionBuilder {
     ) -> Result<(Vec<Transaction>, u64)>;
 }
 
-pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer> {
+pub struct EpochManagerTransactions<R: Rpc, I: Indexer> {
     pub indexer: Arc<Mutex<I>>,
     pub pool: Arc<SolanaRpcPool<R>>,
     pub epoch: u64,
@@ -46,7 +46,7 @@ pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer> {
     pub processed_hash_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
-impl<R: RpcConnection, I: Indexer> EpochManagerTransactions<R, I> {
+impl<R: Rpc, I: Indexer> EpochManagerTransactions<R, I> {
     pub fn new(
         indexer: Arc<Mutex<I>>,
         pool: Arc<SolanaRpcPool<R>>,
@@ -64,7 +64,7 @@ impl<R: RpcConnection, I: Indexer> EpochManagerTransactions<R, I> {
 }
 
 #[async_trait]
-impl<R: RpcConnection, I: Indexer> TransactionBuilder for EpochManagerTransactions<R, I> {
+impl<R: Rpc, I: Indexer> TransactionBuilder for EpochManagerTransactions<R, I> {
     fn epoch(&self) -> u64 {
         self.epoch
     }

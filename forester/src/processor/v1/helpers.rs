@@ -10,7 +10,7 @@ use account_compression::{
 use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 use light_client::{
     indexer::{Indexer, Items, MerkleProof, NewAddressProofWithContext},
-    rpc::RpcConnection,
+    rpc::Rpc,
 };
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
@@ -33,7 +33,7 @@ use crate::{
 };
 
 /// Work items should be of only one type and tree
-pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
+pub async fn fetch_proofs_and_create_instructions<R: Rpc, I: Indexer>(
     authority: Pubkey,
     derivation: Pubkey,
     pool: Arc<SolanaRpcPool<R>>,

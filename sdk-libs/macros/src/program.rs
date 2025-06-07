@@ -205,7 +205,8 @@ impl VisitMut for LightProgramTransform {
         i.sig.inputs.insert(3, merkle_context_arg);
         let merkle_tree_root_index_arg: FnArg = parse_quote! { merkle_tree_root_index: u16 };
         i.sig.inputs.insert(4, merkle_tree_root_index_arg);
-        let address_merkle_context_arg: FnArg = parse_quote! { address_merkle_context: ::light_sdk::merkle_context::PackedAddressMerkleContext };
+        let address_merkle_context_arg: FnArg =
+            parse_quote! { address_merkle_context: ::light_sdk::tree_info::PackedAddressTreeInfo };
         i.sig.inputs.insert(5, address_merkle_context_arg);
         let address_merkle_tree_root_index_arg: FnArg =
             parse_quote! { address_merkle_tree_root_index: u16 };

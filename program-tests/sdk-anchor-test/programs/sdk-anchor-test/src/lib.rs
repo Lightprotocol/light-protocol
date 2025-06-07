@@ -5,9 +5,7 @@ use light_sdk::{
     account::LightAccount,
     address::v1::derive_address,
     cpi::{CpiAccounts, CpiInputs},
-    instruction::{
-        account_meta::CompressedAccountMeta, merkle_context::PackedAddressMerkleContext,
-    },
+    instruction::{account_meta::CompressedAccountMeta, tree_info::PackedAddressTreeInfo},
     LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
 
@@ -21,8 +19,8 @@ pub mod sdk_anchor_test {
     pub fn with_nested_data<'info>(
         ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
         proof: ValidityProof,
-        address_merkle_context: PackedAddressMerkleContext,
-        output_merkle_tree_index: u8,
+        address_tree_info: PackedAddressTreeInfo,
+        output_tree_index: u8,
         name: String,
     ) -> Result<()> {
         let program_id = crate::ID.into();
@@ -36,22 +34,21 @@ pub mod sdk_anchor_test {
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
             &light_cpi_accounts.tree_accounts()
-                [address_merkle_context.address_merkle_tree_pubkey_index as usize]
+                [address_tree_info.address_merkle_tree_pubkey_index as usize]
                 .key(),
             &crate::ID,
         );
         let new_address_params = NewAddressParamsPacked {
             seed: address_seed,
-            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-            address_merkle_tree_root_index: address_merkle_context.root_index,
-            address_merkle_tree_account_index: address_merkle_context
-                .address_merkle_tree_pubkey_index,
+            address_queue_account_index: address_tree_info.address_queue_pubkey_index,
+            address_merkle_tree_root_index: address_tree_info.root_index,
+            address_merkle_tree_account_index: address_tree_info.address_merkle_tree_pubkey_index,
         };
 
         let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
             &program_id,
             Some(address),
-            output_merkle_tree_index,
+            output_tree_index,
         );
 
         my_compressed_account.name = name;

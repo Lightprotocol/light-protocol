@@ -3,7 +3,7 @@ use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::{
     fee::TransactionParams,
     indexer::Indexer,
-    rpc::{errors::RpcError, RpcConnection},
+    rpc::{errors::RpcError, Rpc},
 };
 use light_compressed_account::{
     compressed_account::MerkleContext, instruction_data::compressed_proof::CompressedProof,
@@ -45,7 +45,7 @@ use crate::{
     conversions::{program_to_sdk_token_data, sdk_to_program_token_data},
 };
 
-pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn mint_tokens_helper<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
@@ -67,7 +67,7 @@ pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer + TestIndexerExtens
     .await
 }
 
-pub async fn mint_spl_tokens<R: RpcConnection>(
+pub async fn mint_spl_tokens<R: Rpc>(
     rpc: &mut R,
     mint: &Pubkey,
     token_account: &Pubkey,
@@ -106,10 +106,7 @@ pub async fn mint_spl_tokens<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn mint_tokens_helper_with_lamports<
-    R: RpcConnection,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn mint_tokens_helper_with_lamports<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
@@ -133,10 +130,7 @@ pub async fn mint_tokens_helper_with_lamports<
     .await;
 }
 #[allow(clippy::too_many_arguments)]
-pub async fn mint_tokens_22_helper_with_lamports<
-    R: RpcConnection,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn mint_tokens_22_helper_with_lamports<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
@@ -164,7 +158,7 @@ pub async fn mint_tokens_22_helper_with_lamports<
 
 #[allow(clippy::too_many_arguments)]
 pub async fn mint_tokens_22_helper_with_lamports_and_bump<
-    R: RpcConnection,
+    R: Rpc,
     I: Indexer + TestIndexerExtensions,
 >(
     rpc: &mut R,
@@ -234,7 +228,7 @@ pub async fn mint_tokens_22_helper_with_lamports_and_bump<
     .await;
 }
 
-pub async fn create_token_pool<R: RpcConnection>(
+pub async fn create_token_pool<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     mint_authority: &Pubkey,
@@ -264,12 +258,12 @@ pub async fn create_token_pool<R: RpcConnection>(
     mint_pubkey
 }
 
-pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
+pub async fn create_mint_helper<R: Rpc>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let mint = Keypair::new();
     create_mint_helper_with_keypair(rpc, payer, &mint).await
 }
 
-pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
+pub async fn create_mint_helper_with_keypair<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     mint: &Keypair,
@@ -291,7 +285,7 @@ pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
     mint.pubkey()
 }
 
-pub async fn create_mint_22_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
+pub async fn create_mint_22_helper<R: Rpc>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
@@ -309,7 +303,7 @@ pub async fn create_mint_22_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypai
     mint.pubkey()
 }
 
-pub async fn mint_wrapped_sol<R: RpcConnection>(
+pub async fn mint_wrapped_sol<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     token_account: &Pubkey,
@@ -395,7 +389,7 @@ pub fn create_initialize_mint_22_instructions(
     )
 }
 
-pub async fn create_additional_token_pools<R: RpcConnection>(
+pub async fn create_additional_token_pools<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
     mint: &Pubkey,
@@ -431,7 +425,7 @@ pub async fn create_additional_token_pools<R: RpcConnection>(
 
 /// Creates a spl token account and initializes it with the given mint and owner.
 /// This function is useful to create token accounts for spl compression and decompression tests.
-pub async fn create_token_account<R: RpcConnection>(
+pub async fn create_token_account<R: Rpc>(
     rpc: &mut R,
     mint: &Pubkey,
     account_keypair: &Keypair,
@@ -439,7 +433,7 @@ pub async fn create_token_account<R: RpcConnection>(
 ) -> Result<(), BanksClientError> {
     create_token_2022_account(rpc, mint, account_keypair, owner, false).await
 }
-pub async fn create_token_2022_account<R: RpcConnection>(
+pub async fn create_token_2022_account<R: Rpc>(
     rpc: &mut R,
     mint: &Pubkey,
     account_keypair: &Keypair,
@@ -496,7 +490,7 @@ pub async fn create_token_2022_account<R: RpcConnection>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn compressed_transfer_test<
-    R: RpcConnection + light_program_test::program_test::TestRpc + Indexer,
+    R: Rpc + light_program_test::program_test::TestRpc + Indexer,
     I: Indexer + TestIndexerExtensions,
 >(
     payer: &Keypair,
@@ -534,7 +528,7 @@ pub async fn compressed_transfer_test<
 
 #[allow(clippy::too_many_arguments)]
 pub async fn compressed_transfer_22_test<
-    R: RpcConnection + light_program_test::program_test::TestRpc + Indexer,
+    R: Rpc + light_program_test::program_test::TestRpc + Indexer,
     I: Indexer + TestIndexerExtensions,
 >(
     payer: &Keypair,
@@ -743,10 +737,7 @@ pub async fn compressed_transfer_22_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_test<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn decompress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -953,10 +944,7 @@ pub async fn decompress_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_compress_spl_token_account<
-    R: RpcConnection,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn perform_compress_spl_token_account<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     payer: &Keypair,
@@ -1015,7 +1003,7 @@ pub async fn perform_compress_spl_token_account<
         program_to_sdk_token_data(expected_token_data)
     );
     assert_eq!(
-        created_compressed_token_account.account.merkle_context.tree,
+        created_compressed_token_account.account.tree_info.tree,
         *merkle_tree_pubkey
     );
     if let Some(remaining_amount) = remaining_amount {
@@ -1030,10 +1018,7 @@ pub async fn perform_compress_spl_token_account<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_test<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn compress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1138,10 +1123,7 @@ pub async fn compress_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn approve_test<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1314,10 +1296,7 @@ pub async fn approve_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn revoke_test<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1436,10 +1415,7 @@ pub async fn revoke_test<
     .await;
 }
 
-pub async fn freeze_test<
-    R: RpcConnection + TestRpc + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn freeze_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1458,7 +1434,7 @@ pub async fn freeze_test<
     .await;
 }
 
-pub async fn thaw_test<R: RpcConnection + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
+pub async fn thaw_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1478,7 +1454,7 @@ pub async fn thaw_test<R: RpcConnection + TestRpc + Indexer, I: Indexer + TestIn
 }
 
 pub async fn freeze_or_thaw_test<
-    R: RpcConnection + TestRpc + Indexer,
+    R: Rpc + TestRpc + Indexer,
     const FREEZE: bool,
     I: Indexer + TestIndexerExtensions,
 >(
@@ -1618,7 +1594,7 @@ pub async fn freeze_or_thaw_test<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn burn_test<R: RpcConnection + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
+pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1762,10 +1738,7 @@ pub enum BurnInstructionMode {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_burn_test_instruction<
-    R: RpcConnection + Indexer,
-    I: Indexer + TestIndexerExtensions,
->(
+pub async fn create_burn_test_instruction<R: Rpc + Indexer, I: Indexer + TestIndexerExtensions>(
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,

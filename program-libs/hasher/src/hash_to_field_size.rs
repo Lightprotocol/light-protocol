@@ -17,10 +17,12 @@ where
         let borsh_vec = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
         #[cfg(debug_assertions)]
         {
-            println!(
-                "#[hash] hash_to_field_size borsh try_to_vec {:?}",
-                borsh_vec
-            );
+            if std::env::var("RUST_BACKTRACE").is_ok() {
+                println!(
+                    "#[hash] hash_to_field_size borsh try_to_vec {:?}",
+                    borsh_vec
+                );
+            }
         }
         let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
         let slices = [borsh_vec.as_slice(), bump_seed.as_slice()];

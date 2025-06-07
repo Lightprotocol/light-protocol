@@ -11,7 +11,7 @@ use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
 
 use super::{
-    types::{Account, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance},
+    types::{CompressedAccount, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance},
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
 use crate::indexer::{
@@ -23,6 +23,7 @@ use crate::indexer::{
     IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
 };
 
+// Tests are in program-tests/client-test/tests/light-client.rs
 pub struct PhotonIndexer {
     configuration: Configuration,
 }
@@ -262,7 +263,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -279,7 +280,7 @@ impl Indexer for PhotonIndexer {
                             })
                         }),
                         filters: options.as_ref().and_then(|o| o.filters_to_photon()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                         owner: owner.to_string(),
                     }),
                     ..Default::default()
@@ -294,8 +295,12 @@ impl Indexer for PhotonIndexer {
                 if response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
-                let accounts: Result<Vec<_>, _> =
-                    response.value.items.iter().map(Account::try_from).collect();
+                let accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
+                    .iter()
+                    .map(CompressedAccount::try_from)
+                    .collect();
 
                 let cursor = response.value.cursor;
 
@@ -323,7 +328,7 @@ impl Indexer for PhotonIndexer {
                             })
                         }),
                         filters: options.as_ref().and_then(|o| o.filters_to_photon()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                         owner: owner.to_string(),
                     }),
                     ..Default::default()
@@ -337,8 +342,12 @@ impl Indexer for PhotonIndexer {
                 if response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
-                let accounts: Result<Vec<_>, _> =
-                    response.value.items.iter().map(Account::try_from).collect();
+                let accounts: Result<Vec<_>, _> = response
+                    .value
+                    .items
+                    .iter()
+                    .map(CompressedAccount::try_from)
+                    .collect();
 
                 let cursor = response.value.cursor;
 
@@ -358,13 +367,12 @@ impl Indexer for PhotonIndexer {
 
     async fn get_compressed_account(
         &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
+        address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Account>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = self.build_account_params(address, hash)?;
+            let params = self.build_account_params(Some(address), None)?;
             let request = photon_api::models::GetCompressedAccountPostRequest {
                 params: Box::new(params),
                 ..Default::default()
@@ -383,7 +391,45 @@ impl Indexer for PhotonIndexer {
                 .value
                 .ok_or(IndexerError::AccountNotFound)
                 .map(|boxed| *boxed)?;
-            let account = Account::try_from(&account_data)?;
+            let account = CompressedAccount::try_from(&account_data)?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: account,
+            })
+        })
+        .await
+    }
+
+    async fn get_compressed_account_by_hash(
+        &self,
+        hash: Hash,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let params = self.build_account_params(None, Some(hash))?;
+            let request = photon_api::models::GetCompressedAccountPostRequest {
+                params: Box::new(params),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_compressed_account_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+            let api_response = Self::extract_result("get_compressed_account", result.result)?;
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+            let account_data = api_response
+                .value
+                .ok_or(IndexerError::AccountNotFound)
+                .map(|boxed| *boxed)?;
+            let account = CompressedAccount::try_from(&account_data)?;
 
             Ok(Response {
                 context: Context {
@@ -409,7 +455,7 @@ impl Indexer for PhotonIndexer {
                     params: Box::from(
                         photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                             mint: options
                                 .as_ref()
                                 .and_then(|o| o.mint.as_ref())
@@ -459,7 +505,7 @@ impl Indexer for PhotonIndexer {
                                 .and_then(|o| o.mint.as_ref())
                                 .map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -577,7 +623,7 @@ impl Indexer for PhotonIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Account>>, IndexerError> {
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let hashes = hashes.clone();
@@ -607,8 +653,8 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(Account::try_from)
-                .collect::<Result<Vec<Account>, IndexerError>>()?;
+                .map(CompressedAccount::try_from)
+                .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
 
             Ok(Response {
                 context: Context {
@@ -639,7 +685,7 @@ impl Indexer for PhotonIndexer {
                                 .and_then(|o| o.mint.as_ref())
                                 .map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -688,7 +734,7 @@ impl Indexer for PhotonIndexer {
                                 .and_then(|o| o.mint.as_ref())
                                 .map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -1245,7 +1291,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressedMintTokenHoldersPostRequestParams {
                         mint: mint.to_string(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()
@@ -1298,7 +1344,7 @@ impl Indexer for PhotonIndexer {
                     params: Box::new(
                         photon_api::models::GetCompressedTokenAccountsByDelegatePostRequestParams {
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                             mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| x.to_string()),
                             delegate: delegate.to_string(),
                         },
@@ -1344,7 +1390,7 @@ impl Indexer for PhotonIndexer {
                             delegate: delegate.to_string(),
                             mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| x.to_string()),
                             cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                            limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                            limit: options.as_ref().and_then(|o| o.limit),
                         },
                     ),
                     ..Default::default()
@@ -1397,7 +1443,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressionSignaturesForAddressPostRequestParams {
                         address: address.to_base58(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()
@@ -1451,7 +1497,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressionSignaturesForOwnerPostRequestParams {
                         owner: owner.to_string(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()
@@ -1504,7 +1550,7 @@ impl Indexer for PhotonIndexer {
                     photon_api::models::GetCompressionSignaturesForOwnerPostRequestParams {
                         owner: owner.to_string(),
                         cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                        limit: options.as_ref().and_then(|o| o.limit.map(|l| l as u16)),
+                        limit: options.as_ref().and_then(|o| o.limit),
                     },
                 ),
                 ..Default::default()

@@ -53,3 +53,5 @@ solana-pubkey = { workspace = true }
 solana-instruction = { workspace = true }
 solana-account = { workspace = true }
 solana-compute-budget = { workspace = true }
+rand = { workspace = true }
+bytemuck = { workspace = true }

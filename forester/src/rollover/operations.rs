@@ -11,7 +11,7 @@ use forester_utils::{
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{RpcConnection, RpcError},
+    rpc::{Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
@@ -42,7 +42,7 @@ pub struct TreeInfo {
     pub threshold: usize,
 }
 
-pub async fn get_tree_fullness<R: RpcConnection>(
+pub async fn get_tree_fullness<R: Rpc>(
     rpc: &mut R,
     tree_pubkey: Pubkey,
     tree_type: TreeType,
@@ -216,7 +216,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
     }
 }
 
-pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
+pub async fn is_tree_ready_for_rollover<R: Rpc>(
     rpc: &mut R,
     tree_pubkey: Pubkey,
     tree_type: TreeType,
@@ -264,7 +264,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
+pub async fn perform_state_merkle_tree_rollover_forester<R: Rpc>(
     payer: &Keypair,
     derivation: &Pubkey,
     context: &mut R,
@@ -305,7 +305,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
+pub async fn perform_address_merkle_tree_rollover<R: Rpc>(
     payer: &Keypair,
     derivation: &Pubkey,
     context: &mut R,
@@ -339,7 +339,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
+pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
     rpc: &mut R,
     authority: &Pubkey,
     derivation: &Pubkey,
@@ -400,7 +400,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
+pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
     rpc: &mut R,
     authority: &Pubkey,
     derivation: &Pubkey,
@@ -472,7 +472,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
     ]
 }
 
-pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection>(
+pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: Rpc>(
     rpc: &mut R,
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
@@ -505,7 +505,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection
     )
 }
 
-pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: RpcConnection>(
+pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: Rpc>(
     rpc: &mut R,
     address_merkle_tree_config: &AddressMerkleTreeConfig,
     address_queue_config: &AddressQueueConfig,

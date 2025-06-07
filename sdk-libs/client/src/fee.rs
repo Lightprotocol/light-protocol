@@ -1,7 +1,7 @@
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 
-use crate::rpc::{RpcConnection, RpcError};
+use crate::rpc::{Rpc, RpcError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FeeConfig {
@@ -54,7 +54,7 @@ pub struct TransactionParams {
 }
 
 pub async fn assert_transaction_params(
-    rpc: &mut impl RpcConnection,
+    rpc: &mut impl Rpc,
     payer: &Pubkey,
     signers: &[&Keypair],
     pre_balance: u64,

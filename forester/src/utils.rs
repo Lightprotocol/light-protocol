@@ -1,13 +1,13 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     utils::get_protocol_config_pda_address,
 };
 use tracing::debug;
 
-pub async fn get_protocol_config<R: RpcConnection>(rpc: &mut R) -> ProtocolConfig {
+pub async fn get_protocol_config<R: Rpc>(rpc: &mut R) -> ProtocolConfig {
     let authority_pda = get_protocol_config_pda_address();
     let protocol_config_account = rpc
         .get_anchor_account::<ProtocolConfigPda>(&authority_pda.0)

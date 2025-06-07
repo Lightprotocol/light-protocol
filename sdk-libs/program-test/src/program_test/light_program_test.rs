@@ -1,12 +1,14 @@
 use std::fmt::{self, Debug, Formatter};
 
+use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use forester_utils::utils::airdrop_lamports;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
+    rpc::{merkle_tree::MerkleTreeExt, RpcError},
 };
 use light_prover_client::prover::{spawn_prover, ProverConfig};
 use litesvm::LiteSVM;
+use solana_account::WritableAccount;
 use solana_sdk::signature::{Keypair, Signer};
 
 use crate::{
@@ -14,11 +16,13 @@ use crate::{
         initialize::initialize_accounts, test_accounts::TestAccounts, test_keypairs::TestKeypairs,
     },
     indexer::TestIndexer,
+    program_test::TestRpc,
     utils::setup_light_programs::setup_light_programs,
     ProgramTestConfig,
 };
 
 pub struct LightProgramTest {
+    pub config: ProgramTestConfig,
     pub context: LiteSVM,
     pub indexer: Option<TestIndexer>,
     pub test_accounts: TestAccounts,
@@ -44,7 +48,7 @@ impl LightProgramTest {
     /// - advances to the active phase slot 2
     /// - active phase doesn't end
     pub async fn new(config: ProgramTestConfig) -> Result<LightProgramTest, RpcError> {
-        let mut context = setup_light_programs(config.additional_programs.clone()).await?;
+        let mut context = setup_light_programs(config.additional_programs.clone())?;
         let payer = Keypair::new();
         context
             .airdrop(&payer.pubkey(), 100_000_000_000_000)
@@ -54,6 +58,7 @@ impl LightProgramTest {
             indexer: None,
             test_accounts: TestAccounts::get_program_test_test_accounts(),
             payer,
+            config: config.clone(),
         };
         let keypairs = TestKeypairs::program_test_default();
         airdrop_lamports(
@@ -65,14 +70,40 @@ impl LightProgramTest {
         airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000).await?;
 
         if !config.skip_protocol_init {
-            let test_accounts = initialize_accounts(&mut context, &config, &keypairs).await?;
+            initialize_accounts(&mut context, &config, &keypairs).await?;
             let batch_size = config
                 .v2_state_tree_config
                 .as_ref()
                 .map(|config| config.output_queue_batch_size as usize);
+            let test_accounts = context.test_accounts.clone();
             context.add_indexer(&test_accounts, batch_size).await?;
-        }
 
+            // TODO: add the same for v2 trees once we have grinded a mainnet keypair.
+            // ensure that address tree pubkey is amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2
+            {
+                let address_mt = context.test_accounts.v1_address_trees[0].merkle_tree;
+                let address_queue_pubkey = context.test_accounts.v1_address_trees[0].queue;
+                let mut account = context
+                    .context
+                    .get_account(&keypairs.address_merkle_tree.pubkey())
+                    .unwrap();
+                let merkle_tree_account = bytemuck::from_bytes_mut::<AddressMerkleTreeAccount>(
+                    &mut account.data_as_mut_slice()[8..AddressMerkleTreeAccount::LEN],
+                );
+                merkle_tree_account.metadata.associated_queue = address_queue_pubkey.into();
+                context.set_account(address_mt, account);
+
+                let mut account = context
+                    .context
+                    .get_account(&keypairs.address_merkle_tree_queue.pubkey())
+                    .unwrap();
+                let queue_account = bytemuck::from_bytes_mut::<QueueAccount>(
+                    &mut account.data_as_mut_slice()[8..QueueAccount::LEN],
+                );
+                queue_account.metadata.associated_merkle_tree = address_mt.into();
+                context.set_account(address_queue_pubkey, account);
+            }
+        }
         // Will always start a prover server.
         #[cfg(feature = "devenv")]
         let prover_config = if config.prover_config.is_none() {
@@ -105,7 +136,7 @@ impl LightProgramTest {
     }
 
     /// Get account pubkeys of one state Merkle tree.
-    pub fn get_state_merkle_tree(&self) -> StateMerkleTreeAccounts {
+    pub fn get_state_merkle_tree_account(&self) -> StateMerkleTreeAccounts {
         self.test_accounts.v1_state_trees[0]
     }
 
@@ -131,7 +162,7 @@ impl LightProgramTest {
         batch_size: Option<usize>,
     ) -> Result<(), RpcError> {
         let indexer = TestIndexer::init_from_acounts(
-            self.get_payer(),
+            &self.payer,
             test_accounts,
             batch_size.unwrap_or_default(),
         )

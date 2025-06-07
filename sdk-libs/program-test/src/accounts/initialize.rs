@@ -5,7 +5,7 @@ use forester_utils::{
 };
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{RpcConnection, RpcError},
+    rpc::{Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
 use light_registry::{
@@ -23,7 +23,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-#[cfg(feature = "devenv")]
+#[cfg(feature = "v2")]
 use super::{
     address_tree_v2::create_batch_address_merkle_tree,
     state_tree_v2::create_batched_state_merkle_tree,
@@ -42,7 +42,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn initialize_accounts<R: RpcConnection + TestRpc>(
+pub async fn initialize_accounts<R: Rpc + TestRpc>(
     context: &mut R,
     config: &ProgramTestConfig,
     keypairs: &TestKeypairs,
@@ -277,28 +277,6 @@ pub async fn initialize_accounts<R: RpcConnection + TestRpc>(
     })
 }
 
-#[cfg(feature = "devenv")]
-pub async fn setup_accounts(
-    keypairs: TestKeypairs,
-    url: light_client::rpc::solana_rpc::SolanaRpcUrl,
-) -> Result<TestAccounts, RpcError> {
-    use light_client::rpc::rpc_connection::RpcConnectionConfig;
-    use solana_sdk::commitment_config::CommitmentConfig;
-
-    let mut rpc = light_client::rpc::SolanaRpcConnection::new(RpcConnectionConfig {
-        commitment_config: Some(CommitmentConfig::confirmed()),
-        url: url.to_string(),
-        with_indexer: false,
-    });
-
-    initialize_accounts(
-        &mut rpc,
-        &ProgramTestConfig::default_with_batched_trees(false),
-        &keypairs,
-    )
-    .await
-}
-
 pub fn get_group_pda(seed: Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[GROUP_AUTHORITY_SEED, seed.to_bytes().as_slice()],
@@ -307,7 +285,7 @@ pub fn get_group_pda(seed: Pubkey) -> Pubkey {
     .0
 }
 
-pub async fn initialize_new_group<R: RpcConnection>(
+pub async fn initialize_new_group<R: Rpc>(
     group_seed_keypair: &Keypair,
     payer: &Keypair,
     context: &mut R,

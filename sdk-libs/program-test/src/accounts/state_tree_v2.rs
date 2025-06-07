@@ -4,7 +4,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::get_merkle_tree_account_size, queue::get_output_queue_account_size,
 };
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::{Rpc, RpcError};
 use light_registry::{
     account_compression_cpi::sdk::create_initialize_batched_merkle_tree_instruction,
     protocol_config::state::ProtocolConfig,
@@ -12,7 +12,7 @@ use light_registry::{
 use solana_instruction::Instruction;
 use solana_sdk::signature::{Keypair, Signature, Signer};
 
-pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
+pub async fn create_batched_state_merkle_tree<R: Rpc>(
     payer: &Keypair,
     registry: bool,
     rpc: &mut R,

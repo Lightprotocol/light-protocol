@@ -9,7 +9,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{Indexer, StateMerkleTreeAccounts},
-    rpc::RpcConnection,
+    rpc::Rpc,
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
@@ -24,11 +24,7 @@ use solana_sdk::{account::ReadableAccount, pubkey::Pubkey};
 
 use crate::system_program::get_sol_pool_pda;
 
-pub struct AssertCompressedTransactionInputs<
-    'a,
-    R: RpcConnection,
-    I: Indexer + TestIndexerExtensions,
-> {
+pub struct AssertCompressedTransactionInputs<'a, R: Rpc, I: Indexer + TestIndexerExtensions> {
     pub rpc: &'a mut R,
     pub test_indexer: &'a mut I,
     pub output_compressed_accounts: &'a [CompressedAccount],
@@ -56,7 +52,7 @@ pub struct AssertCompressedTransactionInputs<
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn assert_compressed_transaction<R: Rpc, I: Indexer + TestIndexerExtensions>(
     input: AssertCompressedTransactionInputs<'_, R, I>,
 ) {
     // CHECK 1
@@ -129,14 +125,14 @@ pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer + TestIn
     }
 }
 
-pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
+pub async fn assert_nullifiers_exist_in_hash_sets<R: Rpc>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
     input_compressed_account_hashes: &[[u8; 32]],
 ) {
     for (i, hash) in input_compressed_account_hashes.iter().enumerate() {
-        match snapshots[i].version {
-            1 => {
+        match snapshots[i].tree_type {
+            TreeType::StateV1 => {
                 let nullifier_queue = unsafe {
                     get_hash_set::<QueueAccount, R>(rpc, snapshots[i].accounts.nullifier_queue)
                         .await
@@ -145,7 +141,7 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                     .contains(&BigUint::from_be_bytes(hash.as_slice()), None)
                     .unwrap());
             }
-            2 => {
+            TreeType::StateV2 => {
                 let mut merkle_tree_account_data = rpc
                     .get_account(snapshots[i].accounts.merkle_tree)
                     .await
@@ -170,13 +166,13 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                 });
             }
             _ => {
-                panic!("assert_nullifiers_exist_in_hash_sets: invalid version");
+                panic!("assert_nullifiers_exist_in_hash_sets: invalid tree_type");
             }
         }
     }
 }
 
-pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
+pub async fn assert_addresses_exist_in_hash_sets<R: Rpc>(
     rpc: &mut R,
     address_queue_pubkeys: &[Pubkey],
     created_addresses: &[[u8; 32]],
@@ -322,7 +318,7 @@ pub struct MerkleTreeTestSnapShot {
     pub merkle_tree_account_lamports: u64,
     pub queue_account_lamports: u64,
     pub cpi_context_account_lamports: u64,
-    pub version: u64,
+    pub tree_type: TreeType,
 }
 
 // TODO: add assert that changelog, seq number is updated correctly
@@ -331,7 +327,7 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn assert_merkle_tree_after_tx<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
     test_indexer: &mut I,
@@ -341,8 +337,8 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer + TestInde
     deduped_snapshots.dedup();
     let mut sequence_numbers = Vec::new();
     for (i, snapshot) in deduped_snapshots.iter().enumerate() {
-        match snapshot.version {
-            1 => {
+        match snapshot.tree_type {
+            TreeType::StateV1 => {
                 let merkle_tree =
                     get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
                         rpc,
@@ -389,7 +385,7 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer + TestInde
                     panic!("merkle tree root update failed");
                 }
             }
-            2 => {
+            TreeType::StateV2 => {
                 // TODO: assert batched merkle tree
             }
             _ => {
@@ -408,7 +404,7 @@ pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer + TestInde
 /// 2. next_index
 /// 3. num_added_accounts // so that we can assert the expected next index after tx
 /// 4. lamports of all bundle accounts
-pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
+pub async fn get_merkle_tree_snapshots<R: Rpc>(
     rpc: &mut R,
     accounts: &[StateMerkleTreeAccounts],
 ) -> Vec<MerkleTreeTestSnapShot> {
@@ -455,7 +451,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     merkle_tree_account_lamports: merkle_tree_account.account.lamports(),
                     queue_account_lamports,
                     cpi_context_account_lamports,
-                    version: 1,
+                    tree_type: TreeType::StateV1,
                 });
             }
             BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => {
@@ -497,7 +493,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     merkle_tree_account_lamports,
                     queue_account_lamports,
                     cpi_context_account_lamports,
-                    version: 2,
+                    tree_type: TreeType::StateV2,
                 });
             }
             _ => {
@@ -508,7 +504,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
     snapshots
 }
 
-pub async fn assert_compression<R: RpcConnection>(
+pub async fn assert_compression<R: Rpc>(
     context: &mut R,
     compress_amount: u64,
     compressed_sol_pda_balance_pre: u64,

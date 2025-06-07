@@ -1,5 +1,5 @@
 use account_compression::RegisteredProgram;
-use light_client::rpc::{errors::RpcError, RpcConnection};
+use light_client::rpc::{errors::RpcError, Rpc};
 use light_registry::{
     sdk::{create_deregister_program_instruction, create_register_program_instruction},
     utils::{get_cpi_authority_pda, get_protocol_config_pda_address},
@@ -10,7 +10,7 @@ use solana_sdk::{
     system_instruction,
 };
 
-pub async fn register_program_with_registry_program<R: RpcConnection>(
+pub async fn register_program_with_registry_program<R: Rpc>(
     rpc: &mut R,
     governance_authority: &Keypair,
     group_pda: &Pubkey,
@@ -41,7 +41,7 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     Ok(token_program_registered_program_pda)
 }
 
-pub async fn deregister_program_with_registry_program<R: RpcConnection>(
+pub async fn deregister_program_with_registry_program<R: Rpc>(
     rpc: &mut R,
     governance_authority: &Keypair,
     group_pda: &Pubkey,

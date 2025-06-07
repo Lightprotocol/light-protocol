@@ -2,7 +2,7 @@ use std::cmp;
 
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
 use forester_utils::account_zero_copy::{get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::rpc::{Rpc, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, queue::QueueMetadata,
@@ -17,7 +17,7 @@ use solana_sdk::{
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]
-pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConnection>(
+pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: Rpc>(
     payer: &Keypair,
     registry: bool,
     context: &mut R,
@@ -120,7 +120,7 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
+pub async fn assert_address_merkle_tree_initialized<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     queue_pubkey: &Pubkey,
@@ -247,7 +247,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_address_queue_initialized<R: RpcConnection>(
+pub async fn assert_address_queue_initialized<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,
@@ -277,7 +277,7 @@ pub async fn assert_address_queue_initialized<R: RpcConnection>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_address_queue<R: RpcConnection>(
+pub async fn assert_address_queue<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,
@@ -334,7 +334,7 @@ pub async fn assert_address_queue<R: RpcConnection>(
     .await;
 }
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_queue<R: RpcConnection>(
+pub async fn assert_queue<R: Rpc>(
     rpc: &mut R,
     queue_pubkey: &Pubkey,
     queue_config: &account_compression::AddressQueueConfig,

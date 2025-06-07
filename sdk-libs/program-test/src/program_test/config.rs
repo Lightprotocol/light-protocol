@@ -9,6 +9,7 @@ use light_prover_client::prover::ProverConfig;
 use light_registry::protocol_config::state::ProtocolConfig;
 use solana_sdk::pubkey::Pubkey;
 
+#[derive(Debug, Clone)]
 pub struct ProgramTestConfig {
     pub additional_programs: Option<Vec<(&'static str, Pubkey)>>,
     pub protocol_config: ProtocolConfig,
@@ -25,6 +26,7 @@ pub struct ProgramTestConfig {
     pub v2_state_tree_config: Option<InitStateTreeAccountsInstructionData>,
     pub v2_address_tree_config: Option<InitAddressTreeAccountsInstructionData>,
     pub skip_protocol_init: bool,
+    pub log_failed_tx: bool,
 }
 
 impl ProgramTestConfig {
@@ -114,6 +116,7 @@ impl Default for ProgramTestConfig {
             v2_address_tree_config: None,
             skip_protocol_init: false,
             skip_v1_trees: false,
+            log_failed_tx: true,
         }
     }
 }

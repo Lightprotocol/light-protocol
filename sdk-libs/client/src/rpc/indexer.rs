@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use light_compressed_account::QueueType;
 use solana_pubkey::Pubkey;
 
-use super::SolanaRpcConnection;
+use super::LightClient;
 use crate::indexer::{
-    Account, Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
+    Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
     Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
     MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response,
@@ -12,7 +12,7 @@ use crate::indexer::{
 };
 
 #[async_trait]
-impl Indexer for SolanaRpcConnection {
+impl Indexer for LightClient {
     async fn get_validity_proof(
         &self,
         hashes: Vec<Hash>,
@@ -54,7 +54,7 @@ impl Indexer for SolanaRpcConnection {
         owner: &Pubkey,
         options: Option<GetCompressedAccountsByOwnerConfig>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<Account>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -65,15 +65,27 @@ impl Indexer for SolanaRpcConnection {
 
     async fn get_compressed_account(
         &self,
-        address: Option<Address>,
-        hash: Option<Hash>,
+        address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Account>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_account(address, hash, config)
+            .get_compressed_account(address, config)
+            .await?)
+    }
+
+    async fn get_compressed_account_by_hash(
+        &self,
+        hash: Hash,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_account_by_hash(hash, config)
             .await?)
     }
 
@@ -124,7 +136,7 @@ impl Indexer for SolanaRpcConnection {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Account>>, IndexerError> {
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()

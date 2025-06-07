@@ -7,7 +7,7 @@ use light_sdk::{
     },
     error::LightSdkError,
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    instruction::merkle_context::PackedAddressMerkleContext,
+    instruction::tree_info::PackedAddressTreeInfo,
     LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError};
@@ -35,7 +35,7 @@ pub fn create_pda<const BATCHED: bool>(
         config,
     )?;
 
-    let address_merkle_context = instruction_data.address_merkle_context;
+    let address_tree_info = instruction_data.address_tree_info;
     let (address, address_seed) = if BATCHED {
         let address_seed = hashv_to_bn254_field_size_be_const_array::<3>(&[
             b"compressed",
@@ -45,7 +45,7 @@ pub fn create_pda<const BATCHED: bool>(
         let address = light_compressed_account::address::derive_address(
             &address_seed,
             &cpi_accounts.tree_accounts()[instruction_data
-                .address_merkle_context
+                .address_tree_info
                 .address_merkle_tree_pubkey_index
                 as usize]
                 .key
@@ -57,16 +57,16 @@ pub fn create_pda<const BATCHED: bool>(
         light_sdk::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],
             cpi_accounts.tree_accounts()
-                [address_merkle_context.address_merkle_tree_pubkey_index as usize]
+                [address_tree_info.address_merkle_tree_pubkey_index as usize]
                 .key,
             &crate::ID,
         )
     };
     let new_address_params = NewAddressParamsPacked {
         seed: address_seed,
-        address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-        address_merkle_tree_root_index: address_merkle_context.root_index,
-        address_merkle_tree_account_index: address_merkle_context.address_merkle_tree_pubkey_index,
+        address_queue_account_index: address_tree_info.address_queue_pubkey_index,
+        address_merkle_tree_root_index: address_tree_info.root_index,
+        address_merkle_tree_account_index: address_tree_info.address_merkle_tree_pubkey_index,
     };
 
     let program_id = crate::ID.into();
@@ -99,7 +99,7 @@ pub struct MyCompressedAccount {
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct CreatePdaInstructionData {
     pub proof: ValidityProof,
-    pub address_merkle_context: PackedAddressMerkleContext,
+    pub address_tree_info: PackedAddressTreeInfo,
     pub output_merkle_tree_index: u8,
     pub data: [u8; 31],
     pub system_accounts_offset: u8,

@@ -18,6 +18,7 @@ use light_compressed_account::{
         cpi_context::CompressedCpiContext,
         data::{NewAddressParams, ReadOnlyAddress},
     },
+    TreeType,
 };
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_hasher::{Hasher, Poseidon};
@@ -39,7 +40,7 @@ use light_test_utils::{
     test_batch_forester::{
         create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
     },
-    RpcConnection, RpcError,
+    Rpc, RpcError,
 };
 use light_verifier::VerifierError;
 use serial_test::serial;
@@ -982,7 +983,7 @@ async fn only_test_create_pda() {
             &program_owned_cpi_context_keypair,
             Some(light_compressed_token::ID),
             None,
-            1,
+            TreeType::StateV1,
         )
         .await;
 
@@ -1428,7 +1429,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_address_merkle_tree_keypair,
             &program_owned_address_queue_keypair,
             Some(light_compressed_token::ID),
-            1,
+            TreeType::AddressV1,
         )
         .await
         .unwrap();
@@ -1466,7 +1467,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_cpi_context_keypair,
             Some(light_compressed_token::ID),
             None,
-            1,
+            TreeType::StateV1,
         )
         .await;
     rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
@@ -1506,7 +1507,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_cpi_context_keypair,
             Some(ID),
             None,
-            1,
+            TreeType::StateV1,
         )
         .await;
     rpc.indexer.as_mut().unwrap().state_merkle_trees = test_indexer.state_merkle_trees.clone();
@@ -1519,7 +1520,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_address_merkle_tree_keypair,
             &program_owned_address_queue_keypair,
             Some(ID),
-            1,
+            TreeType::AddressV1,
         )
         .await
         .unwrap();
@@ -1583,7 +1584,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_failing<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn perform_create_pda_failing<R: Rpc, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &TestAccounts,
@@ -1618,7 +1619,7 @@ pub async fn perform_create_pda_failing<R: RpcConnection, I: Indexer + TestIndex
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_create_pda_with_event<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn perform_create_pda_with_event<R: Rpc, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     rpc: &mut R,
     env: &TestAccounts,
@@ -1863,7 +1864,7 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
     create_pda_instruction(create_ix_inputs)
 }
 
-pub async fn assert_created_pda<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn assert_created_pda<R: Rpc, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     env: &TestAccounts,
     payer: &Keypair,
@@ -1907,7 +1908,7 @@ pub async fn assert_created_pda<R: RpcConnection, I: Indexer + TestIndexerExtens
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_with_input_accounts<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
+pub async fn perform_with_input_accounts<R: Rpc, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     rpc: &mut R,
     payer: &Keypair,

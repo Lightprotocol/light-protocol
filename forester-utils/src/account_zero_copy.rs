@@ -1,7 +1,7 @@
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
-use light_client::rpc::RpcConnection;
+use light_client::rpc::Rpc;
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hash_set::HashSet;
 use light_hasher::Hasher;
@@ -17,7 +17,7 @@ pub struct AccountZeroCopy<'a, T> {
 }
 
 impl<'a, T> AccountZeroCopy<'a, T> {
-    pub async fn new<R: RpcConnection>(rpc: &mut R, address: Pubkey) -> AccountZeroCopy<'a, T> {
+    pub async fn new<R: Rpc>(rpc: &mut R, address: Pubkey) -> AccountZeroCopy<'a, T> {
         let account = Box::pin(rpc.get_account(address).await.unwrap().unwrap());
         let deserialized = account.data[8..].as_ptr() as *const T;
 
@@ -46,7 +46,7 @@ impl<'a, T> AccountZeroCopy<'a, T> {
 /// * The account data is aligned.
 ///
 /// Is the caller's responsibility.
-pub async unsafe fn get_hash_set<T, R: RpcConnection>(rpc: &mut R, pubkey: Pubkey) -> HashSet {
+pub async unsafe fn get_hash_set<T, R: Rpc>(rpc: &mut R, pubkey: Pubkey) -> HashSet {
     let mut data = rpc.get_account(pubkey).await.unwrap().unwrap().data.clone();
 
     HashSet::from_bytes_copy(&mut data[8 + mem::size_of::<T>()..]).unwrap()
@@ -59,7 +59,7 @@ pub async fn get_concurrent_merkle_tree<T, R, H, const HEIGHT: usize>(
     pubkey: Pubkey,
 ) -> ConcurrentMerkleTreeCopy<H, HEIGHT>
 where
-    R: RpcConnection,
+    R: Rpc,
     H: Hasher,
 {
     let account = rpc.get_account(pubkey).await.unwrap().unwrap();
@@ -74,7 +74,7 @@ pub async fn get_indexed_merkle_tree<T, R, H, I, const HEIGHT: usize, const NET_
     pubkey: Pubkey,
 ) -> IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>
 where
-    R: RpcConnection,
+    R: Rpc,
     H: Hasher,
     I: CheckedAdd
         + CheckedSub

@@ -6,9 +6,10 @@ use light_sdk::{
     address::v1::derive_address,
     cpi::{CpiAccounts, CpiInputs},
     instruction::{
-        account_meta::CompressedAccountMeta, merkle_context::PackedAddressMerkleContext,
+        account_meta::{CompressedAccountMeta, CompressedAccountMetaClose},
+        tree_info::PackedAddressTreeInfo,
     },
-    LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
+    LightDiscriminator, LightHasher, ValidityProof,
 };
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
@@ -21,8 +22,8 @@ pub mod counter {
     pub fn create_counter<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
         proof: ValidityProof,
-        address_merkle_context: PackedAddressMerkleContext,
-        output_merkle_tree_index: u8,
+        address_tree_info: PackedAddressTreeInfo,
+        output_state_tree_index: u8,
     ) -> Result<()> {
         let program_id = crate::ID.into();
         // LightAccount::new_init will create an account with empty output state (no input state).
@@ -40,23 +41,17 @@ pub mod counter {
         let (address, address_seed) = derive_address(
             &[b"counter", ctx.accounts.signer.key().as_ref()],
             &light_cpi_accounts.tree_accounts()
-                [address_merkle_context.address_merkle_tree_pubkey_index as usize]
+                [address_tree_info.address_merkle_tree_pubkey_index as usize]
                 .key(),
             &crate::ID,
         );
 
-        let new_address_params = NewAddressParamsPacked {
-            seed: address_seed,
-            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-            address_merkle_tree_root_index: address_merkle_context.root_index,
-            address_merkle_tree_account_index: address_merkle_context
-                .address_merkle_tree_pubkey_index,
-        };
+        let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
         let mut counter = LightAccount::<'_, CounterAccount>::new_init(
             &program_id,
             Some(address),
-            output_merkle_tree_index,
+            output_state_tree_index,
         );
 
         counter.owner = ctx.accounts.signer.key();
@@ -198,7 +193,7 @@ pub mod counter {
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
         proof: ValidityProof,
         counter_value: u64,
-        account_meta: CompressedAccountMeta,
+        account_meta: CompressedAccountMetaClose,
     ) -> Result<()> {
         let program_id = crate::ID.into();
         // LightAccount::new_close() will create an account with only input state and no output state.

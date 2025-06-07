@@ -9,12 +9,9 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{LightClient, Rpc, RpcConfig};
 use light_program_test::{
-    accounts::{
-        address_tree_v2::create_batch_address_merkle_tree, initialize::initialize_accounts,
-        state_tree_v2::create_batched_state_merkle_tree, test_keypairs::TestKeypairs,
-    },
+    accounts::{initialize::initialize_accounts, test_keypairs::TestKeypairs},
     ProgramTestConfig,
 };
 use solana_sdk::{
@@ -56,11 +53,18 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
     } else {
         String::from("https://api.mainnet-beta.solana.com")
     };
-    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+    let mut rpc = LightClient::new(RpcConfig {
         url: rpc_url,
         commitment_config: None,
+        fetch_active_tree: false,
         with_indexer: false,
-    });
+    })
+    .await
+    .unwrap();
+
+    let test_keypairs = new_testnet_setup();
+    write_to_files(&test_keypairs, &format!("{}/", options.keypairs));
+
     let payer = if let Some(payer) = options.payer.as_ref() {
         read_keypair_file(payer).unwrap_or_else(|_| panic!("{:?}", options.payer))
     } else {
@@ -75,7 +79,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
 
     let mut test_keypairs = new_testnet_setup();
     test_keypairs.governance_authority = payer.insecure_clone();
-    write_to_files(&test_keypairs, &format!("{}/", options.keypairs)); // Fixed string concatenation
+    write_to_files(&test_keypairs, &format!("{}/", options.keypairs));
     println!("forester {:?}", test_keypairs.forester.pubkey());
     let transfer_instruction = system_instruction::transfer(
         &payer.pubkey(),
@@ -252,7 +256,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
                 ),
             )
             .unwrap();
-            create_batched_state_merkle_tree(
+            light_program_test::accounts::state_tree_v2::create_batched_state_merkle_tree(
                 &test_keypairs.governance_authority,
                 true,
                 &mut rpc,
@@ -262,7 +266,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
                 config.v2_state_tree_config.unwrap(),
             )
             .await?;
-            create_batch_address_merkle_tree(
+            light_program_test::accounts::address_tree_v2::create_batch_address_merkle_tree(
                 &mut rpc,
                 &test_keypairs.governance_authority,
                 &v2_address_mt,

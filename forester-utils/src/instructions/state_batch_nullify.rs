@@ -3,7 +3,7 @@ use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
     merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs},
 };
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_merkle_tree_metadata::QueueType;
@@ -15,7 +15,7 @@ use tracing::{error, trace};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
-pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer>(
+pub async fn create_nullify_batch_ix_data<R: Rpc, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
