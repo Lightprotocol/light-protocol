@@ -1,15 +1,12 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
-    CompressedProof,
+    ValidityProof,
     PackedMerkleContext,
+    CompressedCpiContext,
 } from '@lightprotocol/stateless.js';
-
-export type CompressedCpiContext = {
-    setContext: boolean;
-    firstSetContext: boolean;
-    cpiContextAccountIndex: number; // u8
-};
+import { TokenPoolInfo } from './utils/get-token-pool-infos';
 
 export type TokenTransferOutputData = {
     /**
@@ -67,6 +64,21 @@ export type DelegatedTransfer = {
     delegateChangeAccountIndex: number | null;
 };
 
+export type BatchCompressInstructionData = {
+    pubkeys: PublicKey[];
+    amounts: BN[] | null;
+    lamports: BN | null;
+    amount: BN | null;
+    index: number;
+    bump: number;
+};
+
+//     pub amounts: Option<Vec<u64>>,
+//     pub lamports: Option<u64>,
+//     pub amount: Option<u64>,
+//     pub index: u8,
+//     pub bump: u8,
+
 export type MintToInstructionData = {
     recipients: PublicKey[];
     amounts: BN[];
@@ -78,18 +90,23 @@ export type CompressSplTokenAccountInstructionData = {
     cpiContext: CompressedCpiContext | null;
 };
 
+export function isSingleTokenPoolInfo(
+    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[],
+): tokenPoolInfos is TokenPoolInfo {
+    return !Array.isArray(tokenPoolInfos);
+}
+
 export type CompressedTokenInstructionDataTransfer = {
     /**
      * Validity proof
      */
-    proof: CompressedProof | null;
+    proof: ValidityProof | null;
     /**
      * The mint of the transfer
      */
     mint: PublicKey;
     /**
      * Whether the signer is a delegate
-     * TODO: implement delegated transfer struct
      */
     delegatedTransfer: DelegatedTransfer | null;
     /**
@@ -145,4 +162,24 @@ export type TokenData = {
      * TokenExtension tlv
      */
     tlv: Buffer | null;
+};
+
+export type CompressedTokenInstructionDataApprove = {
+    proof: ValidityProof | null;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    delegate: PublicKey;
+    delegatedAmount: BN;
+    delegateMerkleTreeIndex: number;
+    changeAccountMerkleTreeIndex: number;
+    delegateLamports: BN | null;
+};
+
+export type CompressedTokenInstructionDataRevoke = {
+    proof: ValidityProof | null;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    outputAccountMerkleTreeIndex: number;
 };

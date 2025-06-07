@@ -13,10 +13,11 @@ import {
     encodePublicTransactionEvent,
     decodePublicTransactionEvent,
     invokeAccountsLayout,
-} from '../../src/programs/layout';
+} from '../../src/programs/system/layout';
 import { PublicTransactionEvent } from '../../src/state';
 
 import {
+    COMPRESSED_TOKEN_PROGRAM_ID,
     defaultStaticAccountsStruct,
     IDL,
     LightSystemProgramIDL,
@@ -34,11 +35,7 @@ const getTestProgram = (): Program<LightSystemProgramIDL> => {
         },
     );
     setProvider(mockProvider);
-    return new Program(
-        IDL,
-        new PublicKey('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
-        mockProvider,
-    );
+    return new Program(IDL, COMPRESSED_TOKEN_PROGRAM_ID, mockProvider);
 };
 
 function deepEqual(ref: any, val: any) {
@@ -144,9 +141,9 @@ describe('layout', () => {
                             },
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
-                                nullifierQueuePubkeyIndex: 1,
+                                queuePubkeyIndex: 1,
                                 leafIndex: 10,
-                                queueIndex: null,
+                                proveByIndex: false,
                             },
                             rootIndex: 0,
                             readOnly: false,

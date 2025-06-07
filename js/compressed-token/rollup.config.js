@@ -47,10 +47,9 @@ const rolls = (fmt, env) => ({
         env === 'browser' ? nodePolyfills() : undefined,
         terser({
             compress: {
-                drop_console: true,
+                drop_console: false,
                 drop_debugger: true,
                 passes: 3,
-                pure_funcs: ['console.log', 'console.error', 'console.warn'],
                 booleans_as_integers: true,
                 keep_fargs: false,
                 keep_fnames: false,
