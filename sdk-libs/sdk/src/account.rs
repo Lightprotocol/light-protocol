@@ -25,9 +25,13 @@ pub struct LightAccount<
 impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default>
     LightAccount<'a, A>
 {
-    pub fn new_init(owner: &'a Pubkey, address: Option<[u8; 32]>, output_tree_index: u8) -> Self {
+    pub fn new_init(
+        owner: &'a Pubkey,
+        address: Option<[u8; 32]>,
+        output_state_tree_index: u8,
+    ) -> Self {
         let output_account_info = OutAccountInfo {
-            output_merkle_tree_index: output_tree_index,
+            output_merkle_tree_index: output_state_tree_index,
             discriminator: A::LIGHT_DISCRIMINATOR,
             ..Default::default()
         };
@@ -64,9 +68,12 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
             }
         };
         let output_account_info = {
+            let output_merkle_tree_index = input_account_meta
+                .get_output_state_tree_index()
+                .ok_or(LightSdkError::OutputStateTreeIndexIsNone)?;
             OutAccountInfo {
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
-                output_merkle_tree_index: input_account_meta.get_output_tree_index(),
+                output_merkle_tree_index,
                 discriminator: A::LIGHT_DISCRIMINATOR,
                 ..Default::default()
             }

@@ -45,6 +45,8 @@ pub enum LightSdkError {
     InvalidCpiSignerAccount,
     #[error("Missing meta field: {0}")]
     MissingField(String),
+    #[error("Output state tree index is none. Use an CompressedAccountMeta type with output tree index to initialize or update accounts.")]
+    OutputStateTreeIndexIsNone,
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error("Program error: {0}")]
@@ -73,6 +75,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::FewerAccountsThanSystemAccounts => 14017,
             LightSdkError::InvalidCpiSignerAccount => 14018,
             LightSdkError::MissingField(_) => 14019,
+            LightSdkError::OutputStateTreeIndexIsNone => 14020,
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
         }

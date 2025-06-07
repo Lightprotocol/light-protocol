@@ -146,7 +146,7 @@ pub async fn update_pda(
     let meta = CompressedAccountMeta {
         tree_info: packed_accounts.packed_tree_infos[0],
         address: compressed_account.compressed_account.address.unwrap(),
-        output_tree_index: packed_accounts.output_tree_index,
+        output_state_tree_index: packed_accounts.output_tree_index,
     };
 
     let (accounts, system_accounts_offset, _) = accounts.to_account_metas();

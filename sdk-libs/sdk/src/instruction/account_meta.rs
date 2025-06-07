@@ -1,21 +1,21 @@
 use crate::{instruction::tree_info::PackedStateTreeInfo, AnchorDeserialize, AnchorSerialize};
 
-/// CompressedAccountMeta (context, address, root_index, output_tree_index)
-/// CompressedAccountMetaNoLamportsNoAddress (context, root_index, output_tree_index)
-/// CompressedAccountMetaWithLamportsNoAddress (context, root_index, output_tree_index)
-/// CompressedAccountMetaWithLamports (context, lamports, address, root_index, output_tree_index)
+/// CompressedAccountMeta (context, address, root_index, output_state_tree_index)
+/// CompressedAccountMetaNoLamportsNoAddress (context, root_index, output_state_tree_index)
+/// CompressedAccountMetaWithLamportsNoAddress (context, root_index, output_state_tree_index)
+/// CompressedAccountMetaWithLamports (context, lamports, address, root_index, output_state_tree_index)
 pub trait CompressedAccountMetaTrait {
     fn get_tree_info(&self) -> &PackedStateTreeInfo;
     fn get_lamports(&self) -> Option<u64>;
     fn get_root_index(&self) -> Option<u16>;
     fn get_address(&self) -> Option<[u8; 32]>;
-    fn get_output_tree_index(&self) -> u8;
+    fn get_output_state_tree_index(&self) -> Option<u8>;
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaNoLamportsNoAddress {
     pub tree_info: PackedStateTreeInfo,
-    pub output_tree_index: u8,
+    pub output_state_tree_index: u8,
 }
 
 impl CompressedAccountMetaTrait for CompressedAccountMetaNoLamportsNoAddress {
@@ -39,15 +39,15 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaNoLamportsNoAddress {
         None
     }
 
-    fn get_output_tree_index(&self) -> u8 {
-        self.output_tree_index
+    fn get_output_state_tree_index(&self) -> Option<u8> {
+        Some(self.output_state_tree_index)
     }
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaNoAddress {
     pub tree_info: PackedStateTreeInfo,
-    pub output_tree_index: u8,
+    pub output_state_tree_index: u8,
     pub lamports: u64,
 }
 
@@ -72,8 +72,8 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaNoAddress {
         None
     }
 
-    fn get_output_tree_index(&self) -> u8 {
-        self.output_tree_index
+    fn get_output_state_tree_index(&self) -> Option<u8> {
+        Some(self.output_state_tree_index)
     }
 }
 
@@ -84,7 +84,7 @@ pub struct CompressedAccountMeta {
     /// Address.
     pub address: [u8; 32],
     /// Output merkle tree index.
-    pub output_tree_index: u8,
+    pub output_state_tree_index: u8,
 }
 
 impl CompressedAccountMetaTrait for CompressedAccountMeta {
@@ -108,8 +108,8 @@ impl CompressedAccountMetaTrait for CompressedAccountMeta {
         Some(self.address)
     }
 
-    fn get_output_tree_index(&self) -> u8 {
-        self.output_tree_index
+    fn get_output_state_tree_index(&self) -> Option<u8> {
+        Some(self.output_state_tree_index)
     }
 }
 
@@ -122,7 +122,7 @@ pub struct CompressedAccountMetaWithLamports {
     /// Address.
     pub address: [u8; 32],
     /// Root index.
-    pub output_tree_index: u8,
+    pub output_state_tree_index: u8,
 }
 
 impl CompressedAccountMetaTrait for CompressedAccountMetaWithLamports {
@@ -146,7 +146,41 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaWithLamports {
         Some(self.address)
     }
 
-    fn get_output_tree_index(&self) -> u8 {
-        self.output_tree_index
+    fn get_output_state_tree_index(&self) -> Option<u8> {
+        Some(self.output_state_tree_index)
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
+pub struct CompressedAccountMetaClose {
+    /// State Merkle tree context.
+    pub tree_info: PackedStateTreeInfo,
+    /// Address.
+    pub address: [u8; 32],
+}
+
+impl CompressedAccountMetaTrait for CompressedAccountMetaClose {
+    fn get_tree_info(&self) -> &PackedStateTreeInfo {
+        &self.tree_info
+    }
+
+    fn get_lamports(&self) -> Option<u64> {
+        None
+    }
+
+    fn get_root_index(&self) -> Option<u16> {
+        if self.tree_info.prove_by_index {
+            None
+        } else {
+            Some(self.tree_info.root_index)
+        }
+    }
+
+    fn get_address(&self) -> Option<[u8; 32]> {
+        Some(self.address)
+    }
+
+    fn get_output_state_tree_index(&self) -> Option<u8> {
+        None
     }
 }

@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use counter::CounterAccount;
@@ -9,7 +9,8 @@ use light_program_test::{
 use light_sdk::{
     address::v1::derive_address,
     instruction::{
-        account_meta::CompressedAccountMeta, accounts::SystemAccountMetaConfig,
+        account_meta::{CompressedAccountMeta, CompressedAccountMetaClose},
+        accounts::SystemAccountMetaConfig,
         pack_accounts::PackedAccounts,
     },
 };
@@ -136,7 +137,7 @@ where
         .await?
         .value;
 
-    let output_tree_index = rpc
+    let output_state_tree_index = rpc
         .get_random_state_tree_info()
         .pack_output_tree_index(&mut remaining_accounts)?;
     let packed_address_tree_info = rpc_result
@@ -146,7 +147,7 @@ where
     let instruction_data = counter::instruction::CreateCounter {
         proof: rpc_result.proof,
         address_tree_info: packed_address_tree_info,
-        output_tree_index,
+        output_state_tree_index,
     };
 
     let accounts = counter::accounts::GenericAnchorAccounts {
@@ -201,7 +202,7 @@ where
     let account_meta = CompressedAccountMeta {
         tree_info: packed_tree_accounts.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        output_tree_index: packed_tree_accounts.output_tree_index,
+        output_state_tree_index: packed_tree_accounts.output_tree_index,
     };
 
     let instruction_data = counter::instruction::IncrementCounter {
@@ -262,7 +263,7 @@ where
     let account_meta = CompressedAccountMeta {
         tree_info: packed_tree_accounts.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        output_tree_index: packed_tree_accounts.output_tree_index,
+        output_state_tree_index: packed_tree_accounts.output_tree_index,
     };
 
     let instruction_data = counter::instruction::DecrementCounter {
@@ -322,7 +323,7 @@ where
     let account_meta = CompressedAccountMeta {
         tree_info: packed_merkle_context.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        output_tree_index: packed_merkle_context.output_tree_index,
+        output_state_tree_index: packed_merkle_context.output_tree_index,
     };
 
     let instruction_data = counter::instruction::ResetCounter {
@@ -380,10 +381,9 @@ where
         CounterAccount::deserialize(&mut compressed_account.data.as_ref().unwrap().data.as_slice())
             .unwrap();
 
-    let account_meta = CompressedAccountMeta {
+    let account_meta = CompressedAccountMetaClose {
         tree_info: packed_tree_infos.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
-        output_tree_index: packed_tree_infos.output_tree_index,
     };
 
     let instruction_data = counter::instruction::CloseCounter {
