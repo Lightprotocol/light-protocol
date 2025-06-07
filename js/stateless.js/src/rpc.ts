@@ -1900,6 +1900,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             },
             context: res.result.context,
         };
+        // TODO: remove.
         // return {
         //     value: {
         //         compressedProof: value.compressedProof,
