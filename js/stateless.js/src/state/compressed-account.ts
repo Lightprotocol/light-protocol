@@ -1,11 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import {
-    CompressedAccount,
-    CompressedAccountData,
-    CompressedAccountLegacy,
-    PackedMerkleContext,
-    TreeInfo,
-} from './types';
+import { CompressedAccountData, PackedMerkleContext, TreeInfo } from './types';
 import BN from 'bn.js';
 import { BN254 } from './BN254';
 import { bn } from './bn';
@@ -103,19 +97,32 @@ export type MerkleContextWithMerkleProof = MerkleContext & {
     root: BN254;
 };
 
-export const createCompressedAccount = (
+export const PackedTre
+
+export const CompressedAccountMeta = {
+    /// Merkle tree context.
+    pub merkle_context: PackedMerkleContext,
+    /// Address.
+    pub address: [u8; 32],
+    /// Root index.
+    pub root_index: Option<u16>,
+    pub output_merkle_tree_index: u8,
+}
+
+
+export const createCompressedAccountMeta = (
     owner: PublicKey,
     lamports?: BN,
     data?: CompressedAccountData,
     address?: number[],
-): CompressedAccount => ({
+): CompressedAccountMeta => ({
     owner,
     lamports: lamports ?? bn(0),
     address: address ?? null,
     data: data ?? null,
 });
 
-export const createCompressedAccountWithMerkleContext = (
+export const createCompressedAccount = (
     merkleContext: MerkleContext,
     owner: PublicKey,
     lamports?: BN,
