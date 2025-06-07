@@ -62,7 +62,8 @@ class StartProver extends Command {
 
     const proverPort = flags["prover-port"] || 3001;
     const force = flags["force"] || false;
-    const redisUrl = flags["redisUrl"] || process.env.REDIS_URL;
+    const redisUrl =
+      flags["redisUrl"] || process.env.REDIS_URL || "redis://localhost:6379";
     await startProver(
       proverPort,
       flags["run-mode"],
