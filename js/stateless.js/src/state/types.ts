@@ -114,28 +114,6 @@ export type AddressTreeInfo = Omit<
 };
 
 /**
- * Packed compressed account with merkle context.
- */
-export interface PackedCompressedAccountWithMerkleContext {
-    /**
-     * Compressed account.
-     */
-    compressedAccount: CompressedAccount;
-    /**
-     * Merkle context.
-     */
-    merkleContext: PackedMerkleContext;
-    /**
-     * Root index.
-     */
-    rootIndex: number;
-    /**
-     * Read only.
-     */
-    readOnly: boolean;
-}
-
-/**
  * Packed merkle context.
  */
 export interface PackedMerkleContext {
@@ -157,28 +135,28 @@ export interface PackedMerkleContext {
     proveByIndex: boolean;
 }
 
-/**
- * Describe the generic compressed account details applicable to every
- * compressed account.
- * */
-export interface CompressedAccount {
-    /**
-     * Public key of program or user owning the account.
-     */
-    owner: PublicKey;
-    /**
-     * Lamports attached to the account.
-     */
-    lamports: BN;
-    /**
-     * Optional unique account ID that is persistent across transactions.
-     */
-    address: number[] | null;
-    /**
-     * Optional data attached to the account.
-     */
-    data: CompressedAccountData | null;
-}
+// /**
+//  * Describe the generic compressed account details applicable to every
+//  * compressed account.
+//  * */
+// export interface CompressedAccount {
+//     /**
+//      * Public key of program or user owning the account.
+//      */
+//     owner: PublicKey;
+//     /**
+//      * Lamports attached to the account.
+//      */
+//     lamports: BN;
+//     /**
+//      * Optional unique account ID that is persistent across transactions.
+//      */
+//     address: number[] | null;
+//     /**
+//      * Optional data attached to the account.
+//      */
+//     data: CompressedAccountData | null;
+// }
 
 /**
  * @deprecated Use {@link CompressedAccount} instead.

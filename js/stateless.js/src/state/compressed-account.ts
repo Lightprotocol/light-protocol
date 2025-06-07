@@ -3,6 +3,7 @@ import {
     CompressedAccount,
     CompressedAccountData,
     CompressedAccountLegacy,
+    PackedMerkleContext,
     TreeInfo,
 } from './types';
 import BN from 'bn.js';
@@ -15,7 +16,7 @@ import { bn } from './bn';
 //         readOnly: boolean;
 //     };
 
-export type CompressedAccountWithMerkleContext = MerkleContext & {
+export type CompressedAccount = MerkleContext & {
     /**
      * Public key of program or user owning the account.
      */
@@ -32,8 +33,6 @@ export type CompressedAccountWithMerkleContext = MerkleContext & {
      * Optional data attached to the account.
      */
     data: CompressedAccountData | null;
-} & {
-    readOnly: boolean;
 };
 
 // @deprecated use {@link CompressedAccount} instead
@@ -139,3 +138,25 @@ export const createMerkleContext = (
     leafIndex,
     proveByIndex,
 });
+
+/**
+ * Packed compressed account with merkle context.
+ */
+export interface PackedCompressedAccountWithMerkleContext {
+    /**
+     * Compressed account.
+     */
+    compressedAccount: CompressedAccount;
+    /**
+     * Merkle context.
+     */
+    merkleContext: PackedMerkleContext;
+    /**
+     * Root index.
+     */
+    rootIndex: number;
+    /**
+     * Read only.
+     */
+    readOnly: boolean;
+}
