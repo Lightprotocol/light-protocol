@@ -16,7 +16,7 @@ import {
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,
-    StateTreeInfo,
+    TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -97,7 +97,7 @@ describe('transfer', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
 
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -296,7 +296,7 @@ describe('e2e transfer with multiple accounts', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
 
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
         rpc = await getTestRpc(await WasmFactory.getInstance());
@@ -380,7 +380,6 @@ describe('e2e transfer with multiple accounts', () => {
             sender,
             transferAmount,
             recipient,
-            stateTreeInfo,
         );
 
         assertTransfer(
@@ -401,7 +400,6 @@ async function transferHelper(
     owner: Signer,
     amount: BN,
     toAddress: PublicKey,
-    stateTreeInfo: StateTreeInfo,
 ) {
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,

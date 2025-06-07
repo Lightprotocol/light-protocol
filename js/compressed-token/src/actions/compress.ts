@@ -10,13 +10,11 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeInfo,
     selectStateTreeInfo,
     toArray,
+    TreeInfo,
 } from '@lightprotocol/stateless.js';
-
 import BN from 'bn.js';
-
 import { CompressedTokenProgram } from '../program';
 import {
     getTokenPoolInfos,
@@ -50,7 +48,7 @@ export async function compress(
     owner: Signer,
     sourceTokenAccount: PublicKey,
     toAddress: PublicKey | Array<PublicKey>,
-    outputStateTreeInfo?: StateTreeInfo,
+    outputStateTreeInfo?: TreeInfo,
     tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {

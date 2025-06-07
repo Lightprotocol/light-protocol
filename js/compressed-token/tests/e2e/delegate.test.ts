@@ -6,7 +6,7 @@ import {
     bn,
     newAccountWithLamports,
     getTestRpc,
-    StateTreeInfo,
+    TreeInfo,
     selectStateTreeInfo,
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
@@ -109,7 +109,7 @@ describe('delegate', () => {
     let bob: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {

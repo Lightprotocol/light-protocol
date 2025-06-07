@@ -23,7 +23,7 @@ export enum TreeType {
 }
 
 /**
- * @deprecated Use {@link StateTreeInfo} instead.
+ * @deprecated Use {@link TreeInfo} instead.
  *
  * A bundle of active trees for a given tree type.
  */
@@ -47,13 +47,21 @@ export type ActiveTreeBundle = {
 };
 
 /**
+ * @deprecated Use {@link TreeInfo} instead.
+ *
  * State tree info, versioned via {@link TreeType}. The protocol
  * stores compressed accounts in state trees.
+ */
+export type StateTreeInfo = TreeInfo;
+
+/**
+ * Tree info, versioned via {@link TreeType}. The protocol
+ * stores compressed accounts in state trees, and PDAs in address trees.
  *
  * Onchain Accounts are subject to Solana's write-lock limits.
  *
  * To load balance transactions, use {@link selectStateTreeInfo} to
- * select a random tree from a range of active trees.
+ * randomly select a tree from a range of active trees.
  *
  * Example:
  * ```typescript
@@ -65,7 +73,7 @@ export type ActiveTreeBundle = {
  * });
  * ```
  */
-export type StateTreeInfo = {
+export type TreeInfo = {
     /**
      * Pubkey of the tree account.
      */
@@ -86,10 +94,12 @@ export type StateTreeInfo = {
      * Next tree info. Is `some` if the next tree should be used for the next
      * state transition.
      */
-    nextTreeInfo: StateTreeInfo | null;
+    nextTreeInfo: TreeInfo | null;
 };
 
 /**
+ * @deprecated Use {@link TreeInfo} instead.
+ *
  * Address tree info, versioned via {@link TreeType}. The protocol
  * stores PDAs in address trees.
  */
@@ -170,6 +180,31 @@ export interface CompressedAccount {
     data: CompressedAccountData | null;
 }
 
+/**
+ * @deprecated Use {@link CompressedAccount} instead.
+ *
+ * Describe the generic compressed account details applicable to every
+ * compressed account.
+ *
+ * */
+export interface CompressedAccountLegacy {
+    /**
+     * Public key of program or user owning the account.
+     */
+    owner: PublicKey;
+    /**
+     * Lamports attached to the account.
+     */
+    lamports: BN;
+    /**
+     * Optional unique account ID that is persistent across transactions.
+     */
+    address: number[] | null;
+    /**
+     * Optional data attached to the account.
+     */
+    data: CompressedAccountData | null;
+}
 /**
  * Describe the generic compressed account details applicable to every
  * compressed account.

@@ -11,11 +11,7 @@ import {
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
 import { Rpc } from '../rpc';
-import {
-    bn,
-    CompressedAccountWithMerkleContext,
-    StateTreeInfo,
-} from '../state';
+import { bn, CompressedAccountWithMerkleContext, TreeInfo } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 
@@ -37,7 +33,6 @@ export async function transfer(
     lamports: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     let accumulatedLamports = bn(0);

@@ -15,7 +15,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     getTestRpc,
-    StateTreeInfo,
+    TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
@@ -98,10 +98,10 @@ describe('compress', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
     let lut: PublicKey;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
     let tokenPoolInfo: TokenPoolInfo;
 
-    const maxBatchSize = 26;
+    const maxBatchSize = 15;
     const recipients = Array.from(
         { length: maxBatchSize },
         () => Keypair.generate().publicKey,
@@ -289,7 +289,7 @@ describe('compress', () => {
             owner: bob.publicKey,
             source: bobAta,
             toAddress: recipients,
-            amount: bn(2),
+            amount: recipients.map(() => bn(2)),
             mint,
             outputStateTreeInfo: stateTreeInfo,
             tokenPoolInfo,

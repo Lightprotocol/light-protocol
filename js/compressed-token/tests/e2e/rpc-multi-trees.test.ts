@@ -5,7 +5,7 @@ import {
     newAccountWithLamports,
     bn,
     createRpc,
-    StateTreeInfo,
+    TreeInfo,
     featureFlags,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
@@ -27,8 +27,8 @@ describe('rpc-multi-trees', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
 
-    let stateTreeInfo: StateTreeInfo;
-    let stateTreeInfo2: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
+    let stateTreeInfo2: TreeInfo;
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
