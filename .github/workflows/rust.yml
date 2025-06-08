@@ -46,9 +46,9 @@ jobs:
             test_cmd: |
               cargo test -p aligned-sized
               cargo test -p light-bloom-filter
-              cargo test -p light-hasher
-              cargo test -p light-compressed-account
-              cargo test -p light-account-checks
+              cargo test -p light-hasher --features solana
+              cargo test -p light-compressed-account --features new-unique
+              cargo test -p light-account-checks  --features solana
               cargo test -p light-verifier
               cargo test -p light-merkle-tree-metadata
               cargo test -p light-zero-copy --features std

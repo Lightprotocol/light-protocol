@@ -16,6 +16,8 @@ solana = [
     "solana-instruction",
     "solana-pubkey",
     "solana-pubkey/borsh",
+    "solana-pubkey/curve25519",
+    "solana-pubkey/sha2",
     "solana-account-info",
     "solana-msg",
     "solana-program-error",
@@ -24,11 +26,7 @@ solana = [
 ]
 default = ["solana"]
 idl-build = ["anchor-lang/idl-build"]
-anchor = [
-    "anchor-lang",
-    "light-compressed-account/anchor",
-    "light-verifier/anchor",
-]
+anchor = ["anchor-lang", "light-compressed-account/anchor"]
 v2 = []
 
 [dependencies]
@@ -49,9 +47,9 @@ thiserror = { workspace = true }
 light-sdk-macros = { workspace = true }
 light-macros = { workspace = true }
 light-compressed-account = { workspace = true }
-light-verifier = { workspace = true }
 light-hasher = { workspace = true }
 light-account-checks = { workspace = true }
 
 [dev-dependencies]
 num-bigint = { workspace = true }
+light-compressed-account = { workspace = true , features = ["new-unique"]}

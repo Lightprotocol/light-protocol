@@ -1,5 +1,5 @@
 use light_hasher::{hash_to_field_size::hashv_to_bn254_field_size_be, Hasher, Keccak};
-use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 // Define derive_address function locally
 pub fn derive_address(
@@ -7,13 +7,11 @@ pub fn derive_address(
     merkle_tree_pubkey: &[u8; 32],
     program_id_bytes: &[u8; 32],
 ) -> [u8; 32] {
-    msg!("derive_address1");
     let slices = [
         seed.as_slice(),
         merkle_tree_pubkey.as_slice(),
         program_id_bytes.as_slice(),
     ];
-    msg!("derive_address");
 
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array::<4>(&slices)
         .unwrap()

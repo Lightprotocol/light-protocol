@@ -1299,8 +1299,7 @@ pub mod test {
                 let expected_owner: Pubkey = invoke_ref
                     .input_compressed_accounts_with_merkle_context[0]
                     .compressed_account
-                    .owner
-                    .into();
+                    .owner;
                 assert_eq!(z_copy.owner(), expected_owner);
             } else {
                 assert_eq!(z_copy.owner(), Pubkey::default());
@@ -1401,7 +1400,7 @@ pub mod test {
         reference: &CompressedAccount,
         z_copy: &ZCompressedAccount,
     ) -> Result<(), CompressedAccountError> {
-        if reference.owner != z_copy.owner.into() {
+        if reference.owner.to_bytes() != z_copy.owner.as_bytes() {
             return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.lamports != u64::from(z_copy.lamports) {

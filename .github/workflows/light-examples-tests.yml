@@ -56,7 +56,7 @@ jobs:
           - program: sdk-test-program
             sub-tests: '["cargo-test-sbf -p sdk-test"]'
           - program: sdk-anchor-test-program
-            sub-tests: '["cargo-test-sbf -p sdk-anchor-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-test"]'
 
     steps:
       - name: Checkout sources

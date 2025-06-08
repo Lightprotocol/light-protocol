@@ -1450,7 +1450,11 @@ async fn test_migrate_state() {
             .get_state_merkle_trees()
             .iter()
             .find(|b| {
-                b.accounts.merkle_tree == compressed_account.merkle_context.merkle_tree_pubkey
+                b.accounts.merkle_tree.to_bytes()
+                    == compressed_account
+                        .merkle_context
+                        .merkle_tree_pubkey
+                        .to_bytes()
             })
             .unwrap();
         assert_eq!(merkle_tree.root(), bundle.merkle_tree.root());
@@ -1498,7 +1502,11 @@ async fn test_migrate_state() {
                 .get_state_merkle_trees_mut()
                 .iter_mut()
                 .find(|b| {
-                    b.accounts.merkle_tree == compressed_account.merkle_context.merkle_tree_pubkey
+                    b.accounts.merkle_tree.to_bytes()
+                        == compressed_account
+                            .merkle_context
+                            .merkle_tree_pubkey
+                            .to_bytes()
                 })
                 .unwrap();
             bundle
@@ -1533,7 +1541,11 @@ async fn test_migrate_state() {
             .get_state_merkle_trees()
             .iter()
             .find(|b| {
-                b.accounts.merkle_tree == compressed_account.merkle_context.merkle_tree_pubkey
+                b.accounts.merkle_tree.to_bytes()
+                    == compressed_account
+                        .merkle_context
+                        .merkle_tree_pubkey
+                        .to_bytes()
             })
             .unwrap();
         assert_eq!(merkle_tree.root(), bundle.merkle_tree.root());

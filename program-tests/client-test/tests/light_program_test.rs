@@ -638,7 +638,7 @@ async fn create_address(
 
     let output_account = light_compressed_account::compressed_account::CompressedAccount {
         lamports,
-        owner,
+        owner: owner.into(),
         data: None,
         address: Some(address),
     };
@@ -656,8 +656,8 @@ async fn create_address(
 
     let new_address_params = NewAddressParams {
         seed: address_seed,
-        address_queue_pubkey: address_merkle_tree.queue,
-        address_merkle_tree_pubkey: address_merkle_tree.tree,
+        address_queue_pubkey: address_merkle_tree.queue.into(),
+        address_merkle_tree_pubkey: address_merkle_tree.tree.into(),
         address_merkle_tree_root_index: rpc_proof_result.value.addresses[0].root_index,
     };
     let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(500_000);

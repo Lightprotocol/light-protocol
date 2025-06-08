@@ -1,4 +1,4 @@
-pub use crate::compressed_account::PackedMerkleContext;
+// pub use crate::compressed_account::PackedMerkleContext;
 
 #[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
 pub struct MerkleContext {
@@ -7,6 +7,7 @@ pub struct MerkleContext {
     pub leaf_index: u32,
     pub tree_type: u8, // Simplified TreeType as u8
 }
+use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::{BorshDeserialize, BorshSerialize};
@@ -34,8 +35,8 @@ pub struct PackedAddressTreeInfo {
 }
 
 impl PackedAddressTreeInfo {
-    pub fn into_new_address_params_packed(self, seed: [u8; 32]) -> crate::NewAddressParamsPacked {
-        crate::NewAddressParamsPacked {
+    pub fn into_new_address_params_packed(self, seed: [u8; 32]) -> NewAddressParamsPacked {
+        NewAddressParamsPacked {
             address_merkle_tree_account_index: self.address_merkle_tree_pubkey_index,
             address_queue_account_index: self.address_queue_pubkey_index,
             address_merkle_tree_root_index: self.root_index,

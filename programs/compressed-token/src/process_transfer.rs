@@ -1003,7 +1003,8 @@ pub mod transfer_sdk {
             match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey.into()) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(input_merkle_context[i].merkle_tree_pubkey.into(), index);
+                    remaining_accounts
+                        .insert(input_merkle_context[i].merkle_tree_pubkey.into(), index);
                     index += 1;
                 }
             };

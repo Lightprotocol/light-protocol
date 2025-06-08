@@ -195,8 +195,8 @@ pub async fn perform_escrow(
             leaf_index: compressed_input_account_with_context
                 .merkle_context
                 .leaf_index,
-            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree,
-            queue_pubkey: env.v1_state_trees[0].nullifier_queue,
+            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree.into(),
+            queue_pubkey: env.v1_state_trees[0].nullifier_queue.into(),
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -331,8 +331,8 @@ pub async fn perform_withdrawal(
             leaf_index: compressed_input_account_with_context
                 .merkle_context
                 .leaf_index,
-            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree,
-            queue_pubkey: env.v1_state_trees[0].nullifier_queue,
+            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree.into(),
+            queue_pubkey: env.v1_state_trees[0].nullifier_queue.into(),
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],

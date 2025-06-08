@@ -90,12 +90,12 @@ pub fn assert_rolledover_merkle_trees_metadata(
     );
 
     assert_eq!(
-        new_merkle_tree_metadata.associated_queue,
-        (*new_queue_pubkey).into()
+        new_merkle_tree_metadata.associated_queue.to_bytes(),
+        (*new_queue_pubkey).to_bytes()
     );
     assert_eq!(
-        new_merkle_tree_metadata.next_merkle_tree,
-        Pubkey::default().into()
+        new_merkle_tree_metadata.next_merkle_tree.to_bytes(),
+        Pubkey::default().to_bytes()
     );
 }
 
@@ -142,10 +142,13 @@ pub fn assert_rolledover_queues_metadata(
         new_queue_metadata.access_metadata.program_owner
     );
     assert_eq!(
-        new_queue_metadata.associated_merkle_tree,
-        (*new_merkle_tree_pubkey).into()
+        new_queue_metadata.associated_merkle_tree.to_bytes(),
+        (*new_merkle_tree_pubkey).to_bytes()
     );
-    assert_eq!(old_queue_metadata.next_queue, (*new_queue_pubkey).into());
+    assert_eq!(
+        old_queue_metadata.next_queue,
+        light_compressed_account::Pubkey::from(*new_queue_pubkey)
+    );
     assert_eq!(
         old_merkle_tree_lamports,
         new_merkle_tree_lamports + new_queue_lamports + old_merkle_tree_lamports

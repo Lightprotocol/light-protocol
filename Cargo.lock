@@ -35,6 +35,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "thiserror 2.0.12",
  "zerocopy 0.8.25",
 ]
 
@@ -3493,7 +3494,6 @@ dependencies = [
  "light-compressed-account",
  "pinocchio",
  "solana-msg",
- "solana-program-error",
  "solana-sysvar",
  "thiserror 2.0.12",
  "zerocopy 0.8.25",
@@ -3627,7 +3627,6 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
- "light-verifier",
  "num-bigint 0.4.6",
  "solana-account-info",
  "solana-cpi",
@@ -3642,7 +3641,6 @@ dependencies = [
 name = "light-sdk-macros"
 version = "0.6.0"
 dependencies = [
- "ark-bn254 0.5.0",
  "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
@@ -3664,7 +3662,6 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
- "light-verifier",
  "pinocchio",
  "thiserror 2.0.12",
 ]

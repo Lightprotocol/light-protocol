@@ -1124,7 +1124,10 @@ impl TestIndexerExtensions for TestIndexer {
     ) -> Vec<CompressedAccountWithMerkleContext> {
         self.compressed_accounts
             .iter()
-            .filter(|x| x.compressed_account.owner == light_compressed_account::Pubkey::from(owner.to_bytes()))
+            .filter(|x| {
+                x.compressed_account.owner
+                    == light_compressed_account::Pubkey::from(owner.to_bytes())
+            })
             .cloned()
             .collect()
     }
@@ -1562,7 +1565,10 @@ impl TestIndexer {
     pub fn get_compressed_balance(&self, owner: &Pubkey) -> u64 {
         self.compressed_accounts
             .iter()
-            .filter(|x| x.compressed_account.owner == light_compressed_account::Pubkey::from(owner.to_bytes()))
+            .filter(|x| {
+                x.compressed_account.owner
+                    == light_compressed_account::Pubkey::from(owner.to_bytes())
+            })
             .map(|x| x.compressed_account.lamports)
             .sum()
     }
@@ -1572,7 +1578,8 @@ impl TestIndexer {
         self.token_compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.compressed_account.owner == light_compressed_account::Pubkey::from(owner.to_bytes())
+                x.compressed_account.compressed_account.owner
+                    == light_compressed_account::Pubkey::from(owner.to_bytes())
                     && x.token_data.mint == *mint
             })
             .map(|x| x.token_data.amount)
@@ -1634,7 +1641,10 @@ impl TestIndexer {
             let bundle =
                 &mut <TestIndexer as TestIndexerExtensions>::get_state_merkle_trees_mut(self)
                     .iter_mut()
-                    .find(|x| x.accounts.merkle_tree == solana_pubkey::Pubkey::from(merkle_tree_pubkey.to_bytes()))
+                    .find(|x| {
+                        x.accounts.merkle_tree
+                            == solana_pubkey::Pubkey::from(merkle_tree_pubkey.to_bytes())
+                    })
                     .unwrap();
             // Store leaf indices of input accounts for batched trees
             if bundle.tree_type == TreeType::StateV2 {
@@ -1656,8 +1666,11 @@ impl TestIndexer {
             }
             let merkle_tree = self.state_merkle_trees.iter().find(|x| {
                 x.accounts.merkle_tree
-                    == solana_pubkey::Pubkey::from(event.pubkey_array
-                        [event.output_compressed_accounts[i].merkle_tree_index as usize].to_bytes())
+                    == solana_pubkey::Pubkey::from(
+                        event.pubkey_array
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                            .to_bytes(),
+                    )
             });
             // Check for output queue
             let merkle_tree = if let Some(merkle_tree) = merkle_tree {
@@ -1667,8 +1680,12 @@ impl TestIndexer {
                     .iter()
                     .find(|x| {
                         x.accounts.nullifier_queue
-                            == solana_pubkey::Pubkey::from(event.pubkey_array
-                                [event.output_compressed_accounts[i].merkle_tree_index as usize].to_bytes())
+                            == solana_pubkey::Pubkey::from(
+                                event.pubkey_array[event.output_compressed_accounts[i]
+                                    .merkle_tree_index
+                                    as usize]
+                                    .to_bytes(),
+                            )
                     })
                     .unwrap()
             };
@@ -1733,8 +1750,11 @@ impl TestIndexer {
             };
             let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
                 x.accounts.merkle_tree
-                    == solana_pubkey::Pubkey::from(event.pubkey_array
-                        [event.output_compressed_accounts[i].merkle_tree_index as usize].to_bytes())
+                    == solana_pubkey::Pubkey::from(
+                        event.pubkey_array
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                            .to_bytes(),
+                    )
             });
             if merkle_tree.is_some() {
                 let merkle_tree = merkle_tree.as_mut().unwrap();
@@ -1757,8 +1777,12 @@ impl TestIndexer {
                     .iter_mut()
                     .find(|x| {
                         x.accounts.nullifier_queue
-                            == solana_pubkey::Pubkey::from(event.pubkey_array
-                                [event.output_compressed_accounts[i].merkle_tree_index as usize].to_bytes())
+                            == solana_pubkey::Pubkey::from(
+                                event.pubkey_array[event.output_compressed_accounts[i]
+                                    .merkle_tree_index
+                                    as usize]
+                                    .to_bytes(),
+                            )
                     })
                     .unwrap();
 
@@ -1780,7 +1804,9 @@ impl TestIndexer {
                     .address_merkle_trees
                     .iter_mut()
                     .enumerate()
-                    .find(|(_, x)| x.accounts.merkle_tree == solana_pubkey::Pubkey::from(pubkey.to_bytes()))
+                    .find(|(_, x)| {
+                        x.accounts.merkle_tree == solana_pubkey::Pubkey::from(pubkey.to_bytes())
+                    })
                 {
                     address_merkle_tree
                         .queue_elements

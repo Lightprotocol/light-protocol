@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use borsh::BorshSerialize;
 use light_compressed_account::{
@@ -116,13 +116,8 @@ pub async fn create_pda(
     let output_merkle_tree_index = accounts.insert_or_get(*merkle_tree_pubkey);
     let packed_address_tree_info = rpc_result.pack_tree_infos(&mut accounts).address_trees[0];
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
-    let proof = rpc_result.proof.0.unwrap();
     let instruction_data = CreatePdaInstructionData {
-        proof: light_sdk_pinocchio::ValidityProof(Some(light_sdk_pinocchio::CompressedProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
-        })),
+        proof: rpc_result.proof,
         address_tree_info: light_sdk_pinocchio::PackedAddressTreeInfo {
             address_merkle_tree_pubkey_index: packed_address_tree_info
                 .address_merkle_tree_pubkey_index,

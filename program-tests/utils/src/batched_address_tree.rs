@@ -180,8 +180,8 @@ pub async fn assert_address_merkle_tree_initialized<R: Rpc>(
     );
 
     assert_eq!(
-        merkle_tree_account.metadata.next_merkle_tree,
-        Pubkey::default().into()
+        merkle_tree_account.metadata.next_merkle_tree.to_bytes(),
+        [0u8; 32]
     );
     let expected_access_meta_data = AccessMetadata {
         owner: (*owner_pubkey).into(),
@@ -193,8 +193,8 @@ pub async fn assert_address_merkle_tree_initialized<R: Rpc>(
         expected_access_meta_data
     );
     assert_eq!(
-        merkle_tree_account.metadata.associated_queue,
-        (*queue_pubkey).into()
+        merkle_tree_account.metadata.associated_queue.to_bytes(),
+        (*queue_pubkey).to_bytes()
     );
 
     let merkle_tree = get_indexed_merkle_tree::<

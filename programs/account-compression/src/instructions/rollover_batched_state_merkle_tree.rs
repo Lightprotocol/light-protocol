@@ -92,7 +92,10 @@ pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         rent,
     )?;
     if ctx.accounts.old_output_queue.to_account_info().lamports() == 0 {
-        return Err(AccountCompressionErrorCode::from(MerkleTreeMetadataError::NotReadyForRollover).into());
+        return Err(AccountCompressionErrorCode::from(
+            MerkleTreeMetadataError::NotReadyForRollover,
+        )
+        .into());
     }
     Ok(())
 }

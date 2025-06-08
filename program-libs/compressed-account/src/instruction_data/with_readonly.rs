@@ -682,7 +682,7 @@ mod test {
                 .map(|_| {
                     OutputCompressedAccountWithPackedContext {
                         compressed_account: CompressedAccount {
-                            owner: Pubkey::new_unique().into(),
+                            owner: Pubkey::new_unique(),
                             lamports: rng.gen(),
                             address: if rng.gen() { Some(rng.gen()) } else { None },
                             data: if rng.gen() {

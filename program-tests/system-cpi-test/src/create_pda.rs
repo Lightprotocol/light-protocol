@@ -250,7 +250,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         CreatePdaMode::WriteToAccountNotOwned => {
             // account with data needs to be owned by the program
             let mut compressed_pda = compressed_pda;
-            compressed_pda.compressed_account.owner = ctx.accounts.signer.key();
+            compressed_pda.compressed_account.owner = ctx.accounts.signer.key().into();
             compressed_pda
         }
         CreatePdaMode::NoData => {
@@ -489,9 +489,7 @@ fn create_compressed_pda_data(
     let compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
         data: timelock_compressed_pda.try_to_vec().unwrap(),
-        data_hash: timelock_compressed_pda
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?,
+        data_hash: timelock_compressed_pda.hash::<Poseidon>().unwrap(),
     };
     let discriminator_bytes = &ctx.remaining_accounts
         [new_address_params.address_merkle_tree_account_index as usize]
@@ -500,10 +498,11 @@ fn create_compressed_pda_data(
     let address = match discriminator_bytes {
         AddressMerkleTreeAccount::DISCRIMINATOR => derive_address_legacy(
             &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
-                .key(),
+                .key()
+                .into(),
             &new_address_params.seed,
         )
-        .map_err(ProgramError::from)?,
+        .unwrap(),
         BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE => derive_address(
             &new_address_params.seed,
             &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
@@ -529,7 +528,7 @@ fn create_compressed_pda_data(
 
     Ok(OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
-            owner: *owner_program, // should be crate::ID, test can provide an invalid owner
+            owner: owner_program.into(), // should be crate::ID, test can provide an invalid owner
             lamports: 0,
             address: Some(address),
             data: Some(compressed_account_data),

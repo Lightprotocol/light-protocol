@@ -1,15 +1,15 @@
 use std::ops::{Deref, DerefMut};
 
+use light_compressed_account::{
+    compressed_account::PackedMerkleContext,
+    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+};
 use light_hasher::{DataHasher, Poseidon};
 use pinocchio::pubkey::Pubkey;
 
 use crate::{
-    compressed_account::{
-        CompressedAccountInfo, InAccountInfo, OutAccountInfo, PackedMerkleContext,
-    },
-    error::LightSdkError,
-    instruction::account_meta::CompressedAccountMetaTrait,
-    BorshDeserialize, BorshSerialize, LightDiscriminator,
+    error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, BorshDeserialize,
+    BorshSerialize, LightDiscriminator,
 };
 
 #[derive(Debug, PartialEq)]

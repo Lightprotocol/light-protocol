@@ -854,8 +854,8 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
         .iter()
         .map(
             |x| light_compressed_account::compressed_account::MerkleContext {
-                merkle_tree_pubkey: x.tree_info.tree,
-                queue_pubkey: x.tree_info.queue,
+                merkle_tree_pubkey: x.tree_info.tree.into(),
+                queue_pubkey: x.tree_info.queue.into(),
                 leaf_index: x.leaf_index,
                 prove_by_index: false,
                 tree_type: TreeType::StateV2,
@@ -867,7 +867,7 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
     let mut compressed_accounts = vec![
         CompressedAccount {
             lamports: lamp,
-            owner: payer.pubkey(),
+            owner: payer.pubkey().into(),
             address: None,
             data: None,
         };
@@ -896,7 +896,7 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
         .iter()
         .map(|x| CompressedAccount {
             lamports: x.lamports,
-            owner: x.owner,
+            owner: x.owner.into(),
             address: x.address,
             data: x.data.clone(),
         })
@@ -945,7 +945,7 @@ async fn compress<R: Rpc>(
 ) -> Signature {
     let compress_account = CompressedAccount {
         lamports,
-        owner: payer.pubkey(),
+        owner: payer.pubkey().into(),
         address: None,
         data: None,
     };
@@ -1000,7 +1000,11 @@ async fn create_v1_address<R: Rpc, I: Indexer>(
     for _ in 0..num_addresses {
         let seed = rng.gen::<[u8; 32]>();
         seeds.push(seed);
-        let address = derive_address_legacy(merkle_tree_pubkey, &seed).unwrap();
+        let address = derive_address_legacy(
+            &light_compressed_account::Pubkey::from(*merkle_tree_pubkey),
+            &seed,
+        )
+        .unwrap();
         address_proof_inputs.push(AddressWithTree {
             address,
             tree: *merkle_tree_pubkey,
@@ -1018,8 +1022,8 @@ async fn create_v1_address<R: Rpc, I: Indexer>(
     {
         new_address_params.push(NewAddressParams {
             seed: *seed,
-            address_queue_pubkey: *queue,
-            address_merkle_tree_pubkey: *merkle_tree_pubkey,
+            address_queue_pubkey: (*queue).into(),
+            address_merkle_tree_pubkey: (*merkle_tree_pubkey).into(),
             address_merkle_tree_root_index: *root_index,
         });
     }

@@ -5,7 +5,10 @@ use light_merkle_tree_metadata::{
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
 
-use crate::{errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount, state_merkle_tree_from_bytes_zero_copy_init};
+use crate::{
+    errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount,
+    state_merkle_tree_from_bytes_zero_copy_init,
+};
 
 #[allow(unused_variables)]
 pub fn process_initialize_state_merkle_tree(

@@ -46,11 +46,13 @@ pub fn create_pda<const BATCHED: bool>(
         let address_seed = hashv_to_bn254_field_size_be_const_array::<3>(&[
             b"compressed",
             instruction_data.data.as_slice(),
-        ])
-        .map_err(|e| LightSdkError::Hasher(e))?;
+        ])?;
         msg!(format!("address_seed: {:?}", address_seed).as_str());
-        let address =
-            light_sdk_pinocchio::address::derive_address(&address_seed, index, &crate::ID);
+        let address = light_sdk_pinocchio::light_compressed_account::address::derive_address(
+            &address_seed,
+            index,
+            &crate::ID,
+        );
         msg!(format!("address: {:?}", address).as_str());
         (address, address_seed)
     } else {
@@ -70,9 +72,8 @@ pub fn create_pda<const BATCHED: bool>(
         address_merkle_tree_account_index: address_tree_info.address_merkle_tree_pubkey_index,
     };
 
-    let program_id = crate::ID.into();
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
-        &program_id,
+        &crate::ID,
         Some(address),
         instruction_data.output_merkle_tree_index,
     );

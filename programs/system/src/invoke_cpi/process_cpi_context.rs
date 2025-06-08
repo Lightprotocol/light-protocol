@@ -188,7 +188,9 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
         return Err(SystemProgramError::NoInputs.into());
     };
 
-    if *cpi_context_account.associated_merkle_tree != light_compressed_account::Pubkey::from(first_merkle_tree_pubkey) {
+    if *cpi_context_account.associated_merkle_tree
+        != light_compressed_account::Pubkey::from(first_merkle_tree_pubkey)
+    {
         msg!(format!(
             "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
             first_merkle_tree_pubkey, cpi_context_account.associated_merkle_tree

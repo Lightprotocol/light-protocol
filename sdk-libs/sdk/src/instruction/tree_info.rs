@@ -137,6 +137,8 @@ pub fn unpack_address_tree_info(
 #[cfg(test)]
 mod test {
 
+    use light_compressed_account::Pubkey;
+
     use super::*;
 
     #[test]
@@ -169,7 +171,7 @@ mod test {
     #[test]
     fn test_pack_merkle_contexts() {
         let mut remaining_accounts = PackedAccounts::default();
-
+        use light_compressed_account::Pubkey;
         let merkle_contexts = &[
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
@@ -224,6 +226,7 @@ mod test {
 
     #[test]
     fn test_pack_address_tree_info() {
+        use solana_pubkey::Pubkey;
         let mut remaining_accounts = PackedAccounts::default();
 
         let address_tree_info = AddressTreeInfo {
@@ -246,7 +249,7 @@ mod test {
     #[test]
     fn test_pack_address_tree_infos() {
         let mut remaining_accounts = PackedAccounts::default();
-
+        use solana_pubkey::Pubkey;
         let address_tree_infos = [
             AddressTreeInfo {
                 address_merkle_tree_pubkey: Pubkey::new_unique(),

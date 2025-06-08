@@ -22,6 +22,7 @@ use light_compressed_token::{
     get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
 };
 use light_system_program::utils::get_registered_program_pda;
+use light_test_utils::e2e_test_env::to_account_metas_light;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 use crate::CreatePdaMode;
@@ -46,9 +47,11 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
 
 pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs) -> Instruction {
     let (cpi_signer, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::id());
-    let mut remaining_accounts = HashMap::new();
+    let mut remaining_accounts = HashMap::<light_compressed_account::Pubkey, usize>::new();
     remaining_accounts.insert(
-        *input_params.output_compressed_account_merkle_tree_pubkey,
+        input_params
+            .output_compressed_account_merkle_tree_pubkey
+            .into(),
         0,
     );
     let new_address_params =
@@ -110,7 +113,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
     };
-    let remaining_accounts = to_account_metas(remaining_accounts);
+    let remaining_accounts = to_account_metas_light(remaining_accounts);
 
     Instruction {
         program_id: crate::ID,

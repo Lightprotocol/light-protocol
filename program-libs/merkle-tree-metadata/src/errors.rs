@@ -37,9 +37,3 @@ impl From<MerkleTreeMetadataError> for u32 {
         }
     }
 }
-
-// impl From<MerkleTreeMetadataError> for crate::ProgramError {
-//     fn from(e: MerkleTreeMetadataError) -> Self {
-//         crate::ProgramError::Custom(e.into())
-//     }
-// }

@@ -3,7 +3,9 @@ use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+// use thiserror::Error;
 
+// #[derive(Error, Debug, Clone, Eq, PartialEq)]
 #[error_code]
 pub enum AccountCompressionErrorCode {
     AddressMerkleTreeAccountDiscriminatorMismatch,
@@ -107,3 +109,9 @@ impl From<IndexedMerkleTreeError> for AccountCompressionErrorCode {
         AccountCompressionErrorCode::IndexedMerkleTreeError
     }
 }
+
+// impl From<AccountCompressionErrorCode> for ProgramError {
+//     fn from(e: AccountCompressionErrorCode) -> ProgramError {
+//         ProgramError::Custom(e as u32 + 6000)
+//     }
+// }

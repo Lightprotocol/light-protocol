@@ -409,7 +409,10 @@ impl LightProgramTest {
             event_from_light_transaction(
                 &program_ids.iter().map(|x| (*x).into()).collect::<Vec<_>>(),
                 vec.as_slice(),
-                vec_accounts.iter().map(|inner_vec| inner_vec.iter().map(|x| (*x).into()).collect()).collect(),
+                vec_accounts
+                    .iter()
+                    .map(|inner_vec| inner_vec.iter().map(|x| (*x).into()).collect())
+                    .collect(),
             )
             .or(Ok::<
                 Option<Vec<BatchPublicTransactionEvent>>,

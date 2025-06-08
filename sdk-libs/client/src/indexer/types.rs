@@ -11,8 +11,8 @@ use light_sdk::{
         pack_accounts::PackedAccounts,
         tree_info::{PackedAddressTreeInfo, PackedStateTreeInfo},
     },
+    light_compressed_account::instruction_data::compressed_proof::CompressedProof,
     token::{AccountState, TokenData},
-    verifier::CompressedProof,
     ValidityProof,
 };
 use num_bigint::BigUint;

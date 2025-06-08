@@ -161,19 +161,18 @@ fn create_compressed_pda_data(
     let compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
         data: timelock_compressed_pda.try_to_vec().unwrap(),
-        data_hash: timelock_compressed_pda
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?,
+        data_hash: timelock_compressed_pda.hash::<Poseidon>().unwrap(),
     };
     let derive_address = derive_address_legacy(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
-            .key(),
+            .key()
+            .into(),
         &new_address_params.seed,
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
     Ok(OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
-            owner: crate::ID,
+            owner: crate::ID.into(),
             lamports: 0,
             address: Some(derive_address),
             data: Some(compressed_account_data),

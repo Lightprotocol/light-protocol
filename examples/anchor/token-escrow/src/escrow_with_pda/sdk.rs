@@ -2,7 +2,6 @@
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_account::{
-    address::add_and_get_remaining_account_indices,
     compressed_account::{CompressedAccount, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
 };
@@ -14,6 +13,7 @@ use light_compressed_token::process_transfer::{
     },
     TokenTransferOutputData,
 };
+use light_test_utils::pack::add_and_get_remaining_account_indices;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 use crate::escrow_with_compressed_pda::sdk::get_token_owner_pda;
@@ -133,7 +133,9 @@ pub fn create_withdrawal_escrow_instruction(
     );
 
     let merkle_tree_indices = add_and_get_remaining_account_indices(
-        input_params.output_compressed_account_merkle_tree_pubkeys,
+        input_params.output_compressed_account_merkle_tree_pubkeys, // .iter()
+        // .map(|pubkey| anchor_lang::prelude::Pubkey::from(pubkey))
+        // .collect::<Vec<_>>()
         &mut remaining_accounts,
     );
 

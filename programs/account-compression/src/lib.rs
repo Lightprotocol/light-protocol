@@ -294,4 +294,3 @@ pub mod account_compression {
         process_migrate_state(&ctx, input)
     }
 }
-

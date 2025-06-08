@@ -1,11 +1,18 @@
+use light_compressed_account::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+    },
+    discriminators::DISCRIMINATOR_INVOKE_CPI,
+    instruction_data::{
+        cpi_context::CompressedCpiContext,
+        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_account_info::CompressedAccountInfo,
+    },
+};
 use pinocchio::{cpi::slice_invoke_signed, msg, pubkey::Pubkey};
 
 use crate::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, CompressedAccountInfo, CompressedCpiContext,
-        InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
-        PackedCompressedAccountWithMerkleContext, DISCRIMINATOR_INVOKE_CPI,
-    },
     cpi::CpiAccounts,
     error::{LightSdkError, Result},
     find_cpi_signer_macro, BorshSerialize, ValidityProof, CPI_AUTHORITY_PDA_SEED,
@@ -38,7 +45,7 @@ impl CompressedAccountInfoExt for CompressedAccountInfo {
                 });
                 Ok(Some(PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
-                        owner,
+                        owner: owner.into(),
                         lamports: input.lamports,
                         address: self.address,
                         data,
@@ -65,7 +72,7 @@ impl CompressedAccountInfoExt for CompressedAccountInfo {
                 });
                 Ok(Some(OutputCompressedAccountWithPackedContext {
                     compressed_account: CompressedAccount {
-                        owner,
+                        owner: owner.into(),
                         lamports: output.lamports,
                         address: self.address,
                         data,
@@ -82,7 +89,7 @@ impl CompressedAccountInfoExt for CompressedAccountInfo {
 pub struct CpiInputs {
     pub proof: ValidityProof,
     pub account_infos: Option<Vec<CompressedAccountInfo>>,
-    pub new_addresses: Option<Vec<crate::NewAddressParamsPacked>>,
+    pub new_addresses: Option<Vec<NewAddressParamsPacked>>,
     pub compress_or_decompress_lamports: Option<u64>,
     pub is_compress: bool,
     pub cpi_context: Option<CompressedCpiContext>,
@@ -100,7 +107,7 @@ impl CpiInputs {
     pub fn new_with_address(
         proof: ValidityProof,
         account_infos: Vec<CompressedAccountInfo>,
-        new_addresses: Vec<crate::NewAddressParamsPacked>,
+        new_addresses: Vec<NewAddressParamsPacked>,
     ) -> Self {
         Self {
             proof,
@@ -146,7 +153,7 @@ pub fn light_system_progam_instruction_invoke_cpi(
         };
 
     let inputs = InstructionDataInvokeCpi {
-        proof: cpi_inputs.proof.into(),
+        proof: cpi_inputs.proof.0,
         new_address_params: cpi_inputs.new_addresses.unwrap_or_default(),
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
