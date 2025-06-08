@@ -11,7 +11,7 @@ use light_indexed_merkle_tree::{
     reference::IndexedMerkleTree,
 };
 use light_prover_client::proof_types::non_inclusion::v2::NonInclusionMerkleProofInputs;
-use light_sdk::STATE_MERKLE_TREE_ROOTS;
+use light_sdk::constants::STATE_MERKLE_TREE_ROOTS;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
 

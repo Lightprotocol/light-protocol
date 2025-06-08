@@ -1,63 +1,50 @@
-use light_compressed_account::instruction_data::data::{
-    NewAddressParams, NewAddressParamsPacked as PackedNewAddressParams,
+//! ## Addresses
+//! Address seed is 32 bytes. Multiple seeds are hashed
+//! into a single 32 bytes seed that is passed into the light system program for address creation.
+//! Addresses are created independently from compressed accounts.
+//! This means that an address can be used in a compressed account but does not have to be used.
+//!
+//! ### Address uniqueness
+//! Every address can only be created once per address tree.
+//! Addresses over all address trees are unique but
+//! address seeds can be reused in different address trees.
+//! If your program security requires global address uniqueness over all address trees,
+//! the used address Merkle tree must be checked.
+//! If your program just requires addresses to identify accounts but not uniqueness over all address trees
+//! the used address Merkle tree does not need to be checked.
+//!
+//!
+//! ### Create address example
+//! ```ignore
+//! let packed_address_tree_info = instruction_data.address_tree_info;
+//! let tree_acounts = cpi_accounts.tree_accounts();
+//!
+//! let address_tree_pubkey = tree_acounts[address_tree_info
+//!    .address_merkle_tree_pubkey_index as usize]
+//!    .key();
+//!
+//! let (address, address_seed) = derive_address(
+//!     &[b"counter"],
+//!     &address_tree_pubkey,
+//!     &crate::ID,
+//! );
+//!
+//! // Used in cpi to light-system program
+//! // to insert the new address into the address merkle tree.
+//! let new_address_params = packed_address_tree_info
+//!     .into_new_address_params_packed(address_seed);
+//! ```
+
+pub use light_compressed_account::instruction_data::data::NewAddressParams;
+/// Struct passed into the light system program cpi to create a new address.
+pub use light_compressed_account::instruction_data::data::NewAddressParamsPacked as PackedNewAddressParams;
+#[cfg(feature = "v2")]
+pub use light_compressed_account::instruction_data::data::{
+    NewAddressParamsAssigned, NewAddressParamsAssignedPacked, PackedReadOnlyAddress,
+    ReadOnlyAddress,
 };
-
-use crate::{
-    instruction::{pack_accounts::PackedAccounts, tree_info::AddressTreeInfo},
-    AccountInfo,
-};
-
-pub struct AddressWithMerkleContext {
-    pub address: [u8; 32],
-    pub address_tree_info: AddressTreeInfo,
-}
-
-pub fn pack_new_addresses_params(
-    addresses_params: &[NewAddressParams],
-    remaining_accounts: &mut PackedAccounts,
-) -> Vec<PackedNewAddressParams> {
-    addresses_params
-        .iter()
-        .map(|x| {
-            let address_queue_account_index =
-                remaining_accounts.insert_or_get(x.address_queue_pubkey.to_bytes().into());
-            let address_merkle_tree_account_index =
-                remaining_accounts.insert_or_get(x.address_merkle_tree_pubkey.to_bytes().into());
-            PackedNewAddressParams {
-                seed: x.seed,
-                address_queue_account_index,
-                address_merkle_tree_account_index,
-                address_merkle_tree_root_index: x.address_merkle_tree_root_index,
-            }
-        })
-        .collect::<Vec<_>>()
-}
-
-pub fn pack_new_address_params(
-    address_params: NewAddressParams,
-    remaining_accounts: &mut PackedAccounts,
-) -> PackedNewAddressParams {
-    pack_new_addresses_params(&[address_params], remaining_accounts)[0]
-}
-
-pub fn unpack_new_address_params(
-    address_params: &PackedNewAddressParams,
-    remaining_accounts: &[AccountInfo],
-) -> NewAddressParams {
-    let address_merkle_tree_pubkey =
-        remaining_accounts[address_params.address_merkle_tree_account_index as usize].key;
-    let address_queue_pubkey =
-        remaining_accounts[address_params.address_queue_account_index as usize].key;
-    NewAddressParams {
-        seed: address_params.seed,
-        address_queue_pubkey: address_queue_pubkey.to_bytes().into(),
-        address_merkle_tree_pubkey: address_merkle_tree_pubkey.to_bytes().into(),
-        address_merkle_tree_root_index: address_params.address_merkle_tree_root_index,
-    }
-}
 
 pub mod v1 {
-    use light_hasher::{hash_to_field_size::hashv_to_bn254_field_size_be, Hasher, Keccak};
 
     use crate::Pubkey;
 
@@ -75,33 +62,7 @@ pub mod v1 {
     /// );
     /// ```
     pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
-        let mut inputs = Vec::with_capacity(seeds.len() + 1);
-
-        let program_id = program_id.to_bytes();
-        inputs.push(program_id.as_slice());
-
-        inputs.extend(seeds);
-
-        let seed = hashv_to_bn254_field_size_be_legacy(inputs.as_slice());
-        seed
-    }
-
-    fn hashv_to_bn254_field_size_be_legacy(bytes: &[&[u8]]) -> [u8; 32] {
-        let mut hashed_value: [u8; 32] = Keccak::hashv(bytes).unwrap();
-        // Truncates to 31 bytes so that value is less than bn254 Fr modulo
-        // field size.
-        hashed_value[0] = 0;
-        hashed_value
-    }
-
-    /// Derives an address for a compressed account, based on the provided singular
-    /// `seed` and `merkle_tree_pubkey`:
-    pub(crate) fn derive_address_from_seed(
-        address_seed: &[u8; 32],
-        merkle_tree_pubkey: &Pubkey,
-    ) -> [u8; 32] {
-        let input = [merkle_tree_pubkey.to_bytes(), *address_seed].concat();
-        hashv_to_bn254_field_size_be(&[input.as_slice()])
+        light_sdk_types::address::v1::derive_address_seed(seeds, &program_id.to_bytes())
     }
 
     /// Derives an address from provided seeds. Returns that address and a singular
@@ -127,10 +88,11 @@ pub mod v1 {
         merkle_tree_pubkey: &Pubkey,
         program_id: &Pubkey,
     ) -> ([u8; 32], [u8; 32]) {
-        let address_seed = derive_address_seed(seeds, program_id);
-        let address = derive_address_from_seed(&address_seed, merkle_tree_pubkey);
-
-        (address, address_seed)
+        light_sdk_types::address::v1::derive_address(
+            seeds,
+            &merkle_tree_pubkey.to_bytes(),
+            &program_id.to_bytes(),
+        )
     }
 }
 
@@ -138,7 +100,8 @@ pub mod v1 {
 mod test {
     use solana_pubkey::pubkey;
 
-    use super::{v1::*, *};
+    use super::v1::*;
+    use crate::instruction::AddressTreeInfo;
 
     #[test]
     fn test_derive_address_seed() {
@@ -180,9 +143,6 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address =
-            derive_address_from_seed(&address_seed, &address_tree_info.address_merkle_tree_pubkey);
-        assert_eq!(address, expected_address.to_bytes());
         let (address, address_seed) = derive_address(
             seeds,
             &address_tree_info.address_merkle_tree_pubkey,
@@ -200,9 +160,6 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address =
-            derive_address_from_seed(&address_seed, &address_tree_info.address_merkle_tree_pubkey);
-        assert_eq!(address, expected_address.to_bytes());
         let (address, address_seed) = derive_address(
             seeds,
             &address_tree_info.address_merkle_tree_pubkey,

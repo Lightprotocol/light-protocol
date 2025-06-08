@@ -11,31 +11,22 @@ crate-type = ["cdylib", "lib"]
 name = "light_sdk"
 
 [features]
-solana = [
-    "solana-cpi",
-    "solana-instruction",
-    "solana-pubkey",
-    "solana-pubkey/borsh",
-    "solana-pubkey/curve25519",
-    "solana-pubkey/sha2",
-    "solana-account-info",
-    "solana-msg",
-    "solana-program-error",
-    "borsh",
-    "light-compressed-account/solana",
-]
-default = ["solana"]
+default = ["borsh"]
 idl-build = ["anchor-lang/idl-build"]
-anchor = ["anchor-lang", "light-compressed-account/anchor"]
+anchor = [
+    "anchor-lang",
+    "light-compressed-account/anchor",
+    "light-sdk-types/anchor",
+]
 v2 = []
 
 [dependencies]
-solana-pubkey = { workspace = true, optional = true }
-solana-account-info = { workspace = true, optional = true }
-solana-msg = { workspace = true, optional = true }
-solana-cpi = { workspace = true, optional = true }
-solana-program-error = { workspace = true, optional = true }
-solana-instruction = { workspace = true, optional = true }
+solana-pubkey = { workspace = true, features = ["borsh", "sha2", "curve25519"] }
+solana-account-info = { workspace = true }
+solana-msg = { workspace = true }
+solana-cpi = { workspace = true }
+solana-program-error = { workspace = true }
+solana-instruction = { workspace = true }
 
 anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }
@@ -45,11 +36,13 @@ borsh = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 light-sdk-macros = { workspace = true }
+light-sdk-types = { workspace = true }
 light-macros = { workspace = true }
 light-compressed-account = { workspace = true }
 light-hasher = { workspace = true }
 light-account-checks = { workspace = true }
+light-zero-copy = { workspace = true }
 
 [dev-dependencies]
 num-bigint = { workspace = true }
-light-compressed-account = { workspace = true , features = ["new-unique"]}
+light-compressed-account = { workspace = true, features = ["new-unique"] }

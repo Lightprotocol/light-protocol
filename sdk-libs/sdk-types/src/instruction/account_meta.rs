@@ -1,4 +1,5 @@
-use crate::{instruction::tree_info::PackedStateTreeInfo, AnchorDeserialize, AnchorSerialize};
+use super::tree_info::PackedStateTreeInfo;
+use crate::{AnchorDeserialize, AnchorSerialize};
 
 /// CompressedAccountMeta (context, address, root_index, output_state_tree_index)
 /// CompressedAccountMetaNoLamportsNoAddress (context, root_index, output_state_tree_index)

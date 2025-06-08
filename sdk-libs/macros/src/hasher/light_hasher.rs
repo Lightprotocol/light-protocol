@@ -125,17 +125,15 @@ impl ::light_hasher::DataHasher for MyAccount {
         use ::light_hasher::Hasher;
         use ::light_hasher::to_byte_array::ToByteArray;
         #[cfg(debug_assertions)]
-       {
+        {
             if std::env::var("RUST_BACKTRACE").is_ok() {
-                let debug_prints: Vec<[u8;32]> = vec![
-                    self.a.to_byte_array()?,
-                    self.b.to_byte_array()?,
-                    self.c.to_byte_array()?,
-                    self.d.to_byte_array()?,
+                let debug_prints: Vec<[u8; 32]> = vec![
+                    self.a.to_byte_array() ?, self.b.to_byte_array() ?, self.c
+                    .to_byte_array() ?, self.d.to_byte_array() ?,
                 ];
+                println!("DataHasher::hash inputs {:?}", debug_prints);
             }
-           println!("DataHasher::hash inputs {:?}", debug_prints);
-       }
+        }
         H::hashv(
             &[
                 self.a.to_byte_array()?.as_slice(),

@@ -140,13 +140,6 @@ impl LightProgramTest {
         self.test_accounts.v1_state_trees[0]
     }
 
-    #[cfg(feature = "v2")]
-    pub fn get_state_merkle_tree_v2(
-        &self,
-    ) -> crate::accounts::test_accounts::StateMerkleTreeAccountsV2 {
-        self.test_accounts.v2_state_trees[0]
-    }
-
     pub fn get_address_merkle_tree(&self) -> AddressMerkleTreeAccounts {
         self.test_accounts.v1_address_trees[0]
     }

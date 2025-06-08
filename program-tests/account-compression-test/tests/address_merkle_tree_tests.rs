@@ -18,7 +18,6 @@ use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
     accounts::address_tree::create_initialize_address_merkle_tree_and_queue_instruction,
     indexer::address_tree::AddressMerkleTreeBundle, program_test::LightProgramTest,
@@ -1285,7 +1284,8 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
+        // MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -1304,7 +1304,8 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
+        // MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -1356,7 +1357,8 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
+        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
+        // MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
     )
     .unwrap();
 }

@@ -620,12 +620,7 @@ pub async fn compressed_transfer_22_test<
         &authority_signer.pubkey(), // authority
         &input_merkle_tree_context,
         &output_compressed_accounts,
-        &rpc_result
-            .value
-            .accounts
-            .iter()
-            .map(|x| x.root_index)
-            .collect::<Vec<_>>(),
+        &rpc_result.value.get_root_indices(),
         &rpc_result.value.proof.0,
         input_compressed_account_token_data
             .iter()
@@ -795,8 +790,8 @@ pub async fn decompress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexe
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
-            .collect::<Vec<_>>(), // root_indices
+            .map(|x| x.root_index.root_index())
+            .collect::<Vec<_>>(),
         &Some(proof_rpc_result.value.proof.0.unwrap_or_default()),
         input_compressed_accounts
             .iter()
@@ -1190,7 +1185,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         proof: proof_rpc_result.value.proof.0.unwrap_or_default(),
     };
@@ -1355,7 +1350,7 @@ pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         proof: proof_rpc_result.value.proof.0.unwrap_or_default(),
     };
@@ -1521,7 +1516,7 @@ pub async fn freeze_or_thaw_test<
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         proof: proof_rpc_result.value.proof.0.unwrap_or_default(),
     };
@@ -1825,7 +1820,7 @@ pub async fn create_burn_test_instruction<R: Rpc + Indexer, I: Indexer + TestInd
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         proof,
         mint,

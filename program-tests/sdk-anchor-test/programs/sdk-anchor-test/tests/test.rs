@@ -1,6 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
-use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_lang::AnchorDeserialize;
 use light_client::indexer::CompressedAccount;
 use light_program_test::{
     indexer::TestIndexerExtensions, program_test::LightProgramTest, AddressWithTree, Indexer,
@@ -8,15 +8,12 @@ use light_program_test::{
 };
 use light_sdk::{
     address::v1::derive_address,
-    instruction::{
-        account_meta::CompressedAccountMeta, accounts::SystemAccountMetaConfig,
-        pack_accounts::PackedAccounts,
-    },
+    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
 };
 use light_test_utils::{Rpc, RpcError};
 use sdk_anchor_test::{MyCompressedAccount, NestedData};
 use solana_sdk::{
-    instruction::Instruction,
+    instruction::{AccountMeta, Instruction},
     signature::{Keypair, Signature, Signer},
 };
 
@@ -29,15 +26,13 @@ async fn test_sdk_test() {
 
     let address_tree_info = rpc.get_address_tree_v1();
 
-    rpc.get_state_merkle_tree_account();
-
     let (address, _) = derive_address(
         &[b"compressed", b"test".as_slice()],
         &address_tree_info.tree,
         &sdk_anchor_test::ID,
     );
 
-    with_nested_data("test".to_string(), &mut rpc, &payer, &address)
+    create_compressed_account("test".to_string(), &mut rpc, &payer, &address)
         .await
         .unwrap();
 
@@ -52,7 +47,7 @@ async fn test_sdk_test() {
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.nested.one, 1);
 
-    update_nested_data(
+    update_compressed_account(
         &mut rpc,
         NestedData {
             one: 2,
@@ -89,7 +84,7 @@ async fn test_sdk_test() {
     assert_eq!(record.nested.one, 2);
 }
 
-async fn with_nested_data(
+async fn create_compressed_account(
     name: String,
     rpc: &mut LightProgramTest,
     payer: &Keypair,
@@ -121,28 +116,30 @@ async fn with_nested_data(
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
-    let instruction_data = sdk_anchor_test::instruction::WithNestedData {
-        proof: rpc_result.proof,
-        address_tree_info: packed_accounts.address_trees[0],
-        name,
-        output_tree_index,
-    };
-
-    let accounts = sdk_anchor_test::accounts::WithNestedData {
-        signer: payer.pubkey(),
-    };
-
     let instruction = Instruction {
         program_id: sdk_anchor_test::ID,
-        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-        data: instruction_data.data(),
+        accounts: [
+            vec![AccountMeta::new(payer.pubkey(), true)],
+            remaining_accounts,
+        ]
+        .concat(),
+        data: {
+            use anchor_lang::InstructionData;
+            sdk_anchor_test::instruction::CreateCompressedAccount {
+                proof: rpc_result.proof,
+                address_tree_info: packed_accounts.address_trees[0],
+                output_tree_index,
+                name,
+            }
+            .data()
+        },
     };
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
 }
 
-async fn update_nested_data(
+async fn update_compressed_account(
     rpc: &mut LightProgramTest,
     nested_data: NestedData,
     payer: &Keypair,
@@ -170,25 +167,27 @@ async fn update_nested_data(
         &mut compressed_account.data.as_mut().unwrap().data.as_slice(),
     )
     .unwrap();
-    let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
-        proof: rpc_result.proof,
-        my_compressed_account,
-        account_meta: CompressedAccountMeta {
-            tree_info: packed_tree_accounts.packed_tree_infos[0],
-            address: compressed_account.address.unwrap(),
-            output_state_tree_index: packed_tree_accounts.output_tree_index,
-        },
-        nested_data,
-    };
-
-    let accounts = sdk_anchor_test::accounts::UpdateNestedData {
-        signer: payer.pubkey(),
-    };
-
     let instruction = Instruction {
         program_id: sdk_anchor_test::ID,
-        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-        data: instruction_data.data(),
+        accounts: [
+            vec![AccountMeta::new(payer.pubkey(), true)],
+            remaining_accounts,
+        ]
+        .concat(),
+        data: {
+            use anchor_lang::InstructionData;
+            sdk_anchor_test::instruction::UpdateCompressedAccount {
+                proof: rpc_result.proof,
+                my_compressed_account,
+                account_meta: CompressedAccountMeta {
+                    tree_info: packed_tree_accounts.packed_tree_infos[0],
+                    address: compressed_account.address.unwrap(),
+                    output_state_tree_index: packed_tree_accounts.output_tree_index,
+                },
+                nested_data,
+            }
+            .data()
+        },
     };
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])

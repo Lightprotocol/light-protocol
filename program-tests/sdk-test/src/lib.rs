@@ -1,5 +1,5 @@
 use light_macros::pubkey;
-use light_sdk::error::LightSdkError;
+use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer, error::LightSdkError};
 use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey,
 };
@@ -8,6 +8,8 @@ pub mod create_pda;
 pub mod update_pda;
 
 pub const ID: Pubkey = pubkey!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 entrypoint!(process_instruction);
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    instruction::accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    instruction::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
     AccountMeta, Pubkey,
 };
 
@@ -102,7 +102,7 @@ impl PackedAccounts {
     }
 
     /// Converts the collection of accounts to a vector of
-    /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
+    /// [`AccountMeta`](solana_instruction::AccountMeta), which can be used
     /// as remaining accounts in instructions or CPI calls.
     pub fn to_account_metas(&self) -> (Vec<AccountMeta>, usize, usize) {
         let packed_accounts = self.hash_set_accounts_to_metas();

@@ -13,6 +13,7 @@ use light_compressed_token::process_transfer::{
     transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
     TokenTransferOutputData,
 };
+use light_sdk::{constants::CPI_AUTHORITY_PDA_SEED, find_cpi_signer_macro};
 use light_test_utils::pack::{
     add_and_get_remaining_account_indices, pack_merkle_context, pack_new_address_params,
 };
@@ -98,7 +99,7 @@ pub fn create_escrow_instruction(
     let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
-    let cpi_authority_pda = light_sdk::utils::get_cpi_authority_pda(&crate::ID);
+    let cpi_authority_pda = find_cpi_signer_macro!(&crate::ID).0;
 
     let accounts = crate::accounts::EscrowCompressedTokensWithCompressedPda {
         signer: *input_params.signer,

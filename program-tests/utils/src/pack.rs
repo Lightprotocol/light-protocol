@@ -6,11 +6,13 @@ use light_compressed_account::{
         PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
         PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
     },
-    instruction_data::data::{NewAddressParams, ReadOnlyAddress},
+    instruction_data::data::{
+        NewAddressParams, OutputCompressedAccountWithPackedContext, ReadOnlyAddress,
+    },
 };
-use light_sdk::{
-    NewAddressParamsAssigned, NewAddressParamsAssignedPacked, NewAddressParamsPacked,
-    OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+use light_sdk::address::{
+    NewAddressParamsAssigned, NewAddressParamsAssignedPacked, PackedNewAddressParams,
+    PackedReadOnlyAddress,
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -82,16 +84,16 @@ pub fn pack_read_only_accounts(
 pub fn pack_new_address_params(
     new_address_params: &[NewAddressParams],
     remaining_accounts: &mut HashMap<Pubkey, usize>,
-) -> Vec<NewAddressParamsPacked> {
+) -> Vec<PackedNewAddressParams> {
     let mut new_address_params_packed = new_address_params
         .iter()
-        .map(|x| NewAddressParamsPacked {
+        .map(|x| PackedNewAddressParams {
             seed: x.seed,
             address_merkle_tree_root_index: x.address_merkle_tree_root_index,
             address_merkle_tree_account_index: 0, // will be assigned later
             address_queue_account_index: 0,       // will be assigned later
         })
-        .collect::<Vec<NewAddressParamsPacked>>();
+        .collect::<Vec<PackedNewAddressParams>>();
     let mut next_index: usize = remaining_accounts.len();
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_merkle_tree_pubkey.into()) {

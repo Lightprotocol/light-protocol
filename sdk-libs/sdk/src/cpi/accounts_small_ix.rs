@@ -1,5 +1,9 @@
 #![cfg(feature = "v2")]
-use crate::{cpi::CpiAccountsConfig, error::Result, msg, AccountInfo, AccountMeta, Pubkey};
+use crate::{
+    cpi::{CpiAccountsConfig, CpiSigner},
+    error::Result,
+    msg, AccountInfo, AccountMeta, Pubkey,
+};
 
 #[repr(usize)]
 pub enum CompressionCpiAccountIndexSmall {
@@ -30,7 +34,7 @@ impl<'c, 'info> CpiAccountsSmall<'c, 'info> {
     pub fn new(
         fee_payer: &'c AccountInfo<'info>,
         accounts: &'c [AccountInfo<'info>],
-        program_id: Pubkey,
+        cpi_signer: CpiSigner,
     ) -> Result<Self> {
         // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
         //     msg!("accounts len {}", accounts.len());
@@ -39,10 +43,7 @@ impl<'c, 'info> CpiAccountsSmall<'c, 'info> {
         Ok(Self {
             fee_payer,
             accounts,
-            config: CpiAccountsConfig {
-                self_program: program_id,
-                ..Default::default()
-            },
+            config: CpiAccountsConfig::new(cpi_signer),
         })
     }
 
@@ -73,8 +74,8 @@ impl<'c, 'info> CpiAccountsSmall<'c, 'info> {
             .unwrap()
     }
 
-    pub fn self_program_id(&self) -> &Pubkey {
-        &self.config.self_program
+    pub fn self_program_id(&self) -> Pubkey {
+        Pubkey::new_from_array(self.config.cpi_signer.program_id)
     }
 
     /// Account infos for cpi to light system program.

@@ -1,21 +1,18 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    cpi::{
-        create_light_system_progam_instruction_invoke_cpi, invoke_light_system_program,
-        CpiAccounts, CpiAccountsConfig, CpiInputs,
-    },
+    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
     error::LightSdkError,
-    hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    instruction::tree_info::PackedAddressTreeInfo,
-    LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
+    instruction::{PackedAddressTreeInfo, ValidityProof},
+    light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
+    LightDiscriminator, LightHasher,
 };
 use solana_program::account_info::AccountInfo;
 
+/// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU
-/// - total with V1 tree: 307,784 CU
-/// - total with V2 tree: 138,876 CU
+/// - total with V2 tree: 45,758 CU
 pub fn create_pda<const BATCHED: bool>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -23,12 +20,7 @@ pub fn create_pda<const BATCHED: bool>(
     let mut instruction_data = instruction_data;
     let instruction_data = CreatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
-    let config = CpiAccountsConfig {
-        self_program: crate::ID,
-        cpi_context: false,
-        sol_pool_pda: false,
-        sol_compression_recipient: false,
-    };
+    let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
     let cpi_accounts = CpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
@@ -62,12 +54,7 @@ pub fn create_pda<const BATCHED: bool>(
             &crate::ID,
         )
     };
-    let new_address_params = NewAddressParamsPacked {
-        seed: address_seed,
-        address_queue_account_index: address_tree_info.address_queue_pubkey_index,
-        address_merkle_tree_root_index: address_tree_info.root_index,
-        address_merkle_tree_account_index: address_tree_info.address_merkle_tree_pubkey_index,
-    };
+    let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
         &crate::ID,
@@ -82,9 +69,7 @@ pub fn create_pda<const BATCHED: bool>(
         vec![my_compressed_account.to_account_info()?],
         vec![new_address_params],
     );
-    let instruction = create_light_system_progam_instruction_invoke_cpi(cpi_inputs, &cpi_accounts)?;
-
-    invoke_light_system_program(&crate::ID, &cpi_accounts.to_account_infos(), instruction)?;
+    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
     Ok(())
 }
 

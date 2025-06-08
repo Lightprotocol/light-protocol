@@ -1,0 +1,25 @@
+[package]
+name = "light-sdk-types"
+version = "0.9.1"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/lightprotocol/light-protocol"
+description = "Core types for Light Protocol SDK"
+
+[features]
+anchor = ["anchor-lang", "light-compressed-account/anchor"]
+
+[dependencies]
+anchor-lang = { workspace = true, optional = true }
+# Light Protocol dependencies
+light-hasher = { workspace = true }
+light-compressed-account = { workspace = true }
+light-macros = { workspace = true }
+light-zero-copy = { workspace = true }
+
+# External dependencies
+borsh = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+solana-pubkey = { workspace = true }

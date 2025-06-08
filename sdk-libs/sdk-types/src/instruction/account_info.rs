@@ -7,10 +7,11 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext,
         with_account_info::{CompressedAccountInfo, InAccountInfo},
     },
-    CompressedAccountError,
+    Pubkey,
 };
 
-use crate::{error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, msg};
+use super::account_meta::CompressedAccountMetaTrait;
+use crate::error::LightSdkTypesError;
 
 pub trait InAccountInfoTrait {
     fn input_meta<T: CompressedAccountMetaTrait>(
@@ -52,7 +53,7 @@ pub trait AccountInfoTrait {
         discriminator: [u8; 8],
         address: Option<[u8; 32]>,
         output_state_tree_index: u8,
-    ) -> Result<(), CompressedAccountError>;
+    ) -> Result<(), LightSdkTypesError>;
 
     fn meta_mut<M: CompressedAccountMetaTrait>(
         &mut self,
@@ -60,22 +61,22 @@ pub trait AccountInfoTrait {
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
         output_state_tree_index: u8,
-    ) -> Result<(), CompressedAccountError>;
+    ) -> Result<(), LightSdkTypesError>;
 
     fn meta_close<M: CompressedAccountMetaTrait>(
         &mut self,
         input_account_meta: &M,
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
-    ) -> Result<(), CompressedAccountError>;
+    ) -> Result<(), LightSdkTypesError>;
     fn input_compressed_account(
         &self,
-        owner: crate::Pubkey,
-    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkError>;
+        owner: Pubkey,
+    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkTypesError>;
     fn output_compressed_account(
         &self,
-        owner: crate::Pubkey,
-    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkError>;
+        owner: Pubkey,
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkTypesError>;
 }
 
 impl AccountInfoTrait for CompressedAccountInfo {
@@ -87,24 +88,21 @@ impl AccountInfoTrait for CompressedAccountInfo {
         discriminator: [u8; 8],
         address: Option<[u8; 32]>,
         output_state_tree_index: u8,
-    ) -> Result<(), CompressedAccountError> {
+    ) -> Result<(), LightSdkTypesError> {
         if let Some(self_address) = self.address.as_mut() {
             if let Some(address) = address {
                 self_address.copy_from_slice(&address);
             } else {
-                msg!("init: address is none");
-                return Err(CompressedAccountError::InvalidAccountSize);
+                return Err(LightSdkTypesError::InitAddressIsNone);
             }
         } else {
-            msg!("init_with_address: address is none");
-            return Err(CompressedAccountError::InvalidAccountSize);
+            return Err(LightSdkTypesError::InitWithAddressIsNone);
         }
         if let Some(output) = self.output.as_mut() {
             output.output_merkle_tree_index = output_state_tree_index;
             output.discriminator = discriminator;
         } else {
-            msg!("init_with_address: output is none");
-            return Err(CompressedAccountError::InvalidAccountSize);
+            return Err(LightSdkTypesError::InitWithAddressOutputIsNone);
         }
         Ok(())
     }
@@ -115,24 +113,21 @@ impl AccountInfoTrait for CompressedAccountInfo {
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
         output_state_tree_index: u8,
-    ) -> Result<(), CompressedAccountError> {
+    ) -> Result<(), LightSdkTypesError> {
         if let Some(self_address) = self.address.as_mut() {
             if let Some(address) = input_account_meta.get_address().as_ref() {
                 *self_address = *address;
             } else {
-                msg!("from_z_meta_mut: address is none");
-                return Err(CompressedAccountError::InvalidAccountSize);
+                return Err(LightSdkTypesError::MetaMutAddressIsNone);
             }
         } else {
-            msg!("from_z_meta_mut: address is none");
-            return Err(CompressedAccountError::InvalidAccountSize);
+            return Err(LightSdkTypesError::MetaCloseAddressIsNone);
         }
 
         if let Some(input) = self.input.as_mut() {
             input.input_meta(input_account_meta, input_data_hash, discriminator);
         } else {
-            msg!("from_z_meta_mut: input is none");
-            return Err(CompressedAccountError::InvalidAccountSize);
+            return Err(LightSdkTypesError::MetaMutInputIsNone);
         }
 
         if let Some(output) = self.output.as_mut() {
@@ -142,12 +137,10 @@ impl AccountInfoTrait for CompressedAccountInfo {
             if let Some(input_lamports) = input_account_meta.get_lamports() {
                 output.lamports = input_lamports;
             } else {
-                msg!("from_z_meta_mut: output lamports is none");
-                return Err(CompressedAccountError::InvalidAccountSize);
+                return Err(LightSdkTypesError::MetaMutOutputLamportsIsNone);
             }
         } else {
-            msg!("from_z_meta_mut: output is none");
-            return Err(CompressedAccountError::InvalidAccountSize);
+            return Err(LightSdkTypesError::MetaMutOutputIsNone);
         }
         Ok(())
     }
@@ -157,24 +150,21 @@ impl AccountInfoTrait for CompressedAccountInfo {
         input_account_meta: &M,
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
-    ) -> Result<(), CompressedAccountError> {
+    ) -> Result<(), LightSdkTypesError> {
         if let Some(self_address) = self.address.as_mut() {
             if let Some(address) = input_account_meta.get_address() {
                 self_address.copy_from_slice(&address);
             } else {
-                msg!("from_z_meta_mut: address is none");
-                return Err(CompressedAccountError::InvalidAccountSize);
+                return Err(LightSdkTypesError::MetaMutAddressIsNone);
             }
         } else {
-            msg!("from_z_meta_mut: address is none");
-            return Err(CompressedAccountError::InvalidAccountSize);
+            return Err(LightSdkTypesError::MetaCloseAddressIsNone);
         }
 
         if let Some(input) = self.input.as_mut() {
             input.input_meta(input_account_meta, input_data_hash, discriminator);
         } else {
-            msg!("from_z_meta_mut: input is none");
-            return Err(CompressedAccountError::InvalidAccountSize);
+            return Err(LightSdkTypesError::MetaMutInputIsNone);
         }
 
         Ok(())
@@ -182,8 +172,8 @@ impl AccountInfoTrait for CompressedAccountInfo {
 
     fn input_compressed_account(
         &self,
-        owner: crate::Pubkey,
-    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkError> {
+        owner: Pubkey,
+    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkTypesError> {
         match self.input.as_ref() {
             Some(input) => {
                 let data = Some(CompressedAccountData {
@@ -209,8 +199,8 @@ impl AccountInfoTrait for CompressedAccountInfo {
 
     fn output_compressed_account(
         &self,
-        owner: crate::Pubkey,
-    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkError> {
+        owner: Pubkey,
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkTypesError> {
         match self.output.as_ref() {
             Some(output) => {
                 let data = Some(CompressedAccountData {

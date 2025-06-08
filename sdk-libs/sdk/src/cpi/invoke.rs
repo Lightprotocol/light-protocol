@@ -7,13 +7,13 @@ use light_compressed_account::{
         with_account_info::CompressedAccountInfo,
     },
 };
+use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM};
 
 use crate::{
-    account_info::AccountInfoTrait,
     cpi::CpiAccounts,
     error::{LightSdkError, Result},
-    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
-    Pubkey, ValidityProof, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
+    instruction::{account_info::AccountInfoTrait, ValidityProof},
+    invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -52,12 +52,10 @@ impl CpiInputs {
 
     pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts) -> Result<()> {
         let instruction = create_light_system_progam_instruction_invoke_cpi(self, &cpi_accounts)?;
-
-        invoke_light_system_program(
-            cpi_accounts.self_program_id(),
-            cpi_accounts.to_account_infos().as_slice(),
-            instruction,
-        )
+        // sol_log_compute_units();
+        let account_infos: Vec<AccountInfo> = cpi_accounts.to_account_infos();
+        // sol_log_compute_units();
+        invoke_light_system_program(account_infos.as_slice(), instruction, cpi_accounts.bump())
     }
 }
 
@@ -72,10 +70,14 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
                 Vec::with_capacity(account_infos.len());
             let mut output_compressed_accounts = Vec::with_capacity(account_infos.len());
             for account_info in account_infos.iter() {
-                if let Some(input_account) = account_info.input_compressed_account(owner)? {
+                if let Some(input_account) =
+                    account_info.input_compressed_account(owner.to_bytes().into())?
+                {
                     input_compressed_accounts_with_merkle_context.push(input_account);
                 }
-                if let Some(output_account) = account_info.output_compressed_account(owner)? {
+                if let Some(output_account) =
+                    account_info.output_compressed_account(owner.to_bytes().into())?
+                {
                     output_compressed_accounts.push(output_account);
                 }
             }
@@ -114,7 +116,7 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
 
     let account_metas: Vec<AccountMeta> = cpi_accounts.to_account_metas();
     Ok(Instruction {
-        program_id: PROGRAM_ID_LIGHT_SYSTEM,
+        program_id: PROGRAM_ID_LIGHT_SYSTEM.into(),
         accounts: account_metas,
         data,
     })
@@ -137,24 +139,23 @@ where
 
     let account_metas: Vec<AccountMeta> = light_system_accounts.to_account_metas();
     let instruction = Instruction {
-        program_id: PROGRAM_ID_LIGHT_SYSTEM,
+        program_id: PROGRAM_ID_LIGHT_SYSTEM.into(),
         accounts: account_metas,
         data,
     };
     invoke_light_system_program(
-        light_system_accounts.self_program_id(),
         account_infos.as_slice(),
         instruction,
+        light_system_accounts.bump(),
     )
 }
 
 #[inline(always)]
 pub fn invoke_light_system_program(
-    invoking_program_id: &Pubkey,
     account_infos: &[AccountInfo],
     instruction: Instruction,
+    bump: u8,
 ) -> Result<()> {
-    let (_authority, bump) = find_cpi_signer_macro!(invoking_program_id);
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 
     // TODO: restore but not a priority it is a convenience check

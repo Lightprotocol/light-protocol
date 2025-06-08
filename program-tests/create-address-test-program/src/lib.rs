@@ -7,6 +7,7 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, pubkey::Pubkey},
     InstructionData,
 };
+use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
@@ -16,10 +17,13 @@ use light_compressed_account::instruction_data::{
 use light_sdk::cpi::CpiAccountsConfig;
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
+
 #[program]
 pub mod system_cpi_test {
 
-    use light_sdk::{cpi::invoke_light_system_program, PROGRAM_ID_LIGHT_SYSTEM};
+    use light_sdk::{constants::PROGRAM_ID_LIGHT_SYSTEM, cpi::invoke_light_system_program};
 
     use super::*;
 
@@ -73,11 +77,12 @@ pub mod system_cpi_test {
             (account_infos, account_metas)
         };
         let instruction = Instruction {
-            program_id: PROGRAM_ID_LIGHT_SYSTEM,
+            program_id: PROGRAM_ID_LIGHT_SYSTEM.into(),
             accounts: account_metas,
             data: inputs,
         };
-        invoke_light_system_program(&crate::ID, &account_infos, instruction)
+        let cpi_config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
+        invoke_light_system_program(&account_infos, instruction, cpi_config.bump())
             .map_err(ProgramError::from)?;
         Ok(())
     }

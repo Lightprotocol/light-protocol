@@ -1,33 +1,47 @@
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use light_sdk_types::CpiSigner;
+
 use crate::{
     error::{LightSdkError, Result},
-    AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey,
+    AccountInfo, AccountMeta, Pubkey,
 };
 
-#[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CpiAccountsConfig {
-    pub self_program: Pubkey,
     pub cpi_context: bool,
     pub sol_compression_recipient: bool,
     pub sol_pool_pda: bool,
+    pub cpi_signer: CpiSigner,
 }
 
 impl CpiAccountsConfig {
-    pub fn new(self_program: Pubkey) -> Self {
+    pub fn new(cpi_signer: CpiSigner) -> Self {
         Self {
-            self_program,
             cpi_context: false,
             sol_compression_recipient: false,
             sol_pool_pda: false,
+            cpi_signer,
         }
     }
 
-    pub fn new_with_cpi_context(self_program: Pubkey) -> Self {
+    pub fn new_with_cpi_context(cpi_signer: CpiSigner) -> Self {
         Self {
-            self_program,
             cpi_context: true,
             sol_compression_recipient: false,
             sol_pool_pda: false,
+            cpi_signer,
         }
+    }
+
+    pub fn cpi_signer(&self) -> [u8; 32] {
+        self.cpi_signer.cpi_signer
+    }
+
+    pub fn bump(&self) -> u8 {
+        self.cpi_signer.bump
     }
 }
 
@@ -59,15 +73,12 @@ impl<'c, 'info> CpiAccounts<'c, 'info> {
     pub fn new(
         fee_payer: &'c AccountInfo<'info>,
         accounts: &'c [AccountInfo<'info>],
-        program_id: Pubkey,
+        cpi_signer: CpiSigner,
     ) -> Result<Self> {
         let new = Self {
             fee_payer,
             accounts,
-            config: CpiAccountsConfig {
-                self_program: program_id,
-                ..Default::default()
-            },
+            config: CpiAccountsConfig::new(cpi_signer),
         };
         if accounts.len() < new.system_accounts_len() {
             crate::msg!("accounts len {}", accounts.len());
@@ -118,8 +129,12 @@ impl<'c, 'info> CpiAccounts<'c, 'info> {
             .unwrap()
     }
 
-    pub fn self_program_id(&self) -> &Pubkey {
-        &self.config.self_program
+    pub fn self_program_id(&self) -> Pubkey {
+        Pubkey::new_from_array(self.config.cpi_signer.program_id)
+    }
+
+    pub fn bump(&self) -> u8 {
+        self.config.cpi_signer.bump
     }
 
     pub fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {

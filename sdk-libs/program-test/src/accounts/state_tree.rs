@@ -157,7 +157,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
             &payer.pubkey(),
             ProtocolConfig::default().cpi_context_size as usize,
             rent_cpi_config,
-            &light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
+            &Pubkey::from(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM),
             Some(cpi_context_keypair),
         );
 

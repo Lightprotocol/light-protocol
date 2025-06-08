@@ -21,6 +21,8 @@ members = [
     "sdk-libs/client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
+    "sdk-libs/sdk-pinocchio",
+    "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
     "xtask",
@@ -38,6 +40,7 @@ members = [
     # Issue is that anchor discriminator now returns a slice instead of an array
     "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "program-tests/sdk-test",
+    "program-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
     "program-tests/merkle-tree",
@@ -153,7 +156,9 @@ light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "2
 light-heap = { path = "program-libs/heap", version = "1.1.0" }
 light-prover-client = { path = "prover/client", version = "1.3.0" }
 light-sdk = { path = "sdk-libs/sdk", version = "0.12.0" }
+light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.12.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.6.0" }
+light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.9.1" }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.2.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.2.0" }
 light-verifier = { path = "program-libs/verifier", version = "2.0.0" }

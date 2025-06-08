@@ -175,7 +175,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             BATCHED_DISCRIMINATOR => token_data.hash(),
             _ => panic!(),
         }
-        .map_err(ProgramError::from)?;
+        .map_err(|_| crate::ErrorCode::HashToFieldError)?;
 
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,

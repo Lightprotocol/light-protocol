@@ -272,7 +272,7 @@ pub fn create_output_compressed_accounts(
             &amount_bytes,
             &hashed_delegate,
         )
-        .map_err(ProgramError::from)?;
+        .map_err(|_| crate::ErrorCode::HashToFieldError)?;
         let data = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
@@ -361,7 +361,7 @@ pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
                 &amount_bytes,
                 &hashed_delegate,
             )
-            .map_err(ProgramError::from)?
+            .map_err(|_| crate::ErrorCode::HashToFieldError)?
         } else {
             TokenData::hash_frozen_with_hashed_values(
                 hashed_mint,
@@ -369,7 +369,7 @@ pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
                 &amount_bytes,
                 &hashed_delegate,
             )
-            .map_err(ProgramError::from)?
+            .map_err(|_| crate::ErrorCode::HashToFieldError)?
         };
     }
     Ok(())

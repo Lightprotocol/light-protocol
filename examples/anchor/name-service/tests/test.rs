@@ -20,7 +20,7 @@ use light_sdk::{
         pack_address_merkle_context, pack_merkle_context, AddressTreeInfo, MerkleContext,
         PackedAddressTreeInfo, PackedMerkleContext, PackedAccounts,
     },
-    utils::get_cpi_authority_pda,
+    find_cpi_signer_macro,
     verify::find_cpi_signer,
     PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
@@ -83,7 +83,7 @@ async fn test_name_service() {
     let address_merkle_context =
         pack_address_merkle_context(&address_merkle_context, &mut remaining_accounts);
 
-    let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
+    let account_compression_authority = find_cpi_signer_macro!(&PROGRAM_ID_LIGHT_SYSTEM);
     let registered_program_pda = Pubkey::find_program_address(
         &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
         &PROGRAM_ID_ACCOUNT_COMPRESSION,

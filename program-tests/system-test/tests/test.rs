@@ -234,7 +234,7 @@ pub async fn failing_transaction_inputs(
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>();
         (root_indices, proof_rpc_res.value.proof.0)
     } else {
@@ -1042,7 +1042,7 @@ async fn invoke_test() {
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         &Vec::new(),
         Some(proof),
@@ -1095,7 +1095,7 @@ async fn invoke_test() {
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         &Vec::new(),
         Some(proof),
@@ -1132,7 +1132,7 @@ async fn invoke_test() {
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         &Vec::new(),
         Some(proof),
@@ -1593,7 +1593,7 @@ async fn test_with_compression() {
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         &Vec::new(),
         Some(proof),
@@ -1964,7 +1964,9 @@ async fn batch_invoke_test() {
         // No proof since value is in output queue
         assert!(proof_rpc_result.value.proof.0.is_none());
         // No root index since value is in output queue
-        assert!(proof_rpc_result.value.accounts[0].root_index.is_none());
+        assert!(proof_rpc_result.value.accounts[0]
+            .root_index
+            .proof_by_index());
 
         let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
 
@@ -2186,7 +2188,7 @@ async fn batch_invoke_test() {
                 .value
                 .accounts
                 .iter()
-                .map(|x| x.root_index)
+                .map(|x| x.root_index.root_index())
                 .collect::<Vec<_>>(),
             &Vec::new(),
             Some(proof),
@@ -2483,7 +2485,7 @@ pub async fn double_spend_compressed_account<R: Rpc + Indexer + TestRpc>(
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>(),
         &Vec::new(),
         proof_rpc_result.value.proof.0,

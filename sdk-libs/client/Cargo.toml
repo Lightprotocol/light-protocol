@@ -40,7 +40,7 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
 light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
-light-sdk = { workspace = true, features = ["solana"] }
+light-sdk = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 

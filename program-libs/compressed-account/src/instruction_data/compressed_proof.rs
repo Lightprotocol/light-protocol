@@ -40,3 +40,42 @@ impl<'a> Deserialize<'a> for CompressedProof {
         Ok(Ref::<&[u8], CompressedProof>::from_prefix(bytes)?)
     }
 }
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
+pub struct ValidityProof(pub Option<CompressedProof>);
+
+impl ValidityProof {
+    pub fn new(proof: Option<CompressedProof>) -> Self {
+        Self(proof)
+    }
+}
+
+impl From<CompressedProof> for ValidityProof {
+    fn from(proof: CompressedProof) -> Self {
+        Self(Some(proof))
+    }
+}
+
+impl From<Option<CompressedProof>> for ValidityProof {
+    fn from(proof: Option<CompressedProof>) -> Self {
+        Self(proof)
+    }
+}
+impl From<&CompressedProof> for ValidityProof {
+    fn from(proof: &CompressedProof) -> Self {
+        Self(Some(*proof))
+    }
+}
+
+impl From<&Option<CompressedProof>> for ValidityProof {
+    fn from(proof: &Option<CompressedProof>) -> Self {
+        Self(*proof)
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Option<CompressedProof>> for ValidityProof {
+    fn into(self) -> Option<CompressedProof> {
+        self.0
+    }
+}

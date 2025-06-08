@@ -10,16 +10,18 @@ edition = "2021"
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
+solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
 light-hasher = { workspace = true }
-# ark-bn254 = { workspace = true }
 light-poseidon = { workspace = true }
 
 [dev-dependencies]
 light-compressed-account = { workspace = true }
+light-sdk-types = { workspace = true }
 prettyplease = "0.2.29"
 solana-pubkey = { workspace = true, features = ["borsh"] }
 borsh = { workspace = true }
+light-macros = { workspace = true }
 
 [lib]
 proc-macro = true

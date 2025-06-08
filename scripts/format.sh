@@ -23,8 +23,11 @@ cargo clippy \
 # Make sure that tests compile
 cargo test-sbf -p system-test --no-run
 cargo test-sbf -p system-cpi-test --no-run
+cargo test-sbf -p system-cpi-v2-test --no-run
 cargo test-sbf -p e2e-test --no-run
 cargo test-sbf -p compressed-token-test --no-run
 cargo test-sbf -p token-escrow --no-run
 cargo test-sbf -p sdk-test --no-run
 cargo test-sbf -p sdk-anchor-test --no-run
+cargo test-sbf -p client-test --no-run
+cargo test-sbf -p sdk-pinocchio-test --no-run

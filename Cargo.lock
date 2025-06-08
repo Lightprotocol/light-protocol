@@ -35,6 +35,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "thiserror 2.0.12",
  "zerocopy 0.8.25",
 ]
 
@@ -1235,10 +1236,13 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-hasher",
  "light-program-test",
  "light-prover-client",
  "light-sdk",
+ "light-sdk-pinocchio",
  "light-test-utils",
+ "light-zero-copy",
  "rand 0.8.5",
  "solana-account",
  "solana-account-decoder-client-types",
@@ -3629,6 +3633,8 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
+ "light-sdk-types",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "solana-account-info",
  "solana-cpi",
@@ -3646,12 +3652,45 @@ dependencies = [
  "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
+ "light-macros",
  "light-poseidon 0.3.0",
+ "light-sdk-types",
  "prettyplease",
  "proc-macro2",
  "quote",
  "solana-pubkey",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "light-sdk-pinocchio"
+version = "0.12.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-zero-copy",
+ "pinocchio",
+ "solana-pubkey",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "light-sdk-types"
+version = "0.9.1"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-zero-copy",
+ "solana-pubkey",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3699,6 +3738,7 @@ dependencies = [
  "pinocchio",
  "pinocchio-system",
  "rand 0.8.5",
+ "solana-msg",
  "solana-pubkey",
  "solana-security-txt",
  "thiserror 2.0.12",
@@ -5283,6 +5323,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdk-pinocchio-test"
+version = "1.0.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-pinocchio",
+ "pinocchio",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "sdk-test"
 version = "1.0.0"
 dependencies = [
@@ -5292,6 +5348,7 @@ dependencies = [
  "light-macros",
  "light-program-test",
  "light-sdk",
+ "light-sdk-types",
  "solana-program",
  "solana-sdk",
  "tokio",

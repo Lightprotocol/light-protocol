@@ -160,11 +160,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
     let light_accounts = CpiAccounts::new_with_config(
         ctx.accounts.signer.as_ref(),
         &system_accounts,
-        CpiAccountsConfig {
-            self_program: crate::ID,
-            cpi_context: true,
-            ..Default::default()
-        },
+        CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
     )
     .unwrap();
     verify_borsh(&light_accounts, &inputs_struct).unwrap();

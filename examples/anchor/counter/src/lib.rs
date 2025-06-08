@@ -4,15 +4,19 @@ use anchor_lang::{prelude::*, AnchorDeserialize, Discriminator};
 use light_sdk::{
     account::LightAccount,
     address::v1::derive_address,
-    cpi::{CpiAccounts, CpiInputs},
+    cpi::{CpiAccounts, CpiInputs, CpiSigner},
+    derive_light_cpi_signer,
     instruction::{
         account_meta::{CompressedAccountMeta, CompressedAccountMetaClose},
-        tree_info::PackedAddressTreeInfo,
+        PackedAddressTreeInfo, ValidityProof,
     },
-    LightDiscriminator, LightHasher, ValidityProof,
+    LightDiscriminator, LightHasher,
 };
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
+
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
 pub mod counter {
@@ -33,7 +37,7 @@ pub mod counter {
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
-            crate::ID,
+            crate::LIGHT_CPI_SIGNER,
         )
         .map_err(ProgramError::from)?;
 
@@ -94,7 +98,7 @@ pub mod counter {
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
-            crate::ID,
+            crate::LIGHT_CPI_SIGNER,
         )
         .map_err(ProgramError::from)?;
 
@@ -133,7 +137,7 @@ pub mod counter {
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
-            crate::ID,
+            crate::LIGHT_CPI_SIGNER,
         )
         .map_err(ProgramError::from)?;
 
@@ -170,7 +174,7 @@ pub mod counter {
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
-            crate::ID,
+            crate::LIGHT_CPI_SIGNER,
         )
         .map_err(ProgramError::from)?;
         let cpi_inputs = CpiInputs::new(
@@ -207,7 +211,7 @@ pub mod counter {
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
-            crate::ID,
+            crate::LIGHT_CPI_SIGNER,
         )
         .map_err(ProgramError::from)?;
 

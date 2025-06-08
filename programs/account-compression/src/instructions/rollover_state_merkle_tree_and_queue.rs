@@ -3,6 +3,7 @@ use light_account_checks::checks::check_account_balance_is_rent_exempt;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 use crate::{
+    errors::AccountCompressionErrorCode,
     processor::{
         initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
         initialize_nullifier_queue::process_initialize_nullifier_queue,
@@ -91,14 +92,14 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
                     ctx.accounts.old_nullifier_queue.key().into(),
                     ctx.accounts.new_state_merkle_tree.key().into(),
                 )
-                .map_err(ProgramError::from)?;
+                .map_err(AccountCompressionErrorCode::from)?;
             queue_account_loaded
                 .metadata
                 .rollover(
                     ctx.accounts.old_state_merkle_tree.key().into(),
                     ctx.accounts.new_nullifier_queue.key().into(),
                 )
-                .map_err(ProgramError::from)?;
+                .map_err(AccountCompressionErrorCode::from)?;
 
             let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
             let queue_metadata = queue_account_loaded.metadata;
@@ -190,7 +191,10 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
         .lamports()
         == 0
     {
-        return Err(ProgramError::from(MerkleTreeMetadataError::NotReadyForRollover).into());
+        return Err(AccountCompressionErrorCode::from(
+            MerkleTreeMetadataError::NotReadyForRollover,
+        )
+        .into());
     }
     Ok(())
 }

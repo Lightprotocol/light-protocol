@@ -3,6 +3,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_compressed_token::process_transfer::{
     InputTokenDataWithContext, PackedTokenTransferOutputData,
 };
+use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 pub mod escrow_with_compressed_pda;
 pub mod escrow_with_pda;
 
@@ -22,6 +23,9 @@ pub enum EscrowError {
 }
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
+
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
 pub mod token_escrow {

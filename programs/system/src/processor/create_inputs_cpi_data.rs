@@ -102,7 +102,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                     &merkle_context.leaf_index.into(),
                     is_batched,
                 )
-                .map_err(ProgramError::from)?,
+                .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?,
             leaf_index: merkle_context.leaf_index,
             prove_by_index: merkle_context.prove_by_index() as u8,
             queue_index,
@@ -112,7 +112,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             hash_chain = cpi_ix_data.nullifiers[j].account_hash;
         } else {
             hash_chain = Poseidon::hashv(&[&hash_chain, &cpi_ix_data.nullifiers[j].account_hash])
-                .map_err(ProgramError::from)?;
+                .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?;
         }
     }
     // TODO: benchmark the chaining.

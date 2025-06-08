@@ -1,7 +1,9 @@
-use crate::{
-    find_cpi_signer_macro, AccountMeta, Pubkey, CPI_AUTHORITY_PDA_SEED,
-    PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
+use light_sdk_types::constants::{
+    CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM,
+    PROGRAM_ID_NOOP,
 };
+
+use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct SystemAccountMetaConfig {
@@ -45,20 +47,20 @@ pub struct SystemAccountPubkeys {
 impl Default for SystemAccountPubkeys {
     fn default() -> Self {
         Self {
-            light_sytem_program: PROGRAM_ID_LIGHT_SYSTEM,
+            light_sytem_program: Pubkey::from(PROGRAM_ID_LIGHT_SYSTEM),
             system_program: Pubkey::default(),
-            account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
+            account_compression_program: Pubkey::from(PROGRAM_ID_ACCOUNT_COMPRESSION),
             account_compression_authority: Pubkey::find_program_address(
                 &[CPI_AUTHORITY_PDA_SEED],
-                &PROGRAM_ID_LIGHT_SYSTEM,
+                &Pubkey::from(PROGRAM_ID_LIGHT_SYSTEM),
             )
             .0,
             registered_program_pda: Pubkey::find_program_address(
-                &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
-                &PROGRAM_ID_ACCOUNT_COMPRESSION,
+                &[PROGRAM_ID_LIGHT_SYSTEM.as_slice()],
+                &Pubkey::from(PROGRAM_ID_ACCOUNT_COMPRESSION),
             )
             .0,
-            noop_program: PROGRAM_ID_NOOP,
+            noop_program: Pubkey::from(PROGRAM_ID_NOOP),
             // TODO: add correct pubkey
             sol_pool_pda: Pubkey::default(),
         }

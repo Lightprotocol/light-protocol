@@ -4,19 +4,23 @@ use anchor_lang::{prelude::*, Discriminator};
 use light_sdk::{
     account::LightAccount,
     address::v1::derive_address,
-    cpi::{CpiAccounts, CpiInputs},
-    instruction::{account_meta::CompressedAccountMeta, tree_info::PackedAddressTreeInfo},
-    LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
+    cpi::{CpiAccounts, CpiInputs, CpiSigner},
+    derive_light_cpi_signer,
+    instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
+    LightDiscriminator, LightHasher,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
+
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
 #[program]
 pub mod sdk_anchor_test {
 
     use super::*;
 
-    pub fn with_nested_data<'info>(
+    pub fn create_compressed_account<'info>(
         ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
         proof: ValidityProof,
         address_tree_info: PackedAddressTreeInfo,
@@ -26,7 +30,7 @@ pub mod sdk_anchor_test {
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
-            crate::ID,
+            crate::LIGHT_CPI_SIGNER,
         )
         .map_err(ProgramError::from)?;
 
@@ -37,12 +41,7 @@ pub mod sdk_anchor_test {
                 .key(),
             &crate::ID,
         );
-        let new_address_params = NewAddressParamsPacked {
-            seed: address_seed,
-            address_queue_account_index: address_tree_info.address_queue_pubkey_index,
-            address_merkle_tree_root_index: address_tree_info.root_index,
-            address_merkle_tree_account_index: address_tree_info.address_merkle_tree_pubkey_index,
-        };
+        let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
         let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
             &crate::ID,
@@ -68,7 +67,7 @@ pub mod sdk_anchor_test {
         Ok(())
     }
 
-    pub fn update_nested_data<'info>(
+    pub fn update_compressed_account<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
@@ -87,7 +86,7 @@ pub mod sdk_anchor_test {
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
-            crate::ID,
+            crate::LIGHT_CPI_SIGNER,
         )
         .map_err(ProgramError::from)?;
 
@@ -117,6 +116,7 @@ pub mod sdk_anchor_test {
 #[event]
 #[derive(Clone, Debug, Default, LightHasher, LightDiscriminator)]
 pub struct MyCompressedAccount {
+    #[hash]
     pub name: String,
     pub nested: NestedData,
 }

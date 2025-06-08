@@ -10,8 +10,7 @@ use light_sdk::{
     address::v1::derive_address,
     instruction::{
         account_meta::{CompressedAccountMeta, CompressedAccountMetaClose},
-        accounts::SystemAccountMetaConfig,
-        pack_accounts::PackedAccounts,
+        PackedAccounts, SystemAccountMetaConfig,
     },
 };
 use solana_sdk::{

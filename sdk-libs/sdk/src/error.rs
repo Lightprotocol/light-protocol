@@ -1,4 +1,6 @@
 use light_hasher::HasherError;
+use light_sdk_types::error::LightSdkTypesError;
+use light_zero_copy::errors::ZeroCopyError;
 use thiserror::Error;
 
 use crate::ProgramError;
@@ -47,10 +49,57 @@ pub enum LightSdkError {
     MissingField(String),
     #[error("Output state tree index is none. Use an CompressedAccountMeta type with output tree index to initialize or update accounts.")]
     OutputStateTreeIndexIsNone,
+    #[error("Address is none during initialization")]
+    InitAddressIsNone,
+    #[error("Address is none during initialization with address")]
+    InitWithAddressIsNone,
+    #[error("Output is none during initialization with address")]
+    InitWithAddressOutputIsNone,
+    #[error("Address is none during meta mutation")]
+    MetaMutAddressIsNone,
+    #[error("Input is none during meta mutation")]
+    MetaMutInputIsNone,
+    #[error("Output lamports is none during meta mutation")]
+    MetaMutOutputLamportsIsNone,
+    #[error("Output is none during meta mutation")]
+    MetaMutOutputIsNone,
+    #[error("Address is none during meta close")]
+    MetaCloseAddressIsNone,
+    #[error("Input is none during meta close")]
+    MetaCloseInputIsNone,
     #[error(transparent)]
     Hasher(#[from] HasherError),
+    #[error(transparent)]
+    ZeroCopy(#[from] ZeroCopyError),
     #[error("Program error: {0}")]
     ProgramError(#[from] ProgramError),
+}
+
+impl From<LightSdkError> for ProgramError {
+    fn from(e: LightSdkError) -> Self {
+        ProgramError::Custom(e.into())
+    }
+}
+
+impl From<LightSdkTypesError> for LightSdkError {
+    fn from(e: LightSdkTypesError) -> Self {
+        match e {
+            LightSdkTypesError::InitAddressIsNone => LightSdkError::InitAddressIsNone,
+            LightSdkTypesError::InitWithAddressIsNone => LightSdkError::InitWithAddressIsNone,
+            LightSdkTypesError::InitWithAddressOutputIsNone => {
+                LightSdkError::InitWithAddressOutputIsNone
+            }
+            LightSdkTypesError::MetaMutAddressIsNone => LightSdkError::MetaMutAddressIsNone,
+            LightSdkTypesError::MetaMutInputIsNone => LightSdkError::MetaMutInputIsNone,
+            LightSdkTypesError::MetaMutOutputLamportsIsNone => {
+                LightSdkError::MetaMutOutputLamportsIsNone
+            }
+            LightSdkTypesError::MetaMutOutputIsNone => LightSdkError::MetaMutOutputIsNone,
+            LightSdkTypesError::MetaCloseAddressIsNone => LightSdkError::MetaCloseAddressIsNone,
+            LightSdkTypesError::MetaCloseInputIsNone => LightSdkError::MetaCloseInputIsNone,
+            LightSdkTypesError::Hasher(e) => LightSdkError::Hasher(e),
+        }
+    }
 }
 
 impl From<LightSdkError> for u32 {
@@ -76,14 +125,18 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiSignerAccount => 14018,
             LightSdkError::MissingField(_) => 14019,
             LightSdkError::OutputStateTreeIndexIsNone => 14020,
+            LightSdkError::InitAddressIsNone => 14021,
+            LightSdkError::InitWithAddressIsNone => 14022,
+            LightSdkError::InitWithAddressOutputIsNone => 14023,
+            LightSdkError::MetaMutAddressIsNone => 14024,
+            LightSdkError::MetaMutInputIsNone => 14025,
+            LightSdkError::MetaMutOutputLamportsIsNone => 14026,
+            LightSdkError::MetaMutOutputIsNone => 14027,
+            LightSdkError::MetaCloseAddressIsNone => 14028,
+            LightSdkError::MetaCloseInputIsNone => 14029,
             LightSdkError::Hasher(e) => e.into(),
-            LightSdkError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
+            LightSdkError::ZeroCopy(e) => e.into(),
+            LightSdkError::ProgramError(e) => u64::from(e) as u32,
         }
-    }
-}
-
-impl From<LightSdkError> for ProgramError {
-    fn from(e: LightSdkError) -> Self {
-        ProgramError::Custom(e.into())
     }
 }
