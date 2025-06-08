@@ -169,17 +169,17 @@ pub fn verify_proof(
         let public_input_hash = if !leaves.is_empty() && !addresses.is_empty() {
             // combined inclusion & non-inclusion proof
             let inclusion_hash =
-                create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?;
+                create_two_inputs_hash_chain(roots, leaves).map_err(|e| ProgramError::from(SystemProgramError::from(e)))?;
             let non_inclusion_hash = create_two_inputs_hash_chain(address_roots, addresses)
-                .map_err(ProgramError::from)?;
+                .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?;
             create_hash_chain_from_slice(&[inclusion_hash, non_inclusion_hash])
-                .map_err(ProgramError::from)?
+                .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?
         } else if !leaves.is_empty() {
             // inclusion proof
-            create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?
+            create_two_inputs_hash_chain(roots, leaves).map_err(|e| ProgramError::from(SystemProgramError::from(e)))?
         } else {
             // non-inclusion proof
-            create_two_inputs_hash_chain(address_roots, addresses).map_err(ProgramError::from)?
+            create_two_inputs_hash_chain(address_roots, addresses).map_err(|e| ProgramError::from(SystemProgramError::from(e)))?
         };
 
         let vk = select_verifying_key(leaves.len(), addresses.len())

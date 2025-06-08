@@ -1,5 +1,8 @@
 use light_account_checks::{checks::check_account_balance_is_rent_exempt, error::AccountError};
-use light_compressed_account::{pubkey::Pubkey, TreeType};
+use light_compressed_account::{
+    pubkey::{Pubkey, PubkeyTrait},
+    TreeType,
+};
 use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     rollover::RolloverMetadata,
@@ -81,7 +84,7 @@ pub fn init_batched_address_merkle_tree_from_account_info(
         params,
         mt_data,
         merkle_tree_rent,
-        (*mt_account_info.key()).into(),
+        Pubkey::new_from_array(mt_account_info.key().trait_to_bytes()),
     )?;
     Ok(())
 }

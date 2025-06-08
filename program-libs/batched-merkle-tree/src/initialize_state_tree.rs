@@ -1,6 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_checks::checks::check_account_balance_is_rent_exempt;
-use light_compressed_account::{pubkey::Pubkey, QueueType, TreeType};
+use light_compressed_account::{
+    pubkey::{Pubkey, PubkeyTrait},
+    QueueType, TreeType,
+};
 use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     queue::QueueMetadata, rollover::RolloverMetadata,
@@ -103,13 +106,13 @@ pub fn init_batched_state_merkle_tree_from_account_info(
     let mt_data = &mut merkle_tree_account_info.try_borrow_mut_data()?;
 
     init_batched_state_merkle_tree_accounts(
-        owner.into(),
+        Pubkey::new_from_array(owner.trait_to_bytes()),
         params,
         queue_data,
-        (*queue_account_info.key()).into(),
+        Pubkey::new_from_array(queue_account_info.key().trait_to_bytes()),
         queue_rent,
         mt_data,
-        (*merkle_tree_account_info.key()).into(),
+        Pubkey::new_from_array(merkle_tree_account_info.key().trait_to_bytes()),
         merkle_tree_rent,
         additional_bytes_rent,
     )?;

@@ -39,7 +39,7 @@ impl From<VerifierError> for u32 {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
+#[cfg(feature = "solana")]
 impl From<VerifierError> for solana_program_error::ProgramError {
     fn from(e: VerifierError) -> Self {
         solana_program_error::ProgramError::Custom(e.into())
@@ -218,7 +218,7 @@ pub fn select_verifying_key<'a>(
     num_leaves: usize,
     num_addresses: usize,
 ) -> Result<&'a Groth16Verifyingkey<'static>, VerifierError> {
-    #[cfg(all(not(feature = "pinocchio"), target_os = "solana"))]
+    #[cfg(all(feature = "solana", target_os = "solana"))]
     solana_msg::msg!(
         "select_verifying_key num_leaves: {}, num_addresses: {}",
         num_leaves,
@@ -273,7 +273,7 @@ pub fn verify<const N: usize>(
     let proof_c = decompress_g1(&proof.c).map_err(|_| crate::DecompressG1Failed)?;
     let mut verifier = Groth16Verifier::new(&proof_a, &proof_b, &proof_c, public_inputs, vk)
         .map_err(|_| {
-            #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
+            #[cfg(all(target_os = "solana", feature = "solana"))]
             {
                 use solana_msg::msg;
                 msg!("Proof verification failed");
@@ -285,7 +285,7 @@ pub fn verify<const N: usize>(
             CreateGroth16VerifierFailed
         })?;
     verifier.verify().map_err(|_| {
-        #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
+        #[cfg(all(target_os = "solana", feature = "solana"))]
         {
             use solana_msg::msg;
             msg!("Proof verification failed");

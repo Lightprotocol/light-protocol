@@ -71,8 +71,8 @@ impl MerkleTreeSequenceNumber {
 impl From<&InstructionDataSequenceNumber> for MerkleTreeSequenceNumber {
     fn from(seq: &InstructionDataSequenceNumber) -> Self {
         Self {
-            tree_pubkey: seq.tree_pubkey.into(),
-            queue_pubkey: seq.queue_pubkey.into(),
+            tree_pubkey: seq.tree_pubkey,
+            queue_pubkey: seq.queue_pubkey,
             tree_type: seq.tree_type.into(),
             seq: seq.seq.into(),
         }

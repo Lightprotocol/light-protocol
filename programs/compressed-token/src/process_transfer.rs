@@ -154,7 +154,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             new_len,
             OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: ctx.accounts.authority.key(),
+                    owner: ctx.accounts.authority.key().into(),
                     lamports: change_lamports,
                     data: None,
                     address: None,
@@ -272,7 +272,7 @@ pub fn create_output_compressed_accounts(
             &amount_bytes,
             &hashed_delegate,
         )
-        .map_err(ProgramError::from)?;
+        .map_err(|_| crate::ErrorCode::HashToFieldError)?;
         let data = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
@@ -287,7 +287,7 @@ pub fn create_output_compressed_accounts(
         sum_lamports += lamports.into();
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
-                owner: crate::ID,
+                owner: crate::ID.into(),
                 lamports: lamports.into(),
                 data: Some(data),
                 address: None,
@@ -361,7 +361,7 @@ pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
                 &amount_bytes,
                 &hashed_delegate,
             )
-            .map_err(ProgramError::from)?
+            .map_err(|_| crate::ErrorCode::HashToFieldError)?
         } else {
             TokenData::hash_frozen_with_hashed_values(
                 hashed_mint,
@@ -369,7 +369,7 @@ pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
                 &amount_bytes,
                 &hashed_delegate,
             )
-            .map_err(ProgramError::from)?
+            .map_err(|_| crate::ErrorCode::HashToFieldError)?
         };
     }
     Ok(())
@@ -1000,10 +1000,10 @@ pub mod transfer_sdk {
         let mut input_token_data_with_context: Vec<InputTokenDataWithContext> = Vec::new();
 
         for (i, token_data) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey) {
+            match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey.into()) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(input_merkle_context[i].merkle_tree_pubkey, index);
+                    remaining_accounts.insert(input_merkle_context[i].merkle_tree_pubkey.into(), index);
                     index += 1;
                 }
             };
@@ -1031,7 +1031,7 @@ pub mod transfer_sdk {
                 delegate_index,
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: *remaining_accounts
-                        .get(&input_merkle_context[i].merkle_tree_pubkey)
+                        .get(&input_merkle_context[i].merkle_tree_pubkey.into())
                         .unwrap() as u8,
                     queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
@@ -1044,17 +1044,17 @@ pub mod transfer_sdk {
             input_token_data_with_context.push(token_data_with_context);
         }
         for (i, _) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].queue_pubkey) {
+            match remaining_accounts.get(&input_merkle_context[i].queue_pubkey.into()) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(input_merkle_context[i].queue_pubkey, index);
+                    remaining_accounts.insert(input_merkle_context[i].queue_pubkey.into(), index);
                     index += 1;
                 }
             };
             input_token_data_with_context[i]
                 .merkle_context
                 .queue_pubkey_index = *remaining_accounts
-                .get(&input_merkle_context[i].queue_pubkey)
+                .get(&input_merkle_context[i].queue_pubkey.into())
                 .unwrap() as u8;
         }
         let mut _output_compressed_accounts: Vec<PackedTokenTransferOutputData> =

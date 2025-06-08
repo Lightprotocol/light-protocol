@@ -45,17 +45,40 @@ pub fn setup_light_programs(
         )))?;
     std::env::set_var("SBF_OUT_DIR", light_bin_path);
     let path = format!("{}/light_registry.so", light_bin_path);
-    program_test.add_program_from_file(light_registry::ID, path)?;
+    program_test
+        .add_program_from_file(light_registry::ID, path.clone())
+        .inspect_err(|_| {
+            println!("Program light_registry bin not found in {}", path);
+        })?;
     let path = format!("{}/account_compression.so", light_bin_path);
-    program_test.add_program_from_file(account_compression::ID, path)?;
+    program_test
+        .add_program_from_file(account_compression::ID, path.clone())
+        .inspect_err(|_| {
+            println!("Program account_compression bin not found in {}", path);
+        })?;
     let path = format!("{}/light_compressed_token.so", light_bin_path);
-    program_test.add_program_from_file(light_compressed_token::ID, path)?;
+    program_test
+        .add_program_from_file(light_compressed_token::ID, path.clone())
+        .inspect_err(|_| {
+            println!("Program light_compressed_token bin not found in {}", path);
+        })?;
     let path = format!("{}/spl_noop.so", light_bin_path);
-    program_test.add_program_from_file(NOOP_PROGRAM_ID, path)?;
+    program_test
+        .add_program_from_file(NOOP_PROGRAM_ID, path.clone())
+        .inspect_err(|_| {
+            println!("Program spl_noop bin not found in {}", path);
+        })?;
     #[cfg(feature = "devenv")]
     {
         let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
-        program_test.add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)?;
+        program_test
+            .add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path.clone())
+            .inspect_err(|_| {
+                println!(
+                    "Program light_system_program_pinocchio bin not found in {}",
+                    path
+                );
+            })?;
     }
 
     #[cfg(not(feature = "devenv"))]

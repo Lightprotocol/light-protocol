@@ -1,5 +1,5 @@
 use light_account_checks::checks::check_account_balance_is_rent_exempt;
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::pubkey::{Pubkey, PubkeyTrait};
 #[cfg(target_os = "solana")]
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_merkle_tree_metadata::utils::if_equals_none;
@@ -32,7 +32,7 @@ pub fn rollover_batched_address_tree_from_account_info(
         &mut old_merkle_tree,
         &mut new_mt_data,
         new_mt_rent,
-        (*new_account.key()).into(),
+        Pubkey::new_from_array(new_account.key().trait_to_bytes()),
         network_fee,
     )?;
     Ok(new_mt_rent)

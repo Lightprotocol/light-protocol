@@ -98,6 +98,7 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
 }
 
 /// Checks that the account balance is greater or eqal to rent exemption.
+#[cfg(any(feature = "pinocchio", feature = "solana"))]
 pub fn check_account_balance_is_rent_exempt(
     account_info: &AccountInfo,
     expected_size: usize,
@@ -109,10 +110,12 @@ pub fn check_account_balance_is_rent_exempt(
     let lamports = account_info.lamports();
     #[cfg(target_os = "solana")]
     {
-        use crate::Sysvar;
-        let rent_exemption = (crate::Rent::get()
-            .map_err(|_| AccountError::FailedBorrowRentSysvar))?
-        .minimum_balance(expected_size);
+        #[cfg(all(feature = "pinocchio", not(feature = "solana")))]
+        use pinocchio::{sysvars::rent::Rent, sysvars::Sysvar};
+        #[cfg(all(not(feature = "pinocchio"), feature = "solana"))]
+        use solana_sysvar::{rent::Rent, Sysvar};
+        let rent_exemption = (Rent::get().map_err(|_| AccountError::FailedBorrowRentSysvar))?
+            .minimum_balance(expected_size);
         if lamports < rent_exemption {
             return Err(AccountError::InvalidAccountBalance);
         }

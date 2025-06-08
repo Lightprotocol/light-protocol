@@ -7,7 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["solana"]
+default = []
 solana = [
     "solana-program-error",
     "light-compressed-account/solana",

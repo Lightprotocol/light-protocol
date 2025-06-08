@@ -19,3 +19,4 @@ light-sdk-macros = { workspace = true }
 light-verifier = { workspace = true }
 borsh = { workspace = true }
 thiserror = { workspace = true }
+light-compressed-account = { workspace = true }

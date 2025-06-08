@@ -193,7 +193,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
                 });
                 Ok(Some(PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
-                        owner,
+                        owner: owner.to_bytes().into(),
                         lamports: input.lamports,
                         address: self.address,
                         data,
@@ -220,7 +220,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
                 });
                 Ok(Some(OutputCompressedAccountWithPackedContext {
                     compressed_account: CompressedAccount {
-                        owner,
+                        owner: owner.to_bytes().into(),
                         lamports: output.lamports,
                         address: self.address,
                         data,

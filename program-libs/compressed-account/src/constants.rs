@@ -1,13 +1,11 @@
-#[cfg(feature = "pinocchio")]
-use light_macros::pubkey;
-#[cfg(not(feature = "pinocchio"))]
-use solana_pubkey::pubkey;
+use light_macros::pubkey_array;
 
-pub const ACCOUNT_COMPRESSION_PROGRAM_ID: crate::Pubkey =
-    pubkey!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
-pub const SYSTEM_PROGRAM_ID: crate::Pubkey = pubkey!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
-pub const REGISTERED_PROGRAM_PDA: crate::Pubkey =
-    pubkey!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
+pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
+    pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+pub const SYSTEM_PROGRAM_ID: [u8; 32] =
+    pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
+    pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
 pub const CREATE_CPI_CONTEXT_ACCOUNT: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];
 
 pub const ADDRESS_MERKLE_TREE_ACCOUNT_DISCRIMINATOR: [u8; 8] = [11, 161, 175, 9, 212, 229, 73, 73];

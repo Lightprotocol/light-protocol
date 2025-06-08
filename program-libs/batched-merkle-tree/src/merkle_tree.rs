@@ -5,9 +5,12 @@ use light_account_checks::{
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
 };
 use light_compressed_account::{
-    hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
-    instruction_data::compressed_proof::CompressedProof, nullifier::create_nullifier,
-    pubkey::Pubkey, QueueType, TreeType, ADDRESS_MERKLE_TREE_TYPE_V2, ADDRESS_QUEUE_TYPE_V2,
+    hash_chain::create_hash_chain_from_array,
+    hash_to_bn254_field_size_be,
+    instruction_data::compressed_proof::CompressedProof,
+    nullifier::create_nullifier,
+    pubkey::{Pubkey, PubkeyTrait},
+    QueueType, TreeType, ADDRESS_MERKLE_TREE_TYPE_V2, ADDRESS_QUEUE_TYPE_V2,
     INPUT_STATE_QUEUE_TYPE_V2, OUTPUT_STATE_QUEUE_TYPE_V2, STATE_MERKLE_TREE_TYPE_V2,
 };
 use light_hasher::Hasher;
@@ -164,7 +167,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Necessary to convince the borrow checker.
         let data_slice: &'a mut [u8] =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
-        Self::from_bytes::<TREE_TYPE>(data_slice, &(*account_info.key()).into())
+        Self::from_bytes::<TREE_TYPE>(
+            data_slice,
+            &Pubkey::new_from_array(account_info.key().trait_to_bytes()),
+        )
     }
 
     /// Deserialize a state BatchedMerkleTreeAccount from bytes.

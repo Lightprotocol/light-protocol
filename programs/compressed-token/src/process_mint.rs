@@ -570,7 +570,7 @@ mod test {
 
             output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: crate::ID,
+                    owner: crate::ID.into(),
                     lamports,
                     data: Some(data),
                     address: None,
@@ -635,7 +635,7 @@ mod test {
 
                 output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
                     compressed_account: CompressedAccount {
-                        owner: crate::ID,
+                        owner: crate::ID.into(),
                         lamports,
                         data: Some(data),
                         address: None,

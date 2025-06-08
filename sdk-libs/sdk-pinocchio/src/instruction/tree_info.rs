@@ -8,6 +8,7 @@ pub struct MerkleContext {
     pub tree_type: u8, // Simplified TreeType as u8
 }
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+
 use crate::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]

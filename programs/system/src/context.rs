@@ -336,7 +336,7 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
             }
             let input_account = PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
-                    owner: input.owner().into(),
+                    owner: (*input.owner()).into(),
                     lamports: input.lamports(),
                     address: input.address(),
                     data: input.data(),

@@ -45,7 +45,7 @@ where
     let (leaves_hash_chains, start_index, current_root, batch_size) = {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
-            &merkle_tree_pubkey.into(),
+            &(*merkle_tree_pubkey).into(),
         )
         .unwrap();
 

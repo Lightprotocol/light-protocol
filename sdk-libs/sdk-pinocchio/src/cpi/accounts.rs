@@ -1,8 +1,9 @@
+use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
+
 use crate::{
     error::{LightSdkError, Result},
     BorshDeserialize, BorshSerialize,
 };
-use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
 #[derive(Debug, Default, Copy, Clone, BorshSerialize, BorshDeserialize)]
 pub struct CpiAccountsConfig {

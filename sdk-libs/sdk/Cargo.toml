@@ -15,13 +15,12 @@ solana = [
     "solana-cpi",
     "solana-instruction",
     "solana-pubkey",
+    "solana-pubkey/borsh",
     "solana-account-info",
     "solana-msg",
     "solana-program-error",
     "borsh",
-    "light-verifier/solana",
     "light-compressed-account/solana",
-    "light-hasher/solana",
 ]
 default = ["solana"]
 idl-build = ["anchor-lang/idl-build"]
@@ -29,7 +28,6 @@ anchor = [
     "anchor-lang",
     "light-compressed-account/anchor",
     "light-verifier/anchor",
-    "light-hasher/solana",
 ]
 v2 = []
 

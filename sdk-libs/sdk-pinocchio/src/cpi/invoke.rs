@@ -1,17 +1,16 @@
-use crate::compressed_account::{
-    CompressedAccount, CompressedAccountData, CompressedAccountInfo, CompressedCpiContext,
-    InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
-    PackedCompressedAccountWithMerkleContext, DISCRIMINATOR_INVOKE_CPI,
-};
+use pinocchio::{cpi::slice_invoke_signed, msg, pubkey::Pubkey};
 
 use crate::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, CompressedAccountInfo, CompressedCpiContext,
+        InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
+        PackedCompressedAccountWithMerkleContext, DISCRIMINATOR_INVOKE_CPI,
+    },
     cpi::CpiAccounts,
     error::{LightSdkError, Result},
     find_cpi_signer_macro, BorshSerialize, ValidityProof, CPI_AUTHORITY_PDA_SEED,
     PROGRAM_ID_LIGHT_SYSTEM,
 };
-use pinocchio::cpi::slice_invoke_signed;
-use pinocchio::{msg, pubkey::Pubkey};
 
 // Trait to provide the missing methods for CompressedAccountInfo
 pub trait CompressedAccountInfoExt {
@@ -66,7 +65,7 @@ impl CompressedAccountInfoExt for CompressedAccountInfo {
                 });
                 Ok(Some(OutputCompressedAccountWithPackedContext {
                     compressed_account: CompressedAccount {
-                        owner: owner,
+                        owner,
                         lamports: output.lamports,
                         address: self.address,
                         data,

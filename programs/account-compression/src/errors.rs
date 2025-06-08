@@ -1,4 +1,8 @@
 use anchor_lang::prelude::*;
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
+use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
+use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 #[error_code]
 pub enum AccountCompressionErrorCode {
@@ -66,4 +70,40 @@ pub enum AccountCompressionErrorCode {
     UnsupportedHeight,
     UnsupportedParameters,
     V1AccountMarkedAsProofByIndex,
+    #[msg("MerkleTreeMetadataError")]
+    MerkleTreeMetadataError,
+    #[msg("BatchedMerkleTreeError")]
+    BatchedMerkleTreeError,
+    #[msg("ConcurrentMerkleTreeError")]
+    ConcurrentMerkleTreeError,
+    #[msg("IndexedMerkleTreeError")]
+    IndexedMerkleTreeError,
+}
+
+impl From<MerkleTreeMetadataError> for AccountCompressionErrorCode {
+    fn from(err: MerkleTreeMetadataError) -> Self {
+        msg!("Merkle tree metadata error {}", err);
+        AccountCompressionErrorCode::MerkleTreeMetadataError
+    }
+}
+
+impl From<BatchedMerkleTreeError> for AccountCompressionErrorCode {
+    fn from(err: BatchedMerkleTreeError) -> Self {
+        msg!("Batched merkle tree error {}", err);
+        AccountCompressionErrorCode::BatchedMerkleTreeError
+    }
+}
+
+impl From<ConcurrentMerkleTreeError> for AccountCompressionErrorCode {
+    fn from(err: ConcurrentMerkleTreeError) -> Self {
+        msg!("Concurrent merkle tree error {}", err);
+        AccountCompressionErrorCode::ConcurrentMerkleTreeError
+    }
+}
+
+impl From<IndexedMerkleTreeError> for AccountCompressionErrorCode {
+    fn from(err: IndexedMerkleTreeError) -> Self {
+        msg!("Indexed merkle tree error {}", err);
+        AccountCompressionErrorCode::IndexedMerkleTreeError
+    }
 }

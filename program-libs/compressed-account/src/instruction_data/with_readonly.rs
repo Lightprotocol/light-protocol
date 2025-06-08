@@ -130,7 +130,7 @@ impl InAccount {
             merkle_context: self.merkle_context,
             root_index: self.root_index,
             compressed_account: CompressedAccount {
-                owner: owner.into(),
+                owner,
                 address: self.address,
                 lamports: self.lamports,
                 data: Some(CompressedAccountData {
@@ -468,7 +468,7 @@ fn test_read_only_zero_copy() {
         }],
         output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
-                owner: Pubkey::default().into(),
+                owner: Pubkey::default(),
                 lamports: 2000,
                 address: Some([40; 32]),
                 data: Some(CompressedAccountData {

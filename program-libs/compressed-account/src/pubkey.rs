@@ -11,6 +11,8 @@ use crate::{AnchorDeserialize, AnchorSerialize};
     Debug,
     Copy,
     PartialEq,
+    Eq,
+    Hash,
     Clone,
     Immutable,
     FromBytes,
@@ -62,6 +64,18 @@ impl AsRef<Pubkey> for Pubkey {
     }
 }
 
+impl AsRef<[u8]> for Pubkey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl PartialEq<[u8; 32]> for Pubkey {
+    fn eq(&self, other: &[u8; 32]) -> bool {
+        self.0 == *other
+    }
+}
+
 impl<'a> Deserialize<'a> for Pubkey {
     type Output = Ref<&'a [u8], Pubkey>;
 
@@ -94,16 +108,16 @@ impl From<&[u8; 32]> for Pubkey {
     }
 }
 
-#[cfg(not(feature = "anchor"))]
-impl From<Pubkey> for solana_pubkey::Pubkey {
-    fn from(pubkey: Pubkey) -> Self {
+#[cfg(feature = "anchor")]
+impl From<&anchor_lang::prelude::Pubkey> for Pubkey {
+    fn from(pubkey: &anchor_lang::prelude::Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
 
-#[cfg(not(feature = "anchor"))]
-impl From<&Pubkey> for solana_pubkey::Pubkey {
-    fn from(pubkey: &Pubkey) -> Self {
+#[cfg(feature = "anchor")]
+impl From<anchor_lang::prelude::Pubkey> for Pubkey {
+    fn from(pubkey: anchor_lang::prelude::Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
@@ -122,27 +136,8 @@ impl From<&Pubkey> for anchor_lang::prelude::Pubkey {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
-impl From<crate::Pubkey> for Pubkey {
-    fn from(pubkey: crate::Pubkey) -> Self {
-        Self(pubkey.to_bytes())
-    }
-}
-
-#[cfg(not(feature = "pinocchio"))]
-impl From<&crate::Pubkey> for Pubkey {
-    fn from(pubkey: &crate::Pubkey) -> Self {
-        Self(pubkey.to_bytes())
-    }
-}
-
 impl Pubkey {
-    #[cfg(not(feature = "pinocchio"))]
-    pub fn new_unique() -> Self {
-        Self(solana_pubkey::Pubkey::new_unique().to_bytes())
-    }
-
-    #[cfg(all(feature = "pinocchio", feature = "new-unique"))]
+    #[cfg(feature = "new-unique")]
     pub fn new_unique() -> Self {
         Self(solana_pubkey::Pubkey::new_unique().to_bytes())
     }
@@ -180,9 +175,19 @@ impl PubkeyTrait for anchor_lang::prelude::Pubkey {
     }
 }
 
-#[cfg(not(feature = "anchor"))]
+#[cfg(all(feature = "solana", not(feature = "anchor")))]
 impl PubkeyTrait for solana_pubkey::Pubkey {
     fn trait_to_bytes(&self) -> [u8; 32] {
         self.to_bytes()
+    }
+}
+
+impl PubkeyTrait for [u8; 32] {
+    fn trait_to_bytes(&self) -> [u8; 32] {
+        *self
+    }
+    #[cfg(feature = "anchor")]
+    fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey {
+        (*self).into()
     }
 }

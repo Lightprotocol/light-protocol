@@ -6,7 +6,9 @@ use light_account_checks::{
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
 };
 use light_compressed_account::{
-    hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, OUTPUT_STATE_QUEUE_TYPE_V2,
+    hash_to_bn254_field_size_be,
+    pubkey::{Pubkey, PubkeyTrait},
+    QueueType, OUTPUT_STATE_QUEUE_TYPE_V2,
 };
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
@@ -167,7 +169,10 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::from_bytes::<QUEUE_TYPE>(account_data, (*account_info.key()).into())
+        Self::from_bytes::<QUEUE_TYPE>(
+            account_data,
+            Pubkey::new_from_array(account_info.key().trait_to_bytes()),
+        )
     }
 
     /// Deserialize a BatchedQueueAccount from bytes.

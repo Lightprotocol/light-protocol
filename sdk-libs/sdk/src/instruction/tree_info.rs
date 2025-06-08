@@ -61,8 +61,9 @@ pub fn pack_merkle_context(
         prove_by_index,
         ..
     } = merkle_context;
-    let merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*merkle_tree_pubkey);
-    let queue_pubkey_index = remaining_accounts.insert_or_get(*queue_pubkey);
+    let merkle_tree_pubkey_index =
+        remaining_accounts.insert_or_get(merkle_tree_pubkey.to_bytes().into());
+    let queue_pubkey_index = remaining_accounts.insert_or_get(queue_pubkey.to_bytes().into());
 
     PackedMerkleContext {
         merkle_tree_pubkey_index,

@@ -7,7 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["solana"]
+default = []
 solana = [
     "dep:solana-program-error",
     "dep:solana-msg",
@@ -17,11 +17,7 @@ solana = [
     "light-compressed-account/bytemuck-des",
 ]
 anchor = ["solana", "anchor-lang"]
-pinocchio = [
-    "dep:pinocchio",
-    "light-compressed-account/pinocchio",
-    "light-compressed-account/bytemuck-des",
-]
+pinocchio = ["dep:pinocchio", "light-compressed-account/bytemuck-des"]
 
 [dependencies]
 thiserror = { workspace = true }

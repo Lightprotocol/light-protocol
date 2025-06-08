@@ -7,30 +7,27 @@ pub mod hash_to_field_size;
 pub mod instruction;
 
 // Re-export commonly used items
-pub use light_hasher::DataHasher as LightHasher;
-pub use light_hasher::{DataHasher, Poseidon}; // For backward compatibility
-
-// Re-export discriminator functionality
-pub use light_account_checks::discriminator::Discriminator as LightDiscriminator;
-
-// Re-export light-verifier for compatibility
-pub use light_verifier;
-
-// Re-export derive macros
-pub use light_sdk_macros::{LightDiscriminator, LightHasher};
-
-// Core types we'll need
-pub use borsh::{BorshDeserialize, BorshSerialize};
-use pinocchio::pubkey::Pubkey;
-
 // Re-export key types from modules
 pub use account::LightAccount;
+// Core types we'll need
+pub use borsh::{BorshDeserialize, BorshSerialize};
 pub use compressed_account::{
     CompressedAccountInfo, InAccountInfo, OutAccountInfo, PackedMerkleContext,
 };
 pub use cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs};
-pub use instruction::account_meta::CompressedAccountMeta;
-pub use instruction::tree_info::{PackedAddressTreeInfo, PackedStateTreeInfo};
+pub use instruction::{
+    account_meta::CompressedAccountMeta,
+    tree_info::{PackedAddressTreeInfo, PackedStateTreeInfo},
+};
+// Re-export discriminator functionality
+pub use light_account_checks::discriminator::Discriminator as LightDiscriminator;
+pub use light_hasher::DataHasher as LightHasher;
+pub use light_hasher::{DataHasher, Poseidon}; // For backward compatibility
+// Re-export derive macros
+pub use light_sdk_macros::{LightDiscriminator, LightHasher};
+// Re-export light-verifier for compatibility
+pub use light_verifier;
+use pinocchio::pubkey::Pubkey;
 
 // Constants
 /// Seed of the CPI authority.

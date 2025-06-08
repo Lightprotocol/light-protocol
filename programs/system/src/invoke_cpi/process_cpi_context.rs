@@ -188,7 +188,7 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
         return Err(SystemProgramError::NoInputs.into());
     };
 
-    if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.into() {
+    if *cpi_context_account.associated_merkle_tree != light_compressed_account::Pubkey::from(first_merkle_tree_pubkey) {
         msg!(format!(
             "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
             first_merkle_tree_pubkey, cpi_context_account.associated_merkle_tree
@@ -277,7 +277,7 @@ mod tests {
             input_compressed_accounts_with_merkle_context: vec![
                 PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
-                        owner: solana_pubkey::Pubkey::new_unique().to_bytes(),
+                        owner: solana_pubkey::Pubkey::new_unique().to_bytes().into(),
                         lamports: iter.into(),
                         address: None,
                         data: None,
@@ -294,7 +294,7 @@ mod tests {
             ],
             output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: solana_pubkey::Pubkey::new_unique().to_bytes(),
+                    owner: solana_pubkey::Pubkey::new_unique().to_bytes().into(),
                     lamports: iter.into(),
                     address: None,
                     data: None,

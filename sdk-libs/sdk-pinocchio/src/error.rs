@@ -1,6 +1,6 @@
 use light_hasher::HasherError;
-use thiserror::Error;
 use pinocchio::program_error::ProgramError;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, LightSdkError>;
 

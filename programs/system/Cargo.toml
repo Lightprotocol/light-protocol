@@ -40,6 +40,7 @@ light-account-checks = { workspace = true, features = ["pinocchio"] }
 pinocchio = { workspace = true }
 pinocchio-system = { version = "0.2.3" }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
+solana-msg = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

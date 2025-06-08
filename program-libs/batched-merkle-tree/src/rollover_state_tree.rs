@@ -1,5 +1,5 @@
 use light_account_checks::checks::check_account_balance_is_rent_exempt;
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::pubkey::{Pubkey, PubkeyTrait};
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
 
 // Import the appropriately feature-gated types from lib.rs
@@ -87,15 +87,15 @@ pub fn rollover_batched_state_tree_from_account_info(
     let new_mt_data = &mut new_state_merkle_tree.try_borrow_mut_data()?;
     let params = RolloverBatchStateTreeParams {
         old_merkle_tree: old_merkle_tree_account,
-        old_mt_pubkey: (*old_state_merkle_tree.key()).into(),
+        old_mt_pubkey: Pubkey::new_from_array(old_state_merkle_tree.key().trait_to_bytes()),
         new_mt_data,
         new_mt_rent: merkle_tree_rent,
-        new_mt_pubkey: (*new_state_merkle_tree.key()).into(),
+        new_mt_pubkey: Pubkey::new_from_array(new_state_merkle_tree.key().trait_to_bytes()),
         old_output_queue: old_output_queue_account,
-        old_queue_pubkey: (*old_output_queue.key()).into(),
+        old_queue_pubkey: Pubkey::new_from_array(old_output_queue.key().trait_to_bytes()),
         new_output_queue_data: &mut new_output_queue.try_borrow_mut_data()?,
         new_output_queue_rent: queue_rent,
-        new_output_queue_pubkey: (*new_output_queue.key()).into(),
+        new_output_queue_pubkey: Pubkey::new_from_array(new_output_queue.key().trait_to_bytes()),
         additional_bytes_rent,
         additional_bytes,
         network_fee,

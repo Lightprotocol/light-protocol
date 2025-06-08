@@ -45,9 +45,9 @@ impl From<HasherError> for u32 {
     }
 }
 
-#[cfg(any(feature = "solana", feature = "pinocchio"))]
-impl From<HasherError> for crate::ProgramError {
-    fn from(e: HasherError) -> Self {
-        crate::ProgramError::Custom(e.into())
-    }
-}
+// #[cfg(any(feature = "solana", feature = "pinocchio"))]
+// impl From<HasherError> for crate::ProgramError {
+//     fn from(e: HasherError) -> Self {
+//         crate::ProgramError::Custom(e.into())
+//     }
+// }

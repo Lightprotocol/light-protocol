@@ -1,5 +1,6 @@
 // use anchor_lang::error_code;
 use pinocchio::program_error::ProgramError;
+use solana_msg::msg;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -108,10 +109,28 @@ pub enum SystemProgramError {
     InvalidTreeHeight,
     #[error("TooManyOutputAccounts")]
     TooManyOutputAccounts,
+    #[error("CompressedAccountError")]
+    CompressedAccountError,
+    #[error("HasherError")]
+    HasherError,
 }
 
 impl From<SystemProgramError> for ProgramError {
     fn from(e: SystemProgramError) -> ProgramError {
         ProgramError::Custom(e as u32 + 6000)
+    }
+}
+
+impl From<light_compressed_account::CompressedAccountError> for SystemProgramError {
+    fn from(err: light_compressed_account::CompressedAccountError) -> Self {
+        msg!("Compressed account error {}", err);
+        SystemProgramError::CompressedAccountError
+    }
+}
+
+impl From<light_hasher::HasherError> for SystemProgramError {
+    fn from(err: light_hasher::HasherError) -> Self {
+        msg!("Hasher error {}", err);
+        SystemProgramError::HasherError
     }
 }
