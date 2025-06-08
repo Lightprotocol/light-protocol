@@ -21,6 +21,7 @@ members = [
     "sdk-libs/client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
+    "sdk-libs/sdk-pinocchio",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
     "xtask",
@@ -38,6 +39,7 @@ members = [
     # Issue is that anchor discriminator now returns a slice instead of an array
     "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "program-tests/sdk-test",
+    "program-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
     "program-tests/merkle-tree",

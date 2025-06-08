@@ -174,12 +174,10 @@ impl Rpc for LightProgramTest {
                 .await?;
         } else {
             let _res = self.context.send_transaction(transaction).map_err(|x| {
-                #[cfg(not(debug_assertions))]
-                {
-                    if self.config.log_failed_tx {
-                        println!("{}", x.meta.pretty_logs());
-                    }
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
                 }
+
                 RpcError::TransactionError(x.err)
             })?;
             #[cfg(debug_assertions)]
@@ -350,12 +348,10 @@ impl LightProgramTest {
             .context
             .simulate_transaction(transaction.clone())
             .map_err(|x| {
-                #[cfg(not(debug_assertions))]
-                {
-                    if self.config.log_failed_tx {
-                        println!("{}", x.meta.pretty_logs());
-                    }
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
                 }
+
                 RpcError::TransactionError(x.err)
             })?;
 
@@ -424,12 +420,11 @@ impl LightProgramTest {
         // Transaction was successful, execute it.
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             // Prevent duplicate prints for failing tx.
-            #[cfg(not(debug_assertions))]
-            {
-                if self.config.log_failed_tx {
-                    println!("{}", x.meta.pretty_logs());
-                }
+
+            if self.config.log_failed_tx {
+                println!("{}", x.meta.pretty_logs());
             }
+
             RpcError::TransactionError(x.err)
         })?;
         #[cfg(debug_assertions)]

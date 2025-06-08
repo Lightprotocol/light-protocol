@@ -3657,6 +3657,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-sdk-pinocchio"
+version = "0.12.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-hasher",
+ "light-macros",
+ "light-sdk-macros",
+ "light-verifier",
+ "pinocchio",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "light-sparse-merkle-tree"
 version = "0.1.0"
 dependencies = [
@@ -5280,6 +5294,22 @@ dependencies = [
  "light-prover-client",
  "light-sdk",
  "light-test-utils",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
+name = "sdk-pinocchio-test"
+version = "1.0.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-pinocchio",
+ "pinocchio",
  "solana-sdk",
  "tokio",
 ]
