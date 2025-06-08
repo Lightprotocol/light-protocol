@@ -1090,6 +1090,104 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'CompressedTokenInstructionDataRevoke';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'mint';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'inputTokenDataWithContext';
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputAccountMerkleTreeIndex';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedTokenInstructionDataApprove';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'mint';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'inputTokenDataWithContext';
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'delegate';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'delegatedAmount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'delegateMerkleTreeIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'changeAccountMerkleTreeIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'delegateLamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'DelegatedTransfer';
             docs: [
                 'Struct to provide the owner when the delegate is signer of the transaction.',
@@ -1383,7 +1481,7 @@ export type LightCompressedToken = {
                         type: 'u8';
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex';
+                        name: 'queuePubkeyIndex';
                         type: 'u8';
                     },
                     {
@@ -1391,12 +1489,8 @@ export type LightCompressedToken = {
                         type: 'u32';
                     },
                     {
-                        name: 'queueIndex';
-                        type: {
-                            option: {
-                                defined: 'QueueIndex';
-                            };
-                        };
+                        name: 'proveByIndex';
+                        type: 'bool';
                     },
                 ];
             };
@@ -2828,6 +2922,104 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
+            name: 'CompressedTokenInstructionDataRevoke',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'mint',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'inputTokenDataWithContext',
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputAccountMerkleTreeIndex',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedTokenInstructionDataApprove',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'mint',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'inputTokenDataWithContext',
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'delegate',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'delegatedAmount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'delegateMerkleTreeIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'changeAccountMerkleTreeIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'delegateLamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'DelegatedTransfer',
             docs: [
                 'Struct to provide the owner when the delegate is signer of the transaction.',
@@ -3125,7 +3317,7 @@ export const IDL: LightCompressedToken = {
                         type: 'u8',
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex',
+                        name: 'queuePubkeyIndex',
                         type: 'u8',
                     },
                     {
@@ -3133,12 +3325,8 @@ export const IDL: LightCompressedToken = {
                         type: 'u32',
                     },
                     {
-                        name: 'queueIndex',
-                        type: {
-                            option: {
-                                defined: 'QueueIndex',
-                            },
-                        },
+                        name: 'proveByIndex',
+                        type: 'bool',
                     },
                 ],
             },

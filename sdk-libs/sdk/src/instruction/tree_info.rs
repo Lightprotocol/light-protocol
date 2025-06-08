@@ -145,8 +145,8 @@ mod test {
         let merkle_tree_pubkey = Pubkey::new_unique();
         let queue_pubkey = Pubkey::new_unique();
         let merkle_context = MerkleContext {
-            merkle_tree_pubkey,
-            queue_pubkey,
+            merkle_tree_pubkey: merkle_tree_pubkey.to_bytes(),
+            queue_pubkey: queue_pubkey.to_bytes(),
             leaf_index: 69,
             prove_by_index: false,
             ..Default::default()

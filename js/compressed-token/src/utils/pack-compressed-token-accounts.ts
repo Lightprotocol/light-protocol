@@ -4,6 +4,9 @@ import {
     getIndexOrAdd,
     bn,
     padOutputStateMerkleTrees,
+    TreeType,
+    featureFlags,
+    TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
 import {
@@ -19,7 +22,7 @@ export type PackCompressedTokenAccountsParams = {
      * state tree of the input state. Gets padded to the length of
      * outputCompressedAccounts.
      */
-    outputStateTrees?: PublicKey[] | PublicKey;
+    outputStateTreeInfo?: TreeInfo;
     /** Optional remaining accounts to append to */
     remainingAccounts?: PublicKey[];
     /**
@@ -42,7 +45,7 @@ export function packCompressedTokenAccounts(
 } {
     const {
         inputCompressedTokenAccounts,
-        outputStateTrees,
+        outputStateTreeInfo,
         remainingAccounts = [],
         rootIndices,
         tokenTransferOutputs,
@@ -60,20 +63,19 @@ export function packCompressedTokenAccounts(
             inputCompressedTokenAccounts[0].parsed.delegate,
         );
     }
-    /// TODO: move pubkeyArray to remainingAccounts
-    /// Currently just packs 'delegate' to pubkeyArray
+
     const packedInputTokenData: InputTokenDataWithContext[] = [];
     /// pack inputs
     inputCompressedTokenAccounts.forEach(
         (account: ParsedTokenAccount, index) => {
             const merkleTreePubkeyIndex = getIndexOrAdd(
                 _remainingAccounts,
-                account.compressedAccount.merkleTree,
+                account.compressedAccount.treeInfo.tree,
             );
 
-            const nullifierQueuePubkeyIndex = getIndexOrAdd(
+            const queuePubkeyIndex = getIndexOrAdd(
                 _remainingAccounts,
-                account.compressedAccount.nullifierQueue,
+                account.compressedAccount.treeInfo.queue,
             );
 
             packedInputTokenData.push({
@@ -81,9 +83,9 @@ export function packCompressedTokenAccounts(
                 delegateIndex,
                 merkleContext: {
                     merkleTreePubkeyIndex,
-                    nullifierQueuePubkeyIndex,
+                    queuePubkeyIndex,
                     leafIndex: account.compressedAccount.leafIndex,
-                    queueIndex: null,
+                    proveByIndex: account.compressedAccount.proveByIndex,
                 },
                 rootIndex: rootIndices[index],
                 lamports: account.compressedAccount.lamports.eq(bn(0))
@@ -94,11 +96,38 @@ export function packCompressedTokenAccounts(
         },
     );
 
-    /// pack output state trees
+    if (inputCompressedTokenAccounts.length > 0 && outputStateTreeInfo) {
+        throw new Error(
+            'Cannot specify both input accounts and outputStateTreeInfo',
+        );
+    }
+
+    let treeInfo: TreeInfo;
+    if (inputCompressedTokenAccounts.length > 0) {
+        treeInfo = inputCompressedTokenAccounts[0].compressedAccount.treeInfo;
+    } else if (outputStateTreeInfo) {
+        treeInfo = outputStateTreeInfo;
+    } else {
+        throw new Error(
+            'Neither input accounts nor outputStateTreeInfo are available',
+        );
+    }
+
+    // Use next tree if available, otherwise fall back to current tree.
+    // `nextTreeInfo` always takes precedence.
+    const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
+    let activeTreeOrQueue = activeTreeInfo.tree;
+
+    if (activeTreeInfo.treeType === TreeType.StateV2) {
+        if (featureFlags.isV2()) {
+            activeTreeOrQueue = activeTreeInfo.queue;
+        } else throw new Error('V2 trees are not supported yet');
+    }
+
+    // Pack output state trees
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputStateTrees,
+        activeTreeOrQueue,
         tokenTransferOutputs.length,
-        inputCompressedTokenAccounts.map(acc => acc.compressedAccount),
     );
     const packedOutputTokenData: PackedTokenTransferOutputData[] = [];
     paddedOutputStateMerkleTrees.forEach((account, index) => {

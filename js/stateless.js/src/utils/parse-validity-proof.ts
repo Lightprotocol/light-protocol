@@ -1,6 +1,6 @@
 import BN from 'bn.js';
 import { FIELD_SIZE } from '../constants';
-import { CompressedProof } from '../state';
+import { bn, ValidityProof } from '../state';
 
 interface GnarkProofJson {
     ar: string[];
@@ -20,7 +20,7 @@ export const placeholderValidityProof = () => ({
     c: Array.from({ length: 32 }, (_, i) => i + 1),
 });
 
-export const checkValidityProofShape = (proof: CompressedProof) => {
+export const checkValidityProofShape = (proof: ValidityProof) => {
     if (
         proof.a.length !== 32 ||
         proof.b.length !== 64 ||
@@ -56,13 +56,13 @@ export function proofFromJsonStruct(json: GnarkProofJson): ProofABC {
 
 // TODO: add unit test for negation
 // TODO: test if LE BE issue. unit test
-export function negateAndCompressProof(proof: ProofABC): CompressedProof {
+export function negateAndCompressProof(proof: ProofABC): ValidityProof {
     const proofA = proof.a;
     const proofB = proof.b;
     const proofC = proof.c;
 
     const aXElement = proofA.slice(0, 32);
-    const aYElement = new BN(proofA.slice(32, 64), 32, 'be');
+    const aYElement = bn(proofA.slice(32, 64), 32, 'be');
 
     /// Negate
     const proofAIsPositive = yElementIsPositiveG1(aYElement) ? false : true;
@@ -73,18 +73,18 @@ export function negateAndCompressProof(proof: ProofABC): CompressedProof {
     const bYElement = proofB.slice(64, 128);
 
     const proofBIsPositive = yElementIsPositiveG2(
-        new BN(bYElement.slice(0, 32), 32, 'be'),
-        new BN(bYElement.slice(32, 64), 32, 'be'),
+        bn(bYElement.slice(0, 32), 32, 'be'),
+        bn(bYElement.slice(32, 64), 32, 'be'),
     );
 
     bXElement[0] = addBitmaskToByte(bXElement[0], proofBIsPositive);
 
     const cXElement = proofC.slice(0, 32);
     const cYElement = proofC.slice(32, 64);
-    const proofCIsPositive = yElementIsPositiveG1(new BN(cYElement, 32, 'be'));
+    const proofCIsPositive = yElementIsPositiveG1(bn(cYElement, 32, 'be'));
     cXElement[0] = addBitmaskToByte(cXElement[0], proofCIsPositive);
 
-    const compressedProof: CompressedProof = {
+    const compressedProof: ValidityProof = {
         a: Array.from(aXElement),
         b: Array.from(bXElement),
         c: Array.from(cXElement),
@@ -95,11 +95,11 @@ export function negateAndCompressProof(proof: ProofABC): CompressedProof {
 
 function deserializeHexStringToBeBytes(hexStr: string): Uint8Array {
     // Using BN for simpler conversion from hex string to byte array
-    const bn = new BN(
+    const bN = bn(
         hexStr.startsWith('0x') ? hexStr.substring(2) : hexStr,
         'hex',
     );
-    return new Uint8Array(bn.toArray('be', 32));
+    return new Uint8Array(bN.toArray('be', 32));
 }
 
 function yElementIsPositiveG1(yElement: BN): boolean {
@@ -107,7 +107,7 @@ function yElementIsPositiveG1(yElement: BN): boolean {
 }
 
 function yElementIsPositiveG2(yElement1: BN, yElement2: BN): boolean {
-    const fieldMidpoint = FIELD_SIZE.div(new BN(2));
+    const fieldMidpoint = FIELD_SIZE.div(bn(2));
 
     // Compare the first component of the y coordinate
     if (yElement1.lt(fieldMidpoint)) {
