@@ -111,19 +111,13 @@ pub struct AccountProofInputs {
 
 impl AccountProofInputs {
     pub fn from_api_model(
-        value: &photon_api::models::compressed_proof_with_context_v2::AccountProofInputs,
+        value: &photon_api::models::AccountProofInputs,
     ) -> Result<Self, IndexerError> {
         let root_index = {
             if value.root_index.prove_by_index {
                 None
             } else {
-                Some(
-                    value
-                        .root_index
-                        .root_index
-                        .try_into()
-                        .map_err(|_| IndexerError::InvalidResponseData)?,
-                )
+                Some(value.root_index.root_index)
             }
         };
         Ok(Self {
@@ -146,7 +140,7 @@ pub struct AddressProofInputs {
 
 impl AddressProofInputs {
     pub fn from_api_model(
-        value: &photon_api::models::compressed_proof_with_context_v2::AddressProofInputs,
+        value: &photon_api::models::AddressProofInputs,
     ) -> Result<Self, IndexerError> {
         Ok(Self {
             address: decode_base58_to_fixed_array(&value.address)?,
@@ -384,7 +378,7 @@ impl NextTreeInfo {
         }
     }
     pub fn from_api_model(
-        value: &photon_api::models::compressed_proof_with_context_v2::TreeContextInfo,
+        value: &photon_api::models::TreeContextInfo,
     ) -> Result<Self, IndexerError> {
         Ok(Self {
             tree_type: TreeType::from(value.tree_type as u64),
@@ -435,7 +429,7 @@ impl TreeInfo {
     }
 
     pub fn from_api_model(
-        value: &photon_api::models::compressed_proof_with_context_v2::MerkleContextV2,
+        value: &photon_api::models::MerkleContextV2,
     ) -> Result<Self, IndexerError> {
         Ok(Self {
             tree_type: TreeType::from(value.tree_type as u64),
@@ -445,7 +439,7 @@ impl TreeInfo {
             next_tree_info: value
                 .next_tree_context
                 .as_ref()
-                .map(NextTreeInfo::from_api_model)
+                .map(|tree_info| NextTreeInfo::from_api_model(tree_info.as_ref()))
                 .transpose()?,
         })
     }

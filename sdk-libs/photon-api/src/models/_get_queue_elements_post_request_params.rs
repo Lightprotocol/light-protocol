@@ -12,31 +12,27 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetQueueElementsPostRequestParams {
-    #[serde(rename = "numElements")]
-    pub num_elements: u16,
+    #[serde(rename = "limit")]
+    pub limit: u16,
     #[serde(rename = "queueType")]
     pub queue_type: u16,
     #[serde(
-        rename = "startOffset",
+        rename = "startQueueIndex",
         default,
         skip_serializing_if = "Option::is_none"
     )]
-    pub start_offset: Option<u64>,
+    pub start_queue_index: Option<u64>,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,
 }
 
 impl GetQueueElementsPostRequestParams {
-    pub fn new(
-        num_elements: u16,
-        queue_type: u16,
-        tree: String,
-    ) -> GetQueueElementsPostRequestParams {
+    pub fn new(limit: u16, queue_type: u16, tree: String) -> GetQueueElementsPostRequestParams {
         GetQueueElementsPostRequestParams {
-            num_elements,
+            limit,
             queue_type,
-            start_offset: None,
+            start_queue_index: None,
             tree,
         }
     }
