@@ -27,6 +27,6 @@ light-compressed-account = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
-tokio = "1.43.0"
+tokio = "1.45.1"
 solana-sdk = { workspace = true }
 light-client = { workspace = true }
