@@ -15,6 +15,7 @@ import { Buffer } from 'buffer';
 import { AccountMeta, PublicKey } from '@solana/web3.js';
 import { CompressedTokenProgram } from './program';
 import {
+    CompressedTokenInstructionDataFreeze,
     CompressedTokenInstructionDataTransfer,
     CompressSplTokenAccountInstructionData,
     MintToInstructionData,
@@ -23,6 +24,8 @@ import {
     COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR,
     MINT_TO_DISCRIMINATOR,
     TRANSFER_DISCRIMINATOR,
+    FREEZE_DISCRIMINATOR,
+    THAW_DISCRIMINATOR,
 } from './constants';
 
 const CompressedProofLayout = struct([
@@ -80,6 +83,17 @@ export const CompressedTokenInstructionDataTransferLayout = struct([
     option(CpiContextLayout, 'cpiContext'),
     option(u8(), 'lamportsChangeAccountMerkleTreeIndex'),
 ]);
+
+export const CompressedTokenInstructionDataFreezeLayout = struct([
+    CompressedProofLayout,
+    publicKey('owner'),
+    vec(InputTokenDataWithContextLayout, 'inputTokenDataWithContext'),
+    option(CpiContextLayout, 'cpiContext'),
+    u8('outputsMerkleTreeIndex'),
+]);
+
+export const CompressedTokenInstructionDataThawLayout =
+    CompressedTokenInstructionDataFreezeLayout;
 
 export const mintToLayout = struct([
     vec(publicKey(), 'recipients'),
@@ -179,6 +193,56 @@ export function decodeTransferInstructionData(
     return CompressedTokenInstructionDataTransferLayout.decode(
         buffer.slice(TRANSFER_DISCRIMINATOR.length + 4),
     ) as CompressedTokenInstructionDataTransfer;
+}
+
+export function encodeFreezeInstructionData(
+    data: CompressedTokenInstructionDataFreeze,
+): Buffer {
+    const buffer = Buffer.alloc(1000);
+    const len = CompressedTokenInstructionDataFreezeLayout.encode(data, buffer);
+
+    const lengthBuffer = Buffer.alloc(4);
+    lengthBuffer.writeUInt32LE(len, 0);
+
+    return Buffer.concat([
+        FREEZE_DISCRIMINATOR,
+        lengthBuffer,
+        buffer.slice(0, len),
+    ]);
+}
+
+export function decodeFreezeInstructionData(
+    buffer: Buffer,
+): CompressedTokenInstructionDataFreeze {
+    return CompressedTokenInstructionDataFreezeLayout.decode(
+        buffer.slice(FREEZE_DISCRIMINATOR.length + 4),
+    ) as CompressedTokenInstructionDataFreeze;
+}
+
+export type CompressedTokenInstructionDataThaw =
+    CompressedTokenInstructionDataFreeze;
+export function encodeThawInstructionData(
+    data: CompressedTokenInstructionDataThaw,
+): Buffer {
+    const buffer = Buffer.alloc(1000);
+    const len = CompressedTokenInstructionDataThawLayout.encode(data, buffer);
+
+    const lengthBuffer = Buffer.alloc(4);
+    lengthBuffer.writeUInt32LE(len, 0);
+
+    return Buffer.concat([
+        THAW_DISCRIMINATOR,
+        lengthBuffer,
+        buffer.slice(0, len),
+    ]);
+}
+
+export function decodeThawInstructionData(
+    buffer: Buffer,
+): CompressedTokenInstructionDataThaw {
+    return CompressedTokenInstructionDataThawLayout.decode(
+        buffer.slice(THAW_DISCRIMINATOR.length + 4),
+    ) as CompressedTokenInstructionDataThaw;
 }
 
 interface BaseAccountsLayoutParams {
@@ -355,85 +419,46 @@ export const transferAccountsLayout = (
     return accountsList;
 };
 
-// TODO: use this layout for approve/revoke/freeze/thaw once we add them
-// export const approveAccountsLayout = (
-//     accounts: approveAccountsLayoutParams,
-// ): AccountMeta[] => {
-//     const {
-//         feePayer,
-//         authority,
-//         cpiAuthorityPda,
-//         lightSystemProgram,
-//         registeredProgramPda,
-//         noopProgram,
-//         accountCompressionAuthority,
-//         accountCompressionProgram,
-//         selfProgram,
-//         systemProgram,
-//     } = accounts;
+export const freezeAccountsLayout = (
+    accounts: freezeAccountsLayoutParams,
+): AccountMeta[] => {
+    const {
+        feePayer,
+        authority,
+        cpiAuthorityPda,
+        lightSystemProgram,
+        registeredProgramPda,
+        noopProgram,
+        accountCompressionAuthority,
+        accountCompressionProgram,
+        selfProgram,
+        systemProgram,
+        mint,
+    } = accounts;
 
-//     return [
-//         { pubkey: feePayer, isSigner: true, isWritable: true },
-//         { pubkey: authority, isSigner: true, isWritable: false },
-//         { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
-//         { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
-//         { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
-//         { pubkey: noopProgram, isSigner: false, isWritable: false },
-//         {
-//             pubkey: accountCompressionAuthority,
-//             isSigner: false,
-//             isWritable: false,
-//         },
-//         {
-//             pubkey: accountCompressionProgram,
-//             isSigner: false,
-//             isWritable: false,
-//         },
-//         { pubkey: selfProgram, isSigner: false, isWritable: false },
-//         { pubkey: systemProgram, isSigner: false, isWritable: false },
-//     ];
-// };
+    const accountsList: AccountMeta[] = [
+        { pubkey: feePayer, isSigner: true, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: false },
+        { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
+        { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
+        { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
+        { pubkey: noopProgram, isSigner: false, isWritable: false },
+        {
+            pubkey: accountCompressionAuthority,
+            isSigner: false,
+            isWritable: false,
+        },
+        {
+            pubkey: accountCompressionProgram,
+            isSigner: false,
+            isWritable: false,
+        },
+        { pubkey: selfProgram, isSigner: false, isWritable: false },
+        { pubkey: systemProgram, isSigner: false, isWritable: false },
+        { pubkey: mint, isSigner: false, isWritable: false },
+    ];
 
-// export const revokeAccountsLayout = approveAccountsLayout;
+    return accountsList;
+};
 
-// export const freezeAccountsLayout = (
-//     accounts: freezeAccountsLayoutParams,
-// ): AccountMeta[] => {
-//     const {
-//         feePayer,
-//         authority,
-//         cpiAuthorityPda,
-//         lightSystemProgram,
-//         registeredProgramPda,
-//         noopProgram,
-//         accountCompressionAuthority,
-//         accountCompressionProgram,
-//         selfProgram,
-//         systemProgram,
-//         mint,
-//     } = accounts;
-
-//     return [
-//         { pubkey: feePayer, isSigner: true, isWritable: true },
-//         { pubkey: authority, isSigner: true, isWritable: false },
-//         { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
-//         { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
-//         { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
-//         { pubkey: noopProgram, isSigner: false, isWritable: false },
-//         {
-//             pubkey: accountCompressionAuthority,
-//             isSigner: false,
-//             isWritable: false,
-//         },
-//         {
-//             pubkey: accountCompressionProgram,
-//             isSigner: false,
-//             isWritable: false,
-//         },
-//         { pubkey: selfProgram, isSigner: false, isWritable: false },
-//         { pubkey: systemProgram, isSigner: false, isWritable: false },
-//         { pubkey: mint, isSigner: false, isWritable: false },
-//     ];
-// };
-
-// export const thawAccountsLayout = freezeAccountsLayout;
+export const thawAccountsLayout = freezeAccountsLayout;
