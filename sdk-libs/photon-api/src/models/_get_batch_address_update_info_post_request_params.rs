@@ -12,15 +12,25 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetBatchAddressUpdateInfoPostRequestParams {
-    #[serde(rename = "batchSize")]
-    pub batch_size: u16,
-    /// A 32-byte hash represented as a base58 string.
+    #[serde(rename = "limit")]
+    pub limit: u16,
+    #[serde(
+        rename = "startQueueIndex",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub start_queue_index: Option<u16>,
+    /// A Solana public key represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,
 }
 
 impl GetBatchAddressUpdateInfoPostRequestParams {
-    pub fn new(batch_size: u16, tree: String) -> GetBatchAddressUpdateInfoPostRequestParams {
-        GetBatchAddressUpdateInfoPostRequestParams { batch_size, tree }
+    pub fn new(limit: u16, tree: String) -> GetBatchAddressUpdateInfoPostRequestParams {
+        GetBatchAddressUpdateInfoPostRequestParams {
+            limit,
+            start_queue_index: None,
+            tree,
+        }
     }
 }

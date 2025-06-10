@@ -1,13 +1,13 @@
-# GetQueueElementsPostRequestParams
+# AddressProofInputs
 
 ## Properties
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**limit** | **i32** |  | 
-**queue_type** | **i32** |  | 
-**start_queue_index** | Option<**i32**> |  | [optional]
-**tree** | **String** | A 32-byte hash represented as a base58 string. | 
+**address** | **String** |  | 
+**merkle_context** | [**models::MerkleContextV2**](MerkleContextV2.md) |  | 
+**root** | **String** |  | 
+**root_index** | **i32** |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

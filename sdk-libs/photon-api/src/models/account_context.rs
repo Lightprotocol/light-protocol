@@ -10,7 +10,7 @@
 
 use crate::models;
 
-/// AccountContext : This is currently used internally: - Internal (state_updates,..) - GetTransactionWithCompressionInfo (internally) - GetTransactionWithCompressionInfoV2 (internally) All endpoints return AccountV2.
+/// AccountContext: This is currently used internally: - Internal (state_updates,..) - GetTransactionWithCompressionInfo (internally) - GetTransactionWithCompressionInfoV2 (internally) All endpoints return AccountV2.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AccountContext {
     #[serde(rename = "inOutputQueue")]

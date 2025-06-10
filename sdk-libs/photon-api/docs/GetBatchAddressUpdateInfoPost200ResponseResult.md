@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**addresses** | [**Vec<models::AddressSeq>**](AddressSeq.md) |  | 
+**addresses** | [**Vec<models::AddressQueueIndex>**](AddressQueueIndex.md) |  | 
 **context** | [**models::Context**](Context.md) |  | 
 **non_inclusion_proofs** | [**Vec<models::MerkleContextWithNewAddressProof>**](MerkleContextWithNewAddressProof.md) |  | 
 **start_index** | **i32** |  | 
