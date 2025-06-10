@@ -2,6 +2,7 @@ import BN from 'bn.js';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { NewAddressParamsPacked } from '../utils';
+import { PackedCompressedAccountWithMerkleContext } from './compressed-account';
 
 export enum TreeType {
     /**
@@ -114,31 +115,9 @@ export type AddressTreeInfo = Omit<
 };
 
 /**
- * Packed compressed account with merkle context.
- */
-export interface PackedCompressedAccountWithMerkleContext {
-    /**
-     * Compressed account.
-     */
-    compressedAccount: CompressedAccount;
-    /**
-     * Merkle context.
-     */
-    merkleContext: PackedMerkleContext;
-    /**
-     * Root index.
-     */
-    rootIndex: number;
-    /**
-     * Read only.
-     */
-    readOnly: boolean;
-}
-
-/**
  * Packed merkle context.
  */
-export interface PackedMerkleContext {
+export interface PackedMerkleContextLegacy {
     /**
      * Merkle tree pubkey index.
      */
@@ -155,29 +134,6 @@ export interface PackedMerkleContext {
      * Whether to prove by index or validity proof.
      */
     proveByIndex: boolean;
-}
-
-/**
- * Describe the generic compressed account details applicable to every
- * compressed account.
- * */
-export interface CompressedAccount {
-    /**
-     * Public key of program or user owning the account.
-     */
-    owner: PublicKey;
-    /**
-     * Lamports attached to the account.
-     */
-    lamports: BN;
-    /**
-     * Optional unique account ID that is persistent across transactions.
-     */
-    address: number[] | null;
-    /**
-     * Optional data attached to the account.
-     */
-    data: CompressedAccountData | null;
 }
 
 /**
@@ -206,13 +162,36 @@ export interface CompressedAccountLegacy {
     data: CompressedAccountData | null;
 }
 /**
+ * @deprecated Use {@link CompressedAccountMeta} instead.
+ *
  * Describe the generic compressed account details applicable to every
  * compressed account.
  */
 export interface OutputCompressedAccountWithPackedContext {
-    compressedAccount: CompressedAccount;
+    compressedAccount: CompressedAccountLegacy;
     merkleTreeIndex: number;
 }
+
+/**
+ * Compressed account-related proof metadata.
+ */
+export type AccountProofInput = {
+    hash: BN;
+    treeInfo: TreeInfo;
+    leafIndex: number;
+    rootIndex: number;
+    proveByIndex: boolean;
+};
+
+/**
+ * New address proof metadata.
+ */
+export type NewAddressProofInput = {
+    treeInfo: TreeInfo;
+    address: number[];
+    rootIndex: number;
+    root: BN;
+};
 
 /**
  * Describes compressed account data.
@@ -445,7 +424,7 @@ export interface InputTokenDataWithContext {
     /**
      * Merkle context.
      */
-    merkleContext: PackedMerkleContext;
+    merkleContext: PackedMerkleContextLegacy;
     /**
      * Root index.
      */

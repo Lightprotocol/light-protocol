@@ -1,21 +1,32 @@
 import { PublicKey } from '@solana/web3.js';
 import {
-    CompressedAccount,
     CompressedAccountData,
     CompressedAccountLegacy,
+    PackedMerkleContextLegacy,
     TreeInfo,
 } from './types';
 import BN from 'bn.js';
 import { BN254 } from './BN254';
-import { bn } from './bn';
 
-// @deprecated use {@link CompressedAccount} instead
-// export type CompressedAccountWithMerkleContext = CompressedAccount &
-//     MerkleContext & {
-//         readOnly: boolean;
-//     };
+/**
+ * @deprecated use {@link CompressedAccount} instead
+ */
+export type CompressedAccountWithMerkleContext = CompressedAccount &
+    MerkleContext & {
+        readOnly: boolean;
+    };
 
-export type CompressedAccountWithMerkleContext = MerkleContext & {
+/**
+ * @deprecated use {@link CompressedAccount} instead
+ */
+export type CompressedAccountWithMerkleContextLegacy = CompressedAccount &
+    MerkleContext;
+
+/**
+ * Compressed account + metadata about the state tree in which the account is
+ * stored.
+ */
+export type CompressedAccount = {
     /**
      * Public key of program or user owning the account.
      */
@@ -32,18 +43,17 @@ export type CompressedAccountWithMerkleContext = MerkleContext & {
      * Optional data attached to the account.
      */
     data: CompressedAccountData | null;
-} & {
-    readOnly: boolean;
-};
-
-// @deprecated use {@link CompressedAccount} instead
-// export type CompressedAccountWithMerkleContextLegacy = CompressedAccount &
-//     MerkleContextLegacy;
+} & MerkleContext & {
+        /**
+         * Read only.
+         */
+        readOnly: boolean;
+    };
 
 /**
  * @deprecated use {@link MerkleContext} instead.
  *
- * Legacy MerkleContext
+ * Legacy MerkleContext.
  */
 export type MerkleContextLegacy = {
     /**
@@ -104,31 +114,148 @@ export type MerkleContextWithMerkleProof = MerkleContext & {
     root: BN254;
 };
 
-export const createCompressedAccount = (
+/**
+ * Packed compressed account and state tree info.
+ */
+export type PackedStateTreeInfo = {
+    /**
+     * Recent valid root index.
+     */
+    rootIndex: number;
+    /**
+     * Whether the account can be proven by index or by merkle proof
+     */
+    proveByIndex: boolean;
+    /**
+     * Index of the merkle tree in which the account is stored.
+     */
+    merkleTreePubkeyIndex: number;
+    /**
+     * Index of the queue in which the account is stored.
+     */
+    queuePubkeyIndex: number;
+    /**
+     * Index of the leaf in the state tree.
+     */
+    leafIndex: number;
+};
+
+/**
+ * Packed tree info for a new program-derived address (PDA).
+ */
+export type PackedAddressTreeInfo = {
+    /**
+     * Index of the merkle tree in which the account is stored.
+     */
+    addressMerkleTreePubkeyIndex: number;
+    /**
+     * Index of the queue in which the account is stored.
+     */
+    addressQueuePubkeyIndex: number;
+    /**
+     * Recent valid root index.
+     */
+    rootIndex: number;
+};
+
+/**
+ * Compressed account meta in instruction.
+ *
+ */
+export type CompressedAccountMeta = {
+    /**
+     * Packed Tree info.
+     */
+    treeInfo: PackedStateTreeInfo;
+    /**
+     * Address.
+     */
+    address: number[] | null;
+    /**
+     * Lamports.
+     */
+    lamports: BN | null;
+    /**
+     * index of state tree in which the new account state is stored.
+     */
+    outputStateTreeIndex: number;
+};
+
+/**
+ * Create an output compressed account meta for a new account.
+ * Client-side only.
+ */
+export const createCompressedAccountMeta = (
+    treeInfo: PackedStateTreeInfo,
+    outputStateTreeIndex: number,
+    address?: number[],
+    lamports?: BN,
+): CompressedAccountMeta => ({
+    treeInfo,
+    outputStateTreeIndex,
+    address: address ?? null,
+    lamports: lamports ?? null,
+});
+
+/**
+ * @deprecated Use {@link PackedStateTreeInfo} instead.
+ * Packed compressed account with merkle context.
+ */
+export interface PackedCompressedAccountWithMerkleContext {
+    /**
+     * Compressed account.
+     */
+    compressedAccount: CompressedAccountLegacy;
+    /**
+     * Merkle context.
+     */
+    merkleContext: PackedMerkleContextLegacy;
+    /**
+     * Root index.
+     */
+    rootIndex: number;
+    /**
+     * Read only.
+     */
+    readOnly: boolean;
+}
+
+/**
+ * @deprecated use {@link createCompressedAccountMeta} instead.
+ */
+export const createCompressedAccountLegacy = (
     owner: PublicKey,
     lamports?: BN,
     data?: CompressedAccountData,
     address?: number[],
-): CompressedAccount => ({
+): CompressedAccountLegacy => ({
     owner,
-    lamports: lamports ?? bn(0),
+    lamports: lamports ?? new BN(0),
     address: address ?? null,
     data: data ?? null,
 });
-
-export const createCompressedAccountWithMerkleContext = (
+/**
+ * @deprecated.
+ */
+export const createCompressedAccountWithMerkleContextLegacy = (
     merkleContext: MerkleContext,
     owner: PublicKey,
     lamports?: BN,
     data?: CompressedAccountData,
     address?: number[],
 ): CompressedAccountWithMerkleContext => ({
-    ...createCompressedAccount(owner, lamports, data, address),
     ...merkleContext,
+    owner,
+    lamports: lamports ?? new BN(0),
+    address: address ?? null,
+    data: data ?? null,
     readOnly: false,
 });
 
-export const createMerkleContext = (
+/**
+ * @deprecated use {@link createCompressedAccountMeta} instead.
+ */
+export const createMerkleContextLegacy = (
     treeInfo: TreeInfo,
     hash: BN254,
     leafIndex: number,

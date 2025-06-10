@@ -3,7 +3,7 @@ import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import {
     ValidityProof,
-    PackedMerkleContext,
+    PackedMerkleContextLegacy,
     CompressedCpiContext,
 } from '@lightprotocol/stateless.js';
 import { TokenPoolInfo } from './utils/get-token-pool-infos';
@@ -53,7 +53,7 @@ export type PackedTokenTransferOutputData = {
 export type InputTokenDataWithContext = {
     amount: BN;
     delegateIndex: number | null;
-    merkleContext: PackedMerkleContext;
+    merkleContext: PackedMerkleContextLegacy;
     rootIndex: number;
     lamports: BN | null;
     tlv: Buffer | null;

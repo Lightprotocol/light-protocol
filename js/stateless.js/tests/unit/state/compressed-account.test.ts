@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-    createCompressedAccount,
-    createCompressedAccountWithMerkleContext,
-    createMerkleContext,
+    createCompressedAccountLegacy,
+    createCompressedAccountWithMerkleContextLegacy,
+    createMerkleContextLegacy,
 } from '../../../src/state/compressed-account';
 import { PublicKey } from '@solana/web3.js';
 import { bn } from '../../../src/state';
@@ -11,7 +11,7 @@ import { TreeType } from '../../../src/state';
 describe('createCompressedAccount function', () => {
     it('should create a compressed account with default values', () => {
         const owner = PublicKey.unique();
-        const account = createCompressedAccount(owner);
+        const account = createCompressedAccountLegacy(owner);
         expect(account).toEqual({
             owner,
             lamports: bn(0),
@@ -29,7 +29,12 @@ describe('createCompressedAccount function', () => {
             dataHash: [0],
         };
         const address = Array.from(PublicKey.unique().toBytes());
-        const account = createCompressedAccount(owner, lamports, data, address);
+        const account = createCompressedAccountLegacy(
+            owner,
+            lamports,
+            data,
+            address,
+        );
         expect(account).toEqual({
             owner,
             lamports,
@@ -39,14 +44,14 @@ describe('createCompressedAccount function', () => {
     });
 });
 
-describe('createCompressedAccountWithMerkleContext function', () => {
+describe('createCompressedAccountWithMerkleContextLegacy function', () => {
     it('should create a compressed account with merkle context', () => {
         const owner = PublicKey.unique();
         const merkleTree = PublicKey.unique();
         const nullifierQueue = PublicKey.unique();
         const hash = new Array(32).fill(1);
         const leafIndex = 0;
-        const merkleContext = createMerkleContext(
+        const merkleContext = createMerkleContextLegacy(
             {
                 tree: merkleTree,
                 queue: nullifierQueue,
@@ -57,7 +62,10 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             leafIndex,
         );
         const accountWithMerkleContext =
-            createCompressedAccountWithMerkleContext(merkleContext, owner);
+            createCompressedAccountWithMerkleContextLegacy(
+                merkleContext,
+                owner,
+            );
         expect(accountWithMerkleContext).toEqual({
             owner,
             lamports: bn(0),
@@ -84,7 +92,7 @@ describe('createMerkleContext function', () => {
         const hash = new Array(32).fill(1);
 
         const leafIndex = 0;
-        const merkleContext = createMerkleContext(
+        const merkleContext = createMerkleContextLegacy(
             {
                 tree: merkleTree,
                 queue: nullifierQueue,

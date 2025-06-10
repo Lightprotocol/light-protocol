@@ -58,8 +58,8 @@ import {
     bn,
     CompressedAccountWithMerkleContext,
     encodeBN254toBase58,
-    createCompressedAccountWithMerkleContext,
-    createMerkleContext,
+    createCompressedAccountWithMerkleContextLegacy,
+    createMerkleContextLegacy,
     TokenData,
     ValidityProof,
     TreeType,
@@ -171,8 +171,8 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         );
 
         const compressedAccount: CompressedAccountWithMerkleContext =
-            createCompressedAccountWithMerkleContext(
-                createMerkleContext(
+            createCompressedAccountWithMerkleContextLegacy(
+                createMerkleContextLegacy(
                     stateTreeInfo,
                     _account.hash,
                     _account.leafIndex,
@@ -575,8 +575,8 @@ function buildCompressedAccountWithMaybeTokenData(
         accountStructWithOptionalTokenData.optionalTokenData;
 
     const compressedAccount: CompressedAccountWithMerkleContext =
-        createCompressedAccountWithMerkleContext(
-            createMerkleContext(
+        createCompressedAccountWithMerkleContextLegacy(
+            createMerkleContextLegacy(
                 compressedAccountResult.treeInfo,
                 compressedAccountResult.hash.toArray('be', 32),
                 compressedAccountResult.leafIndex,
@@ -754,8 +754,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
         const item = res.result.value;
 
-        return createCompressedAccountWithMerkleContext(
-            createMerkleContext(stateTreeInfo, item.hash, item.leafIndex),
+        return createCompressedAccountWithMerkleContextLegacy(
+            createMerkleContextLegacy(stateTreeInfo, item.hash, item.leafIndex),
             item.owner,
             bn(item.lamports),
             item.data ? parseAccountData(item.data) : undefined,
@@ -925,8 +925,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 activeStateTreeInfo,
                 tree,
             );
-            const account = createCompressedAccountWithMerkleContext(
-                createMerkleContext(
+            const account = createCompressedAccountWithMerkleContextLegacy(
+                createMerkleContextLegacy(
                     stateTreeInfo,
                     bn(item.hash.toArray('be', 32)),
                     item.leafIndex,
@@ -1059,8 +1059,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 activeStateTreeInfo,
                 featureFlags.isV2() ? item.merkleContext.tree : item.tree,
             );
-            const account = createCompressedAccountWithMerkleContext(
-                createMerkleContext(
+            const account = createCompressedAccountWithMerkleContextLegacy(
+                createMerkleContextLegacy(
                     stateTreeInfo,
                     bn(item.hash.toArray('be', 32)),
                     item.leafIndex,
@@ -1337,8 +1337,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     activeStateTreeInfo,
                     item.account.tree,
                 );
-                const account = createCompressedAccountWithMerkleContext(
-                    createMerkleContext(
+                const account = createCompressedAccountWithMerkleContextLegacy(
+                    createMerkleContextLegacy(
                         stateTreeInfo,
                         bn(item.account.hash.toArray('be', 32)),
                         item.account.leafIndex,
@@ -1361,8 +1361,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     activeStateTreeInfo,
                     item.account.tree,
                 );
-                const account = createCompressedAccountWithMerkleContext(
-                    createMerkleContext(
+                const account = createCompressedAccountWithMerkleContextLegacy(
+                    createMerkleContextLegacy(
                         stateTreeInfo,
                         bn(item.account.hash.toArray('be', 32)),
                         item.account.leafIndex,

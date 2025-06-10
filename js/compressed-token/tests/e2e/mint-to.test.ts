@@ -102,10 +102,6 @@ describe('mintTo', () => {
     }, 80_000);
 
     it('should mint to bob', async () => {
-        console.log('statetreeinfo', stateTreeInfo);
-        console.log('tokenpoolinfo', tokenPoolInfo);
-        console.log('all state tree infos', await rpc.getStateTreeInfos());
-
         const amount = bn(1000);
         const txId = await mintTo(
             rpc,
@@ -117,7 +113,6 @@ describe('mintTo', () => {
             stateTreeInfo,
             tokenPoolInfo,
         );
-        console.log('txId', txId);
 
         await assertMintTo(rpc, mint, amount, bob.publicKey);
 
@@ -172,7 +167,7 @@ describe('mintTo', () => {
             stateTreeInfo,
             tokenPoolInfo,
         );
-        console.log('txId 10 recipients', tx);
+
         // Uneven amounts
         await expect(
             mintTo(
@@ -215,6 +210,5 @@ describe('mintTo', () => {
             [lookupTableAccount],
         );
         const txId = await sendAndConfirmTx(rpc, tx);
-        console.log('txId 22 recipients', txId);
     });
 });

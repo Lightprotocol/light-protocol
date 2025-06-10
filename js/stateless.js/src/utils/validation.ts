@@ -1,6 +1,6 @@
 import BN from 'bn.js';
 import {
-    CompressedAccount,
+    CompressedAccountLegacy,
     CompressedAccountWithMerkleContext,
     bn,
 } from '../state';
@@ -13,7 +13,7 @@ export const validateSufficientBalance = (balance: BN) => {
 
 export const validateSameOwner = (
     compressedAccounts:
-        | CompressedAccount[]
+        | CompressedAccountLegacy[]
         | CompressedAccountWithMerkleContext[],
 ) => {
     if (compressedAccounts.length === 0) {
