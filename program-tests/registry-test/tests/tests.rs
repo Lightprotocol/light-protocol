@@ -626,7 +626,7 @@ async fn test_custom_forester() {
 #[serial]
 #[tokio::test]
 async fn test_custom_forester_batched() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_test_forster(true))
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default_test_forester(true))
         .await
         .unwrap();
     rpc.indexer = None;
@@ -1849,7 +1849,7 @@ async fn test_rollover_batch_state_tree() {
 #[serial]
 #[tokio::test]
 async fn test_batch_address_tree() {
-    let mut config = ProgramTestConfig::default_test_forster(true);
+    let mut config = ProgramTestConfig::default_test_forester(true);
     let tree_params = config.v2_address_tree_config.unwrap();
     config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
     config.additional_programs = Some(vec![(

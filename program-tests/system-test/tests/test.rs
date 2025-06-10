@@ -1836,7 +1836,7 @@ pub fn rustfmt(code: String) -> Result<Vec<u8>, io::Error> {
 #[serial]
 #[tokio::test]
 async fn batch_invoke_test() {
-    let config = ProgramTestConfig::default_test_forster(false);
+    let config = ProgramTestConfig::default_test_forester(false);
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
 
