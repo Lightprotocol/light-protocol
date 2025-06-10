@@ -126,6 +126,24 @@ impl PhotonIndexer {
         result.ok_or_else(|| IndexerError::missing_result(context, "value not present"))
     }
 
+    fn extract_result_with_error_check<T>(
+        context: &str,
+        error: Option<Box<photon_api::models::GetBatchAddressUpdateInfoPost200ResponseError>>,
+        result: Option<T>,
+    ) -> Result<T, IndexerError> {
+        if let Some(error) = error {
+            let error_message = error
+                .message
+                .unwrap_or_else(|| "Unknown API error".to_string());
+            return Err(IndexerError::ApiError(format!(
+                "API error in {} (code: {:?}): {}",
+                context, error.code, error_message
+            )));
+        }
+
+        Self::extract_result(context, result)
+    }
+
     fn build_account_params(
         &self,
         address: Option<Address>,
@@ -174,7 +192,11 @@ impl Indexer for PhotonIndexer {
                 request,
             )
             .await?;
-            let api_response = Self::extract_result("get_compressed_account", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_account",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -212,7 +234,11 @@ impl Indexer for PhotonIndexer {
                 request,
             )
             .await?;
-            let api_response = Self::extract_result("get_compressed_account", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_account_by_hash",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -359,8 +385,11 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let api_response =
-                Self::extract_result("get_compressed_account_balance", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_account_balance",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -396,8 +425,11 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let api_response =
-                Self::extract_result("get_compressed_balance_by_owner", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_balance_by_owner",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -436,8 +468,11 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let api_response =
-                Self::extract_result("get_compressed_mint_token_holders", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_mint_token_holders",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -485,8 +520,11 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let api_response =
-                Self::extract_result("get_compressed_token_account_balance", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_token_account_balance",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -677,8 +715,11 @@ impl Indexer for PhotonIndexer {
                     )
                     .await?;
 
-                let response =
-                    Self::extract_result("get_compressed_token_accounts_by_owner", result.result)?;
+                let response = Self::extract_result_with_error_check(
+                    "get_compressed_token_accounts_by_owner",
+                    result.error,
+                    result.result.map(|r| *r),
+                )?;
                 if response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
@@ -737,9 +778,10 @@ impl Indexer for PhotonIndexer {
                     )
                     .await?;
 
-                let api_response = Self::extract_result(
+                let api_response = Self::extract_result_with_error_check(
                     "get_compressed_token_balances_by_owner_v2",
-                    result.result,
+                    result.error,
+                    result.result.map(|r| *r),
                 )?;
                 if api_response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -786,8 +828,11 @@ impl Indexer for PhotonIndexer {
                     )
                     .await?;
 
-                let api_response =
-                    Self::extract_result("get_compressed_token_balances_by_owner", result.result)?;
+                let api_response = Self::extract_result_with_error_check(
+                    "get_compressed_token_balances_by_owner",
+                    result.error,
+                    result.result.map(|r| *r),
+                )?;
                 if api_response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
@@ -836,8 +881,11 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-            let api_response =
-                Self::extract_result("get_compression_signatures_for_account", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compression_signatures_for_account",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -884,8 +932,11 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-            let api_response =
-                Self::extract_result("get_compression_signatures_for_address", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compression_signatures_for_address",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -937,8 +988,11 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let api_response =
-                Self::extract_result("get_compression_signatures_for_owner", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compression_signatures_for_owner",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -991,8 +1045,11 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-            let api_response =
-                Self::extract_result("get_compression_signatures_for_token_owner", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_compression_signatures_for_token_owner",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -1032,7 +1089,11 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let _api_response = Self::extract_result("get_indexer_health", result.result)?;
+            let _api_response = Self::extract_result_with_error_check(
+                "get_indexer_health",
+                result.error,
+                result.result,
+            )?;
 
             Ok(true)
         })
@@ -1050,7 +1111,11 @@ impl Indexer for PhotonIndexer {
                 photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
                     .await?;
 
-            let result = Self::extract_result("get_indexer_slot", result.result)?;
+            let result = Self::extract_result_with_error_check(
+                "get_indexer_slot",
+                result.error,
+                result.result,
+            )?;
             Ok(result)
         })
         .await
@@ -1167,8 +1232,11 @@ impl Indexer for PhotonIndexer {
             )
             .await?;
 
-            let api_response =
-                Self::extract_result("get_multiple_compressed_accounts", result.result)?;
+            let api_response = Self::extract_result_with_error_check(
+                "get_multiple_compressed_accounts",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -1223,14 +1291,17 @@ impl Indexer for PhotonIndexer {
 
             let result = result?;
 
-            let api_response =
-                match Self::extract_result("get_multiple_new_address_proofs", result.result) {
-                    Ok(proofs) => proofs,
-                    Err(e) => {
-                        error!("Failed to extract proofs: {:?}", e);
-                        return Err(e);
-                    }
-                };
+            let api_response = match Self::extract_result_with_error_check(
+                "get_multiple_new_address_proofs",
+                result.error,
+                result.result.map(|r| *r),
+            ) {
+                Ok(proofs) => proofs,
+                Err(e) => {
+                    error!("Failed to extract proofs: {:?}", e);
+                    return Err(e);
+                }
+            };
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
@@ -1330,7 +1401,11 @@ impl Indexer for PhotonIndexer {
                     request,
                 )
                 .await?;
-                let api_response = Self::extract_result("get_validity_proof_v2", result.result)?;
+                let api_response = Self::extract_result_with_error_check(
+                    "get_validity_proof_v2",
+                    result.error,
+                    result.result.map(|r| *r),
+                )?;
                 if api_response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
@@ -1368,7 +1443,11 @@ impl Indexer for PhotonIndexer {
                 )
                 .await?;
 
-                let api_response = Self::extract_result("get_validity_proof", result.result)?;
+                let api_response = Self::extract_result_with_error_check(
+                    "get_validity_proof",
+                    result.error,
+                    result.result.map(|r| *r),
+                )?;
                 if api_response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
@@ -1398,7 +1477,6 @@ impl Indexer for PhotonIndexer {
         unimplemented!("get_address_queue_with_proofs");
         #[cfg(feature = "v2")]
         {
-            println!("v2 get_address_queue_with_proofs");
             let merkle_tree_pubkey = _merkle_tree_pubkey;
             let limit = _zkp_batch_size;
             let config = _config.unwrap_or_default();
@@ -1415,18 +1493,17 @@ impl Indexer for PhotonIndexer {
                     ..Default::default()
                 };
 
-                println!("request: {:?}", request);
-
                 let result = photon_api::apis::default_api::get_batch_address_update_info_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
 
-                println!("result: {:?}", result);
-
-                let api_response =
-                    Self::extract_result("get_batch_address_update_info", result.result)?;
+                let api_response = Self::extract_result_with_error_check(
+                    "get_batch_address_update_info",
+                    result.error,
+                    result.result.map(|r| *r),
+                )?;
                 if api_response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
                 }
