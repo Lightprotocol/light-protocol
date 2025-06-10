@@ -180,6 +180,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         &mut self,
         merkle_tree_pubkey: &Pubkey,
         zkp_batch_size: u16,
+        start_offset: Option<u64>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError>;
 

@@ -83,7 +83,7 @@ where
     debug!("Requesting {} total elements from indexer", total_elements);
 
     let indexer_update_info = indexer
-        .get_address_queue_with_proofs(merkle_tree_pubkey, total_elements as u16, None)
+        .get_address_queue_with_proofs(merkle_tree_pubkey, total_elements as u16, None, None)
         .await
         .map_err(|e| {
             error!("Failed to get batch address update info: {:?}", e);

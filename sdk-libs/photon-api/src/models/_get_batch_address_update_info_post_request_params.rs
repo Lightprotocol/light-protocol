@@ -19,7 +19,7 @@ pub struct GetBatchAddressUpdateInfoPostRequestParams {
         default,
         skip_serializing_if = "Option::is_none"
     )]
-    pub start_queue_index: Option<u16>,
+    pub start_queue_index: Option<u64>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,

@@ -848,6 +848,7 @@ impl Indexer for TestIndexer {
         &mut self,
         _merkle_tree_pubkey: &Pubkey,
         _zkp_batch_size: u16,
+        _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
         #[cfg(not(feature = "v2"))]

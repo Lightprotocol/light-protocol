@@ -1471,6 +1471,7 @@ impl Indexer for PhotonIndexer {
         &mut self,
         _merkle_tree_pubkey: &Pubkey,
         _zkp_batch_size: u16,
+        _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
         #[cfg(not(feature = "v2"))]
@@ -1479,6 +1480,7 @@ impl Indexer for PhotonIndexer {
         {
             let merkle_tree_pubkey = _merkle_tree_pubkey;
             let limit = _zkp_batch_size;
+            let start_queue_index = _start_offset;
             let config = _config.unwrap_or_default();
             self.retry(config.retry_config, || async {
                 let merkle_tree = Hash::from_bytes(merkle_tree_pubkey.to_bytes().as_ref())?;
@@ -1486,7 +1488,7 @@ impl Indexer for PhotonIndexer {
                     params: Box::new(
                         photon_api::models::GetBatchAddressUpdateInfoPostRequestParams {
                             limit,
-                            start_queue_index: None,
+                            start_queue_index,
                             tree: merkle_tree.to_base58(),
                         },
                     ),

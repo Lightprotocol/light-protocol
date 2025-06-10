@@ -172,13 +172,13 @@ async fn test_address_batched() {
     .unwrap();
 
     let photon_address_queue_with_proofs = photon_indexer
-        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None)
+        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
         .await
         .unwrap();
 
     let test_indexer_address_queue_with_proofs = env
         .indexer
-        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None)
+        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
         .await
         .unwrap();
 
@@ -207,13 +207,13 @@ async fn test_address_batched() {
 
         if (i + 1) % 10 == 0 {
             let photon_address_queue_with_proofs = photon_indexer
-                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None)
+                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
                 .await
                 .unwrap();
 
             let test_indexer_address_queue_with_proofs = env
                 .indexer
-                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None)
+                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
                 .await
                 .unwrap();
 
