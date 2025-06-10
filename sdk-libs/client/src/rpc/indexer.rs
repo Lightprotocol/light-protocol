@@ -190,13 +190,14 @@ impl Indexer for LightClient {
         &mut self,
         merkle_tree_pubkey: &Pubkey,
         zkp_batch_size: u16,
+        start_offset: Option<u64>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
-            .get_address_queue_with_proofs(merkle_tree_pubkey, zkp_batch_size, config)
+            .get_address_queue_with_proofs(merkle_tree_pubkey, zkp_batch_size, start_offset, config)
             .await?)
     }
 
