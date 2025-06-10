@@ -112,6 +112,10 @@ anchor-spl = "=0.31.1"
 # Anchor compatibility
 borsh = "0.10.0"
 
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
 # Macro helpers
 proc-macro2 = "1.0"
 quote = "1.0"

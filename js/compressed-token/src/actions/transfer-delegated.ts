@@ -11,8 +11,6 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeInfo,
-    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';

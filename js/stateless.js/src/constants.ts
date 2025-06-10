@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { StateTreeInfo, TreeType } from './state/types';
+import { TreeInfo, TreeType } from './state/types';
 
 /**
 /**
@@ -127,7 +127,7 @@ export const isLocalTest = (url: string) => {
 /**
  * @internal
  */
-export const localTestActiveStateTreeInfo = (): StateTreeInfo[] => {
+export const localTestActiveStateTreeInfo = (): TreeInfo[] => {
     return [
         {
             tree: new PublicKey(merkletreePubkey),

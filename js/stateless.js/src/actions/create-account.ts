@@ -19,7 +19,7 @@ import {
     sendAndConfirmTx,
 } from '../utils';
 import { getDefaultAddressTreeInfo } from '../constants';
-import { AddressTreeInfo, bn, StateTreeInfo } from '../state';
+import { AddressTreeInfo, bn, TreeInfo } from '../state';
 import BN from 'bn.js';
 
 /**
@@ -43,7 +43,7 @@ export async function createAccount(
     seeds: Uint8Array[],
     programId: PublicKey,
     addressTreeInfo?: AddressTreeInfo,
-    outputStateTreeInfo?: StateTreeInfo,
+    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
@@ -117,7 +117,7 @@ export async function createAccountWithLamports(
     lamports: number | BN,
     programId: PublicKey,
     addressTreeInfo?: AddressTreeInfo,
-    outputStateTreeInfo?: StateTreeInfo,
+    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);

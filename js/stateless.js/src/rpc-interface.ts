@@ -24,7 +24,7 @@ import {
     MerkleContextWithMerkleProof,
     bn,
     TokenData,
-    StateTreeInfo,
+    TreeInfo,
     AddressTreeInfo,
     CompressedProof,
 } from './state';
@@ -83,7 +83,7 @@ export interface HashWithTreeInfo {
     /**
      * State tree info.
      */
-    stateTreeInfo: StateTreeInfo;
+    stateTreeInfo: TreeInfo;
 }
 
 /**
@@ -182,7 +182,7 @@ export type ValidityProofWithContext = {
     /**
      * Tree infos.
      */
-    treeInfos: StateTreeInfo[];
+    treeInfos: TreeInfo[];
     /**
      * Whether to prove by indices.
      */
@@ -580,6 +580,9 @@ const CompressedProofResult = pick({
     c: array(number()),
 });
 
+/**
+ * @internal
+ */
 export const RootIndexResultV2 = pick({
     rootIndex: number(),
     proveByIndex: boolean(),
@@ -599,16 +602,24 @@ export const ValidityProofResult = pick({
     // nullifierQueues: array(PublicKeyFromString),
 });
 
-/**
- * @internal
- */
+const AccountProofInputsResult = pick({
+    hash: BN254FromString,
+    root: BN254FromString,
+    rootIndex: RootIndexResultV2,
+    merkleContext: TreeInfoResultV2,
+    leafIndex: number(),
+});
+const AddressProofInputsResult = pick({
+    address: BN254FromString,
+    root: BN254FromString,
+    rootIndex: number(),
+    merkleContext: TreeInfoResultV2,
+});
+
 export const ValidityProofResultV2 = pick({
     compressedProof: nullable(CompressedProofResult),
-    roots: array(BN254FromString),
-    rootIndices: array(RootIndexResultV2),
-    leafIndices: array(number()),
-    leaves: array(BN254FromString),
-    merkleContexts: array(TreeInfoResultV2),
+    accounts: array(AccountProofInputsResult),
+    addresses: array(AddressProofInputsResult),
 });
 
 /**

@@ -4,7 +4,7 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
-    StateTreeInfo,
+    TreeInfo,
     bn,
     compress,
     createAccount,
@@ -47,7 +47,7 @@ describe('rpc-interop', () => {
     let rpc: Rpc;
     let testRpc: TestRpc;
     let executedTxs = 0;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
@@ -133,18 +133,11 @@ describe('rpc-interop', () => {
         });
 
         /// Executes a transfer using a 'validityProof' from Photon
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey, stateTreeInfo);
+        await transfer(rpc, payer, 1e5, payer, bob.publicKey);
         executedTxs++;
 
         /// Executes a transfer using a 'validityProof' directly from a prover.
-        await transfer(
-            testRpc,
-            payer,
-            1e5,
-            payer,
-            bob.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
         executedTxs++;
     });
 
@@ -445,14 +438,7 @@ describe('rpc-interop', () => {
 
             assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
 
-            await transfer(
-                rpc,
-                payer,
-                transferAmount,
-                payer,
-                bob.publicKey,
-                stateTreeInfo,
-            );
+            await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
             executedTxs++;
             const postSenderAccs = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
@@ -608,7 +594,7 @@ describe('rpc-interop', () => {
             account.lamports.gt(acc.lamports) ? account : acc,
         );
 
-        await transfer(rpc, payer, 1, payer, bob.publicKey, stateTreeInfo);
+        await transfer(rpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
 
         const signaturesSpent = await rpc.getCompressionSignaturesForAccount(

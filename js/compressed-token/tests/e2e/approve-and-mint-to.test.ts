@@ -16,7 +16,7 @@ import {
     sendAndConfirmTx,
     getTestRpc,
     defaultTestStateTreeAccounts,
-    StateTreeInfo,
+    TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -72,7 +72,7 @@ describe('approveAndMintTo', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
     let tokenPoolInfo: TokenPoolInfo;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();

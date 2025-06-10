@@ -7,7 +7,7 @@ import {
     createRpc,
     getTestRpc,
     defaultTestStateTreeAccounts,
-    StateTreeInfo,
+    TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -28,7 +28,7 @@ describe('rpc-interop token', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
