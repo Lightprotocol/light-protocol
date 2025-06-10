@@ -86,6 +86,7 @@ import { LightWasm } from './test-helpers';
 import {
     getAllStateTreeInfos,
     getStateTreeInfoByPubkey,
+    getTreeInfoByPubkey,
 } from './utils/get-state-tree-infos';
 import { TreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
@@ -988,7 +989,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 treeInfos,
                 featureFlags.isV2()
                     ? (proof as any).treeContext.tree
-                    : (proof as any).tree!,
+                    : (proof as any).merkleTree,
             );
             const value: MerkleContextWithMerkleProof = {
                 hash: bn(proof.hash.toArray('be', 32)),
@@ -1064,7 +1065,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     stateTreeInfo,
                     bn(item.hash.toArray('be', 32)),
                     item.leafIndex,
-                    true,
+                    false,
                 ),
                 item.owner,
                 bn(item.lamports),
@@ -1856,7 +1857,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 jsonRpcResultAndContext(ValidityProofResultV2),
             );
         } else {
-            throw new Error('V1 is not supported');
             res = create(
                 unsafeRes,
                 jsonRpcResultAndContext(ValidityProofResult),
@@ -1876,44 +1876,63 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         const value = res.result.value as any;
-        return {
-            value: {
-                compressedProof: value.compressedProof,
-                leaves: value.accounts
-                    .map((r: any) => r.hash)
-                    .concat(value.addresses.map((r: any) => r.address)),
-                roots: value.accounts
-                    .map((r: any) => r.root)
-                    .concat(value.addresses.map((r: any) => r.root)),
-                rootIndices: value.accounts
-                    .map((r: any) => r.rootIndex.rootIndex)
-                    .concat(value.addresses.map((r: any) => r.rootIndex)),
-                proveByIndices: value.accounts
-                    .map((r: any) => r.rootIndex.proveByIndex)
-                    .concat(value.addresses.map((r: any) => false)),
-                treeInfos: value.accounts
-                    .map((r: any) => r.merkleContext)
-                    .concat(value.addresses.map((r: any) => r.merkleContext)),
-                leafIndices: value.accounts
-                    .map((r: any) => r.leafIndex)
-                    .concat(value.addresses.map((r: any) => 0)),
-            },
-            context: res.result.context,
-        };
-        // TODO: enable with v1 support.
-        // return {
-        //     value: {
-        //         compressedProof: value.compressedProof,
-        //         roots: value.roots,
-        //         rootIndices: value.rootIndices.map((r: any) => r.rootIndex),
-        //         leafIndices: value.leafIndices,
-        //         leaves: value.leaves,
-        //         treeInfos: value.merkleContexts,
-        //         proveByIndices: value.rootIndices.map(
-        //             (r: any) => r.proveByIndex,
-        //         ),
-        //     },
-        //     context: res.result.context,
-        // };
+
+        if (featureFlags.isV2()) {
+            return {
+                value: {
+                    compressedProof: value.compressedProof,
+                    leaves: value.accounts
+                        .map((r: any) => r.hash)
+                        .concat(value.addresses.map((r: any) => r.address)),
+                    roots: value.accounts
+                        .map((r: any) => r.root)
+                        .concat(value.addresses.map((r: any) => r.root)),
+                    rootIndices: value.accounts
+                        .map((r: any) => r.rootIndex.rootIndex)
+                        .concat(value.addresses.map((r: any) => r.rootIndex)),
+                    proveByIndices: value.accounts
+                        .map((r: any) => r.rootIndex.proveByIndex)
+                        .concat(value.addresses.map((r: any) => false)),
+                    treeInfos: value.accounts
+                        .map((r: any) => r.merkleContext)
+                        .concat(
+                            value.addresses.map((r: any) => r.merkleContext),
+                        ),
+                    leafIndices: value.accounts
+                        .map((r: any) => r.leafIndex)
+                        .concat(value.addresses.map((r: any) => 0)),
+                },
+                context: res.result.context,
+            };
+        } else {
+            // Temporary fix for v1 backward compatibility.
+            const allInfos = await this.getStateTreeInfos();
+            const infos = value.merkleTrees.map((r: PublicKey) => {
+                if (r.equals(defaultTestStateTreeAccounts().addressTree)) {
+                    return {
+                        tree: r,
+                        queue: defaultTestStateTreeAccounts().addressQueue,
+                        treeType: TreeType.AddressV1,
+                        nextTreeInfo: null,
+                    };
+                }
+                return getTreeInfoByPubkey(allInfos, r);
+            });
+
+            return {
+                value: {
+                    compressedProof: value.compressedProof,
+                    roots: value.roots,
+                    rootIndices: value.rootIndices.map((r: any) => r),
+                    leafIndices: value.leafIndices,
+                    leaves: value.leaves,
+                    treeInfos: infos,
+                    proveByIndices: value.rootIndices.map(
+                        (r: any) => r.proveByIndex,
+                    ),
+                },
+                context: res.result.context,
+            };
+        }
     }
 }
