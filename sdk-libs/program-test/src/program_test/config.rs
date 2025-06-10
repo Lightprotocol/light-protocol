@@ -65,7 +65,7 @@ impl ProgramTestConfig {
     }
 
     #[cfg(feature = "devenv")]
-    pub fn default_test_forster(with_prover: bool) -> Self {
+    pub fn default_test_forester(with_prover: bool) -> Self {
         Self {
             additional_programs: None,
             with_prover,
