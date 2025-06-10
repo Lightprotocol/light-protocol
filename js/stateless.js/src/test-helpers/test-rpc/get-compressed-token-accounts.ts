@@ -6,12 +6,12 @@ import { Rpc } from '../../rpc';
 import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
-    CompressedAccount,
     PublicTransactionEvent,
     MerkleContext,
-    createCompressedAccountWithMerkleContext,
+    createCompressedAccountWithMerkleContextLegacy,
     bn,
     TreeType,
+    CompressedAccountLegacy,
 } from '../../state';
 import {
     struct,
@@ -53,7 +53,7 @@ export type EventWithParsedTokenTlvData = {
  * @returns The parsed token data
  */
 export function parseTokenLayoutWithIdl(
-    compressedAccount: CompressedAccount,
+    compressedAccount: CompressedAccountLegacy,
     programId: PublicKey = COMPRESSED_TOKEN_PROGRAM_ID,
 ): TokenData | null {
     if (compressedAccount.data === null) return null;
@@ -123,13 +123,14 @@ async function parseEventWithTokenTlvData(
                 compressedAccount.compressedAccount,
             );
             if (!parsedData) throw new Error('Invalid token data');
-            const withMerkleContext = createCompressedAccountWithMerkleContext(
-                merkleContext,
-                compressedAccount.compressedAccount.owner,
-                compressedAccount.compressedAccount.lamports,
-                compressedAccount.compressedAccount.data,
-                compressedAccount.compressedAccount.address ?? undefined,
-            );
+            const withMerkleContext =
+                createCompressedAccountWithMerkleContextLegacy(
+                    merkleContext,
+                    compressedAccount.compressedAccount.owner,
+                    compressedAccount.compressedAccount.lamports,
+                    compressedAccount.compressedAccount.data,
+                    compressedAccount.compressedAccount.address ?? undefined,
+                );
             return {
                 compressedAccount: withMerkleContext,
                 parsed: parsedData,

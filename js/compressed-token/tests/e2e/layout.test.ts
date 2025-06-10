@@ -10,7 +10,7 @@ import BN from 'bn.js';
 import {
     bn,
     InputTokenDataWithContext,
-    PackedMerkleContext,
+    PackedMerkleContextLegacy,
     ValidityProof,
     COMPRESSED_TOKEN_PROGRAM_ID,
     defaultStaticAccountsStruct,
@@ -165,7 +165,7 @@ describe('layout', () => {
                                 queuePubkeyIndex: 1,
                                 leafIndex: 10,
                                 proveByIndex: false,
-                            } as PackedMerkleContext,
+                            } as PackedMerkleContextLegacy,
                             rootIndex: 11,
                             lamports: null,
                             tlv: null,

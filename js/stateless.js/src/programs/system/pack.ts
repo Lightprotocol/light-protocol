@@ -1,13 +1,18 @@
 import { AccountMeta, PublicKey } from '@solana/web3.js';
 import {
-    CompressedAccount,
+    AccountProofInput,
+    CompressedAccountLegacy,
+    NewAddressProofInput,
     OutputCompressedAccountWithPackedContext,
     PackedCompressedAccountWithMerkleContext,
     TreeInfo,
     TreeType,
 } from '../../state';
-import { CompressedAccountWithMerkleContext } from '../../state/compressed-account';
-import { toArray } from '../../utils/conversion';
+import {
+    CompressedAccountWithMerkleContextLegacy,
+    PackedAddressTreeInfo,
+    PackedStateTreeInfo,
+} from '../../state/compressed-account';
 import { featureFlags } from '../../constants';
 
 /**
@@ -67,6 +72,120 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
     );
 }
 
+export interface PackedStateTreeInfos {
+    packedTreeInfos: PackedStateTreeInfo[];
+    outputTreeIndex: number;
+}
+
+export interface PackedTreeInfos {
+    stateTrees?: PackedStateTreeInfos;
+    addressTrees: PackedAddressTreeInfo[];
+}
+
+const INVALID_TREE_INDEX = -1;
+/**
+ * Packs TreeInfos. Replaces PublicKey with index pointer to remaining accounts.
+ *
+ * Only use for MUT, CLOSE, NEW_ADDRESSES. For INIT, pass
+ * {@link newAddressParamsPacked} and `outputStateTreeIndex` to your program
+ * instead.
+ *
+ *
+ * @param remainingAccounts                 Optional existing array of accounts
+ *                                          to append to.
+ * @param accountProofInputs                Account proof inputs.
+ * @param newAddressProofInputs             New address proof inputs.
+ *
+ * @returns Remaining accounts, packed state and address tree infos, state tree
+ * output index and address tree infos.
+ */
+export function packTreeInfos(
+    remainingAccounts: PublicKey[],
+    accountProofInputs: AccountProofInput[],
+    newAddressProofInputs: NewAddressProofInput[],
+): PackedTreeInfos {
+    const _remainingAccounts = remainingAccounts.slice();
+
+    const stateTreeInfos: PackedStateTreeInfo[] = [];
+    const addressTreeInfos: PackedAddressTreeInfo[] = [];
+    let outputTreeIndex: number = INVALID_TREE_INDEX;
+
+    // Early exit.
+    if (accountProofInputs.length === 0 && newAddressProofInputs.length === 0) {
+        return {
+            stateTrees: undefined,
+            addressTrees: addressTreeInfos,
+        };
+    }
+
+    // input
+    accountProofInputs.forEach((account, index) => {
+        const merkleTreePubkeyIndex = getIndexOrAdd(
+            _remainingAccounts,
+            account.treeInfo.tree,
+        );
+
+        const queuePubkeyIndex = getIndexOrAdd(
+            _remainingAccounts,
+            account.treeInfo.queue,
+        );
+
+        stateTreeInfos.push({
+            rootIndex: account.rootIndex,
+            merkleTreePubkeyIndex,
+            queuePubkeyIndex,
+            leafIndex: account.leafIndex,
+            proveByIndex: account.proveByIndex,
+        });
+    });
+
+    // output
+    if (stateTreeInfos.length > 0) {
+        // Use next tree if available, otherwise fall back to current tree.
+        // `nextTreeInfo` always takes precedence.
+        const activeTreeInfo =
+            accountProofInputs[0].treeInfo.nextTreeInfo ||
+            accountProofInputs[0].treeInfo;
+        let activeTreeOrQueue = activeTreeInfo.tree;
+
+        if (activeTreeInfo.treeType === TreeType.StateV2) {
+            if (featureFlags.isV2()) {
+                activeTreeOrQueue = activeTreeInfo.queue;
+            } else throw new Error('V2 trees are not supported yet');
+        }
+        outputTreeIndex = getIndexOrAdd(_remainingAccounts, activeTreeOrQueue);
+    }
+
+    // new addresses
+    newAddressProofInputs.forEach((account, index) => {
+        const addressMerkleTreePubkeyIndex = getIndexOrAdd(
+            _remainingAccounts,
+            account.treeInfo.tree,
+        );
+        const addressQueuePubkeyIndex = getIndexOrAdd(
+            _remainingAccounts,
+            account.treeInfo.queue,
+        );
+
+        addressTreeInfos.push({
+            rootIndex: account.rootIndex,
+            addressMerkleTreePubkeyIndex,
+            addressQueuePubkeyIndex,
+        });
+    });
+
+    return {
+        stateTrees:
+            stateTreeInfos.length > 0
+                ? {
+                      packedTreeInfos: stateTreeInfos,
+                      outputTreeIndex,
+                  }
+                : undefined,
+        addressTrees: addressTreeInfos,
+    };
+}
+
 /**
  * Packs Compressed Accounts.
  *
@@ -86,9 +205,9 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
  *                                          to append to.
  **/
 export function packCompressedAccounts(
-    inputCompressedAccounts: CompressedAccountWithMerkleContext[],
+    inputCompressedAccounts: CompressedAccountWithMerkleContextLegacy[],
     inputStateRootIndices: number[],
-    outputCompressedAccounts: CompressedAccount[],
+    outputCompressedAccounts: CompressedAccountLegacy[],
     outputStateTreeInfo?: TreeInfo,
     remainingAccounts: PublicKey[] = [],
 ): {

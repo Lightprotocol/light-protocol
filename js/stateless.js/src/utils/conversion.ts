@@ -8,10 +8,10 @@ import camelcaseKeys from 'camelcase-keys';
 import {
     InstructionDataInvoke,
     PackedCompressedAccountWithMerkleContext,
-    CompressedAccount,
+    CompressedAccountLegacy,
     OutputCompressedAccountWithPackedContext,
-    PackedMerkleContext,
-} from '../state/types';
+    PackedMerkleContextLegacy,
+} from '../state';
 import { NewAddressParamsPacked } from './address';
 
 export function byteArrayToKeypair(byteArray: number[]): Keypair {
@@ -129,14 +129,14 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
     // Convert input_compressed_accounts to PackedCompressedAccountWithMerkleContext format
     const inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[] =
         data.input_compressed_accounts.map((account: any) => {
-            const compressedAccount: CompressedAccount = {
+            const compressedAccount: CompressedAccountLegacy = {
                 owner: new PublicKey(Buffer.alloc(32)),
                 lamports: account.lamports,
                 address: account.address,
                 data: null,
             };
 
-            const merkleContext: PackedMerkleContext = {
+            const merkleContext: PackedMerkleContextLegacy = {
                 merkleTreePubkeyIndex:
                     account.packedMerkleContext.merkle_tree_pubkey_index,
                 queuePubkeyIndex:
@@ -149,6 +149,7 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
                 compressedAccount,
                 merkleContext,
                 rootIndex: account.root_index,
+                // TODO: confirm this is valid.
                 readOnly: false,
             };
         });

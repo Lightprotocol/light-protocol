@@ -176,15 +176,8 @@ describe('delegate', () => {
                 mint,
             })
         ).items;
-        const txId = await approve(
-            rpc,
-            payer,
-            mint,
-            totalAmount,
-            payer,
-            bob.publicKey,
-        );
-        console.log('txid approve ', txId);
+        await approve(rpc, payer, mint, totalAmount, payer, bob.publicKey);
+
         await assertDelegate(
             rpc,
             mint,

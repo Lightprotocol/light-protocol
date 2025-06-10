@@ -6,7 +6,7 @@ import {
     CompressedAccountWithMerkleContext,
     bn,
     MerkleContext,
-    createCompressedAccountWithMerkleContext,
+    createCompressedAccountWithMerkleContextLegacy,
     TreeType,
 } from '../../state';
 import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
@@ -67,7 +67,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
                 proveByIndex: treeInfo.treeType === TreeType.StateV2,
             };
             const withCtx: CompressedAccountWithMerkleContext =
-                createCompressedAccountWithMerkleContext(
+                createCompressedAccountWithMerkleContextLegacy(
                     merkleContext,
                     account.compressedAccount.owner,
                     account.compressedAccount.lamports,

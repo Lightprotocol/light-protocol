@@ -6,13 +6,13 @@ import {
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import {
-    CompressedAccount,
     CompressedAccountWithMerkleContext,
     ValidityProof,
     InstructionDataInvoke,
     TreeInfo,
     bn,
-    createCompressedAccount,
+    createCompressedAccountLegacy,
+    CompressedAccountLegacy,
 } from '../../state';
 import {
     packCompressedAccounts,
@@ -199,7 +199,7 @@ export class LightSystemProgram {
         inputCompressedAccounts: CompressedAccountWithMerkleContext[],
         toAddress: PublicKey,
         lamports: number | BN,
-    ): CompressedAccount[] {
+    ): CompressedAccountLegacy[] {
         lamports = bn(lamports);
         const inputLamports = sumUpLamports(inputCompressedAccounts);
         const changeLamports = inputLamports.sub(lamports);
@@ -207,17 +207,17 @@ export class LightSystemProgram {
         validateSufficientBalance(changeLamports);
 
         if (changeLamports.eq(bn(0))) {
-            return [createCompressedAccount(toAddress, lamports)];
+            return [createCompressedAccountLegacy(toAddress, lamports)];
         }
 
         validateSameOwner(inputCompressedAccounts);
 
-        const outputCompressedAccounts: CompressedAccount[] = [
-            createCompressedAccount(
+        const outputCompressedAccounts: CompressedAccountLegacy[] = [
+            createCompressedAccountLegacy(
                 inputCompressedAccounts[0].owner,
                 changeLamports,
             ),
-            createCompressedAccount(toAddress, lamports),
+            createCompressedAccountLegacy(toAddress, lamports),
         ];
         return outputCompressedAccounts;
     }
@@ -225,7 +225,7 @@ export class LightSystemProgram {
     static createDecompressOutputState(
         inputCompressedAccounts: CompressedAccountWithMerkleContext[],
         lamports: number | BN,
-    ): CompressedAccount[] {
+    ): CompressedAccountLegacy[] {
         lamports = bn(lamports);
         const inputLamports = sumUpLamports(inputCompressedAccounts);
         const changeLamports = inputLamports.sub(lamports);
@@ -239,8 +239,8 @@ export class LightSystemProgram {
 
         validateSameOwner(inputCompressedAccounts);
 
-        const outputCompressedAccounts: CompressedAccount[] = [
-            createCompressedAccount(
+        const outputCompressedAccounts: CompressedAccountLegacy[] = [
+            createCompressedAccountLegacy(
                 inputCompressedAccounts[0].owner,
                 changeLamports,
             ),
@@ -256,7 +256,7 @@ export class LightSystemProgram {
         owner: PublicKey,
         lamports?: BN | number,
         inputCompressedAccounts?: CompressedAccountWithMerkleContext[],
-    ): CompressedAccount[] {
+    ): CompressedAccountLegacy[] {
         lamports = bn(lamports ?? 0);
         const inputLamports = sumUpLamports(inputCompressedAccounts ?? []);
         const changeLamports = inputLamports.sub(lamports);
@@ -265,17 +265,22 @@ export class LightSystemProgram {
 
         if (changeLamports.eq(bn(0)) || !inputCompressedAccounts) {
             return [
-                createCompressedAccount(owner, lamports, undefined, address),
+                createCompressedAccountLegacy(
+                    owner,
+                    lamports,
+                    undefined,
+                    address,
+                ),
             ];
         }
 
         validateSameOwner(inputCompressedAccounts);
-        const outputCompressedAccounts: CompressedAccount[] = [
-            createCompressedAccount(
+        const outputCompressedAccounts: CompressedAccountLegacy[] = [
+            createCompressedAccountLegacy(
                 inputCompressedAccounts[0].owner,
                 changeLamports,
             ),
-            createCompressedAccount(owner, lamports, undefined, address),
+            createCompressedAccountLegacy(owner, lamports, undefined, address),
         ];
         return outputCompressedAccounts;
     }
@@ -422,7 +427,7 @@ export class LightSystemProgram {
         /// Create output state
         lamports = bn(lamports);
 
-        const outputCompressedAccount = createCompressedAccount(
+        const outputCompressedAccount = createCompressedAccountLegacy(
             toAddress,
             lamports,
         );
