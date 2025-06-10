@@ -6,7 +6,7 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
-    StateTreeInfo,
+    TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
@@ -36,7 +36,7 @@ describe('compressSplTokenAccount', () => {
     let aliceAta: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {

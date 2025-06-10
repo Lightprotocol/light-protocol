@@ -87,7 +87,7 @@ import {
     getAllStateTreeInfos,
     getStateTreeInfoByPubkey,
 } from './utils/get-state-tree-infos';
-import { StateTreeInfo } from './state/types';
+import { TreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
 
 /** @internal */
@@ -613,10 +613,10 @@ function buildCompressedAccountWithMaybeTokenData(
 export class Rpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
-    allStateTreeInfos: StateTreeInfo[] | null = null;
+    allStateTreeInfos: TreeInfo[] | null = null;
     lastStateTreeFetchTime: number | null = null;
     CACHE_TTL = 1000 * 60 * 60; // 1 hour in ms
-    fetchPromise: Promise<StateTreeInfo[]> | null = null;
+    fetchPromise: Promise<TreeInfo[]> | null = null;
 
     constructor(
         endpoint: string,
@@ -638,7 +638,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Get a list of all state tree infos. If not already cached, fetches from
      * the cluster.
      */
-    async getStateTreeInfos(): Promise<StateTreeInfo[]> {
+    async getStateTreeInfos(): Promise<TreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
             return localTestActiveStateTreeInfo();
         }
@@ -655,7 +655,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return this.fetchPromise;
         }
 
-        let info: StateTreeInfo[] | undefined;
+        let info: TreeInfo[] | undefined;
         try {
             this.fetchPromise = this.doFetch();
             info = await this.fetchPromise;
@@ -670,7 +670,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * @internal
      */
-    async doFetch(): Promise<StateTreeInfo[]> {
+    async doFetch(): Promise<TreeInfo[]> {
         const { mainnet, devnet } = defaultStateTreeLookupTables();
 
         /// Mainnet keys are not available on devnet and vice versa. Chaining
@@ -1856,6 +1856,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 jsonRpcResultAndContext(ValidityProofResultV2),
             );
         } else {
+            throw new Error('V1 is not supported');
             res = create(
                 unsafeRes,
                 jsonRpcResultAndContext(ValidityProofResult),
@@ -1878,16 +1879,41 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return {
             value: {
                 compressedProof: value.compressedProof,
-                roots: value.roots,
-                rootIndices: value.rootIndices.map((r: any) => r.rootIndex),
-                leafIndices: value.leafIndices,
-                leaves: value.leaves,
-                treeInfos: value.merkleContexts,
-                proveByIndices: value.rootIndices.map(
-                    (r: any) => r.proveByIndex,
-                ),
+                leaves: value.accounts
+                    .map((r: any) => r.hash)
+                    .concat(value.addresses.map((r: any) => r.address)),
+                roots: value.accounts
+                    .map((r: any) => r.root)
+                    .concat(value.addresses.map((r: any) => r.root)),
+                rootIndices: value.accounts
+                    .map((r: any) => r.rootIndex.rootIndex)
+                    .concat(value.addresses.map((r: any) => r.rootIndex)),
+                proveByIndices: value.accounts
+                    .map((r: any) => r.rootIndex.proveByIndex)
+                    .concat(value.addresses.map((r: any) => false)),
+                treeInfos: value.accounts
+                    .map((r: any) => r.merkleContext)
+                    .concat(value.addresses.map((r: any) => r.merkleContext)),
+                leafIndices: value.accounts
+                    .map((r: any) => r.leafIndex)
+                    .concat(value.addresses.map((r: any) => 0)),
             },
             context: res.result.context,
         };
+        // TODO: enable with v1 support.
+        // return {
+        //     value: {
+        //         compressedProof: value.compressedProof,
+        //         roots: value.roots,
+        //         rootIndices: value.rootIndices.map((r: any) => r.rootIndex),
+        //         leafIndices: value.leafIndices,
+        //         leaves: value.leaves,
+        //         treeInfos: value.merkleContexts,
+        //         proveByIndices: value.rootIndices.map(
+        //             (r: any) => r.proveByIndex,
+        //         ),
+        //     },
+        //     context: res.result.context,
+        // };
     }
 }

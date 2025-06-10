@@ -73,9 +73,6 @@ class CompressSplCommand extends Command {
         payer,
         sourceAta,
         toPublicKey,
-        undefined,
-        undefined,
-        undefined,
       );
 
       loader.stop(false);

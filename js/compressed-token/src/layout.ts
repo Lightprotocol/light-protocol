@@ -46,8 +46,6 @@ const PackedTokenTransferOutputDataLayout = struct([
     option(vecU8(), 'tlv'),
 ]);
 
-// const QueueIndexLayout = struct([u8('queueId'), u16('index')]);
-
 const InputTokenDataWithContextLayout = struct([
     u64('amount'),
     option(u8(), 'delegateIndex'),

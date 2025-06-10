@@ -9,7 +9,7 @@ import {
     newAccountWithLamports,
     getTestRpc,
     selectStateTreeInfo,
-    StateTreeInfo,
+    TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, decompress } from '../../src/actions';
@@ -73,7 +73,7 @@ describe('decompress', () => {
     let charlieAta: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {

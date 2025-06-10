@@ -5,7 +5,6 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-
 import { LightSystemProgram } from '../programs';
 import { Rpc } from '../rpc';
 import {
@@ -13,9 +12,8 @@ import {
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
-
 import BN from 'bn.js';
-import { StateTreeInfo } from '../state';
+import { TreeInfo } from '../state';
 
 /**
  * Compress lamports to a solana address
@@ -30,13 +28,12 @@ import { StateTreeInfo } from '../state';
  *
  * @return Transaction signature
  */
-
 export async function compress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,
     toAddress: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
+    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();

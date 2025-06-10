@@ -20,7 +20,7 @@ import {
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
-    StateTreeInfo,
+    TreeInfo,
     CompressedProof,
     featureFlags,
 } from '@lightprotocol/stateless.js';
@@ -93,7 +93,7 @@ export type CompressParams = {
     /**
      * State tree to write to
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */
@@ -124,7 +124,7 @@ export type CompressSplTokenAccountParams = {
     /**
      * State tree to write to
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */
@@ -330,7 +330,7 @@ export type MintToParams = {
     /**
      * State tree for minted tokens
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */
@@ -406,7 +406,7 @@ export type ApproveAndMintToParams = {
     /**
      * State tree to write to
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
     /**
      * Token pool
      */
@@ -1171,12 +1171,16 @@ export class CompressedTokenProgram {
 
         checkTokenPoolInfo(tokenPoolInfo, mint);
 
+        if (amountArray.length !== toAddressArray.length) {
+            throw new Error(
+                'Amount and toAddress arrays must have the same length',
+            );
+        }
         if (featureFlags.isV2()) {
             const [index, bump] = this.findTokenPoolIndexAndBump(
                 tokenPoolInfo.tokenPoolPda,
                 mint,
             );
-
             const rawData: BatchCompressInstructionData = {
                 pubkeys: toAddressArray,
                 amounts:
@@ -1185,11 +1189,10 @@ export class CompressedTokenProgram {
                         : null,
                 lamports: null,
                 amount: amountArray.length === 1 ? bn(amountArray[0]) : null,
-                index: index,
-                bump: bump,
+                index,
+                bump,
             };
 
-            console.log('rawData', rawData);
             const data = encodeBatchCompressInstructionData(rawData);
             const keys = mintToAccountsLayout({
                 mint,
@@ -1211,19 +1214,12 @@ export class CompressedTokenProgram {
                 isSigner: false,
             });
 
-            console.log('keys', keys.length);
-
             return new TransactionInstruction({
                 programId: this.programId,
                 keys,
                 data,
             });
         } else {
-            if (amountArray.length !== toAddressArray.length) {
-                throw new Error(
-                    'Amount and toAddress arrays must have the same length',
-                );
-            }
             tokenTransferOutputs = amountArray.map((amt, index) => {
                 const amountBN = bn(amt);
                 return {

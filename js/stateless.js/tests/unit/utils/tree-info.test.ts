@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { StateTreeInfo, TreeType } from '../../../src/state';
+import { TreeType, TreeInfo } from '../../../src/state';
 import { selectStateTreeInfo } from '../../../src/utils';
 import { PublicKey } from '@solana/web3.js';
 import {
@@ -12,56 +12,56 @@ import {
 } from '../../../src';
 
 describe('selectStateTreeInfo', () => {
-    const info1: StateTreeInfo = {
+    const info1: TreeInfo = {
         tree: new PublicKey(merkletreePubkey),
         queue: new PublicKey(nullifierQueuePubkey),
         cpiContext: new PublicKey(cpiContextPubkey),
         treeType: TreeType.StateV1,
         nextTreeInfo: null,
     };
-    const info2: StateTreeInfo = {
+    const info2: TreeInfo = {
         tree: new PublicKey(merkleTree2Pubkey),
         queue: new PublicKey(nullifierQueue2Pubkey),
         cpiContext: new PublicKey(cpiContext2Pubkey),
         treeType: TreeType.StateV1,
         nextTreeInfo: null,
     };
-    const infoV2: StateTreeInfo = {
+    const infoV2: TreeInfo = {
         tree: new PublicKey(merkleTree2Pubkey),
         queue: new PublicKey(nullifierQueue2Pubkey),
         cpiContext: new PublicKey(cpiContext2Pubkey),
         treeType: TreeType.StateV2,
         nextTreeInfo: null,
     };
-    const info3: StateTreeInfo = {
+    const info3: TreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
         nextTreeInfo: null,
     };
-    const info4: StateTreeInfo = {
+    const info4: TreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
         nextTreeInfo: null,
     };
-    const info5: StateTreeInfo = {
+    const info5: TreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
         nextTreeInfo: null,
     };
-    const info6: StateTreeInfo = {
+    const info6: TreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
         nextTreeInfo: null,
     };
-    const infoInactive: StateTreeInfo = {
+    const infoInactive: TreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
@@ -69,7 +69,7 @@ describe('selectStateTreeInfo', () => {
         nextTreeInfo: info1,
     };
 
-    const info1V2: StateTreeInfo = {
+    const info1V2: TreeInfo = {
         tree: new PublicKey(merkletreePubkey),
         queue: new PublicKey(nullifierQueuePubkey),
         cpiContext: new PublicKey(cpiContextPubkey),

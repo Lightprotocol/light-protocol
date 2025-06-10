@@ -10,7 +10,7 @@ import {
     CompressedAccountWithMerkleContext,
     ValidityProof,
     InstructionDataInvoke,
-    StateTreeInfo,
+    TreeInfo,
     bn,
     createCompressedAccount,
 } from '../../state';
@@ -59,7 +59,7 @@ type CreateAccountWithSeedParams = {
     /**
      * State tree pubkey. Defaults to a public state tree if unspecified.
      */
-    outputStateTreeInfo?: StateTreeInfo;
+    outputStateTreeInfo?: TreeInfo;
     /**
      * Public key of the program to assign as the owner of the created account.
      */
@@ -131,7 +131,7 @@ type CompressParams = {
     /**
      * The state tree that the tx output should be inserted into.
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo: TreeInfo;
 };
 
 /**
@@ -215,7 +215,6 @@ export class LightSystemProgram {
         const outputCompressedAccounts: CompressedAccount[] = [
             createCompressedAccount(
                 inputCompressedAccounts[0].owner,
-
                 changeLamports,
             ),
             createCompressedAccount(toAddress, lamports),

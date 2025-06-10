@@ -42,7 +42,6 @@ import {
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     TreeType,
-    ValidityProof,
     bn,
 } from '../../state';
 import { IndexedArray } from '../merkle-tree';
@@ -52,7 +51,7 @@ import {
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
-import { StateTreeInfo } from '../../state/types';
+import { TreeInfo } from '../../state/types';
 import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
 
 export interface TestRpcConfig {
@@ -124,9 +123,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     lightWasm: LightWasm;
     depth: number;
     log = false;
-    allStateTreeInfos: StateTreeInfo[] | null = null;
+    allStateTreeInfos: TreeInfo[] | null = null;
     lastStateTreeFetchTime: number | null = null;
-    fetchPromise: Promise<StateTreeInfo[]> | null = null;
+    fetchPromise: Promise<TreeInfo[]> | null = null;
     CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
     /**
@@ -169,10 +168,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Returns local test state trees.
      */
-    async getStateTreeInfos(): Promise<StateTreeInfo[]> {
+    async getStateTreeInfos(): Promise<TreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
-    async doFetch(): Promise<StateTreeInfo[]> {
+    async doFetch(): Promise<TreeInfo[]> {
         throw new Error('doFetch not supported in test-rpc');
     }
 
@@ -266,7 +265,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             {
                 leaves: number[][];
                 leafIndices: number[];
-                treeInfo: StateTreeInfo;
+                treeInfo: TreeInfo;
             }
         > = new Map();
 
@@ -768,8 +767,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             throw new Error('AddressWithTree is not supported in test-rpc');
         }
         let validityProof: ValidityProofWithContext | null;
-        const treeInfos = await this.getStateTreeInfos();
-        const treeInfosUsed: StateTreeInfo[] = [];
+
+        const treeInfosUsed: TreeInfo[] = [];
 
         if (hashes.length === 0 && newAddresses.length === 0) {
             throw new Error(
@@ -803,7 +802,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     'inclusion',
                     inputs,
                     this.log,
-                    // true,
                 );
                 validityProof = {
                     compressedProof,
@@ -863,9 +861,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             validityProof = {
                 compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
-                // TODO(crank): make dynamic to enable forester support in
-                // test-rpc.ts. Currently this is a static root because the
-                // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(proof =>
                     proof.indexHashedIndexedElementLeaf.toNumber(),

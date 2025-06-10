@@ -10,7 +10,7 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc } from '../../src/rpc';
 import {
     LightSystemProgram,
-    StateTreeInfo,
+    TreeInfo,
     bn,
     compress,
     createAccount,
@@ -66,7 +66,7 @@ function txFees(
 describe('compress', () => {
     let rpc: Rpc;
     let payer: Signer;
-    let stateTreeInfo: StateTreeInfo;
+    let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
