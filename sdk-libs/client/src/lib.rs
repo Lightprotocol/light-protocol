@@ -17,7 +17,7 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! ```no_run
 //! use light_client::{
 //!     rpc::{LightClient, RpcConfig, Rpc},
 //!     indexer::{Indexer, IndexerRpcConfig, RetryConfig},
@@ -37,7 +37,7 @@
 //!         limit_ledger_size: None,
 //!     };
 //!     spawn_validator(config).await;
-//!     
+//!
 //!     // Connect to the validator
 //!     let mut rpc = LightClient::new(RpcConfig::local()).await?;
 //!
