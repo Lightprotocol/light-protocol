@@ -52,7 +52,7 @@ pub enum CompressionCpiAccountIndex {
     AccountCompressionProgram,
     InvokingProgram,
     SolPoolPda,
-    DecompressionRecipent,
+    DecompressionRecipient,
     SystemProgram,
     CpiContext,
 }

@@ -10,9 +10,9 @@ pub enum CompressionCpiAccountIndexSmall {
     Authority, // Cpi authority of the custom program, used to invoke the light system program.
     RegisteredProgramPda,
     AccountCompressionAuthority,
-    SolPoolPda,            // Optional
-    DecompressionRecipent, // Optional
-    CpiContext,            // Optional
+    SolPoolPda,             // Optional
+    DecompressionRecipient, // Optional
+    CpiContext,             // Optional
 }
 
 pub const PROGRAM_ACCOUNTS_LEN: usize = 3;
