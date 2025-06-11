@@ -32,7 +32,9 @@ impl PackedAddressTreeInfo {
     pub fn get_tree_pubkey<T: AccountInfoTrait>(
         &self,
         cpi_accounts: &CpiAccounts<'_, T>,
-    ) -> T::Pubkey {
-        cpi_accounts.tree_accounts()[self.address_merkle_tree_pubkey_index as usize].pubkey()
+    ) -> Result<T::Pubkey, crate::error::LightSdkTypesError> {
+        let account =
+            cpi_accounts.get_tree_account_info(self.address_merkle_tree_pubkey_index as usize)?;
+        Ok(account.pubkey())
     }
 }

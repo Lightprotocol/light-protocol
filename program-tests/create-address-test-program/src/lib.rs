@@ -71,7 +71,8 @@ pub mod system_cpi_test {
                 .cloned()
                 .collect::<Vec<_>>();
 
-            let account_metas = to_account_metas_small(cpi_accounts);
+            let account_metas = to_account_metas_small(cpi_accounts)
+                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
             (account_infos, account_metas)
         } else {
             use light_sdk::cpi::CpiAccounts;
@@ -83,7 +84,8 @@ pub mod system_cpi_test {
                 .cloned()
                 .collect::<Vec<_>>();
 
-            let account_metas = to_account_metas(cpi_accounts);
+            let account_metas =
+                to_account_metas(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
             (account_infos, account_metas)
         };
         let instruction = Instruction {

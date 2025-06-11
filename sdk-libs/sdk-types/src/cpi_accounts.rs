@@ -4,7 +4,10 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_account_checks::AccountInfoTrait;
 
-use crate::CpiSigner;
+use crate::{
+    error::{LightSdkTypesError, Result},
+    CpiSigner,
+};
 
 #[derive(Debug, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CpiAccountsConfig {
@@ -86,25 +89,81 @@ impl<'a, T: AccountInfoTrait> CpiAccounts<'a, T> {
         self.fee_payer
     }
 
-    pub fn light_system_program(&self) -> &'a T {
-        // PANICS: We are sure about the bounds of the slice.
+    pub fn light_system_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::LightSystemProgram as usize;
         self.accounts
-            .get(CompressionCpiAccountIndex::LightSystemProgram as usize)
-            .unwrap()
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    pub fn authority(&self) -> &'a T {
-        // PANICS: We are sure about the bounds of the slice.
+    pub fn authority(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::Authority as usize;
         self.accounts
-            .get(CompressionCpiAccountIndex::Authority as usize)
-            .unwrap()
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    pub fn invoking_program(&self) -> &'a T {
-        // PANICS: We are sure about the bounds of the slice.
+    pub fn invoking_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::InvokingProgram as usize;
         self.accounts
-            .get(CompressionCpiAccountIndex::InvokingProgram as usize)
-            .unwrap()
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn registered_program_pda(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::RegisteredProgramPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn noop_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::NoopProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_compression_authority(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::AccountCompressionAuthority as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_compression_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::AccountCompressionProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn sol_pool_pda(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::SolPoolPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn decompression_recipient(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::DecompressionRecipient as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn system_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::SystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn cpi_context(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::CpiContext as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn self_program_id(&self) -> T::Pubkey {
@@ -137,8 +196,26 @@ impl<'a, T: AccountInfoTrait> CpiAccounts<'a, T> {
         self.accounts
     }
 
-    pub fn tree_accounts(&self) -> &'a [T] {
-        &self.accounts[self.system_accounts_len()..]
+    pub fn get_account_info(&self, index: usize) -> Result<&'a T> {
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn tree_accounts(&self) -> Result<&'a [T]> {
+        let system_len = self.system_accounts_len();
+        self.accounts
+            .get(system_len..)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(system_len))
+    }
+
+    pub fn get_tree_account_info(&self, tree_index: usize) -> Result<&'a T> {
+        let tree_accounts = self.tree_accounts()?;
+        tree_accounts
+            .get(tree_index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(
+                self.system_accounts_len() + tree_index,
+            ))
     }
 
     /// Create a vector of account info references

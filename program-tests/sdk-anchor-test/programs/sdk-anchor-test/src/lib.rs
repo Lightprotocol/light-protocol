@@ -35,7 +35,9 @@ pub mod sdk_anchor_test {
 
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
-            &address_tree_info.get_tree_pubkey(&light_cpi_accounts),
+            &address_tree_info
+                .get_tree_pubkey(&light_cpi_accounts)
+                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?,
             &crate::ID,
         );
         let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);

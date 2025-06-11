@@ -42,7 +42,9 @@ pub mod counter {
 
         let (address, address_seed) = derive_address(
             &[b"counter", ctx.accounts.signer.key().as_ref()],
-            &address_tree_info.get_tree_pubkey(&light_cpi_accounts),
+            &address_tree_info
+                .get_tree_pubkey(&light_cpi_accounts)
+                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?,
             &crate::ID,
         );
 

@@ -57,9 +57,7 @@
 //!
 //!         let (address, address_seed) = derive_address(
 //!             &[b"counter", ctx.accounts.fee_payer.key().as_ref()],
-//!             &light_cpi_accounts.tree_accounts()
-//!                 [address_tree_info.address_merkle_tree_pubkey_index as usize]
-//!                 .key(),
+//!             &address_tree_info.get_tree_pubkey(&light_cpi_accounts)?,
 //!             &crate::ID,
 //!         );
 //!         let new_address_params = address_tree_info

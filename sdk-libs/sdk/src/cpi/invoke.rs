@@ -63,7 +63,7 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
     cpi_inputs: CpiInputs,
     cpi_accounts: CpiAccounts,
 ) -> Result<Instruction> {
-    let owner = *cpi_accounts.invoking_program().key;
+    let owner = *cpi_accounts.invoking_program()?.key;
     let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
         if let Some(account_infos) = cpi_inputs.account_infos.as_ref() {
             let mut input_compressed_accounts_with_merkle_context =
@@ -114,7 +114,7 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
 
-    let account_metas: Vec<AccountMeta> = to_account_metas(cpi_accounts);
+    let account_metas: Vec<AccountMeta> = to_account_metas(cpi_accounts)?;
     Ok(Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,
@@ -139,7 +139,7 @@ where
     let account_infos: Vec<AccountInfo> = account_info_refs.into_iter().cloned().collect();
 
     let bump = light_system_accounts.bump();
-    let account_metas: Vec<AccountMeta> = to_account_metas(light_system_accounts);
+    let account_metas: Vec<AccountMeta> = to_account_metas(light_system_accounts)?;
     let instruction = Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,

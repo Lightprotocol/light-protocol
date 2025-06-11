@@ -4,41 +4,57 @@ use light_sdk_types::{
 };
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
 
+use crate::error::Result;
+
 pub type CpiAccountsSmall<'a> = GenericCpiAccountsSmall<'a, AccountInfo>;
 
-pub fn to_account_metas_small<'a>(cpi_accounts: &CpiAccountsSmall<'a>) -> Vec<AccountMeta<'a>> {
+pub fn to_account_metas_small<'a>(
+    cpi_accounts: &CpiAccountsSmall<'a>,
+) -> Result<Vec<AccountMeta<'a>>> {
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
 
     account_metas.push(AccountMeta::writable_signer(cpi_accounts.fee_payer().key()));
-    account_metas.push(AccountMeta::readonly_signer(cpi_accounts.authority().key()));
+    account_metas.push(AccountMeta::readonly_signer(
+        cpi_accounts.authority()?.key(),
+    ));
+
+    account_metas.push(AccountMeta::readonly(
+        cpi_accounts.registered_program_pda()?.key(),
+    ));
+    account_metas.push(AccountMeta::readonly(
+        cpi_accounts.account_compression_authority()?.key(),
+    ));
 
     let accounts = cpi_accounts.account_infos();
-    account_metas.push(AccountMeta::readonly(
-        accounts[CompressionCpiAccountIndexSmall::RegisteredProgramPda as usize].key(),
-    ));
-    account_metas.push(AccountMeta::readonly(
-        accounts[CompressionCpiAccountIndexSmall::AccountCompressionAuthority as usize].key(),
-    ));
-
     let mut index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+
     if cpi_accounts.config().sol_pool_pda {
-        account_metas.push(AccountMeta::writable(accounts[index].key()));
+        let account = cpi_accounts.get_account_info(index)?;
+        account_metas.push(AccountMeta::writable(account.key()));
         index += 1;
     }
 
     if cpi_accounts.config().sol_compression_recipient {
-        account_metas.push(AccountMeta::writable(accounts[index].key()));
+        let account = cpi_accounts.get_account_info(index)?;
+        account_metas.push(AccountMeta::writable(account.key()));
         index += 1;
     }
 
     if cpi_accounts.config().cpi_context {
-        account_metas.push(AccountMeta::writable(accounts[index].key()));
+        let account = cpi_accounts.get_account_info(index)?;
+        account_metas.push(AccountMeta::writable(account.key()));
         index += 1;
     }
 
     // Add remaining tree accounts
-    accounts[index..].iter().for_each(|acc| {
+    let tree_accounts =
+        accounts
+            .get(index..)
+            .ok_or(crate::error::LightSdkError::CpiAccountsIndexOutOfBounds(
+                index,
+            ))?;
+    tree_accounts.iter().for_each(|acc| {
         let account_meta = if acc.is_writable() {
             AccountMeta::writable(acc.key())
         } else {
@@ -47,5 +63,5 @@ pub fn to_account_metas_small<'a>(cpi_accounts: &CpiAccountsSmall<'a>) -> Vec<Ac
         account_metas.push(account_meta);
     });
 
-    account_metas
+    Ok(account_metas)
 }

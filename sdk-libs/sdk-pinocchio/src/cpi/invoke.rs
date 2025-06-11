@@ -126,7 +126,7 @@ pub fn light_system_program_instruction_invoke_cpi(
     cpi_inputs: CpiInputs,
     cpi_accounts: &CpiAccounts,
 ) -> Result<()> {
-    let owner = *cpi_accounts.invoking_program().key();
+    let owner = *cpi_accounts.invoking_program()?.key();
     let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
         if let Some(account_infos) = cpi_inputs.account_infos.as_ref() {
             let mut input_compressed_accounts_with_merkle_context =
@@ -170,7 +170,7 @@ pub fn light_system_program_instruction_invoke_cpi(
     data.extend(inputs);
 
     let account_metas: Vec<pinocchio::instruction::AccountMeta> =
-        crate::cpi::accounts::to_account_metas(cpi_accounts);
+        crate::cpi::accounts::to_account_metas(cpi_accounts)?;
 
     // Create instruction with owned data and immediately invoke it
     use pinocchio::instruction::{Instruction, Seed, Signer};
@@ -193,7 +193,7 @@ pub fn light_system_program_instruction_invoke_cpi(
         data: &data,
     };
     sol_log_compute_units();
-    let account_infos = crate::cpi::accounts::to_account_infos_for_invoke(cpi_accounts);
+    let account_infos = crate::cpi::accounts::to_account_infos_for_invoke(cpi_accounts)?;
     sol_log_compute_units();
 
     match slice_invoke_signed(&instruction, &account_infos, &[signer]) {

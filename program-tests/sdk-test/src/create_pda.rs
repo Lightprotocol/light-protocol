@@ -35,7 +35,7 @@ pub fn create_pda<const BATCHED: bool>(
         ])
         .unwrap();
         // to_bytes will go away as soon as we have a light_sdk::address::v2::derive_address
-        let address_tree_pubkey = address_tree_info.get_tree_pubkey(&cpi_accounts).to_bytes();
+        let address_tree_pubkey = address_tree_info.get_tree_pubkey(&cpi_accounts)?.to_bytes();
         let address = light_compressed_account::address::derive_address(
             &address_seed,
             &address_tree_pubkey,
@@ -45,9 +45,7 @@ pub fn create_pda<const BATCHED: bool>(
     } else {
         light_sdk::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],
-            cpi_accounts.tree_accounts()
-                [address_tree_info.address_merkle_tree_pubkey_index as usize]
-                .key,
+            &address_tree_info.get_tree_pubkey(&cpi_accounts)?,
             &crate::ID,
         )
     };

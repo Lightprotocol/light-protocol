@@ -67,6 +67,8 @@ pub enum LightSdkError {
     MetaCloseAddressIsNone,
     #[error("Input is none during meta close")]
     MetaCloseInputIsNone,
+    #[error("CPI accounts index out of bounds: {0}")]
+    CpiAccountsIndexOutOfBounds(usize),
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
@@ -99,6 +101,9 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::MetaCloseInputIsNone => LightSdkError::MetaCloseInputIsNone,
             LightSdkTypesError::FewerAccountsThanSystemAccounts => {
                 LightSdkError::FewerAccountsThanSystemAccounts
+            }
+            LightSdkTypesError::CpiAccountsIndexOutOfBounds(index) => {
+                LightSdkError::CpiAccountsIndexOutOfBounds(index)
             }
             LightSdkTypesError::Hasher(e) => LightSdkError::Hasher(e),
         }
@@ -137,6 +142,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::MetaMutOutputIsNone => 14027,
             LightSdkError::MetaCloseAddressIsNone => 14028,
             LightSdkError::MetaCloseInputIsNone => 14029,
+            LightSdkError::CpiAccountsIndexOutOfBounds(_) => 14031,
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
