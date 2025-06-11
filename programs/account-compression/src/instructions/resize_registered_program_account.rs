@@ -39,8 +39,11 @@ pub fn process_resize_registered_program_pda<'info>(
         if discriminator_bytes != RegisteredProgram::DISCRIMINATOR {
             return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch);
         }
-        light_account_checks::checks::check_owner(&crate::ID, &ctx.accounts.registered_program_pda)
-            .map_err(ProgramError::from)?;
+        light_account_checks::checks::check_owner(
+            &crate::ID.to_bytes(),
+            &ctx.accounts.registered_program_pda,
+        )
+        .map_err(ProgramError::from)?;
     }
     let pre_account = RegisteredProgramV1::try_from_slice(
         &ctx.accounts.registered_program_pda.try_borrow_mut_data()?[8..],

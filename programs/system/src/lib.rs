@@ -21,7 +21,7 @@ use light_compressed_account::instruction_data::{
     with_readonly::InstructionDataInvokeCpiWithReadOnly,
     zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
 };
-use light_macros::pubkey;
+use light_macros::pubkey_array;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
@@ -31,7 +31,7 @@ use crate::{
     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
 };
 
-pub const ID: Pubkey = pubkey!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+pub const ID: Pubkey = pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

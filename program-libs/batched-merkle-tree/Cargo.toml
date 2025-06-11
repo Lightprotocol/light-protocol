@@ -14,7 +14,6 @@ solana = [
     "solana-account-info",
     "solana-sysvar",
     "solana-pubkey",
-    "solana-msg",
     "light-zero-copy/solana",
     "light-hasher/solana",
     "light-account-checks/solana",
@@ -40,7 +39,7 @@ aligned-sized = { workspace = true }
 solana-program-error = { workspace = true, optional = true }
 solana-pubkey = { workspace = true, optional = true }
 solana-sysvar = { workspace = true, optional = true }
-solana-msg = { workspace = true, optional = true }
+solana-msg = { workspace = true }
 solana-account-info = { workspace = true, optional = true }
 light-zero-copy = { workspace = true, features = ["std"] }
 light-hasher = { workspace = true }

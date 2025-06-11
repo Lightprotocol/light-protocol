@@ -67,11 +67,18 @@ impl RolloverMetadata {
         if self.rolledover_slot != u64::MAX {
             return Err(MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver);
         }
-
         #[cfg(target_os = "solana")]
         {
-            use crate::{Clock, Sysvar};
-            self.rolledover_slot = Clock::get().unwrap().slot;
+            #[cfg(feature = "pinocchio")]
+            {
+                use pinocchio::sysvars::{clock::Clock, Sysvar};
+                self.rolledover_slot = Clock::get().unwrap().slot;
+            }
+            #[cfg(not(feature = "pinocchio"))]
+            {
+                use solana_sysvar::{clock::Clock, Sysvar};
+                self.rolledover_slot = Clock::get().unwrap().slot;
+            }
         }
         #[cfg(not(target_os = "solana"))]
         {
@@ -95,9 +102,9 @@ pub fn check_rollover_fee_sufficient(
     if (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
         < queue_rent + merkle_tree_rent
     {
-        #[cfg(not(feature = "pinocchio"))]
+        #[cfg(feature = "solana")]
         {
-            use crate::msg;
+            use solana_msg::msg;
             msg!("rollover_fee: {}", rollover_fee);
             msg!("rollover_threshold: {}", rollover_threshold);
             msg!("height: {}", height);

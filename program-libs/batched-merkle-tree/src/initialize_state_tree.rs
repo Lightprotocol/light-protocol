@@ -1,13 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_account_checks::checks::check_account_balance_is_rent_exempt;
+use light_account_checks::{checks::check_account_balance_is_rent_exempt, AccountInfoTrait};
 use light_compressed_account::{pubkey::Pubkey, QueueType, TreeType};
 use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     queue::QueueMetadata, rollover::RolloverMetadata,
 };
 
-#[cfg(not(feature = "pinocchio"))]
-use crate::AccountInfoTrait;
 use crate::{
     constants::{
         DEFAULT_BATCH_SIZE, DEFAULT_BATCH_STATE_TREE_HEIGHT, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
@@ -16,7 +14,6 @@ use crate::{
     errors::BatchedMerkleTreeError,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
     queue::{get_output_queue_account_size, BatchedQueueAccount},
-    AccountInfo,
 };
 
 #[repr(C)]
@@ -69,11 +66,11 @@ impl Default for InitStateTreeAccountsInstructionData {
 /// Initializes the state Merkle tree and output queue accounts.
 /// 1. Check rent exemption and that accounts are initialized with the correct size.
 /// 2. Initialize the output queue and state Merkle tree accounts.
-pub fn init_batched_state_merkle_tree_from_account_info(
+pub fn init_batched_state_merkle_tree_from_account_info<A: AccountInfoTrait>(
     params: InitStateTreeAccountsInstructionData,
-    owner: crate::Pubkey,
-    merkle_tree_account_info: &AccountInfo,
-    queue_account_info: &AccountInfo,
+    owner: Pubkey,
+    merkle_tree_account_info: &A,
+    queue_account_info: &A,
     additional_bytes_rent: u64,
 ) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
@@ -103,13 +100,13 @@ pub fn init_batched_state_merkle_tree_from_account_info(
     let mt_data = &mut merkle_tree_account_info.try_borrow_mut_data()?;
 
     init_batched_state_merkle_tree_accounts(
-        owner.into(),
+        owner,
         params,
         queue_data,
-        (*queue_account_info.key()).into(),
+        queue_account_info.key().into(),
         queue_rent,
         mt_data,
-        (*merkle_tree_account_info.key()).into(),
+        merkle_tree_account_info.key().into(),
         merkle_tree_rent,
         additional_bytes_rent,
     )?;

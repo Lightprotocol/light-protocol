@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use light_account_checks::{
     checks::{check_account_info, set_discriminator},
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
+    AccountInfoTrait,
 };
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
@@ -25,8 +26,6 @@ use light_zero_copy::{
 use zerocopy::Ref;
 
 use super::batch::Batch;
-#[cfg(not(feature = "pinocchio"))]
-use crate::AccountInfoTrait;
 use crate::{
     batch::BatchState,
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, NUM_BATCHES},
@@ -36,7 +35,7 @@ use crate::{
         deserialize_bloom_filter_stores, insert_into_current_queue_batch, BatchedQueueAccount,
     },
     queue_batch_metadata::QueueBatches,
-    AccountInfo, BorshDeserialize, BorshSerialize,
+    BorshDeserialize, BorshSerialize,
 };
 
 /// Public inputs:
@@ -91,8 +90,8 @@ impl Discriminator for BatchedMerkleTreeAccount<'_> {
 
 impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Checks state Merkle tree account and returns the root.
-    pub fn get_state_root_by_index(
-        account_info: &AccountInfo,
+    pub fn get_state_root_by_index<A: AccountInfoTrait>(
+        account_info: &A,
         index: usize,
     ) -> Result<[u8; 32], BatchedMerkleTreeError> {
         let tree = Self::state_from_account_info(account_info)?;
@@ -102,8 +101,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 
     /// Checks address Merkle tree account and returns the root.
-    pub fn get_address_root_by_index(
-        account_info: &AccountInfo,
+    pub fn get_address_root_by_index<A: AccountInfoTrait>(
+        account_info: &A,
         index: usize,
     ) -> Result<[u8; 32], BatchedMerkleTreeError> {
         let tree = Self::address_from_account_info(account_info)?;
@@ -118,10 +117,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 1. the program owner is the light account compression program,
     /// 2. discriminator,
     /// 3. tree type is batched state tree type.
-    pub fn state_from_account_info(
-        account_info: &AccountInfo,
+    pub fn state_from_account_info<A: AccountInfoTrait>(
+        account_info: &A,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<STATE_MERKLE_TREE_TYPE_V2>(
+        Self::from_account_info::<STATE_MERKLE_TREE_TYPE_V2, A>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
@@ -145,26 +144,26 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 1. the program owner is the light account compression program,
     /// 2. discriminator,
     /// 3. tree type is batched address tree type.
-    pub fn address_from_account_info(
-        account_info: &AccountInfo,
+    pub fn address_from_account_info<A: AccountInfoTrait>(
+        account_info: &A,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<ADDRESS_MERKLE_TREE_TYPE_V2>(
+        Self::from_account_info::<ADDRESS_MERKLE_TREE_TYPE_V2, A>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
     }
 
-    fn from_account_info<const TREE_TYPE: u64>(
-        program_id: &crate::Pubkey,
-        account_info: &AccountInfo,
+    fn from_account_info<const TREE_TYPE: u64, A: AccountInfoTrait>(
+        program_id: &[u8; 32],
+        account_info: &A,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        check_account_info::<Self>(program_id, account_info)?;
+        check_account_info::<Self, A>(program_id, account_info)?;
         let mut data = account_info.try_borrow_mut_data()?;
 
         // Necessary to convince the borrow checker.
         let data_slice: &'a mut [u8] =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
-        Self::from_bytes::<TREE_TYPE>(data_slice, &(*account_info.key()).into())
+        Self::from_bytes::<TREE_TYPE>(data_slice, &account_info.key().into())
     }
 
     /// Deserialize a state BatchedMerkleTreeAccount from bytes.
@@ -340,9 +339,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 1. Checks that the tree and queue are associated.
     /// 2. Updates the tree with the output queue account.
     /// 3. Returns the batch append event.
-    pub fn update_tree_from_output_queue_account_info(
+    pub fn update_tree_from_output_queue_account_info<A: AccountInfoTrait>(
         &mut self,
-        queue_account_info: &AccountInfo,
+        queue_account_info: &A,
         instruction_data: InstructionDataBatchAppendInputs,
     ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
         if self.tree_type != TreeType::StateV2 as u64 {

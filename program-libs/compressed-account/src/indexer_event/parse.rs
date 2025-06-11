@@ -405,7 +405,7 @@ fn deserialize_instruction<'a>(
                         OutputCompressedAccountWithPackedContext {
                             compressed_account: CompressedAccount {
                                 address: x.address,
-                                owner: data.invoking_program_id.into(),
+                                owner: data.invoking_program_id,
                                 lamports: account.lamports,
                                 data: Some(CompressedAccountData {
                                     discriminator: account.discriminator,
@@ -426,7 +426,7 @@ fn deserialize_instruction<'a>(
                         PackedCompressedAccountWithMerkleContext {
                             compressed_account: CompressedAccount {
                                 address: x.address,
-                                owner: data.invoking_program_id.into(),
+                                owner: data.invoking_program_id,
                                 lamports: account.lamports,
                                 data: Some(CompressedAccountData {
                                     discriminator: account.discriminator,
@@ -632,7 +632,7 @@ fn create_nullifier_queue_indices(
     // 3. increment the sequence number
     internal_input_sequence_numbers.iter_mut().for_each(|seq| {
         for (i, merkle_tree_pubkey) in input_merkle_tree_pubkeys.iter().enumerate() {
-            if crate::pubkey::Pubkey::from(*merkle_tree_pubkey) == seq.tree_pubkey {
+            if *merkle_tree_pubkey == seq.tree_pubkey {
                 nullifier_queue_indices[i] = seq.seq.into();
                 seq.seq += 1;
             }
@@ -660,7 +660,7 @@ fn create_address_queue_indices(
         .iter_mut()
         .for_each(|seq| {
             for (i, merkle_tree_pubkey) in address_merkle_tree_pubkeys.iter().enumerate() {
-                if crate::pubkey::Pubkey::from(*merkle_tree_pubkey) == seq.tree_pubkey {
+                if *merkle_tree_pubkey == seq.tree_pubkey {
                     address_queue_indices[i] = seq.seq.into();
                     seq.seq += 1;
                 }

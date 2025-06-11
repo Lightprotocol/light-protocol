@@ -7,30 +7,26 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["solana"]
+default = []
 solana = [
-    "dep:solana-program-error",
     "dep:solana-msg",
     "dep:solana-sysvar",
+    "solana-program-error",
     "solana-sysvar/bincode",
     "light-compressed-account/solana",
     "light-compressed-account/bytemuck-des",
 ]
 anchor = ["solana", "anchor-lang"]
-pinocchio = [
-    "dep:pinocchio",
-    "light-compressed-account/pinocchio",
-    "light-compressed-account/bytemuck-des",
-]
+pinocchio = ["dep:pinocchio", "light-compressed-account/bytemuck-des"]
 
 [dependencies]
 thiserror = { workspace = true }
 bytemuck = { workspace = true, features = ["derive"] }
 zerocopy = { workspace = true, features = ["derive"] }
 light-compressed-account = { workspace = true, features = ["bytemuck-des"] }
-solana-program-error = { workspace = true, optional = true }
 solana-msg = { workspace = true, optional = true }
 solana-sysvar = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
 anchor-lang = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 borsh = { workspace = true }
@@ -38,3 +34,5 @@ borsh = { workspace = true }
 [lints.rust.unexpected_cfgs]
 level = "allow"
 check-cfg = ['cfg(target_os, values("solana"))']
+[dev-dependencies]
+light-compressed-account = { workspace = true, features = ["new-unique"] }

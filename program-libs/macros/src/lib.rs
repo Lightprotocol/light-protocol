@@ -15,6 +15,15 @@ pub fn pubkey(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Converts a base58 encoded public key into a raw byte array [u8; 32].
+#[proc_macro]
+pub fn pubkey_array(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as pubkey::PubkeyArgs);
+    pubkey::pubkey_array(args)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
 #[proc_macro_attribute]
 pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut function = parse_macro_input!(input as ItemFn);
