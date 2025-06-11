@@ -6,8 +6,8 @@ use crate::{AccountInfo, AnchorDeserialize, AnchorSerialize, Pubkey};
 
 #[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
 pub struct AddressTreeInfo {
-    pub address_merkle_tree_pubkey: Pubkey,
-    pub address_queue_pubkey: Pubkey,
+    pub tree: Pubkey,
+    pub queue: Pubkey,
 }
 
 #[deprecated(since = "0.13.0", note = "please use PackedStateTreeInfo")]
@@ -68,13 +68,9 @@ pub fn pack_address_tree_info(
     remaining_accounts: &mut PackedAccounts,
     root_index: u16,
 ) -> PackedAddressTreeInfo {
-    let AddressTreeInfo {
-        address_merkle_tree_pubkey,
-        address_queue_pubkey,
-    } = address_tree_info;
-    let address_merkle_tree_pubkey_index =
-        remaining_accounts.insert_or_get(*address_merkle_tree_pubkey);
-    let address_queue_pubkey_index = remaining_accounts.insert_or_get(*address_queue_pubkey);
+    let AddressTreeInfo { tree, queue } = address_tree_info;
+    let address_merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*tree);
+    let address_queue_pubkey_index = remaining_accounts.insert_or_get(*queue);
 
     PackedAddressTreeInfo {
         address_merkle_tree_pubkey_index,
@@ -93,8 +89,8 @@ pub fn unpack_address_tree_infos(
             *remaining_accounts[x.address_merkle_tree_pubkey_index as usize].key;
         let address_queue_pubkey = *remaining_accounts[x.address_queue_pubkey_index as usize].key;
         result.push(AddressTreeInfo {
-            address_merkle_tree_pubkey,
-            address_queue_pubkey,
+            tree: address_merkle_tree_pubkey,
+            queue: address_queue_pubkey,
         });
     }
     result
@@ -203,8 +199,8 @@ mod test {
         let mut remaining_accounts = PackedAccounts::default();
 
         let address_tree_info = AddressTreeInfo {
-            address_merkle_tree_pubkey: Pubkey::new_unique(),
-            address_queue_pubkey: Pubkey::new_unique(),
+            tree: Pubkey::new_unique(),
+            queue: Pubkey::new_unique(),
         };
 
         let packed_address_tree_info =
@@ -225,16 +221,16 @@ mod test {
         use solana_pubkey::Pubkey;
         let address_tree_infos = [
             AddressTreeInfo {
-                address_merkle_tree_pubkey: Pubkey::new_unique(),
-                address_queue_pubkey: Pubkey::new_unique(),
+                tree: Pubkey::new_unique(),
+                queue: Pubkey::new_unique(),
             },
             AddressTreeInfo {
-                address_merkle_tree_pubkey: Pubkey::new_unique(),
-                address_queue_pubkey: Pubkey::new_unique(),
+                tree: Pubkey::new_unique(),
+                queue: Pubkey::new_unique(),
             },
             AddressTreeInfo {
-                address_merkle_tree_pubkey: Pubkey::new_unique(),
-                address_queue_pubkey: Pubkey::new_unique(),
+                tree: Pubkey::new_unique(),
+                queue: Pubkey::new_unique(),
             },
         ];
 
