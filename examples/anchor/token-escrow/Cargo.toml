@@ -30,6 +30,7 @@ light-compressed-account = { workspace = true, features = ["anchor"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
+light-test-utils = { workspace = true, features = ["devenv"] }
 
 [dev-dependencies]
 light-verifier = { workspace = true }

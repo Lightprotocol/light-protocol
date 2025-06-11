@@ -1000,10 +1000,11 @@ pub mod transfer_sdk {
         let mut input_token_data_with_context: Vec<InputTokenDataWithContext> = Vec::new();
 
         for (i, token_data) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey) {
+            match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey.into()) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(input_merkle_context[i].merkle_tree_pubkey, index);
+                    remaining_accounts
+                        .insert(input_merkle_context[i].merkle_tree_pubkey.into(), index);
                     index += 1;
                 }
             };
@@ -1031,7 +1032,7 @@ pub mod transfer_sdk {
                 delegate_index,
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: *remaining_accounts
-                        .get(&input_merkle_context[i].merkle_tree_pubkey)
+                        .get(&input_merkle_context[i].merkle_tree_pubkey.into())
                         .unwrap() as u8,
                     queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
@@ -1044,17 +1045,17 @@ pub mod transfer_sdk {
             input_token_data_with_context.push(token_data_with_context);
         }
         for (i, _) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].queue_pubkey) {
+            match remaining_accounts.get(&input_merkle_context[i].queue_pubkey.into()) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(input_merkle_context[i].queue_pubkey, index);
+                    remaining_accounts.insert(input_merkle_context[i].queue_pubkey.into(), index);
                     index += 1;
                 }
             };
             input_token_data_with_context[i]
                 .merkle_context
                 .queue_pubkey_index = *remaining_accounts
-                .get(&input_merkle_context[i].queue_pubkey)
+                .get(&input_merkle_context[i].queue_pubkey.into())
                 .unwrap() as u8;
         }
         let mut _output_compressed_accounts: Vec<PackedTokenTransferOutputData> =

@@ -23,7 +23,6 @@ pub mod sdk_anchor_test {
         output_tree_index: u8,
         name: String,
     ) -> Result<()> {
-        let program_id = crate::ID.into();
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
@@ -46,7 +45,7 @@ pub mod sdk_anchor_test {
         };
 
         let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
-            &program_id,
+            &crate::ID,
             Some(address),
             output_tree_index,
         );
@@ -76,9 +75,8 @@ pub mod sdk_anchor_test {
         account_meta: CompressedAccountMeta,
         nested_data: NestedData,
     ) -> Result<()> {
-        let program_id = crate::ID.into();
         let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
-            &program_id,
+            &crate::ID,
             &account_meta,
             my_compressed_account,
         )

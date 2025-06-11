@@ -29,6 +29,7 @@ pub mod conversions;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 pub mod mock_batched_forester;
+pub mod pack;
 pub mod registered_program_accounts_v1;
 pub mod setup_accounts;
 #[allow(unused)]

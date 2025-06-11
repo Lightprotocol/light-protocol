@@ -45,16 +45,16 @@ jobs:
               light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set light-indexed-merkle-tree light-batched-merkle-tree
             test_cmd: |
               cargo test -p aligned-sized
-              cargo test -p light-bloom-filter
-              cargo test -p light-hasher
-              cargo test -p light-compressed-account
-              cargo test -p light-account-checks
-              cargo test -p light-verifier
-              cargo test -p light-merkle-tree-metadata
+              cargo test -p light-bloom-filter --all-features
+              cargo test -p light-hasher --all-features
+              cargo test -p light-compressed-account --all-features
+              cargo test -p light-account-checks  --all-features
+              cargo test -p light-verifier --all-features
+              cargo test -p light-merkle-tree-metadata --all-features
               cargo test -p light-zero-copy --features std
-              cargo test -p light-hash-set
-              cargo test -p light-indexed-merkle-tree
-              cargo test -p light-batched-merkle-tree --features test-only -- --test test_e2e
+              cargo test -p light-hash-set --all-features
+              cargo test -p light-indexed-merkle-tree --all-features
+              cargo test -p light-batched-merkle-tree --all-features -- --test test_e2e
           - name: sdk-libs
             packages: light-macros light-sdk light-program-test light-client light-batched-merkle-tree
             test_cmd: |

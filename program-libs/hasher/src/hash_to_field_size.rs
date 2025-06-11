@@ -139,7 +139,7 @@ mod tests {
         assert_eq!(hash, manual_hash);
     }
 
-    #[cfg(not(feature = "pinocchio"))]
+    #[cfg(feature = "solana")]
     #[test]
     fn test_hash_to_bn254_field_size_be() {
         use solana_pubkey::Pubkey;
@@ -160,7 +160,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(feature = "pinocchio"))]
+    #[cfg(feature = "solana")]
     #[test]
     fn test_hashv_to_bn254_field_size_be() {
         use solana_pubkey::Pubkey;

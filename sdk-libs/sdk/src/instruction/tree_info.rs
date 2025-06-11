@@ -61,8 +61,9 @@ pub fn pack_merkle_context(
         prove_by_index,
         ..
     } = merkle_context;
-    let merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*merkle_tree_pubkey);
-    let queue_pubkey_index = remaining_accounts.insert_or_get(*queue_pubkey);
+    let merkle_tree_pubkey_index =
+        remaining_accounts.insert_or_get(merkle_tree_pubkey.to_bytes().into());
+    let queue_pubkey_index = remaining_accounts.insert_or_get(queue_pubkey.to_bytes().into());
 
     PackedMerkleContext {
         merkle_tree_pubkey_index,
@@ -136,6 +137,8 @@ pub fn unpack_address_tree_info(
 #[cfg(test)]
 mod test {
 
+    use light_compressed_account::Pubkey;
+
     use super::*;
 
     #[test]
@@ -168,7 +171,7 @@ mod test {
     #[test]
     fn test_pack_merkle_contexts() {
         let mut remaining_accounts = PackedAccounts::default();
-
+        use light_compressed_account::Pubkey;
         let merkle_contexts = &[
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
@@ -223,6 +226,7 @@ mod test {
 
     #[test]
     fn test_pack_address_tree_info() {
+        use solana_pubkey::Pubkey;
         let mut remaining_accounts = PackedAccounts::default();
 
         let address_tree_info = AddressTreeInfo {
@@ -245,7 +249,7 @@ mod test {
     #[test]
     fn test_pack_address_tree_infos() {
         let mut remaining_accounts = PackedAccounts::default();
-
+        use solana_pubkey::Pubkey;
         let address_tree_infos = [
             AddressTreeInfo {
                 address_merkle_tree_pubkey: Pubkey::new_unique(),

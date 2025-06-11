@@ -97,10 +97,10 @@ pub fn init_batched_address_merkle_tree_account(
         }
         None => 0,
     };
-    #[cfg(not(feature = "pinocchio"))]
-    crate::msg!("rollover fee {}", rollover_fee);
-    #[cfg(not(feature = "pinocchio"))]
-    crate::msg!("rollover threshold {:?}", params.rollover_threshold);
+    #[cfg(feature = "solana")]
+    solana_msg::msg!("rollover fee {}", rollover_fee);
+    #[cfg(feature = "solana")]
+    solana_msg::msg!("rollover threshold {:?}", params.rollover_threshold);
 
     let metadata = MerkleTreeMetadata {
         next_merkle_tree: Pubkey::default(),

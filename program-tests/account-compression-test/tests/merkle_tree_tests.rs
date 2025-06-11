@@ -12,9 +12,7 @@ use account_compression::{
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_account_checks::error::AccountError;
-use light_compressed_account::instruction_data::{
-    data::pack_pubkey, insert_into_queues::InsertIntoQueuesInstructionDataMut,
-};
+use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
     zero_copy::ConcurrentMerkleTreeZeroCopyMut,
@@ -39,6 +37,7 @@ use light_test_utils::{
     assert_queue::assert_nullifier_queue_initialized,
     create_account_instruction, create_address_merkle_tree_and_queue_account_with_assert,
     get_concurrent_merkle_tree, get_hash_set,
+    pack::pack_pubkey,
     state_tree_rollover::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
         set_state_merkle_tree_next_index, StateMerkleTreeRolloverMode,
@@ -227,7 +226,7 @@ async fn test_init_and_insert_into_nullifier_queue_custom() {
 /// 3. try to insert again it should still generate the full error
 /// 4. advance Merkle tree seq until one before it would work check that it still fails
 /// 5. advance Merkle tree seq by one and check that inserting works now
-/// 6.try inserting again it should fail with full error
+///    6.try inserting again it should fail with full error
 async fn test_full_nullifier_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
@@ -420,12 +419,12 @@ async fn test_full_nullifier_queue_default() {
 /// 1. no nullifiers
 /// 2. mismatch remaining accounts and addresses (removed error)
 /// 3. invalid queue accounts:
-///     3.1 pass non queue account as queue account
-///     3.2 pass address queue account
-///     3.3 pass non associated queue account
+///    3.1 pass non queue account as queue account
+///    3.2 pass address queue account
+///    3.3 pass non associated queue account
 /// 4. invalid Merkle tree accounts:
-///     4.1 pass non Merkle tree account as Merkle tree account
-///     4.2 pass non associated Merkle tree account
+///    4.1 pass non Merkle tree account as Merkle tree account
+///    4.2 pass non associated Merkle tree account
 async fn failing_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,

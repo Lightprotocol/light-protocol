@@ -10,9 +10,10 @@ use light_compressed_account::{
     address::{derive_address, pack_new_address_params},
     instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
 };
-use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
+
+use crate::e2e_test_env::to_account_metas_light;
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaInstructionInputs<'a> {
@@ -29,9 +30,9 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         &[CPI_AUTHORITY_PDA_SEED],
         &create_address_test_program::id(),
     );
-    let mut remaining_accounts = HashMap::new();
+    let mut remaining_accounts = HashMap::<light_compressed_account::Pubkey, usize>::new();
     remaining_accounts.insert(
-        *input_params.output_compressed_account_merkle_tree_pubkey,
+        (*input_params.output_compressed_account_merkle_tree_pubkey).into(),
         0,
     );
     let new_address_params =
@@ -58,7 +59,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
     };
-    let remaining_accounts = to_account_metas(remaining_accounts);
+    let remaining_accounts = to_account_metas_light(remaining_accounts);
 
     Instruction {
         program_id: create_address_test_program::ID,
@@ -116,8 +117,8 @@ pub async fn perform_create_pda_with_event<
 
     let new_address_params = NewAddressParams {
         seed,
-        address_merkle_tree_pubkey: env.v2_address_trees[0],
-        address_queue_pubkey: env.v2_address_trees[0],
+        address_merkle_tree_pubkey: env.v2_address_trees[0].into(),
+        address_queue_pubkey: env.v2_address_trees[0].into(),
         address_merkle_tree_root_index: rpc_result.value.addresses[0].root_index,
     };
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {

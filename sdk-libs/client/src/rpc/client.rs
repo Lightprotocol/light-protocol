@@ -208,9 +208,16 @@ impl LightClient {
         let mut vec_accounts = Vec::new();
         let mut program_ids = Vec::new();
         instructions_vec.iter().for_each(|x| {
-            program_ids.push(x.program_id);
+            program_ids.push(light_compressed_account::Pubkey::new_from_array(
+                x.program_id.to_bytes(),
+            ));
             vec.push(x.data.clone());
-            vec_accounts.push(x.accounts.iter().map(|x| x.pubkey).collect());
+            vec_accounts.push(
+                x.accounts
+                    .iter()
+                    .map(|x| light_compressed_account::Pubkey::new_from_array(x.pubkey.to_bytes()))
+                    .collect(),
+            );
         });
         {
             let rpc_transaction_config = RpcTransactionConfig {
@@ -265,13 +272,18 @@ impl LightClient {
                                     )
                                 })?;
                             vec.push(data);
-                            program_ids.push(
-                                account_keys[ui_compiled_instruction.program_id_index as usize],
-                            );
+                            program_ids.push(light_compressed_account::Pubkey::new_from_array(
+                                account_keys[ui_compiled_instruction.program_id_index as usize]
+                                    .to_bytes(),
+                            ));
                             vec_accounts.push(
                                 accounts
                                     .iter()
-                                    .map(|x| account_keys[(*x) as usize])
+                                    .map(|x| {
+                                        light_compressed_account::Pubkey::new_from_array(
+                                            account_keys[(*x) as usize].to_bytes(),
+                                        )
+                                    })
                                     .collect(),
                             );
                         }

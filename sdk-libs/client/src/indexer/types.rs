@@ -11,8 +11,8 @@ use light_sdk::{
         pack_accounts::PackedAccounts,
         tree_info::{PackedAddressTreeInfo, PackedStateTreeInfo},
     },
+    light_compressed_account::instruction_data::compressed_proof::CompressedProof,
     token::{AccountState, TokenData},
-    verifier::CompressedProof,
     ValidityProof,
 };
 use num_bigint::BigUint;
@@ -455,9 +455,10 @@ impl TreeInfo {
         leaf_index: u32,
         prove_by_index: bool,
     ) -> light_compressed_account::compressed_account::MerkleContext {
+        use light_compressed_account::Pubkey;
         light_compressed_account::compressed_account::MerkleContext {
-            merkle_tree_pubkey: self.tree,
-            queue_pubkey: self.queue,
+            merkle_tree_pubkey: Pubkey::new_from_array(self.tree.to_bytes()),
+            queue_pubkey: Pubkey::new_from_array(self.queue.to_bytes()),
             leaf_index,
             tree_type: self.tree_type,
             prove_by_index,
@@ -498,13 +499,13 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             lamports: account.compressed_account.lamports,
             leaf_index: account.merkle_context.leaf_index,
             tree_info: TreeInfo {
-                tree: account.merkle_context.merkle_tree_pubkey,
-                queue: account.merkle_context.queue_pubkey,
+                tree: Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
+                queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
                 tree_type: account.merkle_context.tree_type,
                 cpi_context: None,
                 next_tree_info: None,
             },
-            owner: account.compressed_account.owner,
+            owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),
             prove_by_index: account.merkle_context.prove_by_index,
             seq: None,
             slot_created: u64::MAX,
@@ -514,8 +515,9 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
 
 impl From<CompressedAccount> for CompressedAccountWithMerkleContext {
     fn from(account: CompressedAccount) -> Self {
+        use light_compressed_account::Pubkey;
         let compressed_account = ProgramCompressedAccount {
-            owner: account.owner,
+            owner: Pubkey::new_from_array(account.owner.to_bytes()),
             lamports: account.lamports,
             address: account.address,
             data: account.data,

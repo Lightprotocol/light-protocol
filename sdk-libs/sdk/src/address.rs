@@ -20,9 +20,9 @@ pub fn pack_new_addresses_params(
         .iter()
         .map(|x| {
             let address_queue_account_index =
-                remaining_accounts.insert_or_get(x.address_queue_pubkey);
+                remaining_accounts.insert_or_get(x.address_queue_pubkey.to_bytes().into());
             let address_merkle_tree_account_index =
-                remaining_accounts.insert_or_get(x.address_merkle_tree_pubkey);
+                remaining_accounts.insert_or_get(x.address_merkle_tree_pubkey.to_bytes().into());
             PackedNewAddressParams {
                 seed: x.seed,
                 address_queue_account_index,
@@ -50,8 +50,8 @@ pub fn unpack_new_address_params(
         remaining_accounts[address_params.address_queue_account_index as usize].key;
     NewAddressParams {
         seed: address_params.seed,
-        address_queue_pubkey: *address_queue_pubkey,
-        address_merkle_tree_pubkey: *address_merkle_tree_pubkey,
+        address_queue_pubkey: address_queue_pubkey.to_bytes().into(),
+        address_merkle_tree_pubkey: address_merkle_tree_pubkey.to_bytes().into(),
         address_merkle_tree_root_index: address_params.address_merkle_tree_root_index,
     }
 }

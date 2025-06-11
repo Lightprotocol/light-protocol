@@ -522,7 +522,7 @@ pub mod test_freeze {
             };
             expected_compressed_output_accounts.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: crate::ID,
+                    owner: crate::ID.into(),
                     lamports: 0,
                     data: Some(change_data_struct),
                     address: None,

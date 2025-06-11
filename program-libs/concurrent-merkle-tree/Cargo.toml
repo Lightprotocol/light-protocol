@@ -8,20 +8,12 @@ license = "Apache-2.0"
 
 [features]
 heavy-tests = []
-solana = [
-    "solana-program-error",
-    "light-bounded-vec/solana",
-    "light-hasher/solana",
-]
-pinocchio = [
-    "dep:pinocchio",
-    "light-bounded-vec/solana",
-    "light-hasher/pinocchio",
-]
+solana = ["solana-program-error", "light-hasher/solana"]
+pinocchio = ["dep:pinocchio", "light-hasher/pinocchio"]
 
 [dependencies]
 borsh = { workspace = true }
-light-bounded-vec = { workspace = true }
+light-bounded-vec = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true }
 memoffset = "0.9"
 solana-program-error = { workspace = true, optional = true }

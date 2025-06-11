@@ -70,7 +70,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
     SAFETY_MARGIN,
 };
-use anchor_lang::AnchorSerialize;
+use anchor_lang::{prelude::AccountMeta, AnchorSerialize};
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
     account_zero_copy::AccountZeroCopy,
@@ -96,12 +96,17 @@ use light_client::{
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 use light_compressed_account::{
     address::{
-        derive_address, pack_new_address_params, pack_read_only_accounts,
-        pack_read_only_address_params,
+        derive_address,
+        // pack_new_address_params, pack_read_only_accounts,
+        // pack_read_only_address_params,
     },
     compressed_account::{
-        pack_compressed_accounts, pack_output_compressed_accounts, CompressedAccount,
-        CompressedAccountData, CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
+        // pack_compressed_accounts, pack_output_compressed_accounts,
+        CompressedAccount,
+        CompressedAccountData,
+        CompressedAccountWithMerkleContext,
+
+        ReadOnlyCompressedAccount,
     },
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -177,6 +182,7 @@ use crate::{
         assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
     },
     create_address_merkle_tree_and_queue_account_with_assert,
+    pack::*,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
         create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test,
@@ -2553,8 +2559,8 @@ where
                 .enumerate()
                 .map(|(index, seed)| {
                     NewAddressParams {
-                        address_merkle_tree_pubkey: address_merkle_tree[index],
-                        address_queue_pubkey: queues[index],
+                        address_merkle_tree_pubkey: address_merkle_tree[index].into(),
+                        address_queue_pubkey: queues[index].into(),
                         seed: *seed,
                         address_merkle_tree_root_index: 0, // set after proof generation
                     }
@@ -2583,7 +2589,7 @@ where
                     );
                     proof_input_addresses.push((address, address_merkle_tree[index]));
                     ReadOnlyAddress {
-                        address_merkle_tree_pubkey: address_merkle_tree[index],
+                        address_merkle_tree_pubkey: address_merkle_tree[index].into(),
                         address,
                         address_merkle_tree_root_index: 0, // set after proof generation
                     }
@@ -2615,7 +2621,7 @@ where
                     None
                 };
                 let account = CompressedAccount {
-                    owner: create_address_test_program::ID,
+                    owner: create_address_test_program::ID.into(),
                     data: Some(CompressedAccountData {
                         data: rnd_data.to_vec(),
                         discriminator: [1; 8],
@@ -2867,7 +2873,10 @@ where
             .indexer
             .get_state_merkle_trees()
             .iter()
-            .find(|x| x.accounts.merkle_tree == first_account.merkle_context.merkle_tree_pubkey)
+            .find(|x| {
+                x.accounts.merkle_tree.to_bytes()
+                    == first_account.merkle_context.merkle_tree_pubkey.to_bytes()
+            })
             .unwrap()
             .tree_type;
         let input_compressed_accounts_with_same_version = input_compressed_accounts
@@ -2876,7 +2885,10 @@ where
                 self.indexer
                     .get_state_merkle_trees()
                     .iter()
-                    .find(|y| y.accounts.merkle_tree == x.merkle_context.merkle_tree_pubkey)
+                    .find(|y| {
+                        y.accounts.merkle_tree.to_bytes()
+                            == x.merkle_context.merkle_tree_pubkey.to_bytes()
+                    })
                     .unwrap()
                     .tree_type
                     == first_mt
@@ -3140,7 +3152,13 @@ where
             a.compressed_account
                 .merkle_context
                 .merkle_tree_pubkey
-                .cmp(&b.compressed_account.merkle_context.merkle_tree_pubkey)
+                .to_bytes()
+                .cmp(
+                    &b.compressed_account
+                        .merkle_context
+                        .merkle_tree_pubkey
+                        .to_bytes(),
+                )
         });
         (mint, get_random_subset_of_token_accounts)
     }
@@ -3362,4 +3380,29 @@ impl GeneralActionConfig {
             disable_epochs: false,
         }
     }
+}
+
+pub fn to_account_metas_light(
+    remaining_accounts: HashMap<light_compressed_account::Pubkey, usize>,
+) -> Vec<AccountMeta> {
+    let mut remaining_accounts = remaining_accounts
+        .iter()
+        .map(|(k, i)| {
+            (
+                AccountMeta {
+                    pubkey: (*k).into(),
+                    is_signer: false,
+                    is_writable: true,
+                },
+                *i,
+            )
+        })
+        .collect::<Vec<(AccountMeta, usize)>>();
+    // hash maps are not sorted so we need to sort manually and collect into a vector again
+    remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
+    let remaining_accounts = remaining_accounts
+        .iter()
+        .map(|(k, _)| k.clone())
+        .collect::<Vec<AccountMeta>>();
+    remaining_accounts
 }

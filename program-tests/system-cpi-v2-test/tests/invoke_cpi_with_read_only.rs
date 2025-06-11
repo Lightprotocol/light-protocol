@@ -288,7 +288,7 @@ async fn functional_read_only() {
                             .iter()
                             .zip(read_only_addresses)
                             .map(|(root_index, address)| ReadOnlyAddress {
-                                address_merkle_tree_pubkey: address_tree,
+                                address_merkle_tree_pubkey: address_tree.into(),
                                 address,
                                 address_merkle_tree_root_index: *root_index,
                             })
@@ -590,7 +590,7 @@ async fn functional_account_infos() {
                             .iter()
                             .zip(read_only_addresses)
                             .map(|(root_index, address)| ReadOnlyAddress {
-                                address_merkle_tree_pubkey: address_tree,
+                                address_merkle_tree_pubkey: address_tree.into(),
                                 address,
                                 address_merkle_tree_root_index: *root_index,
                             })
@@ -717,7 +717,7 @@ async fn create_addresses_with_account_info() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed).unwrap()
         };
 
         let seed1 = [2u8; 32];
@@ -728,7 +728,7 @@ async fn create_addresses_with_account_info() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed1).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed1).unwrap()
         };
         let account_info = CompressedAccountInfo {
             address: Some(address),
@@ -759,15 +759,15 @@ async fn create_addresses_with_account_info() {
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
             assigned_account_index: Some(1),
         };
@@ -955,7 +955,7 @@ async fn create_addresses_with_account_info() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             let seed1 = [4u8; 32];
@@ -966,7 +966,7 @@ async fn create_addresses_with_account_info() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed1).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed1).unwrap()
             };
             let rpc_result = rpc
                 .get_validity_proof(
@@ -987,15 +987,15 @@ async fn create_addresses_with_account_info() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
                 assigned_account_index: None,
             };
@@ -1034,7 +1034,7 @@ async fn create_addresses_with_account_info() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             let rpc_result = rpc
@@ -1050,8 +1050,8 @@ async fn create_addresses_with_account_info() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: None,
             };
@@ -1093,7 +1093,7 @@ async fn create_addresses_with_account_info() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             let seed1 = [7u8; 32];
@@ -1104,7 +1104,7 @@ async fn create_addresses_with_account_info() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed1).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed1).unwrap()
             };
             let account_info = CompressedAccountInfo {
                 address: Some(address1),
@@ -1131,15 +1131,15 @@ async fn create_addresses_with_account_info() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
                 assigned_account_index: Some(0),
             };
@@ -1181,7 +1181,7 @@ async fn create_addresses_with_account_info() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             let account_info = CompressedAccountInfo {
@@ -1203,8 +1203,8 @@ async fn create_addresses_with_account_info() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: Some(0),
             };
@@ -1314,7 +1314,7 @@ async fn create_addresses_with_read_only() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed).unwrap()
         };
 
         let seed1 = [2u8; 32];
@@ -1325,7 +1325,7 @@ async fn create_addresses_with_read_only() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed1).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed1).unwrap()
         };
         let mut output_1 = get_compressed_output_account(true, if batched { queue } else { tree });
         output_1.compressed_account.address = Some(address);
@@ -1350,15 +1350,15 @@ async fn create_addresses_with_read_only() {
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
             assigned_account_index: Some(1),
         };
@@ -1553,7 +1553,7 @@ async fn create_addresses_with_read_only() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             let seed1 = [4u8; 32];
@@ -1564,7 +1564,7 @@ async fn create_addresses_with_read_only() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed1).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed1).unwrap()
             };
             let rpc_result = rpc
                 .get_validity_proof(
@@ -1585,15 +1585,15 @@ async fn create_addresses_with_read_only() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
                 assigned_account_index: None,
             };
@@ -1633,7 +1633,7 @@ async fn create_addresses_with_read_only() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             let rpc_result = rpc
@@ -1649,8 +1649,8 @@ async fn create_addresses_with_read_only() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: None,
             };
@@ -1693,7 +1693,7 @@ async fn create_addresses_with_read_only() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             let seed1 = [7u8; 32];
@@ -1704,7 +1704,7 @@ async fn create_addresses_with_read_only() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed1).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed1).unwrap()
             };
             output_accounts[0].compressed_account.address = Some(address1);
 
@@ -1727,15 +1727,15 @@ async fn create_addresses_with_read_only() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: None,
             };
             let new_address_params1 = NewAddressParamsAssigned {
                 seed: seed1,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
                 assigned_account_index: Some(0),
             };
@@ -1778,7 +1778,7 @@ async fn create_addresses_with_read_only() {
                     &create_address_test_program::ID.to_bytes(),
                 )
             } else {
-                derive_address_legacy(&address_tree, &seed).unwrap()
+                derive_address_legacy(&address_tree.into(), &seed).unwrap()
             };
 
             output_accounts[0].compressed_account.address = Some(address);
@@ -1796,8 +1796,8 @@ async fn create_addresses_with_read_only() {
                 .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
-                address_queue_pubkey: address_queue,
-                address_merkle_tree_pubkey: address_tree,
+                address_queue_pubkey: address_queue.into(),
+                address_merkle_tree_pubkey: address_tree.into(),
                 address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
                 assigned_account_index: Some(0),
             };
@@ -1809,7 +1809,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 output_accounts,
                 vec![new_address_params],
-                rpc_result.value.proof.0.clone(),
+                rpc_result.value.proof.0,
                 None,
                 None,
                 is_small_ix,
@@ -2113,7 +2113,7 @@ async fn cpi_context_with_read_only() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed).unwrap()
         };
 
         let seed1 = [2u8; 32];
@@ -2124,7 +2124,7 @@ async fn cpi_context_with_read_only() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed1).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed1).unwrap()
         };
         let addresses_with_tree = vec![
             AddressWithTree {
@@ -2143,15 +2143,15 @@ async fn cpi_context_with_read_only() {
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
             assigned_account_index: Some(1),
         };
@@ -2159,15 +2159,15 @@ async fn cpi_context_with_read_only() {
         // Insert into cpi context.
         {
             let input_accounts = vec![get_compressed_input_account(MerkleContext {
-                merkle_tree_pubkey: tree,
-                queue_pubkey: queue,
+                merkle_tree_pubkey: tree.into(),
+                queue_pubkey: queue.into(),
                 leaf_index: 2,
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
             })];
             let mut output_account = get_compressed_output_account(false, queue);
             output_account.compressed_account.address = Some(address1);
-            output_account.compressed_account.owner = owner_account1;
+            output_account.compressed_account.owner = owner_account1.into();
             local_sdk::perform_test_transaction(
                 &mut rpc,
                 &mut test_indexer,
@@ -2203,14 +2203,14 @@ async fn cpi_context_with_read_only() {
         // Insert into cpi context 2.
         {
             let input_accounts = vec![get_compressed_input_account(MerkleContext {
-                merkle_tree_pubkey: tree,
-                queue_pubkey: queue,
+                merkle_tree_pubkey: tree.into(),
+                queue_pubkey: queue.into(),
                 leaf_index: 0,
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
             })];
             let mut output_account = get_compressed_output_account(false, queue);
-            output_account.compressed_account.owner = owner_account2;
+            output_account.compressed_account.owner = owner_account2.into();
             local_sdk::perform_test_transaction(
                 &mut rpc,
                 &mut test_indexer,
@@ -2246,8 +2246,8 @@ async fn cpi_context_with_read_only() {
         // Execute cpi context.
         {
             let input_accounts = vec![get_compressed_input_account(MerkleContext {
-                merkle_tree_pubkey: tree,
-                queue_pubkey: queue,
+                merkle_tree_pubkey: tree.into(),
+                queue_pubkey: queue.into(),
                 leaf_index: 1,
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
@@ -2409,7 +2409,7 @@ async fn cpi_context_with_account_info() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed).unwrap()
         };
 
         let seed1 = [2u8; 32];
@@ -2420,7 +2420,7 @@ async fn cpi_context_with_account_info() {
                 &create_address_test_program::ID.to_bytes(),
             )
         } else {
-            derive_address_legacy(&address_tree, &seed1).unwrap()
+            derive_address_legacy(&address_tree.into(), &seed1).unwrap()
         };
         let addresses_with_tree = vec![
             AddressWithTree {
@@ -2439,15 +2439,15 @@ async fn cpi_context_with_account_info() {
             .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
             assigned_account_index: Some(0),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
-            address_queue_pubkey: address_queue,
-            address_merkle_tree_pubkey: address_tree,
+            address_queue_pubkey: address_queue.into(),
+            address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
             assigned_account_index: Some(2),
         };
@@ -2734,8 +2734,8 @@ async fn compress_sol_with_read_only() {
         // 2.Decompress sol
         {
             let mut input_account = get_compressed_input_account(MerkleContext {
-                merkle_tree_pubkey: tree,
-                queue_pubkey: queue,
+                merkle_tree_pubkey: tree.into(),
+                queue_pubkey: queue.into(),
                 leaf_index: 0,
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
@@ -2830,12 +2830,7 @@ pub mod local_sdk {
     use create_address_test_program::create_invoke_read_only_account_info_instruction;
     use light_client::indexer::Indexer;
     use light_compressed_account::{
-        address::{
-            pack_new_address_params_assigned, pack_read_only_accounts,
-            pack_read_only_address_params,
-        },
         compressed_account::{
-            pack_compressed_accounts, pack_output_compressed_accounts,
             CompressedAccountWithMerkleContext, MerkleContext,
             PackedCompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
         },
@@ -2851,11 +2846,18 @@ pub mod local_sdk {
     use light_program_test::indexer::TestIndexerExtensions;
     use light_sdk::{
         cpi::CpiAccountsConfig, find_cpi_signer_macro, instruction::accounts::SystemAccountPubkeys,
-        pack_pubkey_usize, NewAddressParamsAssigned, OutputCompressedAccountWithContext,
+        NewAddressParamsAssigned, OutputCompressedAccountWithContext,
         OutputCompressedAccountWithPackedContext, ReadOnlyAddress, CPI_AUTHORITY_PDA_SEED,
     };
     use light_system_program::constants::SOL_POOL_PDA_SEED;
-    use light_test_utils::{Rpc, RpcError};
+    use light_test_utils::{
+        pack::{
+            pack_compressed_accounts, pack_new_address_params_assigned,
+            pack_output_compressed_accounts, pack_pubkey_usize, pack_read_only_accounts,
+            pack_read_only_address_params,
+        },
+        Rpc, RpcError,
+    };
     use solana_sdk::{
         pubkey::Pubkey,
         signature::{Keypair, Signer},
@@ -2917,7 +2919,7 @@ pub mod local_sdk {
                 .as_slice(),
             output_accounts
                 .iter()
-                .map(|x| x.merkle_tree)
+                .map(|x| x.merkle_tree.into())
                 .collect::<Vec<_>>()
                 .as_slice(),
             &mut remaining_accounts,

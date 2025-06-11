@@ -221,7 +221,8 @@ async fn test_read_only_accounts() {
         .iter()
         .find(|x| {
             x.merkle_context.leaf_index == 101
-                && x.merkle_context.merkle_tree_pubkey == env.v2_state_trees[0].merkle_tree
+                && x.merkle_context.merkle_tree_pubkey.to_bytes()
+                    == env.v2_state_trees[0].merkle_tree.to_bytes()
         })
         .unwrap()
         .clone();
@@ -232,7 +233,8 @@ async fn test_read_only_accounts() {
         .iter()
         .find(|x| {
             x.merkle_context.leaf_index == 1
-                && x.merkle_context.merkle_tree_pubkey == env.v2_state_trees[0].merkle_tree
+                && x.merkle_context.merkle_tree_pubkey.to_bytes()
+                    == env.v2_state_trees[0].merkle_tree.to_bytes()
         })
         .unwrap()
         .clone();
@@ -328,7 +330,10 @@ async fn test_read_only_accounts() {
             .indexer
             .get_compressed_accounts_with_merkle_context_by_owner(&ID)
             .iter()
-            .find(|x| x.merkle_context.merkle_tree_pubkey == env.v1_state_trees[0].merkle_tree)
+            .find(|x| {
+                x.merkle_context.merkle_tree_pubkey.to_bytes()
+                    == env.v1_state_trees[0].merkle_tree.to_bytes()
+            })
             .unwrap()
             .clone();
         let result = perform_create_pda_with_event(
@@ -614,7 +619,8 @@ async fn test_read_only_accounts() {
             .iter()
             .find(|x| {
                 x.merkle_context.leaf_index == 2
-                    && x.merkle_context.merkle_tree_pubkey == env.v2_state_trees[0].merkle_tree
+                    && x.merkle_context.merkle_tree_pubkey.to_bytes()
+                        == env.v2_state_trees[0].merkle_tree.to_bytes()
                     && x.merkle_context.leaf_index
                         != account_not_in_value_array_and_in_mt
                             .merkle_context
@@ -1710,7 +1716,8 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
 
         (address, env.v2_address_trees[0], env.v2_address_trees[0])
     } else {
-        let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree, &seed).unwrap();
+        let address =
+            derive_address_legacy(&env.v1_address_trees[0].merkle_tree.into(), &seed).unwrap();
         (
             address,
             env.v1_address_trees[0].merkle_tree,
@@ -1795,14 +1802,14 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
         .collect();
     let new_address_params = NewAddressParams {
         seed,
-        address_merkle_tree_pubkey,
-        address_queue_pubkey,
+        address_merkle_tree_pubkey: address_merkle_tree_pubkey.into(),
+        address_queue_pubkey: address_queue_pubkey.into(),
         address_merkle_tree_root_index: address_root_indices[0],
     };
     let readonly_adresses = if addresses.len() == 2 && mode != CreatePdaMode::TwoReadOnlyAddresses {
         let read_only_address = vec![ReadOnlyAddress {
             address: addresses[1],
-            address_merkle_tree_pubkey,
+            address_merkle_tree_pubkey: address_merkle_tree_pubkey.into(),
             address_merkle_tree_root_index: address_root_indices[1],
         }];
         Some(read_only_address)
@@ -1810,12 +1817,12 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
         let read_only_address = vec![
             ReadOnlyAddress {
                 address: addresses[0],
-                address_merkle_tree_pubkey,
+                address_merkle_tree_pubkey: address_merkle_tree_pubkey.into(),
                 address_merkle_tree_root_index: address_root_indices[0],
             },
             ReadOnlyAddress {
                 address: addresses[1],
-                address_merkle_tree_pubkey,
+                address_merkle_tree_pubkey: address_merkle_tree_pubkey.into(),
                 address_merkle_tree_root_index: address_root_indices[1],
             },
         ];
@@ -1829,22 +1836,18 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
     } else {
         let input_account_len = input_accounts.as_ref().unwrap().len();
         index += input_account_len;
-        Some(account_root_indices[..index].iter().map(|x| *x).collect())
+        Some(account_root_indices[..index].to_vec())
     };
 
-    let read_only_accounts = if let Some(read_only_accounts) = read_only_accounts.as_ref() {
-        Some(
-            read_only_accounts
-                .iter()
-                .map(|x| {
-                    index += 1;
-                    x.into_read_only(account_root_indices[index - 1]).unwrap()
-                })
-                .collect::<Vec<_>>(),
-        )
-    } else {
-        None
-    };
+    let read_only_accounts = read_only_accounts.as_ref().map(|read_only_accounts| {
+        read_only_accounts
+            .iter()
+            .map(|x| {
+                index += 1;
+                x.into_read_only(account_root_indices[index - 1]).unwrap()
+            })
+            .collect::<Vec<_>>()
+    });
 
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
         data: *data,
@@ -1871,18 +1874,17 @@ pub async fn assert_created_pda<R: Rpc, I: Indexer + TestIndexerExtensions>(
     seed: &[u8; 32],
     data: &[u8; 31],
 ) {
-    let compressed_escrow_pda = test_indexer
-        .get_compressed_accounts_with_merkle_context_by_owner(&ID)
-        .iter()
-        .find(|x| x.compressed_account.owner == ID)
-        .unwrap()
-        .clone();
-    let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree, seed).unwrap();
+    let compressed_escrow_pda =
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
+    let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree.into(), seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
     );
-    assert_eq!(compressed_escrow_pda.compressed_account.owner, ID);
+    assert_eq!(
+        compressed_escrow_pda.compressed_account.owner.to_bytes(),
+        ID.to_bytes()
+    );
     let compressed_escrow_pda_deserialized = compressed_escrow_pda
         .compressed_account
         .data
@@ -1958,7 +1960,7 @@ pub async fn perform_with_input_accounts<R: Rpc, I: Indexer + TestIndexerExtensi
     let cpi_context_account_pubkey = test_indexer
         .get_state_merkle_trees()
         .iter()
-        .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+        .find(|x| x.accounts.merkle_tree.to_bytes() == merkle_tree_pubkey.to_bytes())
         .unwrap()
         .accounts
         .cpi_context;
@@ -2005,8 +2007,8 @@ pub async fn perform_with_input_accounts<R: Rpc, I: Indexer + TestIndexerExtensi
     };
     let create_ix_inputs = InvalidateNotOwnedCompressedAccountInstructionInputs {
         signer: &payer_pubkey,
-        input_merkle_tree_pubkey: &merkle_tree_pubkey,
-        input_nullifier_pubkey: &nullifier_pubkey,
+        input_merkle_tree_pubkey: &merkle_tree_pubkey.into(),
+        input_nullifier_pubkey: &nullifier_pubkey.into(),
         cpi_context_account: &cpi_context_account_pubkey,
         cpi_context,
         proof: &rpc_result.value.proof.0.unwrap(),

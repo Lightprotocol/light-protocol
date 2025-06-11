@@ -7,7 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["solana"]
+default = []
 solana = [
     "solana-program-error",
     "solana-sysvar",
@@ -30,7 +30,9 @@ thiserror = { workspace = true }
 rand = { workspace = true, optional = true }
 
 [dev-dependencies]
+pinocchio = { workspace = true }
 borsh = { workspace = true }
+solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

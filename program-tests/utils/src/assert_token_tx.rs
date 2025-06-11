@@ -166,8 +166,9 @@ pub fn assert_compressed_token_accounts<R: Rpc, I: Indexer + TestIndexerExtensio
         assert_eq!(
             transfer_recipient_compressed_account
                 .compressed_account
-                .owner,
-            light_compressed_token::ID
+                .owner
+                .to_bytes(),
+            light_compressed_token::ID.to_bytes()
         );
 
         if !test_indexer

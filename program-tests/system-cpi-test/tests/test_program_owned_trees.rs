@@ -50,10 +50,9 @@ use system_cpi_test::sdk::{
 #[serial]
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
-    let mut rpc = LightProgramTest::new({
-        let mut config = ProgramTestConfig::default();
-        config.additional_programs = Some(vec![("system_cpi_test", system_cpi_test::ID)]);
-        config
+    let mut rpc = LightProgramTest::new(ProgramTestConfig {
+        additional_programs: Some(vec![("system_cpi_test", system_cpi_test::ID)]),
+        ..Default::default()
     })
     .await
     .expect("Failed to setup test programs with accounts");
@@ -201,10 +200,9 @@ const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
 #[serial]
 #[tokio::test]
 async fn test_invalid_registered_program() {
-    let mut rpc = LightProgramTest::new({
-        let mut config = ProgramTestConfig::default();
-        config.additional_programs = Some(vec![("system_cpi_test", system_cpi_test::ID)]);
-        config
+    let mut rpc = LightProgramTest::new(ProgramTestConfig {
+        additional_programs: Some(vec![("system_cpi_test", system_cpi_test::ID)]),
+        ..Default::default()
     })
     .await
     .expect("Failed to setup test programs with accounts");

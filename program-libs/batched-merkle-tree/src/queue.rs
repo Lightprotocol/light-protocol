@@ -238,10 +238,10 @@ impl<'a> BatchedQueueAccount<'a> {
                 .batch_metadata
                 .queue_account_size(account_metadata.metadata.queue_type)?
         {
-            #[cfg(not(feature = "pinocchio"))]
-            crate::msg!("account_data.len() {:?}", account_data_len);
-            #[cfg(not(feature = "pinocchio"))]
-            crate::msg!(
+            #[cfg(feature = "solana")]
+            solana_msg::msg!("account_data.len() {:?}", account_data_len);
+            #[cfg(feature = "solana")]
+            solana_msg::msg!(
                 "queue_account_size {:?}",
                 account_metadata
                     .batch_metadata
@@ -495,9 +495,9 @@ pub(crate) fn insert_into_current_queue_batch(
             current_batch.advance_state_to_fill(current_index)?;
         } else {
             // We expect to insert into the current batch.
-            #[cfg(not(feature = "pinocchio"))]
+            #[cfg(feature = "solana")]
             for batch in batch_metadata.batches.iter() {
-                crate::msg!("batch {:?}", batch);
+                solana_msg::msg!("batch {:?}", batch);
             }
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }

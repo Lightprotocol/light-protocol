@@ -506,10 +506,10 @@ async fn test_address_queue_and_tree_invalid_config() {
 /// Tests:
 /// 1. cannot insert the same address twice
 /// 2. cannot insert an address with an invalid low address
-/// 2.1 cannot insert an address with an invalid low address (NewElementGreaterOrEqualToNextElement)
-/// 2.2 cannot insert an address with an invalid low address (LowElementGreaterOrEqualToNewElement)
-/// 3.1 invalid value index (element does not exist)
-/// 3.2 invalid value index (element has a sequence number)
+///    2.1 cannot insert an address with an invalid low address (NewElementGreaterOrEqualToNextElement)
+///    2.2 cannot insert an address with an invalid low address (LowElementGreaterOrEqualToNewElement)
+///    3.1 invalid value index (element does not exist)
+///    3.2 invalid value index (element has a sequence number)
 /// 4. invalid low element index
 /// 5. invalid low element value
 /// 6. invalid low element next index
