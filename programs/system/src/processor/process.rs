@@ -209,7 +209,7 @@ pub fn process<
                 &output_compressed_account_hashes,
                 current_slot,
             )
-            .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?;
+            .map_err(ProgramError::from)?;
         }
     }
     // 11. Sum check ---------------------------------------------------

@@ -169,7 +169,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 &cpi_ix_data.output_leaf_indices[j].into(),
                 is_batched,
             )
-            .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?;
+            .map_err(ProgramError::from)?;
         cpi_ix_data.leaves[j].account_index = index_merkle_tree_account_account - 1;
 
         if !cpi_ix_data.nullifiers.is_empty() {
@@ -177,7 +177,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 hash_chain = cpi_ix_data.leaves[j].leaf;
             } else {
                 hash_chain = Poseidon::hashv(&[&hash_chain, &cpi_ix_data.leaves[j].leaf])
-                    .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?;
+                    .map_err(ProgramError::from)?;
             }
         }
         context.set_rollover_fee(current_index as u8, rollover_fee);

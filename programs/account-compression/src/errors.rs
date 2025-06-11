@@ -1,8 +1,4 @@
 use anchor_lang::prelude::*;
-use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
-use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
-use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 #[error_code]
 pub enum AccountCompressionErrorCode {

@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
 use std::{collections::HashMap, mem};
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 use account_compression::{
     self,
@@ -521,7 +522,7 @@ async fn failing_queue(
     assert_rpc_error(
         result,
         0,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
     let nullifier_2 = [2u8; 32];
@@ -538,7 +539,7 @@ async fn failing_queue(
     assert_rpc_error(
         result,
         0,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
     // CHECK 4.1: pass non Merkle tree account
@@ -579,7 +580,7 @@ async fn failing_queue(
     assert_rpc_error(
         result,
         0,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 }
@@ -731,8 +732,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
-        // MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -751,8 +751,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
-        // MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -808,8 +807,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
-        // MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
+        MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
     )
     .unwrap();
 }
@@ -1195,7 +1193,7 @@ async fn test_nullify_leaves(
     assert_rpc_error(
         result,
         0,
-        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 }

@@ -6,7 +6,6 @@ use light_batched_merkle_tree::{
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 use crate::{
-    errors::AccountCompressionErrorCode,
     utils::{
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
@@ -92,10 +91,7 @@ pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         rent,
     )?;
     if ctx.accounts.old_output_queue.to_account_info().lamports() == 0 {
-        return Err(AccountCompressionErrorCode::from(
-            MerkleTreeMetadataError::NotReadyForRollover,
-        )
-        .into());
+        return Err(ProgramError::from(MerkleTreeMetadataError::NotReadyForRollover).into());
     }
     Ok(())
 }

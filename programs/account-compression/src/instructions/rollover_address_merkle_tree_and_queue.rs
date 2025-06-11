@@ -3,7 +3,6 @@ use light_account_checks::checks::check_account_balance_is_rent_exempt;
 
 use crate::{
     address_merkle_tree_from_bytes_zero_copy,
-    errors::AccountCompressionErrorCode,
     processor::{
         initialize_address_merkle_tree::process_initialize_address_merkle_tree,
         initialize_address_queue::process_initialize_address_queue,
@@ -86,14 +85,14 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
                     ctx.accounts.old_queue.key().into(),
                     ctx.accounts.new_address_merkle_tree.key().into(),
                 )
-                .map_err(AccountCompressionErrorCode::from)?;
+                .map_err(ProgramError::from)?;
             queue_account_loaded
                 .metadata
                 .rollover(
                     ctx.accounts.old_address_merkle_tree.key().into(),
                     ctx.accounts.new_queue.key().into(),
                 )
-                .map_err(AccountCompressionErrorCode::from)?;
+                .map_err(ProgramError::from)?;
 
             let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
             let queue_metadata = queue_account_loaded.metadata;

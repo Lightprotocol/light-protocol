@@ -1,6 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use std::mem;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 use account_compression::{
     errors::AccountCompressionErrorCode,
@@ -1284,8 +1285,7 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
-        // MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -1304,8 +1304,7 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
-        // MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 
@@ -1357,8 +1356,7 @@ async fn address_merkle_tree_and_queue_rollover(
     assert_rpc_error(
         result,
         2,
-        AccountCompressionErrorCode::MerkleTreeMetadataError.into(),
-        // MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
+        MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
     )
     .unwrap();
 }

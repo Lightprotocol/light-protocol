@@ -35,7 +35,6 @@ dependencies = [
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
- "thiserror 2.0.12",
  "zerocopy 0.8.25",
 ]
 
@@ -3743,7 +3742,6 @@ dependencies = [
  "pinocchio",
  "pinocchio-system",
  "rand 0.8.5",
- "solana-msg",
  "solana-pubkey",
  "solana-security-txt",
  "thiserror 2.0.12",

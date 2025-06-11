@@ -129,8 +129,8 @@ mod test {
     #[test]
     fn test_derive_address() {
         let address_tree_info = AddressTreeInfo {
-            address_merkle_tree_pubkey: pubkey!("11111111111111111111111111111111"),
-            address_queue_pubkey: pubkey!("22222222222222222222222222222222222222222222"),
+            tree: pubkey!("11111111111111111111111111111111"),
+            queue: pubkey!("22222222222222222222222222222222222222222222"),
         };
         let program_id = pubkey!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
@@ -143,11 +143,7 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let (address, address_seed) = derive_address(
-            seeds,
-            &address_tree_info.address_merkle_tree_pubkey,
-            &program_id,
-        );
+        let (address, address_seed) = derive_address(seeds, &address_tree_info.tree, &program_id);
         assert_eq!(address_seed, expected_address_seed);
         assert_eq!(address, expected_address.to_bytes());
 
@@ -160,11 +156,7 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let (address, address_seed) = derive_address(
-            seeds,
-            &address_tree_info.address_merkle_tree_pubkey,
-            &program_id,
-        );
+        let (address, address_seed) = derive_address(seeds, &address_tree_info.tree, &program_id);
         assert_eq!(address_seed, expected_address_seed);
         assert_eq!(address, expected_address.to_bytes());
     }

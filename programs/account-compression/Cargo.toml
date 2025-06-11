@@ -41,7 +41,6 @@ light-batched-merkle-tree = { workspace = true, features = ["solana"] }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-zero-copy = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
-thiserror = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

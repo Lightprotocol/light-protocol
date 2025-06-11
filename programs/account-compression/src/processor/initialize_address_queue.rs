@@ -6,10 +6,7 @@ use light_merkle_tree_metadata::{
     QueueType,
 };
 
-use crate::{
-    errors::AccountCompressionErrorCode,
-    state::{queue_from_bytes_zero_copy_init, QueueAccount},
-};
+use crate::state::{queue_from_bytes_zero_copy_init, QueueAccount};
 
 pub fn process_initialize_address_queue<'info>(
     queue_account_info: &AccountInfo<'info>,
@@ -36,9 +33,9 @@ pub fn process_initialize_address_queue<'info>(
         let queue_rent = queue_account_info.lamports();
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
             let rollover_fee = compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
-                .map_err(AccountCompressionErrorCode::from)?
+                .map_err(ProgramError::from)?
                 + compute_rollover_fee(rollover_threshold, height, queue_rent)
-                    .map_err(AccountCompressionErrorCode::from)?;
+                    .map_err(ProgramError::from)?;
             check_rollover_fee_sufficient(
                 rollover_fee,
                 queue_rent,
@@ -46,7 +43,7 @@ pub fn process_initialize_address_queue<'info>(
                 rollover_threshold,
                 height,
             )
-            .map_err(AccountCompressionErrorCode::from)?;
+            .map_err(ProgramError::from)?;
             msg!("address queue rollover_fee: {}", rollover_fee);
             rollover_fee
         } else {

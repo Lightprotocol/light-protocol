@@ -5,10 +5,7 @@ use light_merkle_tree_metadata::{
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
 
-use crate::{
-    errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount,
-    state_merkle_tree_from_bytes_zero_copy_init,
-};
+use crate::{state::StateMerkleTreeAccount, state_merkle_tree_from_bytes_zero_copy_init};
 
 #[allow(unused_variables)]
 pub fn process_initialize_state_merkle_tree(
@@ -36,9 +33,9 @@ pub fn process_initialize_state_merkle_tree(
             Some(rollover_threshold) => {
                 let rollover_fee =
                     compute_rollover_fee(rollover_threshold, *height, merkle_tree_rent)
-                        .map_err(AccountCompressionErrorCode::from)?
+                        .map_err(ProgramError::from)?
                         + compute_rollover_fee(rollover_threshold, *height, queue_rent)
-                            .map_err(AccountCompressionErrorCode::from)?;
+                            .map_err(ProgramError::from)?;
                 check_rollover_fee_sufficient(
                     rollover_fee,
                     queue_rent,
@@ -46,7 +43,7 @@ pub fn process_initialize_state_merkle_tree(
                     rollover_threshold,
                     *height,
                 )
-                .map_err(AccountCompressionErrorCode::from)?;
+                .map_err(ProgramError::from)?;
                 msg!(" state Merkle tree rollover_fee: {}", rollover_fee);
                 rollover_fee
             }
