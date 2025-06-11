@@ -137,16 +137,11 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var appendWithProofsKeys []string = []string{
-		keysDir + "append-with-proofs_32_10.key",
 		keysDir + "append-with-proofs_32_500.key",
-		// keysDir + "append-with-proofs_32_1000.key",
 	}
 
 	var updateKeys []string = []string{
-		keysDir + "update_32_10.key",
-		// keysDir + "update_32_100.key",
 		keysDir + "update_32_500.key",
-		// keysDir + "update_32_1000.key",
 	}
 
 	var appendWithProofsTestKeys []string = []string{
@@ -158,11 +153,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var addressAppendKeys []string = []string{
-		keysDir + "address-append_40_10.key",
-		keysDir + "address-append_40_100.key",
 		keysDir + "address-append_40_250.key",
-		keysDir + "address-append_40_500.key",
-		keysDir + "address-append_40_1000.key",
 	}
 
 	var addressAppendTestKeys []string = []string{
@@ -170,12 +161,13 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	switch runMode {
-	case Forester: // inclusion + non-inclusion
+	case Forester: // inclusion + non-inclusion + append + update + address-append
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, appendWithProofsKeys...)
 		keys = append(keys, updateKeys...)
-	case ForesterTest: // append-test + update-test + address-append-test
+		keys = append(keys, addressAppendKeys...)
+	case ForesterTest: // inclusion + non-inclusion + combined + append-test + update-test + address-append-test
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
