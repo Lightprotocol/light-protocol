@@ -112,7 +112,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             hash_chain = cpi_ix_data.nullifiers[j].account_hash;
         } else {
             hash_chain = Poseidon::hashv(&[&hash_chain, &cpi_ix_data.nullifiers[j].account_hash])
-                .map_err(|e| ProgramError::from(SystemProgramError::from(e)))?;
+                .map_err(|e| SystemProgramError::from(e).into())?;
         }
     }
     // TODO: benchmark the chaining.
