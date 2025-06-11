@@ -206,4 +206,4 @@ serial_test = "3.2.0"
 governor = "0.8.0"
 
 # Random
-rand = "0.8.5"
+rand = "0.9.1"
