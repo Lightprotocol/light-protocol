@@ -12,6 +12,7 @@ anchor = ["anchor-lang", "light-compressed-account/anchor"]
 [dependencies]
 anchor-lang = { workspace = true, optional = true }
 # Light Protocol dependencies
+light-account-checks = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 light-macros = { workspace = true }

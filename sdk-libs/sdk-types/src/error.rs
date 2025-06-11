@@ -23,6 +23,8 @@ pub enum LightSdkTypesError {
     MetaCloseAddressIsNone,
     #[error("Input is none during meta close")]
     MetaCloseInputIsNone,
+    #[error("Fewer accounts than system accounts")]
+    FewerAccountsThanSystemAccounts,
     #[error(transparent)]
     Hasher(#[from] HasherError),
 }
@@ -39,6 +41,7 @@ impl From<LightSdkTypesError> for u32 {
             LightSdkTypesError::MetaMutOutputIsNone => 14027,
             LightSdkTypesError::MetaCloseAddressIsNone => 14028,
             LightSdkTypesError::MetaCloseInputIsNone => 14029,
+            LightSdkTypesError::FewerAccountsThanSystemAccounts => 14030,
             LightSdkTypesError::Hasher(e) => e.into(),
         }
     }

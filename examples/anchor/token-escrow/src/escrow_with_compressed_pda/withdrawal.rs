@@ -161,9 +161,8 @@ fn cpi_compressed_pda_withdrawal<'info>(
         ctx.accounts.signer.as_ref(),
         &system_accounts,
         CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
-    )
-    .unwrap();
-    verify_borsh(&light_accounts, &inputs_struct).unwrap();
+    );
+    verify_borsh(light_accounts, &inputs_struct).unwrap();
 
     Ok(())
 }

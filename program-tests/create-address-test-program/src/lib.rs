@@ -23,7 +23,10 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 #[program]
 pub mod system_cpi_test {
 
-    use light_sdk::{constants::PROGRAM_ID_LIGHT_SYSTEM, cpi::invoke_light_system_program};
+    use light_sdk::{
+        constants::PROGRAM_ID_LIGHT_SYSTEM,
+        cpi::{invoke_light_system_program, to_account_metas},
+    };
 
     use super::*;
 
@@ -69,11 +72,14 @@ pub mod system_cpi_test {
         } else {
             use light_sdk::cpi::CpiAccounts;
             let cpi_accounts =
-                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config)
-                    .map_err(ProgramError::from)?;
-            let account_infos = cpi_accounts.to_account_infos();
+                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+            let account_infos = cpi_accounts
+                .to_account_infos()
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>();
 
-            let account_metas = cpi_accounts.to_account_metas();
+            let account_metas = to_account_metas(cpi_accounts);
             (account_infos, account_metas)
         };
         let instruction = Instruction {

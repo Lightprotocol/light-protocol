@@ -39,7 +39,7 @@ pub fn update_pda<const BATCHED: bool>(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
-    )?;
+    );
     sol_log_compute_units();
     let cpi_inputs = CpiInputs::new(
         instruction_data.proof,

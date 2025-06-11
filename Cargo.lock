@@ -3240,6 +3240,7 @@ dependencies = [
  "pinocchio",
  "rand 0.8.5",
  "solana-account-info",
+ "solana-instruction",
  "solana-program-error",
  "solana-pubkey",
  "solana-sysvar",
@@ -3685,6 +3686,7 @@ version = "0.9.1"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account-checks",
  "light-compressed-account",
  "light-hasher",
  "light-macros",

@@ -103,6 +103,9 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::MetaCloseAddressIsNone => LightSdkError::MetaCloseAddressIsNone,
             LightSdkTypesError::MetaCloseInputIsNone => LightSdkError::MetaCloseInputIsNone,
             LightSdkTypesError::Hasher(e) => LightSdkError::Hasher(e),
+            LightSdkTypesError::FewerAccountsThanSystemAccounts => {
+                LightSdkError::FewerAccountsThanSystemAccounts
+            }
         }
     }
 }

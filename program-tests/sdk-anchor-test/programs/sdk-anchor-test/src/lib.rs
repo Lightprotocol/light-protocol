@@ -31,8 +31,7 @@ pub mod sdk_anchor_test {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
-        )
-        .map_err(ProgramError::from)?;
+        );
 
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
@@ -87,8 +86,7 @@ pub mod sdk_anchor_test {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
-        )
-        .map_err(ProgramError::from)?;
+        );
 
         let cpi_inputs = CpiInputs::new(
             proof,

@@ -25,7 +25,7 @@ pub fn create_pda<const BATCHED: bool>(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
-    )?;
+    );
 
     let address_tree_info = instruction_data.address_tree_info;
     let (address, address_seed) = if BATCHED {

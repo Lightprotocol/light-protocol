@@ -3,11 +3,20 @@ use crate::error::AccountError;
 
 /// Implement trait for pinocchio AccountInfo
 impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
+    type Pubkey = [u8; 32];
     type DataRef<'a> = pinocchio::account_info::Ref<'a, [u8]>;
     type DataRefMut<'a> = pinocchio::account_info::RefMut<'a, [u8]>;
 
     fn key(&self) -> [u8; 32] {
         *self.key()
+    }
+
+    fn pubkey(&self) -> Self::Pubkey {
+        *self.key()
+    }
+
+    fn pubkey_from_bytes(bytes: [u8; 32]) -> Self::Pubkey {
+        bytes
     }
 
     fn is_writable(&self) -> bool {

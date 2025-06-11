@@ -2,7 +2,7 @@
 use crate::{
     cpi::{CpiAccountsConfig, CpiSigner},
     error::Result,
-    msg, AccountInfo, AccountMeta, Pubkey,
+    AccountInfo, AccountMeta, Pubkey,
 };
 
 #[repr(usize)]
@@ -52,7 +52,7 @@ impl<'c, 'info> CpiAccountsSmall<'c, 'info> {
         accounts: &'c [AccountInfo<'info>],
         config: CpiAccountsConfig,
     ) -> Result<Self> {
-        msg!("config {:?}", config);
+        solana_msg::msg!("config {:?}", config);
         // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
         //     msg!("accounts len {}", accounts.len());
         //     return Err(LightSdkError::FewerAccountsThanSystemAccounts);

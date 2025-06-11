@@ -38,8 +38,7 @@ pub mod counter {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
-        )
-        .map_err(ProgramError::from)?;
+        );
 
         let (address, address_seed) = derive_address(
             &[b"counter", ctx.accounts.signer.key().as_ref()],
@@ -99,8 +98,7 @@ pub mod counter {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
-        )
-        .map_err(ProgramError::from)?;
+        );
 
         let cpi_inputs = CpiInputs::new(
             proof,
@@ -138,8 +136,7 @@ pub mod counter {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
-        )
-        .map_err(ProgramError::from)?;
+        );
 
         let cpi_inputs = CpiInputs::new(
             proof,
@@ -175,8 +172,7 @@ pub mod counter {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
-        )
-        .map_err(ProgramError::from)?;
+        );
         let cpi_inputs = CpiInputs::new(
             proof,
             vec![counter.to_account_info().map_err(ProgramError::from)?],
@@ -212,8 +208,7 @@ pub mod counter {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
-        )
-        .map_err(ProgramError::from)?;
+        );
 
         let cpi_inputs = CpiInputs::new(
             proof,

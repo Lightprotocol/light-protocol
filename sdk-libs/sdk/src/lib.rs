@@ -131,6 +131,5 @@ pub use light_sdk_types::constants;
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};
-use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;

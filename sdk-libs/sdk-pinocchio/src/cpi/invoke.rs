@@ -169,7 +169,8 @@ pub fn light_system_progam_instruction_invoke_cpi(
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
 
-    let account_metas: Vec<pinocchio::instruction::AccountMeta> = cpi_accounts.to_account_metas();
+    let account_metas: Vec<pinocchio::instruction::AccountMeta> =
+        crate::cpi::accounts::to_account_metas(cpi_accounts);
 
     // Create instruction with owned data and immediately invoke it
     use pinocchio::instruction::{Instruction, Seed, Signer};
@@ -192,7 +193,7 @@ pub fn light_system_progam_instruction_invoke_cpi(
         data: &data,
     };
     sol_log_compute_units();
-    let account_infos = cpi_accounts.to_account_infos();
+    let account_infos = crate::cpi::accounts::to_account_infos_for_invoke(cpi_accounts);
     sol_log_compute_units();
 
     match slice_invoke_signed(&instruction, &account_infos, &[signer]) {

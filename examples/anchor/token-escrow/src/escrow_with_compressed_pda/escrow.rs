@@ -137,10 +137,9 @@ fn cpi_compressed_pda_transfer<'info>(
         ctx.accounts.signer.as_ref(),
         &system_accounts,
         CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
-    )
-    .unwrap();
+    );
 
-    verify_borsh(&light_accounts, &inputs_struct).map_err(ProgramError::from)?;
+    verify_borsh(light_accounts, &inputs_struct).map_err(ProgramError::from)?;
 
     Ok(())
 }
