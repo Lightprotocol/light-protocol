@@ -694,14 +694,8 @@ impl Rpc for LightClient {
     /// Gets a random active state tree.
     /// State trees are cached and have to be fetched or set.
     fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError> {
-        if self.state_merkle_trees.is_empty() {
-            return Err(RpcError::NoStateTreesAvailable);
-        }
-
-        use rand::Rng;
         let mut rng = rand::thread_rng();
-
-        Ok(self.state_merkle_trees[rng.gen_range(0..self.state_merkle_trees.len())])
+        select_state_tree_info(&mut rng, &self.state_merkle_trees)
     }
 
     fn get_address_tree_v1(&self) -> TreeInfo {

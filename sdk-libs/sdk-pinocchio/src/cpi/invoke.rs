@@ -11,7 +11,7 @@ use light_compressed_account::{
     },
 };
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
-use pinocchio::{cpi::slice_invoke_signed, log::sol_log_compute_units, msg, pubkey::Pubkey};
+use pinocchio::{cpi::slice_invoke_signed, msg, pubkey::Pubkey};
 
 use crate::{
     cpi::CpiAccounts,
@@ -174,27 +174,22 @@ pub fn light_system_program_instruction_invoke_cpi(
 
     // Create instruction with owned data and immediately invoke it
     use pinocchio::instruction::{Instruction, Seed, Signer};
-    sol_log_compute_units();
 
     // Use the precomputed CPI signer and bump from the config
     let bump = cpi_accounts.bump();
-    sol_log_compute_units();
     let bump_seed = [bump];
     let seed_array = [
         Seed::from(CPI_AUTHORITY_PDA_SEED),
         Seed::from(bump_seed.as_slice()),
     ];
     let signer = Signer::from(&seed_array);
-    sol_log_compute_units();
 
     let instruction = Instruction {
         program_id: &Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
         accounts: &account_metas,
         data: &data,
     };
-    sol_log_compute_units();
     let account_infos = crate::cpi::accounts::to_account_infos_for_invoke(cpi_accounts)?;
-    sol_log_compute_units();
 
     match slice_invoke_signed(&instruction, &account_infos, &[signer]) {
         Ok(()) => {}

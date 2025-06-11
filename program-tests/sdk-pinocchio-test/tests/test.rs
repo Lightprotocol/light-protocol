@@ -43,16 +43,13 @@ async fn test_sdk_test() {
     // );
     // Batched trees
     let address_seed = hashv_to_bn254_field_size_be(&[b"compressed", account_data.as_slice()]);
-    println!("seed {:?}", address_seed);
     let address = derive_address(
         &address_seed,
         &address_tree_pubkey.to_bytes(),
         &sdk_pinocchio_test::ID,
     );
-    println!("address {:?}", address);
-    println!("address tree pubkey: {:?}", address_tree_pubkey.to_bytes());
+
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
-    println!("output_queue tree pubkey: {:?}", output_queue.to_bytes());
 
     create_pda(
         &payer,
