@@ -13,7 +13,6 @@ solana = [
     "solana-sysvar",
     "solana-account-info",
     "solana-pubkey",
-    "solana-instruction",
 ]
 pinocchio = ["dep:pinocchio"]
 test-only = ["dep:rand"]
@@ -26,7 +25,6 @@ solana-pubkey = { workspace = true, optional = true, features = [
     "curve25519",
     "sha2",
 ] }
-solana-instruction = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
 rand = { workspace = true, optional = true }

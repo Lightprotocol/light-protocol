@@ -3242,7 +3242,6 @@ dependencies = [
  "pinocchio",
  "rand 0.8.5",
  "solana-account-info",
- "solana-instruction",
  "solana-program-error",
  "solana-pubkey",
  "solana-sysvar",
