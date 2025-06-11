@@ -1,6 +1,7 @@
+use light_account_checks::AccountInfoTrait;
 use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
 
-use crate::{AnchorDeserialize, AnchorSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize, CpiAccounts};
 
 #[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
 pub struct PackedStateTreeInfo {
@@ -26,5 +27,12 @@ impl PackedAddressTreeInfo {
             address_merkle_tree_root_index: self.root_index,
             seed,
         }
+    }
+
+    pub fn get_tree_pubkey<T: AccountInfoTrait>(
+        &self,
+        cpi_accounts: &CpiAccounts<'_, T>,
+    ) -> T::Pubkey {
+        cpi_accounts.tree_accounts()[self.address_merkle_tree_pubkey_index as usize].pubkey()
     }
 }

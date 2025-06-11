@@ -29,18 +29,16 @@ pub fn create_pda<const BATCHED: bool>(
 
     let address_tree_info = instruction_data.address_tree_info;
     let (address, address_seed) = if BATCHED {
-        let tree_acounts = cpi_accounts.tree_accounts();
-        let index = tree_acounts[instruction_data
+        let tree_pubkey = instruction_data
             .address_tree_info
-            .address_merkle_tree_pubkey_index as usize]
-            .key();
+            .get_tree_pubkey(&cpi_accounts);
         let address_seed = hashv_to_bn254_field_size_be_const_array::<3>(&[
             b"compressed",
             instruction_data.data.as_slice(),
         ])?;
         let address = light_sdk_pinocchio::light_compressed_account::address::derive_address(
             &address_seed,
-            index,
+            &tree_pubkey,
             &crate::ID,
         );
         (address, address_seed)

@@ -34,14 +34,11 @@ pub fn create_pda<const BATCHED: bool>(
             instruction_data.data.as_slice(),
         ])
         .unwrap();
+        // to_bytes will go away as soon as we have a light_sdk::address::v2::derive_address
+        let address_tree_pubkey = address_tree_info.get_tree_pubkey(&cpi_accounts).to_bytes();
         let address = light_compressed_account::address::derive_address(
             &address_seed,
-            &cpi_accounts.tree_accounts()[instruction_data
-                .address_tree_info
-                .address_merkle_tree_pubkey_index
-                as usize]
-                .key
-                .to_bytes(),
+            &address_tree_pubkey,
             &crate::ID.to_bytes(),
         );
         (address, address_seed)
