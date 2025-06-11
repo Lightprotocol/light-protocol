@@ -266,17 +266,27 @@ impl Rpc for LightProgramTest {
 
     /// Gets a random active state tree.
     /// State trees are cached and have to be fetched or set.
-    fn get_random_state_tree_info(&self) -> TreeInfo {
+    fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError> {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         #[cfg(not(feature = "v2"))]
-        return self.test_accounts.v1_state_trees
-            [rng.gen_range(0..self.test_accounts.v1_state_trees.len())]
-        .into();
+        {
+            if self.test_accounts.v1_state_trees.is_empty() {
+                return Err(RpcError::NoStateTreesAvailable);
+            }
+            Ok(self.test_accounts.v1_state_trees
+                [rng.gen_range(0..self.test_accounts.v1_state_trees.len())]
+            .into())
+        }
         #[cfg(feature = "v2")]
-        return self.test_accounts.v2_state_trees
-            [rng.gen_range(0..self.test_accounts.v2_state_trees.len())]
-        .into();
+        {
+            if self.test_accounts.v2_state_trees.is_empty() {
+                return Err(RpcError::NoStateTreesAvailable);
+            }
+            Ok(self.test_accounts.v2_state_trees
+                [rng.gen_range(0..self.test_accounts.v2_state_trees.len())]
+            .into())
+        }
     }
 
     fn get_address_tree_v1(&self) -> TreeInfo {

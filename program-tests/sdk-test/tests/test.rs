@@ -43,7 +43,7 @@ async fn test_sdk_test() {
         &address_tree_pubkey.to_bytes(),
         &sdk_test::ID.to_bytes(),
     );
-    let ouput_queue = rpc.get_random_state_tree_info().queue;
+    let ouput_queue = rpc.get_random_state_tree_info().unwrap().queue;
     create_pda(
         &payer,
         &mut rpc,

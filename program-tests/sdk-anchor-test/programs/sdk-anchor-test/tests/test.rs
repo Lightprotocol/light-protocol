@@ -111,6 +111,7 @@ async fn create_compressed_account(
 
     let output_tree_index = rpc
         .get_random_state_tree_info()
+        .unwrap()
         .pack_output_tree_index(&mut remaining_accounts)
         .unwrap();
 

@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 use std::{collections::HashMap, mem};
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 use account_compression::{
     self,
@@ -22,7 +21,7 @@ use light_hash_set::HashSetError;
 use light_hasher::{
     bigint::bigint_to_be_bytes_array, zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon,
 };
-use light_merkle_tree_metadata::QueueType;
+use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::{
     accounts::state_tree::{

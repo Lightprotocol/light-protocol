@@ -51,7 +51,7 @@ async fn test_sdk_test() {
     );
     println!("address {:?}", address);
     println!("address tree pubkey: {:?}", address_tree_pubkey.to_bytes());
-    let output_queue = rpc.get_random_state_tree_info().queue;
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
     println!("output_queue tree pubkey: {:?}", output_queue.to_bytes());
 
     create_pda(

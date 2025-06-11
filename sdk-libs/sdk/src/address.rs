@@ -17,9 +17,9 @@
 //! ### Create address example
 //! ```ignore
 //! let packed_address_tree_info = instruction_data.address_tree_info;
-//! let tree_acounts = cpi_accounts.tree_accounts();
+//! let tree_accounts = cpi_accounts.tree_accounts();
 //!
-//! let address_tree_pubkey = tree_acounts[address_tree_info
+//! let address_tree_pubkey = tree_accounts[address_tree_info
 //!    .address_merkle_tree_pubkey_index as usize]
 //!    .key();
 //!

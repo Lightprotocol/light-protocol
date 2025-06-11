@@ -89,7 +89,7 @@ pub struct LightClient {
     pub payer: Keypair,
     pub retry_config: RetryConfig,
     pub indexer: Option<PhotonIndexer>,
-    pub active_state_merkle_trees: Vec<TreeInfo>,
+    pub state_merkle_trees: Vec<TreeInfo>,
 }
 
 impl Debug for LightClient {
@@ -130,7 +130,7 @@ impl LightClient {
             payer,
             retry_config,
             indexer,
-            active_state_merkle_trees: Vec::new(),
+            state_merkle_trees: Vec::new(),
         };
         if config.fetch_active_tree {
             new.get_latest_active_state_trees().await?;
@@ -682,22 +682,26 @@ impl Rpc for LightClient {
             &res[0].nullify_table,
         )
         .await?;
-        self.active_state_merkle_trees = res.clone();
+        self.state_merkle_trees = res.clone();
         Ok(res)
     }
 
     /// Fetch the latest state tree addresses from the cluster.
     fn get_state_tree_infos(&self) -> Vec<TreeInfo> {
-        self.active_state_merkle_trees.to_vec()
+        self.state_merkle_trees.to_vec()
     }
 
     /// Gets a random active state tree.
     /// State trees are cached and have to be fetched or set.
-    fn get_random_state_tree_info(&self) -> TreeInfo {
+    fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError> {
+        if self.state_merkle_trees.is_empty() {
+            return Err(RpcError::NoStateTreesAvailable);
+        }
+
         use rand::Rng;
         let mut rng = rand::thread_rng();
 
-        self.active_state_merkle_trees[rng.gen_range(0..self.active_state_merkle_trees.len())]
+        Ok(self.state_merkle_trees[rng.gen_range(0..self.state_merkle_trees.len())])
     }
 
     fn get_address_tree_v1(&self) -> TreeInfo {
@@ -712,3 +716,36 @@ impl Rpc for LightClient {
 }
 
 impl MerkleTreeExt for LightClient {}
+
+/// Selects a random state tree from the provided list.
+///
+/// This function should be used together with `get_state_tree_infos()` to first
+/// retrieve the list of state trees, then select one randomly.
+///
+/// # Arguments
+/// * `rng` - A mutable reference to a random number generator
+/// * `state_trees` - A slice of `TreeInfo` representing state trees
+///
+/// # Returns
+/// A randomly selected `TreeInfo` from the provided list, or an error if the list is empty
+///
+/// # Errors
+/// Returns `RpcError::NoStateTreesAvailable` if the provided slice is empty
+///
+/// # Example
+/// ```ignore
+/// use rand::thread_rng;
+/// let tree_infos = client.get_state_tree_infos();
+/// let mut rng = thread_rng();
+/// let selected_tree = select_state_tree_info(&mut rng, &tree_infos)?;
+/// ```
+pub fn select_state_tree_info<R: rand::Rng>(
+    rng: &mut R,
+    state_trees: &[TreeInfo],
+) -> Result<TreeInfo, RpcError> {
+    if state_trees.is_empty() {
+        return Err(RpcError::NoStateTreesAvailable);
+    }
+
+    Ok(state_trees[rng.gen_range(0..state_trees.len())])
+}
