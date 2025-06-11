@@ -52,7 +52,9 @@ pub enum RpcError {
     #[error("Indexer error: {0}")]
     IndexerError(#[from] IndexerError),
 
-    #[error("No state trees available, use rpc.get_latest_active_state_trees() to fetch state trees")]
+    #[error(
+        "No state trees available, use rpc.get_latest_active_state_trees() to fetch state trees"
+    )]
     NoStateTreesAvailable,
 }
 

@@ -47,12 +47,13 @@ pub fn to_account_metas(cpi_accounts: CpiAccounts<'_, '_>) -> Vec<AccountMeta> {
         is_writable: false,
     });
     let mut current_index = 7;
+    let anchor_non_account_meta = AccountMeta {
+        pubkey: *cpi_accounts.light_system_program().key,
+        is_signer: false,
+        is_writable: false,
+    };
     if !cpi_accounts.config().sol_pool_pda {
-        account_metas.push(AccountMeta {
-            pubkey: *cpi_accounts.light_system_program().key,
-            is_signer: false,
-            is_writable: false,
-        });
+        account_metas.push(anchor_non_account_meta.clone());
     } else {
         account_metas.push(AccountMeta {
             pubkey: *accounts[current_index].key,
@@ -63,11 +64,7 @@ pub fn to_account_metas(cpi_accounts: CpiAccounts<'_, '_>) -> Vec<AccountMeta> {
     }
 
     if !cpi_accounts.config().sol_compression_recipient {
-        account_metas.push(AccountMeta {
-            pubkey: *cpi_accounts.light_system_program().key,
-            is_signer: false,
-            is_writable: false,
-        });
+        account_metas.push(anchor_non_account_meta.clone());
     } else {
         account_metas.push(AccountMeta {
             pubkey: *accounts[current_index].key,
@@ -85,11 +82,7 @@ pub fn to_account_metas(cpi_accounts: CpiAccounts<'_, '_>) -> Vec<AccountMeta> {
     current_index += 1;
 
     if !cpi_accounts.config().cpi_context {
-        account_metas.push(AccountMeta {
-            pubkey: *cpi_accounts.light_system_program().key,
-            is_signer: false,
-            is_writable: false,
-        });
+        account_metas.push(anchor_non_account_meta);
     } else {
         account_metas.push(AccountMeta {
             pubkey: *accounts[current_index].key,

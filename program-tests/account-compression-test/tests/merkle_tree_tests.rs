@@ -521,7 +521,7 @@ async fn failing_queue(
     assert_rpc_error(
         result,
         0,
-        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
     let nullifier_2 = [2u8; 32];
@@ -538,7 +538,7 @@ async fn failing_queue(
     assert_rpc_error(
         result,
         0,
-        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
     // CHECK 4.1: pass non Merkle tree account
@@ -579,7 +579,7 @@ async fn failing_queue(
     assert_rpc_error(
         result,
         0,
-        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 }
@@ -1192,7 +1192,7 @@ async fn test_nullify_leaves(
     assert_rpc_error(
         result,
         0,
-        MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     )
     .unwrap();
 }
