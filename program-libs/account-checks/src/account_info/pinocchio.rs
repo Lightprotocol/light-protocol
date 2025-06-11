@@ -50,7 +50,6 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             (pubkey, bump)
         }
         // Pinocchio does not support find_program_address outside of target_os solana.
-        // That is annoying for rust unit tests.
         #[cfg(all(not(target_os = "solana"), feature = "solana"))]
         {
             let program_pubkey = solana_pubkey::Pubkey::from(*_program_id);
@@ -75,7 +74,6 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
                 .map_err(|_| AccountError::InvalidSeeds)
         }
         // Pinocchio does not support find_program_address outside of target_os solana.
-        // That is annoying for rust unit tests.
         #[cfg(all(not(target_os = "solana"), feature = "solana"))]
         {
             let program_pubkey = solana_pubkey::Pubkey::from(*_program_id);
