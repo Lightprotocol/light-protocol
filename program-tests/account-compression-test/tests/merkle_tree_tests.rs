@@ -1407,7 +1407,7 @@ async fn insert_into_nullifier_queues<R: Rpc>(
         .iter()
         .map(|(pubkey, index)| (*pubkey, *index))
         .collect::<Vec<(Pubkey, u8)>>();
-    remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
+    remaining_accounts.sort_by_key(|(_, idx)| *idx);
     let remaining_accounts = remaining_accounts
         .iter()
         .map(|(pubkey, _)| AccountMeta::new(*pubkey, false))

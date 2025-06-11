@@ -30,6 +30,8 @@ pub enum AccountError {
     ProgramNotExecutable,
     #[error("Account not zeroed.")]
     AccountNotZeroed,
+    #[error("Pinocchio program error with code: {0}")]
+    PinocchioProgramError(u32),
 }
 
 // TODO: reconfigure error codes
@@ -50,6 +52,7 @@ impl From<AccountError> for u32 {
             AccountError::InvalidProgramId => 12017,
             AccountError::ProgramNotExecutable => 12018,
             AccountError::AccountNotZeroed => 12019,
+            AccountError::PinocchioProgramError(code) => code,
         }
     }
 }
@@ -70,8 +73,30 @@ impl From<AccountError> for solana_program_error::ProgramError {
 
 #[cfg(feature = "pinocchio")]
 impl From<pinocchio::program_error::ProgramError> for AccountError {
-    fn from(_: pinocchio::program_error::ProgramError) -> Self {
-        AccountError::BorrowAccountDataFailed
+    fn from(error: pinocchio::program_error::ProgramError) -> Self {
+        match error {
+            pinocchio::program_error::ProgramError::Custom(code) => {
+                AccountError::PinocchioProgramError(code)
+            }
+            _ => {
+                // Convert other ProgramError variants to error codes
+                let error_code = match error {
+                    pinocchio::program_error::ProgramError::InvalidArgument => 1,
+                    pinocchio::program_error::ProgramError::InvalidInstructionData => 2,
+                    pinocchio::program_error::ProgramError::InvalidAccountData => 3,
+                    pinocchio::program_error::ProgramError::AccountDataTooSmall => 4,
+                    pinocchio::program_error::ProgramError::InsufficientFunds => 5,
+                    pinocchio::program_error::ProgramError::IncorrectProgramId => 6,
+                    pinocchio::program_error::ProgramError::MissingRequiredSignature => 7,
+                    pinocchio::program_error::ProgramError::AccountAlreadyInitialized => 8,
+                    pinocchio::program_error::ProgramError::UninitializedAccount => 9,
+                    pinocchio::program_error::ProgramError::NotEnoughAccountKeys => 10,
+                    pinocchio::program_error::ProgramError::AccountBorrowFailed => 11,
+                    _ => 0, // Unknown error
+                };
+                AccountError::PinocchioProgramError(error_code)
+            }
+        }
     }
 }
 

@@ -665,7 +665,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
         .map(|(k, i)| (AccountMeta::new(*k, false), *i))
         .collect::<Vec<(AccountMeta, usize)>>();
     // hash maps are not sorted so we need to sort manually and collect into a vector again
-    remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
+    remaining_accounts.sort_by_key(|(_, idx)| *idx);
     let remaining_accounts = remaining_accounts
         .iter()
         .map(|(k, _)| k.clone())
