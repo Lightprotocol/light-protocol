@@ -90,7 +90,6 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
 }
 
 /// Checks that the account balance is greater or eqal to rent exemption.
-#[cfg(any(feature = "pinocchio", feature = "solana"))]
 pub fn check_account_balance_is_rent_exempt<A: AccountInfoTrait>(
     account_info: &A,
     expected_size: usize,
