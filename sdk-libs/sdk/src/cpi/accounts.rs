@@ -102,7 +102,7 @@ pub fn to_account_metas(cpi_accounts: CpiAccounts<'_, '_>) -> Vec<AccountMeta> {
         account_metas.push(AccountMeta {
             pubkey: *acc.key,
             is_signer: false,
-            is_writable: true,
+            is_writable: acc.is_writable,
         });
     });
     account_metas
