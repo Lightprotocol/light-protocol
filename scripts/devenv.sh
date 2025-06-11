@@ -17,6 +17,7 @@ deactivate () {
     unset RUSTUP_HOME
     unset CARGO_HOME
     unset LIGHT_PROTOCOL_OLD_RUST_PATH
+    unset CARGO_FEATURES
 }
 
 # Stop early if already in devenv.
@@ -66,6 +67,9 @@ PATH="${CARGO_HOME}/bin:${PATH}"
 export PATH
 
 export REDIS_URL="redis://localhost:6379"
+
+# Enable small_ix feature by default in devenv
+export CARGO_FEATURES="small_ix"
 
 if [[ "$(uname)" == "Darwin" ]]; then
     LIGHT_PROTOCOL_OLD_CPATH="${CPATH:-}"

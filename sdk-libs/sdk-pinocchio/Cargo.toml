@@ -8,7 +8,8 @@ edition = "2021"
 
 [features]
 default = []
-v2 = []
+v2 = ["light-sdk-types/v2"]
+small_ix = ["light-sdk-types/small_ix"]
 
 [dependencies]
 pinocchio = { workspace = true }

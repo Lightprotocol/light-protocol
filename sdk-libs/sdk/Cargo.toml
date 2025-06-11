@@ -18,7 +18,8 @@ anchor = [
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
 ]
-v2 = []
+v2 = ["light-sdk-types/v2"]
+small_ix = ["light-sdk-types/small_ix"]
 
 [dependencies]
 solana-pubkey = { workspace = true, features = ["borsh", "sha2", "curve25519"] }

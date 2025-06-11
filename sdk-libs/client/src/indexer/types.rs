@@ -147,7 +147,7 @@ impl AccountProofInputs {
             if value.root_index.prove_by_index {
                 RootIndex::new_none()
             } else {
-                Some(value.root_index.root_index)
+                RootIndex::new_some(value.root_index.root_index)
             }
         };
         Ok(Self {

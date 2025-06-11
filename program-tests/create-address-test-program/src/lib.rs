@@ -25,7 +25,7 @@ pub mod system_cpi_test {
 
     use light_sdk::{
         constants::PROGRAM_ID_LIGHT_SYSTEM,
-        cpi::{invoke_light_system_program, to_account_metas},
+        cpi::{invoke_light_system_program, to_account_metas, to_account_metas_small},
     };
 
     use super::*;
@@ -63,11 +63,14 @@ pub mod system_cpi_test {
         let (account_infos, account_metas) = if small_ix {
             use light_sdk::cpi::CpiAccountsSmall;
             let cpi_accounts =
-                CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config)
-                    .map_err(ProgramError::from)?;
-            let account_infos = cpi_accounts.to_account_infos();
+                CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+            let account_infos = cpi_accounts
+                .to_account_infos()
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>();
 
-            let account_metas = cpi_accounts.to_account_metas();
+            let account_metas = to_account_metas_small(cpi_accounts);
             (account_infos, account_metas)
         } else {
             use light_sdk::cpi::CpiAccounts;

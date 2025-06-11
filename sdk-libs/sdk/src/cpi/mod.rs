@@ -50,11 +50,12 @@
 //! ```
 
 mod accounts;
+#[cfg(feature = "small_ix")]
 mod accounts_small_ix;
 mod invoke;
 
 pub use accounts::*;
-#[cfg(feature = "v2")]
+#[cfg(feature = "small_ix")]
 pub use accounts_small_ix::*;
 pub use invoke::*;
 /// Derives cpi signer and bump to invoke the light system program at compile time.

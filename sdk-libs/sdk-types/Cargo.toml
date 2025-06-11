@@ -8,6 +8,8 @@ description = "Core types for Light Protocol SDK"
 
 [features]
 anchor = ["anchor-lang", "light-compressed-account/anchor"]
+v2 = []
+small_ix = []
 
 [dependencies]
 anchor-lang = { workspace = true, optional = true }
