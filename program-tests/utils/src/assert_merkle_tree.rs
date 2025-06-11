@@ -84,20 +84,28 @@ pub async fn assert_merkle_tree_initialized<R: Rpc>(
     );
 
     assert_eq!(
-        merkle_tree_account.metadata.next_merkle_tree,
-        Pubkey::default().into()
+        merkle_tree_account.metadata.next_merkle_tree.to_bytes(),
+        [0u8; 32]
     );
     assert_eq!(
-        merkle_tree_account.metadata.access_metadata.owner,
-        (*payer_pubkey).into()
+        merkle_tree_account
+            .metadata
+            .access_metadata
+            .owner
+            .to_bytes(),
+        (*payer_pubkey).to_bytes()
     );
     assert_eq!(
-        merkle_tree_account.metadata.access_metadata.program_owner,
-        Pubkey::default().into()
+        merkle_tree_account
+            .metadata
+            .access_metadata
+            .program_owner
+            .to_bytes(),
+        [0u8; 32]
     );
     assert_eq!(
-        merkle_tree_account.metadata.associated_queue,
-        (*queue_pubkey).into()
+        merkle_tree_account.metadata.associated_queue.to_bytes(),
+        (*queue_pubkey).to_bytes()
     );
 
     let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(

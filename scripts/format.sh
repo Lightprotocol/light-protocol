@@ -9,19 +9,16 @@ cargo +nightly fmt --all
 cargo clippy \
         --workspace \
         --no-deps \
+        --all-features \
         --exclude name-service \
         --exclude photon-api \
         --exclude name-service \
-        --exclude light-system-program-pinocchio \
         -- -A clippy::result_large_err \
            -A clippy::empty-docs \
            -A clippy::to-string-trait-impl \
            -A unexpected-cfgs \
            -A clippy::doc_lazy_continuation \
         -D warnings
-# We import the same crates with different features in light-system-program-pinocchio than in account-compression
-# clippy cannot handle this. -> check light-system-program-pinocchio separately
-cargo clippy --package light-system-program-pinocchio --all-targets -- -D warnings
 
 # Make sure that tests compile
 cargo test-sbf -p system-test --no-run

@@ -136,8 +136,8 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             None => 0,
         };
 
-        #[cfg(not(feature = "pinocchio"))]
-        crate::msg!(" Output queue rollover_fee: {}", rollover_fee);
+        #[cfg(feature = "solana")]
+        solana_msg::msg!(" Output queue rollover_fee: {}", rollover_fee);
         let metadata = QueueMetadata {
             next_queue: Pubkey::default(),
             access_metadata: AccessMetadata::new(owner, params.program_owner, params.forester),

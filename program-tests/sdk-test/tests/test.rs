@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use borsh::BorshSerialize;
 use light_compressed_account::{
@@ -44,7 +44,7 @@ async fn test_sdk_test() {
         &address_tree_pubkey.to_bytes(),
         &sdk_test::ID.to_bytes(),
     );
-    let ouput_queue = rpc.get_state_merkle_tree_v2().output_queue;
+    let ouput_queue = rpc.get_random_state_tree_info().queue;
     create_pda(
         &payer,
         &mut rpc,

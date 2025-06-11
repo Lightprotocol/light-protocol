@@ -3,9 +3,9 @@ use std::ops::{Deref, DerefMut};
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
-    pubkey::Pubkey,
 };
 use light_hasher::{DataHasher, Poseidon};
+use solana_pubkey::Pubkey;
 
 use crate::{
     error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, AnchorDeserialize,

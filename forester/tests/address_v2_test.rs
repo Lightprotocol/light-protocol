@@ -13,10 +13,8 @@ use light_client::{
     rpc::{client::RpcUrl, merkle_tree::MerkleTreeExt, LightClient, Rpc, RpcConfig},
 };
 use light_compressed_account::{
-    address::{derive_address, pack_new_address_params_assigned},
-    compressed_account::{
-        pack_output_compressed_accounts, PackedCompressedAccountWithMerkleContext,
-    },
+    address::derive_address,
+    compressed_account::PackedCompressedAccountWithMerkleContext,
     instruction_data::{
         data::{NewAddressParams, NewAddressParamsAssigned, OutputCompressedAccountWithContext},
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
@@ -24,8 +22,11 @@ use light_compressed_account::{
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{accounts::test_accounts::TestAccounts, Indexer};
-use light_test_utils::create_address_test_program_sdk::{
-    create_pda_instruction, CreateCompressedPdaInstructionInputs,
+use light_test_utils::{
+    create_address_test_program_sdk::{
+        create_pda_instruction, CreateCompressedPdaInstructionInputs,
+    },
+    pack::{pack_new_address_params_assigned, pack_output_compressed_accounts},
 };
 use rand::{prelude::StdRng, Rng, SeedableRng};
 use serial_test::serial;
@@ -295,8 +296,8 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
         let data: [u8; 31] = [1; 31];
         let new_address_params = NewAddressParams {
             seed: address_seeds[0],
-            address_merkle_tree_pubkey: *batch_address_merkle_tree,
-            address_queue_pubkey: *batch_address_merkle_tree,
+            address_merkle_tree_pubkey: (*batch_address_merkle_tree).into(),
+            address_queue_pubkey: (*batch_address_merkle_tree).into(),
             address_merkle_tree_root_index: proof_result.value.get_address_root_indices()[0],
         };
 
@@ -329,8 +330,8 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
             .enumerate()
             .map(|(i, seed)| NewAddressParamsAssigned {
                 seed: *seed,
-                address_queue_pubkey: *batch_address_merkle_tree,
-                address_merkle_tree_pubkey: *batch_address_merkle_tree,
+                address_queue_pubkey: (*batch_address_merkle_tree).into(),
+                address_merkle_tree_pubkey: (*batch_address_merkle_tree).into(),
                 address_merkle_tree_root_index: proof_result.value.get_address_root_indices()[i],
                 assigned_account_index: None,
             })
@@ -349,7 +350,7 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
                 .as_slice(),
             output_accounts
                 .iter()
-                .map(|x| x.merkle_tree)
+                .map(|x| x.merkle_tree.into())
                 .collect::<Vec<_>>()
                 .as_slice(),
             &mut remaining_accounts,

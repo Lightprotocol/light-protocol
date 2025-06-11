@@ -42,10 +42,12 @@ async fn test_10_all() {
     .await;
     let mut config = KeypairActionConfig::test_default();
     config.fee_assert = false;
-    let mut general_config = GeneralActionConfig::default();
-    general_config.rollover = None;
-    general_config.create_address_mt = None;
-    general_config.create_state_mt = None;
+    let general_config = GeneralActionConfig {
+        create_address_mt: None,
+        create_state_mt: None,
+        rollover: None,
+        ..GeneralActionConfig::default()
+    };
     let test_accounts = rpc.test_accounts.clone();
     let mut env = E2ETestEnv::<LightProgramTest, TestIndexer>::new(
         rpc,
@@ -95,13 +97,14 @@ async fn test_batched_only() {
     .await;
     let mut config = KeypairActionConfig::test_default();
     config.fee_assert = false;
-    let mut general_config = GeneralActionConfig::default();
-    general_config.rollover = None;
-    general_config.create_address_mt = None;
-    general_config.create_state_mt = None;
-    general_config.add_keypair = None;
-    general_config.rollover = None;
-    general_config.add_forester = None;
+    let general_config = GeneralActionConfig {
+        rollover: None,
+        create_address_mt: None,
+        create_state_mt: None,
+        add_keypair: None,
+        add_forester: None,
+        ..GeneralActionConfig::default()
+    };
     let mut env = E2ETestEnv::<LightProgramTest, TestIndexer>::new(
         rpc,
         indexer,

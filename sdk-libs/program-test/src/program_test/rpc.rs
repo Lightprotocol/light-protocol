@@ -174,12 +174,10 @@ impl Rpc for LightProgramTest {
                 .await?;
         } else {
             let _res = self.context.send_transaction(transaction).map_err(|x| {
-                #[cfg(not(debug_assertions))]
-                {
-                    if self.config.log_failed_tx {
-                        println!("{}", x.meta.pretty_logs());
-                    }
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
                 }
+
                 RpcError::TransactionError(x.err)
             })?;
             #[cfg(debug_assertions)]
@@ -350,12 +348,10 @@ impl LightProgramTest {
             .context
             .simulate_transaction(transaction.clone())
             .map_err(|x| {
-                #[cfg(not(debug_assertions))]
-                {
-                    if self.config.log_failed_tx {
-                        println!("{}", x.meta.pretty_logs());
-                    }
+                if self.config.log_failed_tx {
+                    println!("{}", x.meta.pretty_logs());
                 }
+
                 RpcError::TransactionError(x.err)
             })?;
 
@@ -411,9 +407,12 @@ impl LightProgramTest {
                 });
 
             event_from_light_transaction(
-                program_ids.as_slice(),
+                &program_ids.iter().map(|x| (*x).into()).collect::<Vec<_>>(),
                 vec.as_slice(),
-                vec_accounts.to_vec(),
+                vec_accounts
+                    .iter()
+                    .map(|inner_vec| inner_vec.iter().map(|x| (*x).into()).collect())
+                    .collect(),
             )
             .or(Ok::<
                 Option<Vec<BatchPublicTransactionEvent>>,
@@ -424,12 +423,11 @@ impl LightProgramTest {
         // Transaction was successful, execute it.
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             // Prevent duplicate prints for failing tx.
-            #[cfg(not(debug_assertions))]
-            {
-                if self.config.log_failed_tx {
-                    println!("{}", x.meta.pretty_logs());
-                }
+
+            if self.config.log_failed_tx {
+                println!("{}", x.meta.pretty_logs());
             }
+
             RpcError::TransactionError(x.err)
         })?;
         #[cfg(debug_assertions)]

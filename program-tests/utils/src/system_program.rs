@@ -56,15 +56,15 @@ pub async fn create_addresses_test<
     let mut derived_addresses = Vec::new();
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
-            derive_address_legacy(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
+            derive_address_legacy(&address_merkle_tree_pubkeys[i].into(), address_seed).unwrap();
         derived_addresses.push(derived_address);
     }
     let mut address_params = Vec::new();
 
     for (i, seed) in address_seeds.iter().enumerate() {
         let new_address_params = NewAddressParams {
-            address_queue_pubkey: address_merkle_tree_queue_pubkeys[i],
-            address_merkle_tree_pubkey: address_merkle_tree_pubkeys[i],
+            address_queue_pubkey: address_merkle_tree_queue_pubkeys[i].into(),
+            address_merkle_tree_pubkey: address_merkle_tree_pubkeys[i].into(),
             seed: *seed,
             address_merkle_tree_root_index: 0,
         };
@@ -75,7 +75,7 @@ pub async fn create_addresses_test<
     for address in derived_addresses.iter() {
         output_compressed_accounts.push(CompressedAccount {
             lamports: 0,
-            owner: rpc.get_payer().pubkey(),
+            owner: rpc.get_payer().pubkey().into(),
             data: None,
             address: Some(*address),
         });
@@ -85,11 +85,12 @@ pub async fn create_addresses_test<
         for compressed_account in input_compressed_accounts.iter() {
             output_compressed_accounts.push(CompressedAccount {
                 lamports: 0,
-                owner: rpc.get_payer().pubkey(),
+                owner: rpc.get_payer().pubkey().into(),
                 data: None,
                 address: compressed_account.compressed_account.address,
             });
-            output_merkle_tree_pubkeys.push(compressed_account.merkle_context.merkle_tree_pubkey);
+            output_merkle_tree_pubkeys
+                .push(compressed_account.merkle_context.merkle_tree_pubkey.into());
         }
     }
 
@@ -138,7 +139,7 @@ pub async fn compress_sol_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestInde
     let mut output_compressed_accounts = Vec::new();
     output_compressed_accounts.push(CompressedAccount {
         lamports: input_lamports + compress_amount,
-        owner: authority.pubkey(),
+        owner: authority.pubkey().into(),
         data: None,
         address: None,
     });
@@ -147,11 +148,12 @@ pub async fn compress_sol_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestInde
         for compressed_account in input_compressed_accounts.iter() {
             output_compressed_accounts.push(CompressedAccount {
                 lamports: 0,
-                owner: authority.pubkey(),
+                owner: authority.pubkey().into(),
                 data: None,
                 address: compressed_account.compressed_account.address,
             });
-            output_merkle_tree_pubkeys.push(compressed_account.merkle_context.merkle_tree_pubkey);
+            output_merkle_tree_pubkeys
+                .push(compressed_account.merkle_context.merkle_tree_pubkey.into());
         }
     }
     let inputs = CompressedTransactionTestInputs {
@@ -193,7 +195,7 @@ pub async fn decompress_sol_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIn
 
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: input_lamports - decompress_amount,
-        owner: rpc.get_payer().pubkey(),
+        owner: rpc.get_payer().pubkey().into(),
         data: None,
         address: None,
     }];
@@ -263,7 +265,7 @@ pub async fn transfer_compressed_sol_test<
 
         output_compressed_accounts.push(CompressedAccount {
             lamports,
-            owner: recipients[i],
+            owner: recipients[i].into(),
             data: None,
             address,
         });
@@ -327,7 +329,7 @@ pub async fn compressed_transaction_test<
     let state_input_merkle_trees = inputs
         .input_compressed_accounts
         .iter()
-        .map(|x| x.merkle_context.merkle_tree_pubkey)
+        .map(|x| x.merkle_context.merkle_tree_pubkey.into())
         .collect::<Vec<Pubkey>>();
     let state_input_merkle_trees = if state_input_merkle_trees.is_empty() {
         None
@@ -345,7 +347,7 @@ pub async fn compressed_transaction_test<
             .enumerate()
             .map(|(i, x)| AddressWithTree {
                 address: inputs.created_addresses.as_ref().unwrap()[i],
-                tree: x.address_merkle_tree_pubkey,
+                tree: x.address_merkle_tree_pubkey.into(),
             })
             .collect::<Vec<_>>();
         let proof_rpc_res = inputs
@@ -467,7 +469,7 @@ pub async fn compressed_transaction_test<
         address_queue_pubkeys: &inputs
             .new_address_params
             .iter()
-            .map(|x| x.address_queue_pubkey)
+            .map(|x| x.address_queue_pubkey.into())
             .collect::<Vec<Pubkey>>(),
     };
     assert_compressed_transaction(input).await;
@@ -564,10 +566,10 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
         })
         .collect::<Vec<NewAddressParamsPacked>>();
     for (i, context) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&context.merkle_tree_pubkey) {
+        match remaining_accounts.get(&context.merkle_tree_pubkey.into()) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.merkle_tree_pubkey, index);
+                remaining_accounts.insert(context.merkle_tree_pubkey.into(), index);
                 index += 1;
             }
         };
@@ -581,7 +583,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
             compressed_account: input_compressed_accounts[i].clone(),
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: *remaining_accounts
-                    .get(&context.merkle_tree_pubkey)
+                    .get(&context.merkle_tree_pubkey.into())
                     .unwrap() as u8,
                 queue_pubkey_index: 0,
                 leaf_index: context.leaf_index,
@@ -593,16 +595,18 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     }
 
     for (i, context) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&context.queue_pubkey) {
+        match remaining_accounts.get(&context.queue_pubkey.into()) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.queue_pubkey, index);
+                remaining_accounts.insert(context.queue_pubkey.into(), index);
                 index += 1;
             }
         };
         _input_compressed_accounts[i]
             .merkle_context
-            .queue_pubkey_index = *remaining_accounts.get(&context.queue_pubkey).unwrap() as u8;
+            .queue_pubkey_index = *remaining_accounts
+            .get(&context.queue_pubkey.into())
+            .unwrap() as u8;
     }
 
     let mut output_compressed_accounts_with_context: Vec<OutputCompressedAccountWithPackedContext> =
@@ -627,31 +631,35 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
-        match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
+        match remaining_accounts.get(&params.address_merkle_tree_pubkey.into()) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_merkle_tree_pubkey, index);
+                remaining_accounts.insert(params.address_merkle_tree_pubkey.into(), index);
                 index += 1;
             }
         };
         new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
-            .get(&params.address_merkle_tree_pubkey)
+            .get(&params.address_merkle_tree_pubkey.into())
             .unwrap()
             as u8;
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
-        match remaining_accounts.get(&params.address_queue_pubkey) {
+        match remaining_accounts.get(&params.address_queue_pubkey.into()) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_queue_pubkey, index);
+                remaining_accounts.insert(params.address_queue_pubkey.into(), index);
                 index += 1;
             }
         };
         new_address_params_packed[i].address_queue_account_index = *remaining_accounts
-            .get(&params.address_queue_pubkey)
+            .get(&params.address_queue_pubkey.into())
             .unwrap() as u8;
     }
+    // let mut remaining_accounts = remaining_accounts
+    //     .iter()
+    //     .map(|(k, i)| (AccountMeta::new(*k, false), *i))
+    //     .collect::<Vec<(AccountMeta, usize)>>();
     let mut remaining_accounts = remaining_accounts
         .iter()
         .map(|(k, i)| (AccountMeta::new(*k, false), *i))
@@ -689,13 +697,13 @@ mod test {
         let input_compressed_accounts = vec![
             CompressedAccount {
                 lamports: 100,
-                owner: payer,
+                owner: payer.into(),
                 address: None,
                 data: None,
             },
             CompressedAccount {
                 lamports: 100,
-                owner: payer,
+                owner: payer.into(),
                 address: None,
                 data: None,
             },
@@ -703,13 +711,13 @@ mod test {
         let output_compressed_accounts = vec![
             CompressedAccount {
                 lamports: 50,
-                owner: payer,
+                owner: payer.into(),
                 address: None,
                 data: None,
             },
             CompressedAccount {
                 lamports: 150,
-                owner: recipient,
+                owner: recipient.into(),
                 address: None,
                 data: None,
             },
@@ -721,15 +729,15 @@ mod test {
         let nullifier_array_pubkey = Keypair::new().pubkey();
         let input_merkle_context = vec![
             MerkleContext {
-                merkle_tree_pubkey,
-                queue_pubkey: nullifier_array_pubkey,
+                merkle_tree_pubkey: merkle_tree_pubkey.into(),
+                queue_pubkey: nullifier_array_pubkey.into(),
                 leaf_index: 0,
                 prove_by_index: false,
                 tree_type: light_compressed_account::TreeType::StateV1,
             },
             MerkleContext {
-                merkle_tree_pubkey,
-                queue_pubkey: nullifier_array_pubkey,
+                merkle_tree_pubkey: merkle_tree_pubkey.into(),
+                queue_pubkey: nullifier_array_pubkey.into(),
                 leaf_index: 1,
                 prove_by_index: false,
                 tree_type: light_compressed_account::TreeType::StateV1,

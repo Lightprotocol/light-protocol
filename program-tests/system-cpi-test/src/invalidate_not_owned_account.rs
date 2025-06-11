@@ -127,7 +127,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
             vec![OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
                     data: compressed_account.compressed_account.data.clone(),
-                    owner: light_compressed_token::ID,
+                    owner: light_compressed_token::ID.into(),
                     lamports: 0,
                     address: compressed_account.compressed_account.address,
                 },
@@ -611,7 +611,7 @@ fn write_into_cpi_account<'info>(
     let compressed_pda = OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
             data: compressed_account.compressed_account.data.clone(),
-            owner: ID,
+            owner: ID.into(),
             lamports: 0,
             address: compressed_account.compressed_account.address,
         },

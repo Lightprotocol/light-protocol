@@ -16,11 +16,10 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use light_account_checks::{discriminator::Discriminator as LightDiscriminator, *};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 pub use light_compressed_account::{self, instruction_data::data::*};
 pub use light_hasher::*;
 pub use light_sdk_macros::*;
-pub use light_verifier as verifier;
-use light_verifier::CompressedProof;
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};

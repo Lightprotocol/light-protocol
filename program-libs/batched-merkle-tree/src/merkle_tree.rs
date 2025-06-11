@@ -250,12 +250,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         account_metadata.queue_batches.bloom_filter_capacity = bloom_filter_capacity;
         if account_data_len != account_metadata.get_account_size()? {
-            #[cfg(not(feature = "pinocchio"))]
-            crate::msg!("merkle_tree_metadata: {:?}", account_metadata);
-            #[cfg(not(feature = "pinocchio"))]
-            crate::msg!("account_data.len(): {}", account_data_len);
-            #[cfg(not(feature = "pinocchio"))]
-            crate::msg!(
+            #[cfg(feature = "solana")]
+            solana_msg::msg!("merkle_tree_metadata: {:?}", account_metadata);
+            #[cfg(feature = "solana")]
+            solana_msg::msg!("account_data.len(): {}", account_data_len);
+            #[cfg(feature = "solana")]
+            solana_msg::msg!(
                 "account.get_account_size(): {}",
                 account_metadata.get_account_size()?
             );

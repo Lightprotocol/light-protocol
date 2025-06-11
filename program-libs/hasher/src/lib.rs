@@ -29,8 +29,3 @@ pub trait Hasher {
     fn zero_bytes() -> ZeroBytes;
     fn zero_indexed_leaf() -> [u8; 32];
 }
-
-#[cfg(feature = "pinocchio")]
-use pinocchio::program_error::ProgramError;
-#[cfg(not(feature = "pinocchio"))]
-use solana_program_error::ProgramError;

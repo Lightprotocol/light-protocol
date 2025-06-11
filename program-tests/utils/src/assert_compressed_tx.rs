@@ -232,10 +232,9 @@ pub fn assert_created_compressed_accounts(
             && x.owner == output_account.compressed_account.owner
             && x.data == output_account.compressed_account.data
             && x.address == output_account.compressed_account.address),);
-        assert!(output_merkle_tree_pubkeys
-            .iter()
-            .any(|x| *x == output_account.merkle_context.merkle_tree_pubkey
-                || *x == output_account.merkle_context.queue_pubkey),);
+        assert!(output_merkle_tree_pubkeys.iter().any(|x| *x
+            == output_account.merkle_context.merkle_tree_pubkey.into()
+            || *x == output_account.merkle_context.queue_pubkey.into()),);
     }
 }
 
@@ -258,9 +257,9 @@ pub fn assert_public_transaction_event(
     for account in event.output_compressed_accounts.iter() {
         assert!(
             output_merkle_tree_accounts.iter().any(|x| x.merkle_tree
-                == event.pubkey_array[account.merkle_tree_index as usize]
+                == event.pubkey_array[account.merkle_tree_index as usize].into()
                 // handle output queue
-                || x.nullifier_queue == event.pubkey_array[account.merkle_tree_index as usize]),
+                || x.nullifier_queue == event.pubkey_array[account.merkle_tree_index as usize].into()),
             "assert_public_transaction_event: output state merkle tree account index mismatch"
         );
     }
@@ -349,8 +348,8 @@ pub async fn assert_merkle_tree_after_tx<R: Rpc, I: Indexer + TestIndexerExtensi
                 println!("next index: {:?}", snapshot.next_index);
                 println!("prev sequence number: {:?}", snapshot.num_added_accounts);
                 sequence_numbers.push(MerkleTreeSequenceNumber {
-                    tree_pubkey: snapshot.accounts.merkle_tree,
-                    queue_pubkey: snapshot.accounts.nullifier_queue,
+                    tree_pubkey: snapshot.accounts.merkle_tree.into(),
+                    queue_pubkey: snapshot.accounts.nullifier_queue.into(),
                     tree_type: TreeType::StateV1 as u64,
                     seq: merkle_tree.sequence_number() as u64,
                 });

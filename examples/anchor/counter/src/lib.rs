@@ -25,7 +25,6 @@ pub mod counter {
         address_tree_info: PackedAddressTreeInfo,
         output_state_tree_index: u8,
     ) -> Result<()> {
-        let program_id = crate::ID.into();
         // LightAccount::new_init will create an account with empty output state (no input state).
         // Modifying the account will modify the output state that when converted to_account_info()
         // is hashed with poseidon hashes, serialized with borsh
@@ -49,7 +48,7 @@ pub mod counter {
         let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
         let mut counter = LightAccount::<'_, CounterAccount>::new_init(
-            &program_id,
+            &crate::ID,
             Some(address),
             output_state_tree_index,
         );
@@ -74,7 +73,6 @@ pub mod counter {
         counter_value: u64,
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let program_id = crate::ID.into();
         // LightAccount::new_mut will create an account with input state and output state.
         // The input state is hashed immediately when calling new_mut().
         // Modifying the account will modify the output state that when converted to_account_info()
@@ -82,7 +80,7 @@ pub mod counter {
         // and created with invoke_light_system_program by invoking the light-system-program.
         // The hashing scheme is the account structure derived with LightHasher.
         let mut counter = LightAccount::<'_, CounterAccount>::new_mut(
-            &program_id,
+            &crate::ID,
             &account_meta,
             CounterAccount {
                 owner: ctx.accounts.signer.key(),
@@ -116,9 +114,8 @@ pub mod counter {
         counter_value: u64,
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let program_id = crate::ID.into();
         let mut counter = LightAccount::<'_, CounterAccount>::new_mut(
-            &program_id,
+            &crate::ID,
             &account_meta,
             CounterAccount {
                 owner: ctx.accounts.signer.key(),
@@ -158,9 +155,8 @@ pub mod counter {
         counter_value: u64,
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let program_id = crate::ID.into();
         let mut counter = LightAccount::<'_, CounterAccount>::new_mut(
-            &program_id,
+            &crate::ID,
             &account_meta,
             CounterAccount {
                 owner: ctx.accounts.signer.key(),
@@ -195,12 +191,11 @@ pub mod counter {
         counter_value: u64,
         account_meta: CompressedAccountMetaClose,
     ) -> Result<()> {
-        let program_id = crate::ID.into();
         // LightAccount::new_close() will create an account with only input state and no output state.
         // By providing no output state the account is closed after the instruction.
         // The address of a closed account cannot be reused.
         let counter = LightAccount::<'_, CounterAccount>::new_close(
-            &program_id,
+            &crate::ID,
             &account_meta,
             CounterAccount {
                 owner: ctx.accounts.signer.key(),

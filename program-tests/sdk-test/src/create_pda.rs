@@ -10,7 +10,7 @@ use light_sdk::{
     instruction::tree_info::PackedAddressTreeInfo,
     LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
-use solana_program::{account_info::AccountInfo, program_error::ProgramError};
+use solana_program::account_info::AccountInfo;
 
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU
@@ -41,7 +41,7 @@ pub fn create_pda<const BATCHED: bool>(
             b"compressed",
             instruction_data.data.as_slice(),
         ])
-        .map_err(ProgramError::from)?;
+        .unwrap();
         let address = light_compressed_account::address::derive_address(
             &address_seed,
             &cpi_accounts.tree_accounts()[instruction_data
@@ -69,9 +69,8 @@ pub fn create_pda<const BATCHED: bool>(
         address_merkle_tree_account_index: address_tree_info.address_merkle_tree_pubkey_index,
     };
 
-    let program_id = crate::ID.into();
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
-        &program_id,
+        &crate::ID,
         Some(address),
         instruction_data.output_merkle_tree_index,
     );

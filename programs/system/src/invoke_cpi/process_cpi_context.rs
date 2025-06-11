@@ -1,7 +1,8 @@
 use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
-use light_compressed_account::instruction_data::{
-    invoke_cpi::InstructionDataInvokeCpi, traits::InstructionData,
+use light_compressed_account::{
+    instruction_data::{invoke_cpi::InstructionDataInvokeCpi, traits::InstructionData},
+    pubkey::AsPubkey,
 };
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
@@ -220,7 +221,7 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
 mod tests {
 
     use borsh::BorshSerialize;
-    use light_account_checks::test_account_info::pinocchio::get_account_info;
+    use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
     use light_compressed_account::{
         compressed_account::{
             CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
@@ -277,7 +278,7 @@ mod tests {
             input_compressed_accounts_with_merkle_context: vec![
                 PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
-                        owner: solana_pubkey::Pubkey::new_unique().to_bytes(),
+                        owner: solana_pubkey::Pubkey::new_unique().to_bytes().into(),
                         lamports: iter.into(),
                         address: None,
                         data: None,
@@ -294,7 +295,7 @@ mod tests {
             ],
             output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: solana_pubkey::Pubkey::new_unique().to_bytes(),
+                    owner: solana_pubkey::Pubkey::new_unique().to_bytes().into(),
                     lamports: iter.into(),
                     address: None,
                     data: None,

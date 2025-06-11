@@ -83,13 +83,11 @@ fn create_compressed_pda_data_based_on_diff(
     let old_compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
         data: old_timelock_compressed_pda.try_to_vec().unwrap(),
-        data_hash: old_timelock_compressed_pda
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?,
+        data_hash: old_timelock_compressed_pda.hash::<Poseidon>().unwrap(),
     };
     let old_compressed_account = OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
-            owner: crate::ID,
+            owner: crate::ID.into(),
             lamports: 0,
             address: Some(input_compressed_pda.address),
             data: Some(old_compressed_account_data),
@@ -110,13 +108,11 @@ fn create_compressed_pda_data_based_on_diff(
     let new_compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
         data: new_timelock_compressed_pda.try_to_vec().unwrap(),
-        data_hash: new_timelock_compressed_pda
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?,
+        data_hash: new_timelock_compressed_pda.hash::<Poseidon>().unwrap(),
     };
     let new_state = OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
-            owner: crate::ID,
+            owner: crate::ID.into(),
             lamports: 0,
             address: Some(input_compressed_pda.address),
             data: Some(new_compressed_account_data),
@@ -171,7 +167,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
         },
     )
     .unwrap();
-    verify_borsh(&light_accounts, &inputs_struct).map_err(ProgramError::from)?;
+    verify_borsh(&light_accounts, &inputs_struct).unwrap();
 
     Ok(())
 }

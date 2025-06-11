@@ -14,7 +14,7 @@ use light_prover_client::{
     proof_client::ProofClient,
     proof_types::batch_address_append::get_batch_address_append_circuit_inputs,
 };
-use light_sdk::verifier::CompressedProof;
+use light_sdk::light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
@@ -45,7 +45,7 @@ where
     let (leaves_hash_chains, start_index, current_root, batch_size) = {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
-            &merkle_tree_pubkey.into(),
+            &(*merkle_tree_pubkey).into(),
         )
         .unwrap();
 

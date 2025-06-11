@@ -47,7 +47,7 @@ mod test {
 
         let compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
             compressed_account: CompressedAccount {
-                owner: authority,
+                owner: authority.into(),
                 ..CompressedAccount::default()
             },
             ..PackedCompressedAccountWithMerkleContext::default()
@@ -70,7 +70,7 @@ mod test {
             let invalid_compressed_account_with_context =
                 PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
-                        owner: solana_pubkey::Pubkey::new_unique().to_bytes(),
+                        owner: solana_pubkey::Pubkey::new_unique().to_bytes().into(),
                         ..CompressedAccount::default()
                     },
                     ..PackedCompressedAccountWithMerkleContext::default()

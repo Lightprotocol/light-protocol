@@ -594,7 +594,7 @@ pub async fn compressed_transfer_22_test<
     }
     let input_merkle_tree_pubkeys: Vec<Pubkey> = input_merkle_tree_context
         .iter()
-        .map(|x| x.merkle_tree_pubkey)
+        .map(|x| x.merkle_tree_pubkey.into())
         .collect();
     println!("{:?}", input_compressed_accounts);
     println!(
@@ -769,7 +769,12 @@ pub async fn decompress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexe
         .collect::<Vec<_>>();
     let input_merkle_tree_pubkeys = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .map(|x| {
+            x.compressed_account
+                .merkle_context
+                .merkle_tree_pubkey
+                .into()
+        })
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
         .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
@@ -1141,7 +1146,12 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
         .collect::<Vec<_>>();
     let input_merkle_tree_pubkeys = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .map(|x| {
+            x.compressed_account
+                .merkle_context
+                .merkle_tree_pubkey
+                .into()
+        })
         .collect::<Vec<_>>();
     println!(
         "input_compressed_account_hashes: {:?}",
@@ -1223,7 +1233,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
     let output_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, output_merkle_tree_accounts.as_slice()).await;
     let input_merkle_tree_accounts =
-        test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
+        test_indexer.get_state_merkle_tree_accounts(input_merkle_tree_pubkeys.as_slice());
     let input_merkle_tree_test_snapshots =
         get_merkle_tree_snapshots::<R>(rpc, input_merkle_tree_accounts.as_slice()).await;
     let context_payer = rpc.get_payer().insecure_clone();
@@ -1310,7 +1320,12 @@ pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
         .collect::<Vec<_>>();
     let input_merkle_tree_pubkeys = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .map(|x| {
+            x.compressed_account
+                .merkle_context
+                .merkle_tree_pubkey
+                .into()
+        })
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
         .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
@@ -1471,7 +1486,12 @@ pub async fn freeze_or_thaw_test<
         .collect::<Vec<_>>();
     let input_merkle_tree_pubkeys = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .map(|x| {
+            x.compressed_account
+                .merkle_context
+                .merkle_tree_pubkey
+                .into()
+        })
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
         .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)
@@ -1757,7 +1777,12 @@ pub async fn create_burn_test_instruction<R: Rpc + Indexer, I: Indexer + TestInd
         .collect::<Vec<_>>();
     let input_merkle_tree_pubkeys = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
+        .map(|x| {
+            x.compressed_account
+                .merkle_context
+                .merkle_tree_pubkey
+                .into()
+        })
         .collect::<Vec<_>>();
     let proof_rpc_result = rpc
         .get_validity_proof(input_compressed_account_hashes.clone(), vec![], None)

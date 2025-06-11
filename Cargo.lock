@@ -3629,7 +3629,6 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
- "light-verifier",
  "num-bigint 0.4.6",
  "solana-account-info",
  "solana-cpi",
@@ -3644,7 +3643,6 @@ dependencies = [
 name = "light-sdk-macros"
 version = "0.6.0"
 dependencies = [
- "ark-bn254 0.5.0",
  "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",

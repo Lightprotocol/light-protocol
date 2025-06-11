@@ -191,7 +191,8 @@ async fn create_escrow_ix(
         .clone();
     let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
-    let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree, &seed).unwrap();
+    let address =
+        derive_address_legacy(&env.v1_address_trees[0].merkle_tree.into(), &seed).unwrap();
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -207,8 +208,8 @@ async fn create_escrow_ix(
 
     let new_address_params = NewAddressParams {
         seed,
-        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
-        address_queue_pubkey: env.v1_address_trees[0].queue,
+        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree.into(),
+        address_queue_pubkey: env.v1_address_trees[0].queue.into(),
         address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
     };
     let create_ix_inputs = CreateCompressedPdaEscrowInstructionInputs {
@@ -221,8 +222,8 @@ async fn create_escrow_ix(
             leaf_index: compressed_input_account_with_context
                 .merkle_context
                 .leaf_index,
-            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree,
-            queue_pubkey: env.v1_state_trees[0].nullifier_queue,
+            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree.into(),
+            queue_pubkey: env.v1_state_trees[0].nullifier_queue.into(),
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -283,29 +284,17 @@ pub async fn assert_escrow(
     );
 
     let compressed_escrow_pda = test_indexer
-        .indexer
-        .as_ref()
+        .get_compressed_accounts_by_owner(&token_escrow::ID, None, None)
+        .await
         .unwrap()
-        .compressed_accounts
-        .iter()
-        .find(|x| x.compressed_account.owner == token_escrow::ID)
-        .unwrap()
+        .value
+        .items[0]
         .clone();
-    let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree, seed).unwrap();
+    let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree.into(), seed).unwrap();
 
-    assert_eq!(
-        compressed_escrow_pda.compressed_account.address.unwrap(),
-        address
-    );
-    assert_eq!(
-        compressed_escrow_pda.compressed_account.owner,
-        token_escrow::ID
-    );
-    let compressed_escrow_pda_deserialized = compressed_escrow_pda
-        .compressed_account
-        .data
-        .as_ref()
-        .unwrap();
+    assert_eq!(compressed_escrow_pda.address.unwrap(), address);
+    assert_eq!(compressed_escrow_pda.owner, token_escrow::ID);
+    let compressed_escrow_pda_deserialized = compressed_escrow_pda.data.as_ref().unwrap();
     let compressed_escrow_pda_data =
         EscrowTimeLock::deserialize_reader(&mut &compressed_escrow_pda_deserialized.data[..])
             .unwrap();
@@ -383,7 +372,7 @@ pub async fn perform_withdrawal(
         .unwrap()
         .compressed_accounts
         .iter()
-        .find(|x| x.compressed_account.owner == token_escrow::ID)
+        .find(|x| x.compressed_account.owner.to_bytes() == token_escrow::ID.to_bytes())
         .unwrap()
         .clone();
     println!("compressed_escrow_pda {:?}", compressed_escrow_pda);
@@ -420,16 +409,16 @@ pub async fn perform_withdrawal(
         signer: &payer_pubkey,
         input_token_escrow_merkle_context: MerkleContext {
             leaf_index: token_escrow_account.merkle_context.leaf_index,
-            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree,
-            queue_pubkey: env.v1_state_trees[0].nullifier_queue,
+            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree.into(),
+            queue_pubkey: env.v1_state_trees[0].nullifier_queue.into(),
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         },
 
         input_cpda_merkle_context: MerkleContext {
             leaf_index: compressed_escrow_pda.merkle_context.leaf_index,
-            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree,
-            queue_pubkey: env.v1_state_trees[0].nullifier_queue,
+            merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree.into(),
+            queue_pubkey: env.v1_state_trees[0].nullifier_queue.into(),
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         },
@@ -490,30 +479,21 @@ pub async fn assert_withdrawal(
     assert!(withdrawal_account_exits);
 
     let compressed_escrow_pda = rpc
-        .indexer
-        .as_ref()
+        .get_compressed_accounts_by_owner(&token_escrow::ID, None, None)
+        .await
         .unwrap()
-        .compressed_accounts
-        .iter()
-        .find(|x| x.compressed_account.owner == token_escrow::ID)
-        .unwrap()
+        .value
+        .items[0]
         .clone();
 
-    let address =
-        derive_address_legacy(&rpc.test_accounts.v1_address_trees[0].merkle_tree, seed).unwrap();
-    assert_eq!(
-        compressed_escrow_pda.compressed_account.address.unwrap(),
-        address
-    );
-    assert_eq!(
-        compressed_escrow_pda.compressed_account.owner,
-        token_escrow::ID
-    );
-    let compressed_escrow_pda_deserialized = compressed_escrow_pda
-        .compressed_account
-        .data
-        .as_ref()
-        .unwrap();
+    let address = derive_address_legacy(
+        &rpc.test_accounts.v1_address_trees[0].merkle_tree.into(),
+        seed,
+    )
+    .unwrap();
+    assert_eq!(compressed_escrow_pda.address.unwrap(), address);
+    assert_eq!(compressed_escrow_pda.owner, token_escrow::ID);
+    let compressed_escrow_pda_deserialized = compressed_escrow_pda.data.as_ref().unwrap();
     let compressed_escrow_pda_data =
         EscrowTimeLock::deserialize_reader(&mut &compressed_escrow_pda_deserialized.data[..])
             .unwrap();

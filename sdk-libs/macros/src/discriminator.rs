@@ -13,7 +13,7 @@ pub(crate) fn discriminator(input: ItemStruct) -> Result<TokenStream> {
     let discriminator: proc_macro2::TokenStream = format!("{discriminator:?}").parse().unwrap();
 
     Ok(quote! {
-        impl #impl_gen ::light_sdk::LightDiscriminator for #account_name #type_gen #where_clause {
+        impl #impl_gen LightDiscriminator for #account_name #type_gen #where_clause {
             const LIGHT_DISCRIMINATOR: [u8; 8] = #discriminator;
             const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 

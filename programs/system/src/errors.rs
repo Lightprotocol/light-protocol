@@ -1,4 +1,3 @@
-// use anchor_lang::error_code;
 use pinocchio::program_error::ProgramError;
 use thiserror::Error;
 

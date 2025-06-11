@@ -1,7 +1,7 @@
 #![cfg(feature = "test-only")]
 #![cfg(feature = "solana")]
 
-use light_account_checks::test_account_info::solana_program::TestAccount;
+use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
 use light_batched_merkle_tree::{
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40},
     initialize_address_tree::{
@@ -28,7 +28,7 @@ fn address_from_account_info() {
     let key = Pubkey::new_unique();
     let owner = ACCOUNT_COMPRESSION_PROGRAM_ID;
     let mt_account_size = get_merkle_tree_account_size_default();
-    let mut account = TestAccount::new(key, owner, mt_account_size);
+    let mut account = TestAccount::new(key, owner.into(), mt_account_size);
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let merkle_tree_rent = 1_000_000_000;
@@ -92,8 +92,9 @@ fn state_from_account_info() {
     let owner = ACCOUNT_COMPRESSION_PROGRAM_ID;
     let mt_account_size = get_merkle_tree_account_size_default();
     let output_queue_size = get_output_queue_account_size_default();
-    let mut merkle_tree_account = TestAccount::new(key, owner, mt_account_size);
-    let mut output_queue_account = TestAccount::new(Pubkey::new_unique(), owner, output_queue_size);
+    let mut merkle_tree_account = TestAccount::new(key, owner.into(), mt_account_size);
+    let mut output_queue_account =
+        TestAccount::new(Pubkey::new_unique(), owner.into(), output_queue_size);
 
     let params = InitStateTreeAccountsInstructionData::test_default();
     let merkle_tree_rent = 1_000_000_000;
@@ -109,7 +110,7 @@ fn state_from_account_info() {
 
         let result = init_batched_state_merkle_tree_from_account_info(
             params,
-            owner,
+            owner.into(),
             &merkle_tree_account_info,
             &output_queue_account_info,
             additional_rent,
@@ -123,7 +124,7 @@ fn state_from_account_info() {
 
         let result = init_batched_state_merkle_tree_from_account_info(
             params,
-            owner,
+            owner.into(),
             &merkle_tree_account_info,
             &output_queue_account_info,
             additional_rent,
@@ -189,8 +190,9 @@ fn test_get_state_root_by_index() {
     let owner = ACCOUNT_COMPRESSION_PROGRAM_ID;
     let mt_account_size = get_merkle_tree_account_size_default();
     let output_queue_size = get_output_queue_account_size_default();
-    let mut merkle_tree_account = TestAccount::new(key, owner, mt_account_size);
-    let mut output_queue_account = TestAccount::new(Pubkey::new_unique(), owner, output_queue_size);
+    let mut merkle_tree_account = TestAccount::new(key, owner.into(), mt_account_size);
+    let mut output_queue_account =
+        TestAccount::new(Pubkey::new_unique(), owner.into(), output_queue_size);
 
     let params = InitStateTreeAccountsInstructionData::test_default();
     let merkle_tree_rent = 1_000_000_000;
@@ -206,7 +208,7 @@ fn test_get_state_root_by_index() {
 
         let result = init_batched_state_merkle_tree_from_account_info(
             params,
-            owner,
+            owner.into(),
             &merkle_tree_account_info,
             &output_queue_account_info,
             additional_rent,
@@ -234,7 +236,7 @@ fn test_get_address_root_by_index() {
     let params = InitAddressTreeAccountsInstructionData::test_default();
 
     let mt_account_size = get_address_merkle_tree_account_size_from_params(params);
-    let mut merkle_tree_account = TestAccount::new(key, owner, mt_account_size);
+    let mut merkle_tree_account = TestAccount::new(key, owner.into(), mt_account_size);
 
     let merkle_tree_rent = 1_000_000_000;
     merkle_tree_account.lamports = merkle_tree_rent;
@@ -271,7 +273,7 @@ fn test_merkle_tree_getters() {
     let params = InitAddressTreeAccountsInstructionData::test_default();
 
     let mt_account_size = get_address_merkle_tree_account_size_from_params(params);
-    let mut merkle_tree_account = TestAccount::new(key, owner, mt_account_size);
+    let mut merkle_tree_account = TestAccount::new(key, owner.into(), mt_account_size);
 
     let merkle_tree_rent = 1_000_000_000;
     merkle_tree_account.lamports = merkle_tree_rent;
