@@ -133,9 +133,7 @@ pub fn create_withdrawal_escrow_instruction(
     );
 
     let merkle_tree_indices = add_and_get_remaining_account_indices(
-        input_params.output_compressed_account_merkle_tree_pubkeys, // .iter()
-        // .map(|pubkey| anchor_lang::prelude::Pubkey::from(pubkey))
-        // .collect::<Vec<_>>()
+        input_params.output_compressed_account_merkle_tree_pubkeys,
         &mut remaining_accounts,
     );
 

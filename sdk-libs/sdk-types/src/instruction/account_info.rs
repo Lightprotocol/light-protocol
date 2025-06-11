@@ -47,7 +47,7 @@ impl InAccountInfoTrait for InAccountInfo {
     }
 }
 
-pub trait AccountInfoTrait {
+pub trait CompressedAccountInfoTrait {
     fn init(
         &mut self,
         discriminator: [u8; 8],
@@ -79,7 +79,7 @@ pub trait AccountInfoTrait {
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkTypesError>;
 }
 
-impl AccountInfoTrait for CompressedAccountInfo {
+impl CompressedAccountInfoTrait for CompressedAccountInfo {
     /// Initializes a compressed account info with address.
     /// 1. The account is zeroed, data has to be added in a separate step.
     /// 2. Once data is added the data hash has to be added.

@@ -70,40 +70,4 @@ pub enum AccountCompressionErrorCode {
     UnsupportedHeight,
     UnsupportedParameters,
     V1AccountMarkedAsProofByIndex,
-    #[msg("MerkleTreeMetadataError")]
-    MerkleTreeMetadataError,
-    #[msg("BatchedMerkleTreeError")]
-    BatchedMerkleTreeError,
-    #[msg("ConcurrentMerkleTreeError")]
-    ConcurrentMerkleTreeError,
-    #[msg("IndexedMerkleTreeError")]
-    IndexedMerkleTreeError,
-}
-
-impl From<MerkleTreeMetadataError> for AccountCompressionErrorCode {
-    fn from(err: MerkleTreeMetadataError) -> Self {
-        msg!("Merkle tree metadata error {}", err);
-        AccountCompressionErrorCode::MerkleTreeMetadataError
-    }
-}
-
-impl From<BatchedMerkleTreeError> for AccountCompressionErrorCode {
-    fn from(err: BatchedMerkleTreeError) -> Self {
-        msg!("Batched merkle tree error {}", err);
-        AccountCompressionErrorCode::BatchedMerkleTreeError
-    }
-}
-
-impl From<ConcurrentMerkleTreeError> for AccountCompressionErrorCode {
-    fn from(err: ConcurrentMerkleTreeError) -> Self {
-        msg!("Concurrent merkle tree error {}", err);
-        AccountCompressionErrorCode::ConcurrentMerkleTreeError
-    }
-}
-
-impl From<IndexedMerkleTreeError> for AccountCompressionErrorCode {
-    fn from(err: IndexedMerkleTreeError) -> Self {
-        msg!("Indexed merkle tree error {}", err);
-        AccountCompressionErrorCode::IndexedMerkleTreeError
-    }
 }

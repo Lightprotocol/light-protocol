@@ -12,7 +12,7 @@ use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID
 use crate::{
     cpi::{to_account_metas, CpiAccounts},
     error::{LightSdkError, Result},
-    instruction::{account_info::AccountInfoTrait, ValidityProof},
+    instruction::{account_info::CompressedAccountInfoTrait, ValidityProof},
     invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
 };
 
