@@ -7,7 +7,7 @@ use light_compressed_account::{
         with_account_info::CompressedAccountInfo,
     },
 };
-use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM};
+use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 
 use crate::{
     cpi::{to_account_metas, CpiAccounts},
@@ -116,7 +116,7 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
 
     let account_metas: Vec<AccountMeta> = to_account_metas(cpi_accounts);
     Ok(Instruction {
-        program_id: PROGRAM_ID_LIGHT_SYSTEM.into(),
+        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })
@@ -141,7 +141,7 @@ where
     let bump = light_system_accounts.bump();
     let account_metas: Vec<AccountMeta> = to_account_metas(light_system_accounts);
     let instruction = Instruction {
-        program_id: PROGRAM_ID_LIGHT_SYSTEM.into(),
+        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     };

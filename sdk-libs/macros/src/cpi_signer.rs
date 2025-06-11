@@ -82,8 +82,8 @@ pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
 
     let output = quote! {
         {
-            // Use the CpiSigner type from the current scope (should be imported)
-            CpiSigner {
+            // Use the CpiSigner type with absolute path to avoid import dependency
+            ::light_sdk_types::CpiSigner {
                 program_id: [#(#program_id_literals),*],
                 cpi_signer: [#(#cpi_signer_literals),*],
                 bump: #bump,

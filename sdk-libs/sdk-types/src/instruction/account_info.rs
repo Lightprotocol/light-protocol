@@ -121,7 +121,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
                 return Err(LightSdkTypesError::MetaMutAddressIsNone);
             }
         } else {
-            return Err(LightSdkTypesError::MetaCloseAddressIsNone);
+            return Err(LightSdkTypesError::MetaMutAddressIsNone);
         }
 
         if let Some(input) = self.input.as_mut() {
@@ -155,7 +155,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
             if let Some(address) = input_account_meta.get_address() {
                 self_address.copy_from_slice(&address);
             } else {
-                return Err(LightSdkTypesError::MetaMutAddressIsNone);
+                return Err(LightSdkTypesError::MetaCloseAddressIsNone);
             }
         } else {
             return Err(LightSdkTypesError::MetaCloseAddressIsNone);
@@ -164,7 +164,7 @@ impl AccountInfoTrait for CompressedAccountInfo {
         if let Some(input) = self.input.as_mut() {
             input.input_meta(input_account_meta, input_data_hash, discriminator);
         } else {
-            return Err(LightSdkTypesError::MetaMutInputIsNone);
+            return Err(LightSdkTypesError::MetaCloseInputIsNone);
         }
 
         Ok(())

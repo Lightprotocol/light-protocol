@@ -4,7 +4,7 @@ use light_macros::pubkey_array;
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
     pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 /// ID of the light-system program.
-pub const SYSTEM_PROGRAM_ID: [u8; 32] =
+pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
     pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
 pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
     pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");

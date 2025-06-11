@@ -10,7 +10,7 @@ use light_compressed_account::{
         with_account_info::CompressedAccountInfo,
     },
 };
-use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM};
+use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 use pinocchio::{cpi::slice_invoke_signed, log::sol_log_compute_units, msg, pubkey::Pubkey};
 
 use crate::{
@@ -188,7 +188,7 @@ pub fn light_system_program_instruction_invoke_cpi(
     sol_log_compute_units();
 
     let instruction = Instruction {
-        program_id: &PROGRAM_ID_LIGHT_SYSTEM,
+        program_id: &Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
         accounts: &account_metas,
         data: &data,
     };

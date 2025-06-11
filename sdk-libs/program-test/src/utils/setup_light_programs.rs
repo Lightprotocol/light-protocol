@@ -74,7 +74,7 @@ pub fn setup_light_programs(
         let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
         program_test
             .add_program_from_file(
-                light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM.into(),
+                light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
                 path.clone(),
             )
             .inspect_err(|_| {
@@ -89,7 +89,7 @@ pub fn setup_light_programs(
     {
         let path = format!("{}/light_system_program.so", light_bin_path);
         program_test.add_program_from_file(
-            Pubkey::from(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM),
+            Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
             path,
         )?;
     }
@@ -97,9 +97,7 @@ pub fn setup_light_programs(
     let registered_program = registered_program_test_account_system_program();
     program_test
         .set_account(
-            Pubkey::new_from_array(REGISTERED_PROGRAM_PDA), // get_registered_program_pda(&Pubkey::from(
-            //     light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
-            // ))
+            Pubkey::new_from_array(REGISTERED_PROGRAM_PDA),
             registered_program,
         )
         .map_err(|e| {

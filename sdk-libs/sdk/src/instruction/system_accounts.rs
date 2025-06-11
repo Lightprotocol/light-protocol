@@ -1,6 +1,6 @@
 use light_sdk_types::constants::{
-    CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM,
-    PROGRAM_ID_NOOP,
+    ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID,
+    NOOP_PROGRAM_ID,
 };
 
 use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
@@ -47,20 +47,20 @@ pub struct SystemAccountPubkeys {
 impl Default for SystemAccountPubkeys {
     fn default() -> Self {
         Self {
-            light_sytem_program: Pubkey::from(PROGRAM_ID_LIGHT_SYSTEM),
+            light_sytem_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
             system_program: Pubkey::default(),
-            account_compression_program: Pubkey::from(PROGRAM_ID_ACCOUNT_COMPRESSION),
+            account_compression_program: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
             account_compression_authority: Pubkey::find_program_address(
                 &[CPI_AUTHORITY_PDA_SEED],
-                &Pubkey::from(PROGRAM_ID_LIGHT_SYSTEM),
+                &Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
             )
             .0,
             registered_program_pda: Pubkey::find_program_address(
-                &[PROGRAM_ID_LIGHT_SYSTEM.as_slice()],
-                &Pubkey::from(PROGRAM_ID_ACCOUNT_COMPRESSION),
+                &[LIGHT_SYSTEM_PROGRAM_ID.as_slice()],
+                &Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
             )
             .0,
-            noop_program: Pubkey::from(PROGRAM_ID_NOOP),
+            noop_program: Pubkey::from(NOOP_PROGRAM_ID),
             // TODO: add correct pubkey
             sol_pool_pda: Pubkey::default(),
         }

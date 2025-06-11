@@ -20,6 +20,7 @@ default = []
 
 [dependencies]
 light-sdk-pinocchio = { workspace = true, features = ["v2"] }
+light-sdk-types = { workspace = true }
 light-hasher = { workspace = true }
 pinocchio = { workspace = true }
 light-macros = { workspace = true }

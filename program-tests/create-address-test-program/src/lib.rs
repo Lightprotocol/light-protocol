@@ -14,7 +14,13 @@ pub use create_pda::*;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, data::NewAddressParamsPacked,
 };
-use light_sdk::cpi::CpiAccountsConfig;
+use light_sdk::{
+    constants::LIGHT_SYSTEM_PROGRAM_ID,
+    cpi::{
+        invoke_light_system_program, to_account_metas, to_account_metas_small, CpiAccountsConfig,
+    },
+};
+
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -22,11 +28,6 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 #[program]
 pub mod system_cpi_test {
-
-    use light_sdk::{
-        constants::PROGRAM_ID_LIGHT_SYSTEM,
-        cpi::{invoke_light_system_program, to_account_metas, to_account_metas_small},
-    };
 
     use super::*;
 
@@ -86,7 +87,7 @@ pub mod system_cpi_test {
             (account_infos, account_metas)
         };
         let instruction = Instruction {
-            program_id: PROGRAM_ID_LIGHT_SYSTEM.into(),
+            program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
             accounts: account_metas,
             data: inputs,
         };
