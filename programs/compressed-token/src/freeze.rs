@@ -184,7 +184,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         };
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
-                owner: crate::ID,
+                owner: crate::ID.into(),
                 lamports: token_data_with_context.lamports.unwrap_or(0),
                 data: Some(data),
                 address: None,

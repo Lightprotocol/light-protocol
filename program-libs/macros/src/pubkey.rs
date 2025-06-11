@@ -34,19 +34,30 @@ pub(crate) fn pubkey(args: PubkeyArgs) -> Result<TokenStream> {
         )
     })?;
 
-    #[cfg(not(feature = "pinocchio"))]
-    return Ok(quote! {
+    Ok(quote! {
             ::solana_program::pubkey::Pubkey::new_from_array([ #(#arr),* ])
-    });
+    })
+}
 
-    #[cfg(feature = "pinocchio")]
-    return Ok(quote! {
-            [ #(#arr),* ]
-    });
-    #[allow(unreachable_code)]
-    {
-        unimplemented!("Activate exactly one feature: solana (default) or pinocchio.")
-    }
+pub(crate) fn pubkey_array(args: PubkeyArgs) -> Result<TokenStream> {
+    let v = decode(args.pubkey.value())
+        .into_vec()
+        .map_err(|_| Error::new(args.pubkey.span(), "Invalid base58 string"))?;
+    let v_len = v.len();
+
+    let arr: [u8; PUBKEY_LEN] = v.try_into().map_err(|_| {
+        Error::new(
+            args.pubkey.span(),
+            format!(
+                "Invalid size of decoded public key, expected 32, got {}",
+                v_len,
+            ),
+        )
+    })?;
+
+    Ok(quote! {
+        [ #(#arr),* ]
+    })
 }
 
 #[cfg(test)]

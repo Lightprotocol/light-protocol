@@ -54,7 +54,7 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
 
     // 1. Check discriminator bytes are zeroed.
     // 2. Set discriminator.
-    account_info_init::<CpiContextAccount>(ctx.cpi_context_account)?;
+    account_info_init::<CpiContextAccount, AccountInfo>(ctx.cpi_context_account)?;
 
     let mut cpi_context_account_data = ctx.cpi_context_account.try_borrow_mut_data()?;
     let cpi_context_account = CpiContextAccount {

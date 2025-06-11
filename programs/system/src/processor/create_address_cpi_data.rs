@@ -37,7 +37,7 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                 );
 
                 (
-                    derive_address_legacy(&pubkey.into(), &new_address_params.seed())
+                    derive_address_legacy(pubkey, &new_address_params.seed())
                         .map_err(ProgramError::from)?,
                     context
                         .get_legacy_merkle_context(new_address_params.address_queue_index())

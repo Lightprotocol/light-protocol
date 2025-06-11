@@ -13,35 +13,3 @@ pub mod rollover_state_tree;
 
 // Use the appropriate BorshDeserialize and BorshSerialize based on feature
 use borsh::{BorshDeserialize, BorshSerialize};
-// Pinocchio imports when pinocchio feature is enabled
-#[cfg(feature = "pinocchio")]
-use pinocchio::{
-    account_info::AccountInfo, msg, pubkey::Pubkey, sysvars::rent::Rent, sysvars::Sysvar,
-};
-// Solana program imports for non-pinocchio builds (default)
-#[cfg(not(feature = "pinocchio"))]
-pub(crate) use {
-    solana_account_info::AccountInfo,
-    solana_msg::msg,
-    solana_pubkey::Pubkey,
-    solana_sysvar::{rent::Rent, Sysvar},
-};
-
-#[allow(unused)]
-trait AccountInfoTrait {
-    fn key(&self) -> &Pubkey;
-}
-
-#[cfg(not(feature = "pinocchio"))]
-impl AccountInfoTrait for AccountInfo<'_> {
-    fn key(&self) -> &Pubkey {
-        self.key
-    }
-}
-
-#[cfg(not(feature = "pinocchio"))]
-impl AccountInfoTrait for &AccountInfo<'_> {
-    fn key(&self) -> &Pubkey {
-        self.key
-    }
-}

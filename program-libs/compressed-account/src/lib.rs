@@ -16,6 +16,7 @@ pub mod nullifier;
 pub mod pubkey;
 pub mod tx_hash;
 
+// Re-export Pubkey type
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -24,16 +25,7 @@ pub use light_hasher::{
     bigint::bigint_to_be_bytes_array,
     hash_to_field_size::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be},
 };
-// Pinocchio framework imports
-#[cfg(feature = "pinocchio")]
-pub(crate) use pinocchio::program_error::ProgramError;
-#[cfg(feature = "pinocchio")]
-pub(crate) use pinocchio::pubkey::Pubkey;
-// Solana program imports (default framework)
-#[cfg(not(feature = "pinocchio"))]
-pub(crate) use solana_program_error::ProgramError;
-#[cfg(not(feature = "pinocchio"))]
-pub(crate) use solana_pubkey::Pubkey;
+pub use pubkey::Pubkey;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressedAccountError {
@@ -87,10 +79,17 @@ impl From<CompressedAccountError> for u32 {
     }
 }
 
-// Convert compressed account errors to program errors for both frameworks
-impl From<CompressedAccountError> for ProgramError {
+#[cfg(feature = "solana")]
+impl From<CompressedAccountError> for solana_program_error::ProgramError {
     fn from(e: CompressedAccountError) -> Self {
-        ProgramError::Custom(e.into())
+        solana_program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "pinocchio")]
+impl From<CompressedAccountError> for pinocchio::program_error::ProgramError {
+    fn from(e: CompressedAccountError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
     }
 }
 

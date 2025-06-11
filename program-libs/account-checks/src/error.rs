@@ -54,8 +54,37 @@ impl From<AccountError> for u32 {
     }
 }
 
-impl From<AccountError> for crate::ProgramError {
+#[cfg(feature = "pinocchio")]
+impl From<AccountError> for pinocchio::program_error::ProgramError {
     fn from(e: AccountError) -> Self {
-        crate::ProgramError::Custom(e.into())
+        pinocchio::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "solana")]
+impl From<AccountError> for solana_program_error::ProgramError {
+    fn from(e: AccountError) -> Self {
+        solana_program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "pinocchio")]
+impl From<pinocchio::program_error::ProgramError> for AccountError {
+    fn from(_: pinocchio::program_error::ProgramError) -> Self {
+        AccountError::BorrowAccountDataFailed
+    }
+}
+
+#[cfg(feature = "solana")]
+impl From<std::cell::BorrowError> for AccountError {
+    fn from(_: std::cell::BorrowError) -> Self {
+        AccountError::BorrowAccountDataFailed
+    }
+}
+
+#[cfg(feature = "solana")]
+impl From<std::cell::BorrowMutError> for AccountError {
+    fn from(_: std::cell::BorrowMutError) -> Self {
+        AccountError::BorrowAccountDataFailed
     }
 }

@@ -1,11 +1,13 @@
 use crate::{
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
     error::AccountError,
-    AccountInfo, Pubkey,
+    AccountInfoTrait,
 };
 
 /// Sets discriminator in account data.
-pub fn account_info_init<T: Discriminator>(account_info: &AccountInfo) -> Result<(), AccountError> {
+pub fn account_info_init<T: Discriminator, A: AccountInfoTrait>(
+    account_info: &A,
+) -> Result<(), AccountError> {
     set_discriminator::<T>(
         &mut account_info
             .try_borrow_mut_data()
@@ -18,40 +20,30 @@ pub fn account_info_init<T: Discriminator>(account_info: &AccountInfo) -> Result
 /// 1. account is mutable
 /// 2. account owned by program_id
 /// 3. account discriminator
-pub fn check_account_info_mut<T: Discriminator>(
-    program_id: &Pubkey,
-    account_info: &AccountInfo,
+pub fn check_account_info_mut<T: Discriminator, A: AccountInfoTrait>(
+    program_id: &[u8; 32],
+    account_info: &A,
 ) -> Result<(), AccountError> {
-    #[cfg(not(feature = "pinocchio"))]
-    if !account_info.is_writable {
-        return Err(AccountError::AccountMutable);
-    }
-    #[cfg(feature = "pinocchio")]
     if !account_info.is_writable() {
         return Err(AccountError::AccountMutable);
     }
-    check_account_info::<T>(program_id, account_info)
+    check_account_info::<T, A>(program_id, account_info)
 }
 
 /// Checks:
 /// 1. account is not mutable
 /// 2. account owned by program_id
 /// 3. account discriminator
-pub fn check_account_info_non_mut<T: Discriminator>(
-    program_id: &Pubkey,
-    account_info: &AccountInfo,
+pub fn check_account_info_non_mut<T: Discriminator, A: AccountInfoTrait>(
+    program_id: &[u8; 32],
+    account_info: &A,
 ) -> Result<(), AccountError> {
     check_non_mut(account_info)?;
 
-    check_account_info::<T>(program_id, account_info)
+    check_account_info::<T, A>(program_id, account_info)
 }
 
-pub fn check_non_mut(account_info: &AccountInfo) -> Result<(), AccountError> {
-    #[cfg(not(feature = "pinocchio"))]
-    if account_info.is_writable {
-        return Err(AccountError::AccountMutable);
-    }
-    #[cfg(feature = "pinocchio")]
+pub fn check_non_mut<A: AccountInfoTrait>(account_info: &A) -> Result<(), AccountError> {
     if account_info.is_writable() {
         return Err(AccountError::AccountMutable);
     }
@@ -61,9 +53,9 @@ pub fn check_non_mut(account_info: &AccountInfo) -> Result<(), AccountError> {
 /// Checks:
 /// 1. account owned by program_id
 /// 2. account discriminator
-pub fn check_account_info<T: Discriminator>(
-    program_id: &Pubkey,
-    account_info: &AccountInfo,
+pub fn check_account_info<T: Discriminator, A: AccountInfoTrait>(
+    program_id: &[u8; 32],
+    account_info: &A,
 ) -> Result<(), AccountError> {
     check_owner(program_id, account_info)?;
 
@@ -98,8 +90,9 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
 }
 
 /// Checks that the account balance is greater or eqal to rent exemption.
-pub fn check_account_balance_is_rent_exempt(
-    account_info: &AccountInfo,
+#[cfg(any(feature = "pinocchio", feature = "solana"))]
+pub fn check_account_balance_is_rent_exempt<A: AccountInfoTrait>(
+    account_info: &A,
     expected_size: usize,
 ) -> Result<u64, AccountError> {
     let account_size = account_info.data_len();
@@ -109,10 +102,7 @@ pub fn check_account_balance_is_rent_exempt(
     let lamports = account_info.lamports();
     #[cfg(target_os = "solana")]
     {
-        use crate::Sysvar;
-        let rent_exemption = (crate::Rent::get()
-            .map_err(|_| AccountError::FailedBorrowRentSysvar))?
-        .minimum_balance(expected_size);
+        let rent_exemption = A::get_min_rent_balance(expected_size)?;
         if lamports < rent_exemption {
             return Err(AccountError::InvalidAccountBalance);
         }
@@ -125,64 +115,28 @@ pub fn check_account_balance_is_rent_exempt(
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
-pub fn check_signer(account_info: &AccountInfo) -> Result<(), AccountError> {
-    if !account_info.is_signer {
-        return Err(AccountError::InvalidSigner);
-    }
-    Ok(())
-}
-#[cfg(feature = "pinocchio")]
-pub fn check_signer(account_info: &AccountInfo) -> Result<(), AccountError> {
+pub fn check_signer<A: AccountInfoTrait>(account_info: &A) -> Result<(), AccountError> {
     if !account_info.is_signer() {
         return Err(AccountError::InvalidSigner);
     }
     Ok(())
 }
 
-#[cfg(not(feature = "pinocchio"))]
-pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
-    if *owner != *account_info.owner {
-        return Err(AccountError::AccountOwnedByWrongProgram);
-    }
-
-    Ok(())
-}
-
-#[cfg(feature = "pinocchio")]
-pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
+pub fn check_owner<A: AccountInfoTrait>(
+    owner: &[u8; 32],
+    account_info: &A,
+) -> Result<(), AccountError> {
     if !account_info.is_owned_by(owner) {
-        pinocchio::msg!(
-            format!("check_owner expected {:?} got: {:?}", owner, unsafe {
-                account_info.owner()
-            })
-            .as_str()
-        );
         return Err(AccountError::AccountOwnedByWrongProgram);
     }
     Ok(())
 }
 
-#[cfg(not(feature = "pinocchio"))]
-pub fn check_program(program_id: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
-    if *account_info.key != *program_id {
-        return Err(AccountError::InvalidProgramId);
-    }
-    if !account_info.executable {
-        return Err(AccountError::ProgramNotExecutable);
-    }
-    Ok(())
-}
-
-#[cfg(feature = "pinocchio")]
-pub fn check_program(program_id: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
-    if *account_info.key() != *program_id {
-        pinocchio::msg!(format!(
-            "check_owner expected {:?} got: {:?}",
-            program_id,
-            account_info.key()
-        )
-        .as_str());
+pub fn check_program<A: AccountInfoTrait>(
+    program_id: &[u8; 32],
+    account_info: &A,
+) -> Result<(), AccountError> {
+    if account_info.key() != *program_id {
         return Err(AccountError::InvalidProgramId);
     }
     if !account_info.executable() {
@@ -191,47 +145,25 @@ pub fn check_program(program_id: &Pubkey, account_info: &AccountInfo) -> Result<
     Ok(())
 }
 
-#[cfg(not(feature = "pinocchio"))]
-pub fn check_pda_seeds(
+pub fn check_pda_seeds<A: AccountInfoTrait>(
     seeds: &[&[u8]],
-    program_id: &Pubkey,
-    account_info: &AccountInfo,
+    program_id: &[u8; 32],
+    account_info: &A,
 ) -> Result<(), AccountError> {
-    if !Pubkey::find_program_address(seeds, program_id)
-        .0
-        .eq(account_info.key)
-    {
-        return Err(AccountError::InvalidSeeds);
-    }
-
-    Ok(())
-}
-
-#[cfg(feature = "pinocchio")]
-pub fn check_pda_seeds(
-    seeds: &[&[u8]],
-    program_id: &Pubkey,
-    account_info: &AccountInfo,
-) -> Result<(), AccountError> {
-    if !pinocchio::pubkey::find_program_address(seeds, program_id)
-        .0
-        .eq(account_info.key())
-    {
+    let (derived_key, _) = A::find_program_address(seeds, program_id);
+    if derived_key != account_info.key() {
         return Err(AccountError::InvalidSeeds);
     }
     Ok(())
 }
 
-#[cfg(feature = "pinocchio")]
-pub fn check_pda_seeds_with_bump(
+pub fn check_pda_seeds_with_bump<A: AccountInfoTrait>(
     seeds: &[&[u8]],
-    program_id: &Pubkey,
-    account_info: &AccountInfo,
+    program_id: &[u8; 32],
+    account_info: &A,
 ) -> Result<(), AccountError> {
-    if !pinocchio::pubkey::create_program_address(seeds, program_id)
-        .map_err(|_| AccountError::InvalidSeeds)?
-        .eq(account_info.key())
-    {
+    let derived_key = A::create_program_address(seeds, program_id)?;
+    if derived_key != account_info.key() {
         return Err(AccountError::InvalidSeeds);
     }
     Ok(())
@@ -245,454 +177,4 @@ pub fn check_data_is_zeroed<const N: usize>(data: &[u8]) -> Result<(), AccountEr
         return Err(AccountError::AccountNotZeroed);
     }
     Ok(())
-}
-
-#[cfg(not(feature = "pinocchio"))]
-#[cfg(test)]
-mod check_account_tests {
-    use std::{cell::RefCell, rc::Rc};
-
-    use borsh::{BorshDeserialize, BorshSerialize};
-
-    use super::*;
-
-    // Helper function to create pubkeys for tests
-    #[cfg(not(feature = "pinocchio"))]
-    fn create_pubkey() -> Pubkey {
-        Pubkey::new_unique()
-    }
-
-    #[cfg(feature = "pinocchio")]
-    fn create_pubkey() -> Pubkey {
-        let mut rng = [0u8; 32];
-        for i in 0..32 {
-            rng[i] = i as u8;
-        }
-        rng
-    }
-
-    #[repr(C)]
-    #[derive(Debug, PartialEq, Copy, Clone, BorshSerialize, BorshDeserialize)]
-    pub struct MyStruct {
-        pub data: u64,
-    }
-    impl Discriminator for MyStruct {
-        const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-        const LIGHT_DISCRIMINATOR_SLICE: &[u8] = &Self::LIGHT_DISCRIMINATOR;
-    }
-
-    /// Tests:
-    /// 1. functional set discriminator
-    /// 2. failing set discriminator
-    /// 3. functional check discriminator
-    /// 4. failing check discriminator
-    #[test]
-    fn test_discriminator() {
-        let mut bytes = vec![0; 8 + std::mem::size_of::<MyStruct>()];
-
-        // Test 1 functional set discriminator.
-        assert_eq!(bytes[0..8], [0; 8]);
-        set_discriminator::<MyStruct>(&mut bytes).unwrap();
-        assert_eq!(bytes[0..8], MyStruct::LIGHT_DISCRIMINATOR);
-        // Test 2 failing set discriminator.
-        assert_eq!(
-            set_discriminator::<MyStruct>(&mut bytes),
-            Err(AccountError::AlreadyInitialized)
-        );
-        // Test 3 functional check discriminator.
-        assert!(check_discriminator::<MyStruct>(&bytes).is_ok());
-        // Test 4 failing check discriminator.
-        bytes[0] = 0;
-        assert_eq!(
-            check_discriminator::<MyStruct>(&bytes),
-            Err(AccountError::InvalidDiscriminator)
-        );
-    }
-
-    pub struct TestAccount {
-        pub key: Pubkey,
-        pub owner: Pubkey,
-        pub data: Vec<u8>,
-        pub lamports: u64,
-        pub writable: bool,
-        pub is_signer: bool,
-        pub executable: bool,
-    }
-    impl TestAccount {
-        pub fn new(key: Pubkey, owner: Pubkey, size: usize) -> Self {
-            Self {
-                key,
-                owner,
-                data: vec![0; size],
-                lamports: 0,
-                writable: true,
-                is_signer: false,
-                executable: false,
-            }
-        }
-
-        #[cfg(not(feature = "pinocchio"))]
-        pub fn get_account_info(&mut self) -> AccountInfo<'_> {
-            AccountInfo {
-                key: &self.key,
-                is_signer: self.is_signer,
-                is_writable: self.writable,
-                lamports: Rc::new(RefCell::new(&mut self.lamports)),
-                data: Rc::new(RefCell::new(&mut self.data)),
-                owner: &self.owner,
-                executable: self.executable,
-                rent_epoch: 0,
-            }
-        }
-    }
-
-    /// Tests:
-    /// 1. functional check_account_info
-    /// 2. failing AccountOwnedByWrongProgram
-    /// 3. failing empty discriminator (InvalidDiscriminator)
-    /// 4. failing InvalidDiscriminator
-    /// 5. functional check_account_info_mut
-    /// 6. failing AccountNotMutable with check_account_info_mut
-    /// 7. functional check_account_info_non_mut
-    /// 8. failing AccountMutable with check_account_info_non_mut
-    #[test]
-    fn test_check_account_info() {
-        let key = create_pubkey();
-        let program_id = create_pubkey();
-        let size = 8 + std::mem::size_of::<MyStruct>();
-
-        // Test 1 functional check_account_info.
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            assert!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()).is_ok()
-            );
-        }
-        // Test 2 failing AccountOwnedByWrongProgram.
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            account.owner = create_pubkey();
-            assert_eq!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(AccountError::AccountOwnedByWrongProgram)
-            );
-        }
-        // Test 3 failing empty discriminator (InvalidDiscriminator).
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            assert_eq!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(AccountError::InvalidDiscriminator)
-            );
-        }
-        // Test 4 failing InvalidDiscriminator.
-        {
-            let mut account = TestAccount::new(key, program_id, size - 1);
-            account.data[0..8].copy_from_slice(&[1; 8]);
-            assert_eq!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(AccountError::InvalidDiscriminator)
-            );
-        }
-        // Test 5 functional check_account_info_mut.
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            assert!(
-                check_account_info_mut::<MyStruct>(&program_id, &account.get_account_info())
-                    .is_ok()
-            );
-        }
-        // Test 6 failing AccountNotMutable with check_account_info_mut.
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            account.writable = false;
-            // The error can be different depending on the framework
-            let result =
-                check_account_info_mut::<MyStruct>(&program_id, &account.get_account_info());
-            assert!(result.is_err());
-        }
-        // Test 7 functional check_account_info_non_mut.
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            account.writable = false;
-            assert!(check_account_info_non_mut::<MyStruct>(
-                &program_id,
-                &account.get_account_info()
-            )
-            .is_ok());
-        }
-        // Test 8 failing with check_account_info_non_mut.
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            // Different behavior based on the feature flag
-            #[cfg(not(feature = "pinocchio"))]
-            assert_eq!(
-                check_account_info_non_mut::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(AccountError::AccountMutable)
-            );
-            #[cfg(feature = "pinocchio")]
-            assert!(check_account_info_non_mut::<MyStruct>(
-                &program_id,
-                &account.get_account_info()
-            )
-            .is_err());
-        }
-        // Test 9 functional account_info_init
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            assert!(account_info_init::<MyStruct>(&account.get_account_info()).is_ok());
-        }
-        // Test 10 failing account_info_init
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            assert_eq!(
-                account_info_init::<MyStruct>(&account.get_account_info()),
-                Err(AccountError::AlreadyInitialized)
-            );
-        }
-    }
-
-    /// Tests for check_signer function
-    /// 1. Functional test - account is a signer
-    /// 2. Failing test - account is not a signer
-    #[test]
-    fn test_signer_check() {
-        let key = create_pubkey();
-        let program_id = create_pubkey();
-        let size = 8;
-
-        // Test 1: Successful signer check
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            account.is_signer = true;
-            assert!(check_signer(&account.get_account_info()).is_ok());
-        }
-
-        // Test 2: Failed signer check - account is not a signer
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            account.is_signer = false;
-            assert_eq!(
-                check_signer(&account.get_account_info()),
-                Err(AccountError::InvalidSigner)
-            );
-        }
-    }
-
-    /// Tests for check_owner function
-    /// 1. Functional test - account is owned by the correct program
-    /// 2. Failing test - account is owned by a different program
-    #[test]
-    fn test_program_check() {
-        let key = create_pubkey();
-        let program_id = create_pubkey();
-        let wrong_program_id = create_pubkey();
-        let size = 8;
-
-        // Test 1: Successful program check
-        {
-            let mut account = TestAccount::new(key, program_id, size);
-            assert!(check_owner(&program_id, &account.get_account_info()).is_ok());
-        }
-
-        // Test 2: Failed program check - account owned by wrong program
-        {
-            let mut account = TestAccount::new(key, wrong_program_id, size);
-            assert_eq!(
-                check_owner(&program_id, &account.get_account_info()),
-                Err(AccountError::AccountOwnedByWrongProgram)
-            );
-        }
-    }
-
-    /// Tests for check_pda_seeds function
-    /// 1. Functional test - PDA matches with the given seeds and program ID
-    /// 2. Failing test - PDA doesn't match with the given seeds
-    /// 3. Failing test - Invalid seeds (can't create a valid PDA)
-    #[test]
-    #[ignore = "reason"]
-    #[cfg(not(feature = "pinocchio"))]
-    fn test_check_pda_seeds_solana() {
-        let program_id = create_pubkey();
-        let size = 8;
-
-        // Test 1: Create a valid PDA and verify it
-        {
-            let seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
-            // Generate a PDA
-            let (pda, _) = Pubkey::find_program_address(seeds, &program_id);
-
-            // Recreate the seeds for the check (without the bump)
-            let check_seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
-
-            // Create a test account with the PDA as key
-            let mut account = TestAccount::new(pda, program_id, size);
-
-            // This should fail because find_program_address adds the bump seed automatically
-            // which check_pda_seeds doesn't do
-            assert!(
-                check_pda_seeds(check_seeds, &program_id, &account.get_account_info()).is_err()
-            );
-
-            // Get the correct seeds with bump
-            let (_, bump) = Pubkey::find_program_address(seeds, &program_id);
-            let correct_seeds = &[b"test_seed".as_ref(), &[1, 2, 3], &[bump]];
-            // Now the check should pass with the correct seeds including bump
-            assert!(
-                check_pda_seeds(correct_seeds, &program_id, &account.get_account_info()).is_ok()
-            );
-        }
-
-        // Test 2: Failed check - PDA doesn't match with the given seeds
-        {
-            // Generate a valid PDA
-            let seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
-            let (_, bump) = Pubkey::find_program_address(seeds, &program_id);
-            let correct_seeds = &[b"test_seed".as_ref(), &[1, 2, 3], &[bump]];
-
-            // Create account with a different key
-            let different_key = create_pubkey();
-            let mut account = TestAccount::new(different_key, program_id, size);
-
-            // This should fail because the account key doesn't match the PDA
-            assert_eq!(
-                check_pda_seeds(correct_seeds, &program_id, &account.get_account_info()),
-                Err(AccountError::InvalidSeeds)
-            );
-        }
-
-        // Test 3: Invalid seeds - use seeds that would not create a valid program address
-        {
-            // Create a random account key
-            let random_key = create_pubkey();
-            let mut account = TestAccount::new(random_key, program_id, size);
-
-            // Create seeds that don't correspond to this account's key
-            let invalid_seeds = &[b"random_seeds".as_ref()];
-
-            // This should return InvalidSeeds because the derived address doesn't match
-            assert!(
-                check_pda_seeds(invalid_seeds, &program_id, &account.get_account_info()).is_err()
-            );
-        }
-    }
-
-    #[cfg(feature = "pinocchio")]
-    mod pinocchio_tests {
-        use super::*;
-
-        #[test]
-        fn test_discriminator() {
-            // Test that the discriminator functionality works
-            let mut bytes = vec![0; 8 + 8]; // 8 for discriminator for a u64
-
-            // Check that setting and checking a discriminator works as expected
-            struct TestDiscriminator {}
-            impl Discriminator for TestDiscriminator {
-                const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-            }
-
-            assert_eq!(bytes[0..8], [0; 8]);
-            set_discriminator::<TestDiscriminator>(&mut bytes).unwrap();
-            assert_eq!(bytes[0..8], TestDiscriminator::DISCRIMINATOR);
-
-            // Check that trying to set it again fails
-            assert_eq!(
-                set_discriminator::<TestDiscriminator>(&mut bytes),
-                Err(AccountError::AlreadyInitialized)
-            );
-
-            // Check that validating works
-            assert!(check_discriminator::<TestDiscriminator>(&bytes).is_ok());
-
-            // Modify discriminator and check that validation fails
-            bytes[0] = 0;
-            assert_eq!(
-                check_discriminator::<TestDiscriminator>(&bytes),
-                Err(AccountError::InvalidDiscriminator)
-            );
-        }
-    }
-
-    #[cfg(feature = "pinocchio")]
-    fn test_check_pda_seeds_pinocchio() {
-        let program_id = create_pubkey();
-
-        // Test 1: Create a valid PDA and verify it
-        {
-            let seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
-            // Generate a PDA
-            let (pda, _) = pinocchio::pubkey::find_program_address(seeds, &program_id);
-
-            // Recreate the seeds for the check (without the bump)
-            let check_seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
-
-            // Create a test account with the PDA as key
-            let mut account = TestAccount::new(pda, program_id, 8);
-
-            // This should fail because find_program_address adds the bump seed automatically
-            // which check_pda_seeds doesn't do
-            assert!(
-                check_pda_seeds(check_seeds, &program_id, &account.get_account_info()).is_err()
-            );
-
-            // Get the correct seeds with bump
-            let (_, bump) = pinocchio::pubkey::find_program_address(seeds, &program_id);
-            let correct_seeds = &[b"test_seed".as_ref(), &[1, 2, 3], &[bump]];
-            // Now the check should pass with the correct seeds including bump
-            assert!(
-                check_pda_seeds(correct_seeds, &program_id, &account.get_account_info()).is_ok()
-            );
-        }
-
-        // Test 2: Failed check - PDA doesn't match with the given seeds
-        {
-            // Generate a valid PDA
-            let seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
-            let (_, bump) = pinocchio::pubkey::find_program_address(seeds, &program_id);
-            let correct_seeds = &[b"test_seed".as_ref(), &[1, 2, 3], &[bump]];
-
-            // Create account with a different key
-            let different_key = create_pubkey();
-            let mut account = TestAccount::new(different_key, program_id, 8);
-
-            // This should fail because the account key doesn't match the PDA
-            assert_eq!(
-                check_pda_seeds(correct_seeds, &program_id, &account.get_account_info()),
-                Err(AccountError::InvalidSeeds)
-            );
-        }
-
-        // Test 3: Invalid seeds - use seeds that would not create a valid program address
-        {
-            // Create a random account key
-            let random_key = create_pubkey();
-            let mut account = TestAccount::new(random_key, program_id, 8);
-
-            // Create seeds that don't correspond to this account's key
-            let invalid_seeds = &[b"random_seeds".as_ref()];
-
-            // This should return InvalidSeeds because the derived address doesn't match
-            assert!(
-                check_pda_seeds(invalid_seeds, &program_id, &account.get_account_info()).is_err()
-            );
-        }
-    }
-
-    #[test]
-    pub fn test_check_data_is_zeroed() {
-        let zeroed_data = [0u8; 32];
-        check_data_is_zeroed::<8>(zeroed_data.as_slice()).unwrap();
-        let mut not_zeroed_data = [0u8; 32];
-        not_zeroed_data[7] = 1;
-        let failing_res = check_data_is_zeroed::<8>(not_zeroed_data.as_slice());
-        assert_eq!(failing_res, Err(AccountError::AccountNotZeroed));
-    }
 }

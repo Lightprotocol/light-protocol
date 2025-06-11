@@ -1,13 +1,10 @@
-use light_account_checks::{checks::check_account_balance_is_rent_exempt, error::AccountError};
+use light_account_checks::{checks::check_account_balance_is_rent_exempt, AccountInfoTrait};
 use light_compressed_account::{pubkey::Pubkey, TreeType};
 use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     rollover::RolloverMetadata,
 };
 
-// Import feature-gated types from lib.rs
-#[cfg(not(feature = "pinocchio"))]
-use crate::AccountInfoTrait;
 use crate::{
     constants::{
         DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_SIZE,
@@ -16,7 +13,7 @@ use crate::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::match_circuit_size,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
-    AccountInfo, BorshDeserialize, BorshSerialize,
+    BorshDeserialize, BorshSerialize,
 };
 
 #[repr(C)]
@@ -58,10 +55,10 @@ impl Default for InitAddressTreeAccountsInstructionData {
 /// Initializes a batched address Merkle tree account.
 /// 1. Check rent exemption and that accounts are initialized with the correct size.
 /// 2. Initialized the address Merkle tree account.
-pub fn init_batched_address_merkle_tree_from_account_info(
+pub fn init_batched_address_merkle_tree_from_account_info<A: AccountInfoTrait>(
     params: InitAddressTreeAccountsInstructionData,
     owner: Pubkey,
-    mt_account_info: &AccountInfo,
+    mt_account_info: &A,
 ) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
     let mt_account_size = get_merkle_tree_account_size(
@@ -73,15 +70,13 @@ pub fn init_batched_address_merkle_tree_from_account_info(
     );
     let merkle_tree_rent = check_account_balance_is_rent_exempt(mt_account_info, mt_account_size)?;
     // 2. Initialized the address Merkle tree account.
-    let mt_data = &mut mt_account_info
-        .try_borrow_mut_data()
-        .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+    let mt_data = &mut mt_account_info.try_borrow_mut_data()?;
     init_batched_address_merkle_tree_account(
         owner,
         params,
         mt_data,
         merkle_tree_rent,
-        (*mt_account_info.key()).into(),
+        mt_account_info.key().into(),
     )?;
     Ok(())
 }

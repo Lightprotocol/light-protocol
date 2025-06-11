@@ -2,7 +2,7 @@ use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use light_compressed_account::{
-    instruction_data::data::OutputCompressedAccountWithPackedContext, pubkey::PubkeyTrait,
+    instruction_data::data::OutputCompressedAccountWithPackedContext, pubkey::AsPubkey,
 };
 use light_system_program::program::LightSystemProgram;
 use light_zero_copy::num_trait::ZeroCopyNumTrait;
@@ -37,7 +37,7 @@ pub const MINT_TO: bool = true;
 #[allow(unused_variables)]
 pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    recipient_pubkeys: &[impl PubkeyTrait],
+    recipient_pubkeys: &[impl AsPubkey],
     amounts: &[impl ZeroCopyNumTrait],
     lamports: Option<u64>,
     index: Option<u8>,

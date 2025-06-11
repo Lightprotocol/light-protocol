@@ -7,21 +7,10 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["solana"]
-solana = [
-    "dep:solana-program-error",
-    "dep:solana-pubkey",
-    "light-hasher/solana",
-    "light-zero-copy/solana",
-    "light-macros/solana",
-]
-anchor = ["solana", "anchor-lang"]
-pinocchio = [
-    "dep:pinocchio",
-    "light-hasher/pinocchio",
-    "light-zero-copy/pinocchio",
-    "light-macros/pinocchio",
-]
+default = []
+solana = ["dep:solana-pubkey", "dep:solana-program-error"]
+anchor = ["anchor-lang"]
+pinocchio = ["dep:pinocchio"]
 bytemuck-des = ["bytemuck"]
 new-unique = ["dep:solana-pubkey"]
 
@@ -31,14 +20,14 @@ zerocopy = { workspace = true, features = ["derive"] }
 light-hasher = { workspace = true }
 light-zero-copy = { workspace = true, features = ["std"] }
 light-macros = { workspace = true }
+pinocchio = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
 
 # Feature-gated dependencies
-solana-program-error = { workspace = true, optional = true }
-solana-pubkey = { workspace = true, optional = true, features = ["borsh"] }
 anchor-lang = { workspace = true, optional = true }
-pinocchio = { workspace = true, optional = true }
-bytemuck = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true, features = ["derive"] }
 borsh = { workspace = true }
+solana-pubkey = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }

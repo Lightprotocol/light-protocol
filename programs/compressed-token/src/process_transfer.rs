@@ -11,7 +11,7 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext,
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
-    pubkey::PubkeyTrait,
+    pubkey::AsPubkey,
 };
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
@@ -154,7 +154,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             new_len,
             OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: ctx.accounts.authority.key(),
+                    owner: ctx.accounts.authority.key().into(),
                     lamports: change_lamports,
                     data: None,
                     address: None,
@@ -189,8 +189,8 @@ pub const OUTPUT_QUEUE_DISCRIMINATOR: &[u8] = b"queueacc";
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_accounts(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
-    mint_pubkey: impl PubkeyTrait,
-    pubkeys: &[impl PubkeyTrait],
+    mint_pubkey: impl AsPubkey,
+    pubkeys: &[impl AsPubkey],
     delegate: Option<Pubkey>,
     is_delegate: Option<Vec<bool>>,
     amounts: &[impl ZeroCopyNumTrait],
@@ -239,7 +239,7 @@ pub fn create_output_compressed_accounts(
         // TODO: remove serialization, just write bytes.
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
-        let hashed_owner = hash_to_bn254_field_size_be(owner.trait_to_bytes().as_slice());
+        let hashed_owner = hash_to_bn254_field_size_be(owner.to_pubkey_bytes().as_slice());
 
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes =
@@ -287,7 +287,7 @@ pub fn create_output_compressed_accounts(
         sum_lamports += lamports.into();
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
-                owner: crate::ID,
+                owner: crate::ID.into(),
                 lamports: lamports.into(),
                 data: Some(data),
                 address: None,
