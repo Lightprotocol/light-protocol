@@ -73,7 +73,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             pinocchio::pubkey::create_program_address(_seeds, &program_pubkey)
                 .map_err(|_| AccountError::InvalidSeeds)
         }
-        // Pinocchio does not support find_program_address outside of target_os solana.
+        // Pinocchio does not support create_program_address outside of target_os solana.
         #[cfg(all(not(target_os = "solana"), feature = "solana"))]
         {
             let program_pubkey = solana_pubkey::Pubkey::from(*_program_id);
