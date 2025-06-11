@@ -118,11 +118,11 @@ impl CpiInputs {
     }
 
     pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts) -> Result<()> {
-        light_system_progam_instruction_invoke_cpi(self, &cpi_accounts)
+        light_system_program_instruction_invoke_cpi(self, &cpi_accounts)
     }
 }
 
-pub fn light_system_progam_instruction_invoke_cpi(
+pub fn light_system_program_instruction_invoke_cpi(
     cpi_inputs: CpiInputs,
     cpi_accounts: &CpiAccounts,
 ) -> Result<()> {
