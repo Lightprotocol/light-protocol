@@ -19,7 +19,7 @@
 //!
 //! ```no_run
 //! use light_client::{
-//!     rpc::{LightClient, RpcConfig, Rpc},
+//!     rpc::{LightClient, LightClientConfig, Rpc},
 //!     indexer::{Indexer, IndexerRpcConfig, RetryConfig},
 //!     local_test_validator::{spawn_validator, LightValidatorConfig},
 //! };
@@ -39,11 +39,11 @@
 //!     spawn_validator(config).await;
 //!
 //!     // Connect to the validator
-//!     let mut rpc = LightClient::new(RpcConfig::local()).await?;
+//!     let mut rpc = LightClient::new(LightClientConfig::local()).await?;
 //!
 //!     // Or connect to devnet/mainnet:
-//!     // let mut rpc = LightClient::new(RpcConfig::new("https://devnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
-//!     // let mut rpc = LightClient::new(RpcConfig::new("https://mainnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
+//!     // let mut rpc = LightClient::new(LightClientConfig::new("https://devnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
+//!     // let mut rpc = LightClient::new(LightClientConfig::new("https://mainnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
 //!
 //!     let owner = Pubkey::new_unique();
 //!

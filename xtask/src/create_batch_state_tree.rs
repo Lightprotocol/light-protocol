@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use dirs::home_dir;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_client::rpc::{LightClient, Rpc, RpcConfig};
+use light_client::rpc::{LightClient, Rpc, LightClientConfig};
 use light_program_test::accounts::state_tree_v2::create_batched_state_merkle_tree;
 use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
 
@@ -44,7 +44,7 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
     } else {
         String::from("https://api.mainnet-beta.solana.com")
     };
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: rpc_url,
         commitment_config: None,
         fetch_active_tree: false,

@@ -30,7 +30,7 @@ use solana_transaction_status_client_types::{
 use tokio::time::{sleep, Instant};
 use tracing::warn;
 
-use super::RpcConfig;
+use super::LightClientConfig;
 use crate::{
     indexer::{photon_indexer::PhotonIndexer, Indexer, TreeInfo},
     rpc::{
@@ -100,7 +100,7 @@ impl Debug for LightClient {
 
 impl LightClient {
     pub async fn new_with_retry(
-        config: RpcConfig,
+        config: LightClientConfig,
         retry_config: Option<RetryConfig>,
     ) -> Result<Self, RpcError> {
         let payer = Keypair::new();
@@ -429,7 +429,7 @@ impl LightClient {
 
 #[async_trait]
 impl Rpc for LightClient {
-    async fn new(config: RpcConfig) -> Result<Self, RpcError>
+    async fn new(config: LightClientConfig) -> Result<Self, RpcError>
     where
         Self: Sized,
     {

@@ -7,7 +7,7 @@ use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
-    rpc::RpcConfig,
+    rpc::LightClientConfig,
 };
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
@@ -541,7 +541,7 @@ async fn generate_photon_test_data_multiple_events() {
         })
         .await;
 
-        let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+        let mut rpc = LightClient::new(LightClientConfig::local_no_indexer())
             .await
             .unwrap();
         let env = TestAccounts::get_local_test_validator_accounts();

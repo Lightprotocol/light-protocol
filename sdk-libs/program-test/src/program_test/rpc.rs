@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_client::{
     indexer::{Indexer, TreeInfo},
-    rpc::{Rpc, RpcConfig, RpcError},
+    rpc::{LightClientConfig, Rpc, RpcError},
 };
 use light_compressed_account::{
     indexer_event::{
@@ -35,7 +35,7 @@ use crate::{
 
 #[async_trait]
 impl Rpc for LightProgramTest {
-    async fn new(_config: RpcConfig) -> Result<Self, RpcError>
+    async fn new(_config: LightClientConfig) -> Result<Self, RpcError>
     where
         Self: Sized,
     {

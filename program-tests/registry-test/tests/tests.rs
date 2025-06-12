@@ -21,7 +21,7 @@ use light_batched_merkle_tree::{
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::BatchedQueueAccount,
 };
-use light_client::{indexer::Indexer, rpc::RpcConfig};
+use light_client::{indexer::Indexer, rpc::LightClientConfig};
 use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{
@@ -1283,7 +1283,7 @@ async fn failing_test_forester() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_forester_on_testnet() {
     let test_accounts = TestAccounts::get_program_test_test_accounts();
-    let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+    let mut rpc = LightClient::new(LightClientConfig::local_no_indexer())
         .await
         .unwrap();
     rpc.airdrop_lamports(
@@ -1327,7 +1327,7 @@ async fn update_forester_on_testnet() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_registry_governance_on_testnet() {
     let test_accounts = TestAccounts::get_program_test_test_accounts();
-    let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+    let mut rpc = LightClient::new(LightClientConfig::local_no_indexer())
         .await
         .unwrap();
     rpc.airdrop_lamports(

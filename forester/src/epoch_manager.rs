@@ -16,7 +16,7 @@ use forester_utils::{
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
-    rpc::{LightClient, RetryConfig, Rpc, RpcConfig, RpcError},
+    rpc::{LightClient, RetryConfig, Rpc, LightClientConfig, RpcError},
 };
 use light_compressed_account::TreeType;
 use light_registry::{
@@ -473,7 +473,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         max_retries: u32,
         retry_delay: Duration,
     ) -> Result<ForesterEpochInfo> {
-        let rpc = LightClient::new(RpcConfig {
+        let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             commitment_config: None,
             fetch_active_tree: false,
@@ -543,7 +543,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
     ))]
     async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         info!("Registering for epoch: {}", epoch);
-        let mut rpc = LightClient::new(RpcConfig {
+        let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             commitment_config: None,
             fetch_active_tree: false,
@@ -1196,7 +1196,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
     ))]
     async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         info!("Reporting work");
-        let mut rpc = LightClient::new(RpcConfig {
+        let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             commitment_config: None,
             fetch_active_tree: false,

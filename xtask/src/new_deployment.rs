@@ -9,7 +9,7 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_client::rpc::{LightClient, Rpc, RpcConfig};
+use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_program_test::{
     accounts::{initialize::initialize_accounts, test_keypairs::TestKeypairs},
     ProgramTestConfig,
@@ -53,7 +53,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
     } else {
         String::from("https://api.mainnet-beta.solana.com")
     };
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: rpc_url,
         commitment_config: None,
         fetch_active_tree: false,

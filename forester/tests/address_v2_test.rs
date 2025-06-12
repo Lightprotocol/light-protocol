@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, merkle_tree::MerkleTreeExt, LightClient, Rpc, RpcConfig},
+    rpc::{client::RpcUrl, merkle_tree::MerkleTreeExt, LightClient, Rpc, LightClientConfig},
 };
 use light_compressed_account::{
     address::derive_address,
@@ -70,7 +70,7 @@ async fn test_create_v2_address() {
     config.derivation_pubkey = env.protocol.forester.pubkey();
     config.general_config = GeneralConfig::test_address_v2();
 
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::processed()),
         fetch_active_tree: false,

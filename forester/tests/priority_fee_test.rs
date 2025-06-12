@@ -6,7 +6,7 @@ use forester::{
     },
     ForesterConfig,
 };
-use light_client::rpc::{LightClient, Rpc, RpcConfig};
+use light_client::rpc::{LightClient, Rpc, LightClientConfig};
 use light_test_utils::RpcUrl;
 use reqwest::Url;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
@@ -79,7 +79,7 @@ async fn test_priority_fee_request() {
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
 
     // Setup RPC connection using config
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::confirmed()),
         fetch_active_tree: false,

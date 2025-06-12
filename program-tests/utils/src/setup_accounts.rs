@@ -7,10 +7,10 @@ use light_program_test::{
 };
 
 pub async fn setup_accounts(keypairs: TestKeypairs, url: RpcUrl) -> Result<TestAccounts, RpcError> {
-    use light_client::rpc::RpcConfig;
+    use light_client::rpc::LightClientConfig;
     use solana_sdk::commitment_config::CommitmentConfig;
 
-    let mut rpc = light_client::rpc::LightClient::new(RpcConfig {
+    let mut rpc = light_client::rpc::LightClient::new(LightClientConfig {
         commitment_config: Some(CommitmentConfig::confirmed()),
         url: url.to_string(),
         with_indexer: false,

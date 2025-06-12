@@ -12,7 +12,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig},
+    rpc::{client::RpcUrl, LightClient, Rpc, LightClientConfig},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_test_utils::{
@@ -63,7 +63,7 @@ async fn test_address_batched() {
         .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(commitment_config),
         fetch_active_tree: false,
