@@ -9,8 +9,7 @@ use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::instruction::{
-    account_meta::CompressedAccountMeta, accounts::SystemAccountMetaConfig,
-    pack_accounts::PackedAccounts,
+    account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
 };
 use sdk_test::{
     create_pda::CreatePdaInstructionData,
@@ -44,7 +43,7 @@ async fn test_sdk_test() {
         &address_tree_pubkey.to_bytes(),
         &sdk_test::ID.to_bytes(),
     );
-    let ouput_queue = rpc.get_random_state_tree_info().queue;
+    let ouput_queue = rpc.get_random_state_tree_info().unwrap().queue;
     create_pda(
         &payer,
         &mut rpc,

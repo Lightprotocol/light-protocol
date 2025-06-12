@@ -64,9 +64,9 @@ impl TestAccounts {
                 governance_authority_pda: Pubkey::default(),
                 group_pda: Pubkey::default(),
                 forester: Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap(),
-                registered_program_pda: get_registered_program_pda(
-                    &light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
-                ),
+                registered_program_pda: get_registered_program_pda(&Pubkey::from(
+                    light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID,
+                )),
                 registered_registry_program_pda: get_registered_program_pda(&light_registry::ID),
                 registered_forester_pda: Pubkey::default(),
                 forester_epoch: None, // Set to None or to an appropriate Epoch value if needed
@@ -103,7 +103,7 @@ impl TestAccounts {
             payer.pubkey(),
             protocol_config_pda,
             group_pda,
-            light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
+            Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
         );
 
         let cpi_context_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();

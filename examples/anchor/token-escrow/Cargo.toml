@@ -27,6 +27,7 @@ account-compression = { workspace = true, features = ["cpi"] }
 light-hasher = { workspace = true }
 light-sdk = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
+light-sdk-types = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

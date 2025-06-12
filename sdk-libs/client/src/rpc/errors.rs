@@ -51,6 +51,11 @@ pub enum RpcError {
 
     #[error("Indexer error: {0}")]
     IndexerError(#[from] IndexerError),
+
+    #[error(
+        "No state trees available, use rpc.get_latest_active_state_trees() to fetch state trees"
+    )]
+    NoStateTreesAvailable,
 }
 
 impl From<light_compressed_account::indexer_event::error::ParseIndexerEventError> for RpcError {
@@ -77,6 +82,7 @@ impl Clone for RpcError {
             RpcError::StateTreeLookupTableNotFound => RpcError::StateTreeLookupTableNotFound,
             RpcError::InvalidStateTreeLookupTable => RpcError::InvalidStateTreeLookupTable,
             RpcError::NullifyTableNotFound => RpcError::NullifyTableNotFound,
+            RpcError::NoStateTreesAvailable => RpcError::NoStateTreesAvailable,
         }
     }
 }

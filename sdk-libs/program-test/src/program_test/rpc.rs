@@ -23,8 +23,7 @@ use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     rent::Rent,
-    signature::{Keypair, Signature, Signer},
-    system_instruction,
+    signature::{Keypair, Signature},
     transaction::Transaction,
 };
 use solana_transaction_status_client_types::TransactionStatus;
@@ -84,41 +83,8 @@ impl Rpc for LightProgramTest {
         to: &Pubkey,
         lamports: u64,
     ) -> Result<Signature, RpcError> {
-        // Create a transfer instruction
-        let transfer_instruction =
-            system_instruction::transfer(&self.get_payer().pubkey(), to, lamports);
-        let latest_blockhash = self.get_latest_blockhash().await?.0;
-
-        // Use the Rpc implementation of get_payer to avoid ambiguity
-        let payer = <Self as Rpc>::get_payer(self);
-
-        // Create and sign a transaction
-        let transaction = Transaction::new_signed_with_payer(
-            &[transfer_instruction],
-            Some(&payer.pubkey()),
-            &vec![payer],
-            latest_blockhash,
-        );
-        let sig = *transaction.signatures.first().unwrap();
-
-        // Send the transaction
-        let _res = self.context.send_transaction(transaction).map_err(|x| {
-            #[cfg(not(debug_assertions))]
-            {
-                if self.config.log_failed_tx {
-                    println!("{}", x.meta.pretty_logs());
-                }
-            }
-            RpcError::TransactionError(x.err)
-        })?;
-        #[cfg(debug_assertions)]
-        {
-            if std::env::var("RUST_BACKTRACE").is_ok() {
-                println!("{}", _res.pretty_logs());
-            }
-        }
-
-        Ok(sig)
+        let res = self.context.airdrop(to, lamports).map_err(|e| e.err)?;
+        Ok(res.signature)
     }
 
     async fn get_balance(&self, pubkey: &Pubkey) -> Result<u64, RpcError> {
@@ -300,17 +266,27 @@ impl Rpc for LightProgramTest {
 
     /// Gets a random active state tree.
     /// State trees are cached and have to be fetched or set.
-    fn get_random_state_tree_info(&self) -> TreeInfo {
+    fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError> {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         #[cfg(not(feature = "v2"))]
-        return self.test_accounts.v1_state_trees
-            [rng.gen_range(0..self.test_accounts.v1_state_trees.len())]
-        .into();
+        {
+            if self.test_accounts.v1_state_trees.is_empty() {
+                return Err(RpcError::NoStateTreesAvailable);
+            }
+            Ok(self.test_accounts.v1_state_trees
+                [rng.gen_range(0..self.test_accounts.v1_state_trees.len())]
+            .into())
+        }
         #[cfg(feature = "v2")]
-        return self.test_accounts.v2_state_trees
-            [rng.gen_range(0..self.test_accounts.v2_state_trees.len())]
-        .into();
+        {
+            if self.test_accounts.v2_state_trees.is_empty() {
+                return Err(RpcError::NoStateTreesAvailable);
+            }
+            Ok(self.test_accounts.v2_state_trees
+                [rng.gen_range(0..self.test_accounts.v2_state_trees.len())]
+            .into())
+        }
     }
 
     fn get_address_tree_v1(&self) -> TreeInfo {
@@ -322,18 +298,20 @@ impl Rpc for LightProgramTest {
             tree_type: TreeType::AddressV1,
         }
     }
-    // fn get_address_tree_v2(&self) -> MerkleContext {
-    //         MerkleContext {
-    //             tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
-    //             queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
-    //             cpi_context: None,
-    //             next_tree_info: None,
-    //             tree_type: TreeType::AddressV2,
-    //         }
-    // }
 }
 
 impl LightProgramTest {
+    #[cfg(feature = "v2")]
+    pub fn get_address_tree_v2(&self) -> TreeInfo {
+        TreeInfo {
+            tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            cpi_context: None,
+            next_tree_info: None,
+            tree_type: TreeType::AddressV2,
+        }
+    }
+
     async fn _send_transaction_with_batched_event(
         &mut self,
         transaction: Transaction,

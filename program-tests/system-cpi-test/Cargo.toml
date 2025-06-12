@@ -39,6 +39,7 @@ light-test-utils = { workspace = true, features = ["devenv"] }
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }
+light-sdk-types = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }

@@ -1,15 +1,83 @@
+//! # Light Account
+//!
+//! LightAccount is a wrapper around a compressed account similar to anchor Account.
+//! LightAccount abstracts hashing of compressed account data,
+//! and wraps the compressed account data so that it is easy to use.
+//!
+//! Data structs used with LightAccount must implement the traits:
+//! - DataHasher
+//! - LightDiscriminator
+//! - BorshSerialize, BorshDeserialize
+//! - Debug, Default, Clone
+//!
+//! ### Account Data Hashing
+//! The LightHasher derives a hashing scheme from the compressed account layout.
+//! Alternatively, DataHasher can be implemented manually.
+//!
+//! Constraints:
+//! - Poseidon hashes can only take up to 12 inputs
+//!     -> use nested structs for structs with more than 12 fields.
+//! - Poseidon hashes inputs must be less than bn254 field size (254 bits).
+//! hash_to_field_size methods in light hasher can be used to hash data longer than 253 bits.
+//!     -> use the `#[hash]` attribute for fields with data types greater than 31 bytes eg Pubkeys.
+//!
+//! ### Compressed account with LightHasher and LightDiscriminator
+//! ```
+//! use light_sdk::{LightHasher, LightDiscriminator};
+//! use solana_pubkey::Pubkey;
+//! #[derive(Clone, Debug, Default, LightHasher, LightDiscriminator)]
+//! pub struct CounterAccount {
+//!     #[hash]
+//!     pub owner: Pubkey,
+//!     pub counter: u64,
+//! }
+//! ```
+//!
+//!
+//! ### Create compressed account
+//! ```ignore
+//! let mut my_compressed_account = LightAccount::<'_, CounterAccount>::new_init(
+//!     &crate::ID,
+//!     // Address
+//!     Some(address),
+//!     output_tree_index,
+//! );
+//! // Set data:
+//! my_compressed_account.owner = ctx.accounts.signer.key();
+//! ```
+//! ### Update compressed account
+//! ```ignore
+//! let mut my_compressed_account = LightAccount::<'_, CounterAccount>::new_mut(
+//!     &crate::ID,
+//!     &account_meta,
+//!     my_compressed_account,
+//! );
+//! // Increment counter.
+//! my_compressed_account.counter += 1;
+//! ```
+//! ### Close compressed account
+//! ```ignore
+//! let mut my_compressed_account = LightAccount::<'_, CounterAccount>::new_close(
+//!     &crate::ID,
+//!     &account_meta_close,
+//!     my_compressed_account,
+//! );
+//! ```
+// TODO: add example for manual hashing
+
 use std::ops::{Deref, DerefMut};
 
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
-use light_hasher::{DataHasher, Poseidon};
+use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
 
 use crate::{
-    error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, AnchorDeserialize,
-    AnchorSerialize, LightDiscriminator,
+    error::LightSdkError,
+    light_hasher::{DataHasher, Poseidon},
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
 #[derive(Debug, PartialEq)]

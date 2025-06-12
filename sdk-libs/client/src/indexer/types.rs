@@ -3,17 +3,13 @@ use light_compressed_account::{
         CompressedAccount as ProgramCompressedAccount, CompressedAccountData,
         CompressedAccountWithMerkleContext,
     },
+    instruction_data::compressed_proof::CompressedProof,
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::{
-    instruction::{
-        pack_accounts::PackedAccounts,
-        tree_info::{PackedAddressTreeInfo, PackedStateTreeInfo},
-    },
-    light_compressed_account::instruction_data::compressed_proof::CompressedProof,
+    instruction::{PackedAccounts, PackedAddressTreeInfo, PackedStateTreeInfo, ValidityProof},
     token::{AccountState, TokenData},
-    ValidityProof,
 };
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
@@ -88,7 +84,7 @@ impl ValidityProofWithContext {
     pub fn get_root_indices(&self) -> Vec<Option<u16>> {
         self.accounts
             .iter()
-            .map(|account| account.root_index)
+            .map(|account| account.root_index.root_index())
             .collect()
     }
 
@@ -104,9 +100,43 @@ impl ValidityProofWithContext {
 pub struct AccountProofInputs {
     pub hash: [u8; 32],
     pub root: [u8; 32],
-    pub root_index: Option<u16>,
+    pub root_index: RootIndex,
     pub leaf_index: u64,
     pub tree_info: TreeInfo,
+}
+
+#[derive(Clone, Default, Copy, Debug, PartialEq)]
+pub struct RootIndex {
+    proof_by_index: bool,
+    root_index: u16,
+}
+
+impl RootIndex {
+    pub fn new_none() -> Self {
+        Self {
+            proof_by_index: true,
+            root_index: 0,
+        }
+    }
+
+    pub fn new_some(root_index: u16) -> Self {
+        Self {
+            proof_by_index: false,
+            root_index,
+        }
+    }
+
+    pub fn proof_by_index(&self) -> bool {
+        self.proof_by_index
+    }
+
+    pub fn root_index(&self) -> Option<u16> {
+        if !self.proof_by_index {
+            Some(self.root_index)
+        } else {
+            None
+        }
+    }
 }
 
 impl AccountProofInputs {
@@ -115,9 +145,9 @@ impl AccountProofInputs {
     ) -> Result<Self, IndexerError> {
         let root_index = {
             if value.root_index.prove_by_index {
-                None
+                RootIndex::new_none()
             } else {
-                Some(value.root_index.root_index)
+                RootIndex::new_some(value.root_index.root_index)
             }
         };
         Ok(Self {
@@ -173,11 +203,11 @@ impl ValidityProofWithContext {
             let merkle_tree_pubkey_index = packed_accounts.insert_or_get(account.tree_info.tree);
             let queue_pubkey_index = packed_accounts.insert_or_get(account.tree_info.queue);
             let tree_info_packed = PackedStateTreeInfo {
-                root_index: account.root_index.unwrap_or_default(),
+                root_index: account.root_index.root_index,
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,
                 leaf_index: account.leaf_index as u32,
-                prove_by_index: account.root_index.is_none(),
+                prove_by_index: account.root_index.proof_by_index(),
             };
             packed_tree_infos.push(tree_info_packed);
 
@@ -262,7 +292,7 @@ impl ValidityProofWithContext {
                 Ok(AccountProofInputs {
                     hash: decode_base58_to_fixed_array(&value.leaves[i])?,
                     root: decode_base58_to_fixed_array(&value.roots[i])?,
-                    root_index: Some(value.root_indices[i] as u16),
+                    root_index: RootIndex::new_some(value.root_indices[i] as u16),
                     leaf_index: value.leaf_indices[i] as u64,
                     tree_info: TreeInfo {
                         tree_type: tree_info.tree_type,

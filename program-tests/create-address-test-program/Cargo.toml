@@ -24,4 +24,5 @@ anchor-lang = { workspace = true }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
-light-sdk = { workspace = true, features = ["anchor", "v2"] }
+light-sdk = { workspace = true, features = ["anchor", "v2", "small_ix"] }
+light-sdk-types = { workspace = true }

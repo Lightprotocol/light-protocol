@@ -10,8 +10,7 @@ use light_sdk::{
     address::v1::derive_address,
     instruction::{
         account_meta::{CompressedAccountMeta, CompressedAccountMetaClose},
-        accounts::SystemAccountMetaConfig,
-        pack_accounts::PackedAccounts,
+        PackedAccounts, SystemAccountMetaConfig,
     },
 };
 use solana_sdk::{
@@ -138,7 +137,7 @@ where
         .value;
 
     let output_state_tree_index = rpc
-        .get_random_state_tree_info()
+        .get_random_state_tree_info()?
         .pack_output_tree_index(&mut remaining_accounts)?;
     let packed_address_tree_info = rpc_result
         .pack_tree_infos(&mut remaining_accounts)

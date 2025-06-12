@@ -1836,7 +1836,12 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
     } else {
         let input_account_len = input_accounts.as_ref().unwrap().len();
         index += input_account_len;
-        Some(account_root_indices[..index].to_vec())
+        Some(
+            account_root_indices[..index]
+                .iter()
+                .map(|x| x.root_index())
+                .collect::<Vec<_>>(),
+        )
     };
 
     let read_only_accounts = read_only_accounts.as_ref().map(|read_only_accounts| {
@@ -1844,7 +1849,8 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
             .iter()
             .map(|x| {
                 index += 1;
-                x.into_read_only(account_root_indices[index - 1]).unwrap()
+                x.into_read_only(account_root_indices[index - 1].root_index())
+                    .unwrap()
             })
             .collect::<Vec<_>>()
     });
@@ -1983,7 +1989,10 @@ pub async fn perform_with_input_accounts<R: Rpc, I: Indexer + TestIndexerExtensi
                 } else {
                     None
                 },
-                root_index: rpc_result.value.accounts[0].root_index.unwrap(),
+                root_index: rpc_result.value.accounts[0]
+                    .root_index
+                    .root_index()
+                    .unwrap(),
                 merkle_context: PackedMerkleContext {
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
@@ -2020,7 +2029,10 @@ pub async fn perform_with_input_accounts<R: Rpc, I: Indexer + TestIndexerExtensi
                 queue_pubkey_index: 1,
                 prove_by_index: false,
             },
-            root_index: rpc_result.value.accounts[0].root_index.unwrap(),
+            root_index: rpc_result.value.accounts[0]
+                .root_index
+                .root_index()
+                .unwrap(),
             read_only: false,
         },
         token_transfer_data,

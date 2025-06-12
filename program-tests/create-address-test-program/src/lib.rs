@@ -7,19 +7,27 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, pubkey::Pubkey},
     InstructionData,
 };
+use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, data::NewAddressParamsPacked,
 };
-use light_sdk::cpi::CpiAccountsConfig;
+use light_sdk::{
+    constants::LIGHT_SYSTEM_PROGRAM_ID,
+    cpi::{
+        invoke_light_system_program, to_account_metas, to_account_metas_small, CpiAccountsConfig,
+    },
+};
+
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
+
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 #[program]
 pub mod system_cpi_test {
-
-    use light_sdk::{cpi::invoke_light_system_program, PROGRAM_ID_LIGHT_SYSTEM};
 
     use super::*;
 
@@ -56,28 +64,37 @@ pub mod system_cpi_test {
         let (account_infos, account_metas) = if small_ix {
             use light_sdk::cpi::CpiAccountsSmall;
             let cpi_accounts =
-                CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config)
-                    .map_err(ProgramError::from)?;
-            let account_infos = cpi_accounts.to_account_infos();
+                CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+            let account_infos = cpi_accounts
+                .to_account_infos()
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>();
 
-            let account_metas = cpi_accounts.to_account_metas();
+            let account_metas = to_account_metas_small(cpi_accounts)
+                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
             (account_infos, account_metas)
         } else {
             use light_sdk::cpi::CpiAccounts;
             let cpi_accounts =
-                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config)
-                    .map_err(ProgramError::from)?;
-            let account_infos = cpi_accounts.to_account_infos();
+                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+            let account_infos = cpi_accounts
+                .to_account_infos()
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>();
 
-            let account_metas = cpi_accounts.to_account_metas();
+            let account_metas =
+                to_account_metas(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
             (account_infos, account_metas)
         };
         let instruction = Instruction {
-            program_id: PROGRAM_ID_LIGHT_SYSTEM,
+            program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
             accounts: account_metas,
             data: inputs,
         };
-        invoke_light_system_program(&crate::ID, &account_infos, instruction)
+        let cpi_config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
+        invoke_light_system_program(&account_infos, instruction, cpi_config.bump())
             .map_err(ProgramError::from)?;
         Ok(())
     }

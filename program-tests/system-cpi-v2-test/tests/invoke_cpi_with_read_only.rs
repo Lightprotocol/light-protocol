@@ -28,7 +28,10 @@ use light_program_test::{
     LightProgramTest, ProgramTestConfig,
 };
 use light_prover_client::prover::{spawn_prover, ProverConfig};
-use light_sdk::{NewAddressParamsAssigned, ReadOnlyAddress, ValidityProof};
+use light_sdk::{
+    address::{NewAddressParamsAssigned, ReadOnlyAddress},
+    instruction::ValidityProof,
+};
 use light_system_program::errors::SystemProgramError;
 use rand::{thread_rng, Rng};
 use serial_test::serial;
@@ -2827,6 +2830,10 @@ pub mod local_sdk {
     use std::collections::HashMap;
 
     use anchor_lang::{prelude::AccountMeta, AnchorSerialize};
+    use solana_sdk::pubkey::Pubkey;
+
+    const LIGHT_CPI_SIGNER: CpiSigner =
+        derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
     use create_address_test_program::create_invoke_read_only_account_info_instruction;
     use light_client::indexer::Indexer;
     use light_compressed_account::{
@@ -2838,6 +2845,7 @@ pub mod local_sdk {
         instruction_data::{
             compressed_proof::CompressedProof,
             cpi_context::CompressedCpiContext,
+            data::{OutputCompressedAccountWithContext, OutputCompressedAccountWithPackedContext},
             with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
             with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
         },
@@ -2845,9 +2853,10 @@ pub mod local_sdk {
     use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
     use light_program_test::indexer::TestIndexerExtensions;
     use light_sdk::{
-        cpi::CpiAccountsConfig, find_cpi_signer_macro, instruction::accounts::SystemAccountPubkeys,
-        NewAddressParamsAssigned, OutputCompressedAccountWithContext,
-        OutputCompressedAccountWithPackedContext, ReadOnlyAddress, CPI_AUTHORITY_PDA_SEED,
+        address::{NewAddressParamsAssigned, ReadOnlyAddress},
+        cpi::{CpiAccountsConfig, CpiSigner},
+        derive_light_cpi_signer,
+        instruction::SystemAccountPubkeys,
     };
     use light_system_program::constants::SOL_POOL_PDA_SEED;
     use light_test_utils::{
@@ -2858,10 +2867,7 @@ pub mod local_sdk {
         },
         Rpc, RpcError,
     };
-    use solana_sdk::{
-        pubkey::Pubkey,
-        signature::{Keypair, Signer},
-    };
+    use solana_sdk::signature::{Keypair, Signer};
 
     use crate::event::get_compressed_input_account;
 
@@ -3018,12 +3024,10 @@ pub mod local_sdk {
             [228, 34, 128, 84, 47, 139, 86, 240, 0, 0, 0, 0]
             // INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION
         };
-        let onchain_config = CpiAccountsConfig {
-            self_program: create_address_test_program::ID,
-            cpi_context: config.cpi_context.is_some(),
-            sol_pool_pda: config.sol_pool_pda.is_some(),
-            sol_compression_recipient: config.sol_compression_recipient.is_some(),
-        };
+        let mut onchain_config = CpiAccountsConfig::new(LIGHT_CPI_SIGNER);
+        onchain_config.cpi_context = config.cpi_context.is_some();
+        onchain_config.sol_pool_pda = config.sol_pool_pda.is_some();
+        onchain_config.sol_compression_recipient = config.sol_compression_recipient.is_some();
         let remaining_accounts =
             [get_light_system_account_metas(config), remaining_accounts].concat();
         println!("remaining_accounts {:?}", remaining_accounts);
@@ -3216,7 +3220,7 @@ pub mod local_sdk {
     }
 
     pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-        let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
+        let cpi_signer = Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer);
         println!("cpi signer {:?}", cpi_signer);
         let default_pubkeys = SystemAccountPubkeys::default();
         let mut vec = if config.small_ix {

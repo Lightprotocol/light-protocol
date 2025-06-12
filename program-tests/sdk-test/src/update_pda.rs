@@ -1,25 +1,23 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    cpi::{
-        create_light_system_progam_instruction_invoke_cpi, invoke_light_system_program,
-        CpiAccounts, CpiAccountsConfig, CpiInputs,
-    },
+    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
     error::LightSdkError,
-    instruction::account_meta::CompressedAccountMeta,
-    ValidityProof,
+    instruction::{account_meta::CompressedAccountMeta, ValidityProof},
 };
-use solana_program::account_info::AccountInfo;
+use solana_program::{account_info::AccountInfo, log::sol_log_compute_units};
 
 use crate::create_pda::MyCompressedAccount;
 
 /// CU usage:
 /// - sdk pre system program  9,183k CU
 /// - total with V2 tree: 50,194 CU (proof by index)
+/// - 51,609
 pub fn update_pda<const BATCHED: bool>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
+    sol_log_compute_units();
     let mut instruction_data = instruction_data;
     let instruction_data = UpdatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
@@ -31,27 +29,24 @@ pub fn update_pda<const BATCHED: bool>(
             data: instruction_data.my_compressed_account.data,
         },
     )?;
+    sol_log_compute_units();
 
     my_compressed_account.data = instruction_data.new_data;
 
-    let config = CpiAccountsConfig {
-        self_program: crate::ID,
-        cpi_context: false,
-        sol_pool_pda: false,
-        sol_compression_recipient: false,
-    };
+    let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
+    sol_log_compute_units();
     let cpi_accounts = CpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
-    )?;
+    );
+    sol_log_compute_units();
     let cpi_inputs = CpiInputs::new(
         instruction_data.proof,
         vec![my_compressed_account.to_account_info()?],
     );
-    let instruction = create_light_system_progam_instruction_invoke_cpi(cpi_inputs, &cpi_accounts)?;
-
-    invoke_light_system_program(&crate::ID, &cpi_accounts.to_account_infos(), instruction)?;
+    sol_log_compute_units();
+    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
     Ok(())
 }
 

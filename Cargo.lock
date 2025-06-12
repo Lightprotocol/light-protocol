@@ -1235,10 +1235,14 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-hasher",
  "light-program-test",
  "light-prover-client",
  "light-sdk",
+ "light-sdk-pinocchio",
+ "light-sdk-types",
  "light-test-utils",
+ "light-zero-copy",
  "rand 0.8.5",
  "solana-account",
  "solana-account-decoder-client-types",
@@ -1404,6 +1408,7 @@ dependencies = [
  "light-hasher",
  "light-program-test",
  "light-sdk",
+ "light-sdk-types",
  "solana-sdk",
  "tokio",
 ]
@@ -1435,6 +1440,7 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-sdk",
+ "light-sdk-types",
  "light-system-program-anchor",
 ]
 
@@ -3629,6 +3635,8 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
+ "light-sdk-types",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "solana-account-info",
  "solana-cpi",
@@ -3646,12 +3654,46 @@ dependencies = [
  "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
+ "light-macros",
  "light-poseidon 0.3.0",
+ "light-sdk-types",
  "prettyplease",
  "proc-macro2",
  "quote",
  "solana-pubkey",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "light-sdk-pinocchio"
+version = "0.12.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-zero-copy",
+ "pinocchio",
+ "solana-pubkey",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "light-sdk-types"
+version = "0.9.1"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-zero-copy",
+ "solana-pubkey",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -5277,7 +5319,25 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
+ "light-sdk-types",
  "light-test-utils",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
+name = "sdk-pinocchio-test"
+version = "1.0.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-pinocchio",
+ "light-sdk-types",
+ "pinocchio",
  "solana-sdk",
  "tokio",
 ]
@@ -5292,6 +5352,7 @@ dependencies = [
  "light-macros",
  "light-program-test",
  "light-sdk",
+ "light-sdk-types",
  "solana-program",
  "solana-sdk",
  "tokio",
@@ -8833,6 +8894,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
+ "light-sdk-types",
  "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
@@ -8861,6 +8923,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
+ "light-sdk-types",
  "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
@@ -9150,6 +9213,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
+ "light-sdk-types",
  "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",

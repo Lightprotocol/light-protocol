@@ -19,7 +19,8 @@ test-sbf = []
 default = []
 
 [dependencies]
-light-sdk = { workspace = true, features = ["solana"] }
+light-sdk = { workspace = true }
+light-sdk-types = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }

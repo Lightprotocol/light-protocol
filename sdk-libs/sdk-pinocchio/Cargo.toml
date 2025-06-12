@@ -1,0 +1,25 @@
+[package]
+name = "light-sdk-pinocchio"
+version = "0.12.0"
+description = "Rust SDK for ZK Compression on Solana with Pinocchio features"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+default = []
+v2 = ["light-sdk-types/v2"]
+small_ix = ["light-sdk-types/small_ix"]
+
+[dependencies]
+pinocchio = { workspace = true }
+light-hasher = { workspace = true }
+light-account-checks = { workspace = true, features = ["pinocchio"] }
+light-macros = { workspace = true }
+light-sdk-macros = { workspace = true }
+light-sdk-types = { workspace = true }
+light-zero-copy = { workspace = true }
+borsh = { workspace = true }
+thiserror = { workspace = true }
+light-compressed-account = { workspace = true }
+solana-pubkey = { workspace = true }

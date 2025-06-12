@@ -10,6 +10,7 @@ use light_registry::{
     protocol_config::state::ProtocolConfig,
 };
 use solana_instruction::Instruction;
+use solana_pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signature, Signer};
 
 pub async fn create_batched_state_merkle_tree<R: Rpc>(
@@ -59,7 +60,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
         &payer.pubkey(),
         ProtocolConfig::default().cpi_context_size as usize,
         rent_cpi_config,
-        &light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM,
+        &Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
         Some(cpi_context_keypair),
     );
     let instruction = if registry {

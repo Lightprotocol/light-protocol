@@ -8,13 +8,14 @@ use light_batched_merkle_tree::{
     },
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_account::hash_chain::create_hash_chain_from_slice;
+use light_compressed_account::{
+    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
+};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
     proof_client::ProofClient,
     proof_types::batch_address_append::get_batch_address_append_circuit_inputs,
 };
-use light_sdk::light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };

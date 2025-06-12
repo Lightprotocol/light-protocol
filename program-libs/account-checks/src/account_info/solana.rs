@@ -3,17 +3,26 @@ use crate::error::AccountError;
 
 /// Implement trait for solana AccountInfo
 impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
-    type DataRef<'a>
-        = std::cell::Ref<'a, [u8]>
+    type Pubkey = solana_pubkey::Pubkey;
+    type DataRef<'b>
+        = std::cell::Ref<'b, [u8]>
     where
-        Self: 'a;
-    type DataRefMut<'a>
-        = std::cell::RefMut<'a, [u8]>
+        Self: 'b;
+    type DataRefMut<'b>
+        = std::cell::RefMut<'b, [u8]>
     where
-        Self: 'a;
+        Self: 'b;
 
     fn key(&self) -> [u8; 32] {
         self.key.to_bytes()
+    }
+
+    fn pubkey(&self) -> Self::Pubkey {
+        *self.key
+    }
+
+    fn pubkey_from_bytes(bytes: [u8; 32]) -> Self::Pubkey {
+        solana_pubkey::Pubkey::from(bytes)
     }
 
     fn is_writable(&self) -> bool {

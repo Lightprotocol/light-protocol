@@ -1,5 +1,6 @@
 use light_client::rpc::RpcError;
-use light_sdk::utils::get_registered_program_pda;
+use light_compressed_account::constants::REGISTERED_PROGRAM_PDA;
+use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use litesvm::LiteSVM;
 use solana_compute_budget::compute_budget::ComputeBudget;
 use solana_pubkey::Pubkey;
@@ -72,7 +73,10 @@ pub fn setup_light_programs(
     {
         let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
         program_test
-            .add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path.clone())
+            .add_program_from_file(
+                light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
+                path.clone(),
+            )
             .inspect_err(|_| {
                 println!(
                     "Program light_system_program_pinocchio bin not found in {}",
@@ -84,13 +88,16 @@ pub fn setup_light_programs(
     #[cfg(not(feature = "devenv"))]
     {
         let path = format!("{}/light_system_program.so", light_bin_path);
-        program_test.add_program_from_file(light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM, path)?;
+        program_test.add_program_from_file(
+            Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
+            path,
+        )?;
     }
 
     let registered_program = registered_program_test_account_system_program();
     program_test
         .set_account(
-            get_registered_program_pda(&light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM),
+            Pubkey::new_from_array(REGISTERED_PROGRAM_PDA),
             registered_program,
         )
         .map_err(|e| {

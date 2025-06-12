@@ -7,6 +7,7 @@ use traits::process_light_traits;
 
 mod account;
 mod accounts;
+mod cpi_signer;
 mod discriminator;
 mod hasher;
 mod program;
@@ -269,4 +270,51 @@ pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
     program::program(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
+}
+
+/// Derives a Light Protocol CPI signer address at compile time
+///
+/// This macro computes the CPI signer PDA using the "cpi_authority" seed
+/// for the given program ID at compile time.
+///
+/// ## Usage
+///
+/// ```
+/// use light_sdk_macros::derive_light_cpi_signer_pda;
+/// // Derive CPI signer for your program
+/// const CPI_SIGNER_DATA: ([u8; 32], u8) = derive_light_cpi_signer_pda!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+/// const CPI_SIGNER: [u8; 32] = CPI_SIGNER_DATA.0;
+/// const CPI_SIGNER_BUMP: u8 = CPI_SIGNER_DATA.1;
+/// ```
+///
+/// This macro computes the PDA during compile time and returns a tuple of ([u8; 32], bump).
+#[proc_macro]
+pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
+    cpi_signer::derive_light_cpi_signer_pda(input)
+}
+
+/// Derives a complete Light Protocol CPI configuration at compile time
+///
+/// This macro computes the program ID, CPI signer PDA, and bump seed
+/// for the given program ID at compile time.
+///
+/// ## Usage
+///
+/// ```
+/// use light_sdk_macros::derive_light_cpi_signer;
+/// use light_sdk_types::CpiSigner;
+/// // Derive complete CPI signer for your program
+/// const LIGHT_CPI_SIGNER: CpiSigner = derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+///
+/// // Access individual fields:
+/// const PROGRAM_ID: [u8; 32] = LIGHT_CPI_SIGNER.program_id;
+/// const CPI_SIGNER: [u8; 32] = LIGHT_CPI_SIGNER.cpi_signer;
+/// const BUMP: u8 = LIGHT_CPI_SIGNER.bump;
+/// ```
+///
+/// This macro computes all values during compile time and returns a CpiSigner struct
+/// containing the program ID, CPI signer address, and bump seed.
+#[proc_macro]
+pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
+    cpi_signer::derive_light_cpi_signer(input)
 }

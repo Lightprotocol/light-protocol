@@ -206,7 +206,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
     }
 
     let registered_system_program_pda =
-        get_registered_program_pda(&light_sdk::constants::PROGRAM_ID_LIGHT_SYSTEM);
+        get_registered_program_pda(&Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID));
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
     let forester_epoch = if *register_forester_and_advance_to_active_phase {
         let mut registered_epoch = Epoch::register(

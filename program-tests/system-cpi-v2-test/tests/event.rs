@@ -32,7 +32,7 @@ use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{
     accounts::test_accounts::TestAccounts, LightProgramTest, ProgramTestConfig,
 };
-use light_sdk::NewAddressParamsAssigned;
+use light_sdk::address::NewAddressParamsAssigned;
 use light_test_utils::{
     pack::{
         pack_compressed_accounts, pack_new_address_params_assigned, pack_output_compressed_accounts,

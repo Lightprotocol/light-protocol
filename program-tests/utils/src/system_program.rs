@@ -363,7 +363,7 @@ pub async fn compressed_transaction_test<
             .value
             .accounts
             .iter()
-            .map(|x| x.root_index)
+            .map(|x| x.root_index.root_index())
             .collect::<Vec<_>>();
 
         if let Some(proof_rpc_res) = proof_rpc_res.value.proof.0 {

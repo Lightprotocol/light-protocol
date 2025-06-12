@@ -195,7 +195,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     /// Gets a random state tree info.
     /// State trees are cached and have to be fetched or set.
-    fn get_random_state_tree_info(&self) -> TreeInfo;
+    fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError>;
 
     fn get_address_tree_v1(&self) -> TreeInfo;
 

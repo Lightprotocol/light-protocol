@@ -20,8 +20,8 @@ use light_client::{
         GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
         Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
         MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions,
-        Response, RetryConfig, SignatureWithMetadata, StateMerkleTreeAccounts, TokenAccount,
-        TokenBalance, ValidityProofWithContext,
+        Response, RetryConfig, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts,
+        TokenAccount, TokenBalance, ValidityProofWithContext,
     },
     rpc::{Rpc, RpcError},
 };
@@ -60,8 +60,8 @@ use light_prover_client::{
     },
 };
 use light_sdk::{
+    light_hasher::Hash,
     token::{TokenData, TokenDataWithMerkleContext},
-    Hash,
 };
 use log::info;
 use num_bigint::{BigInt, BigUint};
@@ -477,11 +477,13 @@ impl Indexer for TestIndexer {
                             if accounts.output_queue_batch_size.is_some()
                                 && accounts.leaf_index_in_queue_range(*index as usize)?
                             {
+                                use light_client::indexer::RootIndex;
+
                                 indices_to_remove.push(i);
                                 proof_inputs.push(AccountProofInputs {
                                     hash: *compressed_account,
                                     root: [0u8; 32],
-                                    root_index: None,
+                                    root_index: RootIndex::new_none(),
                                     leaf_index: accounts
                                         .output_queue_elements
                                         .iter()
@@ -563,7 +565,6 @@ impl Indexer for TestIndexer {
                     }
                 }
                 root_indices
-                // root_indices.into_iter().map(|x| x.unwrap_or(0)).collect()
             };
 
             Ok(Response {
@@ -1932,7 +1933,7 @@ impl TestIndexer {
             });
 
             account_proof_inputs.push(AccountProofInputs {
-                root_index: Some(root_index),
+                root_index: RootIndex::new_some(root_index),
                 root: merkle_root,
                 leaf_index: leaf_index as u64,
                 hash: accounts[i],

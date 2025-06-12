@@ -148,9 +148,9 @@ use light_registry::{
     ForesterConfig,
 };
 use light_sdk::{
+    address::NewAddressParamsAssignedPacked,
+    constants::{ADDRESS_MERKLE_TREE_ROOTS, CPI_AUTHORITY_PDA_SEED, STATE_MERKLE_TREE_ROOTS},
     token::{AccountState, TokenDataWithMerkleContext},
-    NewAddressParamsAssignedPacked, ADDRESS_MERKLE_TREE_ROOTS, CPI_AUTHORITY_PDA_SEED,
-    STATE_MERKLE_TREE_ROOTS,
 };
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
@@ -2656,12 +2656,7 @@ where
                 .await
                 .unwrap();
 
-            root_indices = proof_rpc_res
-                .value
-                .accounts
-                .iter()
-                .map(|x| x.root_index)
-                .collect::<Vec<_>>();
+            root_indices = proof_rpc_res.value.get_root_indices();
 
             if let Some(proof_rpc_res) = proof_rpc_res.value.proof.0 {
                 proof = Some(proof_rpc_res);
@@ -2692,21 +2687,16 @@ where
             }
 
             if !read_only_accounts.is_empty() {
-                let account_root_indices: Vec<_> = proof_rpc_res
-                    .value
-                    .accounts
-                    .iter()
-                    .map(|x| x.root_index)
-                    .collect();
+                let account_root_indices: Vec<_> = proof_rpc_res.value.get_root_indices();
                 for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
-                    if let Some(root_index) = account_root_indices
-                        .get(i + input_accounts.len())
-                        .copied()
-                        .flatten()
+                    if let Some(root_index) =
+                        account_root_indices.get(i + input_accounts.len()).copied()
                     {
-                        input_account.root_index = root_index;
-                    } else {
-                        input_account.merkle_context.prove_by_index = true;
+                        if let Some(root_index) = root_index {
+                            input_account.root_index = root_index;
+                        } else {
+                            input_account.merkle_context.prove_by_index = true;
+                        }
                     }
                 }
             }

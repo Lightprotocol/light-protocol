@@ -15,7 +15,7 @@ use light_merkle_tree_reference::MerkleTree;
 use light_program_test::indexer::{
     state_tree::StateMerkleTreeBundle, TestIndexer, TestIndexerExtensions,
 };
-use light_sdk::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT};
+use light_sdk::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::{signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
