@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use dirs::home_dir;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
-use light_client::rpc::{LightClient, Rpc, LightClientConfig};
+use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_program_test::accounts::state_tree_v2::create_batched_state_merkle_tree;
 use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
 

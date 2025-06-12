@@ -12,7 +12,7 @@ use forester_utils::{
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, Rpc, LightClientConfig, RpcError},
+    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc, RpcError},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_registry::{utils::get_forester_epoch_pda_from_authority, ForesterEpochPda};

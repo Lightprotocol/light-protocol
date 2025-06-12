@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, merkle_tree::MerkleTreeExt, LightClient, Rpc, LightClientConfig},
+    rpc::{client::RpcUrl, merkle_tree::MerkleTreeExt, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
     address::derive_address,

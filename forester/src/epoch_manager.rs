@@ -16,7 +16,7 @@ use forester_utils::{
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
-    rpc::{LightClient, RetryConfig, Rpc, LightClientConfig, RpcError},
+    rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
 use light_registry::{

@@ -2,7 +2,7 @@ use std::{cmp::min, time::Duration};
 
 use async_trait::async_trait;
 use bb8::{Pool, PooledConnection};
-use light_client::rpc::{Rpc, LightClientConfig, RpcError};
+use light_client::rpc::{LightClientConfig, Rpc, RpcError};
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;

@@ -6,7 +6,7 @@ use forester::{
     },
     ForesterConfig,
 };
-use light_client::rpc::{LightClient, Rpc, LightClientConfig};
+use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_test_utils::RpcUrl;
 use reqwest::Url;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};

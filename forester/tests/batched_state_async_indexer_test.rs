@@ -12,7 +12,7 @@ use light_client::{
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     },
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, Rpc, LightClientConfig},
+    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
     address::derive_address_legacy,

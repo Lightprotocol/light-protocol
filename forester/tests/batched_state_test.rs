@@ -11,7 +11,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, Rpc, LightClientConfig},
+    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::TreeType;
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};

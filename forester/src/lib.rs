@@ -29,7 +29,7 @@ use forester_utils::{
 };
 use light_client::{
     indexer::Indexer,
-    rpc::{LightClient, Rpc, LightClientConfig},
+    rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;

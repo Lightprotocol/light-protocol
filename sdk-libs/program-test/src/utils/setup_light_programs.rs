@@ -44,7 +44,6 @@ pub fn setup_light_programs(
             "Found invalid light binary path {:?}",
             light_bin_path
         )))?;
-    std::env::set_var("SBF_OUT_DIR", light_bin_path);
     let path = format!("{}/light_registry.so", light_bin_path);
     program_test
         .add_program_from_file(light_registry::ID, path.clone())
@@ -122,6 +121,5 @@ pub fn setup_light_programs(
                 })?;
         }
     }
-    std::env::set_var("SBF_OUT_DIR", project_root_target_deploy_path);
     Ok(program_test)
 }

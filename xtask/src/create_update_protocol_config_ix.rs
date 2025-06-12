@@ -1,6 +1,6 @@
 use account_compression::processor::initialize_address_merkle_tree::AnchorDeserialize;
 use clap::Parser;
-use light_client::rpc::{LightClient, Rpc, LightClientConfig};
+use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_registry::{
     protocol_config::state::ProtocolConfigPda, sdk::create_update_protocol_config_instruction,
     utils::get_protocol_config_pda_address,
