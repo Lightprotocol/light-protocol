@@ -132,7 +132,7 @@ export const isLocalTest = (url: string) => {
 /**
  * @internal
  */
-export const localTestActiveStateTreeInfo = (): TreeInfo[] => {
+export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
     return [
         {
             tree: new PublicKey(merkletreePubkey),
@@ -204,9 +204,9 @@ export const nullifiedStateTreeLookupTableMainnet =
     'H9QD4u1fG7KmkAzn2tDXhheushxFe1EcrjGGyEFXeMqT';
 
 export const stateTreeLookupTableDevnet =
-    'Dk9mNkbiZXJZ4By8DfSP6HEE4ojZzRvucwpawLeuwq8q'; // '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
+    'Dk9mNkbiZXJZ4By8DfSP6HEE4ojZzRvucwpawLeuwq8q';
 export const nullifiedStateTreeLookupTableDevnet =
-    'AXbHzp1NgjLvpfnD6JRTTovXZ7APUCdtWZFCRr5tCxse'; // '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
+    'AXbHzp1NgjLvpfnD6JRTTovXZ7APUCdtWZFCRr5tCxse';
 
 export const nullifierQueuePubkey =
     'nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148';

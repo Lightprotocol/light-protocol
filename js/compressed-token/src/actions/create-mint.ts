@@ -68,12 +68,17 @@ export async function createMint(
     const { blockhash } = await rpc.getLatestBlockhash();
 
     // Get required additional signers that are Keypairs, not the payer.
-    const additionalSigners = [mintAuthority, freezeAuthority].filter(
-        (signer): signer is Signer =>
-            signer instanceof Keypair &&
-            !signer.publicKey.equals(payer.publicKey) &&
-            !additionalSigners?.some(s => s.publicKey.equals(signer.publicKey)),
-    );
+    const additionalSigners = [mintAuthority, freezeAuthority]
+        .filter(
+            (signer): signer is Signer =>
+                signer instanceof Keypair &&
+                !signer.publicKey.equals(payer.publicKey),
+        )
+        .filter(
+            (signer, index, array) =>
+                array.findIndex(s => s.publicKey.equals(signer.publicKey)) ===
+                index,
+        );
 
     const tx = buildAndSignTx(ixs, payer, blockhash, [
         ...additionalSigners,

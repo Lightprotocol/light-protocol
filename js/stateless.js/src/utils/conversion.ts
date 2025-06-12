@@ -131,7 +131,7 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
         data.input_compressed_accounts.map((account: any) => {
             const compressedAccount: CompressedAccountLegacy = {
                 owner: new PublicKey(Buffer.alloc(32)),
-                lamports: account.lamports,
+                lamports: bn(account.lamports),
                 address: account.address,
                 data: null,
             };

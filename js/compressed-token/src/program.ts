@@ -23,6 +23,7 @@ import {
     TreeInfo,
     CompressedProof,
     featureFlags,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -652,7 +653,8 @@ export class CompressedTokenProgram {
         mint: PublicKey,
     ): [number, number] {
         for (let index = 0; index < 5; index++) {
-            const derivedPda = this.deriveTokenPoolPdaWithIndex(mint, index);
+            const derivedPda =
+                CompressedTokenProgram.deriveTokenPoolPdaWithIndex(mint, index);
             if (derivedPda[0].equals(poolPda)) {
                 return [index, derivedPda[1]];
             }
@@ -898,9 +900,10 @@ export class CompressedTokenProgram {
             noopProgram: systemKeys.noopProgram,
             accountCompressionAuthority: systemKeys.accountCompressionAuthority,
             accountCompressionProgram: systemKeys.accountCompressionProgram,
-            merkleTree: featureFlags.isV2()
-                ? outputStateTreeInfo.queue
-                : outputStateTreeInfo.tree,
+            merkleTree:
+                outputStateTreeInfo.treeType === TreeType.StateV2
+                    ? outputStateTreeInfo.queue
+                    : outputStateTreeInfo.tree,
             selfProgram: this.programId,
             systemProgram: SystemProgram.programId,
             solPoolPda: null,
@@ -1442,9 +1445,10 @@ export class CompressedTokenProgram {
         checkTokenPoolInfo(tokenPoolInfo, mint);
         const remainingAccountMetas: AccountMeta[] = [
             {
-                pubkey: featureFlags.isV2()
-                    ? outputStateTreeInfo.queue
-                    : outputStateTreeInfo.tree,
+                pubkey:
+                    outputStateTreeInfo.treeType === TreeType.StateV2
+                        ? outputStateTreeInfo.queue
+                        : outputStateTreeInfo.tree,
                 isSigner: false,
                 isWritable: true,
             },
@@ -1533,7 +1537,11 @@ export class CompressedTokenProgram {
             inputCompressedTokenAccounts,
         );
 
-        const CHANGE_INDEX = featureFlags.isV2() ? 1 : 0; // TODO: find better solution.
+        const CHANGE_INDEX =
+            inputCompressedTokenAccounts[0].compressedAccount.treeInfo
+                .treeType === TreeType.StateV2
+                ? 1
+                : 0;
 
         const rawData: CompressedTokenInstructionDataApprove = {
             proof: recentValidityProof,
@@ -1612,7 +1620,11 @@ export class CompressedTokenProgram {
             mint,
             inputTokenDataWithContext,
             cpiContext: null,
-            outputAccountMerkleTreeIndex: featureFlags.isV2() ? 2 : 1,
+            outputAccountMerkleTreeIndex:
+                inputCompressedTokenAccounts[0].compressedAccount.treeInfo
+                    .treeType === TreeType.StateV2
+                    ? 2
+                    : 1,
         };
         const data = encodeRevokeInstructionData(rawData);
 

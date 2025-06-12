@@ -73,11 +73,6 @@ export type BatchCompressInstructionData = {
     bump: number;
 };
 
-//     pub amounts: Option<Vec<u64>>,
-//     pub lamports: Option<u64>,
-//     pub amount: Option<u64>,
-//     pub index: u8,
-//     pub bump: u8,
 
 export type MintToInstructionData = {
     recipients: PublicKey[];

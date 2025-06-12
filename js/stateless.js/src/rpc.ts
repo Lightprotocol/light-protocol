@@ -69,7 +69,7 @@ import {
 import { array, create, nullable } from 'superstruct';
 import {
     defaultTestStateTreeAccounts,
-    localTestActiveStateTreeInfo,
+    localTestActiveStateTreeInfos,
     isLocalTest,
     defaultStateTreeLookupTables,
     versionedEndpoint,
@@ -641,7 +641,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getStateTreeInfos(): Promise<TreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
-            return localTestActiveStateTreeInfo();
+            return localTestActiveStateTreeInfos();
         }
 
         // return cached

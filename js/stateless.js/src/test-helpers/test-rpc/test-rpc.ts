@@ -14,7 +14,7 @@ import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import {
     defaultTestStateTreeAccounts,
-    localTestActiveStateTreeInfo,
+    localTestActiveStateTreeInfos,
 } from '../../constants';
 import {
     AddressWithTree,
@@ -169,7 +169,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * Returns local test state trees.
      */
     async getStateTreeInfos(): Promise<TreeInfo[]> {
-        return localTestActiveStateTreeInfo();
+        return localTestActiveStateTreeInfos();
     }
     async doFetch(): Promise<TreeInfo[]> {
         throw new Error('doFetch not supported in test-rpc');

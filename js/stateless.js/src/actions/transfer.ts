@@ -11,7 +11,7 @@ import {
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
 import { Rpc } from '../rpc';
-import { bn, CompressedAccountWithMerkleContext, TreeInfo } from '../state';
+import { bn, CompressedAccountWithMerkleContext } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 
