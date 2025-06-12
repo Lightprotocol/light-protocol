@@ -96,6 +96,7 @@ case "$1" in
             "combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
             "append-with-proofs_32:500"
             "update_32:500"
+            "address-append_40:250"
         )
         ;;
     *)

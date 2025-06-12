@@ -1,19 +1,11 @@
 pub mod append_with_proofs_32_10;
-pub mod append_with_proofs_32_100;
-pub mod append_with_proofs_32_1000;
 pub mod append_with_proofs_32_500;
 
-pub mod update_32_1;
 pub mod update_32_10;
-pub mod update_32_100;
-pub mod update_32_1000;
 pub mod update_32_500;
 
-pub mod address_append_40_1;
 pub mod address_append_40_10;
-pub mod address_append_40_100;
-pub mod address_append_40_1000;
-pub mod address_append_40_500;
+pub mod address_append_40_250;
 
 pub mod inclusion_26_1;
 pub mod inclusion_26_2;
