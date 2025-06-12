@@ -311,20 +311,10 @@ pub fn verify_batch_append_with_proofs(
             compressed_proof,
             &append_with_proofs_32_10::VERIFYINGKEY,
         ),
-        100 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_proofs_32_100::VERIFYINGKEY,
-        ),
         500 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
             &append_with_proofs_32_500::VERIFYINGKEY,
-        ),
-        1000 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &append_with_proofs_32_1000::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }
@@ -337,30 +327,15 @@ pub fn verify_batch_update(
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {
     match batch_size {
-        1 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &update_32_1::VERIFYINGKEY,
-        ),
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
             &update_32_10::VERIFYINGKEY,
         ),
-        100 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &update_32_100::VERIFYINGKEY,
-        ),
         500 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
             &update_32_500::VERIFYINGKEY,
-        ),
-        1000 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &update_32_1000::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }
@@ -373,30 +348,15 @@ pub fn verify_batch_address_update(
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {
     match batch_size {
-        1 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &crate::verifying_keys::address_append_40_1::VERIFYINGKEY,
-        ),
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
             &crate::verifying_keys::address_append_40_10::VERIFYINGKEY,
         ),
-        100 => verify::<1>(
+        250 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &crate::verifying_keys::address_append_40_100::VERIFYINGKEY,
-        ),
-        500 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &crate::verifying_keys::address_append_40_500::VERIFYINGKEY,
-        ),
-        1000 => verify::<1>(
-            &[public_input_hash],
-            compressed_proof,
-            &crate::verifying_keys::address_append_40_1000::VERIFYINGKEY,
+            &crate::verifying_keys::address_append_40_250::VERIFYINGKEY,
         ),
         _ => Err(crate::InvalidPublicInputsLength),
     }
