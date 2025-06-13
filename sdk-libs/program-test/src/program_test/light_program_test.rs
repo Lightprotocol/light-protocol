@@ -1,7 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
-use forester_utils::utils::airdrop_lamports;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{merkle_tree::MerkleTreeExt, RpcError},
@@ -61,16 +60,24 @@ impl LightProgramTest {
             config: config.clone(),
         };
         let keypairs = TestKeypairs::program_test_default();
-        airdrop_lamports(
-            &mut context,
-            &keypairs.governance_authority.pubkey(),
-            100_000_000_000,
-        )
-        .await?;
-        airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000).await?;
+
+        context
+            .context
+            .airdrop(&keypairs.governance_authority.pubkey(), 100_000_000_000_000)
+            .expect("governance_authority airdrop failed.");
+        context
+            .context
+            .airdrop(&keypairs.forester.pubkey(), 10_000_000_000)
+            .expect("forester airdrop failed.");
 
         if !config.skip_protocol_init {
+            if context.config.skip_startup_logs {
+                context.config.no_logs = true;
+            }
             initialize_accounts(&mut context, &config, &keypairs).await?;
+            if context.config.skip_startup_logs {
+                context.config.no_logs = false;
+            }
             let batch_size = config
                 .v2_state_tree_config
                 .as_ref()

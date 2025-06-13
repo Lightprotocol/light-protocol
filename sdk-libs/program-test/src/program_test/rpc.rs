@@ -146,10 +146,12 @@ impl Rpc for LightProgramTest {
 
                 RpcError::TransactionError(x.err)
             })?;
-            #[cfg(debug_assertions)]
-            {
-                if std::env::var("RUST_BACKTRACE").is_ok() {
-                    println!("{}", _res.pretty_logs());
+            if !self.config.no_logs {
+                #[cfg(debug_assertions)]
+                {
+                    if std::env::var("RUST_BACKTRACE").is_ok() {
+                        println!("{}", _res.pretty_logs());
+                    }
                 }
             }
         }
@@ -408,14 +410,17 @@ impl LightProgramTest {
 
             RpcError::TransactionError(x.err)
         })?;
-        #[cfg(debug_assertions)]
-        {
-            if std::env::var("RUST_BACKTRACE").is_ok() {
-                // Print all tx logs and events.
-                println!("{}", _res.pretty_logs());
-                println!("event:\n {:?}", event);
+        if !self.config.no_logs {
+            #[cfg(debug_assertions)]
+            {
+                if std::env::var("RUST_BACKTRACE").is_ok() {
+                    // Print all tx logs and events.
+                    println!("{}", _res.pretty_logs());
+                    println!("event:\n {:?}", event);
+                }
             }
         }
+
         let slot = self.context.get_sysvar::<Clock>().slot;
         let event = event.map(|e| (e, signature, slot));
 
