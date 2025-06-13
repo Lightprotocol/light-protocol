@@ -12,7 +12,7 @@ use forester_utils::{
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig, RpcError},
+    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc, RpcError},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_registry::{utils::get_forester_epoch_pda_from_authority, ForesterEpochPda};
@@ -60,7 +60,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         .await
         .unwrap();
 
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::confirmed()),
         fetch_active_tree: false,
@@ -408,7 +408,7 @@ async fn test_epoch_double_registration() {
         .await
         .unwrap();
 
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::confirmed()),
         fetch_active_tree: false,

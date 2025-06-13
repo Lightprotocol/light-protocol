@@ -11,7 +11,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig},
+    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::TreeType;
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
@@ -67,7 +67,7 @@ async fn test_state_batched() {
         .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(commitment_config),
         fetch_active_tree: false,

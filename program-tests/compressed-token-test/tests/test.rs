@@ -15,7 +15,7 @@ use forester_utils::{instructions::create_account_instruction, utils::airdrop_la
 use light_client::{
     indexer::Indexer,
     local_test_validator::{spawn_validator, LightValidatorConfig},
-    rpc::RpcConfig,
+    rpc::LightClientConfig,
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -5493,7 +5493,7 @@ async fn test_transfer_with_photon_and_batched_tree() {
     })
     .await;
 
-    let mut rpc = LightClient::new(RpcConfig::local_no_indexer())
+    let mut rpc = LightClient::new(LightClientConfig::local_no_indexer())
         .await
         .unwrap();
     let env = TestAccounts::get_local_test_validator_accounts();

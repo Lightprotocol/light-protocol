@@ -24,14 +24,14 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct RpcConfig {
+pub struct LightClientConfig {
     pub url: String,
     pub commitment_config: Option<CommitmentConfig>,
     pub with_indexer: bool,
     pub fetch_active_tree: bool,
 }
 
-impl RpcConfig {
+impl LightClientConfig {
     pub fn new(url: String) -> Self {
         Self {
             url,
@@ -70,7 +70,7 @@ impl RpcConfig {
 
 #[async_trait]
 pub trait Rpc: Send + Sync + Debug + 'static {
-    async fn new(config: RpcConfig) -> Result<Self, RpcError>
+    async fn new(config: LightClientConfig) -> Result<Self, RpcError>
     where
         Self: Sized;
 

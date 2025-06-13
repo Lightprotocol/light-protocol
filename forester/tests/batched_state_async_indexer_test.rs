@@ -12,7 +12,7 @@ use light_client::{
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     },
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, Rpc, RpcConfig},
+    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
     address::derive_address_legacy,
@@ -222,7 +222,7 @@ async fn test_state_indexer_async_batched() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         commitment_config: Some(CommitmentConfig::processed()),
         fetch_active_tree: false,

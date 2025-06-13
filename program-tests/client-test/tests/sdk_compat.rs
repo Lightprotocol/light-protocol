@@ -34,6 +34,7 @@ fn generate_all_solana_errors() -> Vec<SolanaLightSdkError> {
         SolanaLightSdkError::MetaMutOutputIsNone,
         SolanaLightSdkError::MetaCloseAddressIsNone,
         SolanaLightSdkError::MetaCloseInputIsNone,
+        SolanaLightSdkError::CpiAccountsIndexOutOfBounds(1),
         SolanaLightSdkError::Hasher(HasherError::IntegerOverflow),
         SolanaLightSdkError::ZeroCopy(ZeroCopyError::Full),
     ]
@@ -70,6 +71,7 @@ fn generate_all_pinocchio_errors() -> Vec<PinocchioLightSdkError> {
         PinocchioLightSdkError::MetaMutOutputIsNone,
         PinocchioLightSdkError::MetaCloseAddressIsNone,
         PinocchioLightSdkError::MetaCloseInputIsNone,
+        PinocchioLightSdkError::CpiAccountsIndexOutOfBounds(1),
         PinocchioLightSdkError::Hasher(HasherError::IntegerOverflow),
         PinocchioLightSdkError::ZeroCopy(ZeroCopyError::Full),
     ]

@@ -27,6 +27,8 @@ pub struct ProgramTestConfig {
     pub v2_address_tree_config: Option<InitAddressTreeAccountsInstructionData>,
     pub skip_protocol_init: bool,
     pub log_failed_tx: bool,
+    pub no_logs: bool,
+    pub skip_startup_logs: bool,
 }
 
 impl ProgramTestConfig {
@@ -117,6 +119,8 @@ impl Default for ProgramTestConfig {
             skip_protocol_init: false,
             skip_v1_trees: false,
             log_failed_tx: true,
+            no_logs: false,
+            skip_startup_logs: true,
         }
     }
 }

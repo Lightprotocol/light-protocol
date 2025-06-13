@@ -29,7 +29,7 @@ use forester_utils::{
 };
 use light_client::{
     indexer::Indexer,
-    rpc::{LightClient, Rpc, RpcConfig},
+    rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -51,7 +51,7 @@ pub async fn run_queue_info(
     trees: Vec<TreeAccounts>,
     queue_type: TreeType,
 ) {
-    let mut rpc = LightClient::new(RpcConfig {
+    let mut rpc = LightClient::new(LightClientConfig {
         url: config.external_services.rpc_url.to_string(),
         commitment_config: None,
         fetch_active_tree: false,

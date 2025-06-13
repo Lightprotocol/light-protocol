@@ -4,7 +4,7 @@ use light_client::{
         IndexerRpcConfig, PaginatedOptions, RetryConfig,
     },
     local_test_validator::{spawn_validator, LightValidatorConfig},
-    rpc::{LightClient, RpcConfig},
+    rpc::{LightClient, LightClientConfig},
 };
 use light_compressed_account::hash_to_bn254_field_size_be;
 use light_compressed_token::mint_sdk::{
@@ -59,7 +59,7 @@ async fn test_all_endpoints() {
     spawn_validator(config).await;
 
     let test_accounts = TestAccounts::get_local_test_validator_accounts();
-    let mut rpc: LightClient = LightClient::new(RpcConfig::local()).await.unwrap();
+    let mut rpc: LightClient = LightClient::new(LightClientConfig::local()).await.unwrap();
 
     let payer_pubkey = rpc.get_payer().pubkey();
     rpc.airdrop_lamports(&payer_pubkey, 10 * LAMPORTS_PER_SOL)
