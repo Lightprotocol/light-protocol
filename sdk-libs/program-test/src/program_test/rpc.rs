@@ -39,7 +39,9 @@ impl Rpc for LightProgramTest {
     where
         Self: Sized,
     {
-        unimplemented!()
+        Err(RpcError::CustomError(
+            "LightProgramTest::new is not supported in program-test context".into(),
+        ))
     }
 
     fn get_payer(&self) -> &Keypair {
@@ -146,14 +148,7 @@ impl Rpc for LightProgramTest {
 
                 RpcError::TransactionError(x.err)
             })?;
-            if !self.config.no_logs {
-                #[cfg(debug_assertions)]
-                {
-                    if std::env::var("RUST_BACKTRACE").is_ok() {
-                        println!("{}", _res.pretty_logs());
-                    }
-                }
-            }
+            self.maybe_print_logs(_res.pretty_logs());
         }
         Ok(sig)
     }
@@ -164,20 +159,12 @@ impl Rpc for LightProgramTest {
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
         let _res = self.context.send_transaction(transaction).map_err(|x| {
-            #[cfg(not(debug_assertions))]
-            {
-                if self.config.log_failed_tx {
-                    println!("{}", x.meta.pretty_logs());
-                }
+            if self.config.log_failed_tx {
+                println!("{}", x.meta.pretty_logs());
             }
             RpcError::TransactionError(x.err)
         })?;
-        #[cfg(debug_assertions)]
-        {
-            if std::env::var("RUST_BACKTRACE").is_ok() {
-                println!("{}", _res.pretty_logs());
-            }
-        }
+        self.maybe_print_logs(_res.pretty_logs());
 
         let slot = self.context.get_sysvar::<Clock>().slot;
         Ok((sig, slot))
@@ -303,6 +290,12 @@ impl Rpc for LightProgramTest {
 }
 
 impl LightProgramTest {
+    fn maybe_print_logs(&self, logs: impl std::fmt::Display) {
+        if !self.config.no_logs && cfg!(debug_assertions) && std::env::var("RUST_BACKTRACE").is_ok()
+        {
+            println!("{}", logs);
+        }
+    }
     #[cfg(feature = "v2")]
     pub fn get_address_tree_v2(&self) -> TreeInfo {
         TreeInfo {
@@ -474,20 +467,12 @@ impl LightProgramTest {
             });
         // If transaction was successful, execute it.
         let _res = self.context.send_transaction(transaction).map_err(|x| {
-            #[cfg(not(debug_assertions))]
-            {
-                if self.config.log_failed_tx {
-                    println!("{}", x.meta.pretty_logs());
-                }
+            if self.config.log_failed_tx {
+                println!("{}", x.meta.pretty_logs());
             }
             RpcError::TransactionError(x.err)
         })?;
-        #[cfg(debug_assertions)]
-        {
-            if std::env::var("RUST_BACKTRACE").is_ok() {
-                println!("{}", _res.pretty_logs());
-            }
-        }
+        self.maybe_print_logs(_res.pretty_logs());
 
         let slot = self.get_slot().await?;
         let result = event.map(|event| (event, signature, slot));

@@ -71,12 +71,13 @@ impl LightProgramTest {
             .expect("forester airdrop failed.");
 
         if !config.skip_protocol_init {
+            let restore_logs = context.config.no_logs;
             if context.config.skip_startup_logs {
                 context.config.no_logs = true;
             }
             initialize_accounts(&mut context, &config, &keypairs).await?;
             if context.config.skip_startup_logs {
-                context.config.no_logs = false;
+                context.config.no_logs = restore_logs;
             }
             let batch_size = config
                 .v2_state_tree_config
