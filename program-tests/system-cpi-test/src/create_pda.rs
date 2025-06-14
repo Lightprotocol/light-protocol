@@ -438,10 +438,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         cpi_ctx.remaining_accounts = remaining_accounts;
 
-        light_system_program::cpi::invoke_cpi_with_read_only(
-            cpi_ctx,
-            inputs_struct.try_to_vec().unwrap(),
-        )?;
+        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs_struct)?;
     } else {
         let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
             fee_payer: ctx.accounts.signer.to_account_info(),

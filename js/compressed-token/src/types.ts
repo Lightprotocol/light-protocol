@@ -73,7 +73,6 @@ export type BatchCompressInstructionData = {
     bump: number;
 };
 
-
 export type MintToInstructionData = {
     recipients: PublicKey[];
     amounts: BN[];

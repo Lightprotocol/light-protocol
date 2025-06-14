@@ -465,11 +465,10 @@ pub fn cpi_execute_compressed_transaction_transfer<
         InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs)
             .map_err(ProgramError::from)?;
 
-        let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+        let mut data = Vec::with_capacity(8 + inputs.len());
         data.extend_from_slice(
             &light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY,
         );
-        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
         data.extend(inputs);
 
         // 4 static accounts
