@@ -16,6 +16,7 @@ export enum VERSION {
 export const featureFlags = {
     version: ((): VERSION => {
         // Check if we're in a build environment (replaced by rollup)
+        // eslint-disable-next-line no-constant-condition
         if ('__BUILD_VERSION__' !== '__BUILD_' + 'VERSION__') {
             return '__BUILD_VERSION__' as VERSION;
         }

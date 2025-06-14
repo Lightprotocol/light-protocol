@@ -1,3 +1,4 @@
+/* global process */
 import typescript from '@rollup/plugin-typescript';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
 import dts from 'rollup-plugin-dts';
