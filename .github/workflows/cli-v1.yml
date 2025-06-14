@@ -11,32 +11,20 @@ on:
       - reopened
       - ready_for_review
 
-name: js-tests-v1
+name: cli-tests-v1
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  stateless-js-v1:
-    name: stateless-js-v1
+  cli-v1:
+    name: cli-v1
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
-    services:
-      redis:
-        image: redis:8.0.1
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       LIGHT_PROTOCOL_VERSION: V1
-      REDIS_URL: redis://localhost:6379
 
     steps:
       - name: Checkout sources
@@ -44,15 +32,13 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-        # with:
-        #   components: "node,pnpm,solana,anchor,jq,keys,dependencies"
 
-      - name: Run stateless.js tests with V1
+      - name: Build CLI with V1
         run: |
           source ./scripts/devenv.sh
-          npx nx test @lightprotocol/stateless.js
+          npx nx build @lightprotocol/zk-compression-cli
 
-      - name: Run compressed-token tests with V1
+      - name: Run CLI tests with V1
         run: |
           source ./scripts/devenv.sh
-          npx nx test @lightprotocol/compressed-token
+          npx nx test @lightprotocol/zk-compression-cli
