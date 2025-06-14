@@ -33,6 +33,18 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
+      - name: Build stateless.js with V2
+        run: |
+          source ./scripts/devenv.sh
+          cd js/stateless.js
+          pnpm build:v2
+
+      - name: Build compressed-token with V2
+        run: |
+          source ./scripts/devenv.sh
+          cd js/compressed-token
+          pnpm build:v2
+
       - name: Build CLI with V2
         run: |
           source ./scripts/devenv.sh
