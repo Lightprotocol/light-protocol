@@ -395,7 +395,11 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
 
         let instruction = create_invoke_cpi_instruction(
             payer.pubkey(),
-            ix_data.try_to_vec()?,
+            [
+                light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
+                ix_data.try_to_vec()?,
+            ]
+            .concat(),
             remaining_accounts,
             None,
         );
