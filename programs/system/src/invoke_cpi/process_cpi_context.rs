@@ -105,7 +105,8 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     use borsh::{BorshDeserialize, BorshSerialize};
     let cpi_context_account = {
         let data = cpi_context_account_info.try_borrow_data()?;
-        let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..]).unwrap();
+        let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..])
+            .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
         if instruction_data.cpi_context().unwrap().first_set_context {
             cpi_context_account.context.clear();
             cpi_context_account.fee_payer = fee_payer;

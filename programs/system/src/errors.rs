@@ -1,3 +1,8 @@
+use light_account_checks::error::AccountError;
+use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
+use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
+use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
+use light_zero_copy::errors::ZeroCopyError;
 use pinocchio::program_error::ProgramError;
 use thiserror::Error;
 
@@ -107,10 +112,90 @@ pub enum SystemProgramError {
     InvalidTreeHeight,
     #[error("TooManyOutputAccounts")]
     TooManyOutputAccounts,
+    #[error("Batched Merkle tree error {0}")]
+    BatchedMerkleTreeError(#[from] BatchedMerkleTreeError),
+    #[error("Concurrent Merkle tree error {0}")]
+    ConcurrentMerkleTreeError(#[from] ConcurrentMerkleTreeError),
+    #[error("Indexed Merkle tree error {0}")]
+    IndexedMerkleTreeError(#[from] IndexedMerkleTreeError),
+    #[error("Account checks error {0}")]
+    AccountError(#[from] AccountError),
+    #[error("Zero copy error {0}")]
+    ZeroCopyError(#[from] ZeroCopyError),
+    #[error("Program error code: {0}")]
+    ProgramError(u64),
+    #[error("Borrowing data failed")]
+    BorrowingDataFailed,
+}
+
+impl From<SystemProgramError> for u32 {
+    fn from(e: SystemProgramError) -> u32 {
+        match e {
+            SystemProgramError::SumCheckFailed => 6000,
+            SystemProgramError::SignerCheckFailed => 6001,
+            SystemProgramError::CpiSignerCheckFailed => 6002,
+            SystemProgramError::ComputeInputSumFailed => 6003,
+            SystemProgramError::ComputeOutputSumFailed => 6004,
+            SystemProgramError::ComputeRpcSumFailed => 6005,
+            SystemProgramError::InvalidAddress => 6006,
+            SystemProgramError::DeriveAddressError => 6007,
+            SystemProgramError::CompressedSolPdaUndefinedForCompressSol => 6008,
+            SystemProgramError::DecompressLamportsUndefinedForCompressSol => 6009,
+            SystemProgramError::CompressedSolPdaUndefinedForDecompressSol => 6010,
+            SystemProgramError::DeCompressLamportsUndefinedForDecompressSol => 6011,
+            SystemProgramError::DecompressRecipientUndefinedForDecompressSol => 6012,
+            SystemProgramError::WriteAccessCheckFailed => 6013,
+            SystemProgramError::InvokingProgramNotProvided => 6014,
+            SystemProgramError::InvalidCapacity => 6015,
+            SystemProgramError::InvalidMerkleTreeOwner => 6016,
+            SystemProgramError::ProofIsNone => 6017,
+            SystemProgramError::ProofIsSome => 6018,
+            SystemProgramError::EmptyInputs => 6019,
+            SystemProgramError::CpiContextAccountUndefined => 6020,
+            SystemProgramError::CpiContextEmpty => 6021,
+            SystemProgramError::CpiContextMissing => 6022,
+            SystemProgramError::DecompressionRecipientDefined => 6023,
+            SystemProgramError::SolPoolPdaDefined => 6024,
+            SystemProgramError::AppendStateFailed => 6025,
+            SystemProgramError::InstructionNotCallable => 6026,
+            SystemProgramError::CpiContextFeePayerMismatch => 6027,
+            SystemProgramError::CpiContextAssociatedMerkleTreeMismatch => 6028,
+            SystemProgramError::NoInputs => 6029,
+            SystemProgramError::InputMerkleTreeIndicesNotInOrder => 6030,
+            SystemProgramError::OutputMerkleTreeIndicesNotInOrder => 6031,
+            SystemProgramError::OutputMerkleTreeNotUnique => 6032,
+            SystemProgramError::DataFieldUndefined => 6033,
+            SystemProgramError::ReadOnlyAddressAlreadyExists => 6034,
+            SystemProgramError::ReadOnlyAccountDoesNotExist => 6035,
+            SystemProgramError::HashChainInputsLenghtInconsistent => 6036,
+            SystemProgramError::InvalidAddressTreeHeight => 6037,
+            SystemProgramError::InvalidStateTreeHeight => 6038,
+            SystemProgramError::InvalidArgument => 6039,
+            SystemProgramError::InvalidAccount => 6040,
+            SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch => 6041,
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch => 6042,
+            SystemProgramError::ProofVerificationFailed => 6043,
+            SystemProgramError::InvalidAccountMode => 6044,
+            SystemProgramError::InvalidInstructionDataDiscriminator => 6045,
+            SystemProgramError::NewAddressAssignedIndexOutOfBounds => 6046,
+            SystemProgramError::AddressIsNone => 6047,
+            SystemProgramError::AddressDoesNotMatch => 6048,
+            SystemProgramError::CpiContextAlreadySet => 6049,
+            SystemProgramError::InvalidTreeHeight => 6050,
+            SystemProgramError::TooManyOutputAccounts => 6051,
+            SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
+            SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
+            SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),
+            SystemProgramError::AccountError(e) => e.into(),
+            SystemProgramError::ProgramError(e) => u32::try_from(e).unwrap_or(0),
+            SystemProgramError::BorrowingDataFailed => 6052,
+            SystemProgramError::ZeroCopyError(e) => e.into(),
+        }
+    }
 }
 
 impl From<SystemProgramError> for ProgramError {
     fn from(e: SystemProgramError) -> ProgramError {
-        ProgramError::Custom(e as u32 + 6000)
+        ProgramError::Custom(e.into())
     }
 }

@@ -21,28 +21,7 @@ pub fn address_merkle_tree_from_bytes_zero_copy(
     data: &[u8],
 ) -> Result<IndexedMerkleTreeZeroCopy<Poseidon, usize, 26, 16>> {
     let data = &data[8 + mem::size_of::<AddressMerkleTreeAccount>()..];
-    let merkle_tree = IndexedMerkleTreeZeroCopy::from_bytes_zero_copy(data).unwrap();
-    Ok(merkle_tree)
-}
-
-pub fn address_merkle_tree_from_bytes_zero_copy_init(
-    data: &mut [u8],
-    height: usize,
-    canopy_depth: usize,
-    changelog_capacity: usize,
-    roots_capacity: usize,
-    indexed_changelog_capacity: usize,
-) -> Result<IndexedMerkleTreeZeroCopyMut<Poseidon, usize, 26, 16>> {
-    let data = &mut data[8 + mem::size_of::<AddressMerkleTreeAccount>()..];
-    let merkle_tree = IndexedMerkleTreeZeroCopyMut::from_bytes_zero_copy_init(
-        data,
-        height,
-        canopy_depth,
-        changelog_capacity,
-        roots_capacity,
-        indexed_changelog_capacity,
-    )
-    .unwrap();
+    let merkle_tree = IndexedMerkleTreeZeroCopy::from_bytes_zero_copy(data)?;
     Ok(merkle_tree)
 }
 
@@ -50,6 +29,6 @@ pub fn address_merkle_tree_from_bytes_zero_copy_mut(
     data: &mut [u8],
 ) -> Result<IndexedMerkleTreeZeroCopyMut<Poseidon, usize, 26, 16>> {
     let data = &mut data[8 + mem::size_of::<AddressMerkleTreeAccount>()..];
-    let merkle_tree = IndexedMerkleTreeZeroCopyMut::from_bytes_zero_copy_mut(data).unwrap();
+    let merkle_tree = IndexedMerkleTreeZeroCopyMut::from_bytes_zero_copy_mut(data)?;
     Ok(merkle_tree)
 }
