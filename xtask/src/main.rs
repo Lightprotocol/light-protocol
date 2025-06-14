@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 
 mod bench;
+mod create_batch_address_tree;
 mod create_batch_state_tree;
 mod create_state_tree;
 mod create_update_protocol_config_ix;
@@ -50,6 +51,7 @@ enum Command {
     CreateStateTree(create_state_tree::Options),
     ExportPhotonTestData(export_photon_test_data::Options),
     CreateBatchStateTree(create_batch_state_tree::Options),
+    CreateBatchAddressTree(create_batch_address_tree::Options),
     /// cargo xtask init-new-deployment --keypairs ../light-keypairs --network local --num-foresters 3
     /// Requires program ids to be changed manually in programs.
     InitNewDeployment(new_deployment::Options),
@@ -79,6 +81,9 @@ async fn main() -> Result<(), anyhow::Error> {
         }
         Command::CreateBatchStateTree(opts) => {
             create_batch_state_tree::create_batch_state_tree(opts).await
+        }
+        Command::CreateBatchAddressTree(opts) => {
+            create_batch_address_tree::create_batch_address_tree(opts).await
         }
         Command::InitNewDeployment(opts) => new_deployment::init_new_deployment(opts).await,
         Command::CreateUpdateProtocolConfigIx(opts) => {
