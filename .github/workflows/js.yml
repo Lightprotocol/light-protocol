@@ -47,22 +47,10 @@ jobs:
         # with:
         #   components: "node,pnpm,solana,anchor,jq,keys,dependencies"
 
-      - name: Build stateless.js with V1
-        run: |
-          source ./scripts/devenv.sh
-          cd js/stateless.js
-          pnpm build:v1
-
-      - name: Build compressed-token with V1
-        run: |
-          source ./scripts/devenv.sh
-          cd js/compressed-token
-          pnpm build:v1
-
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
+          npx nx build @lightprotocol/zk-compression-cli
 
       # Comment for breaking changes to Photon
       - name: Run CLI tests

@@ -22,7 +22,7 @@ const rolls = (fmt, env) => ({
             preventAssignment: true,
             values: {
                 __BUILD_VERSION__: JSON.stringify(
-                    process.env.BUILD_VERSION || 'V1',
+                    process.env.LIGHT_PROTOCOL_VERSION || 'V1',
                 ),
             },
         }),

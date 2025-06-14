@@ -3,7 +3,7 @@ Stateless.js compiles with V1 API by default. To switch over to V2 endpoints (wi
 ```bash
 pnpm build:v2
 # or
-BUILD_VERSION=V2 pnpm build
+LIGHT_PROTOCOL_VERSION=V2 pnpm build
 ```
 
 ## Usage in Code
