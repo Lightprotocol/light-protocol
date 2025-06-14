@@ -3642,7 +3642,6 @@ dependencies = [
  "quote",
  "solana-pubkey",
  "syn 2.0.101",
-<<<<<<< HEAD
 ]
 
 [[package]]
@@ -3675,8 +3674,6 @@ dependencies = [
  "light-zero-copy",
  "solana-pubkey",
  "thiserror 2.0.12",
-=======
->>>>>>> ad722943f (chore: backport breaking api changes to v1 js SDKs (#1661))
 ]
 
 [[package]]

@@ -11,7 +11,6 @@ import {
 
 test.describe('RPC in browser', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
-    
 
     test.beforeAll(async ({ page }) => {
         try {

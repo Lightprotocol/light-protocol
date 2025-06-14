@@ -12,6 +12,8 @@ if (featureFlags.version === expectedVersion) {
     console.log(`✅ Success: Version is correctly set to ${expectedVersion}`);
     process.exit(0);
 } else {
-    console.error(`❌ Error: Expected version ${expectedVersion} but got ${featureFlags.version}`);
+    console.error(
+        `❌ Error: Expected version ${expectedVersion} but got ${featureFlags.version}`,
+    );
     process.exit(1);
-} 
+}
