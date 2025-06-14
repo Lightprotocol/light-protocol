@@ -23,22 +23,20 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       LIGHT_PROTOCOL_VERSION: V1
-
-    # services:
-    #   redis:
-    #     image: redis:8.0.1
-    #     ports:
-    #       - 6379:6379
-    #     options: >-
-    #       --health-cmd "redis-cli ping"
-    #       --health-interval 10s
-    #       --health-timeout 5s
-    #       --health-retries 5
-
-    # env:
-    #   REDIS_URL: redis://localhost:6379
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - name: Checkout sources
@@ -46,8 +44,8 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-        with:
-          components: "node,pnpm,solana,anchor,jq,keys,dependencies"
+        # with:
+        #   components: "node,pnpm,solana,anchor,jq,keys,dependencies"
 
       - name: Build stateless.js with V1
         run: |
