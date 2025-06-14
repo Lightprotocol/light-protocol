@@ -3019,9 +3019,9 @@ pub mod local_sdk {
 
         let instruction_discriminator = if account_infos.is_none() {
             // INVOKE_CPI_WITH_READ_ONLY_INSTRUCTIOM
-            [86, 47, 163, 166, 21, 223, 92, 8, 0, 0, 0, 0]
+            [86, 47, 163, 166, 21, 223, 92, 8]
         } else {
-            [228, 34, 128, 84, 47, 139, 86, 240, 0, 0, 0, 0]
+            [228, 34, 128, 84, 47, 139, 86, 240]
             // INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION
         };
         let mut onchain_config = CpiAccountsConfig::new(LIGHT_CPI_SIGNER);

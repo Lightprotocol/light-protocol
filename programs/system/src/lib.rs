@@ -134,7 +134,6 @@ pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
-    let instruction_data = &instruction_data[4..];
     msg!("invoke_cpi_with_read_only");
     let (inputs, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
@@ -152,7 +151,6 @@ pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
     instruction_data: &[u8],
 ) -> Result<()> {
     msg!("invoke_cpi_with_account_info");
-    let instruction_data = &instruction_data[4..];
 
     let (inputs, _) = InstructionDataInvokeCpiWithAccountInfo::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
