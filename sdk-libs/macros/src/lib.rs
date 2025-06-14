@@ -256,6 +256,15 @@ pub fn light_hasher(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Alias of `LightHasher`.
+#[proc_macro_derive(DataHasher, attributes(skip, hash))]
+pub fn data_hasher(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    derive_light_hasher(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
 #[proc_macro_attribute]
 pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

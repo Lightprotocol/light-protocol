@@ -194,7 +194,7 @@ light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
-groth16-solana = { version = "0.1.0", git = "https://github.com/lightprotocol/groth16-solana.git", rev = "a18e0f4d3be6c24214fd293e2e7a998b160cda9b" }
+groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
 
