@@ -38,7 +38,6 @@ pub mod light_system_program {
     ) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }
-
     pub fn invoke_cpi_with_account_info(
         ctx: Context<InvokeCpiInstruction>,
         inputs: InstructionDataInvokeCpiWithAccountInfo,
