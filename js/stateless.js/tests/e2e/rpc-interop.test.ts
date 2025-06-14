@@ -4,13 +4,15 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
+    TreeInfo,
     bn,
     compress,
     createAccount,
     createAccountWithLamports,
-    defaultTestStateTreeAccounts,
     deriveAddress,
     deriveAddressSeed,
+    getDefaultAddressTreeInfo,
+    selectStateTreeInfo,
     sleep,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
@@ -18,12 +20,34 @@ import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { randomBytes } from 'tweetnacl';
 
+const log = async (
+    rpc: Rpc | TestRpc,
+    payer: Signer,
+    prefix: string = 'rpc',
+) => {
+    const accounts = await rpc.getCompressedAccountsByOwner(payer.publicKey);
+    console.log(`${prefix} - indexed: `, accounts.items.length);
+};
+
+// debug helper.
+const logIndexed = async (
+    rpc: Rpc,
+    testRpc: TestRpc,
+    payer: Signer,
+    prefix: string = '',
+) => {
+    await log(testRpc, payer, `${prefix} test-rpc `);
+    await log(rpc, payer, `${prefix} rpc`);
+};
+
 describe('rpc-interop', () => {
+    LightSystemProgram.deriveCompressedSolPda();
     let payer: Signer;
     let bob: Signer;
     let rpc: Rpc;
     let testRpc: TestRpc;
     let executedTxs = 0;
+    let stateTreeInfo: TreeInfo;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
@@ -34,13 +58,11 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        const stateTreeInfos = await rpc.getStateTreeInfos();
+        stateTreeInfo = selectStateTreeInfo(stateTreeInfos);
+
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
+
         executedTxs++;
     });
 
@@ -93,15 +115,20 @@ describe('rpc-interop', () => {
         validityProof.roots.forEach((elem, index) => {
             assert.isTrue(elem.eq(validityProofTest.roots[index]));
         });
+
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
             );
         });
 
@@ -115,12 +142,7 @@ describe('rpc-interop', () => {
     });
 
     it('getValidityProof [noforester] (new-addresses) should match', async () => {
-        const newAddressSeeds = [
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 11, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
-        ];
+        const newAddressSeeds = [new Uint8Array(randomBytes(32))];
         const newAddressSeed = deriveAddressSeed(
             newAddressSeeds,
             LightSystemProgram.programId,
@@ -147,22 +169,19 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
             );
         });
 
         /// Need a new unique address because the previous one has been created.
-        const newAddressSeedsTest = [
-            new Uint8Array([
-                2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31, 32,
-            ]),
-        ];
+        const newAddressSeedsTest = [new Uint8Array(randomBytes(32))];
         /// Creates a compressed account with address using a (non-inclusion)
         /// 'validityProof' from Photon
         await createAccount(
@@ -171,8 +190,7 @@ describe('rpc-interop', () => {
             newAddressSeedsTest,
             LightSystemProgram.programId,
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
         executedTxs++;
 
@@ -184,8 +202,7 @@ describe('rpc-interop', () => {
             newAddressSeeds,
             LightSystemProgram.programId,
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
         executedTxs++;
     });
@@ -205,12 +222,7 @@ describe('rpc-interop', () => {
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
 
-        const newAddressSeeds = [
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 20, 21, 22, 42, 32, 42, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 32, 32, 27, 28, 29, 30, 31, 32,
-            ]),
-        ];
+        const newAddressSeeds = [new Uint8Array(randomBytes(32))];
         const newAddressSeed = deriveAddressSeed(
             newAddressSeeds,
             LightSystemProgram.programId,
@@ -264,11 +276,13 @@ describe('rpc-interop', () => {
             ),
         );
         assert.isTrue(
-            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+            newAddressProof.treeInfo.tree.equals(
+                newAddressProofTest.treeInfo.tree,
+            ),
         );
         assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
+            newAddressProof.treeInfo.queue.equals(
+                newAddressProofTest.treeInfo.queue,
             ),
         );
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
@@ -287,16 +301,18 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
                 'Mismatch in nullifierQueues expected: ' +
                     elem +
                     ' got: ' +
-                    validityProofTest.nullifierQueues[index],
+                    validityProofTest.treeInfos[index].queue,
             );
         });
 
@@ -305,18 +321,11 @@ describe('rpc-interop', () => {
         await createAccountWithLamports(
             rpc,
             payer,
-            [
-                new Uint8Array([
-                    1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 111, 13, 14, 15, 16,
-                    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31,
-                    32,
-                ]),
-            ],
+            [new Uint8Array(randomBytes(32))],
             0,
             LightSystemProgram.programId,
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
         executedTxs++;
     });
@@ -324,10 +333,12 @@ describe('rpc-interop', () => {
     /// This assumes support for getMultipleNewAddressProofs in Photon.
     it('getMultipleNewAddressProofs [noforester] should match', async () => {
         const newAddress = bn(
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
+            deriveAddress(
+                deriveAddressSeed(
+                    [new Uint8Array(randomBytes(32))],
+                    LightSystemProgram.programId,
+                ),
+            ).toBytes(),
         );
         const newAddressProof = (
             await rpc.getMultipleNewAddressProofs([newAddress])
@@ -358,13 +369,15 @@ describe('rpc-interop', () => {
         );
 
         assert.isTrue(
-            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+            newAddressProof.treeInfo.tree.equals(
+                newAddressProofTest.treeInfo.tree,
+            ),
         );
         assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
+            newAddressProof.treeInfo.queue.equals(
+                newAddressProofTest.treeInfo.queue,
             ),
-            `Mismatch in nullifierQueue expected: ${newAddressProofTest.nullifierQueue} got: ${newAddressProof.nullifierQueue}`,
+            `Mismatch in nullifierQueue expected: ${newAddressProofTest.treeInfo.queue} got: ${newAddressProof.treeInfo.queue}`,
         );
 
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
@@ -535,13 +548,7 @@ describe('rpc-interop', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
         executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
@@ -656,23 +663,29 @@ describe('rpc-interop', () => {
     it('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
         const seeds = [new Uint8Array(randomBytes(32))];
         const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
-        const addressTree = defaultTestStateTreeAccounts().addressTree;
-        const address = deriveAddress(seed, addressTree);
+        const addressTreeInfo = getDefaultAddressTreeInfo();
+        const address = deriveAddress(seed, addressTreeInfo.tree);
 
         await createAccount(
             rpc,
             payer,
             seeds,
             LightSystemProgram.programId,
-            undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            addressTreeInfo,
+            stateTreeInfo,
         );
 
-        // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+
+        const allAccountsTestRpc = await testRpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const allAccountsRpc = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+
         const latestAccount = accounts.items[0];
 
         // assert the address was indexed
@@ -686,27 +699,27 @@ describe('rpc-interop', () => {
         assert.equal(signaturesUnspent.items.length, 1);
     });
 
-    it('getCompressedAccount with address param should work ', async () => {
+    it('[test-rpc missing] getCompressedAccount with address param should work ', async () => {
         const seeds = [new Uint8Array(randomBytes(32))];
         const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
-        const addressTree = defaultTestStateTreeAccounts().addressTree;
-        const addressQueue = defaultTestStateTreeAccounts().addressQueue;
-        const address = deriveAddress(seed, addressTree);
+
+        const addressTreeInfo = getDefaultAddressTreeInfo();
+        const address = deriveAddress(seed, addressTreeInfo.tree);
 
         await createAccount(
             rpc,
             payer,
             seeds,
             LightSystemProgram.programId,
-            addressTree,
-            addressQueue,
-            defaultTestStateTreeAccounts().merkleTree,
+            addressTreeInfo,
+            stateTreeInfo,
         );
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+
         const latestAccount = accounts.items[0];
 
         assert.isTrue(new PublicKey(latestAccount.address!).equals(address));

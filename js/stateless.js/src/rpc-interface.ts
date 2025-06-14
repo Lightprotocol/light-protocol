@@ -13,15 +13,20 @@ import {
     any,
     nullable,
     Struct,
+    boolean,
+    optional,
 } from 'superstruct';
 import {
     BN254,
     createBN254,
-    CompressedProof,
+    ValidityProof,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
     bn,
     TokenData,
+    TreeInfo,
+    AddressTreeInfo,
+    CompressedProof,
 } from './state';
 import BN from 'bn.js';
 
@@ -67,6 +72,34 @@ export interface SignatureWithMetadata {
     slot: number;
 }
 
+/**
+ * Account hash and associated state tree info.
+ */
+export interface HashWithTreeInfo {
+    /**
+     * Account hash.
+     */
+    hash: BN254;
+    /**
+     * State tree info.
+     */
+    stateTreeInfo: TreeInfo;
+}
+
+/**
+ * Address and associated address tree info.
+ */
+export interface AddressWithTreeInfo {
+    /**
+     * Address.
+     */
+    address: BN254;
+    /**
+     * Address tree info.
+     */
+    addressTreeInfo: AddressTreeInfo;
+}
+
 export interface HashWithTree {
     hash: BN254;
     tree: PublicKey;
@@ -77,6 +110,11 @@ export interface AddressWithTree {
     address: BN254;
     tree: PublicKey;
     queue: PublicKey;
+}
+
+export interface AddressWithTreeInfo {
+    address: BN254;
+    treeInfo: AddressTreeInfo;
 }
 
 export interface CompressedTransaction {
@@ -114,7 +152,46 @@ export interface HexInputsForProver {
     leaf: string;
 }
 
-// TODO: Rename Compressed -> ValidityProof
+/**
+ * Validity proof with context.
+ *
+ * You can request proofs via `rpc.getValidityProof` or
+ * `rpc.getValidityProofV0`.
+ */
+export type ValidityProofWithContext = {
+    /**
+     * Validity proof.
+     */
+    compressedProof: ValidityProof | null;
+    /**
+     * Roots.
+     */
+    roots: BN[];
+    /**
+     * Root indices.
+     */
+    rootIndices: number[];
+    /**
+     * Leaf indices.
+     */
+    leafIndices: number[];
+    /**
+     * Leaves.
+     */
+    leaves: BN[];
+    /**
+     * Tree infos.
+     */
+    treeInfos: TreeInfo[];
+    /**
+     * Whether to prove by indices.
+     */
+    proveByIndices: boolean[];
+};
+
+/**
+ * @deprecated use {@link ValidityProofWithContext} instead
+ */
 export type CompressedProofWithContext = {
     compressedProof: CompressedProof;
     roots: BN[];
@@ -213,9 +290,9 @@ const BNFromStringOrNumber = coerce(
             if (!Number.isSafeInteger(value)) {
                 throw new Error(`Unsafe integer. Precision loss: ${value}`);
             }
-            return new BN(value); // Safe number → BN
+            return bn(value); // Safe number → BN
         }
-        return new BN(value, 10); // String → BN
+        return bn(value, 10); // String → BN
     },
 );
 
@@ -293,6 +370,20 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
     ) as Struct<RpcResult<WithRpcContext<T>>, null>;
 }
 
+const NextTreeInfoResultV2 = pick({
+    treeType: number(),
+    tree: PublicKeyFromString,
+    queue: PublicKeyFromString,
+    cpiContext: nullable(PublicKeyFromString),
+});
+const TreeInfoResultV2 = pick({
+    treeType: number(),
+    tree: PublicKeyFromString,
+    queue: PublicKeyFromString,
+    cpiContext: nullable(PublicKeyFromString),
+    nextTreeContext: optional(nullable(NextTreeInfoResultV2)),
+});
+
 /**
  * @internal
  */
@@ -314,6 +405,25 @@ export const CompressedAccountResult = pick({
     slotCreated: BNFromStringOrNumber,
 });
 
+export const CompressedAccountResultV2 = pick({
+    address: nullable(ArrayFromString),
+    hash: BN254FromString,
+    data: nullable(
+        pick({
+            data: Base64EncodedCompressedAccountDataResult,
+            dataHash: BN254FromString,
+            discriminator: BNFromStringOrNumber,
+        }),
+    ),
+    lamports: BNFromStringOrNumber,
+    owner: PublicKeyFromString,
+    leafIndex: number(),
+    seq: nullable(BNFromStringOrNumber),
+    slotCreated: BNFromStringOrNumber,
+    merkleContext: TreeInfoResultV2,
+    proveByIndex: boolean(),
+});
+
 export const TokenDataResult = pick({
     mint: PublicKeyFromString,
     owner: PublicKeyFromString,
@@ -333,8 +443,23 @@ export const CompressedTokenAccountResult = pick({
 /**
  * @internal
  */
+export const CompressedTokenAccountResultV2 = pick({
+    tokenData: TokenDataResult,
+    account: CompressedAccountResultV2,
+});
+
+/**
+ * @internal
+ */
 export const MultipleCompressedAccountsResult = pick({
     items: array(CompressedAccountResult),
+});
+
+/**
+ * @internal
+ */
+export const MultipleCompressedAccountsResultV2 = pick({
+    items: array(CompressedAccountResultV2),
 });
 
 /**
@@ -348,8 +473,23 @@ export const CompressedAccountsByOwnerResult = pick({
 /**
  * @internal
  */
+export const CompressedAccountsByOwnerResultV2 = pick({
+    items: array(CompressedAccountResultV2),
+    cursor: nullable(string()),
+});
+/**
+ * @internal
+ */
 export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
     items: array(CompressedTokenAccountResult),
+    cursor: nullable(string()),
+});
+
+/**
+ * @internal
+ */
+export const CompressedTokenAccountsByOwnerOrDelegateResultV2 = pick({
+    items: array(CompressedTokenAccountResultV2),
     cursor: nullable(string()),
 });
 
@@ -394,13 +534,26 @@ export const LatestNonVotingSignaturesResultPaginated = pick({
 /**
  * @internal
  */
-export const MerkeProofResult = pick({
+export const MerkleProofResult = pick({
     hash: BN254FromString,
     leafIndex: number(),
     merkleTree: PublicKeyFromString,
     proof: array(BN254FromString),
     rootSeq: number(),
     root: BN254FromString,
+});
+
+/**
+ * @internal
+ */
+export const MerkleProofResultV2 = pick({
+    hash: BN254FromString,
+    leafIndex: number(),
+    proof: array(BN254FromString),
+    root: BN254FromString,
+    rootSeq: number(),
+    proveByIndex: boolean(),
+    treeContext: TreeInfoResultV2,
 });
 
 /**
@@ -430,6 +583,14 @@ const CompressedProofResult = pick({
 /**
  * @internal
  */
+export const RootIndexResultV2 = pick({
+    rootIndex: number(),
+    proveByIndex: boolean(),
+});
+
+/**
+ * @internal
+ */
 export const ValidityProofResult = pick({
     compressedProof: CompressedProofResult,
     leafIndices: array(number()),
@@ -441,10 +602,35 @@ export const ValidityProofResult = pick({
     // nullifierQueues: array(PublicKeyFromString),
 });
 
+const AccountProofInputsResult = pick({
+    hash: BN254FromString,
+    root: BN254FromString,
+    rootIndex: RootIndexResultV2,
+    merkleContext: TreeInfoResultV2,
+    leafIndex: number(),
+});
+const AddressProofInputsResult = pick({
+    address: BN254FromString,
+    root: BN254FromString,
+    rootIndex: number(),
+    merkleContext: TreeInfoResultV2,
+});
+
+export const ValidityProofResultV2 = pick({
+    compressedProof: nullable(CompressedProofResult),
+    accounts: array(AccountProofInputsResult),
+    addresses: array(AddressProofInputsResult),
+});
+
 /**
  * @internal
  */
-export const MultipleMerkleProofsResult = array(MerkeProofResult);
+export const MultipleMerkleProofsResult = array(MerkleProofResult);
+
+/**
+ * @internal
+ */
+export const MultipleMerkleProofsResultV2 = array(MerkleProofResultV2);
 
 /**
  * @internal
@@ -511,6 +697,19 @@ export const SignatureListWithCursorResult = pick({
     cursor: nullable(string()),
 });
 
+/**
+ * @internal
+ */
+const ClosedAccountResultV2 = pick({
+    account: CompressedAccountResultV2,
+    txHash: BN254FromString,
+    nullifier: BN254FromString,
+});
+
+/**
+ * @internal
+ */
+
 export const CompressedTransactionResult = pick({
     compressionInfo: pick({
         closedAccounts: array(
@@ -522,6 +721,29 @@ export const CompressedTransactionResult = pick({
         openedAccounts: array(
             pick({
                 account: CompressedAccountResult,
+                optionalTokenData: nullable(TokenDataResult),
+            }),
+        ),
+    }),
+    /// TODO: add transaction struct
+    /// https://github.com/solana-labs/solana/blob/27eff8408b7223bb3c4ab70523f8a8dca3ca6645/transaction-status/src/lib.rs#L1061
+    transaction: any(),
+});
+
+/**
+ * @internal
+ */
+export const CompressedTransactionResultV2 = pick({
+    compressionInfo: pick({
+        closedAccounts: array(
+            pick({
+                account: ClosedAccountResultV2,
+                optionalTokenData: nullable(TokenDataResult),
+            }),
+        ),
+        openedAccounts: array(
+            pick({
+                account: CompressedAccountResultV2,
                 optionalTokenData: nullable(TokenDataResult),
             }),
         ),
@@ -556,17 +778,17 @@ export interface CompressionApiInterface {
     getValidityProof(
         hashes: BN254[],
         newAddresses: BN254[],
-    ): Promise<CompressedProofWithContext>;
+    ): Promise<ValidityProofWithContext>;
 
     getValidityProofV0(
         hashes: HashWithTree[],
         newAddresses: AddressWithTree[],
-    ): Promise<CompressedProofWithContext>;
+    ): Promise<ValidityProofWithContext>;
 
     getValidityProofAndRpcContext(
         hashes: HashWithTree[],
         newAddresses: AddressWithTree[],
-    ): Promise<WithContext<CompressedProofWithContext>>;
+    ): Promise<WithContext<ValidityProofWithContext>>;
 
     getCompressedAccountsByOwner(
         owner: PublicKey,

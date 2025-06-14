@@ -11,21 +11,26 @@ import {
     createTokenProgramLookupTable,
     mintTo,
 } from '../../src/actions';
-
 import {
     getTestKeypair,
     newAccountWithLamports,
     bn,
-    defaultTestStateTreeAccounts,
     Rpc,
     sendAndConfirmTx,
     buildAndSignTx,
     dedupeSigner,
     getTestRpc,
+    TreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import { CompressedTokenProgram } from '../../src/program';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../../src/utils/get-token-pool-infos';
 
 /**
  * Asserts that mintTo() creates a new compressed token account for the
@@ -62,8 +67,8 @@ describe('mintTo', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
     let lut: PublicKey;
-
-    const { merkleTree } = defaultTestStateTreeAccounts();
+    let stateTreeInfo: TreeInfo;
+    let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -83,6 +88,9 @@ describe('mintTo', () => {
             )
         ).mint;
 
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
+        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
+
         /// Setup LUT.
         const { address } = await createTokenProgramLookupTable(
             rpc,
@@ -95,14 +103,15 @@ describe('mintTo', () => {
 
     it('should mint to bob', async () => {
         const amount = bn(1000);
-        await mintTo(
+        const txId = await mintTo(
             rpc,
             payer,
             mint,
             bob.publicKey,
             mintAuthority,
             amount,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
         await assertMintTo(rpc, mint, amount, bob.publicKey);
@@ -121,7 +130,8 @@ describe('mintTo', () => {
             bob.publicKey,
             mintAuthority,
             amount,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
     });
 
@@ -142,7 +152,8 @@ describe('mintTo', () => {
             recipients.slice(0, 3),
             mintAuthority,
             amounts.slice(0, 3),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
         /// Mint to 10 recipients
@@ -153,7 +164,8 @@ describe('mintTo', () => {
             recipients.slice(0, 10),
             mintAuthority,
             amounts.slice(0, 10),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
         // Uneven amounts
@@ -165,7 +177,8 @@ describe('mintTo', () => {
                 recipients,
                 mintAuthority,
                 amounts.slice(0, 2),
-                defaultTestStateTreeAccounts().merkleTree,
+                stateTreeInfo,
+                tokenPoolInfo,
             ),
         ).rejects.toThrowError(
             /Amount and toPubkey arrays must have the same length/,
@@ -182,7 +195,8 @@ describe('mintTo', () => {
             authority: mintAuthority.publicKey,
             amount: amounts,
             toPubkey: recipients,
-            merkleTree: defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeInfo: stateTreeInfo,
+            tokenPoolInfo,
         });
 
         const { blockhash } = await rpc.getLatestBlockhash();
@@ -195,7 +209,6 @@ describe('mintTo', () => {
             additionalSigners,
             [lookupTableAccount],
         );
-
-        return await sendAndConfirmTx(rpc, tx);
+        const txId = await sendAndConfirmTx(rpc, tx);
     });
 });

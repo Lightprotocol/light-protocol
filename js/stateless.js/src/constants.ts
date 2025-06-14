@@ -1,7 +1,30 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { ActiveTreeBundle, TreeType } from './state/types';
+import { TreeInfo, TreeType } from './state/types';
+
+export enum VERSION {
+    V1 = 'V1',
+    V2 = 'V2',
+}
+
+/**
+/**
+ * @internal
+ * Feature flags. Only use if you know what you are doing.
+ */
+export const featureFlags = {
+    version: VERSION.V1,
+    isV2: () => featureFlags.version.toUpperCase() === 'V2',
+};
+
+/**
+ * Returns the correct endpoint name for the current API version. E.g.
+ * versionedEndpoint('getCompressedAccount') -> 'getCompressedAccount' (V1)
+ * or 'getCompressedAccountV2' (V2)
+ */
+export const versionedEndpoint = (base: string) =>
+    featureFlags.version.toUpperCase() === 'V1' ? base : `${base}V2`;
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
@@ -32,22 +55,18 @@ export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
     180, 143, 159, 153, 35, 46, 248, 163,
 ]);
 
-// TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
-export const lightProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
-export const accountCompressionProgram = // also: merkletree program
+export const lightSystemProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
+export const accountCompressionProgram =
     'compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq';
 
 export const getRegisteredProgramPda = () =>
-    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labelling. gov authority pda
+    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh');
 
 export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [Buffer.from('cpi_authority')],
-        new PublicKey(
-            // TODO: can add check to ensure its consistent with the idl
-            lightProgram,
-        ),
+        new PublicKey(lightSystemProgram),
     )[0];
 
 export const defaultStaticAccounts = () => [
@@ -56,6 +75,7 @@ export const defaultStaticAccounts = () => [
     new PublicKey(accountCompressionProgram),
     new PublicKey(getAccountCompressionAuthority()),
 ];
+
 export const defaultStaticAccountsStruct = () => {
     return {
         registeredProgramPda: new PublicKey(getRegisteredProgramPda()),
@@ -70,7 +90,7 @@ export const defaultStaticAccountsStruct = () => {
 
 export type StateTreeLUTPair = {
     stateTreeLookupTable: PublicKey;
-    nullifyTable: PublicKey;
+    nullifyLookupTable: PublicKey;
 };
 
 /**
@@ -86,7 +106,7 @@ export const defaultStateTreeLookupTables = (): {
                 stateTreeLookupTable: new PublicKey(
                     stateTreeLookupTableMainnet,
                 ),
-                nullifyTable: new PublicKey(
+                nullifyLookupTable: new PublicKey(
                     nullifiedStateTreeLookupTableMainnet,
                 ),
             },
@@ -94,7 +114,7 @@ export const defaultStateTreeLookupTables = (): {
         devnet: [
             {
                 stateTreeLookupTable: new PublicKey(stateTreeLookupTableDevnet),
-                nullifyTable: new PublicKey(
+                nullifyLookupTable: new PublicKey(
                     nullifiedStateTreeLookupTableDevnet,
                 ),
             },
@@ -112,26 +132,48 @@ export const isLocalTest = (url: string) => {
 /**
  * @internal
  */
-export const localTestActiveStateTreeInfo = (): ActiveTreeBundle[] => {
+export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
     return [
         {
             tree: new PublicKey(merkletreePubkey),
             queue: new PublicKey(nullifierQueuePubkey),
             cpiContext: new PublicKey(cpiContextPubkey),
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
+            nextTreeInfo: null,
         },
         {
             tree: new PublicKey(merkleTree2Pubkey),
             queue: new PublicKey(nullifierQueue2Pubkey),
             cpiContext: new PublicKey(cpiContext2Pubkey),
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
+            nextTreeInfo: null,
         },
-    ];
+        {
+            tree: new PublicKey(batchMerkleTree),
+            queue: new PublicKey(batchQueue),
+            cpiContext: PublicKey.default,
+            treeType: TreeType.StateV2,
+            nextTreeInfo: null,
+        },
+    ].filter(info =>
+        featureFlags.isV2() ? true : info.treeType === TreeType.StateV1,
+    );
 };
 
+export const getDefaultAddressTreeInfo = () => {
+    return {
+        tree: new PublicKey(addressTree),
+        queue: new PublicKey(addressQueue),
+        cpiContext: null,
+        treeType: TreeType.AddressV1,
+        nextTreeInfo: null,
+    };
+};
 /**
+ * @deprecated use {@link rpc.getStateTreeInfos} and {@link selectStateTreeInfo} instead.
+ * for address trees, use {@link getDefaultAddressTreeInfo} instead.
  * Use only with Localnet testing.
- * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getLightStateTreeInfo}.
+ * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getAllStateTreeInfos}.
  */
 export const defaultTestStateTreeAccounts = () => {
     return {
@@ -153,15 +195,18 @@ export const defaultTestStateTreeAccounts2 = () => {
     };
 };
 
+export const COMPRESSED_TOKEN_PROGRAM_ID = new PublicKey(
+    'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
+);
 export const stateTreeLookupTableMainnet =
     '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';
 export const nullifiedStateTreeLookupTableMainnet =
     'H9QD4u1fG7KmkAzn2tDXhheushxFe1EcrjGGyEFXeMqT';
 
 export const stateTreeLookupTableDevnet =
-    '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
+    'Dk9mNkbiZXJZ4By8DfSP6HEE4ojZzRvucwpawLeuwq8q';
 export const nullifiedStateTreeLookupTableDevnet =
-    '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
+    'AXbHzp1NgjLvpfnD6JRTTovXZ7APUCdtWZFCRr5tCxse';
 
 export const nullifierQueuePubkey =
     'nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148';
@@ -175,6 +220,10 @@ export const merkleTree2Pubkey = 'smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho';
 export const nullifierQueue2Pubkey =
     'nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X';
 export const cpiContext2Pubkey = 'cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK';
+
+// V2 testing.
+export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree (includes nullifier queue)
+export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',
@@ -202,7 +251,9 @@ export const TRANSACTION_MERKLE_TREE_ROLLOVER_THRESHOLD = new BN(
  *
  * Is charged per output compressed account.
  */
-export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(300);
+export const STATE_MERKLE_TREE_ROLLOVER_FEE = featureFlags.isV2()
+    ? new BN(1)
+    : new BN(300);
 
 /**
  * Fee to provide continous funding for the address queue and address Merkle tree.
@@ -211,7 +262,9 @@ export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(300);
  *
  * Is charged per newly created address.
  */
-export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(392);
+export const ADDRESS_QUEUE_ROLLOVER_FEE = featureFlags.isV2()
+    ? new BN(392)
+    : new BN(392);
 
 /**
  * Is charged if the transaction nullifies at least one compressed account.

@@ -5,14 +5,12 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-
 import BN from 'bn.js';
 import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
 import { Rpc } from '../rpc';
-
 import { bn, CompressedAccountWithMerkleContext } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
@@ -20,16 +18,12 @@ import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 /**
  * Transfer compressed lamports from one owner to another
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of transaction fees
- * @param lamports       Number of lamports to transfer
- * @param owner          Owner of the compressed lamports
- * @param toAddress      Destination address of the recipient
- * @param merkleTree     State tree account that the compressed lamports should be
- *                       inserted into. Defaults to the default state tree account.
- * @param confirmOptions Options for confirming the transaction
- * @param config         Configuration for fetching compressed accounts
- *
+ * @param rpc                   Rpc to use
+ * @param payer                 Payer of transaction fees
+ * @param lamports              Number of lamports to transfer
+ * @param owner                 Owner of the compressed lamports
+ * @param toAddress             Destination address of the recipient
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
  */
@@ -39,7 +33,6 @@ export async function transfer(
     lamports: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     let accumulatedLamports = bn(0);
@@ -53,7 +46,7 @@ export async function transfer(
             filters: undefined,
             dataSlice: undefined,
             cursor,
-            limit: new BN(batchSize),
+            limit: bn(batchSize),
         };
 
         const batch = await rpc.getCompressedAccountsByOwner(
@@ -62,7 +55,7 @@ export async function transfer(
         );
 
         for (const account of batch.items) {
-            if (account.lamports.gt(new BN(0))) {
+            if (account.lamports.gt(bn(0))) {
                 compressedAccounts.push(account);
                 accumulatedLamports = accumulatedLamports.add(account.lamports);
             }
@@ -95,12 +88,11 @@ export async function transfer(
         lamports,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        outputStateTrees: merkleTree,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 350_000 }), ix],
         payer,
         blockhash,
     );

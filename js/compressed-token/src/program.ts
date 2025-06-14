@@ -5,10 +5,12 @@ import {
     Connection,
     AddressLookupTableProgram,
     AccountMeta,
+    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
-    CompressedProof,
+    ValidityProof,
     LightSystemProgram,
     ParsedTokenAccount,
     bn,
@@ -18,6 +20,10 @@ import {
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
+    TreeInfo,
+    CompressedProof,
+    featureFlags,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -30,8 +36,9 @@ import {
     CPI_AUTHORITY_SEED,
     POOL_SEED,
     CREATE_TOKEN_POOL_DISCRIMINATOR,
+    ADD_TOKEN_POOL_DISCRIMINATOR,
 } from './constants';
-import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
+import { checkMint, packCompressedTokenAccounts } from './utils';
 import {
     encodeTransferInstructionData,
     encodeCompressSplTokenAccountInstructionData,
@@ -39,125 +46,130 @@ import {
     createTokenPoolAccountsLayout,
     mintToAccountsLayout,
     transferAccountsLayout,
+    approveAccountsLayout,
+    revokeAccountsLayout,
+    encodeApproveInstructionData,
+    encodeRevokeInstructionData,
+    addTokenPoolAccountsLayout,
+    encodeBatchCompressInstructionData,
 } from './layout';
 import {
+    BatchCompressInstructionData,
+    CompressedTokenInstructionDataApprove,
+    CompressedTokenInstructionDataRevoke,
     CompressedTokenInstructionDataTransfer,
+    DelegatedTransfer,
     TokenTransferOutputData,
 } from './types';
+import {
+    checkTokenPoolInfo,
+    TokenPoolInfo,
+} from './utils/get-token-pool-infos';
 
 export type CompressParams = {
     /**
-     * The payer of the transaction.
+     * Fee payer
      */
     payer: PublicKey;
     /**
-     * owner of the *uncompressed* token account.
+     * Owner of uncompressed token account
      */
     owner: PublicKey;
     /**
-     * source (associated) token account address.
+     * Source SPL Token account address
      */
     source: PublicKey;
     /**
-     * owner of the compressed token account.
-     * To compress to a batch of recipients, pass an array of PublicKeys.
+     * Recipient address(es)
      */
     toAddress: PublicKey | PublicKey[];
     /**
-     * Mint address of the token to compress.
-     */
-    mint: PublicKey;
-    /**
-     * amount of tokens to compress.
+     * Token amount(s) to compress
      */
     amount: number | BN | number[] | BN[];
     /**
-     * The state tree that the tx output should be inserted into. Defaults to a
-     * public state tree if unspecified.
+     * SPL Token mint address
      */
-    outputStateTree?: PublicKey;
+    mint: PublicKey;
     /**
-     * Optional: The token program ID. Default: SPL Token Program ID
+     * State tree to write to
      */
-    tokenProgramId?: PublicKey;
+    outputStateTreeInfo: TreeInfo;
+    /**
+     * Token pool
+     */
+    tokenPoolInfo: TokenPoolInfo;
 };
 
 export type CompressSplTokenAccountParams = {
     /**
-     * Tx feepayer
+     * Fee payer
      */
     feePayer: PublicKey;
     /**
-     * Authority that owns the token account
+     * SPL Token account owner
      */
     authority: PublicKey;
     /**
-     * Token account to compress
+     * SPL Token account to compress
      */
     tokenAccount: PublicKey;
     /**
-     * Mint public key
+     * SPL Token mint address
      */
     mint: PublicKey;
     /**
-     * Optional: remaining amount to leave in token account. Default: 0
+     * Amount to leave in token account
      */
     remainingAmount?: BN;
     /**
-     * The state tree that the compressed token account should be inserted into.
+     * State tree to write to
      */
-    outputStateTree: PublicKey;
+    outputStateTreeInfo: TreeInfo;
     /**
-     * Optional: The token program ID. Default: SPL Token Program ID
+     * Token pool
      */
-    tokenProgramId?: PublicKey;
+    tokenPoolInfo: TokenPoolInfo;
 };
 
 export type DecompressParams = {
     /**
-     * The payer of the transaction.
+     * Fee payer
      */
     payer: PublicKey;
     /**
-     * input state to be consumed
+     * Source compressed token accounts
      */
     inputCompressedTokenAccounts: ParsedTokenAccount[];
     /**
-     * address of **uncompressed** destination token account.
+     * Destination uncompressed token account
      */
     toAddress: PublicKey;
     /**
-     * amount of tokens to decompress.
+     * Token amount to decompress
      */
     amount: number | BN;
     /**
-     * The recent state root indices of the input state. The expiry is tied to
-     * the proof.
+     * Validity proof for input state
+     */
+    recentValidityProof: ValidityProof | CompressedProof | null;
+    /**
+     * Recent state root indices
      */
     recentInputStateRootIndices: number[];
     /**
-     * The recent validity proof for state inclusion of the input state. It
-     * expires after n slots.
+     * Token pool(s)
      */
-    recentValidityProof: CompressedProof;
-    /**
-     * The state tree that the change tx output should be inserted into.
-     * Defaults to a public state tree if unspecified.
-     */
-    outputStateTree?: PublicKey;
-    /**
-     * Optional: The token program ID. Default: SPL Token Program ID
-     */
-    tokenProgramId?: PublicKey;
+    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[];
 };
 
 export type TransferParams = {
     /**
-     * The payer of the transaction
+     * Fee payer
      */
     payer: PublicKey;
     /**
-     * The input state to be consumed
+     * Source compressed token accounts
      */
     inputCompressedTokenAccounts: ParsedTokenAccount[];
     /**
@@ -165,26 +177,63 @@ export type TransferParams = {
      */
     toAddress: PublicKey;
     /**
-     * Amount of tokens to transfer
+     * Token amount to transfer
      */
     amount: BN | number;
     /**
-     * The recent state root indices of the input state. The expiry is tied to
-     * the proof.
-
+     * Validity proof for input state
+     */
+    recentValidityProof: ValidityProof | CompressedProof | null;
+    /**
+     * Recent state root indices
      */
     recentInputStateRootIndices: number[];
+};
+
+export type ApproveParams = {
     /**
-     * The recent validity proof for state inclusion of the input state. It
-     * expires after n slots.
+     * Fee payer
      */
-    recentValidityProof: CompressedProof;
+    payer: PublicKey;
     /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
+     * Source compressed token accounts
      */
-    outputStateTrees?: PublicKey[] | PublicKey;
+    inputCompressedTokenAccounts: ParsedTokenAccount[];
+    /**
+     * Recipient address
+     */
+    toAddress: PublicKey;
+    /**
+     * Token amount to approve
+     */
+    amount: BN | number;
+    /**
+     * Validity proof for input state
+     */
+    recentValidityProof: ValidityProof | CompressedProof | null;
+    /**
+     * Recent state root indices
+     */
+    recentInputStateRootIndices: number[];
+};
+
+export type RevokeParams = {
+    /**
+     * Fee payer
+     */
+    payer: PublicKey;
+    /**
+     * Input compressed token accounts
+     */
+    inputCompressedTokenAccounts: ParsedTokenAccount[];
+    /**
+     * Validity proof for input state
+     */
+    recentValidityProof: ValidityProof | CompressedProof | null;
+    /**
+     * Recent state root indices
+     */
+    recentInputStateRootIndices: number[];
 };
 
 /**
@@ -192,25 +241,25 @@ export type TransferParams = {
  */
 export type CreateMintParams = {
     /**
-     * Tx feepayer
+     * Fee payer
      */
     feePayer: PublicKey;
+    /**
+     * SPL Mint address
+     */
+    mint: PublicKey;
     /**
      * Mint authority
      */
     authority: PublicKey;
     /**
-     * Mint public key
+     * Optional: freeze authority
      */
-    mint: PublicKey;
+    freezeAuthority: PublicKey | null;
     /**
      * Mint decimals
      */
     decimals: number;
-    /**
-     * Optional: freeze authority
-     */
-    freezeAuthority: PublicKey | null;
     /**
      * lamport amount for mint account rent exemption
      */
@@ -230,15 +279,15 @@ export type CreateMintParams = {
  */
 export type MergeTokenAccountsParams = {
     /**
-     * Tx feepayer
+     * Fee payer
      */
     payer: PublicKey;
     /**
-     * Owner of the token accounts to be merged
+     * Owner of the compressed token accounts to be merged
      */
     owner: PublicKey;
     /**
-     * Mint public key
+     * SPL Token mint address
      */
     mint: PublicKey;
     /**
@@ -246,15 +295,11 @@ export type MergeTokenAccountsParams = {
      */
     inputCompressedTokenAccounts: ParsedTokenAccount[];
     /**
-     * Optional: Public key of the state tree to merge into
+     * Validity proof for state inclusion
      */
-    outputStateTree: PublicKey;
+    recentValidityProof: ValidityProof | CompressedProof | null;
     /**
-     * Optional: Recent validity proof for state inclusion
-     */
-    recentValidityProof: CompressedProof;
-    /**
-     * Optional: Recent state root indices of the input state
+     * State root indices of the input state
      */
     recentInputStateRootIndices: number[];
 };
@@ -264,47 +309,69 @@ export type MergeTokenAccountsParams = {
  */
 export type MintToParams = {
     /**
-     * Tx feepayer
+     * Fee payer
      */
     feePayer: PublicKey;
+    /**
+     * Token mint address
+     */
+    mint: PublicKey;
     /**
      * Mint authority
      */
     authority: PublicKey;
     /**
-     * Mint public key
-     */
-    mint: PublicKey;
-    /**
-     * The Solana Public Keys to mint to.
+     * Recipient address(es)
      */
     toPubkey: PublicKey[] | PublicKey;
     /**
-     * The amount of compressed tokens to mint.
+     * Token amount(s) to mint
      */
     amount: BN | BN[] | number | number[];
     /**
-     * Public key of the state tree to mint into. Defaults to a public state
-     * tree if unspecified.
+     * State tree for minted tokens
      */
-    merkleTree?: PublicKey;
+    outputStateTreeInfo: TreeInfo;
     /**
-     * Optional: The token program ID. Default: SPL Token Program ID
+     * Token pool
      */
-    tokenProgramId?: PublicKey;
+    tokenPoolInfo: TokenPoolInfo;
 };
 
 /**
  * Register an existing SPL mint account to the compressed token program
  * Creates an omnibus account for the mint
  */
-export type RegisterMintParams = {
-    /** Tx feepayer */
+export type CreateTokenPoolParams = {
+    /**
+     * Fee payer
+     */
     feePayer: PublicKey;
-    /** Mint public key */
+    /**
+     * SPL Mint address
+     */
     mint: PublicKey;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
+};
+
+export type AddTokenPoolParams = {
+    /**
+     * Fee payer
+     */
+    feePayer: PublicKey;
+    /**
+     * Token mint address
+     */
+    mint: PublicKey;
+    /**
+     * Token pool index
+     */
+    poolIndex: number;
+    /**
+     * Optional: Token program ID. Default: SPL Token Program ID
      */
     tokenProgramId?: PublicKey;
 };
@@ -314,9 +381,13 @@ export type RegisterMintParams = {
  */
 export type ApproveAndMintToParams = {
     /**
-     * Tx feepayer
+     * Fee payer
      */
     feePayer: PublicKey;
+    /**
+     * SPL Mint address
+     */
+    mint: PublicKey;
     /**
      * Mint authority
      */
@@ -326,47 +397,42 @@ export type ApproveAndMintToParams = {
      */
     authorityTokenAccount: PublicKey;
     /**
-     * Mint public key
-     */
-    mint: PublicKey;
-    /**
-     * The Solana Public Key to mint to.
+     * Recipient address
      */
     toPubkey: PublicKey;
     /**
-     * The amount of compressed tokens to mint.
+     * Token amount to mint
      */
     amount: BN | number;
     /**
-     * Public key of the state tree to mint into. Defaults to a public state
-     * tree if unspecified.
+     * State tree to write to
      */
-    merkleTree?: PublicKey;
+    outputStateTreeInfo: TreeInfo;
     /**
-     * Optional: The token program ID. Default: SPL Token Program ID
+     * Token pool
      */
-    tokenProgramId?: PublicKey;
+    tokenPoolInfo: TokenPoolInfo;
 };
 
 export type CreateTokenProgramLookupTableParams = {
     /**
-     * The payer of the transaction.
+     * Fee payer
      */
     payer: PublicKey;
     /**
-     * The authority of the transaction.
+     * Authority of the transaction
      */
     authority: PublicKey;
     /**
-     *  Recently finalized Solana slot.
-     */
-    recentSlot: number;
-    /**
-     * Optional Mint addresses to store in the lookup table.
+     * Optional Mint addresses to store in the lookup table
      */
     mints?: PublicKey[];
     /**
-     * Optional additional addresses to store in the lookup table.
+     * Recently finalized Solana slot
+     */
+    recentSlot: number;
+    /**
+     * Optional additional addresses to store in the lookup table
      */
     remainingAccounts?: PublicKey[];
 };
@@ -404,6 +470,33 @@ export const parseTokenData = (
     const delegate = compressedTokenAccounts[0].parsed.delegate;
 
     return { mint, currentOwner, delegate };
+};
+
+export const parseMaybeDelegatedTransfer = (
+    inputs: ParsedTokenAccount[],
+    outputs: TokenTransferOutputData[],
+): { delegatedTransfer: DelegatedTransfer | null; authority: PublicKey } => {
+    if (inputs.length < 1)
+        throw new Error('Must supply at least one input token account.');
+
+    const owner = inputs[0].parsed.owner;
+
+    const delegatedAccountsIndex = inputs.findIndex(a => a.parsed.delegate);
+
+    /// Fast path: no delegated account used
+    if (delegatedAccountsIndex === -1)
+        return { delegatedTransfer: null, authority: owner };
+
+    const delegate = inputs[delegatedAccountsIndex].parsed.delegate;
+    const delegateChangeAccountIndex = outputs.length <= 1 ? null : 0;
+
+    return {
+        delegatedTransfer: {
+            owner,
+            delegateChangeAccountIndex,
+        },
+        authority: delegate!,
+    };
 };
 
 /**
@@ -530,7 +623,14 @@ export class CompressedTokenProgram {
                 : programId;
     }
 
-    /** @internal */
+    /**
+     * Derive the token pool pda.
+     * To derive the token pool pda with bump, use {@link deriveTokenPoolPdaWithIndex}.
+     *
+     * @param mint The mint of the token pool
+     *
+     * @returns The token pool pda
+     */
     static deriveTokenPoolPda(mint: PublicKey): PublicKey {
         const seeds = [POOL_SEED, mint.toBuffer()];
         const [address, _] = PublicKey.findProgramAddressSync(
@@ -538,6 +638,58 @@ export class CompressedTokenProgram {
             this.programId,
         );
         return address;
+    }
+
+    /**
+     * Find the index and bump for a given token pool pda and mint.
+     *
+     * @param poolPda The token pool pda to find the index and bump for
+     * @param mint The mint of the token pool
+     *
+     * @returns The index and bump number.
+     */
+    static findTokenPoolIndexAndBump(
+        poolPda: PublicKey,
+        mint: PublicKey,
+    ): [number, number] {
+        for (let index = 0; index < 5; index++) {
+            const derivedPda =
+                CompressedTokenProgram.deriveTokenPoolPdaWithIndex(mint, index);
+            if (derivedPda[0].equals(poolPda)) {
+                return [index, derivedPda[1]];
+            }
+        }
+        throw new Error('Token pool not found');
+    }
+
+    /**
+     * Derive the token pool pda with index.
+     *
+     * @param mint The mint of the token pool
+     * @param index Index. starts at 0. The Protocol supports 4 indexes aka token pools
+     * per mint.
+     *
+     * @returns The token pool pda and bump.
+     */
+    static deriveTokenPoolPdaWithIndex(
+        mint: PublicKey,
+        index: number,
+    ): [PublicKey, number] {
+        let seeds: Buffer[] = [];
+        if (index === 0) {
+            seeds = [Buffer.from('pool'), mint.toBuffer(), Buffer.from([])]; // legacy, 1st
+        } else {
+            seeds = [
+                Buffer.from('pool'),
+                mint.toBuffer(),
+                Buffer.from([index]),
+            ];
+        }
+        const [address, bump] = PublicKey.findProgramAddressSync(
+            seeds,
+            this.programId,
+        );
+        return [address, bump];
     }
 
     /** @internal */
@@ -551,23 +703,32 @@ export class CompressedTokenProgram {
 
     /**
      * Construct createMint instruction for compressed tokens.
-     * @returns [createMintAccountInstruction, initializeMintInstruction, createTokenPoolInstruction]
      *
-     * Note that `createTokenPoolInstruction` must be executed after `initializeMintInstruction`.
+     * @param feePayer              Fee payer.
+     * @param mint                  SPL Mint address.
+     * @param authority             Mint authority.
+     * @param freezeAuthority       Optional: freeze authority.
+     * @param decimals              Decimals.
+     * @param rentExemptBalance     Lamport amount for mint account rent exemption.
+     * @param tokenProgramId        Optional: Token program ID. Default: SPL Token Program ID
+     * @param mintSize              Optional: mint size. Default: MINT_SIZE
+     *
+     * @returns [createMintAccountInstruction, initializeMintInstruction,
+     * createTokenPoolInstruction]
+     *
+     * Note that `createTokenPoolInstruction` must be executed after
+     * `initializeMintInstruction`.
      */
-    static async createMint(
-        params: CreateMintParams,
-    ): Promise<TransactionInstruction[]> {
-        const {
-            mint,
-            authority,
-            feePayer,
-            rentExemptBalance,
-            tokenProgramId,
-            freezeAuthority,
-            mintSize,
-        } = params;
-
+    static async createMint({
+        feePayer,
+        mint,
+        authority,
+        freezeAuthority,
+        decimals,
+        rentExemptBalance,
+        tokenProgramId,
+        mintSize,
+    }: CreateMintParams): Promise<TransactionInstruction[]> {
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         /// Create and initialize SPL Mint account
@@ -580,7 +741,7 @@ export class CompressedTokenProgram {
         });
         const initializeMintInstruction = createInitializeMint2Instruction(
             mint,
-            params.decimals,
+            decimals,
             authority,
             freezeAuthority,
             tokenProgram,
@@ -602,20 +763,27 @@ export class CompressedTokenProgram {
     /**
      * Enable compression for an existing SPL mint, creating an omnibus account.
      * For new mints, use `CompressedTokenProgram.createMint`.
+     *
+     * @param feePayer              Fee payer.
+     * @param mint                  SPL Mint address.
+     * @param tokenProgramId        Optional: Token program ID. Default: SPL
+     *                              Token Program ID
+     *
+     * @returns The createTokenPool instruction
      */
-    static async createTokenPool(
-        params: RegisterMintParams,
-    ): Promise<TransactionInstruction> {
-        const { mint, feePayer, tokenProgramId } = params;
-
+    static async createTokenPool({
+        feePayer,
+        mint,
+        tokenProgramId,
+    }: CreateTokenPoolParams): Promise<TransactionInstruction> {
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        const tokenPoolPda = this.deriveTokenPoolPda(mint);
+        const tokenPoolPda = this.deriveTokenPoolPdaWithIndex(mint, 0);
 
         const keys = createTokenPoolAccountsLayout({
             mint,
             feePayer,
-            tokenPoolPda,
+            tokenPoolPda: tokenPoolPda[0],
             tokenProgram,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             systemProgram: SystemProgram.programId,
@@ -629,26 +797,89 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct mintTo instruction for compressed tokens
+     * Add a token pool to an existing SPL mint.  For new mints, use
+     * {@link createTokenPool}.
+     *
+     * @param feePayer              Fee payer.
+     * @param mint                  SPL Mint address.
+     * @param poolIndex             Pool index.
+     * @param tokenProgramId        Optional: Token program ID. Default: SPL
+     *                              Token Program ID
+     *
+     * @returns The addTokenPool instruction
      */
-    static async mintTo(params: MintToParams): Promise<TransactionInstruction> {
-        const systemKeys = defaultStaticAccountsStruct();
+    static async addTokenPool({
+        feePayer,
+        mint,
+        poolIndex,
+        tokenProgramId,
+    }: AddTokenPoolParams): Promise<TransactionInstruction> {
+        if (poolIndex <= 0) {
+            throw new Error(
+                'Pool index must be greater than 0. For 0, use CreateTokenPool instead.',
+            );
+        }
+        if (poolIndex > 3) {
+            throw new Error(
+                `Invalid poolIndex ${poolIndex}. Max 4 pools per mint.`,
+            );
+        }
 
-        const {
-            mint,
-            feePayer,
-            authority,
-            merkleTree,
-            toPubkey,
-            amount,
-            tokenProgramId,
-        } = params;
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        const tokenPoolPda = this.deriveTokenPoolPda(mint);
+        const existingTokenPoolPda = this.deriveTokenPoolPdaWithIndex(
+            mint,
+            poolIndex - 1,
+        );
+        const tokenPoolPda = this.deriveTokenPoolPdaWithIndex(mint, poolIndex);
+
+        const keys = addTokenPoolAccountsLayout({
+            mint,
+            feePayer,
+            tokenPoolPda: tokenPoolPda[0],
+            existingTokenPoolPda: existingTokenPoolPda[0],
+            tokenProgram,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            systemProgram: SystemProgram.programId,
+        });
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data: Buffer.concat([
+                new Uint8Array(ADD_TOKEN_POOL_DISCRIMINATOR),
+                new Uint8Array(Buffer.from([poolIndex])),
+            ]),
+        });
+    }
+
+    /**
+     * Construct mintTo instruction for compressed tokens
+     *
+     * @param feePayer              Fee payer.
+     * @param mint                  SPL Mint address.
+     * @param authority             Mint authority.
+     * @param toPubkey              Recipient owner address.
+     * @param amount                Amount of tokens to mint.
+     * @param outputStateTreeInfo   State tree to write to.
+     * @param tokenPoolInfo         Token pool info.
+     *
+     * @returns The mintTo instruction
+     */
+    static async mintTo({
+        feePayer,
+        mint,
+        authority,
+        toPubkey,
+        amount,
+        outputStateTreeInfo,
+        tokenPoolInfo,
+    }: MintToParams): Promise<TransactionInstruction> {
+        const systemKeys = defaultStaticAccountsStruct();
+        const tokenProgram = tokenPoolInfo.tokenProgram;
+        checkTokenPoolInfo(tokenPoolInfo, mint);
 
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
-
         const toPubkeys = toArray(toPubkey);
 
         if (amounts.length !== toPubkeys.length) {
@@ -663,16 +894,19 @@ export class CompressedTokenProgram {
             authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             tokenProgram,
-            tokenPoolPda,
+            tokenPoolPda: tokenPoolInfo.tokenPoolPda,
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: systemKeys.registeredProgramPda,
             noopProgram: systemKeys.noopProgram,
             accountCompressionAuthority: systemKeys.accountCompressionAuthority,
             accountCompressionProgram: systemKeys.accountCompressionProgram,
-            merkleTree: merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
+            merkleTree:
+                outputStateTreeInfo.treeType === TreeType.StateV2
+                    ? outputStateTreeInfo.queue
+                    : outputStateTreeInfo.tree,
             selfProgram: this.programId,
             systemProgram: SystemProgram.programId,
-            solPoolPda: null, // TODO: add lamports support
+            solPoolPda: null,
         });
 
         const data = encodeMintToInstructionData({
@@ -690,28 +924,39 @@ export class CompressedTokenProgram {
 
     /**
      * Mint tokens from registered SPL mint account to a compressed account
+     *
+     * @param feePayer              Fee payer.
+     * @param mint                  SPL Mint address.
+     * @param authority             Mint authority.
+     * @param authorityTokenAccount The mint authority's associated token
+     *                              account (ATA).
+     * @param toPubkey              Recipient owner address.
+     * @param amount                Amount of tokens to mint.
+     * @param outputStateTreeInfo   State tree to write to.
+     * @param tokenPoolInfo         Token pool info.
+     *
+     * @returns The mintTo instruction
      */
-    static async approveAndMintTo(params: ApproveAndMintToParams) {
-        const {
-            mint,
-            feePayer,
-            authorityTokenAccount,
-            authority,
-            merkleTree,
-            toPubkey,
-            tokenProgramId,
-        } = params;
-
-        const amount: bigint = BigInt(params.amount.toString());
+    static async approveAndMintTo({
+        feePayer,
+        mint,
+        authority,
+        authorityTokenAccount,
+        toPubkey,
+        amount,
+        outputStateTreeInfo,
+        tokenPoolInfo,
+    }: ApproveAndMintToParams) {
+        const amountBigInt: bigint = BigInt(amount.toString());
 
         /// 1. Mint to existing ATA of mintAuthority.
         const splMintToInstruction = createMintToInstruction(
             mint,
             authorityTokenAccount,
             authority,
-            amount,
+            amountBigInt,
             [],
-            tokenProgramId,
+            tokenPoolInfo.tokenProgram,
         );
 
         /// 2. Compress from mint authority ATA to recipient compressed account
@@ -721,54 +966,62 @@ export class CompressedTokenProgram {
             source: authorityTokenAccount,
             toAddress: toPubkey,
             mint,
-            amount: params.amount,
-            outputStateTree: merkleTree,
-            tokenProgramId,
+            amount,
+            outputStateTreeInfo,
+            tokenPoolInfo,
         });
 
         return [splMintToInstruction, compressInstruction];
     }
+
     /**
      * Construct transfer instruction for compressed tokens
+     *
+     * @param payer                         Fee payer.
+     * @param inputCompressedTokenAccounts  Source compressed token accounts.
+     * @param toAddress                     Recipient owner address.
+     * @param amount                        Amount of tokens to transfer.
+     * @param recentValidityProof           Recent validity proof.
+     * @param recentInputStateRootIndices   Recent state root indices.
+     *
+     * @returns The transfer instruction
      */
-    static async transfer(
-        params: TransferParams,
-    ): Promise<TransactionInstruction> {
-        const {
-            payer,
-            inputCompressedTokenAccounts,
-            recentInputStateRootIndices,
-            recentValidityProof,
-            amount,
-            outputStateTrees,
-            toAddress,
-        } = params;
-
+    static async transfer({
+        payer,
+        inputCompressedTokenAccounts,
+        toAddress,
+        amount,
+        recentValidityProof,
+        recentInputStateRootIndices,
+    }: TransferParams): Promise<TransactionInstruction> {
         const tokenTransferOutputs: TokenTransferOutputData[] =
             createTransferOutputState(
                 inputCompressedTokenAccounts,
                 toAddress,
                 amount,
             );
+
         const {
             inputTokenDataWithContext,
             packedOutputTokenData,
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTrees,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
         });
 
-        const { mint, currentOwner } = parseTokenData(
+        const { mint } = parseTokenData(inputCompressedTokenAccounts);
+
+        const { delegatedTransfer, authority } = parseMaybeDelegatedTransfer(
             inputCompressedTokenAccounts,
+            tokenTransferOutputs,
         );
 
         const rawData: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
-            delegatedTransfer: null, // TODO: implement
+            delegatedTransfer,
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: null,
@@ -786,7 +1039,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
         const keys = transferAccountsLayout({
             feePayer: payer,
-            authority: currentOwner,
+            authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: registeredProgramPda,
@@ -810,14 +1063,24 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Create lookup table instructions for the token program's default accounts.
+     * Create lookup table instructions for the token program's default
+     * accounts.
+     *
+     * @param payer                     Fee payer.
+     * @param authority                 Authority.
+     * @param mints                     Mints.
+     * @param recentSlot                Recent slot.
+     * @param remainingAccounts         Remaining accounts.
+     *
+     * @returns [createInstruction, extendInstruction, option(extendInstruction2)]
      */
-    static async createTokenProgramLookupTable(
-        params: CreateTokenProgramLookupTableParams,
-    ) {
-        const { authority, mints, recentSlot, payer, remainingAccounts } =
-            params;
-
+    static async createTokenProgramLookupTable({
+        payer,
+        authority,
+        mints,
+        recentSlot,
+        remainingAccounts,
+    }: CreateTokenProgramLookupTableParams) {
         const [createInstruction, lookupTableAddress] =
             AddressLookupTableProgram.createLookupTable({
                 authority,
@@ -838,8 +1101,11 @@ export class CompressedTokenProgram {
             authority,
             lookupTable: lookupTableAddress,
             addresses: [
+                SystemProgram.programId,
+                ComputeBudgetProgram.programId,
                 this.deriveCpiAuthorityPda,
                 LightSystemProgram.programId,
+                CompressedTokenProgram.programId,
                 defaultStaticAccountsStruct().registeredProgramPda,
                 defaultStaticAccountsStruct().noopProgram,
                 defaultStaticAccountsStruct().accountCompressionAuthority,
@@ -853,139 +1119,198 @@ export class CompressedTokenProgram {
                 TOKEN_2022_PROGRAM_ID,
                 authority,
                 ...optionalMintKeys,
-                ...(remainingAccounts ?? []),
             ],
         });
 
+        const instructions = [createInstruction, extendInstruction];
+
+        if (remainingAccounts && remainingAccounts.length > 0) {
+            for (let i = 0; i < remainingAccounts.length; i += 25) {
+                const chunk = remainingAccounts.slice(i, i + 25);
+                const extendIx = AddressLookupTableProgram.extendLookupTable({
+                    payer,
+                    authority,
+                    lookupTable: lookupTableAddress,
+                    addresses: chunk,
+                });
+                instructions.push(extendIx);
+            }
+        }
+
         return {
-            instructions: [createInstruction, extendInstruction],
+            instructions,
             address: lookupTableAddress,
         };
     }
 
     /**
      * Create compress instruction
-     * @returns compressInstruction
+     *
+     * @param payer                         Fee payer.
+     * @param owner                         Owner of uncompressed token account.
+     * @param source                        Source SPL Token account address.
+     * @param toAddress                     Recipient owner address(es).
+     * @param amount                        Amount of tokens to compress.
+     * @param mint                          SPL Token mint address.
+     * @param outputStateTreeInfo           State tree to write to.
+     * @param tokenPoolInfo                 Token pool info.
+     *
+     * @returns The compress instruction
      */
-    static async compress(
-        params: CompressParams,
-    ): Promise<TransactionInstruction> {
-        const {
-            payer,
-            owner,
-            source,
-            toAddress,
-            mint,
-            outputStateTree,
-            tokenProgramId,
-        } = params;
-
-        if (Array.isArray(params.amount) !== Array.isArray(params.toAddress)) {
-            throw new Error(
-                'Both amount and toAddress must be arrays or both must be single values',
-            );
-        }
-
+    static async compress({
+        payer,
+        owner,
+        source,
+        toAddress,
+        amount,
+        mint,
+        outputStateTreeInfo,
+        tokenPoolInfo,
+    }: CompressParams): Promise<TransactionInstruction> {
         let tokenTransferOutputs: TokenTransferOutputData[];
 
-        if (Array.isArray(params.amount) && Array.isArray(params.toAddress)) {
-            if (params.amount.length !== params.toAddress.length) {
-                throw new Error(
-                    'Amount and toAddress arrays must have the same length',
-                );
-            }
-            tokenTransferOutputs = params.amount.map((amt, index) => {
-                const amount = bn(amt);
+        const amountArray = toArray<BN | number>(amount);
+        const toAddressArray = toArray(toAddress);
+
+        checkTokenPoolInfo(tokenPoolInfo, mint);
+
+        if (amountArray.length !== toAddressArray.length) {
+            throw new Error(
+                'Amount and toAddress arrays must have the same length',
+            );
+        }
+        if (featureFlags.isV2()) {
+            const [index, bump] = this.findTokenPoolIndexAndBump(
+                tokenPoolInfo.tokenPoolPda,
+                mint,
+            );
+            const rawData: BatchCompressInstructionData = {
+                pubkeys: toAddressArray,
+                amounts:
+                    amountArray.length > 1
+                        ? amountArray.map(amt => bn(amt))
+                        : null,
+                lamports: null,
+                amount: amountArray.length === 1 ? bn(amountArray[0]) : null,
+                index,
+                bump,
+            };
+
+            const data = encodeBatchCompressInstructionData(rawData);
+            const keys = mintToAccountsLayout({
+                mint,
+                feePayer: payer,
+                authority: owner,
+                cpiAuthorityPda: this.deriveCpiAuthorityPda,
+                tokenProgram: tokenPoolInfo.tokenProgram,
+                tokenPoolPda: tokenPoolInfo.tokenPoolPda,
+                lightSystemProgram: LightSystemProgram.programId,
+                ...defaultStaticAccountsStruct(),
+                merkleTree: outputStateTreeInfo.queue,
+                selfProgram: this.programId,
+                systemProgram: SystemProgram.programId,
+                solPoolPda: null,
+            });
+            keys.push({
+                pubkey: source,
+                isWritable: true,
+                isSigner: false,
+            });
+
+            return new TransactionInstruction({
+                programId: this.programId,
+                keys,
+                data,
+            });
+        } else {
+            tokenTransferOutputs = amountArray.map((amt, index) => {
+                const amountBN = bn(amt);
                 return {
-                    owner: (params.toAddress as PublicKey[])[index],
-                    amount,
-                    lamports: bn(0),
+                    owner: toAddressArray[index],
+                    amount: amountBN,
+                    lamports: null,
                     tlv: null,
                 };
             });
-        } else {
-            tokenTransferOutputs = [
-                {
-                    owner: toAddress as PublicKey,
-                    amount: bn(params.amount as number | BN),
-                    lamports: bn(0),
-                    tlv: null,
-                },
-            ];
+
+            const {
+                inputTokenDataWithContext,
+                packedOutputTokenData,
+                remainingAccountMetas,
+            } = packCompressedTokenAccounts({
+                inputCompressedTokenAccounts: [],
+                outputStateTreeInfo,
+                rootIndices: [],
+                tokenTransferOutputs,
+            });
+
+            const rawData: CompressedTokenInstructionDataTransfer = {
+                proof: null,
+                mint,
+                delegatedTransfer: null,
+                inputTokenDataWithContext,
+                outputCompressedAccounts: packedOutputTokenData,
+                compressOrDecompressAmount: Array.isArray(amount)
+                    ? amount
+                          .map(amt => bn(amt))
+                          .reduce((sum, amt) => sum.add(amt), bn(0))
+                    : bn(amount),
+                isCompress: true,
+                cpiContext: null,
+                lamportsChangeAccountMerkleTreeIndex: null,
+            };
+            const data = encodeTransferInstructionData(rawData);
+            const keys = transferAccountsLayout({
+                ...defaultStaticAccountsStruct(),
+                feePayer: payer,
+                authority: owner,
+                cpiAuthorityPda: this.deriveCpiAuthorityPda,
+                lightSystemProgram: LightSystemProgram.programId,
+                selfProgram: this.programId,
+                systemProgram: SystemProgram.programId,
+                tokenPoolPda: tokenPoolInfo.tokenPoolPda,
+                compressOrDecompressTokenAccount: source,
+                tokenProgram: tokenPoolInfo.tokenProgram,
+            });
+            keys.push(...remainingAccountMetas);
+
+            return new TransactionInstruction({
+                programId: this.programId,
+                keys,
+                data,
+            });
         }
-
-        const {
-            inputTokenDataWithContext,
-            packedOutputTokenData,
-            remainingAccountMetas,
-        } = packCompressedTokenAccounts({
-            inputCompressedTokenAccounts: [],
-            outputStateTrees: outputStateTree,
-            rootIndices: [],
-            tokenTransferOutputs,
-        });
-
-        const rawData: CompressedTokenInstructionDataTransfer = {
-            proof: null,
-            mint,
-            delegatedTransfer: null, // TODO: implement
-            inputTokenDataWithContext,
-            outputCompressedAccounts: packedOutputTokenData,
-            compressOrDecompressAmount: Array.isArray(params.amount)
-                ? params.amount
-                      .map(amt => new BN(amt))
-                      .reduce((sum, amt) => sum.add(amt), new BN(0))
-                : new BN(params.amount),
-            isCompress: true,
-            cpiContext: null,
-            lamportsChangeAccountMerkleTreeIndex: null,
-        };
-        const data = encodeTransferInstructionData(rawData);
-
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
-
-        const keys = transferAccountsLayout({
-            ...defaultStaticAccountsStruct(),
-            feePayer: payer,
-            authority: owner,
-            cpiAuthorityPda: this.deriveCpiAuthorityPda,
-            lightSystemProgram: LightSystemProgram.programId,
-            selfProgram: this.programId,
-            systemProgram: SystemProgram.programId,
-            tokenPoolPda: this.deriveTokenPoolPda(mint),
-            compressOrDecompressTokenAccount: source,
-            tokenProgram,
-        });
-
-        keys.push(...remainingAccountMetas);
-
-        return new TransactionInstruction({
-            programId: this.programId,
-            keys,
-            data,
-        });
     }
 
     /**
      * Construct decompress instruction
+     *
+     * @param payer                         Fee payer.
+     * @param inputCompressedTokenAccounts  Source compressed token accounts.
+     * @param toAddress                     Destination **uncompressed** token
+     *                                      account address. (ATA)
+     * @param amount                        Amount of tokens to decompress.
+     * @param recentValidityProof           Recent validity proof.
+     * @param recentInputStateRootIndices   Recent state root indices.
+     * @param tokenPoolInfos                Token pool info.
+     *
+     * @returns The decompress instruction
      */
-    static async decompress(
-        params: DecompressParams,
-    ): Promise<TransactionInstruction> {
-        const {
-            payer,
-            inputCompressedTokenAccounts,
-            toAddress,
-            outputStateTree,
-            recentValidityProof,
-            recentInputStateRootIndices,
-            tokenProgramId,
-        } = params;
-        const amount = bn(params.amount);
+    static async decompress({
+        payer,
+        inputCompressedTokenAccounts,
+        toAddress,
+        amount,
+        recentValidityProof,
+        recentInputStateRootIndices,
+        tokenPoolInfos,
+    }: DecompressParams): Promise<TransactionInstruction> {
+        const amountBN = bn(amount);
+        const tokenPoolInfosArray = toArray(tokenPoolInfos);
 
         const tokenTransferOutputs = createDecompressOutputState(
             inputCompressedTokenAccounts,
-            amount,
+            amountBN,
         );
 
         /// Pack
@@ -995,28 +1320,33 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTrees: outputStateTree,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs: tokenTransferOutputs,
+            remainingAccounts: tokenPoolInfosArray
+                .slice(1)
+                .map(info => info.tokenPoolPda),
         });
 
-        const { mint, currentOwner } = parseTokenData(
+        const { mint } = parseTokenData(inputCompressedTokenAccounts);
+        const { delegatedTransfer, authority } = parseMaybeDelegatedTransfer(
             inputCompressedTokenAccounts,
+            tokenTransferOutputs,
         );
 
         const rawData: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
-            delegatedTransfer: null, // TODO: implement
+            delegatedTransfer,
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
-            compressOrDecompressAmount: amount,
+            compressOrDecompressAmount: amountBN,
             isCompress: false,
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
         const data = encodeTransferInstructionData(rawData);
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
+        const tokenProgram = tokenPoolInfosArray[0].tokenProgram;
+
         const {
             accountCompressionAuthority,
             noopProgram,
@@ -1026,7 +1356,7 @@ export class CompressedTokenProgram {
 
         const keys = transferAccountsLayout({
             feePayer: payer,
-            authority: currentOwner,
+            authority: authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: registeredProgramPda,
@@ -1034,12 +1364,11 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            tokenPoolPda: tokenPoolInfosArray[0].tokenPoolPda,
             compressOrDecompressTokenAccount: toAddress,
             tokenProgram,
             systemProgram: SystemProgram.programId,
         });
-
         keys.push(...remainingAccountMetas);
 
         return new TransactionInstruction({
@@ -1049,21 +1378,32 @@ export class CompressedTokenProgram {
         });
     }
 
-    static async mergeTokenAccounts(
-        params: MergeTokenAccountsParams,
-    ): Promise<TransactionInstruction[]> {
-        const {
-            payer,
-            owner,
-            inputCompressedTokenAccounts,
-            outputStateTree,
-            recentValidityProof,
-            recentInputStateRootIndices,
-        } = params;
-
-        if (inputCompressedTokenAccounts.length > 3) {
-            throw new Error('Cannot merge more than 3 token accounts at once');
+    /**
+     * Create `mergeTokenAccounts` instruction
+     *
+     * @param payer                         Fee payer.
+     * @param owner                         Owner of the compressed token
+     *                                      accounts to be merged.
+     * @param inputCompressedTokenAccounts  Source compressed token accounts.
+     * @param mint                          SPL Token mint address.
+     * @param recentValidityProof           Recent validity proof.
+     * @param recentInputStateRootIndices   Recent state root indices.
+     *
+     * @returns instruction
+     */
+    static async mergeTokenAccounts({
+        payer,
+        owner,
+        inputCompressedTokenAccounts,
+        mint,
+        recentValidityProof,
+        recentInputStateRootIndices,
+    }: MergeTokenAccountsParams): Promise<TransactionInstruction[]> {
+        if (inputCompressedTokenAccounts.length > 4) {
+            throw new Error('Cannot merge more than 4 token accounts at once');
         }
+
+        checkMint(inputCompressedTokenAccounts, mint);
 
         const ix = await this.transfer({
             payer,
@@ -1071,9 +1411,8 @@ export class CompressedTokenProgram {
             toAddress: owner,
             amount: inputCompressedTokenAccounts.reduce(
                 (sum, account) => sum.add(account.parsed.amount),
-                new BN(0),
+                bn(0),
             ),
-            outputStateTrees: outputStateTree,
             recentInputStateRootIndices,
             recentValidityProof,
         });
@@ -1081,23 +1420,35 @@ export class CompressedTokenProgram {
         return [ix];
     }
 
-    static async compressSplTokenAccount(
-        params: CompressSplTokenAccountParams,
-    ): Promise<TransactionInstruction> {
-        const {
-            feePayer,
-            authority,
-            tokenAccount,
-            mint,
-            remainingAmount,
-            outputStateTree,
-            tokenProgramId,
-        } = params;
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
-
+    /**
+     * Create `compressSplTokenAccount` instruction
+     *
+     * @param feePayer              Fee payer.
+     * @param authority             SPL Token account owner.
+     * @param tokenAccount          SPL Token account to compress.
+     * @param mint                  SPL Token mint address.
+     * @param remainingAmount       Optional: Amount to leave in token account.
+     * @param outputStateTreeInfo   State tree to write to.
+     * @param tokenPoolInfo         Token pool info.
+     *
+     * @returns instruction
+     */
+    static async compressSplTokenAccount({
+        feePayer,
+        authority,
+        tokenAccount,
+        mint,
+        remainingAmount,
+        outputStateTreeInfo,
+        tokenPoolInfo,
+    }: CompressSplTokenAccountParams): Promise<TransactionInstruction> {
+        checkTokenPoolInfo(tokenPoolInfo, mint);
         const remainingAccountMetas: AccountMeta[] = [
             {
-                pubkey: outputStateTree,
+                pubkey:
+                    outputStateTreeInfo.treeType === TreeType.StateV2
+                        ? outputStateTreeInfo.queue
+                        : outputStateTreeInfo.tree,
                 isSigner: false,
                 isWritable: true,
             },
@@ -1114,6 +1465,7 @@ export class CompressedTokenProgram {
             registeredProgramPda,
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
+
         const keys = transferAccountsLayout({
             feePayer,
             authority,
@@ -1124,9 +1476,9 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            tokenPoolPda: tokenPoolInfo.tokenPoolPda,
             compressOrDecompressTokenAccount: tokenAccount,
-            tokenProgram,
+            tokenProgram: tokenPoolInfo.tokenProgram,
             systemProgram: SystemProgram.programId,
         });
 
@@ -1139,10 +1491,168 @@ export class CompressedTokenProgram {
         });
     }
 
-    static async get_mint_program_id(
+    /**
+     * Get the program ID for a mint
+     *
+     * @param mint                  SPL Token mint address.
+     * @param connection            Connection.
+     *
+     * @returns program ID
+     */
+    static async getMintProgramId(
         mint: PublicKey,
         connection: Connection,
     ): Promise<PublicKey | undefined> {
         return (await connection.getAccountInfo(mint))?.owner;
+    }
+
+    /**
+     * Create `approve` instruction to delegate compressed tokens.
+     *
+     * @param payer                         Fee payer.
+     * @param inputCompressedTokenAccounts  Source compressed token accounts.
+     * @param toAddress                     Owner to delegate to.
+     * @param amount                        Amount of tokens to delegate.
+     * @param recentValidityProof           Recent validity proof.
+     * @param recentInputStateRootIndices   Recent state root indices.
+     *
+     * @returns instruction
+     */
+    static async approve({
+        payer,
+        inputCompressedTokenAccounts,
+        toAddress,
+        amount,
+        recentValidityProof,
+        recentInputStateRootIndices,
+    }: ApproveParams): Promise<TransactionInstruction> {
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                rootIndices: recentInputStateRootIndices,
+                tokenTransferOutputs: [],
+            });
+
+        const { mint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+
+        const CHANGE_INDEX =
+            inputCompressedTokenAccounts[0].compressedAccount.treeInfo
+                .treeType === TreeType.StateV2
+                ? 1
+                : 0;
+
+        const rawData: CompressedTokenInstructionDataApprove = {
+            proof: recentValidityProof,
+            mint,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            delegate: toAddress,
+            delegatedAmount: bn(amount),
+            delegateMerkleTreeIndex: CHANGE_INDEX,
+            changeAccountMerkleTreeIndex: CHANGE_INDEX,
+            delegateLamports: null,
+        };
+
+        const data = encodeApproveInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+
+        const keys = approveAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
+    }
+
+    /**
+     * Create `revoke` instruction to revoke delegation of compressed tokens.
+     *
+     * @param payer                         Fee payer.
+     * @param inputCompressedTokenAccounts  Source compressed token accounts.
+     * @param recentValidityProof           Recent validity proof.
+     * @param recentInputStateRootIndices   Recent state root indices.
+     *
+     * @returns instruction
+     */
+    static async revoke({
+        payer,
+        inputCompressedTokenAccounts,
+        recentValidityProof,
+        recentInputStateRootIndices,
+    }: RevokeParams): Promise<TransactionInstruction> {
+        validateSameTokenOwner(inputCompressedTokenAccounts);
+
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                rootIndices: recentInputStateRootIndices,
+                tokenTransferOutputs: [],
+            });
+
+        const { mint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+
+        const rawData: CompressedTokenInstructionDataRevoke = {
+            proof: recentValidityProof,
+            mint,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            outputAccountMerkleTreeIndex:
+                inputCompressedTokenAccounts[0].compressedAccount.treeInfo
+                    .treeType === TreeType.StateV2
+                    ? 2
+                    : 1,
+        };
+        const data = encodeRevokeInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+        const keys = revokeAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 }

@@ -1,6 +1,5 @@
 import {
     VersionedTransaction,
-    TransactionConfirmationStrategy,
     SignatureResult,
     RpcResponseAndContext,
     Signer,
@@ -10,11 +9,8 @@ import {
     TransactionSignature,
     PublicKey,
     AddressLookupTableAccount,
-    SignatureStatus,
-    SignatureStatusConfig,
 } from '@solana/web3.js';
 import { Rpc } from '../rpc';
-import { sleep } from './sleep';
 import { isLocalTest } from '../constants';
 
 /**

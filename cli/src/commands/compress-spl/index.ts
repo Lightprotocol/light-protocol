@@ -52,7 +52,7 @@ class CompressSplCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const mintPublicKey = new PublicKey(mint);
       const payer = defaultSolanaWalletKeypair();
-      const tokenProgramId = await CompressedTokenProgram.get_mint_program_id(
+      const tokenProgramId = await CompressedTokenProgram.getMintProgramId(
         mintPublicKey,
         rpc(),
       );
@@ -73,9 +73,6 @@ class CompressSplCommand extends Command {
         payer,
         sourceAta,
         toPublicKey,
-        undefined,
-        undefined,
-        tokenProgramId,
       );
 
       loader.stop(false);

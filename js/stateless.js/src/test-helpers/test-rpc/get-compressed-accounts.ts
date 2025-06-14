@@ -1,15 +1,15 @@
 import { PublicKey } from '@solana/web3.js';
-
 import BN from 'bn.js';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
 import {
     CompressedAccountWithMerkleContext,
     bn,
     MerkleContext,
-    createCompressedAccountWithMerkleContext,
+    createCompressedAccountWithMerkleContextLegacy,
+    TreeType,
 } from '../../state';
+import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
 
 export async function getCompressedAccountsByOwnerTest(
     rpc: Rpc,
@@ -43,6 +43,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];
+    const infos = await rpc.getStateTreeInfos();
 
     for (const event of events) {
         for (
@@ -50,15 +51,23 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             index < event.outputCompressedAccounts.length;
             index++
         ) {
+            const maybeTree =
+                event.pubkeyArray[
+                    event.outputCompressedAccounts[index].merkleTreeIndex
+                ];
+
+            const treeInfo = getStateTreeInfoByPubkey(infos, maybeTree);
+
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
-                merkleTree: defaultTestStateTreeAccounts().merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().nullifierQueue,
-                hash: event.outputCompressedAccountHashes[index],
+                treeInfo,
+                hash: bn(event.outputCompressedAccountHashes[index]),
                 leafIndex: event.outputLeafIndices[index],
+                // V2 trees always have proveByIndex = true in test-rpc.
+                proveByIndex: treeInfo.treeType === TreeType.StateV2,
             };
             const withCtx: CompressedAccountWithMerkleContext =
-                createCompressedAccountWithMerkleContext(
+                createCompressedAccountWithMerkleContextLegacy(
                     merkleContext,
                     account.compressedAccount.owner,
                     account.compressedAccount.lamports,

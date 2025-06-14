@@ -199,8 +199,8 @@ where
             .unwrap();
 
     let account_meta = CompressedAccountMeta {
-        tree_info: packed_tree_accounts.packed_tree_infos[0],
         address: compressed_account.address.unwrap(),
+        tree_info: packed_tree_accounts.packed_tree_infos[0],
         output_state_tree_index: packed_tree_accounts.output_tree_index,
     };
 

@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { bn, createBN254 } from '../state/BN254';
+import { bn, createBN254 } from '../state';
 import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Keypair, PublicKey } from '@solana/web3.js';
@@ -8,11 +8,10 @@ import camelcaseKeys from 'camelcase-keys';
 import {
     InstructionDataInvoke,
     PackedCompressedAccountWithMerkleContext,
-    CompressedAccount,
+    CompressedAccountLegacy,
     OutputCompressedAccountWithPackedContext,
-    PackedMerkleContext,
-    QueueIndex,
-} from '../state/types';
+    PackedMerkleContextLegacy,
+} from '../state';
 import { NewAddressParamsPacked } from './address';
 
 export function byteArrayToKeypair(byteArray: number[]): Keypair {
@@ -130,28 +129,27 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
     // Convert input_compressed_accounts to PackedCompressedAccountWithMerkleContext format
     const inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[] =
         data.input_compressed_accounts.map((account: any) => {
-            const compressedAccount: CompressedAccount = {
+            const compressedAccount: CompressedAccountLegacy = {
                 owner: new PublicKey(Buffer.alloc(32)),
-                lamports: account.lamports,
+                lamports: bn(account.lamports),
                 address: account.address,
                 data: null,
             };
 
-            const merkleContext: PackedMerkleContext = {
+            const merkleContext: PackedMerkleContextLegacy = {
                 merkleTreePubkeyIndex:
                     account.packedMerkleContext.merkle_tree_pubkey_index,
-                nullifierQueuePubkeyIndex:
+                queuePubkeyIndex:
                     account.packedMerkleContext.queue_pubkey_index,
                 leafIndex: account.packedMerkleContext.leaf_index,
-                queueIndex: account.packedMerkleContext.prove_by_index
-                    ? ({ queueId: 0, index: 0 } as QueueIndex)
-                    : null,
+                proveByIndex: account.packedMerkleContext.prove_by_index,
             };
 
             return {
                 compressedAccount,
                 merkleContext,
                 rootIndex: account.root_index,
+                // TODO: confirm this is valid.
                 readOnly: false,
             };
         });

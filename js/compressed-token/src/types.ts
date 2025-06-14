@@ -1,15 +1,12 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
-    CompressedProof,
-    PackedMerkleContext,
+    ValidityProof,
+    PackedMerkleContextLegacy,
+    CompressedCpiContext,
 } from '@lightprotocol/stateless.js';
-
-export type CompressedCpiContext = {
-    setContext: boolean;
-    firstSetContext: boolean;
-    cpiContextAccountIndex: number; // u8
-};
+import { TokenPoolInfo } from './utils/get-token-pool-infos';
 
 export type TokenTransferOutputData = {
     /**
@@ -56,7 +53,7 @@ export type PackedTokenTransferOutputData = {
 export type InputTokenDataWithContext = {
     amount: BN;
     delegateIndex: number | null;
-    merkleContext: PackedMerkleContext;
+    merkleContext: PackedMerkleContextLegacy;
     rootIndex: number;
     lamports: BN | null;
     tlv: Buffer | null;
@@ -66,6 +63,16 @@ export type DelegatedTransfer = {
     owner: PublicKey;
     delegateChangeAccountIndex: number | null;
 };
+
+export type BatchCompressInstructionData = {
+    pubkeys: PublicKey[];
+    amounts: BN[] | null;
+    lamports: BN | null;
+    amount: BN | null;
+    index: number;
+    bump: number;
+};
+
 
 export type MintToInstructionData = {
     recipients: PublicKey[];
@@ -78,18 +85,23 @@ export type CompressSplTokenAccountInstructionData = {
     cpiContext: CompressedCpiContext | null;
 };
 
+export function isSingleTokenPoolInfo(
+    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[],
+): tokenPoolInfos is TokenPoolInfo {
+    return !Array.isArray(tokenPoolInfos);
+}
+
 export type CompressedTokenInstructionDataTransfer = {
     /**
      * Validity proof
      */
-    proof: CompressedProof | null;
+    proof: ValidityProof | null;
     /**
      * The mint of the transfer
      */
     mint: PublicKey;
     /**
      * Whether the signer is a delegate
-     * TODO: implement delegated transfer struct
      */
     delegatedTransfer: DelegatedTransfer | null;
     /**
@@ -145,4 +157,24 @@ export type TokenData = {
      * TokenExtension tlv
      */
     tlv: Buffer | null;
+};
+
+export type CompressedTokenInstructionDataApprove = {
+    proof: ValidityProof | null;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    delegate: PublicKey;
+    delegatedAmount: BN;
+    delegateMerkleTreeIndex: number;
+    changeAccountMerkleTreeIndex: number;
+    delegateLamports: BN | null;
+};
+
+export type CompressedTokenInstructionDataRevoke = {
+    proof: ValidityProof | null;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    outputAccountMerkleTreeIndex: number;
 };
