@@ -86,5 +86,6 @@ pub enum SystemProgramError {
     CpiContextAlreadySet,
     InvalidTreeHeight,
     TooManyOutputAccounts,
+    #[msg("Failed to borrow account data")]
     BorrowingDataFailed,
 }
