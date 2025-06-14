@@ -140,7 +140,14 @@ pub fn process_invoke_cpi<'info>(
     account_infos.extend_from_slice(ctx.remaining_accounts);
 
     // Create instruction
-    let account_metas = cpi_accounts.to_account_metas(None);
+    let mut account_metas = cpi_accounts.to_account_metas(None);
+    ctx.remaining_accounts.iter().for_each(|account| {
+        account_metas.push(AccountMeta {
+            pubkey: *account.key,
+            is_signer: account.is_signer,
+            is_writable: account.is_writable,
+        });
+    });
     let instruction = Instruction {
         program_id: ctx.accounts.light_system_program.key(),
         accounts: account_metas,
