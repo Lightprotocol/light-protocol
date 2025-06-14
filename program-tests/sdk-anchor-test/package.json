@@ -3,7 +3,7 @@
     "test": "cargo test-sbf -p sdk-test"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.29.0"
+    "@coral-xyz/anchor": "^0.31.1"
   },
   "devDependencies": {
     "@lightprotocol/zk-compression-cli": "workspace:*",
