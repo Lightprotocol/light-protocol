@@ -121,6 +121,13 @@ pub fn check_signer<A: AccountInfoTrait>(account_info: &A) -> Result<(), Account
     Ok(())
 }
 
+pub fn check_mut<A: AccountInfoTrait>(account_info: &A) -> Result<(), AccountError> {
+    if !account_info.is_writable() {
+        return Err(AccountError::AccountNotMutable);
+    }
+    Ok(())
+}
+
 pub fn check_owner<A: AccountInfoTrait>(
     owner: &[u8; 32],
     account_info: &A,
