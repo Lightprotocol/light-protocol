@@ -56,9 +56,10 @@ export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
 ]);
 
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
-export const lightSystemProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
+export const lightSystemProgram =
+    '7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ';
 export const accountCompressionProgram =
-    'compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq';
+    '8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh';
 
 export const getRegisteredProgramPda = () =>
     new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh');
@@ -196,7 +197,7 @@ export const defaultTestStateTreeAccounts2 = () => {
 };
 
 export const COMPRESSED_TOKEN_PROGRAM_ID = new PublicKey(
-    'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
+    'EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT',
 );
 export const stateTreeLookupTableMainnet =
     '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';

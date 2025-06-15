@@ -342,7 +342,7 @@ async fn test_resize_registered_program_pda() {
     };
     let mut context = LightProgramTest::new(config).await.unwrap();
     let system_program_id =
-        Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
+        Pubkey::from_str("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ").unwrap();
     let registered_program = Pubkey::find_program_address(
         &[system_program_id.to_bytes().as_slice()],
         &account_compression::ID,
@@ -422,7 +422,7 @@ async fn test_resize_registered_program_pda() {
         };
         let mut context = LightProgramTest::new(config).await.unwrap();
         let system_program_id =
-            Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
+            Pubkey::from_str("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ").unwrap();
         let registered_program = Pubkey::find_program_address(
             &[system_program_id.to_bytes().as_slice()],
             &account_compression::ID,
@@ -459,7 +459,7 @@ async fn test_resize_registered_program_pda() {
         let mut account = get_registered_program_pda();
         account.data[0..8].copy_from_slice(&[1u8; 8]);
         let system_program_id =
-            Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
+            Pubkey::from_str("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ").unwrap();
         let registered_program = Pubkey::find_program_address(
             &[system_program_id.to_bytes().as_slice()],
             &account_compression::ID,

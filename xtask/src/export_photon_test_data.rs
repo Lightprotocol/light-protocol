@@ -55,7 +55,7 @@ async fn export_transactions(
 }
 
 pub async fn export_photon_test_data(opt: Options) -> anyhow::Result<()> {
-    let address = "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq";
+    let address = "8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh";
     let output_folder = format!("./target/{}", opt.test_name);
 
     if let Err(e) = export_transactions(address, &output_folder).await {

@@ -178,7 +178,7 @@ export class LightSystemProgram {
      * The LightSystemProgram program ID.
      */
     static programId: PublicKey = new PublicKey(
-        'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7',
+        '7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ',
     );
 
     /**

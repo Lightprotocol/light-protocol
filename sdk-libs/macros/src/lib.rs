@@ -282,7 +282,7 @@ pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 /// use light_sdk_macros::derive_light_cpi_signer_pda;
 /// // Derive CPI signer for your program
-/// const CPI_SIGNER_DATA: ([u8; 32], u8) = derive_light_cpi_signer_pda!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+/// const CPI_SIGNER_DATA: ([u8; 32], u8) = derive_light_cpi_signer_pda!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 /// const CPI_SIGNER: [u8; 32] = CPI_SIGNER_DATA.0;
 /// const CPI_SIGNER_BUMP: u8 = CPI_SIGNER_DATA.1;
 /// ```
@@ -304,7 +304,7 @@ pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
 /// use light_sdk_macros::derive_light_cpi_signer;
 /// use light_sdk_types::CpiSigner;
 /// // Derive complete CPI signer for your program
-/// const LIGHT_CPI_SIGNER: CpiSigner = derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+/// const LIGHT_CPI_SIGNER: CpiSigner = derive_light_cpi_signer!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 ///
 /// // Access individual fields:
 /// const PROGRAM_ID: [u8; 32] = LIGHT_CPI_SIGNER.program_id;

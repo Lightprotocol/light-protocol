@@ -16,7 +16,7 @@ pub fn registered_program_test_account_system_program() -> Account {
             181u8, 180u8, 68u8, 118u8, 7u8, 237u8, 191u8, 225u8, 69u8, 39u8, 191u8, 180u8, 35u8,
             145u8, 28u8, 164u8, 4u8, 35u8, 191u8, 209u8, 82u8, 122u8, 38u8, 117u8,
         ],
-        owner: Pubkey::from_str("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq").unwrap(),
+        owner: Pubkey::from_str("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh").unwrap(),
         executable: false,
         rent_epoch: 18446744073709551615u64,
     }
@@ -34,7 +34,7 @@ pub fn registered_program_test_account_registry_program() -> Account {
             56u8, 58u8, 208u8, 60u8, 222u8, 224u8, 120u8, 185u8, 20u8, 216u8, 115u8, 24u8, 128u8,
             59u8, 21u8, 53u8, 128u8, 112u8, 215u8, 146u8, 224u8, 92u8, 253u8, 231u8,
         ],
-        owner: Pubkey::from_str("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq").unwrap(),
+        owner: Pubkey::from_str("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh").unwrap(),
         executable: false,
         rent_epoch: 18446744073709551615u64,
     }

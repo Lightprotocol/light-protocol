@@ -498,7 +498,7 @@ describe('camelcaseKeys', () => {
                                     data_hash:
                                         'gCvEmNCCr8PYNcdRyiNRbbfnahim17goFhv8cumYc56',
                                 },
-                                owner: 'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
+                                owner: 'EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT',
                                 lamports: 0,
                                 tree: 'smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT',
                                 leafIndex: 122,
@@ -537,7 +537,7 @@ describe('camelcaseKeys', () => {
                                     dataHash:
                                         'gCvEmNCCr8PYNcdRyiNRbbfnahim17goFhv8cumYc56',
                                 },
-                                owner: 'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
+                                owner: 'EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT',
                                 lamports: 0,
                                 tree: 'smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT',
                                 leafIndex: 122,

@@ -1,9 +1,9 @@
 use light_macros::pubkey_array;
 
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+    pubkey_array!("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh");
 pub const SYSTEM_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+    pubkey_array!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
     pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
 pub const CREATE_CPI_CONTEXT_ACCOUNT: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];

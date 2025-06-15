@@ -53,10 +53,9 @@ pub async fn run_queue_info(
 ) {
     let mut rpc = LightClient::new(LightClientConfig {
         url: config.external_services.rpc_url.to_string(),
+        photon_url: None,
         commitment_config: None,
         fetch_active_tree: false,
-
-        with_indexer: false,
     })
     .await
     .unwrap();

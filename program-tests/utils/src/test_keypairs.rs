@@ -35,7 +35,7 @@ pub fn from_target_folder() -> TestKeypairs {
     ))
     .unwrap();
     let system_program = read_keypair_file(format!(
-        "{}SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.json",
+        "{}7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ.json",
         prefix
     ))
     .unwrap();
@@ -99,7 +99,7 @@ pub fn for_regenerate_accounts() -> TestKeypairs {
     ))
     .unwrap();
     let system_program = read_keypair_file(format!(
-        "{}SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.json",
+        "{}7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ.json",
         prefix
     ))
     .unwrap();

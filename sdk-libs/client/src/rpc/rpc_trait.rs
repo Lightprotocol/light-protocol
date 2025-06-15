@@ -26,25 +26,25 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct LightClientConfig {
     pub url: String,
+    pub photon_url: Option<String>,
     pub commitment_config: Option<CommitmentConfig>,
-    pub with_indexer: bool,
     pub fetch_active_tree: bool,
 }
 
 impl LightClientConfig {
-    pub fn new(url: String) -> Self {
+    pub fn new(url: String, photon_url: Option<String>) -> Self {
         Self {
             url,
+            photon_url,
             commitment_config: Some(CommitmentConfig::confirmed()),
-            with_indexer: true,
             fetch_active_tree: true,
         }
     }
     pub fn local_no_indexer() -> Self {
         Self {
             url: RpcUrl::Localnet.to_string(),
+            photon_url: None,
             commitment_config: Some(CommitmentConfig::confirmed()),
-            with_indexer: false,
             fetch_active_tree: false,
         }
     }
@@ -52,17 +52,17 @@ impl LightClientConfig {
     pub fn local() -> Self {
         Self {
             url: RpcUrl::Localnet.to_string(),
+            photon_url: Some("http://127.0.0.1:8784".to_string()),
             commitment_config: Some(CommitmentConfig::confirmed()),
-            with_indexer: true,
             fetch_active_tree: false,
         }
     }
 
-    pub fn devnet() -> Self {
+    pub fn devnet(photon_url: Option<String>) -> Self {
         Self {
             url: RpcUrl::Devnet.to_string(),
+            photon_url,
             commitment_config: Some(CommitmentConfig::confirmed()),
-            with_indexer: true,
             fetch_active_tree: true,
         }
     }

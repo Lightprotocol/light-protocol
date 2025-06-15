@@ -31,7 +31,7 @@ use crate::{
     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
 };
 
-pub const ID: Pubkey = pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+pub const ID: Pubkey = pubkey_array!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
