@@ -63,7 +63,6 @@ export async function killProcess(processName: string) {
     }
   }
 
-  // Double-check if processes are still running
   const remainingProcesses = await find("name", processName);
   if (remainingProcesses.length > 0) {
     console.warn(
@@ -217,7 +216,6 @@ export function spawnBinary(command: string, args: string[] = []) {
 
     spawnedProcess.on("close", async (code) => {
       console.log(`${binaryName} process exited with code ${code}`);
-      // Log prover file contents if prover exits with non-zero code
       if (code !== 0 && binaryName.includes("prover")) {
         console.error(`Prover process failed with exit code ${code}`);
         await logProverFileContents();

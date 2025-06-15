@@ -2,7 +2,10 @@
 
 # Command to deactivate the devenv. It sets the old environment variables.
 deactivate () {
-    redis-stop
+    # Only try to stop redis if the command exists
+    if command -v redis-stop >/dev/null 2>&1; then
+        redis-stop 2>/dev/null || true
+    fi
 
     PS1="${LIGHT_PROTOCOL_OLD_PS1}"
     RUSTUP_HOME="${LIGHT_PROTOCOL_OLD_RUSTUP_HOME}"
@@ -24,15 +27,27 @@ deactivate () {
 if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
     LIGHT_PROTOCOL_DEVENV=1
 else
-    return
+    return 2>/dev/null || exit 0
 fi
 
 # The root of the git repository.
-LIGHT_PROTOCOL_TOPLEVEL="`git rev-parse --show-toplevel`"
+LIGHT_PROTOCOL_TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$LIGHT_PROTOCOL_TOPLEVEL" ]; then
+    echo "Error: Not in a git repository" >&2
+    return 1 2>/dev/null || exit 1
+fi
 
-# Shell prompt.
-LIGHT_PROTOCOL_OLD_PS1="${PS1:-}"
-PS1="[🧢 Light Protocol devenv] ${PS1:-}"
+# Verify the .local directory exists
+if [ ! -d "${LIGHT_PROTOCOL_TOPLEVEL}/.local" ]; then
+    echo "Error: .local directory not found. Please run ./scripts/install.sh first" >&2
+    return 1 2>/dev/null || exit 1
+fi
+
+# Shell prompt (only set if PS1 exists - not in CI)
+if [ -n "${PS1:-}" ]; then
+    LIGHT_PROTOCOL_OLD_PS1="${PS1}"
+    PS1="[🧢 Light Protocol devenv] ${PS1}"
+fi
 
 # Ensure that our rustup environment is used.
 LIGHT_PROTOCOL_OLD_RUSTUP_HOME="${RUSTUP_HOME:-}"
@@ -54,8 +69,10 @@ PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global/bin:${PATH}"
 # Remove the original Rust-related PATH entries
 PATH=$(echo "$PATH" | tr ':' '\n' | grep -vE "/.rustup/|/.cargo/" | tr '\n' ':' | sed 's/:$//')
 
-# Define alias of `light` to use the CLI built from source.
-alias light="${LIGHT_PROTOCOL_TOPLEVEL}/cli/test_bin/run"
+# Define alias of `light` to use the CLI built from source (only if not in CI)
+if [ -z "${CI:-}" ]; then
+    alias light="${LIGHT_PROTOCOL_TOPLEVEL}/cli/test_bin/run"
+fi
 
 # Define GOROOT for Go.
 export GOROOT="${LIGHT_PROTOCOL_TOPLEVEL}/.local/go"
@@ -63,16 +80,35 @@ export GOROOT="${LIGHT_PROTOCOL_TOPLEVEL}/.local/go"
 # Ensure Rust binaries are in PATH
 PATH="${CARGO_HOME}/bin:${PATH}"
 
-# Export the modified PATH
+# Export all critical environment variables
 export PATH
+export RUSTUP_HOME
+export CARGO_HOME
+export NPM_CONFIG_PREFIX
+export LIGHT_PROTOCOL_TOPLEVEL
+export LIGHT_PROTOCOL_DEVENV
 
-# Comment to start prover without redis
-export REDIS_URL="redis://localhost:6379"
+# Set Redis URL if not already set
+export REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
 
 # Enable small_ix feature by default in devenv
-export CARGO_FEATURES="small_ix"
+export CARGO_FEATURES="${CARGO_FEATURES:-small_ix}"
 
+# macOS-specific settings
 if [[ "$(uname)" == "Darwin" ]]; then
     LIGHT_PROTOCOL_OLD_CPATH="${CPATH:-}"
     export CPATH="/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include:${CPATH:-}"
+fi
+
+# Validate critical tools are available (only warn, don't fail)
+if [ -z "${LIGHT_PROTOCOL_SKIP_VALIDATION:-}" ]; then
+    if ! command -v cargo >/dev/null 2>&1; then
+        echo "Warning: cargo not found in PATH. Run ./scripts/install.sh to install Rust." >&2
+    fi
+    if ! command -v go >/dev/null 2>&1; then
+        echo "Warning: go not found in PATH. Run ./scripts/install.sh to install Go." >&2
+    fi
+    if ! command -v node >/dev/null 2>&1; then
+        echo "Warning: node not found in PATH. Run ./scripts/install.sh to install Node.js." >&2
+    fi
 fi

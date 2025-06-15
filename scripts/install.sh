@@ -81,7 +81,8 @@ download() {
 }
 
 install_go() {
-    if ! is_installed "go"; then
+    # Check if Go is actually installed, not just logged
+    if [ ! -d "${PREFIX}/go" ] || [ ! -f "${PREFIX}/go/bin/go" ]; then
         echo "Installing Go..."
         local version=$(get_version "go")
         local suffix=$(get_suffix "go")
@@ -90,11 +91,14 @@ install_go() {
         tar -xzf "${PREFIX}/go.tar.gz" -C "${PREFIX}"
         rm "${PREFIX}/go.tar.gz"
         log "go"
+    else
+        echo "Go already installed, skipping..."
     fi
 }
 
 install_rust() {
-    if ! is_installed "rust"; then
+    # Check if Rust is actually installed
+    if [ ! -d "${PREFIX}/rustup" ] || [ ! -d "${PREFIX}/cargo" ] || [ ! -f "${PREFIX}/cargo/bin/cargo" ]; then
         echo "Installing Rust..."
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"
@@ -105,11 +109,14 @@ install_rust() {
         cargo install cargo-expand --locked
         cargo install --git https://github.com/helius-labs/photon.git --rev cf58facb4e0521843e3afd21d09d8e7e7f772140 --locked
         log "rust"
+    else
+        echo "Rust already installed, skipping..."
     fi
 }
 
 install_node() {
-    if ! is_installed "node"; then
+    # Check if Node is actually installed
+    if [ ! -f "${PREFIX}/bin/node" ] || [ ! -f "${PREFIX}/bin/npm" ]; then
         echo "Installing Node.js..."
         local version=$(get_version "node")
         local suffix=$(get_suffix "node")
@@ -118,11 +125,14 @@ install_node() {
         tar -xzf "${PREFIX}/node.tar.gz" -C "${PREFIX}" --strip-components 1
         rm "${PREFIX}/node.tar.gz"
         log "node"
+    else
+        echo "Node.js already installed, skipping..."
     fi
 }
 
 install_pnpm() {
-    if ! is_installed "pnpm"; then
+    # Check if pnpm is actually installed
+    if [ ! -f "${PREFIX}/bin/pnpm" ]; then
         echo "Installing pnpm..."
         local version=$(get_version "pnpm")
         local suffix=$(get_suffix "pnpm")
@@ -130,11 +140,14 @@ install_pnpm() {
         download "$url" "${PREFIX}/bin/pnpm"
         chmod +x "${PREFIX}/bin/pnpm"
         log "pnpm"
+    else
+        echo "pnpm already installed, skipping..."
     fi
 }
 
 install_solana() {
-    if ! is_installed "solana"; then
+    # Check if Solana is actually installed
+    if [ ! -f "${PREFIX}/bin/solana" ] || [ ! -f "${PREFIX}/bin/solana-keygen" ]; then
         echo "Installing Solana..."
         local version=$(get_version "solana")
         local suffix=$(get_suffix "solana")
@@ -143,28 +156,36 @@ install_solana() {
         tar -xjf "${PREFIX}/solana-release.tar.bz2" -C "${PREFIX}/bin" --strip-components 2
         rm "${PREFIX}/solana-release.tar.bz2"
         log "solana"
+    else
+        echo "Solana already installed, skipping..."
     fi
 }
 
 install_anchor() {
-    if ! is_installed "anchor"; then
+    # Check if Anchor is actually installed
+    if [ ! -f "${PREFIX}/bin/anchor" ]; then
         echo "Installing Anchor..."
         local version=$(get_version "anchor")
         local suffix=$(get_suffix "anchor")
         local url="https://github.com/Lightprotocol/binaries/releases/download/${version}/anchor-${suffix}"
         download "$url" "${PREFIX}/bin/anchor"
         log "anchor"
+    else
+        echo "Anchor already installed, skipping..."
     fi
 }
 
 install_jq() {
-    if ! is_installed "jq"; then
+    # Check if jq is actually installed
+    if [ ! -f "${PREFIX}/bin/jq" ]; then
         echo "Installing jq..."
         local version=$(get_version "jq")
         local suffix=$(get_suffix "jq")
         local url="https://github.com/jqlang/jq/releases/download/${version}/${suffix}"
         download "$url" "${PREFIX}/bin/jq"
         log "jq"
+    else
+        echo "jq already installed, skipping..."
     fi
 }
 
@@ -181,17 +202,21 @@ download_gnark_keys() {
 }
 
 install_dependencies() {
-    if ! is_installed "dependencies"; then
+    # Check if node_modules exists and has content
+    if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
         echo "Installing dependencies..."
         export PATH="${PREFIX}/bin:${PATH}"
         pnpm install
         log "dependencies"
+    else
+        echo "Dependencies already installed, skipping..."
     fi
 }
 
 
 install_redis() {
-    if ! is_installed "redis"; then
+    # Check if Redis is actually installed
+    if [ ! -f "${PREFIX}/bin/redis-server" ] || [ ! -f "${PREFIX}/bin/redis-cli" ]; then
         echo "Installing Redis..."
         local version=$(get_version "redis")
         local url="http://download.redis.io/releases/redis-${version}.tar.gz"
@@ -329,6 +354,8 @@ EOF
         chmod +x "${PREFIX}/bin/redis-start" "${PREFIX}/bin/redis-stop" "${PREFIX}/bin/redis-status"
         mkdir -p "${PREFIX}/etc" "${PREFIX}/var"
         log "redis"
+    else
+        echo "Redis already installed, skipping..."
     fi
 }
 

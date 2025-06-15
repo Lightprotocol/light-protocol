@@ -20,7 +20,10 @@ runs:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-local-v3-
+          ${{ runner.os }}-local-v2-
 
     - name: Install dependencies
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
@@ -28,24 +31,44 @@ runs:
       run: |
         ./scripts/install.sh
 
-    - name: Ensure proving keys exist
+    - name: Verify and repair installation
       shell: bash
       run: |
-        # Always check if proving keys exist, even if cache was restored
-        if [ ! -d "prover/server/proving-keys" ] || [ -z "$(ls -A prover/server/proving-keys 2>/dev/null)" ]; then
-          echo "Proving keys not found or empty, downloading..."
-          ./prover/server/scripts/download_keys.sh light
-        else
-          echo "Proving keys already exist"
-        fi
+        # Even if cache was restored, run install script to check and install missing components
+        # The install script now checks for actual file existence, so it will only install what's missing
+        echo "=== Verifying installation integrity ==="
+        ./scripts/install.sh --no-reset
+
+    - name: Validate environment setup
+      shell: bash
+      run: |
+        echo "=== Validating environment setup ==="
+        source ./scripts/devenv.sh
+
+        # Quick validation of critical components
+        [ -f "$GOROOT/bin/go" ] || { echo "✗ Go not found"; exit 1; }
+        [ -f "$CARGO_HOME/bin/cargo" ] || { echo "✗ Cargo not found"; exit 1; }
+        [ -d "prover/server/proving-keys" ] || { echo "✗ Proving keys not found"; exit 1; }
+
+        echo "✓ All critical components found"
 
     - name: Set local environment
       shell: bash
       run: |
         source ./scripts/devenv.sh
+        # Export critical environment variables for subsequent steps
+        echo "GOROOT=$GOROOT" >> $GITHUB_ENV
+        echo "CARGO_HOME=$CARGO_HOME" >> $GITHUB_ENV
+        echo "RUSTUP_HOME=$RUSTUP_HOME" >> $GITHUB_ENV
+        echo "PATH=$PATH" >> $GITHUB_ENV
+        echo "CARGO_FEATURES=$CARGO_FEATURES" >> $GITHUB_ENV
+        echo "REDIS_URL=$REDIS_URL" >> $GITHUB_ENV
 
     - name: Rust cache
       uses: swatinem/rust-cache@v2
+      with:
+        cache-all-crates: true
+        cache-on-failure: true
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
@@ -74,14 +97,17 @@ runs:
       run: |
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
-        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        if [ ! -f /home/runner/.config/solana/id.json ]; then
+          solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        fi
         npx nx build @lightprotocol/programs
         npx nx build @lightprotocol/zk-compression-cli
 
-    - name: Cache .local directory
-      uses: actions/cache@v4
+    - name: Save .local directory cache
+      if: steps.restore-local-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
       with:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}

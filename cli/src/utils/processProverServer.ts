@@ -1,4 +1,5 @@
 import path from "path";
+import fs from "fs";
 import {
   killProcess,
   killProcessByPort,
@@ -9,6 +10,7 @@ import { LIGHT_PROVER_PROCESS_NAME } from "./constants";
 import find from "find-process";
 
 const KEYS_DIR = "proving-keys/";
+const MAX_START_RETRIES = 3;
 
 export async function killProver() {
   await killProcess(getProverNameByArch());
@@ -94,7 +96,7 @@ export async function startProver(
 ) {
   if (
     !force &&
-    (await isProverRunningWithFlags(runMode, circuits, proverPort))
+    (await isProverRunningWithFlags(runMode, circuits, proverPort, redisUrl))
   ) {
     return;
   }
@@ -103,7 +105,23 @@ export async function startProver(
   await killProver();
   await killProcessByPort(proverPort);
 
+  // Verify prover binary exists
+  const proverPath = getProverPathByArch();
+  if (!fs.existsSync(proverPath)) {
+    throw new Error(
+      `Prover binary not found at ${proverPath}. Please run: npx nx build @lightprotocol/zk-compression-cli`,
+    );
+  }
+
   const keysDir = path.join(__dirname, "../..", "bin", KEYS_DIR);
+
+  // Verify proving keys exist
+  if (!fs.existsSync(keysDir) || fs.readdirSync(keysDir).length === 0) {
+    throw new Error(
+      `Proving keys not found at ${keysDir}. Please run: ./prover/server/scripts/download_keys.sh light`,
+    );
+  }
+
   const args = ["start"];
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
@@ -131,17 +149,59 @@ export async function startProver(
     args.push("--redis-url", redisUrl);
   }
 
-  const proverProcess = spawnBinary(getProverPathByArch(), args);
+  let lastError: Error | undefined;
+  for (let attempt = 1; attempt <= MAX_START_RETRIES; attempt++) {
+    try {
+      console.log(
+        `Starting prover (attempt ${attempt}/${MAX_START_RETRIES})...`,
+      );
 
-  try {
-    await waitForServers([{ port: proverPort, path: "/" }]);
-    console.log(`Prover started successfully!`);
-  } catch (error) {
-    console.error(
-      "Failed to start prover - prover logs will be displayed above",
-    );
-    throw error;
+      const proverProcess = spawnBinary(proverPath, args);
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      if (proverProcess.exitCode !== null) {
+        throw new Error(
+          `Prover process exited with code ${proverProcess.exitCode}`,
+        );
+      }
+
+      try {
+        await waitForServers([{ port: proverPort, path: "/" }]);
+        console.log(`Prover started successfully!`);
+
+        // Perform health check
+        const healthy = await healthCheck(proverPort);
+        if (!healthy) {
+          console.warn(
+            "Prover started but health check failed - it may still be initializing",
+          );
+        }
+
+        return;
+      } catch (error) {
+        // Kill the process if it didn't start properly
+        proverProcess.kill();
+        throw error;
+      }
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`Failed to start prover on attempt ${attempt}:`, error);
+
+      if (attempt < MAX_START_RETRIES) {
+        console.log(`Waiting 5 seconds before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        // Clean up before retry
+        await killProver();
+        await killProcessByPort(proverPort);
+      }
+    }
   }
+
+  throw new Error(
+    `Failed to start prover after ${MAX_START_RETRIES} attempts. Last error: ${lastError?.message}`,
+  );
 }
 
 export function getProverNameByArch(): string {
@@ -152,9 +212,18 @@ export function getProverNameByArch(): string {
     throw new Error("Unsupported platform or architecture");
   }
 
-  let binaryName = `prover-${platform}-${arch}`;
+  // Map Node.js arch names to our binary naming convention
+  const archMap: Record<string, string> = {
+    x64: "x64",
+    arm64: "arm64",
+    x86: "x86",
+    aarch64: "arm64",
+  };
 
-  if (platform.toString() === "windows") {
+  const mappedArch = archMap[arch] || arch;
+  let binaryName = `prover-${platform}-${mappedArch}`;
+
+  if (platform === "win32") {
     binaryName += ".exe";
   }
   return binaryName;
@@ -177,15 +246,34 @@ export async function healthCheck(
   const fetch = (await import("node-fetch")).default;
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await fetch(`http://localhost:${port}/health`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const res = await fetch(`http://localhost:${port}/health`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
       if (res.ok) {
-        console.log("Health check passed!");
+        const data = await res.text();
+        console.log("Health check passed!", data);
         return true;
+      } else {
+        console.error(`Health check returned status ${res.status}`);
       }
-    } catch (e) {
-      console.error("Health check error:", e);
+    } catch (e: any) {
+      if (e.name === "AbortError") {
+        console.error(
+          `Health check attempt ${i + 1} timed out after ${timeout}ms`,
+        );
+      } else {
+        console.error(`Health check attempt ${i + 1} failed:`, e.message);
+      }
     }
-    await new Promise((r) => setTimeout(r, timeout));
+    if (i < retries - 1) {
+      await new Promise((r) => setTimeout(r, timeout));
+    }
   }
   console.log("Health check failed after all attempts.");
   return false;
