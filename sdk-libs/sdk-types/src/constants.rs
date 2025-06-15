@@ -7,7 +7,7 @@ pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
 pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
     pubkey_array!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
-    pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
+    pubkey_array!("BcWNNj1diApCDxMTTDcABEn49rwAPToT3g226ieY9Nfi");
 /// ID of the light-compressed-token program.
 pub const C_TOKEN_PROGRAM_ID: [u8; 32] =
     pubkey_array!("EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT");
