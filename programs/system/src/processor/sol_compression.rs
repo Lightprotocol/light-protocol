@@ -15,6 +15,7 @@ use crate::{
 #[aligned_sized(anchor)]
 pub struct CompressedSolPda {}
 
+pub const SOL_POOL_PDA_BUMP: u8 = 255;
 pub const SOL_POOL_PDA_SEED: &[u8] = b"sol_pool_pda";
 
 pub fn compress_or_decompress_lamports<
@@ -97,9 +98,30 @@ pub fn compress_lamports<
 }
 
 pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {
-    let bump = &[255];
+    let bump = &[SOL_POOL_PDA_BUMP];
     let seed_array = [Seed::from(SOL_POOL_PDA_SEED), Seed::from(bump)];
     let signer = Signer::from(&seed_array);
     let instruction = pinocchio_system::instructions::Transfer { from, to, lamports };
     instruction.invoke_signed(&[signer])
+}
+
+#[cfg(test)]
+mod test {
+    use solana_pubkey::Pubkey;
+
+    use super::*;
+
+    fn check_hardcoded_bump(program_id: Pubkey, seeds: &[&[u8]], bump: u8) -> bool {
+        let (_, found_bump) = Pubkey::find_program_address(seeds, &program_id);
+        found_bump == bump
+    }
+
+    #[test]
+    fn test_check_anchor_option_sol_pool_pda() {
+        assert!(check_hardcoded_bump(
+            crate::ID.into(),
+            &[SOL_POOL_PDA_SEED],
+            SOL_POOL_PDA_BUMP
+        ));
+    }
 }

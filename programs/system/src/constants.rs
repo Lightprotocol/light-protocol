@@ -36,3 +36,25 @@ impl TryFrom<&[u8]> for InstructionDiscriminator {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
+    use solana_pubkey::Pubkey;
+
+    use super::*;
+
+    fn check_hardcoded_bump(program_id: Pubkey, seeds: &[&[u8]], bump: u8) -> bool {
+        let (_, found_bump) = Pubkey::find_program_address(seeds, &program_id);
+        found_bump == bump
+    }
+
+    #[test]
+    fn test_account_compression_cpi_authority_bump() {
+        assert!(check_hardcoded_bump(
+            ACCOUNT_COMPRESSION_PROGRAM_ID.into(),
+            &[CPI_AUTHORITY_PDA_SEED],
+            CPI_AUTHORITY_PDA_BUMP
+        ));
+    }
+}

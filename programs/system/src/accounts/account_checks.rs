@@ -8,7 +8,9 @@ use light_compressed_account::{
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
-    invoke_cpi::account::CpiContextAccount, processor::sol_compression::SOL_POOL_PDA_SEED, Result,
+    invoke_cpi::account::CpiContextAccount,
+    processor::sol_compression::{SOL_POOL_PDA_BUMP, SOL_POOL_PDA_SEED},
+    Result,
 };
 
 pub fn check_fee_payer(fee_payer: Option<&AccountInfo>) -> Result<&AccountInfo> {
@@ -48,7 +50,7 @@ pub fn check_anchor_option_sol_pool_pda(
         None
     } else {
         check_pda_seeds_with_bump(
-            &[SOL_POOL_PDA_SEED, &[255]][..],
+            &[SOL_POOL_PDA_SEED, &[SOL_POOL_PDA_BUMP]][..],
             &crate::ID,
             option_sol_pool_pda,
         )?;
