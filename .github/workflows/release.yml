@@ -15,7 +15,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          components: "rust,node,pnpm,solana,anchor,jq,keys,dependencies"
+          skip-components: "redis"
 
       - name: Install cargo-workspaces
         run: |

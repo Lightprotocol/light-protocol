@@ -2,8 +2,8 @@ name: Setup and build
 description: Checkout sources, install dependencies, build and prepare for tests
 
 inputs:
-  components:
-    description: 'Comma-separated list of components to install (e.g., "node,pnpm,solana,anchor,jq,dependencies"). If not specified, all components are installed.'
+  skip-components:
+    description: 'Comma-separated list of components to skip (e.g., "redis,go"). If not specified, all components are installed.'
     required: false
     default: ""
 
@@ -40,8 +40,8 @@ runs:
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        if [ -n "${{ inputs.components }}" ]; then
-          ./scripts/install.sh --components "${{ inputs.components }}"
+        if [ -n "${{ inputs.skip-components }}" ]; then
+          ./scripts/install.sh --skip-components "${{ inputs.skip-components }}"
         else
           ./scripts/install.sh
         fi

@@ -60,7 +60,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          components: "node,pnpm,solana,anchor,jq,dependencies"
+          skip-components: "redis"
 
       - name: Build stateless.js with V1
         run: |

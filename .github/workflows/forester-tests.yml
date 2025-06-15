@@ -96,6 +96,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis"
       - name: Clean build artifacts before tests
         shell: bash
         run: |

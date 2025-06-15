@@ -337,8 +337,7 @@ main() {
     # Parse command line arguments
     local key_type="light"
     local reset_log=true
-    local components=""
-    local install_all=true
+    local skip_components=""
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -350,19 +349,18 @@ main() {
                 reset_log=false
                 shift
                 ;;
-            --components)
+            --skip-components)
                 if [ -z "$2" ] || [[ "$2" == --* ]]; then
-                    echo "Error: --components requires a value"
+                    echo "Error: --skip-components requires a value"
                     exit 1
                 fi
-                components="$2"
-                install_all=false
+                skip_components="$2"
                 shift 2
                 ;;
             *)
                 echo "Unknown option: $1"
-                echo "Usage: $0 [--full-keys] [--no-reset] [--components <comma-separated-list>]"
-                echo "Components: go,rust,node,pnpm,solana,anchor,jq,keys,dependencies,redis"
+                echo "Usage: $0 [--full-keys] [--no-reset] [--skip-components <comma-separated-list>]"
+                echo "Components that can be skipped: go,rust,node,pnpm,solana,anchor,jq,keys,dependencies,redis"
                 exit 1
                 ;;
         esac
@@ -372,30 +370,27 @@ main() {
         rm -f "$INSTALL_LOG"
     fi
 
-    # Helper function to check if component should be installed
-    should_install() {
+    # Helper function to check if component should be skipped
+    should_skip() {
         local component=$1
-        if $install_all; then
-            return 0
-        fi
-        [[ ",$components," == *",$component,"* ]]
+        [[ ",$skip_components," == *",$component,"* ]]
     }
 
-    # Install components based on selection
-    should_install "go" && install_go
-    should_install "rust" && install_rust
-    should_install "node" && install_node
-    should_install "pnpm" && install_pnpm
-    should_install "solana" && install_solana
-    should_install "anchor" && install_anchor
-    should_install "jq" && install_jq
-    should_install "keys" && download_gnark_keys "$key_type"
-    should_install "dependencies" && install_dependencies
-    should_install "redis" && install_redis
+    # Install components unless explicitly skipped
+    should_skip "go" || install_go
+    should_skip "rust" || install_rust
+    should_skip "node" || install_node
+    should_skip "pnpm" || install_pnpm
+    should_skip "solana" || install_solana
+    should_skip "anchor" || install_anchor
+    should_skip "jq" || install_jq
+    should_skip "keys" || download_gnark_keys "$key_type"
+    should_skip "dependencies" || install_dependencies
+    should_skip "redis" || install_redis
 
     echo "✨ Light Protocol development dependencies installed"
-    if ! $install_all; then
-        echo "   Installed components: $components"
+    if [ -n "$skip_components" ]; then
+        echo "   Skipped components: $skip_components"
     fi
 }
 
