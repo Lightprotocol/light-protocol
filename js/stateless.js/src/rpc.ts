@@ -339,7 +339,7 @@ export const proverRequest = async (
     method: 'inclusion' | 'new-address' | 'combined',
     params: any = [],
     log = false,
-    publicInputHash: BN | undefined = undefined,
+    _publicInputHash: BN | undefined = undefined, // Not supported.
 ): Promise<ValidityProof> => {
     let logMsg: string = '';
 
@@ -1065,7 +1065,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     stateTreeInfo,
                     bn(item.hash.toArray('be', 32)),
                     item.leafIndex,
-                    false,
+                    featureFlags.isV2() ? item.proveByIndex : false,
                 ),
                 item.owner,
                 bn(item.lamports),
@@ -1892,7 +1892,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                         .concat(value.addresses.map((r: any) => r.rootIndex)),
                     proveByIndices: value.accounts
                         .map((r: any) => r.rootIndex.proveByIndex)
-                        .concat(value.addresses.map((r: any) => false)),
+                        .concat(value.addresses.map((r: any) => false)), // addresses.proveByIndex is always false.
                     treeInfos: value.accounts
                         .map((r: any) => r.merkleContext)
                         .concat(

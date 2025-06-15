@@ -1,6 +1,12 @@
 name: Setup and build
 description: Checkout sources, install dependencies, build and prepare for tests
 
+inputs:
+  components:
+    description: 'Comma-separated list of components to install (e.g., "node,pnpm,solana,anchor,jq,dependencies"). If not specified, all components are installed.'
+    required: false
+    default: ""
+
 runs:
   using: "composite"
   steps:
@@ -34,7 +40,11 @@ runs:
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        ./scripts/install.sh
+        if [ -n "${{ inputs.components }}" ]; then
+          ./scripts/install.sh --components "${{ inputs.components }}"
+        else
+          ./scripts/install.sh
+        fi
 
     - name: Set local environment
       shell: bash

@@ -337,6 +337,9 @@ main() {
     # Parse command line arguments
     local key_type="light"
     local reset_log=true
+    local components=""
+    local install_all=true
+    
     while [[ $# -gt 0 ]]; do
         case $1 in
             --full-keys)
@@ -346,6 +349,11 @@ main() {
             --no-reset)
                 reset_log=false
                 shift
+                ;;
+            --components)
+                components="$2"
+                install_all=false
+                shift 2
                 ;;
             *)
                 echo "Unknown option: $1"
@@ -358,18 +366,28 @@ main() {
         rm -f "$INSTALL_LOG"
     fi
 
-    install_go
-    install_rust
-    install_node
-    install_pnpm
-    install_solana
-    install_anchor
-    install_jq
-    download_gnark_keys "$key_type"
-    install_dependencies
-    install_redis
+    # Helper function to check if component should be installed
+    should_install() {
+        local component=$1
+        if $install_all; then
+            return 0
+        fi
+        [[ ",$components," == *",$component,"* ]]
+    }
+
+    # Install components based on selection
+    should_install "go" && install_go
+    should_install "rust" && install_rust
+    should_install "node" && install_node
+    should_install "pnpm" && install_pnpm
+    should_install "solana" && install_solana
+    should_install "anchor" && install_anchor
+    should_install "jq" && install_jq
+    should_install "keys" && download_gnark_keys "$key_type"
+    should_install "dependencies" && install_dependencies
+    should_install "redis" && install_redis
 
     echo "✨ Light Protocol development dependencies installed"
 }
 
-main
+main "$@"
