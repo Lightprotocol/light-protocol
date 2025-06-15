@@ -150,6 +150,7 @@ export async function initTestEnv({
     config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
     try {
+      // TODO: check if using redisUrl is better here.
       await startProver(proverPort, proverRunMode, circuits);
     } catch (error) {
       console.error("Failed to start prover:", error);
