@@ -1,6 +1,6 @@
 [package]
 name = "light-account-checks"
-version = "0.2.0"
+version = "0.3.0"
 description = "Checks for solana accounts."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
