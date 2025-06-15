@@ -7,7 +7,11 @@ pub mod instructions;
 pub mod utils;
 pub use instructions::*;
 pub mod cpi_context_account;
-use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo;
+use light_compressed_account::instruction_data::{
+    with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+    with_readonly::InstructionDataInvokeCpiWithReadOnly,
+};
+
 declare_id!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
 
 #[program]
@@ -30,12 +34,10 @@ pub mod light_system_program {
 
     pub fn invoke_cpi_with_read_only(
         ctx: Context<InvokeCpiInstruction>,
-        // TODO: revert once parse_batched_event_functional is migrated to manual cpi
-        inputs: Vec<u8>, // inputs: InstructionDataInvokeCpiWithReadOnly,
+        inputs: InstructionDataInvokeCpiWithReadOnly,
     ) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }
-
     pub fn invoke_cpi_with_account_info(
         ctx: Context<InvokeCpiInstruction>,
         inputs: InstructionDataInvokeCpiWithAccountInfo,

@@ -286,7 +286,7 @@ fn deserialize_instruction<'a>(
         ));
     }
     let instruction_discriminator = instruction[0..8].try_into().unwrap();
-    let instruction = instruction.split_at(12).1;
+    let instruction = instruction.split_at(8).1;
     match instruction_discriminator {
         // Cannot be exucted with cpi context -> executing tx
         DISCRIMINATOR_INVOKE => {
@@ -294,7 +294,8 @@ fn deserialize_instruction<'a>(
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
             let accounts = accounts.split_at(9).1;
-            let data = InstructionDataInvoke::deserialize(&mut &instruction[..])?;
+            // Skips vec size bytes
+            let data = InstructionDataInvoke::deserialize(&mut &instruction[4..])?;
             Ok(ExecutingSystemInstruction {
                 output_compressed_accounts: data.output_compressed_accounts,
                 input_compressed_accounts: data.input_compressed_accounts_with_merkle_context,
@@ -311,7 +312,7 @@ fn deserialize_instruction<'a>(
             }
             let accounts = accounts.split_at(11).1;
             let data = crate::instruction_data::invoke_cpi::InstructionDataInvokeCpi::deserialize(
-                &mut &instruction[..],
+                &mut &instruction[4..],
             )?;
             Ok(ExecutingSystemInstruction {
                 output_compressed_accounts: data.output_compressed_accounts,
