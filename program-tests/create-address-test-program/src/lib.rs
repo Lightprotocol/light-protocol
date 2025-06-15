@@ -21,10 +21,10 @@ use light_sdk::{
     },
 };
 
-declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
+declare_id!("3uJRdagVki496e1LDoxGXrofXmbtkfdimoxH6g77WSNo");
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
-    derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
+    derive_light_cpi_signer!("3uJRdagVki496e1LDoxGXrofXmbtkfdimoxH6g77WSNo");
 
 #[program]
 pub mod system_cpi_test {

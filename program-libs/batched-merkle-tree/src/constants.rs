@@ -33,6 +33,6 @@ pub const ADDRESS_TREE_INIT_ROOT_40: [u8; 32] = [
 ];
 
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+    pubkey_array!("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh");
 
 pub const NUM_BATCHES: usize = 2;

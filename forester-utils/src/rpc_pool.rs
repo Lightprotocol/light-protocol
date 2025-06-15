@@ -58,8 +58,8 @@ impl<R: Rpc + 'static> bb8::ManageConnection for SolanaConnectionManager<R> {
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         let config = LightClientConfig {
             url: self.url.to_string(),
+            photon_url: None,
             commitment_config: Some(self.commitment),
-            with_indexer: false,
             fetch_active_tree: false,
         };
 

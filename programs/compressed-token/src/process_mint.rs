@@ -394,6 +394,7 @@ pub struct MintToInstruction<'info> {
 
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
+    use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use light_system_program::utils::get_sol_pool_pda;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -494,6 +495,9 @@ pub mod mint_sdk {
             anchor_spl::token::ID
         };
 
+        let cpi_authority_pda = get_cpi_authority_pda();
+        println!("cpi_authority_pda: {:?}", cpi_authority_pda);
+
         let accounts = crate::accounts::MintToInstruction {
             fee_payer: *fee_payer,
             authority: *authority,
@@ -517,6 +521,47 @@ pub mod mint_sdk {
             system_program: system_program::ID,
             sol_pool_pda,
         };
+
+        println!(
+            "account_compression_authority: {:?}",
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &light_system_program::ID)
+        );
+
+        println!("fee_payer: {:?}", fee_payer.to_bytes());
+        println!("authority: {:?}", authority.to_bytes());
+
+        println!(
+            "cpi_authority_pda: {:?}",
+            accounts.cpi_authority_pda.to_bytes()
+        );
+        if let Some(mint) = accounts.mint {
+            println!("mint: {:?}", mint.to_bytes());
+        }
+        println!("token_pool_pda: {:?}", accounts.token_pool_pda.to_bytes());
+        println!("token_program: {:?}", accounts.token_program.to_bytes());
+        println!(
+            "light_system_program: {:?}",
+            accounts.light_system_program.to_bytes()
+        );
+        println!(
+            "registered_program_pda: {:?}",
+            accounts.registered_program_pda.to_bytes()
+        );
+        println!("noop_program: {:?}", accounts.noop_program.to_bytes());
+        println!(
+            "account_compression_authority: {:?}",
+            accounts.account_compression_authority.to_bytes()
+        );
+        println!(
+            "account_compression_program: {:?}",
+            accounts.account_compression_program.to_bytes()
+        );
+        println!("merkle_tree: {:?}", accounts.merkle_tree.to_bytes());
+        println!("self_program: {:?}", accounts.self_program.to_bytes());
+        println!("system_program: {:?}", accounts.system_program.to_bytes());
+        if let Some(sol_pool_pda) = accounts.sol_pool_pda {
+            println!("sol_pool_pda: {:?}", sol_pool_pda.to_bytes());
+        }
 
         Instruction {
             program_id: crate::ID,

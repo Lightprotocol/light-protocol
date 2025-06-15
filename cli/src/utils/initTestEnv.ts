@@ -28,17 +28,17 @@ export const SYSTEM_PROGRAMS: Program[] = [
     tag: SPL_NOOP_PROGRAM_TAG,
   },
   {
-    id: "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
+    id: "7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ",
     name: "light_system_program_pinocchio.so",
     tag: LIGHT_SYSTEM_PROGRAM_TAG,
   },
   {
-    id: "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+    id: "EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT",
     name: "light_compressed_token.so",
     tag: LIGHT_COMPRESSED_TOKEN_TAG,
   },
   {
-    id: "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq",
+    id: "8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh",
     name: "account_compression.so",
     tag: LIGHT_ACCOUNT_COMPRESSION_TAG,
   },

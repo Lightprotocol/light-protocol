@@ -57,6 +57,61 @@ pub struct TestAccounts {
 }
 
 impl TestAccounts {
+    pub fn get_testnet_accounts() -> TestAccounts {
+        TestAccounts {
+            protocol: ProtocolAccounts {
+                governance_authority: Keypair::new(),
+                governance_authority_pda: Pubkey::default(),
+                group_pda: Pubkey::default(),
+                forester: Keypair::new(),
+                registered_program_pda: get_registered_program_pda(&Pubkey::from(
+                    light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID,
+                )),
+                registered_registry_program_pda: get_registered_program_pda(&light_registry::ID),
+                registered_forester_pda: Pubkey::default(),
+                forester_epoch: None, // Set to None or to an appropriate Epoch value if needed
+            },
+            v1_state_trees: vec![],
+
+            v1_address_trees: vec![],
+
+            v2_address_trees: vec![
+                pubkey!("C7g8NqRsEDhi3v9AyVpCfL16YYdHPhrR74douckfrhqu"),
+                // pubkey!("6QX1mUfiShBcJdB3gNSxCWVAo8mTAp3duinJCjFBgkbm"),
+                // pubkey!("ACef6Ge9GVyPbSuaUvqX47akLWWVAnYMyYSrhD2D9JGJ"),
+                // pubkey!("DFp2gBJRVCFumMTCAWqX8dkQrzSiKn6AMKVDyppL5pbV"),
+                // pubkey!("AcgJj3C8g5dGzyNPfhTkeQGDjUY4zPGPCujZj9Dc9tXY"),
+            ],
+            v2_state_trees: vec![
+                StateMerkleTreeAccountsV2 {
+                    merkle_tree: pubkey!("6QtGq5Qd5AN1MpD1tWRVg6B13yZUVevXV126jRN1vKP8"),
+                    output_queue: pubkey!("7zGUfnSHut3UW4PpFM6EAbjquF4MKo93foPxhRV1ooxT"),
+                    cpi_context: pubkey!("8q4jxk38rjkCAed6yVAzv1PPWBWgc77Tqt5Aqw8eUzrA"),
+                },
+                // StateMerkleTreeAccountsV2 {
+                //     merkle_tree: pubkey!("G9MfUeTZo4fQ3LM6fxPWQXvZBGdtPBnwHh9cAGgxYuGa"),
+                //     output_queue: pubkey!("4BrwfzidwWd1ApCBidJPKpuHS1kucHXYXGsX658nSie2"),
+                //     cpi_context: pubkey!("4t6rvwnVJBaSB9NPhpPNqQv4c2Gm4omDqMyL6EQmUW4w"),
+                // },
+                // StateMerkleTreeAccountsV2 {
+                //     merkle_tree: pubkey!("9fVjot7AYKwsisreuyQ8ypE8LvyA4ocmFrhbAw2uiEzn"),
+                //     output_queue: pubkey!("4Xm3n1zncUZXwfzUPHar5aFMs5PFTkjrz7KCEcjJtERb"),
+                //     cpi_context: pubkey!("CUVQSqmL9KxK9zEVDoJxCKRBwv2t9iR7hJ5xKVmnKDjm"),
+                // },
+                // StateMerkleTreeAccountsV2 {
+                //     merkle_tree: pubkey!("47XabVBHzJ1ZZ5fjvMsYfZasqjxGdc3kL1x7nRcPSePi"),
+                //     output_queue: pubkey!("ArXpCNXx4kgp6qRgo6fMLbSC9oyyxogXew8YUaZpNbio"),
+                //     cpi_context: pubkey!("2Qnx8LEtnULJJW1mX4QC5uL9acEAGMDMvAQv8MLPMzqS"),
+                // },
+                // StateMerkleTreeAccountsV2 {
+                //     merkle_tree: pubkey!("EaVSy5Ai1zH1mDcMZDWaaauCzZv1ecV6xz9kK4dDjk8A"),
+                //     output_queue: pubkey!("FenwGGDZh6q9yioEqFAZKGU1Ntg2LmCkJVbagjzzDKWb"),
+                //     cpi_context: pubkey!("6dHb9puQmtjkekj2H7FEVfo2DykWGxBQFLipCbmSyjXX"),
+                // },
+            ],
+        }
+    }
+
     pub fn get_local_test_validator_accounts() -> TestAccounts {
         TestAccounts {
             protocol: ProtocolAccounts {

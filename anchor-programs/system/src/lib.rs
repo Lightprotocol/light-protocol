@@ -8,7 +8,7 @@ pub mod utils;
 pub use instructions::*;
 pub mod cpi_context_account;
 use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo;
-declare_id!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+declare_id!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 
 #[program]
 pub mod light_system_program {

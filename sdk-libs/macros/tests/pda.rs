@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 fn test_compute_pda_basic() {
     // Test with a known program ID using fixed "cpi_authority" seed
     const RESULT: CpiSigner =
-        derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+        derive_light_cpi_signer!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 
     // Verify the result has valid fields
     assert_eq!(RESULT.program_id.len(), 32);
@@ -17,7 +17,7 @@ fn test_compute_pda_basic() {
     // Verify this matches runtime computation
     let runtime_result = Pubkey::find_program_address(
         &[b"cpi_authority"],
-        &Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap(),
+        &Pubkey::from_str("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ").unwrap(),
     );
 
     assert_eq!(RESULT.cpi_signer, runtime_result.0.to_bytes());
@@ -28,7 +28,7 @@ fn test_compute_pda_basic() {
 fn test_cpi_signer() {
     // Test that the macro can be used in const contexts
     const PDA_RESULT: CpiSigner =
-        derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+        derive_light_cpi_signer!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 
     // Extract individual components in const context
     const PROGRAM_ID: [u8; 32] = PDA_RESULT.program_id;
@@ -38,7 +38,7 @@ fn test_cpi_signer() {
     // Verify they're valid
     assert_eq!(
         PROGRAM_ID,
-        light_macros::pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7")
+        light_macros::pubkey_array!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ")
     );
     assert_eq!(
         CPI_SIGNER,
@@ -54,7 +54,7 @@ fn test_cpi_signer() {
 fn test_cpi_signer_2() {
     // Test that the macro can be used in const contexts
     const PDA_RESULT: CpiSigner =
-        derive_light_cpi_signer!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+        derive_light_cpi_signer!("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh");
 
     // Extract individual components in const context
     const PROGRAM_ID: [u8; 32] = PDA_RESULT.program_id;
@@ -64,7 +64,7 @@ fn test_cpi_signer_2() {
     // Verify they're valid
     assert_eq!(
         PROGRAM_ID,
-        light_macros::pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq")
+        light_macros::pubkey_array!("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh")
     );
     assert_eq!(
         CPI_SIGNER,

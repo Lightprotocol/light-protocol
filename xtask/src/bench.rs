@@ -40,12 +40,12 @@ pub fn bench(opts: Options) -> anyhow::Result<()> {
     let (program, program_id) = if opts.compressed_token {
         (
             "light-compressed-token",
-            "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+            "EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT",
         )
     } else if opts.compressed_pda {
         (
             "light-system-program",
-            "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
+            "7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ",
         )
     } else if opts.account_commpression {
         (

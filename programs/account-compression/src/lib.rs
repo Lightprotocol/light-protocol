@@ -16,7 +16,7 @@ use light_batched_merkle_tree::{
     merkle_tree::{InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs},
 };
 
-declare_id!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+declare_id!("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

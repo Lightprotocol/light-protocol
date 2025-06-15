@@ -2,15 +2,15 @@ use light_macros::pubkey_array;
 
 /// ID of the account-compression program.
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+    pubkey_array!("8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh");
 /// ID of the light-system program.
 pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+    pubkey_array!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
-    pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
+    pubkey_array!("BcWNNj1diApCDxMTTDcABEn49rwAPToT3g226ieY9Nfi");
 /// ID of the light-compressed-token program.
 pub const C_TOKEN_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+    pubkey_array!("EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT");
 
 /// Seed of the CPI authority.
 pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";

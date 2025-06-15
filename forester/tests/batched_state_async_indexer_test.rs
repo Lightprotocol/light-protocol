@@ -12,7 +12,7 @@ use light_client::{
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     },
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
+    rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
     address::derive_address_legacy,
@@ -38,7 +38,6 @@ use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
     signature::{Keypair, Signature},
     signer::Signer,
 };
@@ -55,10 +54,15 @@ mod test_utils;
 const ENABLE_TRANSACTIONS: bool = true;
 const OUTPUT_ACCOUNT_NUM: usize = 2;
 const MINT_TO_NUM: u64 = 5;
+use std::env;
+
 const BATCHES_NUM: u64 = 10;
 const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
-const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
+
+fn get_photon_indexer_url() -> String {
+    env::var("PHOTON_INDEXER_URL").unwrap_or_else(|_| "http://127.0.0.1:8784".to_string())
+}
 
 // 1. `create_v1_address`
 // can send a transaction with only a proof and no address which correctly fails onchain with `6018` `ProofIsSome`
@@ -222,14 +226,7 @@ async fn test_state_indexer_async_batched() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
-    let mut rpc = LightClient::new(LightClientConfig {
-        url: RpcUrl::Localnet.to_string(),
-        commitment_config: Some(CommitmentConfig::processed()),
-        fetch_active_tree: false,
-        with_indexer: true,
-    })
-    .await
-    .unwrap();
+    let mut rpc = LightClient::new(LightClientConfig::local()).await.unwrap();
     rpc.payer = forester.insecure_clone();
     rpc
 }
@@ -241,7 +238,7 @@ async fn ensure_sufficient_balance(rpc: &mut LightClient, pubkey: &Pubkey, targe
 }
 
 fn create_photon_indexer() -> PhotonIndexer {
-    PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None)
+    PhotonIndexer::new(get_photon_indexer_url(), None)
 }
 
 async fn get_protocol_config(rpc: &mut LightClient) -> ProtocolConfig {

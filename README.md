@@ -41,15 +41,15 @@ $ solana-verify verify-from-repo --program-id Lighton6oQpVkeewmo2mcPTQQp7kYHr4fW
 ```
 
 ```
-$ solana-verify verify-from-repo --program-id compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq -u main --library-name account_compression --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
+$ solana-verify verify-from-repo --program-id 8bAVNbY2KtCsLZSGFRQ9s44p1sewzLz68q7DLFsBannh -u main --library-name account_compression --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
 ```
 
 ```
-$ solana-verify verify-from-repo --program-id SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7 -u main --library-name light_system_program --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
+$ solana-verify verify-from-repo --program-id 7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ -u main --library-name light_system_program --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
 ```
 
 ```
-$ solana-verify verify-from-repo --program-id cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m -u main --library-name light_compressed_token --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
+$ solana-verify verify-from-repo --program-id EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT -u main --library-name light_compressed_token --commit-hash 1cb0f067b3d2d4e012e76507c077fc348eb88091 https://github.com/Lightprotocol/light-protocol
 ```
 
 ## Security

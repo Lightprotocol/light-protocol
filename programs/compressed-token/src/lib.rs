@@ -19,7 +19,7 @@ pub mod batch_compress;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
-declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+declare_id!("EpgpSRSHbohAPC5XixPCNsNeq8yHfNsj3XorUWk6hVMT");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
