@@ -30,6 +30,19 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      # - name: Cache nx
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       node_modules/.cache/nx
+      #       js/stateless.js/node_modules/.cache/nx
+      #       js/compressed-token/node_modules/.cache/nx
+      #       cli/node_modules/.cache/nx
+      #     key: nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-${{ github.sha }}
+      #     restore-keys: |
+      #       nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-
+      #       nx-cli-v1-${{ runner.os }}-
+
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
@@ -48,7 +61,7 @@ jobs:
       - name: Build CLI with V1
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
 
       - name: Run CLI tests with V1
         run: |
