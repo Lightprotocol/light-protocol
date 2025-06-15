@@ -91,7 +91,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
     // remove vec prefix
     let instruction_data = &instruction_data[4..];
 
-    let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(instruction_data).unwrap();
+    let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(instruction_data)?;
     let (ctx, remaining_accounts) = InvokeInstruction::from_account_infos(accounts)?;
 
     input_compressed_accounts_signer_check(
@@ -117,7 +117,7 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     // remove vec prefix
     let instruction_data = &instruction_data[4..];
 
-    let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction_data).unwrap();
+    let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction_data)?;
 
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 

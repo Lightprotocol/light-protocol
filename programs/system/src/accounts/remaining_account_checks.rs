@@ -68,7 +68,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     {
         let data = account_info
             .try_borrow_data()
-            .map_err(|_| SystemProgramError::InvalidAccount)?;
+            .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
 
         if data.len() < 8 {
             return Ok(AcpAccount::Unknown());
@@ -82,20 +82,18 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             tree_type.copy_from_slice(
                 &account_info
                     .try_borrow_data()
-                    .map_err(|_| SystemProgramError::InvalidAccount)?[8..16],
+                    .map_err(|_| SystemProgramError::BorrowingDataFailed)?[8..16],
             );
             let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
             match tree_type {
                 TreeType::AddressV2 => {
-                    let tree =
-                        BatchedMerkleTreeAccount::address_from_account_info(account_info).unwrap();
+                    let tree = BatchedMerkleTreeAccount::address_from_account_info(account_info)?;
                     let program_owner = tree.metadata.access_metadata.program_owner;
                     // for batched trees we set the fee when setting the rollover fee.
                     Ok((AcpAccount::BatchedAddressTree(tree), program_owner))
                 }
                 TreeType::StateV2 => {
-                    let tree =
-                        BatchedMerkleTreeAccount::state_from_account_info(account_info).unwrap();
+                    let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)?;
                     let program_owner = tree.metadata.access_metadata.program_owner;
                     Ok((AcpAccount::BatchedStateTree(tree), program_owner))
                 }
@@ -111,14 +109,16 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             }
         }
         BatchedQueueAccount::LIGHT_DISCRIMINATOR => {
-            let queue = BatchedQueueAccount::output_from_account_info(account_info).unwrap();
+            let queue = BatchedQueueAccount::output_from_account_info(account_info)?;
             let program_owner = queue.metadata.access_metadata.program_owner;
             Ok((AcpAccount::OutputQueue(queue), program_owner))
         }
         STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR => {
             let program_owner = {
-                check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info).unwrap();
-                let data = account_info.try_borrow_data().unwrap();
+                check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)?;
+                let data = account_info
+                    .try_borrow_data()
+                    .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
                 let merkle_tree = bytemuck::from_bytes::<StateMerkleTreeAccount>(
                     &data[8..StateMerkleTreeAccount::LEN],
                 );
@@ -144,15 +144,18 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             Ok((
                 AcpAccount::StateTree((
                     (*account_info.key()).into(),
-                    state_merkle_tree_from_bytes_zero_copy_mut(data_slice).unwrap(),
+                    state_merkle_tree_from_bytes_zero_copy_mut(data_slice)
+                        .map_err(|e| SystemProgramError::ProgramError(e.into()))?,
                 )),
                 program_owner,
             ))
         }
         ADDRESS_MERKLE_TREE_ACCOUNT_DISCRIMINATOR => {
             let program_owner = {
-                check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info).unwrap();
-                let data = account_info.try_borrow_data().unwrap();
+                check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)?;
+                let data = account_info
+                    .try_borrow_data()
+                    .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
 
                 let merkle_tree = bytemuck::from_bytes::<AddressMerkleTreeAccount>(
                     &data[8..AddressMerkleTreeAccount::LEN],
@@ -170,14 +173,17 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             Ok((
                 AcpAccount::AddressTree((
                     (*account_info.key()).into(),
-                    address_merkle_tree_from_bytes_zero_copy_mut(data_slice).unwrap(),
+                    address_merkle_tree_from_bytes_zero_copy_mut(data_slice)
+                        .map_err(|e| SystemProgramError::ProgramError(e.into()))?,
                 )),
                 program_owner,
             ))
         }
         QUEUE_ACCOUNT_DISCRIMINATOR => {
-            check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info).unwrap();
-            let data = account_info.try_borrow_data().unwrap();
+            check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)?;
+            let data = account_info
+                .try_borrow_data()
+                .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
             let queue = bytemuck::from_bytes::<QueueAccount>(&data[8..QueueAccount::LEN]);
 
             if queue.metadata.queue_type == QueueType::AddressV1 as u64 {
