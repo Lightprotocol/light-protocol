@@ -100,6 +100,7 @@ pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
 ) -> Result<()> {
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
         .url(config.external_services.rpc_url.to_string())
+        .photon_url(config.external_services.indexer_url.clone())
         .commitment(CommitmentConfig::confirmed())
         .max_size(config.rpc_pool_config.max_size)
         .connection_timeout_secs(config.rpc_pool_config.connection_timeout_secs)
