@@ -37,23 +37,25 @@ jobs:
     env:
       LIGHT_PROTOCOL_VERSION: V2
       REDIS_URL: redis://localhost:6379
+      CI: true
 
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      # - name: Cache nx
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       node_modules/.cache/nx
-      #       js/stateless.js/node_modules/.cache/nx
-      #       js/compressed-token/node_modules/.cache/nx
-      #       cli/node_modules/.cache/nx
-      #     key: nx-cli-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-${{ github.sha }}
-      #     restore-keys: |
-      #       nx-cli-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-
-      #       nx-cli-v2-${{ runner.os }}-
+      - name: Cache nx
+        uses: actions/cache@v4
+        with:
+          path: |
+            .nx/cache
+            node_modules/.cache/nx
+            js/stateless.js/node_modules/.cache/nx
+            js/compressed-token/node_modules/.cache/nx
+            cli/node_modules/.cache/nx
+          key: nx-cli-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-${{ github.sha }}
+          restore-keys: |
+            nx-cli-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-
+            nx-cli-v2-${{ runner.os }}-
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -73,7 +75,7 @@ jobs:
       - name: Build CLI with V2
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run CLI tests with V2
         run: |

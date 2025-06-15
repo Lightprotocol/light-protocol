@@ -37,6 +37,7 @@ jobs:
     env:
       LIGHT_PROTOCOL_VERSION: V1
       REDIS_URL: redis://localhost:6379
+      CI: true
 
     steps:
       - name: Checkout sources
@@ -46,6 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            .nx/cache
             node_modules/.cache/nx
             js/stateless.js/node_modules/.cache/nx
             js/compressed-token/node_modules/.cache/nx
@@ -73,7 +75,7 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests with V1
         run: |

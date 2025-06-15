@@ -9,7 +9,7 @@
   },
   "targetDefaults": {
     "build": {
-      "cache": false,
+      "cache": true,
       "inputs": [
         "noMarkdown",
         "^noMarkdown",
@@ -22,11 +22,14 @@
       "outputs": [
         "{workspaceRoot}/target/deploy",
         "{workspaceRoot}/target/idl",
-        "{workspaceRoot}/target/types"
+        "{workspaceRoot}/target/types",
+        "{projectRoot}/dist",
+        "{projectRoot}/lib",
+        "{projectRoot}/bin"
       ]
     },
     "test": {
-      "cache": false,
+      "cache": true,
       "inputs": [
         "noMarkdown",
         "^noMarkdown",
@@ -64,6 +67,18 @@
         "noTestLedger",
         "^noTestLedger"
       ]
+    }
+  },
+  "daemon": {
+    "enabled": false
+  },
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "nx/tasks-runners/default",
+      "options": {
+        "cacheableOperations": ["build", "test"],
+        "cacheDirectory": ".nx/cache"
+      }
     }
   }
 }
