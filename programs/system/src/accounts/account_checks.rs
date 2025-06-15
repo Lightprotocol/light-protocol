@@ -1,6 +1,6 @@
 use light_account_checks::checks::{
-    check_account_info_mut, check_discriminator, check_mut, check_non_mut, check_owner,
-    check_pda_seeds, check_pda_seeds_with_bump, check_program, check_signer,
+    check_discriminator, check_mut, check_non_mut, check_owner, check_pda_seeds,
+    check_pda_seeds_with_bump, check_program, check_signer,
 };
 use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, instruction_data::traits::AccountOptions,
