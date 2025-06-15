@@ -24,9 +24,7 @@ pub fn check_account_info_mut<T: Discriminator, A: AccountInfoTrait>(
     program_id: &[u8; 32],
     account_info: &A,
 ) -> Result<(), AccountError> {
-    if !account_info.is_writable() {
-        return Err(AccountError::AccountMutable);
-    }
+    check_mut(account_info)?;
     check_account_info::<T, A>(program_id, account_info)
 }
 
@@ -39,7 +37,6 @@ pub fn check_account_info_non_mut<T: Discriminator, A: AccountInfoTrait>(
     account_info: &A,
 ) -> Result<(), AccountError> {
     check_non_mut(account_info)?;
-
     check_account_info::<T, A>(program_id, account_info)
 }
 
@@ -117,6 +114,13 @@ pub fn check_account_balance_is_rent_exempt<A: AccountInfoTrait>(
 pub fn check_signer<A: AccountInfoTrait>(account_info: &A) -> Result<(), AccountError> {
     if !account_info.is_signer() {
         return Err(AccountError::InvalidSigner);
+    }
+    Ok(())
+}
+
+pub fn check_mut<A: AccountInfoTrait>(account_info: &A) -> Result<(), AccountError> {
+    if !account_info.is_writable() {
+        return Err(AccountError::AccountNotMutable);
     }
     Ok(())
 }

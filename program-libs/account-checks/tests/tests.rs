@@ -170,7 +170,7 @@ fn test_check_account_info_mut() {
         set_discriminator::<TestStruct>(&mut account.data).unwrap();
         assert_eq!(
             check_account_info_mut::<TestStruct, _>(&owner.to_bytes(), &account.get_account_info()),
-            Err(AccountError::AccountMutable)
+            Err(AccountError::AccountNotMutable)
         );
     }
 
@@ -193,7 +193,7 @@ fn test_check_account_info_mut() {
         account_info_init::<TestStruct, _>(&account).unwrap();
         assert_eq!(
             check_account_info_mut::<TestStruct, _>(&owner, &account),
-            Err(AccountError::AccountMutable)
+            Err(AccountError::AccountNotMutable)
         );
     }
 }
@@ -295,6 +295,49 @@ fn test_check_non_mut() {
         let owner = [2u8; 32];
         let account = create_test_account_pinocchio(key, owner, 16, true, false, false);
         assert_eq!(check_non_mut(&account), Err(AccountError::AccountMutable));
+    }
+}
+
+// 4.5. check_mut tests - 4 tests total
+#[test]
+fn test_check_mut() {
+    // Solana success case
+    #[cfg(feature = "solana")]
+    {
+        let key = create_pubkey();
+        let owner = create_pubkey();
+        let mut account = create_test_account_solana(key, owner, 16, true);
+        assert!(check_mut(&account.get_account_info()).is_ok());
+    }
+
+    // Solana failure case (not writable)
+    #[cfg(feature = "solana")]
+    {
+        let key = create_pubkey();
+        let owner = create_pubkey();
+        let mut account = create_test_account_solana(key, owner, 16, false);
+        assert_eq!(
+            check_mut(&account.get_account_info()),
+            Err(AccountError::AccountNotMutable)
+        );
+    }
+
+    // Pinocchio success case
+    #[cfg(feature = "pinocchio")]
+    {
+        let key = [1u8; 32];
+        let owner = [2u8; 32];
+        let account = create_test_account_pinocchio(key, owner, 16, true, false, false);
+        assert!(check_mut(&account).is_ok());
+    }
+
+    // Pinocchio failure case (not writable)
+    #[cfg(feature = "pinocchio")]
+    {
+        let key = [1u8; 32];
+        let owner = [2u8; 32];
+        let account = create_test_account_pinocchio(key, owner, 16, false, false, false);
+        assert_eq!(check_mut(&account), Err(AccountError::AccountNotMutable));
     }
 }
 

@@ -1,6 +1,6 @@
 use light_account_checks::checks::{
-    check_discriminator, check_non_mut, check_owner, check_pda_seeds, check_pda_seeds_with_bump,
-    check_program, check_signer,
+    check_discriminator, check_mut, check_non_mut, check_owner, check_pda_seeds,
+    check_pda_seeds_with_bump, check_program, check_signer,
 };
 use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, instruction_data::traits::AccountOptions,
@@ -16,6 +16,7 @@ use crate::{
 pub fn check_fee_payer(fee_payer: Option<&AccountInfo>) -> Result<&AccountInfo> {
     let fee_payer = fee_payer.ok_or(ProgramError::NotEnoughAccountKeys)?;
     check_signer(fee_payer).map_err(ProgramError::from)?;
+    check_mut(fee_payer).map_err(ProgramError::from)?;
     Ok(fee_payer)
 }
 
