@@ -172,7 +172,7 @@ download_gnark_keys() {
     if ! is_installed "gnark_keys"; then
         echo "Downloading gnark keys..."
         ROOT_DIR="$(git rev-parse --show-toplevel)"
-        "${ROOT_DIR}/prover/server/scripts/download_keys.sh" "$key_type"
+        "${ROOT_DIR}/prover/server/scripts/download_keys.sh" "$1"
         log "gnark_keys"
     fi
 }
@@ -351,12 +351,18 @@ main() {
                 shift
                 ;;
             --components)
+                if [ -z "$2" ] || [[ "$2" == --* ]]; then
+                    echo "Error: --components requires a value"
+                    exit 1
+                fi
                 components="$2"
                 install_all=false
                 shift 2
                 ;;
             *)
                 echo "Unknown option: $1"
+                echo "Usage: $0 [--full-keys] [--no-reset] [--components <comma-separated-list>]"
+                echo "Components: go,rust,node,pnpm,solana,anchor,jq,keys,dependencies,redis"
                 exit 1
                 ;;
         esac
@@ -388,6 +394,9 @@ main() {
     should_install "redis" && install_redis
 
     echo "✨ Light Protocol development dependencies installed"
+    if ! $install_all; then
+        echo "   Installed components: $components"
+    fi
 }
 
 main "$@"

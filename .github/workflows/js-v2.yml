@@ -59,6 +59,8 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+        with:
+          components: "node,pnpm,solana,anchor,jq,dependencies"
 
       - name: Build stateless.js with V2
         run: |
