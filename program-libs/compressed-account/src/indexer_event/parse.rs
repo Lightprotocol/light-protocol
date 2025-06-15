@@ -294,6 +294,7 @@ fn deserialize_instruction<'a>(
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
             let accounts = accounts.split_at(9).1;
+            // Skips vec size bytes for backward compatibility
             let data = InstructionDataInvoke::deserialize(&mut &instruction[4..])?;
             Ok(ExecutingSystemInstruction {
                 output_compressed_accounts: data.output_compressed_accounts,
