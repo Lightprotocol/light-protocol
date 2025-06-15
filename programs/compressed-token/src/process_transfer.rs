@@ -428,9 +428,6 @@ pub fn cpi_execute_compressed_transaction_transfer<
         compress_or_decompress_lamports: 0,
         is_compress: false,
     };
-    let mut inputs = Vec::new();
-    InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs)
-        .map_err(ProgramError::from)?;
 
     #[cfg(not(feature = "cpi-without-program-ids"))]
     {
@@ -459,16 +456,19 @@ pub fn cpi_execute_compressed_transaction_transfer<
         bench_sbf_end!("t_cpi_prep");
 
         bench_sbf_start!("t_invoke_cpi");
-        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
+        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs_struct)?;
         bench_sbf_end!("t_invoke_cpi");
     }
     #[cfg(feature = "cpi-without-program-ids")]
     {
-        let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+        let mut inputs = Vec::new();
+        InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs)
+            .map_err(ProgramError::from)?;
+
+        let mut data = Vec::with_capacity(8 + inputs.len());
         data.extend_from_slice(
             &light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY,
         );
-        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
         data.extend(inputs);
 
         // 4 static accounts

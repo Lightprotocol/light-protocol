@@ -23,6 +23,7 @@ import {
 import { LightSystemProgram } from '.';
 import {
     INVOKE_CPI_DISCRIMINATOR,
+    INVOKE_CPI_WITH_READ_ONLY_DISCRIMINATOR,
     INVOKE_DISCRIMINATOR,
 } from '../../constants';
 
@@ -232,7 +233,7 @@ export const InstructionDataInvokeCpiWithReadOnlyLayout = struct([
 
 export function decodeInstructionDataInvokeCpiWithReadOnly(buffer: Buffer) {
     return InstructionDataInvokeCpiWithReadOnlyLayout.decode(
-        buffer.slice(INVOKE_DISCRIMINATOR.length + 4),
+        buffer.slice(INVOKE_CPI_WITH_READ_ONLY_DISCRIMINATOR.length),
     );
 }
 

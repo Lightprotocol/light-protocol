@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use anchor_lang::Discriminator;
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{config::GeneralConfig, epoch_manager::WorkReport, run_pipeline, ForesterConfig};
@@ -395,7 +396,11 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
 
         let instruction = create_invoke_cpi_instruction(
             payer.pubkey(),
-            ix_data.try_to_vec()?,
+            [
+                light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
+                ix_data.try_to_vec()?,
+            ]
+            .concat(),
             remaining_accounts,
             None,
         );

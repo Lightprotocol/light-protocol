@@ -134,16 +134,34 @@ pub fn process_invoke_cpi<'info>(
     };
     let seeds: [&[u8]; 2] = [CPI_AUTHORITY_PDA_SEED, &[bump]];
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
+    let mut account_infos = cpi_accounts.to_account_infos();
 
-    let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
-        cpi_accounts,
-        &signer_seeds,
-    );
+    // Add remaining accounts
+    account_infos.extend_from_slice(ctx.remaining_accounts);
 
-    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+    // Create instruction
+    let mut account_metas = cpi_accounts.to_account_metas(None);
+    ctx.remaining_accounts.iter().for_each(|account| {
+        account_metas.push(AccountMeta {
+            pubkey: *account.key,
+            is_signer: account.is_signer,
+            is_writable: account.is_writable,
+        });
+    });
+    let instruction = Instruction {
+        program_id: ctx.accounts.light_system_program.key(),
+        accounts: account_metas,
+        data: inputs,
+    };
+
     anchor_lang::solana_program::log::sol_log_compute_units();
-    light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
+
+    // Invoke the instruction with signer seeds
+    anchor_lang::solana_program::program::invoke_signed(
+        &instruction,
+        &account_infos,
+        &signer_seeds,
+    )?;
     Ok(())
 }
 

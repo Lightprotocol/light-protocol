@@ -70,7 +70,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
     SAFETY_MARGIN,
 };
-use anchor_lang::{prelude::AccountMeta, AnchorSerialize};
+use anchor_lang::{prelude::AccountMeta, AnchorSerialize, Discriminator};
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
     account_zero_copy::AccountZeroCopy,
@@ -2794,7 +2794,11 @@ where
 
         let instruction = create_invoke_cpi_instruction(
             user.pubkey(),
-            ix_data.try_to_vec().unwrap(),
+            [
+                light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
+                ix_data.try_to_vec().unwrap(),
+            ]
+            .concat(),
             remaining_accounts,
             None,
         );
