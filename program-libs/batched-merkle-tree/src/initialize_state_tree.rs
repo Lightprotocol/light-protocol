@@ -244,7 +244,10 @@ pub mod test_utils {
     pub use super::InitStateTreeAccountsInstructionData;
     use super::*;
     use crate::{
-        constants::{TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE},
+        constants::{
+            STATE_BLOOM_FILTER_CAPACITY, STATE_BLOOM_FILTER_NUM_HASHES, TEST_DEFAULT_BATCH_SIZE,
+            TEST_DEFAULT_ZKP_BATCH_SIZE,
+        },
         queue::{test_utils::assert_queue_inited, BatchedQueueMetadata},
         queue_batch_metadata::QueueBatches,
     };
@@ -296,14 +299,14 @@ pub mod test_utils {
                 program_owner: None,
                 forester: None,
                 additional_bytes: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
-                bloom_filter_num_iters: 3,
-                input_queue_batch_size: 2000,
-                output_queue_batch_size: 2000,
+                bloom_filter_num_iters: STATE_BLOOM_FILTER_NUM_HASHES,
+                input_queue_batch_size: 15000,
+                output_queue_batch_size: 15000,
                 input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
                 output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
                 height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
                 root_history_capacity: 20,
-                bloom_filter_capacity: 20_000 * 8,
+                bloom_filter_capacity: STATE_BLOOM_FILTER_CAPACITY,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),
                 close_threshold: None,
