@@ -1,3 +1,4 @@
+use light_account_checks::checks::check_signer;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
@@ -46,7 +47,8 @@ impl<'info> InvokeInstruction<'info> {
         let fee_payer = check_fee_payer(accounts.next())?;
 
         // Fee payer and authority can be the same account in case of invoke.
-        let authority = check_fee_payer(accounts.next())?;
+        let authority = accounts.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
+        check_signer(authority).map_err(ProgramError::from)?;
 
         let registered_program_pda = check_non_mut_account_info(accounts.next())?;
 

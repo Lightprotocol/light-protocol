@@ -170,7 +170,7 @@ fn test_check_account_info_mut() {
         set_discriminator::<TestStruct>(&mut account.data).unwrap();
         assert_eq!(
             check_account_info_mut::<TestStruct, _>(&owner.to_bytes(), &account.get_account_info()),
-            Err(AccountError::AccountMutable)
+            Err(AccountError::AccountNotMutable)
         );
     }
 
@@ -193,7 +193,7 @@ fn test_check_account_info_mut() {
         account_info_init::<TestStruct, _>(&account).unwrap();
         assert_eq!(
             check_account_info_mut::<TestStruct, _>(&owner, &account),
-            Err(AccountError::AccountMutable)
+            Err(AccountError::AccountNotMutable)
         );
     }
 }
