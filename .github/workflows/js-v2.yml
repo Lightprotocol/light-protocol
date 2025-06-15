@@ -11,15 +11,15 @@ on:
       - reopened
       - ready_for_review
 
-name: js-tests-v1
+name: js-tests-v2
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  stateless-js-v1:
-    name: stateless-js-v1
+  stateless-js-v2:
+    name: stateless-js-v2
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
@@ -35,7 +35,7 @@ jobs:
           --health-retries 5
 
     env:
-      LIGHT_PROTOCOL_VERSION: V1
+      LIGHT_PROTOCOL_VERSION: V2
       REDIS_URL: redis://localhost:6379
       CI: true
 
@@ -49,38 +49,44 @@ jobs:
           path: |
             .nx/cache
             node_modules/.cache/nx
-          key: nx-js-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
+          key: nx-js-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
           restore-keys: |
-            nx-js-v1-${{ runner.os }}-
+            nx-js-v2-${{ runner.os }}-
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis"
 
-      - name: Build stateless.js with V1
+      - name: Build stateless.js with V2
         run: |
           source ./scripts/devenv.sh
           cd js/stateless.js
-          pnpm build:v1
+          pnpm build:v2
 
-      - name: Build compressed-token with V1
+      - name: Build compressed-token with V2
         run: |
           source ./scripts/devenv.sh
           cd js/compressed-token
-          pnpm build:v1
+          pnpm build:v2
 
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
 
-      - name: Run stateless.js tests with V1
+      - name: Run stateless.js tests with V2
         run: |
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/stateless.js
 
-      - name: Run compressed-token tests with V1
+      - name: Run compressed-token tests with V2
         run: |
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/compressed-token
+
+      - name: Display prover logs on failure
+        if: failure()
+        run: |
+          echo "=== Displaying prover logs ==="
+          find . -path "*/test-ledger/*prover*.log" -type f -exec echo "=== Contents of {} ===" \; -exec cat {} \; -exec echo "=== End of {} ===" \; || echo "No prover logs found"

@@ -11,15 +11,15 @@ on:
       - reopened
       - ready_for_review
 
-name: js-tests-v1
+name: cli-tests-v1
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  stateless-js-v1:
-    name: stateless-js-v1
+  cli-v1:
+    name: cli-v1
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
@@ -49,9 +49,9 @@ jobs:
           path: |
             .nx/cache
             node_modules/.cache/nx
-          key: nx-js-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
+          key: nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
           restore-keys: |
-            nx-js-v1-${{ runner.os }}-
+            nx-cli-v1-${{ runner.os }}-
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -70,17 +70,18 @@ jobs:
           cd js/compressed-token
           pnpm build:v1
 
-      - name: Build CLI
+      - name: Build CLI with V1
         run: |
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
 
-      - name: Run stateless.js tests with V1
+      - name: Run CLI tests with V1
         run: |
           source ./scripts/devenv.sh
-          npx nx test @lightprotocol/stateless.js
+          npx nx test @lightprotocol/zk-compression-cli
 
-      - name: Run compressed-token tests with V1
+      - name: Display prover logs on failure
+        if: failure()
         run: |
-          source ./scripts/devenv.sh
-          npx nx test @lightprotocol/compressed-token
+          echo "=== Displaying prover logs ==="
+          find cli/test-ledger -name "*prover*.log" -type f -exec echo "=== Contents of {} ===" \; -exec cat {} \; -exec echo "=== End of {} ===" \; || echo "No prover logs found"

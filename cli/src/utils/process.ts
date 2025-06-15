@@ -7,6 +7,47 @@ import { promisify } from "util";
 import axios from "axios";
 const waitOn = require("wait-on");
 
+const readdir = promisify(fs.readdir);
+const readFile = promisify(fs.readFile);
+
+/**
+ * Logs the contents of prover log files in test-ledger dir.
+ */
+export async function logProverFileContents() {
+  const testLedgerDir = path.join(__dirname, "../..", "test-ledger");
+
+  try {
+    if (!fs.existsSync(testLedgerDir)) {
+      console.log("test-ledger directory does not exist");
+      return;
+    }
+
+    const files = await readdir(testLedgerDir);
+
+    const proverFiles = files.filter((file) => file.includes("prover"));
+
+    if (proverFiles.length === 0) {
+      console.log("No prover log files found in test-ledger directory");
+      return;
+    }
+
+    for (const file of proverFiles) {
+      const filePath = path.join(testLedgerDir, file);
+      console.log(`\n========== Contents of ${file} ==========`);
+
+      try {
+        const contents = await readFile(filePath, "utf8");
+        console.log(contents);
+        console.log(`========== End of ${file} ==========\n`);
+      } catch (error) {
+        console.error(`Error reading ${file}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error("Error accessing test-ledger directory:", error);
+  }
+}
+
 export async function killProcess(processName: string) {
   const processList = await find("name", processName);
 
@@ -22,7 +63,6 @@ export async function killProcess(processName: string) {
     }
   }
 
-  // Double-check if processes are still running
   const remainingProcesses = await find("name", processName);
   if (remainingProcesses.length > 0) {
     console.warn(
@@ -174,8 +214,12 @@ export function spawnBinary(command: string, args: string[] = []) {
       detached: true,
     });
 
-    spawnedProcess.on("close", (code) => {
+    spawnedProcess.on("close", async (code) => {
       console.log(`${binaryName} process exited with code ${code}`);
+      if (code !== 0 && binaryName.includes("prover")) {
+        console.error(`Prover process failed with exit code ${code}`);
+        await logProverFileContents();
+      }
     });
 
     return spawnedProcess;
