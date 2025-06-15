@@ -12,7 +12,7 @@ use light_client::{
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     },
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
+    rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
     address::derive_address_legacy,
@@ -38,7 +38,6 @@ use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
     signature::{Keypair, Signature},
     signer::Signer,
 };
@@ -222,14 +221,7 @@ async fn test_state_indexer_async_batched() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
-    let mut rpc = LightClient::new(LightClientConfig {
-        url: RpcUrl::Localnet.to_string(),
-        commitment_config: Some(CommitmentConfig::processed()),
-        fetch_active_tree: false,
-        with_indexer: true,
-    })
-    .await
-    .unwrap();
+    let mut rpc = LightClient::new(LightClientConfig::local()).await.unwrap();
     rpc.payer = forester.insecure_clone();
     rpc
 }

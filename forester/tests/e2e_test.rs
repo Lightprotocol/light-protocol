@@ -60,14 +60,9 @@ async fn test_epoch_monitor_with_2_foresters() {
         .await
         .unwrap();
 
-    let mut rpc = LightClient::new(LightClientConfig {
-        url: RpcUrl::Localnet.to_string(),
-        commitment_config: Some(CommitmentConfig::confirmed()),
-        fetch_active_tree: false,
-        with_indexer: false,
-    })
-    .await
-    .unwrap();
+    let mut rpc = LightClient::new(LightClientConfig::local_no_indexer())
+        .await
+        .unwrap();
     rpc.payer = forester_keypair1.insecure_clone();
 
     // Airdrop to both foresters and governance authority
@@ -410,9 +405,9 @@ async fn test_epoch_double_registration() {
 
     let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
+        photon_url: None,
         commitment_config: Some(CommitmentConfig::confirmed()),
         fetch_active_tree: false,
-        with_indexer: false,
     })
     .await
     .unwrap();

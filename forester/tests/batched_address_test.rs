@@ -65,9 +65,9 @@ async fn test_address_batched() {
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
+        photon_url: None,
         commitment_config: Some(commitment_config),
         fetch_active_tree: false,
-        with_indexer: false,
     })
     .await
     .unwrap();

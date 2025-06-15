@@ -34,9 +34,9 @@ pub async fn create_update_protocol_config_ix(options: Options) -> anyhow::Resul
     let rpc_url = String::from("https://api.mainnet-beta.solana.com");
     let rpc = LightClient::new(LightClientConfig {
         url: rpc_url,
+        photon_url: None,
         commitment_config: None,
         fetch_active_tree: false,
-        with_indexer: false,
     })
     .await
     .unwrap();

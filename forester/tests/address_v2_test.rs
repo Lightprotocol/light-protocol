@@ -11,7 +11,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{client::RpcUrl, merkle_tree::MerkleTreeExt, LightClient, LightClientConfig, Rpc},
+    rpc::{merkle_tree::MerkleTreeExt, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
     address::derive_address,
@@ -32,7 +32,7 @@ use light_test_utils::{
 use rand::{prelude::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
+use solana_sdk::{signature::Keypair, signer::Signer};
 use tokio::sync::{mpsc, oneshot, Mutex};
 
 use crate::test_utils::{forester_config, init};
@@ -71,14 +71,7 @@ async fn test_create_v2_address() {
     config.derivation_pubkey = env.protocol.forester.pubkey();
     config.general_config = GeneralConfig::test_address_v2();
 
-    let mut rpc = LightClient::new(LightClientConfig {
-        url: RpcUrl::Localnet.to_string(),
-        commitment_config: Some(CommitmentConfig::processed()),
-        fetch_active_tree: false,
-        with_indexer: true,
-    })
-    .await
-    .unwrap();
+    let mut rpc = LightClient::new(LightClientConfig::local()).await.unwrap();
     rpc.payer = env.protocol.forester.insecure_clone();
 
     ensure_sufficient_balance(

@@ -46,9 +46,9 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
     };
     let mut rpc = LightClient::new(LightClientConfig {
         url: rpc_url,
+        photon_url: None,
         commitment_config: None,
         fetch_active_tree: false,
-        with_indexer: false,
     })
     .await
     .unwrap();
