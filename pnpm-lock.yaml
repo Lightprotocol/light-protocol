@@ -34,7 +34,7 @@ importers:
     dependencies:
       '@coral-xyz/anchor':
         specifier: 0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 0.29.0(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)
       '@lightprotocol/compressed-token':
         specifier: workspace:*
         version: link:../js/compressed-token
@@ -61,10 +61,10 @@ importers:
         version: 5.0.7
       '@solana-developers/helpers':
         specifier: ^1.5.1
-        version: 1.5.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 1.5.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@solana/web3.js':
         specifier: 1.98.0
-        version: 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       axios:
         specifier: ^1.6.8
         version: 1.6.8
@@ -113,7 +113,7 @@ importers:
         version: 2.3.9(@types/node@20.17.57)(typescript@5.5.3)
       '@solana/spl-token':
         specifier: ^0.3.11
-        version: 0.3.11(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(utf-8-validate@5.0.10)
+        version: 0.3.11(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)(utf-8-validate@5.0.10)
       '@types/bn.js':
         specifier: ^5.1.5
         version: 5.1.5
@@ -187,7 +187,7 @@ importers:
     dependencies:
       '@coral-xyz/anchor':
         specifier: ^0.30.1
-        version: 0.30.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 0.30.1(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@lightprotocol/compressed-token':
         specifier: workspace:*
         version: link:../../../js/compressed-token
@@ -196,19 +196,19 @@ importers:
         version: link:../../../js/stateless.js
       '@solana/wallet-adapter-base':
         specifier: ^0.9.26
-        version: 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        version: 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@solana/wallet-adapter-react':
         specifier: ^0.15.38
-        version: 0.15.38(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+        version: 0.15.38(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
       '@solana/wallet-adapter-react-ui':
         specifier: ^0.9.38
-        version: 0.9.38(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-dom@19.1.0(react@19.1.0))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+        version: 0.9.38(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-dom@19.1.0(react@19.1.0))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
       '@solana/wallet-adapter-unsafe-burner':
         specifier: ^0.1.10
-        version: 0.1.10(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        version: 0.1.10(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@solana/web3.js':
-        specifier: 1.98.0
-        version: 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        specifier: 1.98.2
+        version: 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       bs58:
         specifier: ^6.0.0
         version: 6.0.0
@@ -245,13 +245,13 @@ importers:
     dependencies:
       '@coral-xyz/anchor':
         specifier: ^0.30.0
-        version: 0.30.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 0.30.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../../../js/stateless.js
       '@solana/web3.js':
-        specifier: 1.98.0
-        version: 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        specifier: 1.98.2
+        version: 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
     devDependencies:
       '@types/node':
         specifier: ^22.15.30
@@ -270,7 +270,7 @@ importers:
     dependencies:
       '@coral-xyz/borsh':
         specifier: ^0.29.0
-        version: 0.29.0(@solana/web3.js@1.98.0)
+        version: 0.29.0(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../stateless.js
@@ -283,7 +283,7 @@ importers:
     devDependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 0.29.0(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
         version: 0.2.3(esbuild@0.21.1)
@@ -319,10 +319,10 @@ importers:
         version: 11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.6.2)
       '@solana/spl-token':
         specifier: 0.4.8
-        version: 0.4.8(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)(utf-8-validate@5.0.10)
+        version: 0.4.8(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)(utf-8-validate@5.0.10)
       '@solana/web3.js':
         specifier: 1.98.0
-        version: 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@types/bn.js':
         specifier: ^5.1.5
         version: 5.1.5
@@ -355,7 +355,7 @@ importers:
         version: 7.1.0(eslint@8.57.0)
       eslint-plugin-vitest:
         specifier: ^0.5.4
-        version: 0.5.4(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2)(vitest@2.1.1(@types/node@22.15.29)(terser@5.41.0))
+        version: 0.5.4(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2)(vitest@2.1.1(@types/node@22.15.29)(terser@5.42.0))
       prettier:
         specifier: ^3.3.3
         version: 3.3.3
@@ -388,13 +388,13 @@ importers:
         version: 5.6.2
       vitest:
         specifier: ^2.1.1
-        version: 2.1.1(@types/node@22.15.29)(terser@5.41.0)
+        version: 2.1.1(@types/node@22.15.29)(terser@5.42.0)
 
   js/stateless.js:
     dependencies:
       '@coral-xyz/borsh':
         specifier: ^0.29.0
-        version: 0.29.0(@solana/web3.js@1.98.0)
+        version: 0.29.0(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@noble/hashes':
         specifier: 1.5.0
         version: 1.5.0
@@ -422,7 +422,7 @@ importers:
     devDependencies:
       '@coral-xyz/anchor':
         specifier: 0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 0.29.0(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
         version: 0.2.3(esbuild@0.21.1)
@@ -458,7 +458,7 @@ importers:
         version: 11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.6.2)
       '@solana/web3.js':
         specifier: 1.98.0
-        version: 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@types/bn.js':
         specifier: ^5.1.5
         version: 5.1.5
@@ -482,7 +482,7 @@ importers:
         version: 7.1.0(eslint@8.57.0)
       eslint-plugin-vitest:
         specifier: ^0.5.4
-        version: 0.5.4(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2)(vitest@2.1.1(@types/node@22.15.29)(terser@5.41.0))
+        version: 0.5.4(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2)(vitest@2.1.1(@types/node@22.15.29)(terser@5.42.0))
       http-server:
         specifier: ^14.1.1
         version: 14.1.1
@@ -518,7 +518,7 @@ importers:
         version: 5.6.2
       vitest:
         specifier: ^2.1.1
-        version: 2.1.1(@types/node@22.15.29)(terser@5.41.0)
+        version: 2.1.1(@types/node@22.15.29)(terser@5.42.0)
 
   program-tests: {}
 
@@ -526,7 +526,7 @@ importers:
     dependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+        version: 0.29.0(typescript@5.8.3)
     devDependencies:
       '@lightprotocol/zk-compression-cli':
         specifier: workspace:*
@@ -1433,10 +1433,6 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
-  '@babel/runtime@7.25.6':
-    resolution: {integrity: sha512-VBj9MYyDb9tuLq7yzqjgzt6Q+IBQLrGZfdjOekyEirZPHxXWoTSGUTMrpsfi58Up73d13NfYLv8HT9vmznjzhQ==}
-    engines: {node: '>=6.9.0'}
-
   '@babel/runtime@7.27.6':
     resolution: {integrity: sha512-vbavdySgbTTrmFE+EsiqUTzlOr5bzlnJtUv9PynGCAKvfQqjIXbvFdumPM/GxMDfyuGMJaJAU6TO4zc1Jf1i8Q==}
     engines: {node: '>=6.9.0'}
@@ -2135,16 +2131,13 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@noble/curves@1.4.2':
-    resolution: {integrity: sha512-TavHr8qycMChk8UwMld0ZDRvatedkzWfH8IiaeGCfymOP5i0hSCozz9vHOL0nkwk7HRMlFnAiKpS2jrUmSybcw==}
-
   '@noble/curves@1.9.0':
     resolution: {integrity: sha512-7YDlXiNMdO1YZeH6t/kvopHHbIZzlxrCV9WLqCY6QhcXOoXiNCMDqJIglZ9Yjx5+w7Dz30TITFrlTjnRg7sKEg==}
     engines: {node: ^14.21.3 || >=16}
 
-  '@noble/hashes@1.4.0':
-    resolution: {integrity: sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==}
-    engines: {node: '>= 16'}
+  '@noble/curves@1.9.2':
+    resolution: {integrity: sha512-HxngEd2XUcg9xi20JkwlLCtYwfoFw4JGkuZpT+WlsPD4gB/cxkvTD8fSsoAnphGZhFdZYKeQIPCuFlWPm1uE0g==}
+    engines: {node: ^14.21.3 || >=16}
 
   '@noble/hashes@1.5.0':
     resolution: {integrity: sha512-1j6kQFb7QRru7eKN3ZDvRcP13rugwdxZqCjbiAVZfIJwgj2A65UmT4TgARXGlXgnRkORLTDTrO19ZErt7+QXgA==}
@@ -2784,6 +2777,12 @@ packages:
     peerDependencies:
       typescript: '>=5'
 
+  '@solana/codecs-core@2.1.1':
+    resolution: {integrity: sha512-iPQW3UZ2Vi7QFBo2r9tw0NubtH8EdrhhmZulx6lC8V5a+qjaxovtM/q/UW2BTNpqqHLfO0tIcLyBLrNH4HTWPg==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.3.3'
+
   '@solana/codecs-data-structures@2.0.0-experimental.8618508':
     resolution: {integrity: sha512-sLpjL9sqzaDdkloBPV61Rht1tgaKq98BCtIKRuyscIrmVPu3wu0Bavk2n/QekmUzaTsj7K1pVSniM0YqCdnEBw==}
 
@@ -2809,6 +2808,12 @@ packages:
     resolution: {integrity: sha512-J5i5mOkvukXn8E3Z7sGIPxsThRCgSdgTWJDQeZvucQ9PT6Y3HiVXJ0pcWiOWAoQ3RX8e/f4I3IC+wE6pZiJzDQ==}
     peerDependencies:
       typescript: '>=5'
+
+  '@solana/codecs-numbers@2.1.1':
+    resolution: {integrity: sha512-m20IUPJhPUmPkHSlZ2iMAjJ7PaYUvlMtFhCQYzm9BEBSI6OCvXTG3GAPpAnSGRBfg5y+QNqqmKn4QHU3B6zzCQ==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      typescript: '>=5.3.3'
 
   '@solana/codecs-strings@2.0.0-experimental.8618508':
     resolution: {integrity: sha512-b2yhinr1+oe+JDmnnsV0641KQqqDG8AQ16Z/x7GVWO+AWHMpRlHWVXOq8U1yhPMA4VXxl7i+D+C6ql0VGFp0GA==}
@@ -2848,6 +2853,13 @@ packages:
     hasBin: true
     peerDependencies:
       typescript: '>=5'
+
+  '@solana/errors@2.1.1':
+    resolution: {integrity: sha512-sj6DaWNbSJFvLzT8UZoabMefQUfSW/8tXK7NTiagsDmh+Q87eyQDDC9L3z+mNmx9b6dEf6z660MOIplDD2nfEw==}
+    engines: {node: '>=20.18.0'}
+    hasBin: true
+    peerDependencies:
+      typescript: '>=5.3.3'
 
   '@solana/options@2.0.0-experimental.8618508':
     resolution: {integrity: sha512-fy/nIRAMC3QHvnKi63KEd86Xr/zFBVxNW4nEpVEU2OT0gCEKwHY4Z55YHf7XujhyuM3PNpiBKg/YYw5QlRU4vg==}
@@ -2971,17 +2983,20 @@ packages:
   '@solana/web3.js@1.98.0':
     resolution: {integrity: sha512-nz3Q5OeyGFpFCR+erX2f6JPt3sKhzhYcSycBCSPkWjzSVDh/Rr1FqTVMRe58FKO16/ivTUcuJjeS5MyBvpkbzA==}
 
+  '@solana/web3.js@1.98.2':
+    resolution: {integrity: sha512-BqVwEG+TaG2yCkBMbD3C4hdpustR4FpuUFRPUmqRZYYlPI9Hg4XMWxHWOWRzHE9Lkc9NDjzXFX7lDXSgzC7R1A==}
+
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
 
   '@swc/counter@0.1.3':
     resolution: {integrity: sha512-e2BR4lsJkkRlKZ/qCHPw9ZaSxc0MVUd7gtbtaB7aMvHeJVYe8sOB8DBZkP2DtISHGSku9sCK6T6cnY0CtXrOCQ==}
 
-  '@swc/helpers@0.5.13':
-    resolution: {integrity: sha512-UoKGxQ3r5kYI9dALKJapMmuK+1zWM/H17Z1+iwnNmzcJRnfFuevZs375TA5rW31pu4BS4NoSy1fRsexDXfWn5w==}
-
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+
+  '@swc/helpers@0.5.17':
+    resolution: {integrity: sha512-5IKx/Y13RsYd+sauPb2x+U/xZikHjolzfuDgTAl/Tdf3Q8rslRvC19NKDLgAJQ6wsqADk10ntlv08nPFw/gO/A==}
 
   '@szmarczak/http-timer@5.0.1':
     resolution: {integrity: sha512-+PmQX0PiAYPMeVYe237LJAYvOMYW1j2rH5YROyS3b4CTVJum34HfRvKvAzozHAQG0TnHNdUfY9nCeUyRAs//cw==}
@@ -3017,8 +3032,8 @@ packages:
   '@types/cli-progress@3.11.5':
     resolution: {integrity: sha512-D4PbNRbviKyppS5ivBGyFO29POlySLmA2HyUFE4p5QGazAMM3CwkKWcvTl8gvElSuxRh6FPKL8XmidX873ou4g==}
 
-  '@types/connect@3.4.36':
-    resolution: {integrity: sha512-P63Zd/JUGq+PdrM1lv0Wv5SBYeA2+CORvbrXbngriYY0jzLUWfQMQQxOhjONEz/wlHOAxOdY7CY65rgQdTjq2w==}
+  '@types/connect@3.4.38':
+    resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
@@ -3118,8 +3133,8 @@ packages:
   '@types/ws@7.4.7':
     resolution: {integrity: sha512-JQbbmxZTZehdc2iszGKs5oC3NFnjeay7mtAWrdt7qNtAVK0g19muApzAy4bm9byz79xa2ZnO/BOBC2R8RC5Lww==}
 
-  '@types/ws@8.5.10':
-    resolution: {integrity: sha512-vmQSUcfalpIq0R9q7uTo2lXs6eGIpt9wtnLdMv9LVpIjCA/+ufZRozlVoVelIYixx1ugCBKDhn89vnsEGOCx9A==}
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@types/yargs-parser@21.0.3':
     resolution: {integrity: sha512-I4q9QU9MQv4oEOz4tAHJtNz1cwuLxn2F3xcc2iV5WdqLPpUnj30aUuxt1mAxYTG+oe8CZMV/+6rU4S4gRDzqtQ==}
@@ -3477,10 +3492,6 @@ packages:
     resolution: {integrity: sha512-nrUSn7hzt7J6JWgWGz78ZYI8wj+gdIJdk0Ynjpp8l+trkn58Uqsf6RYrYkEK+3X18EX+TNdtJI0WxAtc+L84SQ==}
     hasBin: true
 
-  JSONStream@1.3.5:
-    resolution: {integrity: sha512-E+iruNOY8VV9s4JEbe1aNEm6MiszPRr/UfcHMz0TQh1BXSxHK+ASV1R6W4HpjBhSeS+54PIsAMCBmwD06LLsqQ==}
-    hasBin: true
-
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
     engines: {node: '>=6.5'}
@@ -3508,11 +3519,16 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
+  acorn@8.15.0:
+    resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
+    engines: {node: '>=0.4.0'}
+    hasBin: true
+
   add@2.0.6:
     resolution: {integrity: sha512-j5QzrmsokwWWp6kUcJQySpbG+xfOBqqKnup3OIk1pz+kB/80SLorZ9V8zHFLO92Lcd+hbvq8bT+zOGoPkmBV0Q==}
 
-  agentkeepalive@4.5.0:
-    resolution: {integrity: sha512-5GG/5IbQQpC9FpkRGsSvZI5QYeSCzlJHdpBQntCsuTOxhKD8lqKhrleg2Yi7yvMIf82Ycmmqln9U8V9qwEiJew==}
+  agentkeepalive@4.6.0:
+    resolution: {integrity: sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ==}
     engines: {node: '>= 8.0.0'}
 
   ajv@6.12.6:
@@ -3769,8 +3785,8 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  base-x@3.0.9:
-    resolution: {integrity: sha512-H7JU6iBHTal1gp56aKoaa//YUxEaAOUiydvrV/pILqIHXTtqxSkATOnDA2u+jZ/61sD+L/412+7kzXRtWukhpQ==}
+  base-x@3.0.11:
+    resolution: {integrity: sha512-xz7wQ8xDhdyP7tQxwdteLYeFfS68tSMNCZ/Y37WJ4bhGfKPpqEIlmIyueQHqOyoPhE6xNUqjzRr8ra0eF9VRvA==}
 
   base-x@4.0.0:
     resolution: {integrity: sha512-FuwxlW4H5kh37X/oW59pwTzzTKRzfrrQwhmyspRM7swOEZcHtDZSCt45U6oKgtuFE+WYPblePMVIPR4RZrh/hw==}
@@ -3812,8 +3828,8 @@ packages:
   bluebird@3.7.2:
     resolution: {integrity: sha512-XpNj6GDQzdfW+r2Wnn7xiSAd7TM3jzkxGXBGTtWKuSXv1xUV+azxAm8jdWZN06QTQk+2N2XB9jRDkvbmQmcRtg==}
 
-  bn.js@4.12.0:
-    resolution: {integrity: sha512-c98Bf3tPniI+scsdk237ku1Dc3ujXQTSgyiPUDEOe7tRkhrqridvh8klBv0HCEso1OLOYcHuCv/cS6DNxKH+ZA==}
+  bn.js@4.12.2:
+    resolution: {integrity: sha512-n4DSx829VRTRByMRGdjQ9iqsN0Bh4OolPsFnaZBLcbi8iXcB+kJ9s7EnRt4wILZNV3kPLHkRVfOc/HvhC3ovDw==}
 
   bn.js@5.2.1:
     resolution: {integrity: sha512-eXRvHzWyYPBuB4NBy0cmYQjGitUrtqwbvlzP3G6VFnNRbsZQIxQ10PbKKHt8gZ/HW/D/747aDl+QkDqg3KQLMQ==}
@@ -3892,8 +3908,8 @@ packages:
   buffer@6.0.3:
     resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
 
-  bufferutil@4.0.8:
-    resolution: {integrity: sha512-4T53u4PdgsXqKaIctwF8ifXlRTTmEPJ8iEPWFdGZvcf7sbwYo6FKFEX9eNNAnzFZ7EzJAQ3CJeOtCRA4rDp7Pw==}
+  bufferutil@4.0.9:
+    resolution: {integrity: sha512-WDtdLmJvAuNNPzByAYpRo2rF1Mmradw6gvWsQKf63476DDXmomT9zUiGypLcG4ibIM67vhAj8jJRdbmEws2Aqw==}
     engines: {node: '>=6.14.2'}
 
   builtin-modules@3.3.0:
@@ -3980,8 +3996,8 @@ packages:
   caniuse-lite@1.0.30001717:
     resolution: {integrity: sha512-auPpttCq6BDEG8ZAuHJIplGw6GODhjw+/11e7IjpnYCxZcW/ONgPs0KVBJ0d1bY3e2+7PRe5RCLyP+PfwVgkYw==}
 
-  caniuse-lite@1.0.30001721:
-    resolution: {integrity: sha512-cOuvmUVtKrtEaoKiO0rSc29jcjwMwX5tOHDy4MgVFEWiUXj4uBMJkwI8MDySkgXidpMiHUcviogAvFi4pA2hDQ==}
+  caniuse-lite@1.0.30001723:
+    resolution: {integrity: sha512-1R/elMjtehrFejxwmexeXAtae5UO9iSyFn6G/I806CYC/BLyyBk1EPhrKBkWhy6wM6Xnm47dSJQec+tLJ39WHw==}
 
   capital-case@1.0.4:
     resolution: {integrity: sha512-ds37W8CytHgwnhGGTi88pcPyR15qoNkOpYwmMMfnWqqWgESapLqvDx6huFjQ5vqWSn2Z06173XNA7LtMOeUh1A==}
@@ -4201,8 +4217,8 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
-  core-js-compat@3.42.0:
-    resolution: {integrity: sha512-bQasjMfyDGyaeWKBIu33lHh9qlSR0MFE/Nmc6nMjf/iU9b3rSMdAYz1Baxrv4lPdGUsTqZudHA4jIGSJy0SWZQ==}
+  core-js-compat@3.43.0:
+    resolution: {integrity: sha512-2GML2ZsCc5LR7hZYz4AXmjQw8zuy2T//2QntwdnpuYI7jteT6GVYJL7F6C2C57R7gSYrcqVW3lAALefdbhBLDA==}
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -4505,8 +4521,8 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  electron-to-chromium@1.5.165:
-    resolution: {integrity: sha512-naiMx1Z6Nb2TxPU6fiFrUrDTjyPMLdTtaOd2oLmG8zVSg2hCWGkhPyxwk+qRmZ1ytwVqUv0u7ZcDA5+ALhaUtw==}
+  electron-to-chromium@1.5.167:
+    resolution: {integrity: sha512-LxcRvnYO5ez2bMOFpbuuVuAI5QNeY1ncVytE/KXaL6ZNfzX1yPlAO0nSOyIHx2fVAuUprMqPs/TdVhUFZy7SIQ==}
 
   elliptic@6.5.4:
     resolution: {integrity: sha512-iLhC6ULemrljPZb+QutR5TQGB+pdW6KGD5RSegS+8sorOZT+rdQFbsQFJgvN3eRqNALqJer4oQ16YvJHlU8hzQ==}
@@ -5964,8 +5980,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  jayson@4.1.2:
-    resolution: {integrity: sha512-5nzMWDHy6f+koZOuYsArh2AXs73NfWYVlFyJJuCedr93GpY+Ku8qq10ropSXVfHK+H0T6paA88ww+/dV+1fBNA==}
+  jayson@4.2.0:
+    resolution: {integrity: sha512-VfJ9t1YLwacIubLhONk0KFeosUBwstRWQ0IRT1KDjEjnVnSOVHC3uwugyV7L0c7R9lpVyrUGT2XWiBA1UTtpyg==}
     engines: {node: '>=8'}
     hasBin: true
 
@@ -6093,10 +6109,6 @@ packages:
 
   jsonfile@4.0.0:
     resolution: {integrity: sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==}
-
-  jsonparse@1.3.1:
-    resolution: {integrity: sha512-POQXvpdL69+CluYsillJ7SUhKvytYjW9vG/GKpnf+xP8UWgYEM/RaMzHHofbALDiKbbP1W8UEYmgGl39WkPZsg==}
-    engines: {'0': node >= 0.2.0}
 
   jsonpath@1.1.1:
     resolution: {integrity: sha512-l6Cg7jRpixfbgoWgkrl77dgEj8RPvND0wMH6TwQmi9Qs4TFfS9u5cUFnbeKTwj5ga5Y3BTGGNI28k117LJ009w==}
@@ -6586,8 +6598,8 @@ packages:
     resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  node-gyp-build@4.6.1:
-    resolution: {integrity: sha512-24vnklJmyRS8ViBNI8KbtK/r/DmXQMRiOMXTNz2nrTnAYUwjmEEbnnpB/+kt+yWRv73bPsSPRFddrcIbAxSiMQ==}
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
     hasBin: true
 
   node-int64@0.4.0:
@@ -7262,9 +7274,6 @@ packages:
   regenerator-runtime@0.13.11:
     resolution: {integrity: sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==}
 
-  regenerator-runtime@0.14.0:
-    resolution: {integrity: sha512-srw17NI0TUWHuGa5CFGGmhfNIeja30WMBfbslPNhf6JrqQlLN5gcrvig1oqPxiVaXb0oW0XRKtH6Nngs5lKCIA==}
-
   regexp-tree@0.1.27:
     resolution: {integrity: sha512-iETxpjK6YoRWJG5o6hXLwvjYAoW+FEZn9os0PD/b6AP6xQwsa/Y7lCVgIixBbUPMfhu+i2LtdeAqVTgGlQarfA==}
     hasBin: true
@@ -7414,8 +7423,8 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
-  rpc-websockets@9.0.2:
-    resolution: {integrity: sha512-YzggvfItxMY3Lwuax5rC18inhbjJv9Py7JXRHxTIi94JOLrqBsSsUUc5bbl5W6c11tXhdfpDPK0KzBhoGe8jjw==}
+  rpc-websockets@9.1.1:
+    resolution: {integrity: sha512-1IXGM/TfPT6nfYMIXkJdzn+L4JEsmb0FL1O2OBjaH03V3yuUDdKFulGLMFG6ErV+8pZ5HVC0limve01RyO+saA==}
 
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
@@ -7704,6 +7713,12 @@ packages:
     resolution: {integrity: sha512-Xnt9/HHHYfjZ7NeQLvuQDyL1LnbsbddgMFKCuaQKwGCdJm8LnstZIXop+uOY36UR1UXXoHXfMbC1KlVdVd2JLA==}
     engines: {node: '>=8.0.0'}
 
+  stream-chain@2.2.5:
+    resolution: {integrity: sha512-1TJmBx6aSWqZ4tx7aTpBDXK0/e2hhcNSTV8+CbFJtDjbb+I1mZ8lHit0Grw9GRT+6JbIrrDd8esncgBi8aBXGA==}
+
+  stream-json@1.9.1:
+    resolution: {integrity: sha512-uWkjJ+2Nt/LO9Z/JyKZbMusL8Dkh97uUBTv3AJQ74y07lVahLY4eEFsPsE97pxYBwr8nnjMAIch5eqI0gPShyw==}
+
   streamsearch@1.1.0:
     resolution: {integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==}
     engines: {node: '>=10.0.0'}
@@ -7868,8 +7883,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  terser@5.41.0:
-    resolution: {integrity: sha512-H406eLPXpZbAX14+B8psIuvIr8+3c+2hkuYzpMkoE0ij+NdsVATbA78vb8neA/eqrj7rywa2pIkdmWRsXW6wmw==}
+  terser@5.42.0:
+    resolution: {integrity: sha512-UYCvU9YQW2f/Vwl+P0GfhxJxbUGLwd+5QrrGgLajzWAtC/23AX0vcise32kkP7Eu0Wu9VlzzHAXkLObgjQfFlQ==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -7884,9 +7899,6 @@ packages:
 
   through2@2.0.5:
     resolution: {integrity: sha512-/mrRod8xqpA+IHSLyGCQ2s8SPHiCDEeQJSep1jqLYeEUClOFG2Qsh+4FU6G9VeqpZnGW/Su8LQGc4YKni5rYSQ==}
-
-  through@2.3.8:
-    resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
 
   tightrope@0.2.0:
     resolution: {integrity: sha512-Kw36UHxJEELq2VUqdaSGR2/8cAsPgMtvX8uGVU6Jk26O66PhXec0A5ZnRYs47btbtwPDpXXF66+Fo3vimCM9aQ==}
@@ -8443,8 +8455,8 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.14.2:
-    resolution: {integrity: sha512-wEBG1ftX4jcglPxgFCMJmZ2PLtSbJ2Peg6TmpJFTbe9GZYOQCDPdMYu/Tm0/bGZkw8paZnJY45J4K2PZrLYq8g==}
+  ws@8.18.2:
+    resolution: {integrity: sha512-DMricUmwGZUVr++AEAe2uiVM7UoO9MAVZMDu05UQOaUII0lp+zOzLLU4Xqh/JvTqklB1T4uELaaPBKyjE1r4fQ==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -8839,7 +8851,7 @@ snapshots:
       '@aws-sdk/types': 3.535.0
       '@smithy/property-provider': 2.2.0
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@aws-sdk/credential-provider-http@3.552.0':
     dependencies:
@@ -8851,7 +8863,7 @@ snapshots:
       '@smithy/smithy-client': 2.5.1
       '@smithy/types': 2.12.0
       '@smithy/util-stream': 2.2.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@aws-sdk/credential-provider-ini@3.554.0(@aws-sdk/credential-provider-node@3.554.0)':
     dependencies:
@@ -8865,7 +8877,7 @@ snapshots:
       '@smithy/property-provider': 2.2.0
       '@smithy/shared-ini-file-loader': 2.4.0
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
       - aws-crt
@@ -8893,7 +8905,7 @@ snapshots:
       '@smithy/property-provider': 2.2.0
       '@smithy/shared-ini-file-loader': 2.4.0
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@aws-sdk/credential-provider-sso@3.554.0(@aws-sdk/credential-provider-node@3.554.0)':
     dependencies:
@@ -8903,7 +8915,7 @@ snapshots:
       '@smithy/property-provider': 2.2.0
       '@smithy/shared-ini-file-loader': 2.4.0
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
       - aws-crt
@@ -8914,7 +8926,7 @@ snapshots:
       '@aws-sdk/types': 3.535.0
       '@smithy/property-provider': 2.2.0
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
       - aws-crt
@@ -9046,7 +9058,7 @@ snapshots:
 
   '@aws-sdk/util-arn-parser@3.535.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@aws-sdk/util-endpoints@3.540.0':
     dependencies:
@@ -9057,7 +9069,7 @@ snapshots:
 
   '@aws-sdk/util-locate-window@3.535.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@aws-sdk/util-user-agent-browser@3.535.0':
     dependencies:
@@ -9075,7 +9087,7 @@ snapshots:
 
   '@aws-sdk/util-utf8-browser@3.259.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@aws-sdk/xml-builder@3.535.0':
     dependencies:
@@ -9915,7 +9927,7 @@ snapshots:
       babel-plugin-polyfill-corejs2: 0.4.13(@babel/core@7.27.4)
       babel-plugin-polyfill-corejs3: 0.10.6(@babel/core@7.27.4)
       babel-plugin-polyfill-regenerator: 0.6.4(@babel/core@7.27.4)
-      core-js-compat: 3.42.0
+      core-js-compat: 3.43.0
       semver: 6.3.1
     transitivePeerDependencies:
       - supports-color
@@ -9954,10 +9966,6 @@ snapshots:
       pirates: 4.0.7
       source-map-support: 0.5.21
 
-  '@babel/runtime@7.25.6':
-    dependencies:
-      regenerator-runtime: 0.14.0
-
   '@babel/runtime@7.27.6': {}
 
   '@babel/template@7.27.2':
@@ -9991,11 +9999,11 @@ snapshots:
 
   '@coral-xyz/anchor-errors@0.30.1': {}
 
-  '@coral-xyz/anchor@0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@coral-xyz/anchor@0.29.0(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)':
     dependencies:
-      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.0)
+      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10))
       '@noble/hashes': 1.5.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
       bs58: 4.0.1
       buffer-layout: 1.2.2
@@ -10010,13 +10018,14 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - encoding
+      - typescript
       - utf-8-validate
 
-  '@coral-xyz/anchor@0.30.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@coral-xyz/anchor@0.29.0(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)':
     dependencies:
-      '@coral-xyz/borsh': 0.30.1(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10))
       '@noble/hashes': 1.5.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
       bs58: 4.0.1
       buffer-layout: 1.2.2
@@ -10031,14 +10040,59 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - encoding
+      - typescript
       - utf-8-validate
 
-  '@coral-xyz/anchor@0.30.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@coral-xyz/anchor@0.29.0(typescript@5.8.3)':
+    dependencies:
+      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.2(typescript@5.8.3))
+      '@noble/hashes': 1.5.0
+      '@solana/web3.js': 1.98.2(typescript@5.8.3)
+      bn.js: 5.2.1
+      bs58: 4.0.1
+      buffer-layout: 1.2.2
+      camelcase: 6.3.0
+      cross-fetch: 3.1.8
+      crypto-hash: 1.3.0
+      eventemitter3: 4.0.7
+      pako: 2.1.0
+      snake-case: 3.0.4
+      superstruct: 0.15.5
+      toml: 3.0.0
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
+  '@coral-xyz/anchor@0.30.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@coral-xyz/borsh': 0.30.1(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
+      '@noble/hashes': 1.5.0
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+      bn.js: 5.2.1
+      bs58: 4.0.1
+      buffer-layout: 1.2.2
+      camelcase: 6.3.0
+      cross-fetch: 3.1.8
+      crypto-hash: 1.3.0
+      eventemitter3: 4.0.7
+      pako: 2.1.0
+      snake-case: 3.0.4
+      superstruct: 0.15.5
+      toml: 3.0.0
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
+  '@coral-xyz/anchor@0.30.1(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@coral-xyz/anchor-errors': 0.30.1
-      '@coral-xyz/borsh': 0.30.1(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@coral-xyz/borsh': 0.30.1(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@noble/hashes': 1.8.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       bn.js: 5.2.2
       bs58: 4.0.1
       buffer-layout: 1.2.2
@@ -10053,18 +10107,37 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - encoding
+      - typescript
       - utf-8-validate
 
-  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.0)':
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))':
     dependencies:
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
       buffer-layout: 1.2.2
 
-  '@coral-xyz/borsh@0.30.1(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10))':
     dependencies:
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
+      buffer-layout: 1.2.2
+
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10))':
+    dependencies:
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)
+      bn.js: 5.2.1
+      buffer-layout: 1.2.2
+
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.2(typescript@5.8.3))':
+    dependencies:
+      '@solana/web3.js': 1.98.2(typescript@5.8.3)
+      bn.js: 5.2.1
+      buffer-layout: 1.2.2
+
+  '@coral-xyz/borsh@0.30.1(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))':
+    dependencies:
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
+      bn.js: 5.2.2
       buffer-layout: 1.2.2
 
   '@cspotcode/source-map-support@0.8.1':
@@ -10594,15 +10667,13 @@ snapshots:
   '@next/swc-win32-x64-msvc@15.1.6':
     optional: true
 
-  '@noble/curves@1.4.2':
-    dependencies:
-      '@noble/hashes': 1.4.0
-
   '@noble/curves@1.9.0':
     dependencies:
       '@noble/hashes': 1.8.0
 
-  '@noble/hashes@1.4.0': {}
+  '@noble/curves@1.9.2':
+    dependencies:
+      '@noble/hashes': 1.8.0
 
   '@noble/hashes@1.5.0': {}
 
@@ -10780,10 +10851,10 @@ snapshots:
     dependencies:
       playwright: 1.47.1
 
-  '@react-native-async-storage/async-storage@1.24.0(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))':
+  '@react-native-async-storage/async-storage@1.24.0(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))':
     dependencies:
       merge-options: 3.0.4
-      react-native: 0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10)
+      react-native: 0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10)
     optional: true
 
   '@react-native-community/cli-clean@11.4.1':
@@ -10864,14 +10935,14 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@react-native-community/cli-plugin-metro@11.4.1(@babel/core@7.27.4)(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@react-native-community/cli-plugin-metro@11.4.1(@babel/core@7.27.4)(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:
-      '@react-native-community/cli-server-api': 11.4.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@react-native-community/cli-server-api': 11.4.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@react-native-community/cli-tools': 11.4.1
       chalk: 4.1.2
       execa: 5.1.1
-      metro: 0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      metro-config: 0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      metro: 0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      metro-config: 0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       metro-core: 0.76.9
       metro-react-native-babel-transformer: 0.76.9(@babel/core@7.27.4)
       metro-resolver: 0.76.9
@@ -10884,7 +10955,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@react-native-community/cli-server-api@11.4.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@react-native-community/cli-server-api@11.4.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:
       '@react-native-community/cli-debugger-ui': 11.4.1
       '@react-native-community/cli-tools': 11.4.1
@@ -10894,7 +10965,7 @@ snapshots:
       nocache: 3.0.4
       pretty-format: 26.6.2
       serve-static: 1.16.2
-      ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -10919,15 +10990,15 @@ snapshots:
     dependencies:
       joi: 17.13.3
 
-  '@react-native-community/cli@11.4.1(@babel/core@7.27.4)(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@react-native-community/cli@11.4.1(@babel/core@7.27.4)(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:
       '@react-native-community/cli-clean': 11.4.1
       '@react-native-community/cli-config': 11.4.1
       '@react-native-community/cli-debugger-ui': 11.4.1
       '@react-native-community/cli-doctor': 11.4.1
       '@react-native-community/cli-hermes': 11.4.1
-      '@react-native-community/cli-plugin-metro': 11.4.1(@babel/core@7.27.4)(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@react-native-community/cli-server-api': 11.4.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@react-native-community/cli-plugin-metro': 11.4.1(@babel/core@7.27.4)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      '@react-native-community/cli-server-api': 11.4.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@react-native-community/cli-tools': 11.4.1
       '@react-native-community/cli-types': 11.4.1
       chalk: 4.1.2
@@ -10966,11 +11037,11 @@ snapshots:
 
   '@react-native/normalize-colors@0.72.0': {}
 
-  '@react-native/virtualized-lists@0.72.8(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))':
+  '@react-native/virtualized-lists@0.72.8(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))':
     dependencies:
       invariant: 2.2.4
       nullthrows: 1.1.1
-      react-native: 0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10)
+      react-native: 0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10)
 
   '@rollup/plugin-alias@5.1.0(rollup@4.21.3)':
     dependencies:
@@ -11135,16 +11206,16 @@ snapshots:
   '@smithy/abort-controller@2.2.0':
     dependencies:
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/chunked-blob-reader-native@2.2.0':
     dependencies:
       '@smithy/util-base64': 2.3.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/chunked-blob-reader@2.2.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/config-resolver@2.2.0':
     dependencies:
@@ -11171,7 +11242,7 @@ snapshots:
       '@smithy/property-provider': 2.2.0
       '@smithy/types': 2.12.0
       '@smithy/url-parser': 2.2.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/eventstream-codec@2.2.0':
     dependencies:
@@ -11201,7 +11272,7 @@ snapshots:
     dependencies:
       '@smithy/eventstream-codec': 2.2.0
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/fetch-http-handler@2.5.0':
     dependencies:
@@ -11238,7 +11309,7 @@ snapshots:
 
   '@smithy/is-array-buffer@2.2.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/md5-js@2.2.0':
     dependencies:
@@ -11302,7 +11373,7 @@ snapshots:
   '@smithy/property-provider@2.2.0':
     dependencies:
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/protocol-http@3.3.0':
     dependencies:
@@ -11313,12 +11384,12 @@ snapshots:
     dependencies:
       '@smithy/types': 2.12.0
       '@smithy/util-uri-escape': 2.2.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/querystring-parser@2.2.0':
     dependencies:
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/service-error-classification@2.1.5':
     dependencies:
@@ -11327,7 +11398,7 @@ snapshots:
   '@smithy/shared-ini-file-loader@2.4.0':
     dependencies:
       '@smithy/types': 2.12.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/signature-v4@2.3.0':
     dependencies:
@@ -11337,7 +11408,7 @@ snapshots:
       '@smithy/util-middleware': 2.2.0
       '@smithy/util-uri-escape': 2.2.0
       '@smithy/util-utf8': 2.3.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/smithy-client@2.5.1':
     dependencies:
@@ -11375,11 +11446,11 @@ snapshots:
   '@smithy/util-buffer-from@2.2.0':
     dependencies:
       '@smithy/is-array-buffer': 2.2.0
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/util-config-provider@2.3.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/util-defaults-mode-browser@2.2.1':
     dependencies:
@@ -11407,7 +11478,7 @@ snapshots:
 
   '@smithy/util-hex-encoding@2.2.0':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   '@smithy/util-middleware@2.2.0':
     dependencies:
@@ -11446,9 +11517,9 @@ snapshots:
       '@smithy/types': 2.12.0
       tslib: 2.8.1
 
-  '@solana-developers/helpers@1.5.1(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@solana-developers/helpers@1.5.1(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)
       bs58: 5.0.0
       dotenv: 16.4.5
       prettier: 3.3.3
@@ -11458,10 +11529,10 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@solana-mobile/mobile-wallet-adapter-protocol-web3js@2.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@solana-mobile/mobile-wallet-adapter-protocol-web3js@2.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
-      '@solana-mobile/mobile-wallet-adapter-protocol': 2.2.1(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana-mobile/mobile-wallet-adapter-protocol': 2.2.1(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       bs58: 5.0.0
       js-base64: 3.7.7
     transitivePeerDependencies:
@@ -11469,39 +11540,39 @@ snapshots:
       - react
       - react-native
 
-  '@solana-mobile/mobile-wallet-adapter-protocol@2.2.1(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@solana-mobile/mobile-wallet-adapter-protocol@2.2.1(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
-      '@solana/wallet-standard': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)
+      '@solana/wallet-standard': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)
       '@solana/wallet-standard-util': 1.1.2
       '@wallet-standard/core': 1.1.1
       js-base64: 3.7.7
-      react-native: 0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10)
+      react-native: 0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - '@solana/wallet-adapter-base'
       - '@solana/web3.js'
       - bs58
       - react
 
-  '@solana-mobile/wallet-adapter-mobile@2.2.0(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@solana-mobile/wallet-adapter-mobile@2.2.0(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
-      '@solana-mobile/mobile-wallet-adapter-protocol-web3js': 2.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
-      '@solana-mobile/wallet-standard-mobile': 0.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@solana-mobile/mobile-wallet-adapter-protocol-web3js': 2.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana-mobile/wallet-standard-mobile': 0.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@solana/wallet-standard-features': 1.3.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       js-base64: 3.7.7
     optionalDependencies:
-      '@react-native-async-storage/async-storage': 1.24.0(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))
+      '@react-native-async-storage/async-storage': 1.24.0(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))
     transitivePeerDependencies:
       - react
       - react-native
 
-  '@solana-mobile/wallet-standard-mobile@0.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@solana-mobile/wallet-standard-mobile@0.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
-      '@solana-mobile/mobile-wallet-adapter-protocol-web3js': 2.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana-mobile/mobile-wallet-adapter-protocol-web3js': 2.2.0(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
       '@solana/wallet-standard-chains': 1.1.1
       '@solana/wallet-standard-features': 1.3.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@wallet-standard/base': 1.1.0
       '@wallet-standard/features': 1.1.0
       bs58: 5.0.0
@@ -11512,15 +11583,28 @@ snapshots:
       - react
       - react-native
 
-  '@solana/buffer-layout-utils@0.2.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@solana/buffer-layout-utils@0.2.0(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/buffer-layout': 4.0.1
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)
       bigint-buffer: 1.1.5
       bignumber.js: 9.1.2
     transitivePeerDependencies:
       - bufferutil
       - encoding
+      - typescript
+      - utf-8-validate
+
+  '@solana/buffer-layout-utils@0.2.0(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@solana/buffer-layout': 4.0.1
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)
+      bigint-buffer: 1.1.5
+      bignumber.js: 9.1.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
       - utf-8-validate
 
   '@solana/buffer-layout@4.0.1':
@@ -11538,6 +11622,21 @@ snapshots:
     dependencies:
       '@solana/errors': 2.0.0-rc.1(typescript@5.6.2)
       typescript: 5.6.2
+
+  '@solana/codecs-core@2.1.1(typescript@5.5.3)':
+    dependencies:
+      '@solana/errors': 2.1.1(typescript@5.5.3)
+      typescript: 5.5.3
+
+  '@solana/codecs-core@2.1.1(typescript@5.6.2)':
+    dependencies:
+      '@solana/errors': 2.1.1(typescript@5.6.2)
+      typescript: 5.6.2
+
+  '@solana/codecs-core@2.1.1(typescript@5.8.3)':
+    dependencies:
+      '@solana/errors': 2.1.1(typescript@5.8.3)
+      typescript: 5.8.3
 
   '@solana/codecs-data-structures@2.0.0-experimental.8618508':
     dependencies:
@@ -11573,6 +11672,24 @@ snapshots:
       '@solana/codecs-core': 2.0.0-rc.1(typescript@5.6.2)
       '@solana/errors': 2.0.0-rc.1(typescript@5.6.2)
       typescript: 5.6.2
+
+  '@solana/codecs-numbers@2.1.1(typescript@5.5.3)':
+    dependencies:
+      '@solana/codecs-core': 2.1.1(typescript@5.5.3)
+      '@solana/errors': 2.1.1(typescript@5.5.3)
+      typescript: 5.5.3
+
+  '@solana/codecs-numbers@2.1.1(typescript@5.6.2)':
+    dependencies:
+      '@solana/codecs-core': 2.1.1(typescript@5.6.2)
+      '@solana/errors': 2.1.1(typescript@5.6.2)
+      typescript: 5.6.2
+
+  '@solana/codecs-numbers@2.1.1(typescript@5.8.3)':
+    dependencies:
+      '@solana/codecs-core': 2.1.1(typescript@5.8.3)
+      '@solana/errors': 2.1.1(typescript@5.8.3)
+      typescript: 5.8.3
 
   '@solana/codecs-strings@2.0.0-experimental.8618508(fastestsmallesttextencoderdecoder@1.0.22)':
     dependencies:
@@ -11630,6 +11747,24 @@ snapshots:
       commander: 12.1.0
       typescript: 5.6.2
 
+  '@solana/errors@2.1.1(typescript@5.5.3)':
+    dependencies:
+      chalk: 5.4.1
+      commander: 13.1.0
+      typescript: 5.5.3
+
+  '@solana/errors@2.1.1(typescript@5.6.2)':
+    dependencies:
+      chalk: 5.4.1
+      commander: 13.1.0
+      typescript: 5.6.2
+
+  '@solana/errors@2.1.1(typescript@5.8.3)':
+    dependencies:
+      chalk: 5.4.1
+      commander: 13.1.0
+      typescript: 5.8.3
+
   '@solana/options@2.0.0-experimental.8618508':
     dependencies:
       '@solana/codecs-core': 2.0.0-experimental.8618508
@@ -11657,16 +11792,16 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/spl-token-group@0.0.5(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)':
+  '@solana/spl-token-group@0.0.5(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)':
     dependencies:
       '@solana/codecs': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)
       '@solana/spl-type-length-value': 0.1.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
       - typescript
 
-  '@solana/spl-token-metadata@0.1.2(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)':
+  '@solana/spl-token-metadata@0.1.2(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)':
     dependencies:
       '@solana/codecs-core': 2.0.0-experimental.8618508
       '@solana/codecs-data-structures': 2.0.0-experimental.8618508
@@ -11674,39 +11809,40 @@ snapshots:
       '@solana/codecs-strings': 2.0.0-experimental.8618508(fastestsmallesttextencoderdecoder@1.0.22)
       '@solana/options': 2.0.0-experimental.8618508
       '@solana/spl-type-length-value': 0.1.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/spl-token-metadata@0.1.5(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)':
+  '@solana/spl-token-metadata@0.1.5(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)':
     dependencies:
       '@solana/codecs': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)
       '@solana/spl-type-length-value': 0.1.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
       - typescript
 
-  '@solana/spl-token@0.3.11(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(utf-8-validate@5.0.10)':
+  '@solana/spl-token@0.3.11(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/buffer-layout': 4.0.1
-      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@solana/spl-token-metadata': 0.1.2(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)
+      '@solana/spl-token-metadata': 0.1.2(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)
+      '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       buffer: 6.0.3
     transitivePeerDependencies:
       - bufferutil
       - encoding
       - fastestsmallesttextencoderdecoder
+      - typescript
       - utf-8-validate
 
-  '@solana/spl-token@0.4.8(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)(utf-8-validate@5.0.10)':
+  '@solana/spl-token@0.4.8(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/buffer-layout': 4.0.1
-      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@solana/spl-token-group': 0.0.5(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)
-      '@solana/spl-token-metadata': 0.1.5(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)
+      '@solana/spl-token-group': 0.0.5(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)
+      '@solana/spl-token-metadata': 0.1.5(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.6.2)
+      '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       buffer: 6.0.3
     transitivePeerDependencies:
       - bufferutil
@@ -11719,53 +11855,53 @@ snapshots:
     dependencies:
       buffer: 6.0.3
 
-  '@solana/wallet-adapter-base-ui@0.1.5(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@solana/wallet-adapter-base-ui@0.1.5(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
-      '@solana/wallet-adapter-react': 0.15.38(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/wallet-adapter-react': 0.15.38(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       react: 19.1.0
     transitivePeerDependencies:
       - bs58
       - react-native
 
-  '@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))':
     dependencies:
       '@solana/wallet-standard-features': 1.3.0
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@wallet-standard/base': 1.1.0
       '@wallet-standard/features': 1.1.0
       eventemitter3: 5.0.1
 
-  '@solana/wallet-adapter-react-ui@0.9.38(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-dom@19.1.0(react@19.1.0))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@solana/wallet-adapter-react-ui@0.9.38(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-dom@19.1.0(react@19.1.0))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@solana/wallet-adapter-base-ui': 0.1.5(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
-      '@solana/wallet-adapter-react': 0.15.38(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
+      '@solana/wallet-adapter-base-ui': 0.1.5(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana/wallet-adapter-react': 0.15.38(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
     transitivePeerDependencies:
       - bs58
       - react-native
 
-  '@solana/wallet-adapter-react@0.15.38(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
+  '@solana/wallet-adapter-react@0.15.38(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)':
     dependencies:
-      '@solana-mobile/wallet-adapter-mobile': 2.2.0(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@solana/wallet-standard-wallet-adapter-react': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react@19.1.0)
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana-mobile/wallet-adapter-mobile': 2.2.0(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))(react@19.1.0)
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
+      '@solana/wallet-standard-wallet-adapter-react': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react@19.1.0)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       react: 19.1.0
     transitivePeerDependencies:
       - bs58
       - react-native
 
-  '@solana/wallet-adapter-unsafe-burner@0.1.10(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@solana/wallet-adapter-unsafe-burner@0.1.10(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))':
     dependencies:
       '@noble/curves': 1.9.0
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@solana/wallet-standard-features': 1.3.0
       '@solana/wallet-standard-util': 1.1.2
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
 
   '@solana/wallet-standard-chains@1.1.1':
     dependencies:
@@ -11784,40 +11920,40 @@ snapshots:
 
   '@solana/wallet-standard-util@1.1.2':
     dependencies:
-      '@noble/curves': 1.9.0
+      '@noble/curves': 1.9.2
       '@solana/wallet-standard-chains': 1.1.1
       '@solana/wallet-standard-features': 1.3.0
 
-  '@solana/wallet-standard-wallet-adapter-base@1.1.4(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)':
+  '@solana/wallet-standard-wallet-adapter-base@1.1.4(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)':
     dependencies:
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@solana/wallet-standard-chains': 1.1.1
       '@solana/wallet-standard-features': 1.3.0
       '@solana/wallet-standard-util': 1.1.2
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@wallet-standard/app': 1.1.0
       '@wallet-standard/base': 1.1.0
       '@wallet-standard/features': 1.1.0
       '@wallet-standard/wallet': 1.1.0
       bs58: 5.0.0
 
-  '@solana/wallet-standard-wallet-adapter-base@1.1.4(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)':
+  '@solana/wallet-standard-wallet-adapter-base@1.1.4(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)':
     dependencies:
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
       '@solana/wallet-standard-chains': 1.1.1
       '@solana/wallet-standard-features': 1.3.0
       '@solana/wallet-standard-util': 1.1.2
-      '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)
       '@wallet-standard/app': 1.1.0
       '@wallet-standard/base': 1.1.0
       '@wallet-standard/features': 1.1.0
       '@wallet-standard/wallet': 1.1.0
       bs58: 6.0.0
 
-  '@solana/wallet-standard-wallet-adapter-react@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)':
+  '@solana/wallet-standard-wallet-adapter-react@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)':
     dependencies:
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@solana/wallet-standard-wallet-adapter-base': 1.1.4(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
+      '@solana/wallet-standard-wallet-adapter-base': 1.1.4(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)
       '@wallet-standard/app': 1.1.0
       '@wallet-standard/base': 1.1.0
       react: 19.1.0
@@ -11825,10 +11961,10 @@ snapshots:
       - '@solana/web3.js'
       - bs58
 
-  '@solana/wallet-standard-wallet-adapter-react@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)(react@19.1.0)':
+  '@solana/wallet-standard-wallet-adapter-react@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)(react@19.1.0)':
     dependencies:
-      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@solana/wallet-standard-wallet-adapter-base': 1.1.4(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@6.0.0)
+      '@solana/wallet-adapter-base': 0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))
+      '@solana/wallet-standard-wallet-adapter-base': 1.1.4(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@6.0.0)
       '@wallet-standard/app': 1.1.0
       '@wallet-standard/base': 1.1.0
       react: 19.1.0
@@ -11836,57 +11972,149 @@ snapshots:
       - '@solana/web3.js'
       - bs58
 
-  '@solana/wallet-standard-wallet-adapter@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)':
+  '@solana/wallet-standard-wallet-adapter@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)':
     dependencies:
-      '@solana/wallet-standard-wallet-adapter-base': 1.1.4(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)
-      '@solana/wallet-standard-wallet-adapter-react': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)
+      '@solana/wallet-standard-wallet-adapter-base': 1.1.4(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)
+      '@solana/wallet-standard-wallet-adapter-react': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)
     transitivePeerDependencies:
       - '@solana/wallet-adapter-base'
       - '@solana/web3.js'
       - bs58
       - react
 
-  '@solana/wallet-standard@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)':
+  '@solana/wallet-standard@1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)':
     dependencies:
       '@solana/wallet-standard-core': 1.1.2
-      '@solana/wallet-standard-wallet-adapter': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)
+      '@solana/wallet-standard-wallet-adapter': 1.1.4(@solana/wallet-adapter-base@0.9.26(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)))(@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10))(bs58@5.0.0)(react@19.1.0)
     transitivePeerDependencies:
       - '@solana/wallet-adapter-base'
       - '@solana/web3.js'
       - bs58
       - react
 
-  '@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
+  '@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:
-      '@babel/runtime': 7.25.6
-      '@noble/curves': 1.4.2
+      '@babel/runtime': 7.27.6
+      '@noble/curves': 1.9.2
       '@noble/hashes': 1.5.0
       '@solana/buffer-layout': 4.0.1
-      agentkeepalive: 4.5.0
+      agentkeepalive: 4.6.0
       bigint-buffer: 1.1.5
-      bn.js: 5.2.1
+      bn.js: 5.2.2
       borsh: 0.7.0
       bs58: 4.0.1
       buffer: 6.0.3
       fast-stable-stringify: 1.0.0
-      jayson: 4.1.2(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      jayson: 4.2.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       node-fetch: 2.7.0
-      rpc-websockets: 9.0.2
+      rpc-websockets: 9.1.1
       superstruct: 2.0.2
     transitivePeerDependencies:
       - bufferutil
       - encoding
       - utf-8-validate
 
+  '@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.5.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@babel/runtime': 7.27.6
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.5.0
+      '@solana/buffer-layout': 4.0.1
+      '@solana/codecs-numbers': 2.1.1(typescript@5.5.3)
+      agentkeepalive: 4.6.0
+      bn.js: 5.2.2
+      borsh: 0.7.0
+      bs58: 4.0.1
+      buffer: 6.0.3
+      fast-stable-stringify: 1.0.0
+      jayson: 4.2.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      node-fetch: 2.7.0
+      rpc-websockets: 9.1.1
+      superstruct: 2.0.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
+  '@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.6.2)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@babel/runtime': 7.27.6
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.5.0
+      '@solana/buffer-layout': 4.0.1
+      '@solana/codecs-numbers': 2.1.1(typescript@5.6.2)
+      agentkeepalive: 4.6.0
+      bn.js: 5.2.2
+      borsh: 0.7.0
+      bs58: 4.0.1
+      buffer: 6.0.3
+      fast-stable-stringify: 1.0.0
+      jayson: 4.2.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      node-fetch: 2.7.0
+      rpc-websockets: 9.1.1
+      superstruct: 2.0.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
+  '@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@babel/runtime': 7.27.6
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.5.0
+      '@solana/buffer-layout': 4.0.1
+      '@solana/codecs-numbers': 2.1.1(typescript@5.8.3)
+      agentkeepalive: 4.6.0
+      bn.js: 5.2.2
+      borsh: 0.7.0
+      bs58: 4.0.1
+      buffer: 6.0.3
+      fast-stable-stringify: 1.0.0
+      jayson: 4.2.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      node-fetch: 2.7.0
+      rpc-websockets: 9.1.1
+      superstruct: 2.0.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
+  '@solana/web3.js@1.98.2(typescript@5.8.3)':
+    dependencies:
+      '@babel/runtime': 7.27.6
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.5.0
+      '@solana/buffer-layout': 4.0.1
+      '@solana/codecs-numbers': 2.1.1(typescript@5.8.3)
+      agentkeepalive: 4.6.0
+      bn.js: 5.2.2
+      borsh: 0.7.0
+      bs58: 4.0.1
+      buffer: 6.0.3
+      fast-stable-stringify: 1.0.0
+      jayson: 4.2.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      node-fetch: 2.7.0
+      rpc-websockets: 9.1.1
+      superstruct: 2.0.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
   '@standard-schema/spec@1.0.0': {}
 
   '@swc/counter@0.1.3': {}
 
-  '@swc/helpers@0.5.13':
+  '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.1
 
-  '@swc/helpers@0.5.15':
+  '@swc/helpers@0.5.17':
     dependencies:
       tslib: 2.8.1
 
@@ -11924,7 +12152,7 @@ snapshots:
     dependencies:
       '@types/node': 22.15.29
 
-  '@types/connect@3.4.36':
+  '@types/connect@3.4.38':
     dependencies:
       '@types/node': 22.15.31
 
@@ -12020,7 +12248,7 @@ snapshots:
     dependencies:
       '@types/node': 22.15.31
 
-  '@types/ws@8.5.10':
+  '@types/ws@8.18.1':
     dependencies:
       '@types/node': 22.15.31
 
@@ -12466,13 +12694,13 @@ snapshots:
       chai: 5.2.0
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.1(@vitest/spy@2.1.1)(vite@5.0.4(@types/node@22.15.29)(terser@5.41.0))':
+  '@vitest/mocker@2.1.1(@vitest/spy@2.1.1)(vite@5.0.4(@types/node@22.15.29)(terser@5.42.0))':
     dependencies:
       '@vitest/spy': 2.1.1
       estree-walker: 3.0.3
       magic-string: 0.30.11
     optionalDependencies:
-      vite: 5.0.4(@types/node@22.15.29)(terser@5.41.0)
+      vite: 5.0.4(@types/node@22.15.29)(terser@5.42.0)
 
   '@vitest/pretty-format@2.1.1':
     dependencies:
@@ -12537,11 +12765,6 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  JSONStream@1.3.5:
-    dependencies:
-      jsonparse: 1.3.1
-      through: 2.3.8
-
   abort-controller@3.0.0:
     dependencies:
       event-target-shim: 5.0.1
@@ -12561,9 +12784,11 @@ snapshots:
 
   acorn@8.14.1: {}
 
+  acorn@8.15.0: {}
+
   add@2.0.6: {}
 
-  agentkeepalive@4.5.0:
+  agentkeepalive@4.6.0:
     dependencies:
       humanize-ms: 1.2.1
 
@@ -12768,7 +12993,7 @@ snapshots:
 
   asn1.js@4.10.1:
     dependencies:
-      bn.js: 4.12.0
+      bn.js: 4.12.2
       inherits: 2.0.4
       minimalistic-assert: 1.0.1
 
@@ -12847,7 +13072,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.27.4
       '@babel/helper-define-polyfill-provider': 0.6.4(@babel/core@7.27.4)
-      core-js-compat: 3.42.0
+      core-js-compat: 3.43.0
     transitivePeerDependencies:
       - supports-color
 
@@ -12855,7 +13080,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.27.4
       '@babel/helper-define-polyfill-provider': 0.6.4(@babel/core@7.27.4)
-      core-js-compat: 3.42.0
+      core-js-compat: 3.43.0
     transitivePeerDependencies:
       - supports-color
 
@@ -12909,7 +13134,7 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  base-x@3.0.9:
+  base-x@3.0.11:
     dependencies:
       safe-buffer: 5.2.1
 
@@ -12956,7 +13181,7 @@ snapshots:
 
   bluebird@3.7.2: {}
 
-  bn.js@4.12.0: {}
+  bn.js@4.12.2: {}
 
   bn.js@5.2.1: {}
 
@@ -12964,7 +13189,7 @@ snapshots:
 
   borsh@0.7.0:
     dependencies:
-      bn.js: 5.2.1
+      bn.js: 5.2.2
       bs58: 4.0.1
       text-encoding-utf-8: 1.0.2
 
@@ -13011,12 +13236,12 @@ snapshots:
 
   browserify-rsa@4.1.0:
     dependencies:
-      bn.js: 5.2.1
+      bn.js: 5.2.2
       randombytes: 2.1.0
 
   browserify-sign@4.2.3:
     dependencies:
-      bn.js: 5.2.1
+      bn.js: 5.2.2
       browserify-rsa: 4.1.0
       create-hash: 1.2.0
       create-hmac: 1.1.7
@@ -13029,14 +13254,14 @@ snapshots:
 
   browserslist@4.25.0:
     dependencies:
-      caniuse-lite: 1.0.30001721
-      electron-to-chromium: 1.5.165
+      caniuse-lite: 1.0.30001723
+      electron-to-chromium: 1.5.167
       node-releases: 2.0.19
       update-browserslist-db: 1.1.3(browserslist@4.25.0)
 
   bs58@4.0.1:
     dependencies:
-      base-x: 3.0.9
+      base-x: 3.0.11
 
   bs58@5.0.0:
     dependencies:
@@ -13066,9 +13291,9 @@ snapshots:
       base64-js: 1.5.1
       ieee754: 1.2.1
 
-  bufferutil@4.0.8:
+  bufferutil@4.0.9:
     dependencies:
-      node-gyp-build: 4.6.1
+      node-gyp-build: 4.8.4
     optional: true
 
   builtin-modules@3.3.0: {}
@@ -13159,7 +13384,7 @@ snapshots:
 
   caniuse-lite@1.0.30001717: {}
 
-  caniuse-lite@1.0.30001721: {}
+  caniuse-lite@1.0.30001723: {}
 
   capital-case@1.0.4:
     dependencies:
@@ -13405,7 +13630,7 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  core-js-compat@3.42.0:
+  core-js-compat@3.43.0:
     dependencies:
       browserslist: 4.25.0
 
@@ -13431,7 +13656,7 @@ snapshots:
 
   create-ecdh@4.0.4:
     dependencies:
-      bn.js: 4.12.0
+      bn.js: 4.12.2
       elliptic: 6.5.4
 
   create-hash@1.2.0:
@@ -13645,7 +13870,7 @@ snapshots:
 
   diffie-hellman@5.0.3:
     dependencies:
-      bn.js: 4.12.0
+      bn.js: 4.12.2
       miller-rabin: 4.0.1
       randombytes: 2.1.0
 
@@ -13699,11 +13924,11 @@ snapshots:
     dependencies:
       jake: 10.8.7
 
-  electron-to-chromium@1.5.165: {}
+  electron-to-chromium@1.5.167: {}
 
   elliptic@6.5.4:
     dependencies:
-      bn.js: 4.12.0
+      bn.js: 4.12.2
       brorand: 1.1.0
       hash.js: 1.1.7
       hmac-drbg: 1.0.1
@@ -13713,7 +13938,7 @@ snapshots:
 
   elliptic@6.5.5:
     dependencies:
-      bn.js: 4.12.0
+      bn.js: 4.12.2
       brorand: 1.1.0
       hash.js: 1.1.7
       hmac-drbg: 1.0.1
@@ -14421,13 +14646,13 @@ snapshots:
       semver: 7.6.3
       strip-indent: 3.0.0
 
-  eslint-plugin-vitest@0.5.4(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2)(vitest@2.1.1(@types/node@22.15.29)(terser@5.41.0)):
+  eslint-plugin-vitest@0.5.4(@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2)(vitest@2.1.1(@types/node@22.15.29)(terser@5.42.0)):
     dependencies:
       '@typescript-eslint/utils': 7.13.1(eslint@8.57.0)(typescript@5.6.2)
       eslint: 8.57.0
     optionalDependencies:
       '@typescript-eslint/eslint-plugin': 7.18.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.6.2))(eslint@8.57.0)(typescript@5.6.2)
-      vitest: 2.1.1(@types/node@22.15.29)(terser@5.41.0)
+      vitest: 2.1.1(@types/node@22.15.29)(terser@5.42.0)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -15566,7 +15791,7 @@ snapshots:
 
   isomorphic-ws@4.0.1(ws@7.5.10):
     dependencies:
-      ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
 
   iterator.prototype@1.1.5:
     dependencies:
@@ -15603,20 +15828,20 @@ snapshots:
       filelist: 1.0.4
       minimatch: 3.1.2
 
-  jayson@4.1.2(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  jayson@4.2.0(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
-      '@types/connect': 3.4.36
+      '@types/connect': 3.4.38
       '@types/node': 12.20.55
       '@types/ws': 7.4.7
-      JSONStream: 1.3.5
       commander: 2.20.3
       delay: 5.0.0
       es6-promisify: 5.0.0
       eyes: 0.1.8
       isomorphic-ws: 4.0.1(ws@7.5.10)
       json-stringify-safe: 5.0.1
+      stream-json: 1.9.1
       uuid: 8.3.2
-      ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -15784,8 +16009,6 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  jsonparse@1.3.1: {}
-
   jsonpath@1.1.1:
     dependencies:
       esprima: 1.2.2
@@ -15895,7 +16118,7 @@ snapshots:
 
   lower-case@2.0.2:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   lowercase-keys@3.0.0: {}
 
@@ -15968,12 +16191,12 @@ snapshots:
       metro-core: 0.76.9
       rimraf: 3.0.2
 
-  metro-config@0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  metro-config@0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       connect: 3.7.0
       cosmiconfig: 5.2.1
       jest-validate: 29.7.0
-      metro: 0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      metro: 0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       metro-cache: 0.76.9
       metro-core: 0.76.9
       metro-runtime: 0.76.9
@@ -16007,12 +16230,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  metro-inspector-proxy@0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  metro-inspector-proxy@0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       connect: 3.7.0
       debug: 2.6.9
       node-fetch: 2.7.0
-      ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       yargs: 17.7.2
     transitivePeerDependencies:
       - bufferutil
@@ -16022,7 +16245,7 @@ snapshots:
 
   metro-minify-terser@0.76.9:
     dependencies:
-      terser: 5.41.0
+      terser: 5.42.0
 
   metro-minify-uglify@0.76.9:
     dependencies:
@@ -16123,14 +16346,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  metro-transform-worker@0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  metro-transform-worker@0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       '@babel/core': 7.27.4
       '@babel/generator': 7.27.5
       '@babel/parser': 7.27.5
       '@babel/types': 7.27.6
       babel-preset-fbjs: 3.4.0(@babel/core@7.27.4)
-      metro: 0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      metro: 0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       metro-babel-transformer: 0.76.9
       metro-cache: 0.76.9
       metro-cache-key: 0.76.9
@@ -16144,7 +16367,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  metro@0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  metro@0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       '@babel/code-frame': 7.27.1
       '@babel/core': 7.27.4
@@ -16171,10 +16394,10 @@ snapshots:
       metro-babel-transformer: 0.76.9
       metro-cache: 0.76.9
       metro-cache-key: 0.76.9
-      metro-config: 0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      metro-config: 0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       metro-core: 0.76.9
       metro-file-map: 0.76.9
-      metro-inspector-proxy: 0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      metro-inspector-proxy: 0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       metro-minify-uglify: 0.76.9
       metro-react-native-babel-preset: 0.76.9(@babel/core@7.27.4)
       metro-resolver: 0.76.9
@@ -16182,7 +16405,7 @@ snapshots:
       metro-source-map: 0.76.9
       metro-symbolicate: 0.76.9
       metro-transform-plugins: 0.76.9
-      metro-transform-worker: 0.76.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      metro-transform-worker: 0.76.9(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       mime-types: 2.1.35
       node-fetch: 2.7.0
       nullthrows: 1.1.1
@@ -16191,7 +16414,7 @@ snapshots:
       source-map: 0.5.7
       strip-ansi: 6.0.1
       throat: 5.0.0
-      ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       yargs: 17.7.2
     transitivePeerDependencies:
       - bufferutil
@@ -16211,7 +16434,7 @@ snapshots:
 
   miller-rabin@4.0.1:
     dependencies:
-      bn.js: 4.12.0
+      bn.js: 4.12.2
       brorand: 1.1.0
 
   mime-db@1.52.0: {}
@@ -16423,7 +16646,7 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
-  node-gyp-build@4.6.1:
+  node-gyp-build@4.8.4:
     optional: true
 
   node-int64@0.4.0: {}
@@ -16972,7 +17195,7 @@ snapshots:
 
   public-encrypt@4.0.3:
     dependencies:
-      bn.js: 4.12.0
+      bn.js: 4.12.2
       browserify-rsa: 4.1.0
       create-hash: 1.2.0
       parse-asn1: 5.1.7
@@ -17023,10 +17246,10 @@ snapshots:
 
   range-parser@1.2.1: {}
 
-  react-devtools-core@4.28.5(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  react-devtools-core@4.28.5(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       shell-quote: 1.8.3
-      ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -17042,10 +17265,10 @@ snapshots:
 
   react-is@18.3.1: {}
 
-  react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10):
+  react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10):
     dependencies:
       '@jest/create-cache-key-function': 29.7.0
-      '@react-native-community/cli': 11.4.1(@babel/core@7.27.4)(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      '@react-native-community/cli': 11.4.1(@babel/core@7.27.4)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@react-native-community/cli-platform-android': 11.4.1
       '@react-native-community/cli-platform-ios': 11.4.1
       '@react-native/assets-registry': 0.72.0
@@ -17053,7 +17276,7 @@ snapshots:
       '@react-native/gradle-plugin': 0.72.11
       '@react-native/js-polyfills': 0.72.1
       '@react-native/normalize-colors': 0.72.0
-      '@react-native/virtualized-lists': 0.72.8(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.8)(react@19.1.0)(utf-8-validate@5.0.10))
+      '@react-native/virtualized-lists': 0.72.8(react-native@0.72.14(@babel/core@7.27.4)(@babel/preset-env@7.24.5(@babel/core@7.27.4))(bufferutil@4.0.9)(react@19.1.0)(utf-8-validate@5.0.10))
       abort-controller: 3.0.0
       anser: 1.4.10
       ansi-regex: 5.0.1
@@ -17072,7 +17295,7 @@ snapshots:
       pretty-format: 26.6.2
       promise: 8.3.0
       react: 19.1.0
-      react-devtools-core: 4.28.5(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      react-devtools-core: 4.28.5(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       react-refresh: 0.4.3
       react-shallow-renderer: 16.15.0(react@19.1.0)
       regenerator-runtime: 0.13.11
@@ -17080,7 +17303,7 @@ snapshots:
       stacktrace-parser: 0.1.11
       use-sync-external-store: 1.5.0(react@19.1.0)
       whatwg-fetch: 3.6.20
-      ws: 6.2.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 6.2.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       yargs: 17.7.2
     transitivePeerDependencies:
       - '@babel/core'
@@ -17175,8 +17398,6 @@ snapshots:
   regenerate@1.4.2: {}
 
   regenerator-runtime@0.13.11: {}
-
-  regenerator-runtime@0.14.0: {}
 
   regexp-tree@0.1.27: {}
 
@@ -17351,17 +17572,17 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.21.3
       fsevents: 2.3.3
 
-  rpc-websockets@9.0.2:
+  rpc-websockets@9.1.1:
     dependencies:
-      '@swc/helpers': 0.5.13
+      '@swc/helpers': 0.5.17
       '@types/uuid': 8.3.4
-      '@types/ws': 8.5.10
+      '@types/ws': 8.18.1
       buffer: 6.0.3
       eventemitter3: 5.0.1
       uuid: 8.3.2
-      ws: 8.14.2(bufferutil@4.0.8)(utf-8-validate@5.0.10)
+      ws: 8.18.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     optionalDependencies:
-      bufferutil: 4.0.8
+      bufferutil: 4.0.9
       utf-8-validate: 5.0.10
 
   run-parallel@1.2.0:
@@ -17712,6 +17933,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  stream-chain@2.2.5: {}
+
+  stream-json@1.9.1:
+    dependencies:
+      stream-chain: 2.2.5
+
   streamsearch@1.1.0: {}
 
   string-width@4.2.3:
@@ -17922,10 +18149,10 @@ snapshots:
       commander: 2.20.3
       source-map-support: 0.5.21
 
-  terser@5.41.0:
+  terser@5.42.0:
     dependencies:
       '@jridgewell/source-map': 0.3.6
-      acorn: 8.14.1
+      acorn: 8.15.0
       commander: 2.20.3
       source-map-support: 0.5.21
 
@@ -17939,8 +18166,6 @@ snapshots:
     dependencies:
       readable-stream: 2.3.8
       xtend: 4.0.2
-
-  through@2.3.8: {}
 
   tightrope@0.2.0: {}
 
@@ -18299,11 +18524,11 @@ snapshots:
 
   upper-case-first@2.0.2:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   upper-case@2.0.2:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.6.2
 
   uri-js@4.4.1:
     dependencies:
@@ -18317,7 +18542,7 @@ snapshots:
 
   utf-8-validate@5.0.10:
     dependencies:
-      node-gyp-build: 4.6.1
+      node-gyp-build: 4.8.4
     optional: true
 
   util-deprecate@1.0.2: {}
@@ -18343,12 +18568,12 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite-node@2.1.1(@types/node@22.15.29)(terser@5.41.0):
+  vite-node@2.1.1(@types/node@22.15.29)(terser@5.42.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.1(supports-color@8.1.1)
       pathe: 1.1.2
-      vite: 5.0.4(@types/node@22.15.29)(terser@5.41.0)
+      vite: 5.0.4(@types/node@22.15.29)(terser@5.42.0)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -18359,7 +18584,7 @@ snapshots:
       - supports-color
       - terser
 
-  vite@5.0.4(@types/node@22.15.29)(terser@5.41.0):
+  vite@5.0.4(@types/node@22.15.29)(terser@5.42.0):
     dependencies:
       esbuild: 0.19.5
       postcss: 8.5.1
@@ -18367,12 +18592,12 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.15.29
       fsevents: 2.3.3
-      terser: 5.41.0
+      terser: 5.42.0
 
-  vitest@2.1.1(@types/node@22.15.29)(terser@5.41.0):
+  vitest@2.1.1(@types/node@22.15.29)(terser@5.42.0):
     dependencies:
       '@vitest/expect': 2.1.1
-      '@vitest/mocker': 2.1.1(@vitest/spy@2.1.1)(vite@5.0.4(@types/node@22.15.29)(terser@5.41.0))
+      '@vitest/mocker': 2.1.1(@vitest/spy@2.1.1)(vite@5.0.4(@types/node@22.15.29)(terser@5.42.0))
       '@vitest/pretty-format': 2.1.1
       '@vitest/runner': 2.1.1
       '@vitest/snapshot': 2.1.1
@@ -18387,8 +18612,8 @@ snapshots:
       tinyexec: 0.3.0
       tinypool: 1.0.1
       tinyrainbow: 1.2.0
-      vite: 5.0.4(@types/node@22.15.29)(terser@5.41.0)
-      vite-node: 2.1.1(@types/node@22.15.29)(terser@5.41.0)
+      vite: 5.0.4(@types/node@22.15.29)(terser@5.42.0)
+      vite-node: 2.1.1(@types/node@22.15.29)(terser@5.42.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.15.29
@@ -18561,21 +18786,21 @@ snapshots:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
 
-  ws@6.2.3(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  ws@6.2.3(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       async-limiter: 1.0.1
     optionalDependencies:
-      bufferutil: 4.0.8
+      bufferutil: 4.0.9
       utf-8-validate: 5.0.10
 
-  ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  ws@7.5.10(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     optionalDependencies:
-      bufferutil: 4.0.8
+      bufferutil: 4.0.9
       utf-8-validate: 5.0.10
 
-  ws@8.14.2(bufferutil@4.0.8)(utf-8-validate@5.0.10):
+  ws@8.18.2(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     optionalDependencies:
-      bufferutil: 4.0.8
+      bufferutil: 4.0.9
       utf-8-validate: 5.0.10
 
   xtend@4.0.2: {}
