@@ -7,11 +7,11 @@ Running `install.sh` is the first thing you should do after cloning this monorep
 # Install with all proving keys
 ./scripts/install.sh --full-keys
 
-# Skip specific components (only use if you know what you are doing)
+# Skip components (only use if you know what you are doing)
 ./scripts/install.sh --skip-components "redis,keys,go"
 ```
 
-## Default Components
+## Components
 
 - `go` - Golang
 - `rust` - Rust toolchain
@@ -22,7 +22,7 @@ Running `install.sh` is the first thing you should do after cloning this monorep
 - `jq` - JSON processor
 - `keys` - Gnark proving keys
 - `dependencies` - all PNPM deps
-- `redis` - Redis server (not needed for some tests)
+- `redis` - Redis server (not needed for some ci workflows)
 
 ## CI Usage
 
