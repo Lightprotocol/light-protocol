@@ -125,24 +125,54 @@ runs:
       with:
         cache-all-crates: true
         cache-on-failure: true
+        # Add workspace target directory
+        workspaces: |
+          . -> target
+          cli -> cli/target
+          examples -> examples/target
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
-        run_install: true
+        run_install: false
 
     - name: Get pnpm store directory
+      id: pnpm-store
       shell: bash
       run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        # Get the store path before any pnpm operations
+        STORE_PATH=$(pnpm store path --silent)
+        echo "STORE_PATH=${STORE_PATH}" >> $GITHUB_ENV
+        echo "path=${STORE_PATH}" >> $GITHUB_OUTPUT
 
-    - uses: actions/cache@v4
-      name: Setup pnpm cache
+    - name: Setup pnpm cache
+      id: pnpm-cache
+      uses: actions/cache@v4
       with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        # Install dependencies with frozen lockfile for consistency
+        pnpm install --frozen-lockfile
+
+        # Validate node_modules was created
+        if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+          echo "Error: node_modules not created after pnpm install"
+          exit 1
+        fi
+
+    - name: Save pnpm cache
+      # Save cache even on failure to speed up retries
+      if: steps.pnpm-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
     - name: Generate Solana keypair
       shell: bash

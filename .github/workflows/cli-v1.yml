@@ -49,13 +49,9 @@ jobs:
           path: |
             .nx/cache
             node_modules/.cache/nx
-            js/stateless.js/node_modules/.cache/nx
-            js/compressed-token/node_modules/.cache/nx
-            cli/node_modules/.cache/nx
-          key: nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-${{ github.sha }}
+          key: nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
           restore-keys: |
-            nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-
-            nx-cli-v1-${{ runner.os }}-
+            nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
