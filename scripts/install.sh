@@ -169,11 +169,14 @@ install_jq() {
 }
 
 download_gnark_keys() {
-    if ! is_installed "gnark_keys"; then
+    ROOT_DIR="$(git rev-parse --show-toplevel)"
+    # Always check if keys actually exist, not just the install log
+    if [ ! -d "${ROOT_DIR}/prover/server/proving-keys" ] || [ -z "$(ls -A "${ROOT_DIR}/prover/server/proving-keys" 2>/dev/null)" ]; then
         echo "Downloading gnark keys..."
-        ROOT_DIR="$(git rev-parse --show-toplevel)"
         "${ROOT_DIR}/prover/server/scripts/download_keys.sh" "$1"
         log "gnark_keys"
+    else
+        echo "Gnark keys already exist, skipping download..."
     fi
 }
 

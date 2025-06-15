@@ -14,6 +14,13 @@ if [ ! -e "$out_dir" ]; then
     mkdir -p "$out_dir"
 fi
 
+# Check if proving keys exist before copying
+if [ ! -d "${gnark_dir}/proving-keys" ] || [ -z "$(ls -A "${gnark_dir}/proving-keys" 2>/dev/null)" ]; then
+    echo "ERROR: Proving keys not found at ${gnark_dir}/proving-keys"
+    echo "Please run: ./prover/server/scripts/download_keys.sh light"
+    exit 1
+fi
+
 cp -r "${gnark_dir}/proving-keys" "$out_dir"
 
 cd "$gnark_dir"

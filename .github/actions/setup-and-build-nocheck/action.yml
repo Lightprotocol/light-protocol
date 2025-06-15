@@ -28,6 +28,17 @@ runs:
       run: |
         ./scripts/install.sh
 
+    - name: Ensure proving keys exist
+      shell: bash
+      run: |
+        # Always check if proving keys exist, even if cache was restored
+        if [ ! -d "prover/server/proving-keys" ] || [ -z "$(ls -A prover/server/proving-keys 2>/dev/null)" ]; then
+          echo "Proving keys not found or empty, downloading..."
+          ./prover/server/scripts/download_keys.sh light
+        else
+          echo "Proving keys already exist"
+        fi
+
     - name: Set local environment
       shell: bash
       run: |
