@@ -1,0 +1,87 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "*"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: cli-tests-v2
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli-v2:
+    name: cli-v2
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LIGHT_PROTOCOL_VERSION: V2
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      # - name: Cache nx
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       node_modules/.cache/nx
+      #       js/stateless.js/node_modules/.cache/nx
+      #       js/compressed-token/node_modules/.cache/nx
+      #       cli/node_modules/.cache/nx
+      #     key: nx-cli-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-${{ github.sha }}
+      #     restore-keys: |
+      #       nx-cli-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'js/**/package.json', 'cli/package.json') }}-
+      #       nx-cli-v2-${{ runner.os }}-
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Build stateless.js with V2
+        run: |
+          source ./scripts/devenv.sh
+          cd js/stateless.js
+          pnpm build:v2
+
+      - name: Build compressed-token with V2
+        run: |
+          source ./scripts/devenv.sh
+          cd js/compressed-token
+          pnpm build:v2
+
+      - name: Build CLI with V2
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
+
+      - name: Run CLI tests with V2
+        run: |
+          source ./scripts/devenv.sh
+          npx nx test @lightprotocol/zk-compression-cli
+
+      - name: Display prover logs on failure
+        if: failure()
+        run: |
+          echo "=== Displaying prover logs ==="
+          find . -path "*/test-ledger/*prover*.log" -type f -exec echo "=== Contents of {} ===" \; -exec cat {} \; -exec echo "=== End of {} ===" \; || echo "No prover logs found"

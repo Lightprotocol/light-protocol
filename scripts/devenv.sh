@@ -66,6 +66,7 @@ PATH="${CARGO_HOME}/bin:${PATH}"
 # Export the modified PATH
 export PATH
 
+# Comment to start prover without redis
 export REDIS_URL="redis://localhost:6379"
 
 # Enable small_ix feature by default in devenv
