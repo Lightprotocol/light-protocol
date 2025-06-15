@@ -1,6 +1,6 @@
 [package]
 name = "light-sdk"
-version = "0.12.0"
+version = "0.13.0"
 description = "Rust SDK for ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

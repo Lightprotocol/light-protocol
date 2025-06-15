@@ -1,6 +1,6 @@
 [package]
 name = "light-bloom-filter"
-version = "0.2.0"
+version = "0.3.0"
 description = "Experimental bloom filter."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
