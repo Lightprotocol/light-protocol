@@ -49,9 +49,9 @@ jobs:
           path: |
             .nx/cache
             node_modules/.cache/nx
-          key: nx-js-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-${{ github.sha }}
+          key: nx-js-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
           restore-keys: |
-            nx-js-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}-
+            nx-js-v2-${{ runner.os }}-
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
