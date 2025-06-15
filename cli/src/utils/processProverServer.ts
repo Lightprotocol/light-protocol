@@ -131,9 +131,17 @@ export async function startProver(
     args.push("--redis-url", redisUrl);
   }
 
-  spawnBinary(getProverPathByArch(), args);
-  await waitForServers([{ port: proverPort, path: "/" }]);
-  console.log(`Prover started successfully!`);
+  const proverProcess = spawnBinary(getProverPathByArch(), args);
+
+  try {
+    await waitForServers([{ port: proverPort, path: "/" }]);
+    console.log(`Prover started successfully!`);
+  } catch (error) {
+    console.error(
+      "Failed to start prover - prover logs will be displayed above",
+    );
+    throw error;
+  }
 }
 
 export function getProverNameByArch(): string {

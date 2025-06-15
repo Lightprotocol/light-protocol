@@ -67,3 +67,9 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/zk-compression-cli
+
+      - name: Display prover logs on failure
+        if: failure()
+        run: |
+          echo "=== Displaying prover logs ==="
+          find . -path "*/test-ledger/*prover*.log" -type f -exec echo "=== Contents of {} ===" \; -exec cat {} \; -exec echo "=== End of {} ===" \; || echo "No prover logs found"

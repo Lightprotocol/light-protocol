@@ -149,7 +149,13 @@ export async function initTestEnv({
     const config = getConfig();
     config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
-    await startProver(proverPort, proverRunMode, circuits);
+    try {
+      await startProver(proverPort, proverRunMode, circuits);
+    } catch (error) {
+      console.error("Failed to start prover:", error);
+      // Prover logs will be automatically displayed by spawnBinary in process.ts
+      throw error;
+    }
   }
 }
 
