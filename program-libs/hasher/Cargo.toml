@@ -23,6 +23,7 @@ solana-program-error = { workspace = true, optional = true }
 solana-pubkey = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 borsh = { workspace = true }
+solana-nostd-keccak = "0.1.3"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 ark-bn254 = { workspace = true }

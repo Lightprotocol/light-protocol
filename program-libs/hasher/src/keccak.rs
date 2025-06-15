@@ -14,31 +14,7 @@ impl Hasher for Keccak {
     }
 
     fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
-        #[cfg(not(target_os = "solana"))]
-        {
-            use sha3::{Digest, Keccak256};
-
-            let mut hasher = Keccak256::default();
-            for val in vals {
-                hasher.update(val);
-            }
-            Ok(hasher.finalize().into())
-        }
-        // Call via a system call to perform the calculation
-        #[cfg(target_os = "solana")]
-        {
-            use crate::HASH_BYTES;
-
-            let mut hash_result = [0; HASH_BYTES];
-            unsafe {
-                crate::syscalls::sol_keccak256(
-                    vals as *const _ as *const u8,
-                    vals.len() as u64,
-                    &mut hash_result as *mut _ as *mut u8,
-                );
-            }
-            Ok(hash_result)
-        }
+        Ok(solana_nostd_keccak::hashv(vals))
     }
 
     fn zero_bytes() -> ZeroBytes {

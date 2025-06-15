@@ -68,15 +68,20 @@ impl<'a> BloomFilter<'a> {
         })
     }
 
-    pub fn probe_index_fast_murmur(value_bytes: &[u8], iteration: usize, capacity: &u64) -> usize {
-        let iter_bytes = iteration.to_le_bytes();
-        let base_hash = fastmurmur3::hash(value_bytes);
-        let mut combined_bytes = [0u8; 24];
-        combined_bytes[..16].copy_from_slice(&base_hash.to_le_bytes());
-        combined_bytes[16..].copy_from_slice(&iter_bytes);
+    pub fn probe_index_keccak(value_bytes: &[u8; 32], iteration: usize, capacity: &u64) -> usize {
+        let iter_bytes: [u8; 8] = iteration.to_le_bytes();
+        let mut combined_bytes = [0u8; 40];
+        combined_bytes[..32].copy_from_slice(value_bytes);
+        combined_bytes[32..].copy_from_slice(&iter_bytes);
 
-        let combined_hash = fastmurmur3::hash(&combined_bytes);
-        (combined_hash % (*capacity as u128)) as usize
+        let hash = solana_nostd_keccak::hash(&combined_bytes);
+
+        let mut index = 0u64;
+        for chunk in hash.chunks(8) {
+            let value = u64::from_le_bytes(chunk.try_into().unwrap());
+            index = value.wrapping_add(index) % *capacity;
+        }
+        index as usize
     }
 
     pub fn insert(&mut self, value: &[u8; 32]) -> Result<(), BloomFilterError> {
@@ -98,7 +103,7 @@ impl<'a> BloomFilter<'a> {
 
         let bits = BitSlice::<u8, Msb0>::from_slice_mut(self.store);
         for i in 0..self.num_iters {
-            let probe_index = Self::probe_index_fast_murmur(value, i, &(self.capacity));
+            let probe_index = Self::probe_index_keccak(value, i, &(self.capacity));
             if bits[probe_index] {
                 continue;
             } else if insert {
