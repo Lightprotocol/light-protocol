@@ -171,6 +171,7 @@ pub fn get_address_merkle_tree_account_size_from_params(
 pub mod test_utils {
     pub use super::InitAddressTreeAccountsInstructionData;
     use crate::constants::{
+        ADDRESS_BLOOM_FILTER_CAPACITY, ADDRESS_BLOOM_FILTER_NUM_HASHES,
         DEFAULT_ADDRESS_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
     };
 
@@ -213,12 +214,12 @@ pub mod test_utils {
                 index: 0,
                 program_owner: None,
                 forester: None,
-                bloom_filter_num_iters: 3,
-                input_queue_batch_size: 2000,
+                bloom_filter_num_iters: ADDRESS_BLOOM_FILTER_NUM_HASHES,
+                input_queue_batch_size: 15000,
                 input_queue_zkp_batch_size: DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
                 height: 40,
                 root_history_capacity: 20,
-                bloom_filter_capacity: 20_000 * 8,
+                bloom_filter_capacity: ADDRESS_BLOOM_FILTER_CAPACITY,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),
                 close_threshold: None,
