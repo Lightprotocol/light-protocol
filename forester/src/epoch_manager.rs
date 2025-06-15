@@ -475,7 +475,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
     ) -> Result<ForesterEpochInfo> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: None,
+            photon_url: self.config.external_services.indexer_url.clone(),
             commitment_config: None,
             fetch_active_tree: false,
         })
