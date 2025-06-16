@@ -58,10 +58,11 @@ async fn test_sdk_test() {
     let compressed_pda = rpc
         .indexer()
         .unwrap()
-        .get_compressed_account(address, None)
+        .get_compressed_accounts_by_owner(&sdk_test::ID, None, None)
         .await
         .unwrap()
         .value
+        .items[0]
         .clone();
     assert_eq!(compressed_pda.address.unwrap(), address);
 

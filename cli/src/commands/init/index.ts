@@ -1,9 +1,4 @@
-import {
-  sleep,
-  STATE_MERKLE_TREE_NETWORK_FEE,
-  UtilsError,
-  UtilsErrorCode,
-} from "@lightprotocol/stateless.js";
+import { sleep, UtilsError, UtilsErrorCode } from "@lightprotocol/stateless.js";
 import { Args, Command, Flags } from "@oclif/core";
 import { executeCommand } from "../../utils/process";
 import { downloadBinIfNotExists } from "../../psp-utils";
@@ -14,8 +9,6 @@ import {
   LIGHT_HASHER_VERSION,
   LIGHT_MACROS_VERSION,
   LIGHT_SDK_VERSION,
-  LIGHT_SDK_MACROS_VERSION,
-  LIGHT_UTILS_VERSION,
   LIGHT_VERIFIER_VERSION,
   SOLANA_SDK_VERSION,
   LIGHT_CLIENT_VERSION,
@@ -24,10 +17,6 @@ import {
   TOKIO_VERSION,
   COMPRESSED_PROGRAM_TEMPLATE_TAG,
   LIGHT_COMPRESSED_ACCOUNT_VERSION,
-  LIGHT_ACCOUNT_CHECKS,
-  STATELESS_JS_VERSION,
-  LIGHT_CLI_VERSION,
-  SOLANA_CLI_VERSION,
 } from "../../utils/constants";
 import {
   CARGO_GENERATE_TAG,
@@ -84,8 +73,10 @@ export const initRepo = async (name: string, flags: any) => {
       kebabCaseName,
       "--git",
       "https://github.com/Lightprotocol/compressed-program-template",
-      "--tag",
-      COMPRESSED_PROGRAM_TEMPLATE_TAG,
+      // "--tag",
+      // COMPRESSED_PROGRAM_TEMPLATE_TAG,
+      "--branch",
+      "jorrit/refactor-to-light-sdk-v2",
       "--define",
       `rust-name=${kebabCaseName}`,
       "--define",
@@ -103,13 +94,7 @@ export const initRepo = async (name: string, flags: any) => {
       "--define",
       `light-macros-version=${LIGHT_MACROS_VERSION}`,
       "--define",
-      `light-account-checks-version=${LIGHT_ACCOUNT_CHECKS}`,
-      "--define",
       `light-sdk-version=${LIGHT_SDK_VERSION}`,
-      "--define",
-      `light-sdk-macros-version=${LIGHT_SDK_MACROS_VERSION}`,
-      "--define",
-      `light-utils-version=${LIGHT_UTILS_VERSION}`,
       "--define",
       `light-compressed-account-version=${LIGHT_COMPRESSED_ACCOUNT_VERSION}`,
       "--define",
@@ -126,14 +111,6 @@ export const initRepo = async (name: string, flags: any) => {
       `solana-program-test-version=${SOLANA_PROGRAM_TEST_VERSION}`, // TODO: remove
       "--define",
       `tokio-version=${TOKIO_VERSION}`,
-      "--define",
-      `stateless-js-version=${STATELESS_JS_VERSION}`,
-      "--define",
-      `anchor-js-version=${ANCHOR_VERSION}`,
-      "--define",
-      `light-cli-version=${LIGHT_CLI_VERSION}`,
-      "--define",
-      `solana-cli-version=${SOLANA_CLI_VERSION}`,
     ],
     logFile: true,
     env: env,
