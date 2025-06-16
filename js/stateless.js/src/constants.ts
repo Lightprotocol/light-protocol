@@ -14,8 +14,24 @@ export enum VERSION {
  * Feature flags. Only use if you know what you are doing.
  */
 export const featureFlags = {
-    version: VERSION.V1,
-    isV2: () => featureFlags.version.toUpperCase() === 'V2',
+    version: ((): VERSION => {
+        // Check if we're in a build environment (replaced by rollup)
+        // eslint-disable-next-line no-constant-condition
+        if ('__BUILD_VERSION__' !== '__BUILD_' + 'VERSION__') {
+            return '__BUILD_VERSION__' as VERSION;
+        }
+        // Otherwise, check runtime environment variable (for tests)
+        if (
+            typeof process !== 'undefined' &&
+            process.env?.LIGHT_PROTOCOL_VERSION
+        ) {
+            return process.env.LIGHT_PROTOCOL_VERSION as VERSION;
+        }
+        // Default to V1
+        return VERSION.V1;
+    })(),
+    isV2: () =>
+        featureFlags.version.replace(/['"]/g, '').toUpperCase() === 'V2',
 };
 
 /**
@@ -24,7 +40,7 @@ export const featureFlags = {
  * or 'getCompressedAccountV2' (V2)
  */
 export const versionedEndpoint = (base: string) =>
-    featureFlags.version.toUpperCase() === 'V1' ? base : `${base}V2`;
+    featureFlags.isV2() ? `${base}V2` : base;
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',

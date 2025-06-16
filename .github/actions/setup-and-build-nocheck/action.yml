@@ -20,7 +20,10 @@ runs:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-local-v3-
+          ${{ runner.os }}-local-v2-
 
     - name: Install dependencies
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
@@ -28,13 +31,49 @@ runs:
       run: |
         ./scripts/install.sh
 
+    - name: Verify and repair installation
+      shell: bash
+      run: |
+        # Even if cache was restored, run install script to check and install missing components
+        # The install script now checks for actual file existence, so it will only install what's missing
+        echo "=== Verifying installation integrity ==="
+        ./scripts/install.sh --no-reset
+
+    - name: Validate environment setup
+      shell: bash
+      run: |
+        echo "=== Validating environment setup ==="
+        source ./scripts/devenv.sh
+
+        # Quick validation of critical components
+        [ -f "$GOROOT/bin/go" ] || { echo "✗ Go not found"; exit 1; }
+        [ -f "$CARGO_HOME/bin/cargo" ] || { echo "✗ Cargo not found"; exit 1; }
+        [ -d "prover/server/proving-keys" ] || { echo "✗ Proving keys not found"; exit 1; }
+
+        echo "✓ All critical components found"
+
     - name: Set local environment
       shell: bash
       run: |
         source ./scripts/devenv.sh
+        # Export critical environment variables for subsequent steps
+        echo "GOROOT=$GOROOT" >> $GITHUB_ENV
+        echo "CARGO_HOME=$CARGO_HOME" >> $GITHUB_ENV
+        echo "RUSTUP_HOME=$RUSTUP_HOME" >> $GITHUB_ENV
+        echo "PATH=$PATH" >> $GITHUB_ENV
+        echo "CARGO_FEATURES=$CARGO_FEATURES" >> $GITHUB_ENV
+        echo "REDIS_URL=$REDIS_URL" >> $GITHUB_ENV
 
     - name: Rust cache
       uses: swatinem/rust-cache@v2
+      with:
+        cache-all-crates: true
+        cache-on-failure: true
+        # Add workspace target directory
+        workspaces: |
+          . -> target
+          cli -> cli/target
+          examples -> examples/target
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
@@ -42,35 +81,59 @@ runs:
         run_install: false
 
     - name: Get pnpm store directory
+      id: pnpm-store
       shell: bash
       run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        # Get the store path before any pnpm operations
+        STORE_PATH=$(pnpm store path --silent)
+        echo "STORE_PATH=${STORE_PATH}" >> $GITHUB_ENV
+        echo "path=${STORE_PATH}" >> $GITHUB_OUTPUT
 
-    - uses: actions/cache@v4
-      name: Setup pnpm cache
+    - name: Setup pnpm cache
+      id: pnpm-cache
+      uses: actions/cache@v4
       with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
 
     - name: Install dependencies
       shell: bash
-      run: pnpm install
+      run: |
+        # Install dependencies
+        pnpm install --frozen-lockfile
+
+        # Validate node_modules was created
+        if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+          echo "Error: node_modules not created after pnpm install"
+          exit 1
+        fi
+
+    - name: Save pnpm cache
+      # Save cache even on failure to speed up retries
+      if: steps.pnpm-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
     - name: Build and prepare for tests
       shell: bash
       run: |
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
-        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        if [ ! -f /home/runner/.config/solana/id.json ]; then
+          solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        fi
         npx nx build @lightprotocol/programs
         npx nx build @lightprotocol/zk-compression-cli
 
-    - name: Cache .local directory
-      uses: actions/cache@v4
+    - name: Save .local directory cache
+      if: steps.restore-local-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
       with:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}

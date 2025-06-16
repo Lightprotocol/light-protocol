@@ -64,6 +64,8 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis"
 
       - name: build-programs
         run: |

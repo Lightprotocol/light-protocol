@@ -12,6 +12,7 @@ export default defineConfig({
         testTimeout: 350000,
         hookTimeout: 100000,
         reporters: ['verbose'],
+        globalSetup: './tests/setup/version-check.ts',
     },
     define: {
         'import.meta.vitest': false,

@@ -1,6 +1,12 @@
 name: Setup and build
 description: Checkout sources, install dependencies, build and prepare for tests
 
+inputs:
+  skip-components:
+    description: 'Comma-separated list of components to skip (e.g., "redis,go"). If not specified, all components are installed.'
+    required: false
+    default: ""
+
 runs:
   using: "composite"
   steps:
@@ -22,52 +28,160 @@ runs:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-local-v3-
+          ${{ runner.os }}-local-v2-
 
-    - name: Install dependencies
+    - name: Install system dependencies
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y libudev-dev pkg-config
+        sudo apt-get install -y libudev-dev pkg-config build-essential
 
     - name: Install dependencies
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        ./scripts/install.sh
+        if [ -n "${{ inputs.skip-components }}" ]; then
+          ./scripts/install.sh --skip-components "${{ inputs.skip-components }}"
+        else
+          ./scripts/install.sh
+        fi
+
+    - name: Verify and repair installation
+      shell: bash
+      run: |
+        # Even if cache was restored, run install script to check and install missing components
+        # The install script now checks for actual file existence, so it will only install what's missing
+        echo "=== Verifying installation integrity ==="
+        if [ -n "${{ inputs.skip-components }}" ]; then
+          ./scripts/install.sh --no-reset --skip-components "${{ inputs.skip-components }}"
+        else
+          ./scripts/install.sh --no-reset
+        fi
+
+    - name: Validate environment setup
+      shell: bash
+      run: |
+        echo "=== Validating environment setup ==="
+        source ./scripts/devenv.sh
+
+        # Check critical binaries exist
+        echo "Checking Go installation..."
+        if [ -f "$GOROOT/bin/go" ]; then
+          echo "✓ Go found at: $GOROOT/bin/go"
+          $GOROOT/bin/go version || echo "⚠ Go binary exists but failed to run"
+        else
+          echo "✗ Go not found at expected location: $GOROOT/bin/go"
+          exit 1
+        fi
+
+        echo "Checking Rust installation..."
+        if [ -f "$CARGO_HOME/bin/cargo" ]; then
+          echo "✓ Cargo found at: $CARGO_HOME/bin/cargo"
+          $CARGO_HOME/bin/cargo --version || echo "⚠ Cargo binary exists but failed to run"
+        else
+          echo "✗ Cargo not found at expected location: $CARGO_HOME/bin/cargo"
+          exit 1
+        fi
+
+        echo "Checking Node installation..."
+        which node && node --version || echo "⚠ Node not in PATH"
+
+        echo "Checking pnpm installation..."
+        which pnpm && pnpm --version || echo "⚠ pnpm not in PATH"
+
+        echo "Checking Solana installation..."
+        which solana && solana --version || echo "⚠ Solana not in PATH"
+
+        echo "Checking Anchor installation..."
+        which anchor && anchor --version || echo "⚠ Anchor not in PATH"
+
+        # Check proving keys
+        if [ -d "prover/server/proving-keys" ] && [ -n "$(ls -A prover/server/proving-keys 2>/dev/null)" ]; then
+          echo "✓ Proving keys found: $(ls prover/server/proving-keys | wc -l) files"
+        else
+          echo "✗ Proving keys directory missing or empty"
+          exit 1
+        fi
+
+        echo "=== Environment validation complete ==="
 
     - name: Set local environment
       shell: bash
       run: |
         source ./scripts/devenv.sh
+        # Export critical environment variables for subsequent steps
+        echo "GOROOT=$GOROOT" >> $GITHUB_ENV
+        echo "CARGO_HOME=$CARGO_HOME" >> $GITHUB_ENV
+        echo "RUSTUP_HOME=$RUSTUP_HOME" >> $GITHUB_ENV
+        echo "PATH=$PATH" >> $GITHUB_ENV
+        echo "CARGO_FEATURES=$CARGO_FEATURES" >> $GITHUB_ENV
+        echo "REDIS_URL=$REDIS_URL" >> $GITHUB_ENV
 
     - name: Rust cache
       uses: swatinem/rust-cache@v2
+      with:
+        cache-all-crates: true
+        cache-on-failure: true
+        # Add workspace target directory
+        workspaces: |
+          . -> target
+          cli -> cli/target
+          examples -> examples/target
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
-        run_install: true
+        run_install: false
 
     - name: Get pnpm store directory
+      id: pnpm-store
       shell: bash
       run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        # Get the store path before any pnpm operations
+        STORE_PATH=$(pnpm store path --silent)
+        echo "STORE_PATH=${STORE_PATH}" >> $GITHUB_ENV
+        echo "path=${STORE_PATH}" >> $GITHUB_OUTPUT
 
-    - uses: actions/cache@v4
-      name: Setup pnpm cache
+    - name: Setup pnpm cache
+      id: pnpm-cache
+      uses: actions/cache@v4
       with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        # Install dependencies with frozen lockfile for consistency
+        pnpm install --frozen-lockfile
+
+        # Validate node_modules was created
+        if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+          echo "Error: node_modules not created after pnpm install"
+          exit 1
+        fi
+
+    - name: Save pnpm cache
+      # Save cache even on failure to speed up retries
+      if: steps.pnpm-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
     - name: Generate Solana keypair
       shell: bash
       run: |
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
-        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        if [ ! -f /home/runner/.config/solana/id.json ]; then
+          solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        fi
 
     - name: Copy spl_noop.so to target/deploy
       shell: bash
@@ -75,14 +189,25 @@ runs:
         mkdir -p ./target/deploy
         cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
 
-    - name: Cache .local directory
+    - name: Build Rust programs
+      shell: bash
+      run: |
+        source ./scripts/devenv.sh
+        echo "Building Rust programs..."
+        npx nx build @lightprotocol/programs || {
+          echo "Failed to build programs, retrying with verbose output..."
+          npx nx build @lightprotocol/programs --verbose
+          exit 1
+        }
+
+    - name: Save .local directory cache
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
-      uses: actions/cache@v4
+      uses: actions/cache/save@v4
       with:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
 
     - name: Check for git changes
       shell: bash

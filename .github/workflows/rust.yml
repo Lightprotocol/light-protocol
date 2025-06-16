@@ -35,17 +35,19 @@ jobs:
       matrix:
         group:
           - name: concurrent-merkle-tree
-            packages: light-concurrent-merkle-tree light-batched-merkle-tree
+            packages: light-concurrent-merkle-tree
             test_cmd: |
               cargo test -p light-concurrent-merkle-tree
+          - name: batched-merkle-tree-simulate
+            packages: light-batched-merkle-tree
+            test_cmd: |
               RUST_LOG=light_prover_client=debug cargo test -p light-batched-merkle-tree --features test-only -- --test test_simulate_transactions
-          - name: program-libs
+          - name: program-libs-fast
             packages:
-              aligned-sized light-bloom-filter light-hasher light-compressed-account light-account-checks \
-              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set light-indexed-merkle-tree light-batched-merkle-tree
+              aligned-sized light-hasher light-compressed-account light-account-checks \
+              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set
             test_cmd: |
               cargo test -p aligned-sized
-              cargo test -p light-bloom-filter --all-features
               cargo test -p light-hasher --all-features
               cargo test -p light-compressed-account --all-features
               cargo test -p light-account-checks  --all-features
@@ -53,6 +55,10 @@ jobs:
               cargo test -p light-merkle-tree-metadata --all-features
               cargo test -p light-zero-copy --features std
               cargo test -p light-hash-set --all-features
+          - name: program-libs-slow
+            packages: light-bloom-filter light-indexed-merkle-tree light-batched-merkle-tree
+            test_cmd: |
+              cargo test -p light-bloom-filter --all-features
               cargo test -p light-indexed-merkle-tree --all-features
               cargo test -p light-batched-merkle-tree --all-features -- --test test_e2e
           - name: sdk-libs
@@ -87,6 +93,8 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis"
 
       - name: Build CLI
         run: |

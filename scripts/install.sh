@@ -81,7 +81,8 @@ download() {
 }
 
 install_go() {
-    if ! is_installed "go"; then
+    # Check if Go is actually installed, not just logged
+    if [ ! -d "${PREFIX}/go" ] || [ ! -f "${PREFIX}/go/bin/go" ]; then
         echo "Installing Go..."
         local version=$(get_version "go")
         local suffix=$(get_suffix "go")
@@ -90,11 +91,14 @@ install_go() {
         tar -xzf "${PREFIX}/go.tar.gz" -C "${PREFIX}"
         rm "${PREFIX}/go.tar.gz"
         log "go"
+    else
+        echo "Go already installed, skipping..."
     fi
 }
 
 install_rust() {
-    if ! is_installed "rust"; then
+    # Check if Rust is actually installed
+    if [ ! -d "${PREFIX}/rustup" ] || [ ! -d "${PREFIX}/cargo" ] || [ ! -f "${PREFIX}/cargo/bin/cargo" ]; then
         echo "Installing Rust..."
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"
@@ -105,11 +109,14 @@ install_rust() {
         cargo install cargo-expand --locked
         cargo install --git https://github.com/helius-labs/photon.git --rev dbeb89e639bda78f0e135b9b1aa75bfe16618cb4 --locked
         log "rust"
+    else
+        echo "Rust already installed, skipping..."
     fi
 }
 
 install_node() {
-    if ! is_installed "node"; then
+    # Check if Node is actually installed
+    if [ ! -f "${PREFIX}/bin/node" ] || [ ! -f "${PREFIX}/bin/npm" ]; then
         echo "Installing Node.js..."
         local version=$(get_version "node")
         local suffix=$(get_suffix "node")
@@ -118,11 +125,14 @@ install_node() {
         tar -xzf "${PREFIX}/node.tar.gz" -C "${PREFIX}" --strip-components 1
         rm "${PREFIX}/node.tar.gz"
         log "node"
+    else
+        echo "Node.js already installed, skipping..."
     fi
 }
 
 install_pnpm() {
-    if ! is_installed "pnpm"; then
+    # Check if pnpm is actually installed
+    if [ ! -f "${PREFIX}/bin/pnpm" ]; then
         echo "Installing pnpm..."
         local version=$(get_version "pnpm")
         local suffix=$(get_suffix "pnpm")
@@ -130,11 +140,14 @@ install_pnpm() {
         download "$url" "${PREFIX}/bin/pnpm"
         chmod +x "${PREFIX}/bin/pnpm"
         log "pnpm"
+    else
+        echo "pnpm already installed, skipping..."
     fi
 }
 
 install_solana() {
-    if ! is_installed "solana"; then
+    # Check if Solana is actually installed
+    if [ ! -f "${PREFIX}/bin/solana" ] || [ ! -f "${PREFIX}/bin/solana-keygen" ]; then
         echo "Installing Solana..."
         local version=$(get_version "solana")
         local suffix=$(get_suffix "solana")
@@ -143,52 +156,67 @@ install_solana() {
         tar -xjf "${PREFIX}/solana-release.tar.bz2" -C "${PREFIX}/bin" --strip-components 2
         rm "${PREFIX}/solana-release.tar.bz2"
         log "solana"
+    else
+        echo "Solana already installed, skipping..."
     fi
 }
 
 install_anchor() {
-    if ! is_installed "anchor"; then
+    # Check if Anchor is actually installed
+    if [ ! -f "${PREFIX}/bin/anchor" ]; then
         echo "Installing Anchor..."
         local version=$(get_version "anchor")
         local suffix=$(get_suffix "anchor")
         local url="https://github.com/Lightprotocol/binaries/releases/download/${version}/anchor-${suffix}"
         download "$url" "${PREFIX}/bin/anchor"
         log "anchor"
+    else
+        echo "Anchor already installed, skipping..."
     fi
 }
 
 install_jq() {
-    if ! is_installed "jq"; then
+    # Check if jq is actually installed
+    if [ ! -f "${PREFIX}/bin/jq" ]; then
         echo "Installing jq..."
         local version=$(get_version "jq")
         local suffix=$(get_suffix "jq")
         local url="https://github.com/jqlang/jq/releases/download/${version}/${suffix}"
         download "$url" "${PREFIX}/bin/jq"
         log "jq"
+    else
+        echo "jq already installed, skipping..."
     fi
 }
 
 download_gnark_keys() {
-    if ! is_installed "gnark_keys"; then
+    ROOT_DIR="$(git rev-parse --show-toplevel)"
+    # Always check if keys actually exist, not just the install log
+    if [ ! -d "${ROOT_DIR}/prover/server/proving-keys" ] || [ -z "$(ls -A "${ROOT_DIR}/prover/server/proving-keys" 2>/dev/null)" ]; then
         echo "Downloading gnark keys..."
-        ROOT_DIR="$(git rev-parse --show-toplevel)"
-        "${ROOT_DIR}/prover/server/scripts/download_keys.sh" "$key_type"
+        "${ROOT_DIR}/prover/server/scripts/download_keys.sh" "$1"
         log "gnark_keys"
+    else
+        echo "Gnark keys already exist, skipping download..."
     fi
 }
 
 install_dependencies() {
-    if ! is_installed "dependencies"; then
+    # Check if node_modules exists and has content
+    if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
         echo "Installing dependencies..."
         export PATH="${PREFIX}/bin:${PATH}"
         pnpm install
         log "dependencies"
+    else
+        echo "Dependencies already installed, skipping..."
     fi
 }
 
 
 install_redis() {
-    if ! is_installed "redis"; then
+    # Check if Redis is actually installed
+    if [ ! -f "${PREFIX}/bin/redis-server" ] || [ ! -f "${PREFIX}/bin/redis-cli" ]; then
         echo "Installing Redis..."
         local version=$(get_version "redis")
         local url="http://download.redis.io/releases/redis-${version}.tar.gz"
@@ -326,6 +354,8 @@ EOF
         chmod +x "${PREFIX}/bin/redis-start" "${PREFIX}/bin/redis-stop" "${PREFIX}/bin/redis-status"
         mkdir -p "${PREFIX}/etc" "${PREFIX}/var"
         log "redis"
+    else
+        echo "Redis already installed, skipping..."
     fi
 }
 
@@ -337,6 +367,8 @@ main() {
     # Parse command line arguments
     local key_type="light"
     local reset_log=true
+    local skip_components=""
+    
     while [[ $# -gt 0 ]]; do
         case $1 in
             --full-keys)
@@ -347,8 +379,18 @@ main() {
                 reset_log=false
                 shift
                 ;;
+            --skip-components)
+                if [ -z "$2" ] || [[ "$2" == --* ]]; then
+                    echo "Error: --skip-components requires a value"
+                    exit 1
+                fi
+                skip_components="$2"
+                shift 2
+                ;;
             *)
                 echo "Unknown option: $1"
+                echo "Usage: $0 [--full-keys] [--no-reset] [--skip-components <comma-separated-list>]"
+                echo "Components that can be skipped: go,rust,node,pnpm,solana,anchor,jq,keys,dependencies,redis"
                 exit 1
                 ;;
         esac
@@ -358,18 +400,28 @@ main() {
         rm -f "$INSTALL_LOG"
     fi
 
-    install_go
-    install_rust
-    install_node
-    install_pnpm
-    install_solana
-    install_anchor
-    install_jq
-    download_gnark_keys "$key_type"
-    install_dependencies
-    install_redis
+    # Helper function to check if component should be skipped
+    should_skip() {
+        local component=$1
+        [[ ",$skip_components," == *",$component,"* ]]
+    }
+
+    # Install components unless explicitly skipped
+    should_skip "go" || install_go
+    should_skip "rust" || install_rust
+    should_skip "node" || install_node
+    should_skip "pnpm" || install_pnpm
+    should_skip "solana" || install_solana
+    should_skip "anchor" || install_anchor
+    should_skip "jq" || install_jq
+    should_skip "keys" || download_gnark_keys "$key_type"
+    should_skip "dependencies" || install_dependencies
+    should_skip "redis" || install_redis
 
     echo "✨ Light Protocol development dependencies installed"
+    if [ -n "$skip_components" ]; then
+        echo "   Skipped components: $skip_components"
+    fi
 }
 
-main
+main "$@"
