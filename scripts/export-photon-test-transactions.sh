@@ -11,14 +11,15 @@ cargo test-sbf -p compressed-token-test -- --test test_transfer_with_photon_and_
 cargo xtask export-photon-test-data --test-name batched_tree_token_transactions;
 killall solana-test-validator;
 
-cargo test-sbf -p compressed-token-test -- --ignored --test  generate_photon_test_data_multiple_events;
+cargo test-sbf -p system-cpi-v2-test -- --ignored --test  generate_photon_test_data_multiple_events;
 cargo xtask export-photon-test-data --test-name test_multiple_events;
 killall solana-test-validator;
 
-cargo test-sbf -p compressed-token-test -- --ignored --test  generate_photon_test_data_multiple_events;
-cargo xtask export-photon-test-data --test-name test_multiple_events;
-killall solana-test-validator;
-
+#     let num_addresses = 2;
 cargo test -p forester -- --test test_create_v2_address;
-cargo xtask export-photon-test-data --test-name test_create_v2_address;
+cargo xtask export-photon-test-data --test-name batched_address_2_transactions;
+killall solana-test-validator;
+#     let num_addresses = 1;
+cargo test -p forester -- --test test_create_v2_address;
+cargo xtask export-photon-test-data --test-name batched_address_transactions;
 killall solana-test-validator;
