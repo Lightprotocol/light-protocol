@@ -22,7 +22,7 @@ Running `install.sh` is the first thing you should do after cloning this monorep
 - `jq` - JSON processor
 - `keys` - Gnark proving keys
 - `dependencies` - all PNPM deps
-- `redis` - Redis server (not needed for some ci workflows)
+- `redis` - Redis server
 
 ## CI Usage
 
