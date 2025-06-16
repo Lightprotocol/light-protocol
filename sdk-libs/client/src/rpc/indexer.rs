@@ -5,10 +5,11 @@ use solana_pubkey::Pubkey;
 use super::LightClient;
 use crate::indexer::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
-    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
-    MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response,
-    RetryConfig, SignatureWithMetadata, TokenAccount, TokenBalance, ValidityProofWithContext,
+    CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
+    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+    SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -94,7 +95,7 @@ impl Indexer for LightClient {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -268,7 +269,7 @@ impl Indexer for LightClient {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()

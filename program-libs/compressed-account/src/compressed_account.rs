@@ -295,7 +295,6 @@ pub fn hash_with_hashed_values(
         vec.push(&discriminator_bytes);
         vec.push(data_hash);
     }
-
     Ok(Poseidon::hashv(&vec)?)
 }
 

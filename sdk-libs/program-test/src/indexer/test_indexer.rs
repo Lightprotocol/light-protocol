@@ -16,12 +16,13 @@ use light_client::{
     fee::FeeConfig,
     indexer::{
         AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
-        AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount, Context,
-        GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-        Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
-        MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions,
-        Response, RetryConfig, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts,
-        TokenAccount, TokenBalance, ValidityProofWithContext,
+        AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
+        CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
+        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
+        IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
+        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+        RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
+        ValidityProofWithContext,
     },
     rpc::{Rpc, RpcError},
 };
@@ -246,15 +247,15 @@ impl Indexer for TestIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         let mint = options.as_ref().and_then(|opts| opts.mint);
-        let token_accounts: Result<Vec<TokenAccount>, IndexerError> = self
+        let token_accounts: Result<Vec<CompressedTokenAccount>, IndexerError> = self
             .token_compressed_accounts
             .iter()
             .filter(|acc| {
                 acc.token_data.owner == *owner && mint.is_none_or(|m| acc.token_data.mint == m)
             })
-            .map(|acc| TokenAccount::try_from(acc.clone()))
+            .map(|acc| CompressedTokenAccount::try_from(acc.clone()))
             .collect();
         let token_accounts = token_accounts?;
         let token_accounts = if let Some(options) = options {
@@ -554,14 +555,12 @@ impl Indexer for TestIndexer {
                     }
                 }
 
-                // reverse so that we can pop elements.
-                proof_inputs.reverse();
-                // Reinsert.
-                for index in indices_to_remove.iter().rev() {
-                    if root_indices.len() <= *index {
-                        root_indices.push(proof_inputs.pop().unwrap());
+                // Reinsert proof_inputs at their original positions in forward order
+                for (proof_input, &index) in proof_inputs.iter().zip(indices_to_remove.iter()) {
+                    if root_indices.len() <= index {
+                        root_indices.push(proof_input.clone());
                     } else {
-                        root_indices.insert(*index, proof_inputs.pop().unwrap());
+                        root_indices.insert(index, proof_input.clone());
                     }
                 }
                 root_indices
@@ -954,7 +953,7 @@ impl Indexer for TestIndexer {
         _delegate: &Pubkey,
         _options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         todo!("get_compressed_token_accounts_by_delegate not implemented")
     }
 

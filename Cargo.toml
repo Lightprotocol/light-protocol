@@ -25,6 +25,8 @@ members = [
     "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
+    "sdk-libs/compressed-token-types",
+    "sdk-libs/compressed-token-sdk",
     "xtask",
     "examples/anchor/token-escrow",
     # "examples/anchor/name-service-without-macros",
@@ -40,6 +42,7 @@ members = [
     # Issue is that anchor discriminator now returns a slice instead of an array
     "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "program-tests/sdk-test",
+    "program-tests/sdk-token-test",
     "program-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
@@ -59,6 +62,10 @@ strip = "none"
 
 [profile.release]
 overflow-checks = true
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
 
 [workspace.dependencies]
 solana-banks-client = { version = "2.2" }
@@ -175,7 +182,9 @@ account-compression = { path = "programs/account-compression", version = "2.0.0"
 light-compressed-token = { path = "programs/compressed-token", version = "2.0.0", features = [
     "cpi",
 ] }
-light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
+light-compressed-token-types = { path = "sdk-libs/compressed-token-types", name = "light-compressed-token-types" }
+light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk" }
+light-system-program-anchor = { path = "anchor-programs/system", version = "1.2.0", features = [
     "cpi",
 ] }
 light-registry = { path = "programs/registry", version = "2.0.0", features = [

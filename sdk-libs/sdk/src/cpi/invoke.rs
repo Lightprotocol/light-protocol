@@ -52,9 +52,8 @@ impl CpiInputs {
 
     pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts) -> Result<()> {
         let bump = cpi_accounts.bump();
-        let account_info_refs = cpi_accounts.to_account_infos();
+        let account_infos = cpi_accounts.to_account_infos();
         let instruction = create_light_system_progam_instruction_invoke_cpi(self, cpi_accounts)?;
-        let account_infos: Vec<AccountInfo> = account_info_refs.into_iter().cloned().collect();
         invoke_light_system_program(account_infos.as_slice(), instruction, bump)
     }
 }
@@ -135,8 +134,7 @@ where
     data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
-    let account_info_refs = light_system_accounts.to_account_infos();
-    let account_infos: Vec<AccountInfo> = account_info_refs.into_iter().cloned().collect();
+    let account_infos = light_system_accounts.to_account_infos();
 
     let bump = light_system_accounts.bump();
     let account_metas: Vec<AccountMeta> = to_account_metas(light_system_accounts)?;
