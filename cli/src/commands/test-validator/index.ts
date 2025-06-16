@@ -1,10 +1,13 @@
 import { Command, Flags } from "@oclif/core";
+import { initTestEnv, stopTestEnv } from "../../utils/initTestEnv";
 import {
-  initTestEnv,
-  stopTestEnv,
-  SYSTEM_PROGRAMS,
-} from "../../utils/initTestEnv";
-import { CustomLoader } from "../../utils/index";
+  CustomLoader,
+  LIGHT_ACCOUNT_COMPRESSION_TAG,
+  LIGHT_COMPRESSED_TOKEN_TAG,
+  LIGHT_REGISTRY_TAG,
+  LIGHT_SYSTEM_PROGRAM_TAG,
+  SPL_NOOP_PROGRAM_TAG,
+} from "../../utils/index";
 import path from "path";
 import fs from "fs";
 
@@ -241,3 +244,31 @@ class SetupCommand extends Command {
 }
 
 export default SetupCommand;
+
+export const SYSTEM_PROGRAMS = [
+  {
+    id: "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+    name: "spl_noop.so",
+    tag: SPL_NOOP_PROGRAM_TAG,
+  },
+  {
+    id: "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
+    name: "light_system_program.so",
+    tag: LIGHT_SYSTEM_PROGRAM_TAG,
+  },
+  {
+    id: "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+    name: "light_compressed_token.so",
+    tag: LIGHT_COMPRESSED_TOKEN_TAG,
+  },
+  {
+    id: "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq",
+    name: "account_compression.so",
+    tag: LIGHT_ACCOUNT_COMPRESSION_TAG,
+  },
+  {
+    id: "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX",
+    name: "light_registry.so",
+    tag: LIGHT_REGISTRY_TAG,
+  },
+];
