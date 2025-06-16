@@ -475,10 +475,9 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
     ) -> Result<ForesterEpochInfo> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
+            photon_url: self.config.external_services.indexer_url.clone(),
             commitment_config: None,
             fetch_active_tree: false,
-
-            with_indexer: false,
         })
         .await
         .unwrap();
@@ -545,10 +544,9 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         info!("Registering for epoch: {}", epoch);
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
+            photon_url: None,
             commitment_config: None,
             fetch_active_tree: false,
-
-            with_indexer: false,
         })
         .await
         .unwrap();
@@ -1198,9 +1196,9 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         info!("Reporting work");
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
+            photon_url: None,
             commitment_config: None,
             fetch_active_tree: false,
-            with_indexer: false,
         })
         .await
         .unwrap();

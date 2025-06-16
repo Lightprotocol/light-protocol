@@ -110,21 +110,8 @@ impl LightClient {
         let client = RpcClient::new_with_commitment(config.url.to_string(), commitment_config);
         let retry_config = retry_config.unwrap_or_default();
 
-        let indexer = if config.with_indexer {
-            if config.url == RpcUrl::Localnet.to_string() {
-                Some(PhotonIndexer::new(
-                    "http://127.0.0.1:8784".to_string(),
-                    None,
-                ))
-            } else {
-                Some(PhotonIndexer::new(
-                    config.url.to_string(),
-                    None, // TODO: test that this is not required
-                ))
-            }
-        } else {
-            None
-        };
+        let indexer = config.photon_url.map(|path| PhotonIndexer::new(path, None));
+
         let mut new = Self {
             client,
             payer,
