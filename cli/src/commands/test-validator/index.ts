@@ -237,49 +237,8 @@ class SetupCommand extends Command {
         circuits: flags["circuit"],
         geyserConfig: flags["geyser-config"],
         validatorArgs: flags["validator-args"],
-        additionalPrograms: programs,
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
-    }
-  }
-
-  validatePrograms(programs: { address: string; path: string }[]): void {
-    // Check for duplicate addresses among provided programs
-    const addresses = new Set<string>();
-    for (const program of programs) {
-      if (addresses.has(program.address)) {
-        this.error(`Duplicate program address detected: ${program.address}`);
-      }
-      addresses.add(program.address);
-
-      // Get the program filename from the path
-      const programFileName = path.basename(program.path);
-
-      // Check for collisions with system programs (both address and filename)
-      const systemProgramCollision = SYSTEM_PROGRAMS.find(
-        (sysProg) =>
-          sysProg.id === program.address ||
-          (sysProg.name && programFileName === sysProg.name),
-      );
-
-      if (systemProgramCollision) {
-        const collisionType =
-          systemProgramCollision.id === program.address
-            ? `address (${program.address})`
-            : `filename (${programFileName})`;
-
-        this.error(
-          `Program ${collisionType} collides with system program ` +
-            `"${systemProgramCollision.name || systemProgramCollision.id}". ` +
-            `System programs cannot be overwritten.`,
-        );
-      }
-
-      // Validate program file exists
-      const programPath = path.resolve(program.path);
-      if (!fs.existsSync(programPath)) {
-        this.error(`Program file not found: ${programPath}`);
-      }
     }
   }
 }
