@@ -65,8 +65,12 @@ jobs:
             sub-tests: '["cargo-test-sbf -p compressed-token-test"]'
           - program: system-cpi-test
             sub-tests: '["cargo-test-sbf -p system-cpi-test"]'
-          - program: system-cpi-test-v2
-            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test"]'
+          - program: system-cpi-test-v2-event
+            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- event::parse"]'
+          - program: system-cpi-test-v2-functional
+            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- functional_"]'
+          - program: system-cpi-test-v2-other
+            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- --skip functional_ --skip event::parse"]'
           - program: random-e2e-test
             sub-tests: '["cargo-test-sbf -p e2e-test"]'
     steps:
