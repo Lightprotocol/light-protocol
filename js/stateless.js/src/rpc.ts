@@ -629,7 +629,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
     }
-
+    /**
+     * @deprecated Use {@link getStateTreeInfos} instead
+     */
+    async getCachedActiveStateTreeInfo() {}
     /**
      * @deprecated Use {@link getStateTreeInfos} instead
      */

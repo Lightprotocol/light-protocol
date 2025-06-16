@@ -890,11 +890,14 @@ func runCli() {
 }
 
 func parseRunMode(runModeString string) (prover.RunMode, error) {
-	runMode := prover.Rpc
+	runMode := prover.LocalRpc
 	switch runModeString {
 	case "rpc":
 		logging.Logger().Info().Msg("Running in rpc mode")
 		runMode = prover.Rpc
+	case "local-rpc":
+		logging.Logger().Info().Msg("Running in local-rpc mode")
+		runMode = prover.LocalRpc
 	case "forester":
 		logging.Logger().Info().Msg("Running in forester mode")
 		runMode = prover.Forester

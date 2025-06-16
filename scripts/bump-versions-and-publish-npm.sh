@@ -37,12 +37,12 @@ publish_package() {
 
     sleep 5
     if [ "$version_type" == "alpha" ]; then
-        if ! (cd "${package_dir}" && pnpm version prerelease --preid alpha && pnpm publish --tag alpha --access private --no-git-checks); then
+        if ! (cd "${package_dir}" && pnpm version prerelease --preid alpha && pnpm publish --tag alpha --access private --no-git-checks --verbose); then
             echo "Error occurred while publishing ${package_name}."
             return 1
         fi
     else
-        if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks); then
+        if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks --verbose); then
             echo "Error occurred while publishing ${package_name}."
             return 1
         fi
@@ -58,12 +58,12 @@ error_occurred=0
 if [ "$#" -eq 0 ]; then
     echo "Bumping ${version_type} version for all packages..."
     if [ "$version_type" == "alpha" ]; then
-        if ! pnpm -r exec -- pnpm version prerelease --preid alpha || ! pnpm -r exec -- pnpm publish --tag alpha --access private; then
+        if ! pnpm -r exec -- pnpm version prerelease --preid alpha || ! pnpm -r exec -- pnpm publish --tag alpha --access private --verbose; then
             echo "Error occurred during bulk version bump and publish."
             error_occurred=1
         fi
     else
-        if ! pnpm -r exec -- pnpm version "${version_type}" || ! pnpm -r exec -- pnpm publish --access public; then
+        if ! pnpm -r exec -- pnpm version "${version_type}" || ! pnpm -r exec -- pnpm publish --access public --verbose; then
             echo "Error occurred during bulk version bump and publish."
             error_occurred=1
         fi

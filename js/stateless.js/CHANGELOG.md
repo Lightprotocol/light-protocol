@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.22.0] - 2025-06-16
+
+### Breaking Changes
+
+(stateless.js) SOL transfers with zkcompression don't accept `stateTreeInfo` as param anymore.
+
+```typescript
+// old
+await transfer(
+    connection,
+    fromKeypair,
+    1,
+    fromKeypair,
+    fromKeypair.publicKey,
+    stateTreeInfo,
+    {
+        skipPreflight: false,
+    },
+);
+
+// new
+await transfer(connection, fromKeypair, 1, fromKeypair, fromKeypair.publicKey, {
+    skipPreflight: false,
+});
+```
+
 ## [0.21.0] - 2025-04-08
 
 This release has several breaking changes which are necessary for protocol
