@@ -76,6 +76,8 @@ pub enum LightSdkError {
     InvalidSolPoolPdaAccount,
     #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
+    #[error("CPI context must be added before any other accounts (next_index must be 0)")]
+    CpiContextOrderingViolation,
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
@@ -159,6 +161,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiContextAccount => 16032,
             LightSdkError::InvalidSolPoolPdaAccount => 16033,
             LightSdkError::InvalidCpiAccountsOffset => 16034,
+            LightSdkError::CpiContextOrderingViolation => 16035,
             LightSdkError::AccountError(e) => e.into(),
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
