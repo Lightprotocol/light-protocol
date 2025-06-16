@@ -25,6 +25,7 @@ members = [
     "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
+    "sdk-libs/compressed-token-types",
     "xtask",
     "examples/anchor/token-escrow",
     # "examples/anchor/name-service-without-macros",
@@ -59,6 +60,10 @@ strip = "none"
 
 [profile.release]
 overflow-checks = true
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
 
 [workspace.dependencies]
 solana-banks-client = { version = "2.2" }
@@ -175,7 +180,8 @@ account-compression = { path = "programs/account-compression", version = "2.0.0"
 light-compressed-token = { path = "programs/compressed-token", version = "2.0.0", features = [
     "cpi",
 ] }
-light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
+light-compressed-token-types = { path = "sdk-libs/compressed-token-types", name = "light-compressed-token-types" }
+light-system-program-anchor = { path = "anchor-programs/system", version = "1.2.0", features = [
     "cpi",
 ] }
 light-registry = { path = "programs/registry", version = "2.0.0", features = [
