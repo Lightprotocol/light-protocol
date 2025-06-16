@@ -5,7 +5,7 @@ pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
 pub const SYSTEM_PROGRAM_ID: [u8; 32] =
     pubkey_array!("7ufxL4dJT6zsn9pQysqMm7GkYX8bf1cEQ1K6WHQtqojZ");
 pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
-    pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
+    pubkey_array!("BcWNNj1diApCDxMTTDcABEn49rwAPToT3g226ieY9Nfi");
 pub const CREATE_CPI_CONTEXT_ACCOUNT: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];
 
 pub const ADDRESS_MERKLE_TREE_ACCOUNT_DISCRIMINATOR: [u8; 8] = [11, 161, 175, 9, 212, 229, 73, 73];

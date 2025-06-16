@@ -40,6 +40,7 @@ use light_test_utils::{
         create_pda_instruction, CreateCompressedPdaInstructionInputs,
     },
     pack::{pack_new_address_params_assigned, pack_output_compressed_accounts},
+    spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,
 };
 use rand::{prelude::StdRng, seq::SliceRandom, Rng, SeedableRng};
@@ -53,7 +54,7 @@ use solana_sdk::{
 use std::env;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::test_utils::forester_config;
+use crate::test_utils::{forester_config, init};
 
 mod test_utils;
 
@@ -92,9 +93,21 @@ const OUTPUT_ACCOUNT_NUM: usize = 2;
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 #[serial]
 async fn test_testnet() {
+    // init(Some(LightValidatorConfig {
+    //     enable_indexer: false,
+    //     wait_time: 90,
+    //     prover_config: Some(ProverConfig::default()),
+    //     sbf_programs: vec![(
+    //         "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
+    //         "../target/deploy/create_address_test_program.so".to_string(),
+    //     )],
+    //     limit_ledger_size: Some(500000),
+    // }))
+    // .await;
+
     let program_id = LIGHT_SYSTEM_PROGRAM_ID;
     let pda = Pubkey::find_program_address(&[program_id.as_slice()], &account_compression::ID).0;
-    println!("pda: {}", pda.to_string());
+    println!("pda: {}", pda);
     let seed = 0;
     println!("\n\ne2e test seed {}\n\n", seed);
 
@@ -148,22 +161,22 @@ async fn test_testnet() {
     .unwrap();
     println!("address tree {:?}", queue.get_metadata());
 
-    let mint_keypair: [u8; 64] = [
-        34, 68, 161, 27, 78, 253, 99, 153, 78, 49, 80, 3, 91, 36, 109, 239, 124, 205, 252, 8, 215,
-        224, 39, 252, 166, 9, 245, 56, 195, 218, 140, 14, 173, 222, 249, 91, 197, 119, 150, 178,
-        25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60, 253, 39, 235, 125, 43, 59, 137, 54, 5,
-        38, 118, 47, 170,
-    ];
-    let mint_keypair = Keypair::from_bytes(&mint_keypair).unwrap();
-    // let mint_keypair = Keypair::new();
+    // let mint_keypair: [u8; 64] = [
+    //     34, 68, 161, 27, 78, 253, 99, 153, 78, 49, 80, 3, 91, 36, 109, 239, 124, 205, 252, 8, 215,
+    //     224, 39, 252, 166, 9, 245, 56, 195, 218, 140, 14, 173, 222, 249, 91, 197, 119, 150, 178,
+    //     25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60, 253, 39, 235, 125, 43, 59, 137, 54, 5,
+    //     38, 118, 47, 170,
+    // ];
+    // let mint_keypair = Keypair::from_bytes(&mint_keypair).unwrap();
+    let mint_keypair = Keypair::new();
     println!("mint keypair: {:?}", mint_keypair.to_bytes());
     let batch_payer = &env.protocol.forester.insecure_clone();
-    // let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, batch_payer, &mint_keypair).await;
-    let mint_pubkey: [u8; 32] = [
-        173, 222, 249, 91, 197, 119, 150, 178, 25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60,
-        253, 39, 235, 125, 43, 59, 137, 54, 5, 38, 118, 47, 170,
-    ];
-    let mint_pubkey = Pubkey::from(mint_pubkey);
+    let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, batch_payer, &mint_keypair).await;
+    // let mint_pubkey: [u8; 32] = [
+    //     173, 222, 249, 91, 197, 119, 150, 178, 25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60,
+    //     253, 39, 235, 125, 43, 59, 137, 54, 5, 38, 118, 47, 170,
+    // ];
+    // let mint_pubkey = Pubkey::from(mint_pubkey);
     println!("mint_pubkey: {:?}", mint_pubkey.to_pubkey_bytes());
     println!("mint_pubkey: {:?}", mint_pubkey.to_string());
 

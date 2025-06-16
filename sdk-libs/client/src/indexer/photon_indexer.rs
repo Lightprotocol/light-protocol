@@ -1401,6 +1401,7 @@ impl Indexer for PhotonIndexer {
                     request,
                 )
                 .await?;
+
                 let api_response = Self::extract_result_with_error_check(
                     "get_validity_proof_v2",
                     result.error,
