@@ -76,7 +76,7 @@ async fn main() -> Result<(), ForesterError> {
             .await?
         }
         Commands::Status(args) => {
-            forester_status::fetch_forester_status(args).await;
+            forester_status::fetch_forester_status(args).await?;
         }
     }
     Ok(())

@@ -19,7 +19,7 @@ use crate::{
     ForesterConfig,
 };
 
-pub async fn fetch_forester_status(args: &StatusArgs) {
+pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
     let commitment_config = CommitmentConfig::confirmed();
 
     let client = solana_client::rpc_client::RpcClient::new_with_commitment(
@@ -34,7 +34,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
     let mut epoch_pdas = vec![];
     let mut protocol_config_pdas = vec![];
     for (_, account) in registry_accounts {
-        match account.data()[0..8].try_into().unwrap() {
+        match account.data()[0..8].try_into()? {
             ForesterEpochPda::DISCRIMINATOR => {
                 let forester_epoch_pda =
                     ForesterEpochPda::try_deserialize_unchecked(&mut account.data())
@@ -63,12 +63,10 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
 
     let current_active_epoch = protocol_config_pdas[0]
         .config
-        .get_current_active_epoch(slot)
-        .unwrap();
+        .get_current_active_epoch(slot)?;
     let current_registration_epoch = protocol_config_pdas[0]
         .config
-        .get_latest_register_epoch(slot)
-        .unwrap();
+        .get_latest_register_epoch(slot)?;
     println!("Current active epoch: {:?}", current_active_epoch);
 
     println!(
@@ -165,7 +163,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
         println!("protocol config: {:?}", protocol_config_pdas[0]);
     }
 
-    let config = Arc::new(ForesterConfig::new_for_status(args).unwrap());
+    let config = Arc::new(ForesterConfig::new_for_status(args)?);
 
     if config.general_config.enable_metrics {
         register_metrics();
@@ -179,19 +177,20 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
         fetch_active_tree: false,
         with_indexer: false,
     })
-    .await
-    .unwrap();
-    let trees = fetch_trees(&rpc).await.unwrap();
+    .await?;
+    let trees = fetch_trees(&rpc).await?;
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
     }
-    run_queue_info(config.clone(), trees.clone(), TreeType::StateV1).await;
-    run_queue_info(config.clone(), trees.clone(), TreeType::AddressV1).await;
+    run_queue_info(config.clone(), trees.clone(), TreeType::StateV1).await?;
+    run_queue_info(config.clone(), trees.clone(), TreeType::AddressV1).await?;
+
+    run_queue_info(config.clone(), trees.clone(), TreeType::StateV2).await?;
+    run_queue_info(config.clone(), trees.clone(), TreeType::AddressV2).await?;
+
     for tree in &trees {
         let tree_type = format!("[{}]", tree.tree_type);
-        let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)
-            .await
-            .unwrap();
+        let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type).await?;
         let fullness_percentage = tree_info.fullness * 100.0;
         println!(
             "{} Tree {}: Fullness: {:.4}% | Next Index: {} | Threshold: {}",
@@ -255,9 +254,9 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
         println!("No active foresters found for the current epoch.");
     }
 
-    push_metrics(&config.external_services.pushgateway_url)
-        .await
-        .unwrap();
+    push_metrics(&config.external_services.pushgateway_url).await?;
+
+    Ok(())
 }
 
 fn print_current_forester_assignments(

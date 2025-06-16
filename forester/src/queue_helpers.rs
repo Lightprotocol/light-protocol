@@ -1,4 +1,7 @@
 use account_compression::QueueAccount;
+use light_batched_merkle_tree::{
+    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+};
 use light_client::rpc::Rpc;
 use light_hash_set::HashSet;
 use solana_sdk::pubkey::Pubkey;
@@ -38,6 +41,41 @@ pub async fn fetch_queue_item_data<R: Rpc>(
         })
         .collect();
     Ok(filtered_queue)
+}
+
+pub async fn fetch_state_v2_queue_length<R: Rpc>(
+    rpc: &mut R,
+    output_queue_pubkey: &Pubkey,
+) -> Result<usize> {
+    trace!(
+        "Fetching StateV2 queue length for {:?}",
+        output_queue_pubkey
+    );
+    if let Some(mut account) = rpc.get_account(*output_queue_pubkey).await? {
+        let output_queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())?;
+        Ok(output_queue.get_metadata().batch_metadata.next_index as usize)
+    } else {
+        Err(anyhow::anyhow!("account not found"))
+    }
+}
+
+pub async fn fetch_address_v2_queue_length<R: Rpc>(
+    rpc: &mut R,
+    merkle_tree_pubkey: &Pubkey,
+) -> Result<usize> {
+    trace!(
+        "Fetching AddressV2 queue length for {:?}",
+        merkle_tree_pubkey
+    );
+    if let Some(mut account) = rpc.get_account(*merkle_tree_pubkey).await? {
+        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+            account.data.as_mut_slice(),
+            &(*merkle_tree_pubkey).into(),
+        )?;
+        Ok(merkle_tree.queue_batches.next_index as usize)
+    } else {
+        Err(anyhow::anyhow!("account not found"))
+    }
 }
 
 #[derive(Debug)]
