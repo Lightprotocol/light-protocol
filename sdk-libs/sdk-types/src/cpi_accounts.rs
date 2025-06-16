@@ -62,13 +62,13 @@ pub enum CompressionCpiAccountIndex {
 
 pub const SYSTEM_ACCOUNTS_LEN: usize = 11;
 
-pub struct CpiAccounts<'a, T: AccountInfoTrait> {
+pub struct CpiAccounts<'a, T: AccountInfoTrait + Clone> {
     fee_payer: &'a T,
     accounts: &'a [T],
-    config: CpiAccountsConfig,
+    pub config: CpiAccountsConfig,
 }
 
-impl<'a, T: AccountInfoTrait> CpiAccounts<'a, T> {
+impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,
@@ -209,6 +209,14 @@ impl<'a, T: AccountInfoTrait> CpiAccounts<'a, T> {
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(system_len))
     }
 
+    pub fn tree_pubkeys(&self) -> Result<Vec<T::Pubkey>> {
+        Ok(self
+            .tree_accounts()?
+            .iter()
+            .map(|x| x.pubkey())
+            .collect::<Vec<T::Pubkey>>())
+    }
+
     pub fn get_tree_account_info(&self, tree_index: usize) -> Result<&'a T> {
         let tree_accounts = self.tree_accounts()?;
         tree_accounts
@@ -219,12 +227,12 @@ impl<'a, T: AccountInfoTrait> CpiAccounts<'a, T> {
     }
 
     /// Create a vector of account info references
-    pub fn to_account_infos(&self) -> Vec<&'a T> {
-        let mut account_infos = Vec::with_capacity(1 + SYSTEM_ACCOUNTS_LEN);
-        account_infos.push(self.fee_payer());
-        self.account_infos()[1..]
-            .iter()
-            .for_each(|acc| account_infos.push(acc));
+    pub fn to_account_infos(&self) -> Vec<T> {
+        // Skip system light program
+        let refs = &self.account_infos()[1..];
+        let mut account_infos = Vec::with_capacity(1 + refs.len());
+        account_infos.push(self.fee_payer().clone());
+        account_infos.extend_from_slice(refs);
         account_infos
     }
 }

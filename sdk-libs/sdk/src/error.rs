@@ -69,6 +69,14 @@ pub enum LightSdkError {
     MetaCloseInputIsNone,
     #[error("CPI accounts index out of bounds: {0}")]
     CpiAccountsIndexOutOfBounds(usize),
+    #[error("Invalid CPI context account")]
+    InvalidCpiContextAccount,
+    #[error("Invalid SolPool PDA account")]
+    InvalidSolPoolPdaAccount,
+    #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
+    InvalidCpiAccountsOffset,
+    #[error("CPI context must be added before any other accounts (next_index must be 0)")]
+    CpiContextOrderingViolation,
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
@@ -143,6 +151,11 @@ impl From<LightSdkError> for u32 {
             LightSdkError::MetaCloseAddressIsNone => 16028,
             LightSdkError::MetaCloseInputIsNone => 16029,
             LightSdkError::CpiAccountsIndexOutOfBounds(_) => 16031,
+            LightSdkError::InvalidCpiContextAccount => 16032,
+            LightSdkError::InvalidSolPoolPdaAccount => 16033,
+            LightSdkError::InvalidCpiAccountsOffset => 16034,
+            LightSdkError::CpiContextOrderingViolation => 16035,
+            LightSdkError::AccountError(e) => e.into(),
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
