@@ -109,6 +109,7 @@ export async function initTestEnv({
   photonDatabaseUrl?: string;
   limitLedgerSize?: number;
   proverRunMode?:
+    | "local-rpc"
     | "inclusion"
     | "non-inclusion"
     | "forester"

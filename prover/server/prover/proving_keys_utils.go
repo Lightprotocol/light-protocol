@@ -20,6 +20,7 @@ const (
 	Rpc          RunMode = "rpc"
 	Full         RunMode = "full"
 	FullTest     RunMode = "full-test"
+	LocalRpc     RunMode = "local-rpc"
 )
 
 // Trusted setup utility functions
@@ -136,6 +137,28 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "combined_32_40_4_2.key",
 	}
 
+	// Keys for local-rpc mode - matching the 18 keys in cli/package.json
+	var localRpcKeys []string = []string{
+		keysDir + "combined_26_1_1.key",
+		keysDir + "combined_26_1_2.key",
+		keysDir + "combined_26_2_1.key",
+		keysDir + "combined_32_40_1_1.key",
+		keysDir + "combined_32_40_1_2.key",
+		keysDir + "combined_32_40_2_1.key",
+		keysDir + "inclusion_32_1.key",
+		keysDir + "inclusion_32_2.key",
+		keysDir + "inclusion_32_3.key",
+		keysDir + "inclusion_32_4.key",
+		keysDir + "mainnet_inclusion_26_1.key",
+		keysDir + "mainnet_inclusion_26_2.key",
+		keysDir + "mainnet_inclusion_26_3.key",
+		keysDir + "mainnet_inclusion_26_4.key",
+		keysDir + "non-inclusion_26_1.key",
+		keysDir + "non-inclusion_26_2.key",
+		keysDir + "non-inclusion_40_1.key",
+		keysDir + "non-inclusion_40_2.key",
+	}
+
 	var appendWithProofsKeys []string = []string{
 		keysDir + "append-with-proofs_32_500.key",
 	}
@@ -192,7 +215,10 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, updateTestKeys...)
 		keys = append(keys, appendWithProofsTestKeys...)
 		keys = append(keys, addressAppendTestKeys...)
+	case LocalRpc: 
+		keys = append(keys, localRpcKeys...)
 	}
+	
 
 	for _, circuit := range circuits {
 		switch circuit {

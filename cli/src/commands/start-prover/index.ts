@@ -17,8 +17,15 @@ class StartProver extends Command {
     }),
     "run-mode": Flags.string({
       description:
-        "Specify the running mode (forester, forester-test, rpc, full, or full-test)",
-      options: ["rpc", "forester", "forester-test", "full", "full-test"],
+        "Specify the running mode (local-rpc, forester, forester-test, rpc, or full). Default: local-rpc",
+      options: [
+        "local-rpc",
+        "rpc",
+        "forester",
+        "forester-test",
+        "full",
+        "full-test",
+      ],
       required: false,
     }),
     circuit: Flags.string({
@@ -63,13 +70,16 @@ class StartProver extends Command {
     const proverPort = flags["prover-port"] || 3001;
     const force = flags["force"] || false;
     const redisUrl = flags["redisUrl"] || process.env.REDIS_URL || undefined;
-    await startProver(
-      proverPort,
-      flags["run-mode"],
-      flags["circuit"],
-      force,
-      redisUrl,
-    );
+
+    // TODO: remove this workaround.
+    // Force local-rpc mode when rpc is specified
+    let runMode = flags["run-mode"];
+    if (runMode === "rpc") {
+      runMode = "local-rpc";
+      this.log("Note: Running in local-rpc mode instead of rpc mode");
+    }
+
+    await startProver(proverPort, runMode, flags["circuit"], force, redisUrl);
 
     const healthy = await healthCheck(proverPort, 10, 1000);
     loader.stop();

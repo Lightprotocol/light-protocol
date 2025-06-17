@@ -122,7 +122,7 @@ export async function startProver(
   }
 
   if ((!circuits || circuits.length === 0) && runMode == null) {
-    runMode = "rpc";
+    runMode = "local-rpc";
     args.push("--run-mode", runMode);
     console.log(`Starting prover with fallback ${runMode} mode...`);
   }

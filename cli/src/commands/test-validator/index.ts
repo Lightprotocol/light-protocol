@@ -77,8 +77,9 @@ class SetupCommand extends Command {
     }),
     "prover-run-mode": Flags.string({
       description:
-        "Specify the running mode for the prover (forester, forester-test, rpc, or full)",
+        "Specify the running mode for the prover (local-rpc, forester, forester-test, rpc, or full). Default: local-rpc",
       options: [
+        "local-rpc",
         "rpc",
         "forester",
         "forester-test",

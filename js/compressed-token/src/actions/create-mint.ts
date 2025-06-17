@@ -14,6 +14,7 @@ import {
 import {
     Rpc,
     buildAndSignTx,
+    dedupeSigner,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 
@@ -59,26 +60,27 @@ export async function createMint(
         feePayer: payer.publicKey,
         mint: keypair.publicKey,
         decimals,
-        authority: getPublicKey(mintAuthority)!,
-        freezeAuthority: getPublicKey(freezeAuthority),
+        authority:
+            'secretKey' in mintAuthority
+                ? mintAuthority.publicKey
+                : mintAuthority,
+        freezeAuthority:
+            freezeAuthority && 'secretKey' in freezeAuthority
+                ? freezeAuthority.publicKey
+                : (freezeAuthority ?? null),
         rentExemptBalance,
         tokenProgramId: resolvedTokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    // Get required additional signers that are Keypairs, not the payer.
-    const additionalSigners = [mintAuthority, freezeAuthority]
-        .filter(
+    const additionalSigners = dedupeSigner(
+        payer,
+        [mintAuthority, freezeAuthority].filter(
             (signer): signer is Signer =>
-                signer instanceof Keypair &&
-                !signer.publicKey.equals(payer.publicKey),
-        )
-        .filter(
-            (signer, index, array) =>
-                array.findIndex(s => s.publicKey.equals(signer.publicKey)) ===
-                index,
-        );
+                signer != undefined && 'secretKey' in signer,
+        ),
+    );
 
     const tx = buildAndSignTx(ixs, payer, blockhash, [
         ...additionalSigners,
@@ -88,8 +90,3 @@ export async function createMint(
 
     return { mint: keypair.publicKey, transactionSignature: txId };
 }
-
-const getPublicKey = (
-    signer: PublicKey | Signer | undefined,
-): PublicKey | null =>
-    signer instanceof PublicKey ? signer : signer?.publicKey || null;
