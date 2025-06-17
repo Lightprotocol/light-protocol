@@ -4,12 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-anchor = ["anchor-lang", "light-compressed-account/anchor"]
+anchor = [
+    "anchor-lang",
+    "light-compressed-account/anchor",
+    "light-sdk-types/anchor",
+]
 
 [dependencies]
 borsh = { workspace = true }
 light-macros = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
+light-sdk-types = { workspace = true }
 light-account-checks = { workspace = true }
 light-compressed-account = { workspace = true }
 thiserror = { workspace = true }

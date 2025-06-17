@@ -1,11 +1,11 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AccountDeserialize, InstructionData};
 use anchor_spl::token::TokenAccount;
 use light_compressed_token_sdk::{
     instruction::{get_transfer_instruction_account_metas, TokenAccountsMetaConfig},
     token_pool::get_token_pool_pda,
-    InputTokenDataWithContext, PackedMerkleContext,
+    InputTokenDataWithContext,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
@@ -219,7 +219,6 @@ async fn test() {
         &transfer_recipient,
         recipient_compressed_account,
         decompress_token_account_keypair.pubkey(),
-        decompress_amount,
     )
     .await
     .unwrap();
@@ -354,19 +353,13 @@ async fn transfer_compressed_tokens(
     let token_data = vec![InputTokenDataWithContext {
         amount: compressed_account.token.amount,
         delegate_index: None,
-        merkle_context: PackedMerkleContext {
-            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            nullifier_queue_pubkey_index: tree_info.queue_pubkey_index,
-            leaf_index: tree_info.leaf_index,
-            proof_by_index: tree_info.prove_by_index,
-        },
-        root_index: tree_info.root_index,
+        packed_tree_info: tree_info,
         lamports: None,
         tlv: None,
     }];
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
-    println!("remaining_accounts {:?}", remaining_accounts);
+
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
         accounts: [remaining_accounts].concat(),
@@ -389,7 +382,6 @@ async fn decompress_compressed_tokens(
     payer: &Keypair,
     compressed_account: &CompressedTokenAccount,
     decompress_token_account: Pubkey,
-    decompress_amount: u64,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
     let token_pool_pda = get_token_pool_pda(&compressed_account.token.mint);
@@ -423,13 +415,7 @@ async fn decompress_compressed_tokens(
     let token_data = vec![InputTokenDataWithContext {
         amount: compressed_account.token.amount,
         delegate_index: None,
-        merkle_context: PackedMerkleContext {
-            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            nullifier_queue_pubkey_index: tree_info.queue_pubkey_index,
-            leaf_index: tree_info.leaf_index,
-            proof_by_index: tree_info.prove_by_index,
-        },
-        root_index: tree_info.root_index,
+        packed_tree_info: tree_info,
         lamports: None,
         tlv: None,
     }];

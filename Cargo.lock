@@ -3405,6 +3405,7 @@ dependencies = [
  "light-account-checks",
  "light-compressed-account",
  "light-macros",
+ "light-sdk-types",
  "solana-msg",
  "thiserror 2.0.12",
 ]
