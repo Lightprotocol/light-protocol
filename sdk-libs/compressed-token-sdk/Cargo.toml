@@ -1,0 +1,23 @@
+[package]
+name = "light-compressed-token-sdk"
+version = { workspace = true }
+edition = { workspace = true }
+
+[features]
+
+anchor = ["anchor-lang", "light-compressed-token-types/anchor"]
+
+[dependencies]
+# Light Protocol dependencies
+light-compressed-token-types = { workspace = true }
+light-macros = { workspace = true }
+thiserror = { workspace = true }
+# Serialization
+borsh = { workspace = true }
+
+# Solana dependencies
+solana-pubkey = { workspace = true }
+solana-instruction = { workspace = true }
+
+# Optional Anchor dependency
+anchor-lang = { workspace = true, optional = true }
