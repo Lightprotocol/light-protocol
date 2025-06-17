@@ -107,7 +107,8 @@ install_rust() {
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add --toolchain 1.86-x86_64-unknown-linux-gnu clippy
         cargo install cargo-expand --locked
-        cargo install --git https://github.com/helius-labs/photon.git --rev dbeb89e639bda78f0e135b9b1aa75bfe16618cb4 --locked
+        # temp - commit hash from PR as of 2025-06-16
+        cargo install --git https://github.com/lightprotocol/photon.git --rev 49b7e7f0d668babbc4d65fe8a0a7236df76f75a8  --locked
         log "rust"
     else
         echo "Rust already installed, skipping..."

@@ -739,6 +739,7 @@ export class CompressedTokenProgram {
             programId: tokenProgram,
             space: mintSize ?? MINT_SIZE,
         });
+
         const initializeMintInstruction = createInitializeMint2Instruction(
             mint,
             decimals,

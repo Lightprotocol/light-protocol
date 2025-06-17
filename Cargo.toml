@@ -23,6 +23,8 @@ members = [
     "sdk-libs/sdk",
     "sdk-libs/sdk-pinocchio",
     "sdk-libs/sdk-types",
+    "sdk-libs/compressed-token-sdk",
+    "sdk-libs/compressed-token-client",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
     "xtask",
@@ -173,6 +175,10 @@ account-compression = { path = "programs/account-compression", version = "2.0.0"
     "cpi",
 ] }
 light-compressed-token = { path = "programs/compressed-token", version = "2.0.0", features = [
+    "cpi",
+] }
+light-compressed-token-client = { path = "sdk-libs/compressed-token-client", version = "0.1.0" }
+light-system-program = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
