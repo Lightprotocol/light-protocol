@@ -19,10 +19,7 @@ test-sbf = []
 default = []
 
 [dependencies]
-light-compressed-token-sdk = { workspace = true }
-light-sdk = { workspace = true }
-solana-program = { workspace = true }
-light-macros = { workspace = true }
+light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
 anchor-lang = { workspace = true }
 
 [dev-dependencies]
@@ -32,6 +29,7 @@ tokio = { workspace = true }
 serial_test = { workspace = true }
 solana-sdk = { workspace = true }
 anchor-spl = { workspace = true }
+light-sdk = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
