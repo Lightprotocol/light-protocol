@@ -10,9 +10,12 @@ use solana_sdk::{signature::Keypair, signer::Signer};
 #[tokio::test]
 async fn test_create_token_account_and_mint() {
     // Initialize the test environment
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
-        .await
-        .unwrap();
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(
+        false,
+        Some(vec![("sdk_token_test", sdk_token_test::ID)]),
+    ))
+    .await
+    .unwrap();
 
     let payer = rpc.get_payer().insecure_clone();
 

@@ -10,3 +10,6 @@ anchor = ["anchor-lang"]
 borsh = { workspace = true }
 light-macros = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
+light-account-checks = { workspace = true }
+light-compressed-account = { workspace = true }
+thiserror = { workspace = true }

@@ -3382,8 +3382,14 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-compressed-token",
  "light-compressed-token-types",
  "light-macros",
+ "light-sdk",
+ "solana-account-info",
+ "solana-cpi",
  "solana-instruction",
  "solana-pubkey",
  "thiserror 2.0.12",
@@ -3395,7 +3401,10 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
  "light-macros",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -5435,10 +5444,12 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "light-compressed-token-sdk",
+ "light-macros",
  "light-program-test",
  "light-sdk",
  "light-test-utils",
  "serial_test",
+ "solana-program",
  "solana-sdk",
  "tokio",
 ]

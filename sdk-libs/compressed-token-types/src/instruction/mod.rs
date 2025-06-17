@@ -6,6 +6,9 @@ pub mod batch_compress;
 pub mod mint_to;
 pub mod generic;
 
+// Re-export ValidityProof same as in light-sdk
+pub use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+
 // Re-export all instruction data types
 pub use transfer::*;
 pub use burn::*;

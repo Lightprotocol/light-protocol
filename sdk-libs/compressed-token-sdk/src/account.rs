@@ -1,23 +1,25 @@
 use std::ops::Deref;
 
-use crate::error::CTokenSdkError;
+use crate::error::TokenSdkError;
 use light_compressed_token_types::{InputTokenDataWithContext, PackedTokenTransferOutputData};
 use solana_pubkey::Pubkey;
 
 /// Compress, decompress, new
 /// Questions:
 /// 1. do we need to implement compress?
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount {
     inputs: Vec<InputTokenDataWithContext>,
     output: PackedTokenTransferOutputData,
     compression_amount: Option<u64>,
     is_compress: bool,
     is_decompress: bool,
+    mint: Pubkey,
 }
 
 impl CTokenAccount {
     pub fn new(
+        mint: Pubkey,
         owner: Pubkey,
         token_data: Vec<InputTokenDataWithContext>,
         output_merkle_tree_index: u8,
@@ -37,10 +39,11 @@ impl CTokenAccount {
             compression_amount: None,
             is_compress: false,
             is_decompress: false,
+            mint,
         }
     }
 
-    pub fn new_empty(owner: Pubkey, output_merkle_tree_index: u8) -> Self {
+    pub fn new_empty(mint: Pubkey, owner: Pubkey, output_merkle_tree_index: u8) -> Self {
         Self {
             inputs: vec![],
             output: PackedTokenTransferOutputData {
@@ -53,6 +56,7 @@ impl CTokenAccount {
             compression_amount: None,
             is_compress: false,
             is_decompress: false,
+            mint,
         }
     }
 
@@ -61,9 +65,9 @@ impl CTokenAccount {
         recipient: &Pubkey,
         amount: u64,
         output_merkle_tree_index: Option<u8>,
-    ) -> Result<Self, CTokenSdkError> {
+    ) -> Result<Self, TokenSdkError> {
         if amount > self.output.amount {
-            return Err(CTokenSdkError::InsufficientBalance);
+            return Err(TokenSdkError::InsufficientBalance);
         }
         // TODO: skip outputs with zero amount when creating the instruction data.
         self.output.amount -= amount;
@@ -81,12 +85,16 @@ impl CTokenAccount {
                 tlv: None,
                 merkle_tree_index,
             },
+            mint: self.mint,
         })
     }
 
-    pub fn compress(&mut self, amount: u64) -> Result<(), CTokenSdkError> {
+    pub fn compress(&mut self, amount: u64) -> Result<(), TokenSdkError> {
         self.output.amount += amount;
         self.is_compress = true;
+        if self.is_decompress {
+            return Err(TokenSdkError::CannotCompressAndDecompress);
+        }
 
         match self.compression_amount.as_mut() {
             Some(amount_ref) => *amount_ref += amount,
@@ -95,15 +103,34 @@ impl CTokenAccount {
         Ok(())
     }
 
-    pub fn decompress(&mut self, amount: u64) -> Result<(), CTokenSdkError> {
+    pub fn decompress(&mut self, amount: u64) -> Result<(), TokenSdkError> {
+        if self.is_compress {
+            return Err(TokenSdkError::CannotCompressAndDecompress);
+        }
+        if self.output.amount < amount {
+            return Err(TokenSdkError::InsufficientBalance);
+        }
         self.output.amount -= amount;
+
         self.is_decompress = true;
 
         match self.compression_amount.as_mut() {
-            Some(amount_ref) => *amount_ref -= amount,
+            Some(amount_ref) => *amount_ref += amount,
             None => self.compression_amount = Some(amount),
         }
         Ok(())
+    }
+
+    pub fn is_compress(&self) -> bool {
+        self.is_compress
+    }
+
+    pub fn is_decompress(&self) -> bool {
+        self.is_decompress
+    }
+
+    pub fn mint(&self) -> &Pubkey {
+        &self.mint
     }
 
     /// Consumes token account for instruction creation.

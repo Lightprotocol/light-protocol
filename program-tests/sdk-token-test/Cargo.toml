@@ -21,6 +21,9 @@ default = []
 [dependencies]
 light-compressed-token-sdk = { workspace = true }
 light-sdk = { workspace = true }
+solana-program = { workspace = true }
+light-macros = { workspace = true }
+anchor-lang = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
@@ -28,7 +31,6 @@ light-test-utils = { workspace = true }
 tokio = { workspace = true }
 serial_test = { workspace = true }
 solana-sdk = { workspace = true }
-anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
