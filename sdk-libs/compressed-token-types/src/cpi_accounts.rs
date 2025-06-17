@@ -6,47 +6,52 @@ use crate::error::{LightTokenSdkTypeError, Result};
 #[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CpiAccountsConfig {
     pub cpi_context: bool,
-    pub compress_or_decompress_token_account: bool,
-    pub token_pool_pda: bool,
+    pub compress: bool,
+    pub decompress: bool,
 }
 
 impl CpiAccountsConfig {
     pub const fn new_with_cpi_context() -> Self {
         Self {
             cpi_context: true,
-            compress_or_decompress_token_account: true,
-            token_pool_pda: true,
+            compress: false,
+            decompress: false,
         }
     }
 
-    pub fn new_with_compress() -> Self {
+    pub fn new_compress() -> Self {
         Self {
             cpi_context: false,
-            compress_or_decompress_token_account: true,
-            token_pool_pda: true,
+            compress: true,
+            decompress: false,
         }
     }
 
-    pub fn new_with_decompress() -> Self {
+    pub fn new_decompress() -> Self {
         Self {
             cpi_context: true,
-            compress_or_decompress_token_account: true,
-            token_pool_pda: true,
+            compress: false,
+            decompress: true,
         }
+    }
+
+    pub fn is_compress_or_decompress(&self) -> bool {
+        self.compress || self.decompress
     }
 }
 
 #[repr(usize)]
 pub enum CompressionCpiAccountIndex {
+    CpiAuthority,
     LightSystemProgram,
-    Authority,
     RegisteredProgramPda,
     NoopProgram,
     AccountCompressionAuthority,
     AccountCompressionProgram,
-    InvokingProgram,
-    SolPoolPda,
+    CTokenProgram,
+    TokenPoolPda,
     DecompressionRecipient,
+    SplTokenProgram,
     SystemProgram,
     CpiContext,
 }
@@ -55,22 +60,48 @@ pub const SYSTEM_ACCOUNTS_LEN: usize = 12;
 
 pub struct CpiAccounts<'a, T: AccountInfoTrait + Clone> {
     fee_payer: &'a T,
+    authority: &'a T,
     accounts: &'a [T],
     config: CpiAccountsConfig,
 }
 
 impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
-    pub fn new(fee_payer: &'a T, accounts: &'a [T]) -> Self {
+    pub fn new(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
         Self {
             fee_payer,
+            authority,
             accounts,
             config: CpiAccountsConfig::default(),
         }
     }
 
-    pub fn new_with_config(fee_payer: &'a T, accounts: &'a [T], config: CpiAccountsConfig) -> Self {
+    pub fn new_compress(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
         Self {
             fee_payer,
+            authority,
+            accounts,
+            config: CpiAccountsConfig::new_compress(),
+        }
+    }
+
+    pub fn new_decompress(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config: CpiAccountsConfig::new_decompress(),
+        }
+    }
+
+    pub fn new_with_config(
+        fee_payer: &'a T,
+        authority: &'a T,
+        accounts: &'a [T],
+        config: CpiAccountsConfig,
+    ) -> Self {
+        Self {
+            fee_payer,
+            authority,
             accounts,
             config,
         }
@@ -87,15 +118,19 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    pub fn authority(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndex::Authority as usize;
+    pub fn authority(&self) -> &'a T {
+        self.authority
+    }
+
+    pub fn ctoken_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::CTokenProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    pub fn invoking_program(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndex::InvokingProgram as usize;
+    pub fn spl_token_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::SplTokenProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
@@ -129,8 +164,8 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    pub fn sol_pool_pda(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndex::SolPoolPda as usize;
+    pub fn token_pool_pda(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::TokenPoolPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
@@ -163,11 +198,9 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
 
     pub fn system_accounts_len(&self) -> usize {
         let mut len = SYSTEM_ACCOUNTS_LEN;
-        if !self.config.compress_or_decompress_token_account {
-            len -= 1;
-        }
-        if !self.config.token_pool_pda {
-            len -= 1;
+        if !self.config.is_compress_or_decompress() {
+            // Token pool pda & compression sender or decompression recipient
+            len -= 2;
         }
         if !self.config.cpi_context {
             len -= 1;

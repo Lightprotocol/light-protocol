@@ -19,6 +19,10 @@ pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
     pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
+// Account Compression Program ID
+pub const ACCOUNT_COMPRESSION_AUTHORITY_PDA: [u8; 32] =
+    pubkey_array!("HwXnGK3tPkkVY6P439H2p68AxpeuWXd5PcrAxFpbmfbA");
+
 // Noop Program ID
 pub const NOOP_PROGRAM_ID: [u8; 32] = pubkey_array!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 

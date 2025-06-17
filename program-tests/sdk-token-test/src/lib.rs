@@ -20,9 +20,6 @@ pub mod sdk_token_test {
         mint: Pubkey,      // TODO: deserialize from token account.
         amount: u64,
     ) -> Result<()> {
-        let light_cpi_accounts =
-            CpiAccounts::new(ctx.accounts.signer.as_ref(), ctx.remaining_accounts);
-
         let mut token_account = light_compressed_token_sdk::account::CTokenAccount::new_empty(
             mint,
             recipient,
@@ -32,10 +29,29 @@ pub mod sdk_token_test {
 
         let cpi_inputs = CpiInputs::new_compress(vec![token_account]);
 
+        let light_cpi_accounts = CpiAccounts::new_compress(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+        );
+        msg!(
+            "light_cpi_accounts config {:?}",
+            light_cpi_accounts.config()
+        );
+        msg!(
+            "light_cpi_accounts config is_compress_or_decompress {:?}",
+            light_cpi_accounts.config().is_compress_or_decompress()
+        );
+        msg!(
+            "ctx.remaining_accounts len {:?}",
+            ctx.remaining_accounts.len()
+        );
         // TODO: add to program error conversion
         let instruction =
             create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
         let account_infos = light_cpi_accounts.to_account_infos();
+        msg!("account_infos {:?}", account_infos);
+        msg!("instruction {:?}", instruction);
         invoke(&instruction, account_infos.as_slice())?;
 
         Ok(())
@@ -60,8 +76,11 @@ pub mod sdk_token_test {
 
         let cpi_inputs =
             CpiInputs::new(vec![token_account, recipient_token_account], validity_proof);
-        let light_cpi_accounts =
-            CpiAccounts::new(ctx.accounts.signer.as_ref(), ctx.remaining_accounts);
+        let light_cpi_accounts = CpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+        );
 
         // TODO: add to program error conversion
         let instruction =
@@ -90,13 +109,18 @@ pub mod sdk_token_test {
         token_account.decompress(10).unwrap();
 
         let cpi_inputs = CpiInputs::new(vec![token_account], validity_proof);
-        let light_cpi_accounts =
-            CpiAccounts::new(ctx.accounts.signer.as_ref(), ctx.remaining_accounts);
+        let light_cpi_accounts = CpiAccounts::new_decompress(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+        );
 
         // TODO: add to program error conversion
         let instruction =
             create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
         let account_infos = light_cpi_accounts.to_account_infos();
+        msg!("account_infos {:?}", account_infos);
+        msg!("instruction {:?}", instruction);
         // TODO: make invoke_signed
         invoke(&instruction, account_infos.as_slice())?;
 

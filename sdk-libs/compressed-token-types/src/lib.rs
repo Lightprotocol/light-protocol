@@ -7,9 +7,9 @@ pub mod token_data;
 
 // Conditional anchor re-exports
 #[cfg(feature = "anchor")]
-pub use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
-pub use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 
 // TODO: remove the reexports
 // Re-export everything at the crate root level
