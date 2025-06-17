@@ -180,7 +180,99 @@ async fn test() {
     assert_eq!(recipient_amount, transfer_amount);
     println!("Verified recipient balance: {}", recipient_amount);
 
-    println!("Compression and transfer test completed successfully!");
+    // Now decompress some tokens from the recipient back to SPL token account
+    let decompress_token_account_keypair = Keypair::new();
+    let decompress_amount = 10; // Decompress a small amount
+    rpc.airdrop_lamports(&transfer_recipient.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    // Create a new SPL token account for decompression
+    create_token_account(
+        &mut rpc,
+        &mint_pubkey,
+        &decompress_token_account_keypair,
+        &transfer_recipient,
+    )
+    .await
+    .unwrap();
+
+    println!(
+        "Created decompress token account: {}",
+        decompress_token_account_keypair.pubkey()
+    );
+
+    // Get the recipient's compressed token account after transfer
+    let recipient_compressed_accounts = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_token_accounts_by_owner(&transfer_recipient.pubkey(), None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    let recipient_compressed_account = &recipient_compressed_accounts[0];
+
+    // Decompress tokens from recipient's compressed account to SPL token account
+    decompress_compressed_tokens(
+        &mut rpc,
+        &transfer_recipient,
+        recipient_compressed_account,
+        decompress_token_account_keypair.pubkey(),
+        decompress_amount,
+    )
+    .await
+    .unwrap();
+
+    println!(
+        "Decompressed {} tokens from recipient successfully",
+        decompress_amount
+    );
+
+    // Verify the decompression worked
+    let decompress_token_account_data = rpc
+        .get_account(decompress_token_account_keypair.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+
+    let decompress_token_account =
+        TokenAccount::try_deserialize(&mut decompress_token_account_data.data.as_slice()).unwrap();
+
+    // Assert the SPL token account has the decompressed amount
+    assert_eq!(decompress_token_account.amount, decompress_amount);
+    assert_eq!(decompress_token_account.mint, mint_pubkey);
+    assert_eq!(decompress_token_account.owner, transfer_recipient.pubkey());
+
+    println!(
+        "Verified SPL token account after decompression: amount={}",
+        decompress_token_account.amount
+    );
+
+    // Verify the compressed account balance was reduced
+    let updated_recipient_accounts = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_token_accounts_by_owner(&transfer_recipient.pubkey(), None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    if !updated_recipient_accounts.is_empty() {
+        let updated_recipient_account = &updated_recipient_accounts[0];
+        let remaining_compressed_amount = updated_recipient_account.token.amount;
+        assert_eq!(
+            remaining_compressed_amount,
+            transfer_amount - decompress_amount
+        );
+        println!(
+            "Verified remaining compressed balance: {}",
+            remaining_compressed_amount
+        );
+    }
+
+    println!("Compression, transfer, and decompress test completed successfully!");
 }
 
 async fn compress_spl_tokens(
@@ -193,13 +285,7 @@ async fn compress_spl_tokens(
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
     let token_pool_pda = get_token_pool_pda(&mint);
-    let config = TokenAccountsMetaConfig::compress(
-        payer.pubkey(),
-        payer.pubkey(),
-        token_pool_pda,
-        token_account,
-        false,
-    );
+    let config = TokenAccountsMetaConfig::compress(token_pool_pda, token_account, false);
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let metas = get_transfer_instruction_account_metas(config);
     println!("metas {:?}", metas.to_vec());
@@ -238,7 +324,7 @@ async fn transfer_compressed_tokens(
     compressed_account: &CompressedTokenAccount,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
-    let config = TokenAccountsMetaConfig::new(payer.pubkey(), payer.pubkey());
+    let config = TokenAccountsMetaConfig::new();
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let metas = get_transfer_instruction_account_metas(config);
     remaining_accounts.add_pre_accounts_metas(metas.as_slice());
@@ -290,6 +376,75 @@ async fn transfer_compressed_tokens(
             output_tree_index,
             mint: compressed_account.token.mint,
             recipient,
+        }
+        .data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
+}
+
+async fn decompress_compressed_tokens(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    compressed_account: &CompressedTokenAccount,
+    decompress_token_account: Pubkey,
+    decompress_amount: u64,
+) -> Result<Signature, RpcError> {
+    let mut remaining_accounts = PackedAccounts::default();
+    let token_pool_pda = get_token_pool_pda(&compressed_account.token.mint);
+    let config =
+        TokenAccountsMetaConfig::decompress(token_pool_pda, decompress_token_account, false);
+    remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
+    let metas = get_transfer_instruction_account_metas(config);
+    remaining_accounts.add_pre_accounts_metas(metas.as_slice());
+
+    // Get validity proof from RPC
+    let rpc_result = rpc
+        .get_validity_proof(vec![compressed_account.account.hash], vec![], None)
+        .await?
+        .value;
+
+    let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let output_tree_index = packed_tree_info
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .output_tree_index;
+
+    // Use the tree info from the validity proof result
+    let tree_info = packed_tree_info
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[0];
+
+    // Create input token data
+    let token_data = vec![InputTokenDataWithContext {
+        amount: compressed_account.token.amount,
+        delegate_index: None,
+        merkle_context: PackedMerkleContext {
+            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+            nullifier_queue_pubkey_index: tree_info.queue_pubkey_index,
+            leaf_index: tree_info.leaf_index,
+            proof_by_index: tree_info.prove_by_index,
+        },
+        root_index: tree_info.root_index,
+        lamports: None,
+        tlv: None,
+    }];
+
+    let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
+    println!(" remaining_accounts: {:?}", remaining_accounts);
+
+    let instruction = Instruction {
+        program_id: sdk_token_test::ID,
+        accounts: [remaining_accounts].concat(),
+        data: sdk_token_test::instruction::Decompress {
+            validity_proof: rpc_result.proof,
+            token_data,
+            output_tree_index,
+            mint: compressed_account.token.mint,
         }
         .data(),
     };

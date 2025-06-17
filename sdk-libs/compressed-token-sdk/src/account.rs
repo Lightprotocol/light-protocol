@@ -4,9 +4,6 @@ use crate::error::TokenSdkError;
 use light_compressed_token_types::{InputTokenDataWithContext, PackedTokenTransferOutputData};
 use solana_pubkey::Pubkey;
 
-/// Compress, decompress, new
-/// Questions:
-/// 1. do we need to implement compress?
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount {
     inputs: Vec<InputTokenDataWithContext>,
@@ -137,6 +134,10 @@ impl CTokenAccount {
         self.compression_amount
     }
 
+    pub fn owner(&self) -> Pubkey {
+        Pubkey::new_from_array(self.owner)
+    }
+
     /// Consumes token account for instruction creation.
     pub fn into_inputs_and_outputs(
         self,
@@ -146,23 +147,6 @@ impl CTokenAccount {
     ) {
         (self.inputs, self.output)
     }
-
-    //     /// 1. Serializes the account data and sets the output data hash.
-    //     /// 2. Returns CompressedAccountInfo.
-    //     ///
-    //     /// Note this is an expensive operation
-    //     /// that should only be called once per instruction.
-    //     pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, LightSdkError> {
-    //         if let Some(output) = self.account_info.output.as_mut() {
-    //             output.data_hash = self.account.hash::<Poseidon>()?;
-    //             output.data = self
-    //                 .account
-    //                 .try_to_vec()
-    //                 .map_err(|_| LightSdkError::Borsh)?;
-    //         }
-    //         Ok(self.account_info)
-    //     }
-    // }
 }
 
 impl Deref for CTokenAccount {
