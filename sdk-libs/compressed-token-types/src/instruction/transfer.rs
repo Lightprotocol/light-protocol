@@ -1,6 +1,6 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
@@ -8,21 +8,23 @@ pub struct PackedMerkleContext {
     pub queue_index: Option<u16>,
 }
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+// TODO: get from light-compressed-account
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedProof {
     pub a: [u8; 32],
-    pub b: [u8; 64], 
+    pub b: [u8; 64],
     pub c: [u8; 32],
 }
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+// TODO: get from light-compressed-account
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedCpiContext {
     pub set_context: bool,
     pub first_set_context: bool,
     pub cpi_context_account_index: u8,
 }
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct InputTokenDataWithContext {
     pub amount: u64,
     pub delegate_index: Option<u8>,
@@ -34,7 +36,7 @@ pub struct InputTokenDataWithContext {
 }
 
 /// Struct to provide the owner when the delegate is signer of the transaction.
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct DelegatedTransfer {
     pub owner: [u8; 32],
     /// Index of change compressed account in output compressed accounts. In
@@ -44,7 +46,7 @@ pub struct DelegatedTransfer {
     pub delegate_change_account_index: Option<u8>,
 }
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataTransfer {
     pub proof: Option<CompressedProof>,
     pub mint: [u8; 32],
@@ -61,7 +63,7 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub with_transaction_hash: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedTokenTransferOutputData {
     pub owner: [u8; 32],
     pub amount: u64,
@@ -71,7 +73,7 @@ pub struct PackedTokenTransferOutputData {
     pub tlv: Option<Vec<u8>>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct TokenTransferOutputData {
     pub owner: [u8; 32],
     pub amount: u64,

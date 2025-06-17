@@ -3,9 +3,10 @@ name = "light-compressed-token-types"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+anchor = ["anchor-lang"]
+
 [dependencies]
 borsh = { workspace = true }
 light-macros = { workspace = true }
-
-[dev-dependencies]
-solana-pubkey = { workspace = true }
+anchor-lang = { workspace = true, optional = true }

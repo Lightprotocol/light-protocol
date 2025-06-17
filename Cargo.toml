@@ -26,6 +26,7 @@ members = [
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
     "sdk-libs/compressed-token-types",
+    "sdk-libs/compressed-token-sdk",
     "xtask",
     "examples/anchor/token-escrow",
     # "examples/anchor/name-service-without-macros",
@@ -41,6 +42,7 @@ members = [
     # Issue is that anchor discriminator now returns a slice instead of an array
     "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "program-tests/sdk-test",
+    "program-tests/sdk-token-test",
     "program-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
@@ -181,6 +183,7 @@ light-compressed-token = { path = "programs/compressed-token", version = "2.0.0"
     "cpi",
 ] }
 light-compressed-token-types = { path = "sdk-libs/compressed-token-types", name = "light-compressed-token-types" }
+light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "1.2.0", features = [
     "cpi",
 ] }
