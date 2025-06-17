@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use forester_utils::rpc_pool::SolanaRpcPool;
 use light_batched_merkle_tree::{
@@ -11,7 +11,7 @@ use light_compressed_account::TreeType;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
-use tracing::{error, trace};
+use tracing::{debug, error, trace};
 
 use super::{address, error::Result, state, BatchProcessError};
 use crate::indexer_type::IndexerType;
@@ -26,6 +26,9 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
     pub ixs_per_tx: usize,
+    pub prover_url: String,
+    pub prover_polling_interval: Duration,
+    pub prover_max_wait_time: Duration,
 }
 
 #[derive(Debug)]
@@ -47,7 +50,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
     }
 
     pub async fn process(&self) -> Result<usize> {
-        trace!(
+        debug!(
             "Starting batch processing for tree type: {:?}",
             self.tree_type
         );
@@ -57,7 +60,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             BatchReadyState::ReadyForAppend => match self.tree_type {
                 TreeType::AddressV2 => address::process_batch(&self.context).await,
                 TreeType::StateV2 => {
-                    trace!(
+                    debug!(
                         "Process state append for tree: {}",
                         self.context.merkle_tree
                     );
@@ -76,7 +79,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
                 }
             },
             BatchReadyState::ReadyForNullify => {
-                trace!(
+                debug!(
                     "Processing batch for nullify, tree: {}",
                     self.context.merkle_tree
                 );
@@ -90,7 +93,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
                 result
             }
             BatchReadyState::NotReady => {
-                trace!(
+                debug!(
                     "Batch not ready for processing, tree: {}",
                     self.context.merkle_tree
                 );
@@ -112,11 +115,9 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             false
         };
 
-        trace!(
+        debug!(
             "self.tree_type: {}, input_ready: {}, output_ready: {}",
-            self.tree_type,
-            input_ready,
-            output_ready
+            self.tree_type, input_ready, output_ready
         );
 
         if self.tree_type == TreeType::AddressV2 {

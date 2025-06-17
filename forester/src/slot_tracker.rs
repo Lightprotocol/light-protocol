@@ -8,7 +8,7 @@ use std::{
 
 use light_client::rpc::Rpc;
 use tokio::time::{sleep, Duration};
-use tracing::{error, trace};
+use tracing::{debug, error, trace};
 
 pub fn slot_duration() -> Duration {
     Duration::from_nanos(solana_sdk::genesis_config::GenesisConfig::default().ns_per_slot() as u64)
@@ -101,7 +101,7 @@ pub async fn wait_until_slot_reached<R: Rpc>(
             slot_duration()
         };
 
-        trace!(
+        debug!(
             "Estimated slot: {}, waiting for {} seconds",
             current_estimated_slot,
             sleep_duration.as_secs_f64()

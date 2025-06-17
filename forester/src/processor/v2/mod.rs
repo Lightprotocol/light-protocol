@@ -6,7 +6,7 @@ mod state;
 use common::BatchProcessor;
 use error::Result;
 use light_client::rpc::Rpc;
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 #[instrument(
     level = "debug",
@@ -21,9 +21,9 @@ pub async fn process_batched_operations<R: Rpc, I: Indexer + IndexerType<R>>(
     context: BatchContext<R, I>,
     tree_type: TreeType,
 ) -> Result<usize> {
-    trace!("process_batched_operations");
     let processor = BatchProcessor::new(context, tree_type);
-    processor.process().await
+    let result = processor.process().await;
+    result
 }
 
 pub use common::BatchContext;

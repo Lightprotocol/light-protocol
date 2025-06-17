@@ -1396,11 +1396,15 @@ impl Indexer for PhotonIndexer {
                     ..Default::default()
                 };
 
+                println!("request: {:?}", request);
+
                 let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
+
+                println!("result: {:?}", result);
 
                 let api_response = Self::extract_result_with_error_check(
                     "get_validity_proof_v2",

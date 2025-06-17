@@ -515,7 +515,7 @@ func runCli() {
 
 						logging.Logger().Info().Msg("Starting queue workers")
 
-						startAllWorkers := runMode == prover.Forester || runMode == prover.ForesterTest
+						startAllWorkers := runMode == prover.Forester || runMode == prover.ForesterTest || runMode == prover.Full || runMode == prover.FullTest
 
 						var workersStarted []string
 

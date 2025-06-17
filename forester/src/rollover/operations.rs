@@ -109,39 +109,39 @@ pub async fn get_tree_fullness<R: Rpc>(
             let merkle_tree =
                 BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
                     .unwrap();
-            println!(
-                "merkle_tree.get_account().queue.batch_size: {:?}",
-                merkle_tree.queue_batches.batch_size
-            );
+            // println!(
+            //     "merkle_tree.get_account().queue.batch_size: {:?}",
+            //     merkle_tree.queue_batches.batch_size
+            // );
 
-            println!(
-                "queue currently_processing_batch_index: {:?}",
-                merkle_tree.queue_batches.currently_processing_batch_index as usize
-            );
+            // println!(
+            //     "queue currently_processing_batch_index: {:?}",
+            //     merkle_tree.queue_batches.currently_processing_batch_index as usize
+            // );
 
-            println!(
-                "queue batch_size: {:?}",
-                merkle_tree.queue_batches.batch_size
-            );
-            println!(
-                "queue zkp_batch_size: {:?}",
-                merkle_tree.queue_batches.zkp_batch_size
-            );
-            println!(
-                "queue pending_batch_index: {:?}",
-                merkle_tree.queue_batches.pending_batch_index
-            );
-            println!(
-                "queue bloom_filter_capacity: {:?}",
-                merkle_tree.queue_batches.bloom_filter_capacity
-            );
-            println!(
-                "queue num_batches: {:?}",
-                merkle_tree.queue_batches.num_batches
-            );
+            // println!(
+            //     "queue batch_size: {:?}",
+            //     merkle_tree.queue_batches.batch_size
+            // );
+            // println!(
+            //     "queue zkp_batch_size: {:?}",
+            //     merkle_tree.queue_batches.zkp_batch_size
+            // );
+            // println!(
+            //     "queue pending_batch_index: {:?}",
+            //     merkle_tree.queue_batches.pending_batch_index
+            // );
+            // println!(
+            //     "queue bloom_filter_capacity: {:?}",
+            //     merkle_tree.queue_batches.bloom_filter_capacity
+            // );
+            // println!(
+            //     "queue num_batches: {:?}",
+            //     merkle_tree.queue_batches.num_batches
+            // );
 
-            println!("tree next_index: {:?}", merkle_tree.next_index);
-            println!("tree height: {:?}", merkle_tree.height);
+            // println!("tree next_index: {:?}", merkle_tree.next_index);
+            // println!("tree height: {:?}", merkle_tree.height);
 
             let height = merkle_tree.height as u64;
             let capacity = 1u64 << height;
@@ -165,39 +165,39 @@ pub async fn get_tree_fullness<R: Rpc>(
                 &tree_pubkey.into(),
             )
             .unwrap();
-            println!(
-                "merkle_tree.get_account().queue.batch_size: {:?}",
-                merkle_tree.queue_batches.batch_size
-            );
+            // println!(
+            //     "merkle_tree.get_account().queue.batch_size: {:?}",
+            //     merkle_tree.queue_batches.batch_size
+            // );
 
-            println!(
-                "queue currently_processing_batch_index: {:?}",
-                merkle_tree.queue_batches.currently_processing_batch_index as usize
-            );
+            // println!(
+            //     "queue currently_processing_batch_index: {:?}",
+            //     merkle_tree.queue_batches.currently_processing_batch_index as usize
+            // );
 
-            println!(
-                "queue batch_size: {:?}",
-                merkle_tree.queue_batches.batch_size
-            );
-            println!(
-                "queue zkp_batch_size: {:?}",
-                merkle_tree.queue_batches.zkp_batch_size
-            );
-            println!(
-                "queue pending_batch_index: {:?}",
-                merkle_tree.queue_batches.pending_batch_index
-            );
-            println!(
-                "queue bloom_filter_capacity: {:?}",
-                merkle_tree.queue_batches.bloom_filter_capacity
-            );
-            println!(
-                "queue num_batches: {:?}",
-                merkle_tree.queue_batches.num_batches
-            );
+            // println!(
+            //     "queue batch_size: {:?}",
+            //     merkle_tree.queue_batches.batch_size
+            // );
+            // println!(
+            //     "queue zkp_batch_size: {:?}",
+            //     merkle_tree.queue_batches.zkp_batch_size
+            // );
+            // println!(
+            //     "queue pending_batch_index: {:?}",
+            //     merkle_tree.queue_batches.pending_batch_index
+            // );
+            // println!(
+            //     "queue bloom_filter_capacity: {:?}",
+            //     merkle_tree.queue_batches.bloom_filter_capacity
+            // );
+            // println!(
+            //     "queue num_batches: {:?}",
+            //     merkle_tree.queue_batches.num_batches
+            // );
 
-            println!("tree next_index: {:?}", merkle_tree.next_index);
-            println!("tree height: {:?}", merkle_tree.height);
+            // println!("tree next_index: {:?}", merkle_tree.next_index);
+            // println!("tree height: {:?}", merkle_tree.height);
 
             let height = merkle_tree.height as u64;
             let capacity = 1u64 << height;

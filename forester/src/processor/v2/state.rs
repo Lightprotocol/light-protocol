@@ -36,6 +36,9 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
         &mut *context.indexer.lock().await,
         context.merkle_tree,
         context.output_queue,
+        context.prover_url.clone(),
+        context.prover_polling_interval,
+        context.prover_max_wait_time,
     )
     .await
     .map_err(|e| {
@@ -141,13 +144,19 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
     rpc: &mut R,
 ) -> Result<()> {
     let batch_index = get_batch_index(context, rpc).await?;
-    let instruction_data_vec =
-        create_nullify_batch_ix_data(rpc, &mut *context.indexer.lock().await, context.merkle_tree)
-            .await
-            .map_err(|e| {
-                error!("Failed to create nullify batch instruction data: {}", e);
-                BatchProcessError::InstructionData(e.to_string())
-            })?;
+    let instruction_data_vec = create_nullify_batch_ix_data(
+        rpc,
+        &mut *context.indexer.lock().await,
+        context.merkle_tree,
+        context.prover_url.clone(),
+        context.prover_polling_interval,
+        context.prover_max_wait_time,
+    )
+    .await
+    .map_err(|e| {
+        error!("Failed to create nullify batch instruction data: {}", e);
+        BatchProcessError::InstructionData(e.to_string())
+    })?;
 
     if instruction_data_vec.is_empty() {
         debug!("No zkp batches to nullify");

@@ -115,6 +115,7 @@ impl ProofClient {
                         "Retrying proof generation ({}/{}) after {:?} due to: {}",
                         retries, MAX_RETRIES, retry_delay, err
                     );
+                    tokio::task::yield_now().await;
                     sleep(retry_delay).await;
                 }
                 Err(err) => {
@@ -157,9 +158,12 @@ impl ProofClient {
     ) -> Result<reqwest::Response, ProverClientError> {
         let url = format!("{}{}", self.server_address, PROVE_PATH);
 
-        self.client
+        let request = self
+            .client
             .post(&url)
-            .header("Content-Type", "application/json")
+            .header("Content-Type", "application/json");
+
+        request
             .body(inputs_json.to_string())
             .send()
             .await
@@ -313,6 +317,7 @@ impl ProofClient {
                         )));
                     }
 
+                    tokio::task::yield_now().await;
                     sleep(self.polling_interval).await;
                 }
                 Err(err) if self.is_job_not_found_error(&err) => {
@@ -353,6 +358,7 @@ impl ProofClient {
                         "Job {} transient error (attempt {}/{}), retrying after {:?}",
                         job_id, transient_error_count, MAX_RETRIES, retry_delay
                     );
+                    tokio::task::yield_now().await;
                     sleep(retry_delay).await;
                 }
                 Err(err) => {
@@ -505,6 +511,11 @@ impl ProofClient {
         })
     }
 
+    /// Generates a proof for batch address append operations.
+    ///
+    /// This method automatically uses asynchronous proof generation mode (X-Async: true header)
+    /// to handle the longer processing times required for address-append circuits and avoid
+    /// server-side timeouts.
     pub async fn generate_batch_address_append_proof(
         &self,
         inputs: BatchAddressAppendInputs,

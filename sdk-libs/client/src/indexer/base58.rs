@@ -36,6 +36,11 @@ impl Base58Conversions for [u8; 32] {
 
 pub fn decode_base58_to_fixed_array<const N: usize>(input: &str) -> Result<[u8; N], IndexerError> {
     let mut buffer = [0u8; N];
+
+    if input.is_empty() {
+        return Ok(buffer);
+    }
+
     let decoded_len = bs58::decode(input)
         .onto(&mut buffer)
         .map_err(|_| IndexerError::InvalidResponseData)?;

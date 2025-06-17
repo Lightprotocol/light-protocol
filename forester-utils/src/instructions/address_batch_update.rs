@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use futures::future;
 use light_batched_merkle_tree::{
@@ -27,6 +29,9 @@ pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
+    prover_url: String,
+    polling_interval: Duration,
+    max_wait_time: Duration,
 ) -> Result<(Vec<InstructionDataBatchNullifyInputs>, u16), ForesterUtilsError>
 where
     R: Rpc,
@@ -58,15 +63,25 @@ where
         let current_zkp_batch_index = batch.get_current_zkp_batch_index();
 
         debug!(
-            "Full batch index: {}, inserted ZKPs: {}, current ZKP index: {}, ready for insertion: {}",
-            full_batch_index, zkp_batch_index, current_zkp_batch_index, current_zkp_batch_index - zkp_batch_index
-        );
+                "Full batch index: {}, inserted ZKPs: {}, current ZKP index: {}, ready for insertion: {}",
+                full_batch_index, zkp_batch_index, current_zkp_batch_index, current_zkp_batch_index - zkp_batch_index
+            );
 
         for i in zkp_batch_index..current_zkp_batch_index {
             hash_chains.push(merkle_tree.hash_chain_stores[full_batch_index as usize][i as usize]);
         }
 
         let start_index = merkle_tree.next_index;
+
+        merkle_tree
+            .root_history
+            .as_slice()
+            .iter()
+            .enumerate()
+            .for_each(|(i, root)| {
+                println!("Root at index {}: {:?}", i, root);
+            });
+
         let current_root = *merkle_tree.root_history.last().unwrap();
         let zkp_batch_size = batch.zkp_batch_size as u16;
 
@@ -80,7 +95,7 @@ where
 
     wait_for_indexer(rpc, indexer).await?;
 
-    let total_elements = batch_size as usize * leaves_hash_chains.len();
+    let total_elements = std::cmp::min(batch_size as usize * leaves_hash_chains.len(), 500);
     debug!("Requesting {} total elements from indexer", total_elements);
 
     let indexer_update_info = indexer
@@ -90,7 +105,7 @@ where
             error!("Failed to get batch address update info: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get batch address update info".into())
         })?;
-    debug!("indexer_update_info {:?}", indexer_update_info);
+    // debug!("indexer_update_info {:?}", indexer_update_info);
     let indexer_root = indexer_update_info
         .value
         .non_inclusion_proofs
@@ -142,6 +157,10 @@ where
     > = Vec::new();
 
     for (batch_idx, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
+        if batch_idx >= 1 {
+            break;
+        }
+
         debug!(
             "Preparing circuit inputs for batch {} with root {:?}",
             batch_idx, current_root
@@ -253,7 +272,8 @@ where
     }
 
     info!("Generating {} ZK proofs asynchronously", all_inputs.len());
-    let proof_client = ProofClient::local();
+    let proof_client = ProofClient::with_config(prover_url, polling_interval, max_wait_time);
+
     let proof_futures = all_inputs
         .into_iter()
         .map(|inputs| proof_client.generate_batch_address_append_proof(inputs));

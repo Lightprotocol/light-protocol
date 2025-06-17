@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{config::GeneralConfig, epoch_manager::WorkReport, run_pipeline, ForesterConfig};
+use forester_utils::utils::wait_for_indexer;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -22,7 +23,6 @@ use light_compressed_account::{
         data::{NewAddressParams, NewAddressParamsAssigned, OutputCompressedAccountWithContext},
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
-    pubkey::AsPubkey,
     TreeType,
 };
 use light_compressed_token::process_transfer::{
@@ -40,7 +40,6 @@ use light_test_utils::{
         create_pda_instruction, CreateCompressedPdaInstructionInputs,
     },
     pack::{pack_new_address_params_assigned, pack_output_compressed_accounts},
-    spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,
 };
 use rand::{prelude::StdRng, seq::SliceRandom, Rng, SeedableRng};
@@ -60,6 +59,10 @@ mod test_utils;
 
 fn get_photon_indexer_url() -> String {
     env::var("PHOTON_INDEXER_URL").unwrap_or_else(|_| "http://127.0.0.1:8784".to_string())
+}
+
+fn create_photon_indexer() -> PhotonIndexer {
+    PhotonIndexer::new(get_photon_indexer_url(), None)
 }
 
 fn get_testnet_governance_authority_keypair() -> [u8; 64] {
@@ -93,18 +96,6 @@ const OUTPUT_ACCOUNT_NUM: usize = 2;
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 #[serial]
 async fn test_testnet() {
-    // init(Some(LightValidatorConfig {
-    //     enable_indexer: false,
-    //     wait_time: 90,
-    //     prover_config: Some(ProverConfig::default()),
-    //     sbf_programs: vec![(
-    //         "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
-    //         "../target/deploy/create_address_test_program.so".to_string(),
-    //     )],
-    //     limit_ledger_size: Some(500000),
-    // }))
-    // .await;
-
     let program_id = LIGHT_SYSTEM_PROGRAM_ID;
     let pda = Pubkey::find_program_address(&[program_id.as_slice()], &account_compression::ID).0;
     println!("pda: {}", pda);
@@ -113,9 +104,9 @@ async fn test_testnet() {
 
     let mut rng = StdRng::seed_from_u64(seed);
 
-    // for _ in 0..2508 {
-    //     let _ = rng.gen::<u64>();
-    // }
+    for _ in 0..8750 {
+        let _ = rng.gen::<u64>();
+    }
 
     let tree_params = InitAddressTreeAccountsInstructionData::testnet_default();
     let mut env = TestAccounts::get_testnet_accounts();
@@ -161,6 +152,18 @@ async fn test_testnet() {
     .unwrap();
     println!("address tree {:?}", queue.get_metadata());
 
+    let mint_keypair: [u8; 64] = [
+        252, 188, 100, 55, 45, 34, 146, 113, 156, 209, 84, 80, 67, 178, 150, 224, 27, 158, 159,
+        140, 54, 122, 217, 223, 134, 145, 104, 172, 55, 171, 181, 115, 144, 165, 49, 170, 28, 148,
+        60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169, 234, 29, 230, 22, 74, 49, 189,
+        28, 226, 242, 128, 191, 112,
+    ];
+
+    let mint_pubkey = [
+        144, 165, 49, 170, 28, 148, 60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169,
+        234, 29, 230, 22, 74, 49, 189, 28, 226, 242, 128, 191, 112,
+    ];
+
     // let mint_keypair: [u8; 64] = [
     //     34, 68, 161, 27, 78, 253, 99, 153, 78, 49, 80, 3, 91, 36, 109, 239, 124, 205, 252, 8, 215,
     //     224, 39, 252, 166, 9, 245, 56, 195, 218, 140, 14, 173, 222, 249, 91, 197, 119, 150, 178,
@@ -168,17 +171,17 @@ async fn test_testnet() {
     //     38, 118, 47, 170,
     // ];
     // let mint_keypair = Keypair::from_bytes(&mint_keypair).unwrap();
-    let mint_keypair = Keypair::new();
-    println!("mint keypair: {:?}", mint_keypair.to_bytes());
+    // let mint_keypair = Keypair::new();
+    // println!("mint keypair: {:?}", mint_keypair.to_bytes());
     let batch_payer = &env.protocol.forester.insecure_clone();
-    let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, batch_payer, &mint_keypair).await;
+    // let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, batch_payer, &mint_keypair).await;
     // let mint_pubkey: [u8; 32] = [
     //     173, 222, 249, 91, 197, 119, 150, 178, 25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60,
     //     253, 39, 235, 125, 43, 59, 137, 54, 5, 38, 118, 47, 170,
     // ];
-    // let mint_pubkey = Pubkey::from(mint_pubkey);
-    println!("mint_pubkey: {:?}", mint_pubkey.to_pubkey_bytes());
-    println!("mint_pubkey: {:?}", mint_pubkey.to_string());
+    let mint_pubkey = Pubkey::from(mint_pubkey);
+    // println!("mint_pubkey: {:?}", mint_pubkey.to_pubkey_bytes());
+    // println!("mint_pubkey: {:?}", mint_pubkey.to_string());
 
     let sig = mint_to(
         &mut rpc,
@@ -189,11 +192,13 @@ async fn test_testnet() {
     .await;
     println!("mint_to: {:?}", sig);
 
+    let photon_indexer = create_photon_indexer();
+    wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
+
     {
         let batch_size = get_state_batch_size(&mut rpc, &env.v2_state_trees[0].merkle_tree).await;
         println!("state batch size: {}", batch_size);
-        for i in 0..10 {
-            // {
+        for i in 0..batch_size {
             //     let batch_compress_sig = compress(
             //         &mut rpc,
             //         &env.v2_state_trees[0].output_queue,
@@ -658,10 +663,10 @@ async fn compressed_token_transfer<R: Rpc>(
         .unwrap()
         .into();
 
-    println!(
-        "compressed_token_transfer input_compressed_accounts: {:?}",
-        input_compressed_accounts
-    );
+    // println!(
+    //     "compressed_token_transfer input_compressed_accounts: {:?}",
+    //     input_compressed_accounts
+    // );
     // assert_eq!(
     // std::cmp::min(input_compressed_accounts.len(), 1000),
     // std::cmp::min(*counter as usize, 1000)
@@ -677,14 +682,14 @@ async fn compressed_token_transfer<R: Rpc>(
     let compressed_account_hashes = input_compressed_accounts
         .iter()
         .map(|x| {
-            println!(
-                "compressed_token_transfer compressed_account hash: {:?}",
-                x.compressed_account.hash()
-            );
-            println!(
-                "compressed_token_transfer merkle_context: {:?}",
-                x.compressed_account.merkle_context
-            );
+            // println!(
+            //     "compressed_token_transfer compressed_account hash: {:?}",
+            //     x.compressed_account.hash()
+            // );
+            // println!(
+            //     "compressed_token_transfer merkle_context: {:?}",
+            //     x.compressed_account.merkle_context
+            // );
             x.compressed_account.hash().unwrap()
         })
         .collect::<Vec<[u8; 32]>>();
@@ -711,14 +716,14 @@ async fn compressed_token_transfer<R: Rpc>(
         OUTPUT_ACCOUNT_NUM
     ];
     compressed_accounts[0].amount += tokens_remained;
-    println!(
-        "compressed_token_transfer input_compressed_accounts: {:?}",
-        input_compressed_accounts
-    );
-    println!(
-        "compressed_token_transfer compressed_accounts: {:?}",
-        compressed_accounts
-    );
+    // println!(
+    //     "compressed_token_transfer input_compressed_accounts: {:?}",
+    //     input_compressed_accounts
+    // );
+    // println!(
+    //     "compressed_token_transfer compressed_accounts: {:?}",
+    //     compressed_accounts
+    // );
     let proof = if root_indices.iter().all(|x| x.is_none()) {
         None
     } else {
@@ -763,11 +768,11 @@ async fn compressed_token_transfer<R: Rpc>(
         false,
     )
     .unwrap();
-    println!(
-        "compressed_token_transfer compressed_accounts: {:?}",
-        input_compressed_accounts_data
-    );
-    println!("compressed_token_transfer root_indices: {:?}", root_indices);
+    // println!(
+    //     "compressed_token_transfer compressed_accounts: {:?}",
+    //     input_compressed_accounts_data
+    // );
+    // println!("compressed_token_transfer root_indices: {:?}", root_indices);
     let mut instructions = vec![
         solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,

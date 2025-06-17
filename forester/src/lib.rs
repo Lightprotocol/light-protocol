@@ -41,7 +41,9 @@ use crate::{
     indexer_type::IndexerType,
     metrics::QUEUE_LENGTH,
     processor::tx_cache::ProcessedHashCache,
-    queue_helpers::fetch_queue_item_data,
+    queue_helpers::{
+        fetch_address_v2_queue_length, fetch_queue_item_data, fetch_state_v2_queue_length,
+    },
     slot_tracker::SlotTracker,
     utils::get_protocol_config,
 };
@@ -66,26 +68,48 @@ pub async fn run_queue_info(
         .collect();
 
     for tree_data in trees {
-        if tree_data.tree_type == TreeType::StateV2 {
-            continue;
-        }
-
-        let length = if tree_data.tree_type == TreeType::StateV1 {
-            STATE_NULLIFIER_QUEUE_VALUES
-        } else {
-            ADDRESS_QUEUE_VALUES
-        };
-
-        let queue_length = fetch_queue_item_data(&mut rpc, &tree_data.queue, 0, length, length)
+        let queue_length = match tree_data.tree_type {
+            TreeType::StateV1 => fetch_queue_item_data(
+                &mut rpc,
+                &tree_data.queue,
+                0,
+                STATE_NULLIFIER_QUEUE_VALUES,
+                STATE_NULLIFIER_QUEUE_VALUES,
+            )
             .await
             .unwrap()
-            .len();
+            .len(),
+            TreeType::AddressV1 => fetch_queue_item_data(
+                &mut rpc,
+                &tree_data.queue,
+                0,
+                ADDRESS_QUEUE_VALUES,
+                ADDRESS_QUEUE_VALUES,
+            )
+            .await
+            .unwrap()
+            .len(),
+            TreeType::StateV2 => fetch_state_v2_queue_length(&mut rpc, &tree_data.queue)
+                .await
+                .unwrap(),
+            TreeType::AddressV2 => fetch_address_v2_queue_length(&mut rpc, &tree_data.merkle_tree)
+                .await
+                .unwrap(),
+        };
+
         QUEUE_LENGTH
             .with_label_values(&[&*queue_type.to_string(), &tree_data.merkle_tree.to_string()])
             .set(queue_length as i64);
+
+        let queue_identifier = if tree_data.tree_type == TreeType::AddressV2 {
+            tree_data.merkle_tree.to_string()
+        } else {
+            tree_data.queue.to_string()
+        };
+
         println!(
             "{:?} queue {} length: {}",
-            queue_type, tree_data.queue, queue_length
+            queue_type, queue_identifier, queue_length
         );
     }
 }

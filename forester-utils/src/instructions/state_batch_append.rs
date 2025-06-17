@@ -1,3 +1,5 @@
+use std::{sync::Arc, time::Duration};
+
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
@@ -24,6 +26,9 @@ pub async fn create_append_batch_ix_data<R: Rpc, I: Indexer>(
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
+    prover_url: String,
+    polling_interval: Duration,
+    max_wait_time: Duration,
 ) -> Result<Vec<InstructionDataBatchAppendInputs>, ForesterUtilsError> {
     trace!("Creating append batch instruction data");
 
@@ -87,6 +92,12 @@ pub async fn create_append_batch_ix_data<R: Rpc, I: Indexer>(
         Vec::new();
     let mut proof_futures = Vec::new();
 
+    let proof_client = Arc::new(ProofClient::with_config(
+        prover_url.clone(),
+        polling_interval,
+        max_wait_time,
+    ));
+
     for (batch_idx, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
         let start_idx = batch_idx * zkp_batch_size as usize;
         let end_idx = start_idx + zkp_batch_size as usize;
@@ -136,7 +147,8 @@ pub async fn create_append_batch_ix_data<R: Rpc, I: Indexer>(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap();
         all_changelogs.extend(batch_changelogs);
 
-        let proof_future = generate_zkp_proof(circuit_inputs);
+        let client = Arc::clone(&proof_client);
+        let proof_future = generate_zkp_proof(circuit_inputs, client);
 
         proof_futures.push(proof_future);
     }
@@ -164,8 +176,8 @@ pub async fn create_append_batch_ix_data<R: Rpc, I: Indexer>(
 }
 async fn generate_zkp_proof(
     circuit_inputs: BatchAppendWithProofsCircuitInputs,
+    proof_client: Arc<ProofClient>,
 ) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
-    let proof_client = ProofClient::local();
     let (proof, new_root) = proof_client
         .generate_batch_append_proof(circuit_inputs)
         .await
