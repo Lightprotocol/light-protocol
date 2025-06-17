@@ -68,30 +68,19 @@ pub fn setup_light_programs(
         .inspect_err(|_| {
             println!("Program spl_noop bin not found in {}", path);
         })?;
-    #[cfg(feature = "devenv")]
-    {
-        let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
-        program_test
-            .add_program_from_file(
-                light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
-                path.clone(),
-            )
-            .inspect_err(|_| {
-                println!(
-                    "Program light_system_program_pinocchio bin not found in {}",
-                    path
-                );
-            })?;
-    }
 
-    #[cfg(not(feature = "devenv"))]
-    {
-        let path = format!("{}/light_system_program.so", light_bin_path);
-        program_test.add_program_from_file(
-            Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
-            path,
-        )?;
-    }
+    let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
+    program_test
+        .add_program_from_file(
+            light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
+            path.clone(),
+        )
+        .inspect_err(|_| {
+            println!(
+                "Program light_system_program_pinocchio bin not found in {}",
+                path
+            );
+        })?;
 
     let registered_program = registered_program_test_account_system_program();
     program_test

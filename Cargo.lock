@@ -3527,7 +3527,7 @@ dependencies = [
 
 [[package]]
 name = "light-program-test"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
