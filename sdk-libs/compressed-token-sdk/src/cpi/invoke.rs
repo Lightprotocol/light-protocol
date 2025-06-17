@@ -108,7 +108,9 @@ pub fn create_compressed_token_instruction(
 
     for token_account in cpi_inputs.token_accounts {
         let (inputs, output) = token_account.into_inputs_and_outputs();
-        input_token_data_with_context.extend(inputs);
+        for input in inputs {
+            input_token_data_with_context.push(input.into());
+        }
         if output.amount == 0 && cpi_inputs.filter_zero_amount_outputs {
         } else {
             output_compressed_accounts.push(output);
