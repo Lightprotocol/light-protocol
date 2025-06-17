@@ -1,6 +1,6 @@
 [package]
 name = "light-sdk-pinocchio"
-version = "0.12.0"
+version = "0.13.0"
 description = "Rust SDK for ZK Compression on Solana with Pinocchio features"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
