@@ -1,4 +1,5 @@
 use crate::{AnchorDeserialize, AnchorSerialize};
+pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct PackedMerkleContext {
@@ -8,13 +9,6 @@ pub struct PackedMerkleContext {
     pub queue_index: Option<u16>,
 }
 
-// TODO: get from light-compressed-account
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedProof {
-    pub a: [u8; 32],
-    pub b: [u8; 64],
-    pub c: [u8; 32],
-}
 
 // TODO: get from light-compressed-account
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
