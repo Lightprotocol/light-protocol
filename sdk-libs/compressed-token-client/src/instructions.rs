@@ -164,7 +164,7 @@ pub fn create_decompress_instruction(
             lamports: None,
             merkle_tree: params
                 .output_state_tree
-                .unwrap_or(merkle_contexts[0].merkle_tree_pubkey),
+                .unwrap_or(merkle_contexts[0].merkle_tree_pubkey.into()),
         }]
     } else {
         vec![]
