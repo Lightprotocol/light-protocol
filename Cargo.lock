@@ -5444,12 +5444,10 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "light-compressed-token-sdk",
- "light-macros",
  "light-program-test",
  "light-sdk",
  "light-test-utils",
  "serial_test",
- "solana-program",
  "solana-sdk",
  "tokio",
 ]

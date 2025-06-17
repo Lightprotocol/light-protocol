@@ -40,6 +40,10 @@ impl PackedAccounts {
         self.pre_accounts.push(account_meta);
     }
 
+    pub fn add_pre_accounts_metas(&mut self, account_metas: &[AccountMeta]) {
+        self.pre_accounts.extend_from_slice(account_metas);
+    }
+
     pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
         self.system_accounts
             .extend(get_light_system_account_metas(config));
