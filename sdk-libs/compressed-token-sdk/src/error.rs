@@ -12,7 +12,11 @@ pub enum TokenSdkError {
     CpiError(String),
     #[error("Cannot compress and decompress")]
     CannotCompressAndDecompress,
+    #[error("Inconsistent compress/decompress state")]
+    InconsistentCompressDecompressState,
+    #[error("Both compress and decompress specified")]
+    BothCompressAndDecompress,
+    #[error("Invalid compress/decompress amount")]
+    InvalidCompressDecompressAmount,
 }
 
-// Keep old error type for backwards compatibility
-pub type CTokenSdkError = TokenSdkError;

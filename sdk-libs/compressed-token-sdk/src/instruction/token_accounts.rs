@@ -1,16 +1,17 @@
 use light_compressed_token_types::{
-    ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
-    PROGRAM_ID as LIGHT_COMPRESSED_TOKEN_PROGRAM_ID, SPL_TOKEN_2022_PROGRAM_ID,
-    SPL_TOKEN_PROGRAM_ID,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA,
+    LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID, PROGRAM_ID as LIGHT_COMPRESSED_TOKEN_PROGRAM_ID,
+    SPL_TOKEN_2022_PROGRAM_ID, SPL_TOKEN_PROGRAM_ID,
 };
+use light_sdk::constants::REGISTERED_PROGRAM_PDA;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
 /// Account metadata configuration for compressed token instructions
 #[derive(Debug, Default, Copy, Clone)]
 pub struct TokenAccountsMetaConfig {
-    pub fee_payer: Pubkey,
-    pub authority: Pubkey,
+    // pub fee_payer: Pubkey,
+    // pub authority: Pubkey,
     pub token_pool_pda: Option<Pubkey>,
     pub compress_or_decompress_token_account: Option<Pubkey>,
     pub token_program: Option<Pubkey>,
@@ -19,8 +20,8 @@ pub struct TokenAccountsMetaConfig {
 impl TokenAccountsMetaConfig {
     pub fn new(fee_payer: Pubkey, authority: Pubkey) -> Self {
         Self {
-            fee_payer,
-            authority,
+            // fee_payer,
+            // authority,
             token_pool_pda: None,
             compress_or_decompress_token_account: None,
             token_program: None,
@@ -34,9 +35,10 @@ impl TokenAccountsMetaConfig {
         sender_token_account: Pubkey,
         is_token22: bool,
     ) -> Self {
+        // TODO: derive token_pool_pda here and pass mint instead.
         Self {
-            fee_payer,
-            authority,
+            // fee_payer,
+            // authority,
             token_pool_pda: Some(token_pool_pda),
             compress_or_decompress_token_account: Some(sender_token_account),
             token_program: Some(if is_token22 {
@@ -55,8 +57,8 @@ impl TokenAccountsMetaConfig {
         is_token22: bool,
     ) -> Self {
         Self {
-            fee_payer,
-            authority,
+            // fee_payer,
+            // authority,
             token_pool_pda: Some(token_pool_pda),
             compress_or_decompress_token_account: Some(recipient_token_account),
             token_program: Some(if is_token22 {
@@ -83,13 +85,9 @@ pub struct TokenAccountPubkeys {
 
 impl Default for TokenAccountPubkeys {
     fn default() -> Self {
-        // For the registered_program_pda, we need to derive it properly
-        // For now, using a placeholder - this should be computed at runtime
-        let registered_program_pda = Pubkey::new_unique(); // TODO: compute properly
+        let registered_program_pda = Pubkey::from(REGISTERED_PROGRAM_PDA);
 
-        // For account_compression_authority, we can use the pre-computed CPI_AUTHORITY_PDA
-        // but for the light system program context, we need to derive it
-        let account_compression_authority = Pubkey::new_unique(); // TODO: compute properly
+        let account_compression_authority = Pubkey::from(ACCOUNT_COMPRESSION_AUTHORITY_PDA);
 
         Self {
             light_system_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
@@ -99,7 +97,7 @@ impl Default for TokenAccountPubkeys {
             account_compression_program: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
             self_program: Pubkey::from(LIGHT_COMPRESSED_TOKEN_PROGRAM_ID),
             cpi_authority_pda: Pubkey::from(CPI_AUTHORITY_PDA),
-            system_program: Pubkey::new_from_array([0u8; 32]), // System program ID (11111111111111111111111111111111)
+            system_program: Pubkey::default(),
         }
     }
 }
@@ -109,10 +107,10 @@ pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -
     let default_pubkeys = TokenAccountPubkeys::default();
 
     let mut metas = vec![
-        // fee_payer (mut, signer)
-        AccountMeta::new(config.fee_payer, true),
-        // authority (signer)
-        AccountMeta::new_readonly(config.authority, true),
+        // // fee_payer (mut, signer)
+        // AccountMeta::new(config.fee_payer, true),
+        // // authority (signer)
+        // AccountMeta::new_readonly(config.authority, true),
         // cpi_authority_pda
         AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
         // light_system_program

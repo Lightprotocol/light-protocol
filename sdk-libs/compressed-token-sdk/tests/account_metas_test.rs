@@ -168,8 +168,8 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
     // Create CpiAccounts with config that enables all optional accounts
     let config = CpiAccountsConfig {
         cpi_context: true,
-        compress_or_decompress_token_account: true,
-        token_pool_pda: true,
+        compress: true,
+        decompress: false,
     };
     let cpi_accounts = CpiAccounts::new_with_config(&fee_payer_info, &account_infos, config);
 
@@ -179,6 +179,23 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
 
     let account_metas = result.unwrap();
     let reference_metas = reference.to_account_metas(Some(true));
-
+    println!("account_metas {:?}", account_metas);
     assert_eq!(account_metas, reference_metas);
+    assert_eq!(
+        *cpi_accounts.account_compression_program().unwrap().key,
+        Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID)
+    );
+    assert_eq!(
+        *cpi_accounts.light_system_program().unwrap().key,
+        Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID)
+    );
+    // assert_eq!(
+    //     cpi_accounts.account_compression_authority(),
+    //     Some(account_compression_authority)
+    // );
+    // assert_eq!(cpi_accounts.fee_payer(), Some(fee_payer_info));
+    // assert_eq!(
+    //     cpi_accounts.account_compression_authority(),
+    //     Some(account_compression_authority)
+    // );
 }

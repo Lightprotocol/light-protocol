@@ -21,7 +21,7 @@ use solana_sdk::{
 #[tokio::test]
 async fn test_compress_spl_tokens() {
     // Initialize the test environment
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
         Some(vec![("sdk_token_test", sdk_token_test::ID)]),
     ))
@@ -118,9 +118,10 @@ async fn compress_spl_tokens(
         false,
     );
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
+    let metas = get_transfer_instruction_account_metas(config);
+    println!("metas {:?}", metas.to_vec());
     // Add the token account to pre_accounts for the compression
-    remaining_accounts
-        .add_pre_accounts_metas(get_transfer_instruction_account_metas(config).as_slice());
+    remaining_accounts.add_pre_accounts_metas(metas.as_slice());
 
     let output_tree_index = rpc
         .get_random_state_tree_info()
@@ -129,14 +130,11 @@ async fn compress_spl_tokens(
         .unwrap();
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
+    println!("remaining_accounts {:?}", remaining_accounts.to_vec());
 
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
-        accounts: [
-            vec![AccountMeta::new(payer.pubkey(), true)],
-            remaining_accounts,
-        ]
-        .concat(),
+        accounts: [remaining_accounts].concat(),
         data: sdk_token_test::instruction::Compress {
             output_tree_index,
             recipient,

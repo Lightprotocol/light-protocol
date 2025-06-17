@@ -1,3 +1,4 @@
+use anchor_lang::Key;
 use light_compressed_token_types::{
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID,
@@ -27,10 +28,7 @@ pub fn to_compressed_token_account_metas(
 
     // authority (signer)
     account_metas.push(AccountMeta {
-        pubkey: *cpi_accounts
-            .authority()
-            .map_err(|_| TokenSdkError::CpiError("Missing authority".to_string()))?
-            .key,
+        pubkey: *cpi_accounts.authority().key,
         is_signer: true,
         is_writable: false,
     });
@@ -51,6 +49,7 @@ pub fn to_compressed_token_account_metas(
 
     // registered_program_pda
     account_metas.push(AccountMeta {
+        // TODO: hardcode
         pubkey: *cpi_accounts
             .registered_program_pda()
             .map_err(|_| TokenSdkError::CpiError("Missing registered program PDA".to_string()))?
@@ -89,12 +88,14 @@ pub fn to_compressed_token_account_metas(
         is_signer: false,
         is_writable: false,
     });
+    solana_msg::msg!("cpi_accounts.config() {:?}", cpi_accounts.config());
 
     // token_pool_pda - if not configured, use compressed token program ID (like anchor does for None)
-    if cpi_accounts.config().token_pool_pda {
+    if cpi_accounts.config().is_compress_or_decompress() {
         let account = cpi_accounts
-            .sol_pool_pda()
+            .token_pool_pda()
             .map_err(|_| TokenSdkError::CpiError("Missing token pool PDA".to_string()))?;
+        solana_msg::msg!("token_pool_pda {}", account.key);
         account_metas.push(AccountMeta {
             pubkey: *account.key,
             is_signer: false,
@@ -108,9 +109,9 @@ pub fn to_compressed_token_account_metas(
             is_writable: false,
         });
     }
-
+    solana_msg::msg!("cpi_accounts.config() {:?}", cpi_accounts.config());
     // compress_or_decompress_token_account - if not configured, use compressed token program ID
-    if cpi_accounts.config().compress_or_decompress_token_account {
+    if cpi_accounts.config().is_compress_or_decompress() {
         let account = cpi_accounts.decompression_recipient().map_err(|_| {
             TokenSdkError::CpiError("Missing compress/decompress account".to_string())
         })?;
@@ -128,25 +129,29 @@ pub fn to_compressed_token_account_metas(
         });
     }
 
-    // token_program - if not configured, use compressed token program ID
-    if cpi_accounts.config().cpi_context {
-        let account = cpi_accounts
-            .cpi_context()
-            .map_err(|_| TokenSdkError::CpiError("Missing token program".to_string()))?;
-        account_metas.push(AccountMeta {
-            pubkey: *account.key,
-            is_signer: false,
-            is_writable: false,
-        });
-    } else {
-        // Anchor represents None optional accounts as the program ID being invoked
-        account_metas.push(AccountMeta {
-            pubkey: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
-            is_signer: false,
-            is_writable: false,
-        });
-    }
-
+    // // token_program - if not configured, use compressed token program ID
+    // if cpi_accounts.config().cpi_context {
+    //     let account = cpi_accounts
+    //         .cpi_context()
+    //         .map_err(|_| TokenSdkError::CpiError("Missing token program".to_string()))?;
+    //     account_metas.push(AccountMeta {
+    //         pubkey: *account.key,
+    //         is_signer: false,
+    //         is_writable: false,
+    //     });
+    // } else {
+    //     // Anchor represents None optional accounts as the program ID being invoked
+    //     account_metas.push(AccountMeta {
+    //         pubkey: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+    //         is_signer: false,
+    //         is_writable: false,
+    //     });
+    // }
+    account_metas.push(AccountMeta {
+        pubkey: cpi_accounts.spl_token_program().unwrap().key(),
+        is_signer: false,
+        is_writable: false,
+    });
     // system_program (always last according to TransferInstruction definition)
     account_metas.push(AccountMeta {
         pubkey: Pubkey::default(), // System program ID
@@ -154,14 +159,11 @@ pub fn to_compressed_token_account_metas(
         is_writable: false,
     });
 
-    // Add any remaining tree accounts
-    let system_len = account_metas.len();
-    let tree_accounts = cpi_accounts
-        .account_infos()
-        .get(system_len..)
-        .unwrap_or(&[]);
+    // TODO: implement error conversion
+    let tree_accounts = cpi_accounts.tree_accounts().unwrap_or_default();
 
     for account in tree_accounts {
+        solana_msg::msg!("tree account: {}", account.key);
         account_metas.push(AccountMeta {
             pubkey: *account.key,
             is_signer: false,

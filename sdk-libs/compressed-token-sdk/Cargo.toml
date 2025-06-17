@@ -16,7 +16,7 @@ light-macros = { workspace = true }
 thiserror = { workspace = true }
 # Serialization
 borsh = { workspace = true }
-
+solana-msg = { workspace = true }
 # Solana dependencies
 solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }
 solana-instruction = { workspace = true }

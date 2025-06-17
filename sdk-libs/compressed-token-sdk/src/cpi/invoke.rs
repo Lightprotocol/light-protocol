@@ -3,7 +3,7 @@ use light_compressed_token_types::{
     constants::{PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID, TRANSFER},
     cpi_accounts::CpiAccounts,
     instruction::transfer::CompressedTokenInstructionDataTransfer,
-    AnchorSerialize, CompressedCpiContext,
+    CompressedCpiContext,
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
@@ -13,6 +13,7 @@ use crate::{
     account::CTokenAccount,
     cpi::accounts::to_compressed_token_account_metas,
     error::{Result, TokenSdkError},
+    AnchorSerialize,
 };
 
 /// CPI inputs for compressed token operations
@@ -53,9 +54,31 @@ pub fn create_compressed_token_instruction(
         .token_accounts
         .iter()
         .any(|acc| acc.is_compress());
+    let is_decompress = cpi_inputs
+        .token_accounts
+        .iter()
+        .any(|acc| acc.is_decompress());
     let mint = *cpi_inputs.token_accounts[0].mint();
     let compress_or_decompress_amount: Option<u64> =
         Some(cpi_inputs.token_accounts.iter().map(|acc| acc.amount).sum());
+
+    // Check 1: cpi accounts must be decompress or compress consistent with accounts
+    if (is_compress && !cpi_accounts.config().compress)
+        || (is_decompress && !cpi_accounts.config().decompress)
+    {
+        return Err(TokenSdkError::InconsistentCompressDecompressState);
+    }
+
+    // Check 2: there can only be compress or decompress not both
+    if is_compress && is_decompress {
+        return Err(TokenSdkError::BothCompressAndDecompress);
+    }
+
+    // Check 3: compress_or_decompress_amount must be Some
+    if compress_or_decompress_amount.is_none() {
+        return Err(TokenSdkError::InvalidCompressDecompressAmount);
+    }
+
     // Extract input and output data from token accounts
     let mut input_token_data_with_context = Vec::new();
     let mut output_compressed_accounts = Vec::new();
