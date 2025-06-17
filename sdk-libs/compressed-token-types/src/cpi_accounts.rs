@@ -29,7 +29,7 @@ impl CpiAccountsConfig {
 
     pub fn new_decompress() -> Self {
         Self {
-            cpi_context: true,
+            cpi_context: false,
             compress: false,
             decompress: true,
         }
@@ -199,10 +199,12 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
     pub fn system_accounts_len(&self) -> usize {
         let mut len = SYSTEM_ACCOUNTS_LEN;
         if !self.config.is_compress_or_decompress() {
+            solana_msg::msg!("System accounts length calculation");
             // Token pool pda & compression sender or decompression recipient
             len -= 3;
         }
         if !self.config.cpi_context {
+            solana_msg::msg!("System accounts length calculation");
             len -= 1;
         }
         len
@@ -220,6 +222,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
 
     pub fn tree_accounts(&self) -> Result<&'a [T]> {
         let system_len = self.system_accounts_len();
+        solana_msg::msg!("Tree accounts length calculation {}", system_len);
         self.accounts
             .get(system_len..)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(

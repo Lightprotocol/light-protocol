@@ -18,10 +18,8 @@ pub struct TokenAccountsMetaConfig {
 }
 
 impl TokenAccountsMetaConfig {
-    pub fn new(fee_payer: Pubkey, authority: Pubkey) -> Self {
+    pub fn new() -> Self {
         Self {
-            // fee_payer,
-            // authority,
             token_pool_pda: None,
             compress_or_decompress_token_account: None,
             token_program: None,
@@ -29,16 +27,12 @@ impl TokenAccountsMetaConfig {
     }
 
     pub fn compress(
-        fee_payer: Pubkey,
-        authority: Pubkey,
         token_pool_pda: Pubkey,
         sender_token_account: Pubkey,
         is_token22: bool,
     ) -> Self {
         // TODO: derive token_pool_pda here and pass mint instead.
         Self {
-            // fee_payer,
-            // authority,
             token_pool_pda: Some(token_pool_pda),
             compress_or_decompress_token_account: Some(sender_token_account),
             token_program: Some(if is_token22 {
@@ -50,15 +44,11 @@ impl TokenAccountsMetaConfig {
     }
 
     pub fn decompress(
-        fee_payer: Pubkey,
-        authority: Pubkey,
         token_pool_pda: Pubkey,
         recipient_token_account: Pubkey,
         is_token22: bool,
     ) -> Self {
         Self {
-            // fee_payer,
-            // authority,
             token_pool_pda: Some(token_pool_pda),
             compress_or_decompress_token_account: Some(recipient_token_account),
             token_program: Some(if is_token22 {
@@ -107,10 +97,6 @@ pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -
     let default_pubkeys = TokenAccountPubkeys::default();
 
     let mut metas = vec![
-        // // fee_payer (mut, signer)
-        // AccountMeta::new(config.fee_payer, true),
-        // // authority (signer)
-        // AccountMeta::new_readonly(config.authority, true),
         // cpi_authority_pda
         AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
         // light_system_program

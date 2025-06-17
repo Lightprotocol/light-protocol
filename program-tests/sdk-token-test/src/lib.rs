@@ -34,24 +34,12 @@ pub mod sdk_token_test {
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
         );
-        msg!(
-            "light_cpi_accounts config {:?}",
-            light_cpi_accounts.config()
-        );
-        msg!(
-            "light_cpi_accounts config is_compress_or_decompress {:?}",
-            light_cpi_accounts.config().is_compress_or_decompress()
-        );
-        msg!(
-            "ctx.remaining_accounts len {:?}",
-            ctx.remaining_accounts.len()
-        );
+
         // TODO: add to program error conversion
         let instruction =
             create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
         let account_infos = light_cpi_accounts.to_account_infos();
-        msg!("account_infos {:?}", account_infos);
-        msg!("instruction {:?}", instruction);
+
         invoke(&instruction, account_infos.as_slice())?;
 
         Ok(())
@@ -85,7 +73,7 @@ pub mod sdk_token_test {
         // TODO: add to program error conversion
         let instruction =
             create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
-        msg!("instruction created {:?}", instruction);
+
         let account_infos = light_cpi_accounts.to_account_infos();
 
         // TODO: make invoke_signed
@@ -120,8 +108,7 @@ pub mod sdk_token_test {
         let instruction =
             create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
         let account_infos = light_cpi_accounts.to_account_infos();
-        msg!("account_infos {:?}", account_infos);
-        msg!("instruction {:?}", instruction);
+
         // TODO: make invoke_signed
         invoke(&instruction, account_infos.as_slice())?;
 

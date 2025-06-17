@@ -13,3 +13,4 @@ anchor-lang = { workspace = true, optional = true }
 light-account-checks = { workspace = true }
 light-compressed-account = { workspace = true }
 thiserror = { workspace = true }
+solana-msg = { workspace = true }
