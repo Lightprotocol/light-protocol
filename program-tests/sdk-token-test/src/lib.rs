@@ -85,6 +85,7 @@ pub mod sdk_token_test {
         // TODO: add to program error conversion
         let instruction =
             create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
+        msg!("instruction created {:?}", instruction);
         let account_infos = light_cpi_accounts.to_account_infos();
 
         // TODO: make invoke_signed

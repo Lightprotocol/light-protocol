@@ -7,6 +7,7 @@ use light_compressed_token_types::{
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
+use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -59,8 +60,16 @@ pub fn create_compressed_token_instruction(
         .iter()
         .any(|acc| acc.is_decompress());
     let mint = *cpi_inputs.token_accounts[0].mint();
-    let compress_or_decompress_amount: Option<u64> =
-        Some(cpi_inputs.token_accounts.iter().map(|acc| acc.amount).sum());
+    let mut compress_or_decompress_amount: Option<u64> = None;
+    for acc in cpi_inputs.token_accounts.iter() {
+        if let Some(amount) = acc.compression_amount() {
+            if let Some(compress_or_decompress_amount) = compress_or_decompress_amount.as_mut() {
+                (*compress_or_decompress_amount) += amount;
+            } else {
+                compress_or_decompress_amount = Some(amount);
+            }
+        }
+    }
 
     // Check 1: cpi accounts must be decompress or compress consistent with accounts
     if (is_compress && !cpi_accounts.config().compress)
@@ -75,7 +84,8 @@ pub fn create_compressed_token_instruction(
     }
 
     // Check 3: compress_or_decompress_amount must be Some
-    if compress_or_decompress_amount.is_none() {
+    if compress_or_decompress_amount.is_none() && cpi_accounts.config().is_compress_or_decompress()
+    {
         return Err(TokenSdkError::InvalidCompressDecompressAmount);
     }
 
@@ -88,7 +98,12 @@ pub fn create_compressed_token_instruction(
         input_token_data_with_context.extend(inputs);
         output_compressed_accounts.push(output);
     }
-
+    msg!("inputs {:?}", input_token_data_with_context);
+    msg!("outputs {:?}", output_compressed_accounts);
+    msg!(
+        "compress_or_decompress_amount {:?}",
+        compress_or_decompress_amount
+    );
     // Create instruction data
     let instruction_data = CompressedTokenInstructionDataTransfer {
         proof: cpi_inputs.validity_proof.into(),
@@ -102,6 +117,7 @@ pub fn create_compressed_token_instruction(
         delegated_transfer: None, // TODO: support in separate pr
         lamports_change_account_merkle_tree_index: None, // TODO: support in separate pr
     };
+    msg!("instruction_data {:?}", instruction_data);
     // TODO: calculate exact len.
     let serialized = instruction_data
         .try_to_vec()

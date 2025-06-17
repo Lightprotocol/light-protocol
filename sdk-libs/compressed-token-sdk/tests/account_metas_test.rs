@@ -74,7 +74,8 @@ fn test_to_compressed_token_account_metas_compress() {
 
     // Create CpiAccounts with default config (no optional accounts)
     let config = CpiAccountsConfig::default();
-    let cpi_accounts = CpiAccounts::new_with_config(&fee_payer_info, &account_infos, config);
+    let cpi_accounts =
+        CpiAccounts::new_with_config(&fee_payer_info, &authority, &account_infos, config);
 
     // Test our function
     let result = to_compressed_token_account_metas(&cpi_accounts);
@@ -171,7 +172,8 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
         compress: true,
         decompress: false,
     };
-    let cpi_accounts = CpiAccounts::new_with_config(&fee_payer_info, &account_infos, config);
+    let cpi_accounts =
+        CpiAccounts::new_with_config(&fee_payer_info, &authority, &account_infos, config);
 
     // Test our function
     let result = to_compressed_token_account_metas(&cpi_accounts);

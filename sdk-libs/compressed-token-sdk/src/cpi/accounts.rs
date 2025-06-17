@@ -147,11 +147,24 @@ pub fn to_compressed_token_account_metas(
     //         is_writable: false,
     //     });
     // }
-    account_metas.push(AccountMeta {
-        pubkey: cpi_accounts.spl_token_program().unwrap().key(),
-        is_signer: false,
-        is_writable: false,
-    });
+    if cpi_accounts.config().is_compress_or_decompress() {
+        let account = cpi_accounts.spl_token_program().map_err(|_| {
+            TokenSdkError::CpiError("Missing compress/decompress account".to_string())
+        })?;
+        account_metas.push(AccountMeta {
+            pubkey: account.key(),
+            is_signer: false,
+            is_writable: false,
+        });
+    } else {
+        // Anchor represents None optional accounts as the program ID being invoked
+        account_metas.push(AccountMeta {
+            pubkey: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+            is_signer: false,
+            is_writable: false,
+        });
+    }
+
     // system_program (always last according to TransferInstruction definition)
     account_metas.push(AccountMeta {
         pubkey: Pubkey::default(), // System program ID
