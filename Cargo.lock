@@ -3374,6 +3374,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-compressed-token-sdk"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-compressed-token",
+ "light-compressed-token-types",
+ "light-macros",
+ "light-sdk",
+ "solana-account-info",
+ "solana-cpi",
+ "solana-instruction",
+ "solana-pubkey",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "light-compressed-token-types"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-macros",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "light-concurrent-merkle-tree"
 version = "2.0.1"
 dependencies = [
@@ -5399,6 +5430,21 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "solana-program",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
+name = "sdk-token-test"
+version = "1.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "light-compressed-token-sdk",
+ "light-program-test",
+ "light-sdk",
+ "light-test-utils",
+ "serial_test",
  "solana-sdk",
  "tokio",
 ]
