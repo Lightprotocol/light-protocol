@@ -133,6 +133,10 @@ impl CTokenAccount {
         &self.mint
     }
 
+    pub fn compression_amount(&self) -> Option<u64> {
+        self.compression_amount
+    }
+
     /// Consumes token account for instruction creation.
     pub fn into_inputs_and_outputs(
         self,

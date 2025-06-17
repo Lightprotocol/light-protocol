@@ -6,9 +6,8 @@ pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
     pub leaf_index: u32,
-    pub queue_index: Option<u16>,
+    pub proof_by_index: bool,
 }
-
 
 // TODO: get from light-compressed-account
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]

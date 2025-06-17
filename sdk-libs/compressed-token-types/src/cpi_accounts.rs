@@ -200,7 +200,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         let mut len = SYSTEM_ACCOUNTS_LEN;
         if !self.config.is_compress_or_decompress() {
             // Token pool pda & compression sender or decompression recipient
-            len -= 2;
+            len -= 3;
         }
         if !self.config.cpi_context {
             len -= 1;

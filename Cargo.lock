@@ -5444,6 +5444,8 @@ version = "1.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "light-client",
+ "light-compressed-account",
  "light-compressed-token-sdk",
  "light-program-test",
  "light-sdk",

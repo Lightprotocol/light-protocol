@@ -30,6 +30,8 @@ serial_test = { workspace = true }
 solana-sdk = { workspace = true }
 anchor-spl = { workspace = true }
 light-sdk = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
+light-client = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
