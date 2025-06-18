@@ -44,11 +44,12 @@ fn test_to_compressed_token_account_metas_compress() {
     let mut system_program_account = TestAccount::new(system_program, Pubkey::default(), 0);
 
     let fee_payer_info = fee_payer_account.get_account_info();
+    let authority_info = authority_account.get_account_info();
 
     // Create account infos in the correct order for CpiAccounts
     let account_infos = vec![
         light_system_account.get_account_info(), // 0: light_system_program
-        authority_account.get_account_info(),    // 1: authority
+        authority_info.clone(),                  // 1: authority
         registered_program_account.get_account_info(), // 2: registered_program_pda
         noop_account.get_account_info(),         // 3: noop_program
         compression_authority_account.get_account_info(), // 4: account_compression_authority
@@ -75,7 +76,7 @@ fn test_to_compressed_token_account_metas_compress() {
     // Create CpiAccounts with default config (no optional accounts)
     let config = CpiAccountsConfig::default();
     let cpi_accounts =
-        CpiAccounts::new_with_config(&fee_payer_info, &authority, &account_infos, config);
+        CpiAccounts::new_with_config(&fee_payer_info, &authority_info, &account_infos, config);
 
     // Test our function
     let result = to_compressed_token_account_metas(&cpi_accounts);
@@ -134,11 +135,12 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
     let mut token_program_ctx_account = TestAccount::new(token_program, Pubkey::default(), 0);
 
     let fee_payer_info = fee_payer_account.get_account_info();
+    let authority_info = authority_account.get_account_info();
 
     // Create account infos in the correct order for CpiAccounts with all optional accounts
     let account_infos = vec![
         light_system_account.get_account_info(), // 0: light_system_program
-        authority_account.get_account_info(),    // 1: authority
+        authority_info.clone(),                  // 1: authority
         registered_program_account.get_account_info(), // 2: registered_program_pda
         noop_account.get_account_info(),         // 3: noop_program
         compression_authority_account.get_account_info(), // 4: account_compression_authority
@@ -173,7 +175,7 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
         decompress: false,
     };
     let cpi_accounts =
-        CpiAccounts::new_with_config(&fee_payer_info, &authority, &account_infos, config);
+        CpiAccounts::new_with_config(&fee_payer_info, &authority_info, &account_infos, config);
 
     // Test our function
     let result = to_compressed_token_account_metas(&cpi_accounts);
