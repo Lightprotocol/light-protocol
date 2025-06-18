@@ -3,8 +3,13 @@
 use anchor_lang::{AccountDeserialize, InstructionData};
 use anchor_spl::token::TokenAccount;
 use light_compressed_token_sdk::{
-    instructions::transfer::account_metas::{
-        get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+    instructions::{
+        batch_compress::{
+            get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
+        },
+        transfer::account_metas::{
+            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+        },
     },
     token_pool::get_token_pool_pda,
     TokenAccountMeta, SPL_TOKEN_PROGRAM_ID,
@@ -440,6 +445,173 @@ async fn decompress_compressed_tokens(
             token_data,
             output_tree_index,
             mint: compressed_account.token.mint,
+        }
+        .data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
+}
+
+#[tokio::test]
+async fn test_batch_compress() {
+    // Initialize the test environment
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
+        false,
+        Some(vec![("sdk_token_test", sdk_token_test::ID)]),
+    ))
+    .await
+    .unwrap();
+
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create a mint
+    let mint_pubkey = create_mint_helper(&mut rpc, &payer).await;
+    println!("Created mint: {}", mint_pubkey);
+
+    // Create a token account
+    let token_account_keypair = Keypair::new();
+
+    create_token_account(&mut rpc, &mint_pubkey, &token_account_keypair, &payer)
+        .await
+        .unwrap();
+
+    println!("Created token account: {}", token_account_keypair.pubkey());
+
+    // Mint some tokens to the account
+    let mint_amount = 2_000_000; // 2000 tokens with 6 decimals
+
+    mint_spl_tokens(
+        &mut rpc,
+        &mint_pubkey,
+        &token_account_keypair.pubkey(),
+        &payer.pubkey(), // owner
+        &payer,          // mint authority
+        mint_amount,
+        false, // not token22
+    )
+    .await
+    .unwrap();
+
+    println!("Minted {} tokens to account", mint_amount);
+
+    // Create multiple recipients for batch compression
+    let recipient1 = Keypair::new().pubkey();
+    let recipient2 = Keypair::new().pubkey();
+    let recipient3 = Keypair::new().pubkey();
+
+    let recipients = vec![
+        Recipient {
+            pubkey: recipient1,
+            amount: 100_000,
+        },
+        Recipient {
+            pubkey: recipient2,
+            amount: 200_000,
+        },
+        Recipient {
+            pubkey: recipient3,
+            amount: 300_000,
+        },
+    ];
+
+    let total_batch_amount: u64 = recipients.iter().map(|r| r.amount).sum();
+
+    // Perform batch compression
+    batch_compress_spl_tokens(
+        &mut rpc,
+        &payer,
+        recipients,
+        mint_pubkey,
+        token_account_keypair.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    println!(
+        "Batch compressed {} tokens to {} recipients successfully",
+        total_batch_amount, 3
+    );
+
+    // Verify each recipient received their compressed tokens
+    for (i, recipient) in [recipient1, recipient2, recipient3].iter().enumerate() {
+        let compressed_accounts = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_token_accounts_by_owner(recipient, None, None)
+            .await
+            .unwrap()
+            .value
+            .items;
+
+        assert!(
+            !compressed_accounts.is_empty(),
+            "Recipient {} should have compressed tokens",
+            i + 1
+        );
+
+        let compressed_account = &compressed_accounts[0];
+        assert_eq!(compressed_account.token.owner, *recipient);
+        assert_eq!(compressed_account.token.mint, mint_pubkey);
+
+        let expected_amount = match i {
+            0 => 100_000,
+            1 => 200_000,
+            2 => 300_000,
+            _ => unreachable!(),
+        };
+        assert_eq!(compressed_account.token.amount, expected_amount);
+
+        println!(
+            "Verified recipient {} received {} compressed tokens",
+            i + 1,
+            compressed_account.token.amount
+        );
+    }
+
+    println!("Batch compression test completed successfully!");
+}
+
+async fn batch_compress_spl_tokens(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    recipients: Vec<Recipient>,
+    mint: Pubkey,
+    token_account: Pubkey,
+) -> Result<Signature, RpcError> {
+    let mut remaining_accounts = PackedAccounts::default();
+    let token_pool_pda = get_token_pool_pda(&mint);
+    println!("token_pool_pda {:?}", token_pool_pda);
+    // Use batch compress account metas
+    let config = BatchCompressMetaConfig::new_client(
+        token_pool_pda,
+        token_account,
+        SPL_TOKEN_PROGRAM_ID.into(),
+        rpc.get_random_state_tree_info().unwrap().tree,
+        false, // with_lamports
+    );
+
+    remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
+    let metas = get_batch_compress_instruction_account_metas(config);
+    remaining_accounts.add_pre_accounts_metas(metas.as_slice());
+
+    let output_tree_index = rpc
+        .get_random_state_tree_info()
+        .unwrap()
+        .pack_output_tree_index(&mut remaining_accounts)
+        .unwrap();
+
+    let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
+
+    let instruction = Instruction {
+        program_id: sdk_token_test::ID,
+        accounts: [remaining_accounts].concat(),
+        data: sdk_token_test::instruction::BatchCompressTokens {
+            recipients,
+            _output_tree_index: output_tree_index,
+            _mint: mint,
+            token_pool_index: 0,  // Default pool index
+            token_pool_bump: 255, // Default bump
         }
         .data(),
     };

@@ -1,5 +1,5 @@
+pub mod account_infos;
 pub mod constants;
-pub mod cpi_account_infos;
 pub mod error;
 pub mod instruction;
 pub mod token_data;
