@@ -740,7 +740,7 @@ func (handler proveHandler) processProofSync(buf []byte) (*prover.Proof, *Error)
 	case prover.BatchUpdateCircuitType:
 		return handler.batchUpdateProof(buf)
 	case prover.BatchAppendCircuitType:
-		return handler.batchAppendWithProofsHandler(buf)
+		return handler.batchAppendHandler(buf)
 	case prover.BatchAddressAppendCircuitType:
 		return handler.batchAddressAppendProof(buf)
 	default:
@@ -780,7 +780,7 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, 
 	return proof, nil
 }
 
-func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Proof, *Error) {
+func (handler proveHandler) batchAppendHandler(buf []byte) (*prover.Proof, *Error) {
 	var params prover.BatchAppendParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {

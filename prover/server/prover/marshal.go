@@ -207,6 +207,7 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 			return nil, err
 		}
 		defer file.Close()
+
 		_, err = ps.UnsafeReadFrom(file)
 		if err != nil {
 			return nil, err
@@ -220,7 +221,6 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 			return nil, err
 		}
 		defer file.Close()
-
 		_, err = ps.UnsafeReadFrom(file)
 		if err != nil {
 			return nil, err

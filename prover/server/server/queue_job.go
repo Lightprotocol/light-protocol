@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
+	"log"
 	"time"
 )
 
@@ -171,6 +172,8 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 
 	var proof *prover.Proof
 	var proofError error
+
+	log.Printf("proofRequestMeta.CircuitType: %s", proofRequestMeta.CircuitType)
 
 	switch proofRequestMeta.CircuitType {
 	case prover.InclusionCircuitType:
@@ -343,9 +346,11 @@ func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage
 	}
 
 	for _, provingSystem := range w.provingSystemsV2 {
+		logging.Logger().Info().Str(string(provingSystem.CircuitType), "proving system")
 		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType &&
 			provingSystem.TreeHeight == params.TreeHeight &&
 			provingSystem.BatchSize == params.BatchSize {
+			logging.Logger().Info().Msg("Processing batch address append proof")
 			return provingSystem.ProveBatchAddressAppend(&params)
 		}
 	}

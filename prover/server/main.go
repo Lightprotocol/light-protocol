@@ -519,6 +519,11 @@ func runCli() {
 
 						var workersStarted []string
 
+						logging.Logger().Info().Bool("startAllWorkers", startAllWorkers)
+
+						for _, circuit := range circuits {
+							logging.Logger().Info().Str("circuit", circuit)
+						}
 						// Start update worker for batch-update circuits or forester modes
 						if startAllWorkers || containsCircuit(circuits, "update") || containsCircuit(circuits, "update-test") {
 							updateWorker := server.NewUpdateQueueWorker(redisQueue, psv1, psv2)
