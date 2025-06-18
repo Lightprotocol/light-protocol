@@ -24,9 +24,9 @@ generate_circuit() {
     local circuit_file
     local circuit_vkey_file
     local circuit_vkey_rs_file
-    if [ "$circuit_type" == "append-with-proofs" ]; then
+    if [ "$circuit_type" == "append" ]; then
         compressed_accounts=$batch_size
-        circuit_type_rs="append_with_proofs"
+        circuit_type_rs="append"
     elif [ "$circuit_type" == "update" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="update"
@@ -79,20 +79,20 @@ generate_circuit() {
 }
 
 main() {
-    declare -a append_batch_sizes_arr=("1" "10" )
+    declare -a address_append_batch_sizes_arr=("10" "250")
+    declare -a append_batch_sizes_arr=("10" "500")
+    declare -a update_batch_sizes_arr=("10" "500")
 
-    # echo "Generating proving keys..."
-    for batch_size in "${append_batch_sizes_arr[@]}"; do
+    for batch_size in "${address_append_batch_sizes_arr[@]}"; do
         echo "Generating address-append circuit for ${batch_size} COMPRESSED_ACCOUNTS with height ${height}..."
         generate_circuit "address-append" "$DEFAULT_ADDRESS_HEIGHT" "0" "$batch_size" "0" "0"
     done
 
 
     for batch_size in "${append_batch_sizes_arr[@]}"; do
-        generate_circuit "append-with-proofs" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
+        generate_circuit "append" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     done
 
-    declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
     for batch_size in "${update_batch_sizes_arr[@]}"; do
         generate_circuit "update" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     done

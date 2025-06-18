@@ -8,7 +8,7 @@ use light_prover_client::{
     proof_client::ProofClient,
     proof_types::{
         batch_address_append::get_batch_address_append_circuit_inputs,
-        batch_append::get_batch_append_with_proofs_inputs, batch_update::get_batch_update_inputs,
+        batch_append::get_batch_append_inputs, batch_update::get_batch_update_inputs,
     },
 };
 use light_sparse_merkle_tree::{
@@ -101,7 +101,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 self.merkle_tree.update(leaf, index).unwrap();
             }
         }
-        let (circuit_inputs, _) = match get_batch_append_with_proofs_inputs::<HEIGHT>(
+        let (circuit_inputs, _) = match get_batch_append_inputs::<HEIGHT>(
             old_root,
             account_next_index as u32,
             leaves,
@@ -114,7 +114,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             Ok(val) => val,
             Err(e) => {
                 return Err(ProverClientError::GenericError(format!(
-                    "get_batch_append_with_proofs_inputs error: {:?}",
+                    "get_batch_append_inputs error: {:?}",
                     e
                 )));
             }

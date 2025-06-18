@@ -199,9 +199,23 @@ func (ps *ProvingSystemV1) UnsafeReadFrom(r io.Reader) (int64, error) {
 }
 
 func ReadSystemFromFile(path string) (interface{}, error) {
-	if strings.Contains(strings.ToLower(path), "append-with-proofs") {
+	if strings.Contains(strings.ToLower(path), "address-append") {
 		ps := new(ProvingSystemV2)
-		ps.CircuitType = BatchAppendWithProofsCircuitType
+		ps.CircuitType = BatchAddressAppendCircuitType
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		_, err = ps.UnsafeReadFrom(file)
+		if err != nil {
+			return nil, err
+		}
+		return ps, nil
+	} else if strings.Contains(strings.ToLower(path), "append") {
+		ps := new(ProvingSystemV2)
+		ps.CircuitType = BatchAppendCircuitType
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err
@@ -215,20 +229,6 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 	} else if strings.Contains(strings.ToLower(path), "update") {
 		ps := new(ProvingSystemV2)
 		ps.CircuitType = BatchUpdateCircuitType
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		_, err = ps.UnsafeReadFrom(file)
-		if err != nil {
-			return nil, err
-		}
-		return ps, nil
-	} else if strings.Contains(strings.ToLower(path), "address-append") {
-		ps := new(ProvingSystemV2)
-		ps.CircuitType = BatchAddressAppendCircuitType
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err

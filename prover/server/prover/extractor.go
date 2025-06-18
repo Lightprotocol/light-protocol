@@ -91,7 +91,7 @@ func ExtractLean(stateTreeHeight uint32, addressTreeHeight uint32, numberOfCompr
 		BatchSize:    numberOfCompressedAccounts,
 	}
 
-	batchAppendWithProofsCircuit := BatchAppendWithProofsCircuit{
+	batchAppendCircuit := BatchAppendCircuit{
 		OldLeaves:    make([]frontend.Variable, numberOfCompressedAccounts),
 		Leaves:       make([]frontend.Variable, numberOfCompressedAccounts),
 		MerkleProofs: batchUpdateWithProofsProofs,
@@ -107,6 +107,6 @@ func ExtractLean(stateTreeHeight uint32, addressTreeHeight uint32, numberOfCompr
 		&combinedCircuit,
 		&batchUpdateCircuit,
 		&indexedUpdateCircuit,
-		&batchAppendWithProofsCircuit,
+		&batchAppendCircuit,
 	)
 }

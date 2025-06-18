@@ -3,7 +3,7 @@ pub enum CircuitType {
     Combined,
     Inclusion,
     NonInclusion,
-    BatchAppendWithProofs,
+    BatchAppend,
     BatchUpdate,
     BatchAddressAppend,
 }
@@ -15,7 +15,7 @@ impl CircuitType {
             Self::Combined => "combined".to_string(),
             Self::Inclusion => "inclusion".to_string(),
             Self::NonInclusion => "non-inclusion".to_string(),
-            Self::BatchAppendWithProofs => "append-with-proofs".to_string(),
+            Self::BatchAppend => "append".to_string(),
             Self::BatchUpdate => "update".to_string(),
             Self::BatchAddressAppend => "address-append".to_string(),
         }

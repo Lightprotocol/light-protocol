@@ -9,16 +9,16 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func TestBatchAppendWithProofsCircuit(t *testing.T) {
+func TestBatchAppendCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	t.Run("Valid batch update - full HashchainHash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
 		startIndex := 0
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, startIndex, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, startIndex, false)
 
-		circuit := BatchAppendWithProofsCircuit{
+		circuit := BatchAppendCircuit{
 			PublicInputHash:     frontend.Variable(0),
 			OldRoot:             frontend.Variable(0),
 			NewRoot:             frontend.Variable(0),
@@ -35,7 +35,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 			circuit.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		witness := BatchAppendWithProofsCircuit{
+		witness := BatchAppendCircuit{
 			PublicInputHash:     frontend.Variable(params.PublicInputHash),
 			OldRoot:             frontend.Variable(params.OldRoot),
 			NewRoot:             frontend.Variable(params.NewRoot),
@@ -67,9 +67,9 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 		batchSize := 1000
 		startIndex := 0
 		enable := true
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, startIndex, enable)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, startIndex, enable)
 
-		circuit := BatchAppendWithProofsCircuit{
+		circuit := BatchAppendCircuit{
 			PublicInputHash:     frontend.Variable(0),
 			OldRoot:             frontend.Variable(0),
 			NewRoot:             frontend.Variable(0),
@@ -86,7 +86,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 			circuit.MerkleProofs[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		witness := BatchAppendWithProofsCircuit{
+		witness := BatchAppendCircuit{
 			PublicInputHash:     frontend.Variable(params.PublicInputHash),
 			OldRoot:             frontend.Variable(params.OldRoot),
 			NewRoot:             frontend.Variable(params.NewRoot),
@@ -116,7 +116,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	t.Run("Invalid public input hash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 		params.PublicInputHash = big.NewInt(999)
 
 		witness := createTestWitness(params)
@@ -129,7 +129,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	t.Run("Invalid old root", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 		params.OldRoot = big.NewInt(999)
 
 		witness := createTestWitness(params)
@@ -142,7 +142,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	t.Run("Invalid new root", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 		params.NewRoot = big.NewInt(999)
 
 		witness := createTestWitness(params)
@@ -155,7 +155,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	t.Run("Invalid leaves hashchain", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 		params.LeavesHashchainHash = big.NewInt(999)
 
 		witness := createTestWitness(params)
@@ -168,7 +168,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	t.Run("Invalid merkle proof", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 		params.MerkleProofs[0][0] = *big.NewInt(999)
 
 		witness := createTestWitness(params)
@@ -181,7 +181,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	t.Run("Invalid start index", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 		params.StartIndex = uint64(1 << treeDepth)
 
 		witness := createTestWitness(params)
@@ -195,7 +195,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 		assert := test.NewAssert(t)
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 
 		params.OldLeaves[0] = big.NewInt(999)
 
@@ -210,7 +210,7 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 		assert := test.NewAssert(t)
 		treeDepth := 10
 		batchSize := 2
-		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+		params := BuildTestBatchAppendTree(treeDepth, batchSize, nil, 0, false)
 
 		params.Leaves[0] = big.NewInt(999)
 
@@ -222,8 +222,8 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 	})
 }
 
-func createTestCircuit(treeDepth, batchSize int) BatchAppendWithProofsCircuit {
-	circuit := BatchAppendWithProofsCircuit{
+func createTestCircuit(treeDepth, batchSize int) BatchAppendCircuit {
+	circuit := BatchAppendCircuit{
 		PublicInputHash:     frontend.Variable(0),
 		OldRoot:             frontend.Variable(0),
 		NewRoot:             frontend.Variable(0),
@@ -242,8 +242,8 @@ func createTestCircuit(treeDepth, batchSize int) BatchAppendWithProofsCircuit {
 	return circuit
 }
 
-func createTestWitness(params *BatchAppendWithProofsParameters) BatchAppendWithProofsCircuit {
-	witness := BatchAppendWithProofsCircuit{
+func createTestWitness(params *BatchAppendParameters) BatchAppendCircuit {
+	witness := BatchAppendCircuit{
 		PublicInputHash:     frontend.Variable(params.PublicInputHash),
 		OldRoot:             frontend.Variable(params.OldRoot),
 		NewRoot:             frontend.Variable(params.NewRoot),

@@ -30,7 +30,7 @@ use light_prover_client::{
     proof_client::ProofClient,
     proof_types::{
         batch_address_append::{get_batch_address_append_circuit_inputs, to_json},
-        batch_append::{get_batch_append_with_proofs_inputs, BatchAppendWithProofsInputsJson},
+        batch_append::{get_batch_append_inputs, BatchAppendInputsJson},
         batch_update::{get_batch_update_inputs, update_inputs_string},
     },
 };
@@ -149,7 +149,7 @@ pub async fn create_append_batch_ix_data<R: Rpc>(
 
         // TODO: remove unwraps
         let (circuit_inputs, _) =
-            get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+            get_batch_append_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
                 old_root,
                 merkle_tree_next_index as u32,
                 batch_update_leaves,
@@ -165,12 +165,9 @@ pub async fn create_append_batch_ix_data<R: Rpc>(
             bundle.merkle_tree.root()
         );
         let proof_client = ProofClient::local();
-        let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
+        let inputs_json = BatchAppendInputsJson::from_inputs(&circuit_inputs).to_string();
 
-        match proof_client
-            .generate_proof(inputs_json, "append-with-proofs")
-            .await
-        {
+        match proof_client.generate_proof(inputs_json, "append").await {
             Ok(compressed_proof) => (
                 compressed_proof,
                 bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap())

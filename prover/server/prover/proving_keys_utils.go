@@ -159,7 +159,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "non-inclusion_40_2.key",
 	}
 
-	var appendWithProofsKeys []string = []string{
+	var appendKeys []string = []string{
 		keysDir + "append-with-proofs_32_500.key",
 	}
 
@@ -167,7 +167,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "update_32_500.key",
 	}
 
-	var appendWithProofsTestKeys []string = []string{
+	var appendTestKeys []string = []string{
 		keysDir + "append-with-proofs_32_10.key",
 	}
 
@@ -187,14 +187,14 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	case Forester: // inclusion + non-inclusion + append + update + address-append
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
-		keys = append(keys, appendWithProofsKeys...)
+		keys = append(keys, appendKeys...)
 		keys = append(keys, updateKeys...)
 		keys = append(keys, addressAppendKeys...)
 	case ForesterTest: // inclusion + non-inclusion + combined + append-test + update-test + address-append-test
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
-		keys = append(keys, appendWithProofsTestKeys...)
+		keys = append(keys, appendTestKeys...)
 		keys = append(keys, updateTestKeys...)
 		keys = append(keys, addressAppendTestKeys...)
 	case Rpc: // inclusion + non-inclusion + combined
@@ -206,19 +206,18 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
 		keys = append(keys, updateKeys...)
-		keys = append(keys, appendWithProofsKeys...)
+		keys = append(keys, appendKeys...)
 		keys = append(keys, addressAppendKeys...)
 	case FullTest: // inclusion + non-inclusion + combined + append-test + update-test + address-append-test
 		keys = append(keys, inclusionKeys...)
 		keys = append(keys, nonInclusionKeys...)
 		keys = append(keys, combinedKeys...)
 		keys = append(keys, updateTestKeys...)
-		keys = append(keys, appendWithProofsTestKeys...)
+		keys = append(keys, appendTestKeys...)
 		keys = append(keys, addressAppendTestKeys...)
-	case LocalRpc: 
+	case LocalRpc:
 		keys = append(keys, localRpcKeys...)
 	}
-	
 
 	for _, circuit := range circuits {
 		switch circuit {
@@ -228,10 +227,10 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 			keys = append(keys, nonInclusionKeys...)
 		case "combined":
 			keys = append(keys, combinedKeys...)
-		case "append-with-proofs":
-			keys = append(keys, appendWithProofsKeys...)
-		case "append-with-proofs-test":
-			keys = append(keys, appendWithProofsTestKeys...)
+		case "append":
+			keys = append(keys, appendKeys...)
+		case "append-test":
+			keys = append(keys, appendTestKeys...)
 		case "update":
 			keys = append(keys, updateKeys...)
 		case "update-test":
@@ -277,13 +276,13 @@ func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*Provin
 				Uint32("inclusionCompressedAccounts", s.InclusionNumberOfCompressedAccounts).
 				Uint32("nonInclusionTreeHeight", s.NonInclusionTreeHeight).
 				Uint32("nonInclusionCompressedAccounts", s.NonInclusionNumberOfCompressedAccounts).
-				Msg("Read ProvingSystem")
+				Msg("Read ProvingSystemV1")
 		case *ProvingSystemV2:
 			pssv2 = append(pssv2, s)
 			logging.Logger().Info().
 				Uint32("treeHeight", s.TreeHeight).
 				Uint32("batchSize", s.BatchSize).
-				Msg("Read BatchAppendProvingSystem")
+				Msg("Read ProvingSystemV2")
 		default:
 			return nil, nil, fmt.Errorf("unknown proving system type")
 		}

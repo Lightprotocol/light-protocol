@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
+	"log"
 	"time"
 )
 
@@ -172,6 +173,8 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 	var proof *prover.Proof
 	var proofError error
 
+	log.Printf("proofRequestMeta.CircuitType: %s", proofRequestMeta.CircuitType)
+
 	switch proofRequestMeta.CircuitType {
 	case prover.InclusionCircuitType:
 		proof, proofError = w.processInclusionProof(job.Payload, proofRequestMeta)
@@ -181,8 +184,8 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 		proof, proofError = w.processCombinedProof(job.Payload, proofRequestMeta)
 	case prover.BatchUpdateCircuitType:
 		proof, proofError = w.processBatchUpdateProof(job.Payload)
-	case prover.BatchAppendWithProofsCircuitType:
-		proof, proofError = w.processBatchAppendWithProofsProof(job.Payload)
+	case prover.BatchAppendCircuitType:
+		proof, proofError = w.processBatchAppendProof(job.Payload)
 	case prover.BatchAddressAppendCircuitType:
 		proof, proofError = w.processBatchAddressAppendProof(job.Payload)
 	default:
@@ -319,17 +322,17 @@ func (w *BaseQueueWorker) processBatchUpdateProof(payload json.RawMessage) (*pro
 	return nil, fmt.Errorf("no proving system found for batch update with height %d and batch size %d", params.Height, params.BatchSize)
 }
 
-func (w *BaseQueueWorker) processBatchAppendWithProofsProof(payload json.RawMessage) (*prover.Proof, error) {
-	var params prover.BatchAppendWithProofsParameters
+func (w *BaseQueueWorker) processBatchAppendProof(payload json.RawMessage) (*prover.Proof, error) {
+	var params prover.BatchAppendParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch append parameters: %w", err)
 	}
 
 	for _, provingSystem := range w.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppendWithProofsCircuitType &&
+		if provingSystem.CircuitType == prover.BatchAppendCircuitType &&
 			provingSystem.TreeHeight == params.Height &&
 			provingSystem.BatchSize == params.BatchSize {
-			return provingSystem.ProveBatchAppendWithProofs(&params)
+			return provingSystem.ProveBatchAppend(&params)
 		}
 	}
 
@@ -343,9 +346,11 @@ func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage
 	}
 
 	for _, provingSystem := range w.provingSystemsV2 {
+		logging.Logger().Info().Str(string(provingSystem.CircuitType), "proving system")
 		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType &&
 			provingSystem.TreeHeight == params.TreeHeight &&
 			provingSystem.BatchSize == params.BatchSize {
+			logging.Logger().Info().Msg("Processing batch address append proof")
 			return provingSystem.ProveBatchAddressAppend(&params)
 		}
 	}

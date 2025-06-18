@@ -315,7 +315,7 @@ func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitT
 	// Always use queue for batch operations when queue is available
 	// This prevents cross-contamination in clustered deployments
 	if circuitType == prover.BatchUpdateCircuitType ||
-		circuitType == prover.BatchAppendWithProofsCircuitType ||
+		circuitType == prover.BatchAppendCircuitType ||
 		circuitType == prover.BatchAddressAppendCircuitType {
 		return true
 	}
@@ -664,7 +664,7 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 
 func (handler proveHandler) isBatchOperation(circuitType prover.CircuitType) bool {
 	switch circuitType {
-	case prover.BatchAppendWithProofsCircuitType,
+	case prover.BatchAppendCircuitType,
 		prover.BatchUpdateCircuitType,
 		prover.BatchAddressAppendCircuitType:
 		return true
@@ -677,7 +677,7 @@ func GetQueueNameForCircuit(circuitType prover.CircuitType) string {
 	switch circuitType {
 	case prover.BatchUpdateCircuitType:
 		return "zk_update_queue"
-	case prover.BatchAppendWithProofsCircuitType:
+	case prover.BatchAppendCircuitType:
 		return "zk_append_queue"
 	case prover.BatchAddressAppendCircuitType:
 		return "zk_address_append_queue"
@@ -694,7 +694,7 @@ func (handler proveHandler) getEstimatedTime(circuitType prover.CircuitType) str
 		return "1-3 seconds"
 	case prover.CombinedCircuitType:
 		return "1-3 seconds"
-	case prover.BatchAppendWithProofsCircuitType:
+	case prover.BatchAppendCircuitType:
 		return "10-30 seconds"
 	case prover.BatchUpdateCircuitType:
 		return "10-30 seconds"
@@ -713,7 +713,7 @@ func (handler proveHandler) getEstimatedTimeSeconds(circuitType prover.CircuitTy
 		return 1
 	case prover.CombinedCircuitType:
 		return 1
-	case prover.BatchAppendWithProofsCircuitType:
+	case prover.BatchAppendCircuitType:
 		return 30
 	case prover.BatchUpdateCircuitType:
 		return 30
@@ -739,8 +739,8 @@ func (handler proveHandler) processProofSync(buf []byte) (*prover.Proof, *Error)
 		return handler.combinedProof(buf, proofRequestMeta)
 	case prover.BatchUpdateCircuitType:
 		return handler.batchUpdateProof(buf)
-	case prover.BatchAppendWithProofsCircuitType:
-		return handler.batchAppendWithProofsHandler(buf)
+	case prover.BatchAppendCircuitType:
+		return handler.batchAppendHandler(buf)
 	case prover.BatchAddressAppendCircuitType:
 		return handler.batchAddressAppendProof(buf)
 	default:
@@ -780,8 +780,8 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, 
 	return proof, nil
 }
 
-func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Proof, *Error) {
-	var params prover.BatchAppendWithProofsParameters
+func (handler proveHandler) batchAppendHandler(buf []byte) (*prover.Proof, *Error) {
+	var params prover.BatchAppendParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
 		return nil, malformedBodyError(err)
@@ -792,7 +792,7 @@ func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Pr
 
 	var ps *prover.ProvingSystemV2
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppendWithProofsCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+		if provingSystem.CircuitType == prover.BatchAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
 			break
 		}
@@ -802,7 +802,7 @@ func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Pr
 		return nil, provingError(fmt.Errorf("no proving system for tree height %d and batch size %d", treeHeight, batchSize))
 	}
 
-	proof, err := ps.ProveBatchAppendWithProofs(&params)
+	proof, err := ps.ProveBatchAppend(&params)
 	if err != nil {
 		logging.Logger().Err(err).Msg("Error during proof generation")
 		return nil, provingError(err)
