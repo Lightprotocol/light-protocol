@@ -1,4 +1,3 @@
-use anchor_lang::Key;
 use light_compressed_token_types::{
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID,
@@ -152,7 +151,7 @@ pub fn to_compressed_token_account_metas(
             TokenSdkError::CpiError("Missing compress/decompress account".to_string())
         })?;
         account_metas.push(AccountMeta {
-            pubkey: account.key(),
+            pubkey: *account.key,
             is_signer: false,
             is_writable: false,
         });
