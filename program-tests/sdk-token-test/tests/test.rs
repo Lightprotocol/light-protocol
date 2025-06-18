@@ -1,11 +1,13 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AccountDeserialize, InstructionData};
 use anchor_spl::token::TokenAccount;
 use light_compressed_token_sdk::{
-    instruction::{get_transfer_instruction_account_metas, TokenAccountsMetaConfig},
+    instructions::transfer::account_metas::{
+        get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+    },
     token_pool::get_token_pool_pda,
-    InputTokenDataWithContext,
+    TokenAccountMeta, SPL_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
@@ -284,11 +286,15 @@ async fn compress_spl_tokens(
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
     let token_pool_pda = get_token_pool_pda(&mint);
-    let config = TokenAccountsMetaConfig::compress(token_pool_pda, token_account, false);
+    let config = TokenAccountsMetaConfig::compress_client(
+        token_pool_pda,
+        token_account,
+        SPL_TOKEN_PROGRAM_ID.into(),
+    );
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let metas = get_transfer_instruction_account_metas(config);
     println!("metas {:?}", metas.to_vec());
-    // Add the token account to pre_accounts for the compression
+    // Add the token account to pre_accounts for the compressiospl_token_programn
     remaining_accounts.add_pre_accounts_metas(metas.as_slice());
 
     let output_tree_index = rpc
@@ -303,7 +309,7 @@ async fn compress_spl_tokens(
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
         accounts: [remaining_accounts].concat(),
-        data: sdk_token_test::instruction::Compress {
+        data: sdk_token_test::instruction::CompressTokens {
             output_tree_index,
             recipient,
             mint,
@@ -323,7 +329,7 @@ async fn transfer_compressed_tokens(
     compressed_account: &CompressedTokenAccount,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
-    let config = TokenAccountsMetaConfig::new();
+    let config = TokenAccountsMetaConfig::new_client();
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let metas = get_transfer_instruction_account_metas(config);
     remaining_accounts.add_pre_accounts_metas(metas.as_slice());
@@ -350,7 +356,7 @@ async fn transfer_compressed_tokens(
     println!("Transfer tree_info: {:?}", tree_info);
 
     // Create input token data
-    let token_data = vec![InputTokenDataWithContext {
+    let token_metas = vec![TokenAccountMeta {
         amount: compressed_account.token.amount,
         delegate_index: None,
         packed_tree_info: tree_info,
@@ -358,14 +364,14 @@ async fn transfer_compressed_tokens(
         tlv: None,
     }];
 
-    let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
+    let (accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
-        accounts: [remaining_accounts].concat(),
-        data: sdk_token_test::instruction::Transfer {
+        accounts,
+        data: sdk_token_test::instruction::TransferTokens {
             validity_proof: rpc_result.proof,
-            token_data,
+            token_metas,
             output_tree_index,
             mint: compressed_account.token.mint,
             recipient,
@@ -385,8 +391,11 @@ async fn decompress_compressed_tokens(
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
     let token_pool_pda = get_token_pool_pda(&compressed_account.token.mint);
-    let config =
-        TokenAccountsMetaConfig::decompress(token_pool_pda, decompress_token_account, false);
+    let config = TokenAccountsMetaConfig::decompress_client(
+        token_pool_pda,
+        decompress_token_account,
+        SPL_TOKEN_PROGRAM_ID.into(),
+    );
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let metas = get_transfer_instruction_account_metas(config);
     remaining_accounts.add_pre_accounts_metas(metas.as_slice());
@@ -412,7 +421,7 @@ async fn decompress_compressed_tokens(
         .packed_tree_infos[0];
 
     // Create input token data
-    let token_data = vec![InputTokenDataWithContext {
+    let token_data = vec![TokenAccountMeta {
         amount: compressed_account.token.amount,
         delegate_index: None,
         packed_tree_info: tree_info,
@@ -426,7 +435,7 @@ async fn decompress_compressed_tokens(
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
         accounts: [remaining_accounts].concat(),
-        data: sdk_token_test::instruction::Decompress {
+        data: sdk_token_test::instruction::DecompressTokens {
             validity_proof: rpc_result.proof,
             token_data,
             output_tree_index,
