@@ -118,6 +118,7 @@ pub mod sdk_token_test {
 
 #[derive(Accounts)]
 pub struct Generic<'info> {
+    // fee payer and authority are the same
     #[account(mut)]
     pub signer: Signer<'info>,
 }
