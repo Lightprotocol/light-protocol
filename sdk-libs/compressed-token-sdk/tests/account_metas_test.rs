@@ -1,12 +1,14 @@
 use anchor_lang::ToAccountMetas;
-use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
-use light_compressed_token_types::{
-    constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID,
-        NOOP_PROGRAM_ID, PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID,
-    },
-    cpi_account_infos::{CpiAccounts, CpiAccountsConfig},
+use light_compressed_token_sdk::instructions::{
+    batch_compress::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig},
+    transfer::account_metas::{get_transfer_instruction_account_metas, TokenAccountsMetaConfig},
+    CTokenDefaultAccounts,
 };
+use light_compressed_token_types::constants::{
+    ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
+    PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_sdk::constants::REGISTERED_PROGRAM_PDA;
 use solana_pubkey::Pubkey;
 
 // TODO: Rewrite to use get_transfer_instruction_account_metas
@@ -15,74 +17,27 @@ fn test_to_compressed_token_account_metas_compress() {
     // Create test accounts
     let fee_payer = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
-    let registered_program_pda = Pubkey::new_unique();
-    let account_compression_authority = Pubkey::new_unique();
-    let system_program = Pubkey::default();
 
-    // Create TestAccounts and get AccountInfo references
-    let mut fee_payer_account = TestAccount::new(fee_payer, Pubkey::default(), 0);
-    fee_payer_account.writable = true;
-
-    let mut light_system_account =
-        TestAccount::new(Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID), Pubkey::default(), 0);
-    let mut authority_account = TestAccount::new(authority, Pubkey::default(), 0);
-    let mut registered_program_account =
-        TestAccount::new(registered_program_pda, Pubkey::default(), 0);
-    let mut noop_account = TestAccount::new(Pubkey::from(NOOP_PROGRAM_ID), Pubkey::default(), 0);
-    let mut compression_authority_account =
-        TestAccount::new(account_compression_authority, Pubkey::default(), 0);
-    let mut compression_program_account = TestAccount::new(
-        Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
-        Pubkey::default(),
-        0,
-    );
-    let mut token_program_account = TestAccount::new(
-        Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
-        Pubkey::default(),
-        0,
-    );
-    let mut system_program_account = TestAccount::new(system_program, Pubkey::default(), 0);
-
-    let fee_payer_info = fee_payer_account.get_account_info();
-    let authority_info = authority_account.get_account_info();
-
-    // Create account infos in the correct order for CpiAccounts
-    let account_infos = vec![
-        light_system_account.get_account_info(), // 0: light_system_program
-        authority_info.clone(),                  // 1: authority
-        registered_program_account.get_account_info(), // 2: registered_program_pda
-        noop_account.get_account_info(),         // 3: noop_program
-        compression_authority_account.get_account_info(), // 4: account_compression_authority
-        compression_program_account.get_account_info(), // 5: account_compression_program
-        token_program_account.get_account_info(), // 6: invoking_program (self_program)
-        system_program_account.get_account_info(), // 7: system_program
-    ];
+    let default_pubkeys = CTokenDefaultAccounts::default();
     let reference = light_compressed_token::accounts::TransferInstruction {
         fee_payer,
         authority,
-        registered_program_pda,
-        noop_program: Pubkey::from(NOOP_PROGRAM_ID),
-        account_compression_authority,
-        account_compression_program: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
-        self_program: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
-        cpi_authority_pda: Pubkey::from(CPI_AUTHORITY_PDA),
-        light_system_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
+        registered_program_pda: default_pubkeys.registered_program_pda,
+        noop_program: default_pubkeys.noop_program,
+        account_compression_authority: default_pubkeys.account_compression_authority,
+        account_compression_program: default_pubkeys.account_compression_program,
+        self_program: default_pubkeys.self_program,
+        cpi_authority_pda: default_pubkeys.cpi_authority_pda,
+        light_system_program: default_pubkeys.light_system_program,
         token_pool_pda: None,
         compress_or_decompress_token_account: None,
         token_program: None,
-        system_program,
+        system_program: default_pubkeys.system_program,
     };
 
-    // Create CpiAccounts with default config (no optional accounts)
-    let config = CpiAccountsConfig::default();
-    let cpi_accounts =
-        CpiAccounts::new_with_config(&fee_payer_info, &authority_info, &account_infos, config);
-
     // Test our function
-    let result = to_compressed_token_account_metas(&cpi_accounts);
-    assert!(result.is_ok(), "Function should succeed with valid inputs");
-
-    let account_metas = result.unwrap();
+    let meta_config = TokenAccountsMetaConfig::new(fee_payer, authority);
+    let account_metas = get_transfer_instruction_account_metas(meta_config);
     let reference_metas = reference.to_account_metas(Some(true));
 
     assert_eq!(account_metas, reference_metas);
@@ -93,106 +48,82 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
     // Create test accounts
     let fee_payer = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
-    let registered_program_pda = Pubkey::new_unique();
-    let account_compression_authority = Pubkey::new_unique();
-    let system_program = Pubkey::default();
-    let cpi_authority = Pubkey::from(CPI_AUTHORITY_PDA);
 
     // Optional accounts
     let token_pool_pda = Pubkey::new_unique();
     let compress_or_decompress_token_account = Pubkey::new_unique();
     let spl_token_program = Pubkey::new_unique();
 
-    // Create TestAccounts and get AccountInfo references
-    let mut fee_payer_account = TestAccount::new(fee_payer, Pubkey::default(), 0);
-    fee_payer_account.writable = true;
-
-    let mut light_system_account =
-        TestAccount::new(Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID), Pubkey::default(), 0);
-    let mut authority_account = TestAccount::new(authority, Pubkey::default(), 0);
-    let mut cpi_authority_account = TestAccount::new(cpi_authority, Pubkey::default(), 0);
-    let mut registered_program_account =
-        TestAccount::new(registered_program_pda, Pubkey::default(), 0);
-    let mut noop_account = TestAccount::new(Pubkey::from(NOOP_PROGRAM_ID), Pubkey::default(), 0);
-    let mut compression_authority_account =
-        TestAccount::new(account_compression_authority, Pubkey::default(), 0);
-    let mut compression_program_account = TestAccount::new(
-        Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
-        Pubkey::default(),
-        0,
-    );
-    let mut ctoken_program_account = TestAccount::new(
-        Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
-        Pubkey::default(),
-        0,
-    );
-    let mut system_program_account = TestAccount::new(system_program, Pubkey::default(), 0);
-
-    // Optional accounts
-    let mut token_pool_account = TestAccount::new(token_pool_pda, Pubkey::default(), 0);
-    token_pool_account.writable = true;
-    let mut compress_decompress_account =
-        TestAccount::new(compress_or_decompress_token_account, Pubkey::default(), 0);
-    compress_decompress_account.writable = true;
-    let mut spl_token_program_account = TestAccount::new(spl_token_program, Pubkey::default(), 0);
-
-    let fee_payer_info = fee_payer_account.get_account_info();
-    let authority_info = authority_account.get_account_info();
-
-    // Create account infos in the correct order for CpiAccounts with all optional accounts
-    let account_infos = vec![
-        cpi_authority_account.get_account_info(), // 1: authority (not cpi_authority)
-        light_system_account.get_account_info(),  // 0: light_system_program
-        registered_program_account.get_account_info(), // 2: registered_program_pda
-        noop_account.get_account_info(),          // 3: noop_program
-        compression_authority_account.get_account_info(), // 4: account_compression_authority
-        compression_program_account.get_account_info(), // 5: account_compression_program
-        ctoken_program_account.get_account_info(), // 6: invoking_program (self_program)
-        token_pool_account.get_account_info(),    // 7: token_pool_pda
-        compress_decompress_account.get_account_info(), // 8: decompression_recipient (compress_or_decompress_token_account)
-        spl_token_program_account.get_account_info(),   // 10: cpi_context (spl_token_program)
-        system_program_account.get_account_info(),      // 9: system_program
-    ];
-
+    let default_pubkeys = CTokenDefaultAccounts::default();
     let reference = light_compressed_token::accounts::TransferInstruction {
         fee_payer,
         authority,
-        light_system_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
-        cpi_authority_pda: Pubkey::from(CPI_AUTHORITY_PDA),
-        registered_program_pda,
-        noop_program: Pubkey::from(NOOP_PROGRAM_ID),
-        account_compression_authority,
-        account_compression_program: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
-        self_program: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        light_system_program: default_pubkeys.light_system_program,
+        cpi_authority_pda: default_pubkeys.cpi_authority_pda,
+        registered_program_pda: default_pubkeys.registered_program_pda,
+        noop_program: default_pubkeys.noop_program,
+        account_compression_authority: default_pubkeys.account_compression_authority,
+        account_compression_program: default_pubkeys.account_compression_program,
+        self_program: default_pubkeys.self_program,
         token_pool_pda: Some(token_pool_pda),
         compress_or_decompress_token_account: Some(compress_or_decompress_token_account),
         token_program: Some(spl_token_program),
-        system_program,
+        system_program: default_pubkeys.system_program,
     };
 
-    // Create CpiAccounts with config that enables all optional accounts
-    let config = CpiAccountsConfig {
-        cpi_context: false,
-        compress: true,
-        decompress: false,
-    };
-    let cpi_accounts =
-        CpiAccounts::new_with_config(&fee_payer_info, &authority_info, &account_infos, config);
-
-    // Test our function
-    let result = to_compressed_token_account_metas(&cpi_accounts);
-    assert!(result.is_ok(), "Function should succeed with valid inputs");
-
-    let account_metas = result.unwrap();
+    let meta_config = TokenAccountsMetaConfig::compress(
+        fee_payer,
+        authority,
+        reference.token_pool_pda.unwrap(),
+        reference.compress_or_decompress_token_account.unwrap(),
+        reference.token_program.unwrap(),
+    );
+    let account_metas = get_transfer_instruction_account_metas(meta_config);
     let reference_metas = reference.to_account_metas(Some(true));
-    println!("account_metas {:?}", account_metas);
+
     assert_eq!(account_metas, reference_metas);
-    assert_eq!(
-        *cpi_accounts.account_compression_program().unwrap().key,
-        Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID)
+}
+
+#[test]
+fn test_get_batch_compress_instruction_account_metas() {
+    let fee_payer = Pubkey::new_unique();
+    let authority = Pubkey::new_unique();
+    let token_pool_pda = Pubkey::new_unique();
+    let sender_token_account = Pubkey::new_unique();
+    let token_program = Pubkey::new_unique();
+    let merkle_tree = Pubkey::new_unique();
+
+    let config = BatchCompressMetaConfig::new(
+        fee_payer,
+        authority,
+        token_pool_pda,
+        sender_token_account,
+        token_program,
+        merkle_tree,
+        false,
     );
-    assert_eq!(
-        *cpi_accounts.light_system_program().unwrap().key,
-        Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID)
-    );
+    let default_pubkeys = CTokenDefaultAccounts::default();
+
+    let account_metas = get_batch_compress_instruction_account_metas(config);
+
+    let reference = light_compressed_token::accounts::MintToInstruction {
+        fee_payer,
+        authority,
+        cpi_authority_pda: Pubkey::from(CPI_AUTHORITY_PDA),
+        mint: None,
+        token_pool_pda,
+        token_program,
+        light_system_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
+        registered_program_pda: Pubkey::from(REGISTERED_PROGRAM_PDA),
+        noop_program: Pubkey::from(NOOP_PROGRAM_ID),
+        account_compression_authority: default_pubkeys.account_compression_authority,
+        account_compression_program: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
+        merkle_tree,
+        self_program: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        system_program: Pubkey::default(),
+        sol_pool_pda: None,
+    };
+
+    let reference_metas = reference.to_account_metas(Some(true));
+    assert_eq!(account_metas, reference_metas);
 }
