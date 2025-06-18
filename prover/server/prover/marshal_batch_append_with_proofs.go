@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-type BatchAppendWithProofsInputsJSON struct {
+type BatchAppendInputsJSON struct {
 	CircuitType         CircuitType `json:"circuitType"`
 	StateTreeHeight     uint32      `json:"stateTreeHeight"`
 	PublicInputHash     string      `json:"publicInputHash"`
@@ -20,14 +20,14 @@ type BatchAppendWithProofsInputsJSON struct {
 	BatchSize           uint32      `json:"batchSize"`
 }
 
-func (p *BatchAppendWithProofsParameters) MarshalJSON() ([]byte, error) {
-	paramsJSON := p.createBatchAppendWithProofsParametersJSON()
+func (p *BatchAppendParameters) MarshalJSON() ([]byte, error) {
+	paramsJSON := p.createBatchAppendParametersJSON()
 	return json.Marshal(paramsJSON)
 }
 
-func (p *BatchAppendWithProofsParameters) createBatchAppendWithProofsParametersJSON() BatchAppendWithProofsInputsJSON {
-	paramsJSON := BatchAppendWithProofsInputsJSON{
-		CircuitType:         BatchAppendWithProofsCircuitType,
+func (p *BatchAppendParameters) createBatchAppendParametersJSON() BatchAppendInputsJSON {
+	paramsJSON := BatchAppendInputsJSON{
+		CircuitType:         BatchAppendCircuitType,
 		PublicInputHash:     toHex(p.PublicInputHash),
 		OldRoot:             toHex(p.OldRoot),
 		NewRoot:             toHex(p.NewRoot),
@@ -54,8 +54,8 @@ func (p *BatchAppendWithProofsParameters) createBatchAppendWithProofsParametersJ
 	return paramsJSON
 }
 
-func (p *BatchAppendWithProofsParameters) UnmarshalJSON(data []byte) error {
-	var params BatchAppendWithProofsInputsJSON
+func (p *BatchAppendParameters) UnmarshalJSON(data []byte) error {
+	var params BatchAppendInputsJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
@@ -64,7 +64,7 @@ func (p *BatchAppendWithProofsParameters) UnmarshalJSON(data []byte) error {
 	return p.updateWithJSON(params)
 }
 
-func (p *BatchAppendWithProofsParameters) updateWithJSON(params BatchAppendWithProofsInputsJSON) error {
+func (p *BatchAppendParameters) updateWithJSON(params BatchAppendInputsJSON) error {
 	var err error
 
 	p.StartIndex = params.StartIndex

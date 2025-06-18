@@ -228,7 +228,7 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 	}
 }
 
-func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex int, enableRandom bool) *BatchAppendWithProofsParameters {
+func BuildTestBatchAppendTree(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex int, enableRandom bool) *BatchAppendParameters {
 	var tree merkletree.PoseidonTree
 
 	if previousTree == nil {
@@ -290,7 +290,7 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 		big.NewInt(int64(startIndex)),
 	},
 		4)
-	return &BatchAppendWithProofsParameters{
+	return &BatchAppendParameters{
 		PublicInputHash:     publicInputHash,
 		OldRoot:             &oldRoot,
 		NewRoot:             &newRoot,

@@ -8,12 +8,12 @@ import (
 type CircuitType string
 
 const (
-	CombinedCircuitType                CircuitType = "combined"
-	InclusionCircuitType               CircuitType = "inclusion"
-	NonInclusionCircuitType            CircuitType = "non-inclusion"
-	BatchAppendWithProofsCircuitType   CircuitType = "append-with-proofs"
-	BatchUpdateCircuitType             CircuitType = "update"
-	BatchAddressAppendCircuitType      CircuitType = "address-append"
+	CombinedCircuitType           CircuitType = "combined"
+	InclusionCircuitType          CircuitType = "inclusion"
+	NonInclusionCircuitType       CircuitType = "non-inclusion"
+	BatchAppendCircuitType        CircuitType = "append"
+	BatchUpdateCircuitType        CircuitType = "update"
+	BatchAddressAppendCircuitType CircuitType = "address-append"
 )
 
 func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
@@ -31,8 +31,8 @@ func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNu
 
 func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*ProvingSystemV2, error) {
 	switch circuit {
-	case BatchAppendWithProofsCircuitType:
-		return SetupBatchAppendWithProofs(height, batchSize)
+	case BatchAppendCircuitType:
+		return SetupBatchAppend(height, batchSize)
 	case BatchUpdateCircuitType:
 		return SetupBatchUpdate(height, batchSize)
 	case BatchAddressAppendCircuitType:

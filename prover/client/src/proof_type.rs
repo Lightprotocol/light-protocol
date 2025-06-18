@@ -5,11 +5,11 @@ pub enum ProofType {
     Inclusion,
     NonInclusion,
     Combined,
-    BatchAppendWithProofs,
+    BatchAppend,
     BatchUpdate,
     BatchAddressAppend,
     BatchUpdateTest,
-    BatchAppendWithProofsTest,
+    BatchAppendTest,
     BatchAddressAppendTest,
 }
 
@@ -22,11 +22,11 @@ impl Display for ProofType {
                 ProofType::Inclusion => "inclusion",
                 ProofType::NonInclusion => "non-inclusion",
                 ProofType::Combined => "combined",
-                ProofType::BatchAppendWithProofs => "append-with-proofs",
+                ProofType::BatchAppend => "append",
                 ProofType::BatchUpdate => "update",
                 ProofType::BatchUpdateTest => "update-test",
-                ProofType::BatchAppendWithProofsTest => "append-with-proofs-test",
-                ProofType::BatchAddressAppend => "addressAppend",
+                ProofType::BatchAppendTest => "append-test",
+                ProofType::BatchAddressAppend => "address-append",
                 ProofType::BatchAddressAppendTest => "address-append-test",
             }
         )

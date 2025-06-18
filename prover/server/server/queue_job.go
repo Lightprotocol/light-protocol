@@ -181,8 +181,8 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 		proof, proofError = w.processCombinedProof(job.Payload, proofRequestMeta)
 	case prover.BatchUpdateCircuitType:
 		proof, proofError = w.processBatchUpdateProof(job.Payload)
-	case prover.BatchAppendWithProofsCircuitType:
-		proof, proofError = w.processBatchAppendWithProofsProof(job.Payload)
+	case prover.BatchAppendCircuitType:
+		proof, proofError = w.processBatchAppendProof(job.Payload)
 	case prover.BatchAddressAppendCircuitType:
 		proof, proofError = w.processBatchAddressAppendProof(job.Payload)
 	default:
@@ -319,17 +319,17 @@ func (w *BaseQueueWorker) processBatchUpdateProof(payload json.RawMessage) (*pro
 	return nil, fmt.Errorf("no proving system found for batch update with height %d and batch size %d", params.Height, params.BatchSize)
 }
 
-func (w *BaseQueueWorker) processBatchAppendWithProofsProof(payload json.RawMessage) (*prover.Proof, error) {
-	var params prover.BatchAppendWithProofsParameters
+func (w *BaseQueueWorker) processBatchAppendProof(payload json.RawMessage) (*prover.Proof, error) {
+	var params prover.BatchAppendParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch append parameters: %w", err)
 	}
 
 	for _, provingSystem := range w.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppendWithProofsCircuitType &&
+		if provingSystem.CircuitType == prover.BatchAppendCircuitType &&
 			provingSystem.TreeHeight == params.Height &&
 			provingSystem.BatchSize == params.BatchSize {
-			return provingSystem.ProveBatchAppendWithProofs(&params)
+			return provingSystem.ProveBatchAppend(&params)
 		}
 	}
 

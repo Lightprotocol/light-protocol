@@ -2,9 +2,7 @@ use light_hasher::{hash_chain::create_hash_chain_from_slice, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, PROVE_PATH, SERVER_ADDRESS},
-    proof_types::batch_append::{
-        get_batch_append_with_proofs_inputs, BatchAppendWithProofsInputsJson,
-    },
+    proof_types::batch_append::{get_batch_append_inputs, BatchAppendInputsJson},
     prover::{spawn_prover, ProverConfig},
 };
 use reqwest::Client;
@@ -55,8 +53,8 @@ async fn prove_batch_append_with_proofs() {
         let root = merkle_tree.root();
         let leaves_hashchain = create_hash_chain_from_slice(&leaves).unwrap();
 
-        // Generate inputs for BatchAppendWithProofsCircuit
-        let (inputs, _) = get_batch_append_with_proofs_inputs::<HEIGHT>(
+        // Generate inputs for BatchAppendCircuit
+        let (inputs, _) = get_batch_append_inputs::<HEIGHT>(
             root,
             (i * num_insertions) as u32,
             leaves.clone(),
@@ -70,7 +68,7 @@ async fn prove_batch_append_with_proofs() {
 
         // Serialize inputs to JSON
         let client = Client::new();
-        let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&inputs).to_string();
+        let inputs_json = BatchAppendInputsJson::from_inputs(&inputs).to_string();
         // Send proof request to server
         let response_result = client
             .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

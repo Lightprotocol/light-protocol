@@ -199,9 +199,9 @@ func (ps *ProvingSystemV1) UnsafeReadFrom(r io.Reader) (int64, error) {
 }
 
 func ReadSystemFromFile(path string) (interface{}, error) {
-	if strings.Contains(strings.ToLower(path), "append-with-proofs") {
+	if strings.Contains(strings.ToLower(path), "append") {
 		ps := new(ProvingSystemV2)
-		ps.CircuitType = BatchAppendWithProofsCircuitType
+		ps.CircuitType = BatchAppendCircuitType
 		file, err := os.Open(path)
 		if err != nil {
 			return nil, err

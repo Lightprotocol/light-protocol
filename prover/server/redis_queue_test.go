@@ -51,13 +51,13 @@ func TestPeriodicCleanupFunctionality(t *testing.T) {
 
 	// Create a mix of old and recent jobs across multiple queues
 	now := time.Now()
-	oldTime := now.Add(-35 * time.Minute) // 35 minutes ago (should be removed)
+	oldTime := now.Add(-35 * time.Minute)    // 35 minutes ago (should be removed)
 	recentTime := now.Add(-20 * time.Minute) // 20 minutes ago (should stay)
 
 	// Create test jobs for all input queues
 	testJobs := []struct {
-		queueName string
-		job       *server.ProofJob
+		queueName    string
+		job          *server.ProofJob
 		shouldRemove bool
 	}{
 		{
@@ -71,7 +71,7 @@ func TestPeriodicCleanupFunctionality(t *testing.T) {
 			shouldRemove: true,
 		},
 		{
-			queueName: "zk_update_queue", 
+			queueName: "zk_update_queue",
 			job: &server.ProofJob{
 				ID:        uuid.New().String(),
 				Type:      "zk_proof",
@@ -84,7 +84,7 @@ func TestPeriodicCleanupFunctionality(t *testing.T) {
 			queueName: "zk_append_queue",
 			job: &server.ProofJob{
 				ID:        uuid.New().String(),
-				Type:      "zk_proof", 
+				Type:      "zk_proof",
 				Payload:   json.RawMessage(`{"height": 32, "batch_size": 10}`),
 				CreatedAt: oldTime,
 			},
@@ -115,13 +115,13 @@ func TestPeriodicCleanupFunctionality(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get initial queue stats: %v", err)
 	}
-	
+
 	expectedInitial := map[string]int64{
-		"zk_update_queue": 2,
-		"zk_append_queue": 1,
+		"zk_update_queue":         2,
+		"zk_append_queue":         1,
 		"zk_address_append_queue": 1,
 	}
-	
+
 	for queue, expected := range expectedInitial {
 		if stats[queue] != expected {
 			t.Errorf("Expected %s to have %d jobs initially, got %d", queue, expected, stats[queue])
@@ -142,8 +142,8 @@ func TestPeriodicCleanupFunctionality(t *testing.T) {
 
 	// Count expected remaining jobs
 	expectedAfter := map[string]int64{
-		"zk_update_queue": 1,        // 1 recent job should remain
-		"zk_append_queue": 0,        // 1 old job should be removed
+		"zk_update_queue":         1, // 1 recent job should remain
+		"zk_append_queue":         0, // 1 old job should be removed
 		"zk_address_append_queue": 1, // 1 recent job should remain
 	}
 
@@ -186,7 +186,7 @@ func TestCleanupOldProofRequests(t *testing.T) {
 
 	// Create jobs with different ages
 	now := time.Now()
-	oldTime := now.Add(-45 * time.Minute) // 45 minutes ago (should be removed)
+	oldTime := now.Add(-45 * time.Minute)    // 45 minutes ago (should be removed)
 	recentTime := now.Add(-15 * time.Minute) // 15 minutes ago (should stay)
 
 	// Create old jobs (should be removed)
@@ -199,7 +199,7 @@ func TestCleanupOldProofRequests(t *testing.T) {
 
 	oldAppendJob := &server.ProofJob{
 		ID:        uuid.New().String(),
-		Type:      "zk_proof", 
+		Type:      "zk_proof",
 		Payload:   json.RawMessage(`{"height": 32, "batch_size": 10}`),
 		CreatedAt: oldTime,
 	}
@@ -300,7 +300,7 @@ func createTestJob(jobID, circuitType string) *server.ProofJob {
 	switch circuitType {
 	case "batch-update":
 		payload = json.RawMessage(`{"height": 32, "batch_size": 10, "old_root": "0", "new_root": "1", "leaves": []}`)
-	case "batch-append-with-proofs":
+	case "batch-append":
 		payload = json.RawMessage(`{"height": 32, "batch_size": 10, "old_root": "0", "new_root": "1", "leaves": [], "merkle_proofs": []}`)
 	case "batch-address-append":
 		payload = json.RawMessage(`{"tree_height": 40, "batch_size": 10, "old_root": "0", "new_root": "1", "addresses": []}`)
@@ -380,7 +380,7 @@ func TestEnqueueToAppendQueue(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	job := createTestJob("test-append-1", "batch-append-with-proofs")
+	job := createTestJob("test-append-1", "batch-append")
 
 	err := rq.EnqueueProof("zk_append_queue", job)
 	if err != nil {
@@ -446,7 +446,7 @@ func TestDequeueFromAppendQueue(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	originalJob := createTestJob("test-dequeue-append", "batch-append-with-proofs")
+	originalJob := createTestJob("test-dequeue-append", "batch-append")
 
 	err := rq.EnqueueProof("zk_append_queue", originalJob)
 	if err != nil {
@@ -516,7 +516,7 @@ func TestQueueNameForCircuitType(t *testing.T) {
 		expectedQueue string
 	}{
 		{string(prover.BatchUpdateCircuitType), "zk_update_queue"},
-		{string(prover.BatchAppendWithProofsCircuitType), "zk_append_queue"},
+		{string(prover.BatchAppendCircuitType), "zk_append_queue"},
 		{string(prover.BatchAddressAppendCircuitType), "zk_address_append_queue"},
 		{string(prover.InclusionCircuitType), "zk_update_queue"},    // Default to update queue
 		{string(prover.NonInclusionCircuitType), "zk_update_queue"}, // Default to update queue
@@ -529,8 +529,8 @@ func TestQueueNameForCircuitType(t *testing.T) {
 			switch test.circuitType {
 			case string(prover.BatchUpdateCircuitType):
 				circuitType = prover.BatchUpdateCircuitType
-			case string(prover.BatchAppendWithProofsCircuitType):
-				circuitType = prover.BatchAppendWithProofsCircuitType
+			case string(prover.BatchAppendCircuitType):
+				circuitType = prover.BatchAppendCircuitType
 			case string(prover.BatchAddressAppendCircuitType):
 				circuitType = prover.BatchAddressAppendCircuitType
 			case string(prover.InclusionCircuitType):
@@ -554,7 +554,7 @@ func TestMultipleJobsInDifferentQueues(t *testing.T) {
 	defer teardownRedisQueue(t, rq)
 
 	updateJob := createTestJob("update-job", "batch-update")
-	appendJob := createTestJob("append-job", "batch-append-with-proofs")
+	appendJob := createTestJob("append-job", "batch-append")
 	addressAppendJob := createTestJob("address-append-job", "batch-address-append")
 
 	err := rq.EnqueueProof("zk_update_queue", updateJob)
@@ -940,14 +940,14 @@ func contains(s, substr string) bool {
 }
 
 func TestWorkerSelectionLogic(t *testing.T) {
-	circuits := []string{"update", "append-with-proofs", "inclusion"}
+	circuits := []string{"update", "append", "inclusion"}
 
 	if !containsCircuit(circuits, "update") {
 		t.Errorf("Expected circuits to contain 'update'")
 	}
 
-	if !containsCircuit(circuits, "append-with-proofs") {
-		t.Errorf("Expected circuits to contain 'append-with-proofs'")
+	if !containsCircuit(circuits, "append") {
+		t.Errorf("Expected circuits to contain 'append'")
 	}
 
 	if !containsCircuit(circuits, "inclusion") {
@@ -983,7 +983,7 @@ func TestWorkerSelectionLogic(t *testing.T) {
 		},
 		{
 			name:          "Append only",
-			circuits:      []string{"append-with-proofs"},
+			circuits:      []string{"append"},
 			expectUpdate:  false,
 			expectAppend:  true,
 			expectAddress: false,
@@ -997,21 +997,21 @@ func TestWorkerSelectionLogic(t *testing.T) {
 		},
 		{
 			name:          "Multiple circuits",
-			circuits:      []string{"update", "append-with-proofs"},
+			circuits:      []string{"update", "append"},
 			expectUpdate:  true,
 			expectAppend:  true,
 			expectAddress: false,
 		},
 		{
 			name:          "All batch circuits",
-			circuits:      []string{"update", "append-with-proofs", "address-append"},
+			circuits:      []string{"update", "append", "address-append"},
 			expectUpdate:  true,
 			expectAppend:  true,
 			expectAddress: true,
 		},
 		{
 			name:          "Test circuits",
-			circuits:      []string{"update-test", "append-with-proofs-test", "address-append-test"},
+			circuits:      []string{"update-test", "append-test", "address-append-test"},
 			expectUpdate:  true,
 			expectAppend:  true,
 			expectAddress: true,
@@ -1028,7 +1028,7 @@ func TestWorkerSelectionLogic(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			shouldStartUpdate := containsCircuit(tc.circuits, "update") || containsCircuit(tc.circuits, "update-test")
-			shouldStartAppend := containsCircuit(tc.circuits, "append-with-proofs") || containsCircuit(tc.circuits, "append-with-proofs-test")
+			shouldStartAppend := containsCircuit(tc.circuits, "append") || containsCircuit(tc.circuits, "append-test")
 			shouldStartAddress := containsCircuit(tc.circuits, "address-append") || containsCircuit(tc.circuits, "address-append-test")
 
 			if shouldStartUpdate != tc.expectUpdate {
@@ -1061,7 +1061,7 @@ func TestBatchOperationsAlwaysUseQueue(t *testing.T) {
 		expectedQueue string
 	}{
 		{prover.BatchUpdateCircuitType, "zk_update_queue"},
-		{prover.BatchAppendWithProofsCircuitType, "zk_append_queue"},
+		{prover.BatchAppendCircuitType, "zk_append_queue"},
 		{prover.BatchAddressAppendCircuitType, "zk_address_append_queue"},
 	}
 

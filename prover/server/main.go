@@ -47,7 +47,7 @@ func runCli() {
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchUpdateCircuitType && circuit != prover.BatchAppendWithProofsCircuitType && circuit != prover.BatchAddressAppendCircuitType {
+					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchUpdateCircuitType && circuit != prover.BatchAppendCircuitType && circuit != prover.BatchAddressAppendCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -91,9 +91,9 @@ func runCli() {
 
 					logging.Logger().Info().Msg("Running setup")
 					var err error
-					if circuit == prover.BatchAppendWithProofsCircuitType {
+					if circuit == prover.BatchAppendCircuitType {
 						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchAppendWithProofsCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
+						system, err = prover.SetupCircuitV2(prover.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
 						if err != nil {
 							return err
 						}
@@ -152,7 +152,7 @@ func runCli() {
 						circuit != prover.NonInclusionCircuitType &&
 						circuit != prover.CombinedCircuitType &&
 						circuit != prover.BatchUpdateCircuitType &&
-						circuit != prover.BatchAppendWithProofsCircuitType &&
+						circuit != prover.BatchAppendCircuitType &&
 						circuit != prover.BatchAddressAppendCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -277,7 +277,7 @@ func runCli() {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
 						var system *prover.ProvingSystemV2
-						system, err = prover.ImportBatchAppendWithProofSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
+						system, err = prover.ImportBatchAppendSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
 						}
@@ -292,7 +292,7 @@ func runCli() {
 							return err
 						}
 						err = prover.WriteProvingSystem(system, path, "")
-					} else if circuit == "addressAppend" {
+					} else if circuit == "address-append" {
 						if batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
@@ -423,7 +423,7 @@ func runCli() {
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
-						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined,  append-with-proofs, update,  append-with-proofs-test, update-test, address-append, address-append-test)",
+						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, update-test, address-append, address-append-test)",
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",
@@ -528,7 +528,7 @@ func runCli() {
 						}
 
 						// Start append worker for batch-append circuits or forester modes
-						if startAllWorkers || containsCircuit(circuits, "append-with-proofs") || containsCircuit(circuits, "append-with-proofs-test") {
+						if startAllWorkers || containsCircuit(circuits, "append") || containsCircuit(circuits, "append-test") {
 							appendWorker := server.NewAppendQueueWorker(redisQueue, psv1, psv2)
 							workers = append(workers, appendWorker)
 							go appendWorker.Start()
@@ -618,13 +618,13 @@ func runCli() {
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
 					&cli.BoolFlag{Name: "append", Usage: "Run batch append circuit", Required: false},
 					&cli.BoolFlag{Name: "update", Usage: "Run batch update circuit", Required: false},
-					&cli.BoolFlag{Name: "addressAppend", Usage: "Run batch address append circuit", Required: false},
+					&cli.BoolFlag{Name: "address-append", Usage: "Run batch address append circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where circuit key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
-						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append-with-proofs,  update, append-with-proofs-test,  update-test, address-append, address-append-test)",
-						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "appendWithProofs", "update", "append-with-proofs-test", "update-test", "addressAppend", "address-append-test"),
+						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, update-test, address-append, address-append-test)",
+						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "append", "update", "append-test", "update-test", "address-append", "address-append-test"),
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",
@@ -719,7 +719,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("append") {
-						var params prover.BatchAppendWithProofsParameters
+						var params prover.BatchAppendParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -727,7 +727,7 @@ func runCli() {
 
 						for _, provingSystem := range psv2 {
 							if provingSystem.TreeHeight == params.Height && provingSystem.BatchSize == params.BatchSize {
-								proof, err = provingSystem.ProveBatchAppendWithProofs(&params)
+								proof, err = provingSystem.ProveBatchAppend(&params)
 								if err != nil {
 									return err
 								}
@@ -754,7 +754,7 @@ func runCli() {
 								break
 							}
 						}
-					} else if context.Bool("addressAppend") {
+					} else if context.Bool("address-append") {
 						var params prover.BatchAddressAppendParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {

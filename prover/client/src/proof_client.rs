@@ -13,7 +13,7 @@ use crate::{
     },
     proof_types::{
         batch_address_append::{to_json, BatchAddressAppendInputs},
-        batch_append::{BatchAppendWithProofsCircuitInputs, BatchAppendWithProofsInputsJson},
+        batch_append::{BatchAppendInputsJson, BatchAppendsCircuitInputs},
         batch_update::{update_inputs_string, BatchUpdateCircuitInputs},
     },
 };
@@ -517,15 +517,13 @@ impl ProofClient {
 
     pub async fn generate_batch_append_proof(
         &self,
-        circuit_inputs: BatchAppendWithProofsCircuitInputs,
+        circuit_inputs: BatchAppendsCircuitInputs,
     ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
-        let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
-        let proof = self
-            .generate_proof(inputs_json, "append-with-proofs")
-            .await?;
+        let inputs_json = BatchAppendInputsJson::from_inputs(&circuit_inputs).to_string();
+        let proof = self.generate_proof(inputs_json, "append").await?;
         Ok((proof, new_root))
     }
 
