@@ -185,79 +185,80 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
     }
-    run_queue_info(config.clone(), trees.clone(), TreeType::StateV1).await;
-    run_queue_info(config.clone(), trees.clone(), TreeType::AddressV1).await;
+    // run_queue_info(config.clone(), trees.clone(), TreeType::StateV1).await;
+    // run_queue_info(config.clone(), trees.clone(), TreeType::AddressV1).await;
 
-    run_queue_info(config.clone(), trees.clone(), TreeType::StateV2).await;
+    // run_queue_info(config.clone(), trees.clone(), TreeType::StateV2).await;
+
     run_queue_info(config.clone(), trees.clone(), TreeType::AddressV2).await;
 
-    for tree in &trees {
-        let tree_type = format!("[{}]", tree.tree_type);
-        let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)
-            .await
-            .unwrap();
-        let fullness_percentage = tree_info.fullness * 100.0;
-        println!(
-            "{} Tree {}: Fullness: {:.4}% | Next Index: {} | Threshold: {}",
-            tree_type,
-            &tree.merkle_tree,
-            format!("{:.2}%", fullness_percentage),
-            tree_info.next_index,
-            tree_info.threshold
-        );
+    // for tree in &trees {
+    //     let tree_type = format!("[{}]", tree.tree_type);
+    //     let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)
+    //         .await
+    //         .unwrap();
+    //     let fullness_percentage = tree_info.fullness * 100.0;
+    //     println!(
+    //         "{} Tree {}: Fullness: {:.4}% | Next Index: {} | Threshold: {}",
+    //         tree_type,
+    //         &tree.merkle_tree,
+    //         format!("{:.2}%", fullness_percentage),
+    //         tree_info.next_index,
+    //         tree_info.threshold
+    //     );
 
-        if args.full {
-            println!("Checking Forester Assignment for {}...", tree.merkle_tree);
+    //     if args.full {
+    //         println!("Checking Forester Assignment for {}...", tree.merkle_tree);
 
-            let active_epoch_foresters: Vec<ForesterEpochPda> = forester_epoch_pdas
-                .iter()
-                .filter(|item| item.epoch == current_active_epoch)
-                .cloned()
-                .collect();
+    //         let active_epoch_foresters: Vec<ForesterEpochPda> = forester_epoch_pdas
+    //             .iter()
+    //             .filter(|item| item.epoch == current_active_epoch)
+    //             .cloned()
+    //             .collect();
 
-            let current_epoch_pda_entry = epoch_pdas
-                .iter()
-                .find(|pda| pda.epoch == current_active_epoch);
+    //         let current_epoch_pda_entry = epoch_pdas
+    //             .iter()
+    //             .find(|pda| pda.epoch == current_active_epoch);
 
-            let protocol_config = protocol_config_pdas[0].clone();
+    //         let protocol_config = protocol_config_pdas[0].clone();
 
-            print_tree_schedule_by_forester(
-                slot,
-                current_active_epoch,
-                active_epoch_foresters,
-                tree.merkle_tree,
-                tree.queue,
-                current_epoch_pda_entry,
-                &protocol_config,
-            );
-        }
-    }
+    //         print_tree_schedule_by_forester(
+    //             slot,
+    //             current_active_epoch,
+    //             active_epoch_foresters,
+    //             tree.merkle_tree,
+    //             tree.queue,
+    //             current_epoch_pda_entry,
+    //             &protocol_config,
+    //         );
+    //     }
+    // }
 
-    println!("\n=== CURRENT ACTIVE FORESTER ASSIGNMENTS ===");
-    let active_epoch_foresters: Vec<ForesterEpochPda> = forester_epoch_pdas
-        .iter()
-        .filter(|item| item.epoch == current_active_epoch)
-        .cloned()
-        .collect();
+    // println!("\n=== CURRENT ACTIVE FORESTER ASSIGNMENTS ===");
+    // let active_epoch_foresters: Vec<ForesterEpochPda> = forester_epoch_pdas
+    //     .iter()
+    //     .filter(|item| item.epoch == current_active_epoch)
+    //     .cloned()
+    //     .collect();
 
-    let current_epoch_pda_entry = epoch_pdas
-        .iter()
-        .find(|pda| pda.epoch == current_active_epoch);
+    // let current_epoch_pda_entry = epoch_pdas
+    //     .iter()
+    //     .find(|pda| pda.epoch == current_active_epoch);
 
-    let protocol_config = protocol_config_pdas[0].clone();
+    // let protocol_config = protocol_config_pdas[0].clone();
 
-    if !active_epoch_foresters.is_empty() && current_epoch_pda_entry.is_some() {
-        print_current_forester_assignments(
-            slot,
-            current_active_epoch,
-            active_epoch_foresters,
-            &trees,
-            current_epoch_pda_entry,
-            &protocol_config,
-        );
-    } else {
-        println!("No active foresters found for the current epoch.");
-    }
+    // if !active_epoch_foresters.is_empty() && current_epoch_pda_entry.is_some() {
+    //     print_current_forester_assignments(
+    //         slot,
+    //         current_active_epoch,
+    //         active_epoch_foresters,
+    //         &trees,
+    //         current_epoch_pda_entry,
+    //         &protocol_config,
+    //     );
+    // } else {
+    //     println!("No active foresters found for the current epoch.");
+    // }
 
     push_metrics(&config.external_services.pushgateway_url)
         .await

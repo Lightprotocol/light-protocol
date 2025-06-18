@@ -22,8 +22,7 @@ pub async fn process_batched_operations<R: Rpc, I: Indexer + IndexerType<R>>(
     tree_type: TreeType,
 ) -> Result<usize> {
     let processor = BatchProcessor::new(context, tree_type);
-    let result = processor.process().await;
-    result
+    processor.process().await
 }
 
 pub use common::BatchContext;

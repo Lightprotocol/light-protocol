@@ -224,10 +224,9 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
     async fn process_state_nullify(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (inserted_zkps_count, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
-        trace!(
+        debug!(
             "ZKP batch size: {}, inserted ZKPs count: {}",
-            zkp_batch_size,
-            inserted_zkps_count
+            zkp_batch_size, inserted_zkps_count
         );
         state::perform_nullify(&self.context, &mut rpc).await?;
         Ok(zkp_batch_size)
@@ -274,14 +273,14 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
 
         if let Ok(tree) = merkle_tree {
             let batch_index = tree.queue_batches.pending_batch_index;
-            let full_batch = tree
+            let pending_batch = tree
                 .queue_batches
                 .batches
                 .get(batch_index as usize)
                 .unwrap();
 
-            full_batch.get_state() != BatchState::Inserted
-                && full_batch.get_current_zkp_batch_index() > full_batch.get_num_inserted_zkps()
+            pending_batch.get_state() != BatchState::Inserted
+                && pending_batch.batch_is_ready_to_insert()
         } else {
             false
         }
@@ -303,14 +302,14 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
 
         if let Ok(queue) = output_queue {
             let batch_index = queue.batch_metadata.pending_batch_index;
-            let full_batch = queue
+            let pending_batch = queue
                 .batch_metadata
                 .batches
                 .get(batch_index as usize)
                 .unwrap();
 
-            full_batch.get_state() != BatchState::Inserted
-                && full_batch.get_current_zkp_batch_index() > full_batch.get_num_inserted_zkps()
+            pending_batch.get_state() != BatchState::Inserted
+                && pending_batch.batch_is_ready_to_insert()
         } else {
             false
         }

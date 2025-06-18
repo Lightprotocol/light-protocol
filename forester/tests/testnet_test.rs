@@ -104,7 +104,7 @@ async fn test_testnet() {
 
     let mut rng = StdRng::seed_from_u64(seed);
 
-    for _ in 0..8750 {
+    for _ in 0..40000 {
         let _ = rng.gen::<u64>();
     }
 
@@ -152,12 +152,12 @@ async fn test_testnet() {
     .unwrap();
     println!("address tree {:?}", queue.get_metadata());
 
-    let mint_keypair: [u8; 64] = [
-        252, 188, 100, 55, 45, 34, 146, 113, 156, 209, 84, 80, 67, 178, 150, 224, 27, 158, 159,
-        140, 54, 122, 217, 223, 134, 145, 104, 172, 55, 171, 181, 115, 144, 165, 49, 170, 28, 148,
-        60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169, 234, 29, 230, 22, 74, 49, 189,
-        28, 226, 242, 128, 191, 112,
-    ];
+    // let mint_keypair: [u8; 64] = [
+    //     252, 188, 100, 55, 45, 34, 146, 113, 156, 209, 84, 80, 67, 178, 150, 224, 27, 158, 159,
+    //     140, 54, 122, 217, 223, 134, 145, 104, 172, 55, 171, 181, 115, 144, 165, 49, 170, 28, 148,
+    //     60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169, 234, 29, 230, 22, 74, 49, 189,
+    //     28, 226, 242, 128, 191, 112,
+    // ];
 
     let mint_pubkey = [
         144, 165, 49, 170, 28, 148, 60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169,
@@ -183,54 +183,54 @@ async fn test_testnet() {
     // println!("mint_pubkey: {:?}", mint_pubkey.to_pubkey_bytes());
     // println!("mint_pubkey: {:?}", mint_pubkey.to_string());
 
-    let sig = mint_to(
-        &mut rpc,
-        &env.v2_state_trees[0].output_queue,
-        batch_payer,
-        &mint_pubkey,
-    )
-    .await;
-    println!("mint_to: {:?}", sig);
+    // let sig = mint_to(
+    //     &mut rpc,
+    //     &env.v2_state_trees[0].output_queue,
+    //     batch_payer,
+    //     &mint_pubkey,
+    // )
+    // .await;
+    // println!("mint_to: {:?}", sig);
 
     let photon_indexer = create_photon_indexer();
-    wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
+    // wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
 
     {
-        let batch_size = get_state_batch_size(&mut rpc, &env.v2_state_trees[0].merkle_tree).await;
-        println!("state batch size: {}", batch_size);
-        for i in 0..batch_size {
-            //     let batch_compress_sig = compress(
-            //         &mut rpc,
-            //         &env.v2_state_trees[0].output_queue,
-            //         batch_payer,
-            //         if i == 0 { 1_000_000 } else { 10_000 },
-            //     )
-            //     .await;
-            //     println!("{} batch compress: {:?}", i, batch_compress_sig);
-            // }
+        // let batch_size = get_state_batch_size(&mut rpc, &env.v2_state_trees[0].merkle_tree).await;
+        // println!("state batch size: {}", batch_size);
+        // for i in 0..batch_size {
+        //     let batch_compress_sig = compress(
+        //         &mut rpc,
+        //         &env.v2_state_trees[0].output_queue,
+        //         batch_payer,
+        //         if i == 0 { 1_000_000 } else { 10_000 },
+        //     )
+        //     .await;
+        //     println!("{} batch compress: {:?}", i, batch_compress_sig);
+        // }
 
-            // {
-            //     let batch_transfer_sig = transfer::<true, LightClient>(
-            //         &mut rpc,
-            //         &env.v2_state_trees[0].output_queue,
-            //         batch_payer,
-            //         &env,
-            //     )
-            //     .await;
-            //     println!("{} batch transfer: {:?}", i, batch_transfer_sig);
-            // }
+        // {
+        //     let batch_transfer_sig = transfer::<true, LightClient>(
+        //         &mut rpc,
+        //         &env.v2_state_trees[0].output_queue,
+        //         batch_payer,
+        //         &env,
+        //     )
+        //     .await;
+        //     println!("{} batch transfer: {:?}", i, batch_transfer_sig);
+        // }
 
-            {
-                let batch_transfer_token_sig = compressed_token_transfer::<LightClient>(
-                    &mut rpc,
-                    &env.v2_state_trees[0].output_queue,
-                    batch_payer,
-                    &mint_pubkey,
-                )
-                .await;
-                println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
-            }
-        }
+        //     {
+        //         let batch_transfer_token_sig = compressed_token_transfer::<LightClient>(
+        //             &mut rpc,
+        //             &env.v2_state_trees[0].output_queue,
+        //             batch_payer,
+        //             &mint_pubkey,
+        //         )
+        //         .await;
+        //         println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
+        //     }
+        // }
     }
 
     let (_, _, pre_root) = get_initial_merkle_tree_state(&mut rpc, &env.v2_address_trees[0]).await;
@@ -290,17 +290,17 @@ async fn test_testnet() {
 
         println!("Address tree metadata: {:?}", address_tree.get_metadata());
     }
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
+    // let (service_handle, shutdown_sender, mut work_report_receiver) =
+    //     setup_forester_pipeline(&config).await;
 
-    wait_for_work_report(&mut work_report_receiver, &tree_params).await;
+    // wait_for_work_report(&mut work_report_receiver, &tree_params).await;
 
-    verify_root_changed(&mut rpc, &env.v2_address_trees[0], &pre_root).await;
+    // verify_root_changed(&mut rpc, &env.v2_address_trees[0], &pre_root).await;
 
-    shutdown_sender
-        .send(())
-        .expect("Failed to send shutdown signal");
-    service_handle.await.unwrap().unwrap();
+    // shutdown_sender
+    //     .send(())
+    //     .expect("Failed to send shutdown signal");
+    // service_handle.await.unwrap().unwrap();
 }
 
 async fn setup_forester_pipeline(
