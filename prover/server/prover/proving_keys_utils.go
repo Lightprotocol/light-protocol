@@ -276,13 +276,13 @@ func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*Provin
 				Uint32("inclusionCompressedAccounts", s.InclusionNumberOfCompressedAccounts).
 				Uint32("nonInclusionTreeHeight", s.NonInclusionTreeHeight).
 				Uint32("nonInclusionCompressedAccounts", s.NonInclusionNumberOfCompressedAccounts).
-				Msg("Read ProvingSystem")
+				Msg("Read ProvingSystemV1")
 		case *ProvingSystemV2:
 			pssv2 = append(pssv2, s)
 			logging.Logger().Info().
 				Uint32("treeHeight", s.TreeHeight).
 				Uint32("batchSize", s.BatchSize).
-				Msg("Read BatchAppendProvingSystem")
+				Msg("Read ProvingSystemV2")
 		default:
 			return nil, nil, fmt.Errorf("unknown proving system type")
 		}
