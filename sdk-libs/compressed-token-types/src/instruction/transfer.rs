@@ -11,7 +11,7 @@ pub struct PackedMerkleContext {
 }
 
 // TODO: get from light-compressed-account
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedCpiContext {
     pub set_context: bool,
     pub first_set_context: bool,
@@ -19,7 +19,7 @@ pub struct CompressedCpiContext {
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
-pub struct InputTokenDataWithContext {
+pub struct TokenAccountMeta {
     pub amount: u64,
     pub delegate_index: Option<u8>,
     pub packed_tree_info: PackedStateTreeInfo,
@@ -39,8 +39,8 @@ pub struct InputTokenDataWithContextOnchain {
     pub tlv: Option<Vec<u8>>,
 }
 
-impl From<InputTokenDataWithContext> for InputTokenDataWithContextOnchain {
-    fn from(input: InputTokenDataWithContext) -> Self {
+impl From<TokenAccountMeta> for InputTokenDataWithContextOnchain {
+    fn from(input: TokenAccountMeta) -> Self {
         Self {
             amount: input.amount,
             delegate_index: input.delegate_index,

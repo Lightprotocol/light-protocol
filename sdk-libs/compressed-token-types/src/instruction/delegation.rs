@@ -1,11 +1,11 @@
+use crate::instruction::transfer::{CompressedCpiContext, CompressedProof, TokenAccountMeta};
 use borsh::{BorshDeserialize, BorshSerialize};
-use crate::instruction::transfer::{CompressedProof, InputTokenDataWithContext, CompressedCpiContext};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct CompressedTokenInstructionDataApprove {
     pub proof: CompressedProof,
     pub mint: [u8; 32],
-    pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
+    pub input_token_data_with_context: Vec<TokenAccountMeta>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub delegate: [u8; 32],
     pub delegated_amount: u64,
@@ -20,7 +20,7 @@ pub struct CompressedTokenInstructionDataApprove {
 pub struct CompressedTokenInstructionDataRevoke {
     pub proof: CompressedProof,
     pub mint: [u8; 32],
-    pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
+    pub input_token_data_with_context: Vec<TokenAccountMeta>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub output_account_merkle_tree_index: u8,
 }

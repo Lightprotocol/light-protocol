@@ -1,5 +1,4 @@
 pub mod account;
-pub mod cpi;
 pub mod error;
 pub mod instructions;
 pub mod token_pool;

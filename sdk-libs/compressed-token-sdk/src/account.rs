@@ -1,24 +1,25 @@
 use std::ops::Deref;
 
 use crate::error::TokenSdkError;
-use light_compressed_token_types::{InputTokenDataWithContext, PackedTokenTransferOutputData};
+use light_compressed_token_types::{PackedTokenTransferOutputData, TokenAccountMeta};
 use solana_pubkey::Pubkey;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount {
-    inputs: Vec<InputTokenDataWithContext>,
+    inputs: Vec<TokenAccountMeta>,
     output: PackedTokenTransferOutputData,
     compression_amount: Option<u64>,
     is_compress: bool,
     is_decompress: bool,
     mint: Pubkey,
+    pub(crate) method_used: bool,
 }
 
 impl CTokenAccount {
     pub fn new(
         mint: Pubkey,
         owner: Pubkey,
-        token_data: Vec<InputTokenDataWithContext>,
+        token_data: Vec<TokenAccountMeta>,
         output_merkle_tree_index: u8,
     ) -> Self {
         let amount = token_data.iter().map(|data| data.amount).sum();
@@ -37,6 +38,7 @@ impl CTokenAccount {
             is_compress: false,
             is_decompress: false,
             mint,
+            method_used: false,
         }
     }
 
@@ -54,9 +56,12 @@ impl CTokenAccount {
             is_compress: false,
             is_decompress: false,
             mint,
+            method_used: false,
         }
     }
 
+    // TODO: consider this might be confusing because it must not be used in combination with fn transfer()
+    //     could mark the struct as transferred and throw in fn transfer
     pub fn transfer(
         &mut self,
         recipient: &Pubkey,
@@ -70,6 +75,7 @@ impl CTokenAccount {
         self.output.amount -= amount;
         let merkle_tree_index = output_merkle_tree_index.unwrap_or(self.output.merkle_tree_index);
 
+        self.method_used = true;
         Ok(Self {
             compression_amount: None,
             is_compress: false,
@@ -83,9 +89,11 @@ impl CTokenAccount {
                 merkle_tree_index,
             },
             mint: self.mint,
+            method_used: true,
         })
     }
 
+    // TODO: consider this might be confusing because it must not be used in combination with fn compress()
     pub fn compress(&mut self, amount: u64) -> Result<(), TokenSdkError> {
         self.output.amount += amount;
         self.is_compress = true;
@@ -97,9 +105,12 @@ impl CTokenAccount {
             Some(amount_ref) => *amount_ref += amount,
             None => self.compression_amount = Some(amount),
         }
+        self.method_used = true;
+
         Ok(())
     }
 
+    // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
     pub fn decompress(&mut self, amount: u64) -> Result<(), TokenSdkError> {
         if self.is_compress {
             return Err(TokenSdkError::CannotCompressAndDecompress);
@@ -115,6 +126,8 @@ impl CTokenAccount {
             Some(amount_ref) => *amount_ref += amount,
             None => self.compression_amount = Some(amount),
         }
+        self.method_used = true;
+
         Ok(())
     }
 
@@ -139,12 +152,7 @@ impl CTokenAccount {
     }
 
     /// Consumes token account for instruction creation.
-    pub fn into_inputs_and_outputs(
-        self,
-    ) -> (
-        Vec<InputTokenDataWithContext>,
-        PackedTokenTransferOutputData,
-    ) {
+    pub fn into_inputs_and_outputs(self) -> (Vec<TokenAccountMeta>, PackedTokenTransferOutputData) {
         (self.inputs, self.output)
     }
 }

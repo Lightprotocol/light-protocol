@@ -2,42 +2,53 @@
 
 use anchor_lang::{prelude::*, solana_program::program::invoke, Discriminator};
 use light_compressed_token_sdk::{
-    cpi::{create_compressed_token_instruction, CpiAccounts, CpiInputs},
-    InputTokenDataWithContext, ValidityProof,
+    account::CTokenAccount,
+    cpi_account_infos::TransferAccountInfos,
+    instructions::transfer::instruction::{
+        compress, decompress, transfer, CompressInputs, TransferInputs,
+    },
+    TokenAccountMeta, ValidityProof,
 };
-
 declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
 
 #[program]
 pub mod sdk_token_test {
 
+    use light_compressed_token_sdk::instructions::transfer::instruction::DecompressInputs;
+
     use super::*;
 
-    pub fn compress<'info>(
+    pub fn compress_tokens<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         output_tree_index: u8,
         recipient: Pubkey, // TODO: make recpient pda
         mint: Pubkey,      // TODO: deserialize from token account.
         amount: u64,
     ) -> Result<()> {
-        let mut token_account = light_compressed_token_sdk::account::CTokenAccount::new_empty(
-            mint,
-            recipient,
-            output_tree_index,
-        );
-        token_account.compress(amount).unwrap();
-
-        let cpi_inputs = CpiInputs::new_compress(vec![token_account]);
-
-        let light_cpi_accounts = CpiAccounts::new_compress(
+        let light_cpi_accounts = TransferAccountInfos::new_compress(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
         );
 
-        // TODO: add to program error conversion
-        let instruction =
-            create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
+        let compress_inputs = CompressInputs {
+            fee_payer: *ctx.accounts.signer.key,
+            authority: *ctx.accounts.signer.key,
+            mint,
+            recipient,
+            sender_token_account: *light_cpi_accounts.sender_token_account().unwrap().key,
+            amount,
+            // can be hardcoded as 0, exposed for flexibility
+            // and as marker that a tree has to be provided.
+            output_tree_index,
+            output_queue_pubkey: *light_cpi_accounts.tree_accounts().unwrap()[0].key,
+            token_pool_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
+            transfer_config: None,
+            spl_token_program: *light_cpi_accounts.spl_token_program().unwrap().key,
+        };
+
+        let instruction = compress(compress_inputs).map_err(ProgramError::from)?;
+        msg!("instruction {:?}", instruction);
         let account_infos = light_cpi_accounts.to_account_infos();
 
         invoke(&instruction, account_infos.as_slice())?;
@@ -45,71 +56,83 @@ pub mod sdk_token_test {
         Ok(())
     }
 
-    pub fn transfer<'info>(
+    pub fn transfer_tokens<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         validity_proof: ValidityProof,
-        token_data: Vec<InputTokenDataWithContext>,
+        token_metas: Vec<TokenAccountMeta>,
         output_tree_index: u8,
         mint: Pubkey,
         recipient: Pubkey,
     ) -> Result<()> {
-        let mut token_account = light_compressed_token_sdk::account::CTokenAccount::new(
-            mint,
-            ctx.accounts.signer.key(), // TODO: reconsider whether this makes sense
-            token_data,
-            output_tree_index,
-        );
-        // None is the same output_tree_index as token account
-        let recipient_token_account = token_account.transfer(&recipient, 10, None).unwrap();
-
-        let cpi_inputs =
-            CpiInputs::new(vec![token_account, recipient_token_account], validity_proof);
-        let light_cpi_accounts = CpiAccounts::new(
+        let light_cpi_accounts = TransferAccountInfos::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
         );
-
-        // TODO: add to program error conversion
-        let instruction =
-            create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
+        let sender_account = CTokenAccount::new(
+            mint,
+            ctx.accounts.signer.key(),
+            token_metas,
+            // We pack the accounts offchain.
+            output_tree_index,
+        );
+        let transfer_inputs = TransferInputs {
+            fee_payer: ctx.accounts.signer.key(),
+            // This way we can use CTokenAccount as anchor account type
+            sender_account,
+            validity_proof,
+            recipient,
+            // This is necessary for on and offchain compatibility.
+            // This is not an optimal solution because we collect pubkeys into a vector.
+            tree_pubkeys: light_cpi_accounts.tree_pubkeys().unwrap(),
+            config: None,
+            amount: 10,
+        };
+        let instruction = transfer(transfer_inputs).unwrap();
 
         let account_infos = light_cpi_accounts.to_account_infos();
 
-        // TODO: make invoke_signed
         invoke(&instruction, account_infos.as_slice())?;
 
         Ok(())
     }
 
-    pub fn decompress<'info>(
+    pub fn decompress_tokens<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         validity_proof: ValidityProof,
-        token_data: Vec<InputTokenDataWithContext>,
+        token_data: Vec<TokenAccountMeta>,
         output_tree_index: u8,
         mint: Pubkey,
     ) -> Result<()> {
-        let mut token_account = light_compressed_token_sdk::account::CTokenAccount::new(
+        let sender_account = light_compressed_token_sdk::account::CTokenAccount::new(
             mint,
-            ctx.accounts.signer.key(), // TODO: reconsider whether this makes sense
+            ctx.accounts.signer.key(),
             token_data,
             output_tree_index,
         );
-        token_account.decompress(10).unwrap();
 
-        let cpi_inputs = CpiInputs::new(vec![token_account], validity_proof);
-        let light_cpi_accounts = CpiAccounts::new_decompress(
+        let light_cpi_accounts = TransferAccountInfos::new_decompress(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
         );
 
-        // TODO: add to program error conversion
-        let instruction =
-            create_compressed_token_instruction(cpi_inputs, &light_cpi_accounts).unwrap();
+        let inputs = DecompressInputs {
+            fee_payer: *ctx.accounts.signer.key,
+            validity_proof,
+            sender_account,
+            amount: 10,
+            tree_pubkeys: light_cpi_accounts.tree_pubkeys().unwrap(),
+            token_pool_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
+            recipient_token_account: *light_cpi_accounts.decompression_recipient().unwrap().key,
+            // TODO: consider replacing with token program id
+            spl_token_program: *light_cpi_accounts.spl_token_program().unwrap().key,
+            config: None,
+        };
+
+        let instruction = decompress(inputs).unwrap();
         let account_infos = light_cpi_accounts.to_account_infos();
 
-        // TODO: make invoke_signed
         invoke(&instruction, account_infos.as_slice())?;
 
         Ok(())

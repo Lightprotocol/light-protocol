@@ -1,15 +1,15 @@
 use anchor_lang::ToAccountMetas;
 use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
-use light_compressed_token_sdk::cpi::accounts::to_compressed_token_account_metas;
 use light_compressed_token_types::{
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID,
         NOOP_PROGRAM_ID, PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID,
     },
-    cpi_accounts::{CpiAccounts, CpiAccountsConfig},
+    cpi_account_infos::{CpiAccounts, CpiAccountsConfig},
 };
 use solana_pubkey::Pubkey;
 
+// TODO: Rewrite to use get_transfer_instruction_account_metas
 #[test]
 fn test_to_compressed_token_account_metas_compress() {
     // Create test accounts
