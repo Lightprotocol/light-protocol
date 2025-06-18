@@ -1,12 +1,14 @@
-use borsh::BorshSerialize;
+use crate::{AnchorDeserialize, AnchorSerialize};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use crate::error::{Result, TokenSdkError};
-use crate::instructions::batch_compress::account_metas::{BatchCompressMetaConfig, get_batch_compress_instruction_account_metas};
+use crate::instructions::batch_compress::account_metas::{
+    get_batch_compress_instruction_account_metas, BatchCompressMetaConfig,
+};
 use light_compressed_token_types::instruction::batch_compress::BatchCompressInstructionData;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct Recipient {
     pub pubkey: Pubkey,
     pub amount: u64,
@@ -30,7 +32,7 @@ pub struct BatchCompressInputs {
 pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<Instruction> {
     let mut pubkeys = Vec::with_capacity(inputs.recipients.len());
     let mut amounts = Vec::with_capacity(inputs.recipients.len());
-    
+
     inputs.recipients.iter().for_each(|recipient| {
         pubkeys.push(recipient.pubkey.to_bytes());
         amounts.push(recipient.amount);
@@ -46,7 +48,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
         bump: inputs.token_pool_bump,
     };
 
-    // Serialize instruction data  
+    // Serialize instruction data
     let serialized_data = instruction_data
         .try_to_vec()
         .map_err(|_| TokenSdkError::SerializationError)?;

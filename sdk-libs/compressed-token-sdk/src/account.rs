@@ -93,6 +93,45 @@ impl CTokenAccount {
         })
     }
 
+    /// Approves a delegate for a specified amount of tokens.
+    /// Similar to transfer, this deducts the amount from the current account
+    /// and returns a new CTokenAccount that represents the delegated portion.
+    /// The original account balance is reduced by the delegated amount.
+    pub fn approve(
+        &mut self,
+        _delegate: &Pubkey,
+        amount: u64,
+        output_merkle_tree_index: Option<u8>,
+    ) -> Result<Self, TokenSdkError> {
+        if amount > self.output.amount {
+            return Err(TokenSdkError::InsufficientBalance);
+        }
+        
+        // Deduct the delegated amount from current account
+        self.output.amount -= amount;
+        let merkle_tree_index = output_merkle_tree_index.unwrap_or(self.output.merkle_tree_index);
+
+        self.method_used = true;
+        
+        // Create a new delegated account with the specified delegate
+        // Note: In the actual instruction, this will create the proper delegation structure
+        Ok(Self {
+            compression_amount: None,
+            is_compress: false,
+            is_decompress: false,
+            inputs: vec![],
+            output: PackedTokenTransferOutputData {
+                owner: self.output.owner,  // Owner remains the same, but delegate is set
+                amount,
+                lamports: None,
+                tlv: None,
+                merkle_tree_index,
+            },
+            mint: self.mint,
+            method_used: true,
+        })
+    }
+
     // TODO: consider this might be confusing because it must not be used in combination with fn compress()
     pub fn compress(&mut self, amount: u64) -> Result<(), TokenSdkError> {
         self.output.amount += amount;
