@@ -613,3 +613,4 @@ async fn batch_compress_spl_tokens(
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
 }
+

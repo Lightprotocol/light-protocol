@@ -1,5 +1,6 @@
 use crate::{AnchorDeserialize, AnchorSerialize};
 pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+pub use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_sdk_types::instruction::PackedStateTreeInfo;
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
@@ -8,14 +9,6 @@ pub struct PackedMerkleContext {
     pub nullifier_queue_pubkey_index: u8,
     pub leaf_index: u32,
     pub proof_by_index: bool,
-}
-
-// TODO: get from light-compressed-account
-#[derive(Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedCpiContext {
-    pub set_context: bool,
-    pub first_set_context: bool,
-    pub cpi_context_account_index: u8,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]

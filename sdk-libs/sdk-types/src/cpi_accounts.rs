@@ -209,6 +209,14 @@ impl<'a, T: AccountInfoTrait> CpiAccounts<'a, T> {
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(system_len))
     }
 
+    pub fn tree_pubkeys(&self) -> Result<Vec<T::Pubkey>> {
+        Ok(self
+            .tree_accounts()?
+            .iter()
+            .map(|x| x.pubkey())
+            .collect::<Vec<T::Pubkey>>())
+    }
+
     pub fn get_tree_account_info(&self, tree_index: usize) -> Result<&'a T> {
         let tree_accounts = self.tree_accounts()?;
         tree_accounts
