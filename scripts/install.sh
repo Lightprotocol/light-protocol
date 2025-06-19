@@ -13,7 +13,7 @@ VERSIONS=(
     "solana:2.2.15"
     "anchor:anchor-v0.29.0"
     "jq:jq-1.7.1"
-    "photon:0.50.0"
+    "photon:0.50.1"
     "redis:8.0.1"
 )
 
@@ -107,8 +107,6 @@ install_rust() {
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add --toolchain 1.86-x86_64-unknown-linux-gnu clippy
         cargo install cargo-expand --locked
-        # temp - commit hash from PR as of 2025-06-16
-        cargo install --git https://github.com/lightprotocol/photon.git --rev 49b7e7f0d668babbc4d65fe8a0a7236df76f75a8  --locked
         log "rust"
     else
         echo "Rust already installed, skipping..."
@@ -187,6 +185,35 @@ install_jq() {
         log "jq"
     else
         echo "jq already installed, skipping..."
+    fi
+}
+
+install_photon() {
+    # Check if photon is properly installed and correct version
+    local expected_version=$(get_version "photon")
+    local photon_installed=false
+    local photon_correct_version=false
+    
+    export CARGO_HOME="${PREFIX}/cargo"
+    export PATH="${PREFIX}/cargo/bin:${PATH}"
+    
+    if [ -f "${PREFIX}/cargo/bin/photon" ]; then
+        photon_installed=true
+        # Check version
+        if photon_version=$(${PREFIX}/cargo/bin/photon --version 2>/dev/null); then
+            if echo "$photon_version" | grep -q "$expected_version"; then
+                photon_correct_version=true
+            fi
+        fi
+    fi
+    
+    if [ "$photon_installed" = false ] || [ "$photon_correct_version" = false ]; then
+        echo "Installing Photon indexer (version $expected_version)..."
+        # Use git commit for now as specified in constants.ts
+        cargo install --git https://github.com/lightprotocol/photon.git --rev 49b7e7f0d668babbc4d65fe8a0a7236df76f75a8 --locked --force
+        log "photon"
+    else
+        echo "Photon already installed with correct version, skipping..."
     fi
 }
 
@@ -369,6 +396,7 @@ main() {
     local key_type="light"
     local reset_log=true
     local skip_components=""
+    local force_reinstall=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -388,16 +416,20 @@ main() {
                 skip_components="$2"
                 shift 2
                 ;;
+            --force-reinstall)
+                force_reinstall=true
+                shift
+                ;;
             *)
                 echo "Unknown option: $1"
-                echo "Usage: $0 [--full-keys] [--no-reset] [--skip-components <comma-separated-list>]"
-                echo "Components that can be skipped: go,rust,node,pnpm,solana,anchor,jq,keys,dependencies,redis"
+                echo "Usage: $0 [--full-keys] [--no-reset] [--skip-components <comma-separated-list>] [--force-reinstall]"
+                echo "Components that can be skipped: go,rust,node,pnpm,solana,anchor,jq,photon,keys,dependencies,redis"
                 exit 1
                 ;;
         esac
     done
 
-    if $reset_log; then
+    if $reset_log || $force_reinstall; then
         rm -f "$INSTALL_LOG"
     fi
 
@@ -410,6 +442,7 @@ main() {
     # Install components unless explicitly skipped
     should_skip "go" || install_go
     should_skip "rust" || install_rust
+    should_skip "photon" || install_photon
     should_skip "node" || install_node
     should_skip "pnpm" || install_pnpm
     should_skip "solana" || install_solana
