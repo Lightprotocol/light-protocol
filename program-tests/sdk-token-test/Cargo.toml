@@ -21,6 +21,10 @@ default = []
 [dependencies]
 light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
 anchor-lang = { workspace = true }
+light-hasher = { workspace = true }
+light-sdk = { workspace = true }
+light-sdk-types = { workspace = true }
+light-compressed-account = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
