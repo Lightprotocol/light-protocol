@@ -1,4 +1,7 @@
-use crate::account_infos::generic_struct::AccountInfoIndexGetter;
+use light_account_checks::AccountInfoTrait;
+use crate::{AnchorDeserialize, AnchorSerialize};
+
+use crate::error::{LightTokenSdkTypeError, Result};
 
 #[repr(usize)]
 pub enum MintToAccountInfosIndex {
@@ -16,59 +19,214 @@ pub enum MintToAccountInfosIndex {
     MerkleTree,
     SelfProgram,
     SystemProgram,
+    SolPoolPda,
 }
 
-impl AccountInfoIndexGetter for MintToAccountInfosIndex {
-    const SYSTEM_ACCOUNTS_LEN: usize = 14;
-    
-    fn cpi_authority_index() -> usize {
-        MintToAccountInfosIndex::CpiAuthorityPda as usize
+pub struct MintToAccountInfos<'a, T: AccountInfoTrait + Clone> {
+    fee_payer: &'a T,
+    authority: &'a T,
+    accounts: &'a [T],
+    config: MintToAccountInfosConfig,
+}
+
+#[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct MintToAccountInfosConfig {
+    pub cpi_context: bool,
+    pub has_mint: bool, // false for batch_compress, true for mint_to
+    pub has_sol_pool_pda: bool, // can be Some or None in both cases
+}
+
+impl MintToAccountInfosConfig {
+    pub const fn new() -> Self {
+        Self {
+            cpi_context: false,
+            has_mint: true, // default to mint_to behavior
+            has_sol_pool_pda: false,
+        }
     }
 
-    fn light_system_program_index() -> usize {
-        MintToAccountInfosIndex::LightSystemProgram as usize
+    pub const fn new_batch_compress() -> Self {
+        Self {
+            cpi_context: false,
+            has_mint: false, // batch_compress doesn't use mint account
+            has_sol_pool_pda: false,
+        }
     }
 
-    fn registered_program_pda_index() -> usize {
-        MintToAccountInfosIndex::RegisteredProgramPda as usize
+    pub const fn new_with_cpi_context() -> Self {
+        Self {
+            cpi_context: true,
+            has_mint: true,
+            has_sol_pool_pda: false,
+        }
     }
 
-    fn noop_program_index() -> usize {
-        MintToAccountInfosIndex::NoopProgram as usize
+    pub const fn new_with_sol_pool_pda() -> Self {
+        Self {
+            cpi_context: false,
+            has_mint: true,
+            has_sol_pool_pda: true,
+        }
     }
 
-    fn account_compression_authority_index() -> usize {
-        MintToAccountInfosIndex::AccountCompressionAuthority as usize
+    pub const fn new_batch_compress_with_sol_pool_pda() -> Self {
+        Self {
+            cpi_context: false,
+            has_mint: false,
+            has_sol_pool_pda: true,
+        }
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> MintToAccountInfos<'a, T> {
+    pub fn new(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config: MintToAccountInfosConfig::new(),
+        }
     }
 
-    fn account_compression_program_index() -> usize {
-        MintToAccountInfosIndex::AccountCompressionProgram as usize
+    pub fn new_with_config(
+        fee_payer: &'a T,
+        authority: &'a T,
+        accounts: &'a [T],
+        config: MintToAccountInfosConfig,
+    ) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config,
+        }
     }
 
-    fn ctoken_program_index() -> usize {
-        MintToAccountInfosIndex::SelfProgram as usize
+    pub fn fee_payer(&self) -> &'a T {
+        self.fee_payer
     }
 
-    fn token_pool_pda_index() -> usize {
-        MintToAccountInfosIndex::TokenPoolPda as usize
+    pub fn authority(&self) -> &'a T {
+        self.authority
     }
 
-    fn decompression_recipient_index() -> usize {
-        // MintTo doesn't use decompression recipient
-        0
+    pub fn cpi_authority_pda(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::CpiAuthorityPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn spl_token_program_index() -> usize {
-        MintToAccountInfosIndex::TokenProgram as usize
+    pub fn mint(&self) -> Result<&'a T> {
+        if !self.config.has_mint {
+            return Err(LightTokenSdkTypeError::MintUndefinedForBatchCompress);
+        }
+        let index = MintToAccountInfosIndex::Mint as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn system_program_index() -> usize {
-        MintToAccountInfosIndex::SystemProgram as usize
+    pub fn token_pool_pda(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::TokenPoolPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn cpi_context_index() -> usize {
-        // MintTo doesn't use cpi context
-        0
+    pub fn token_program(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::TokenProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn light_system_program(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::LightSystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn registered_program_pda(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::RegisteredProgramPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn noop_program(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::NoopProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_compression_authority(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::AccountCompressionAuthority as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_compression_program(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::AccountCompressionProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn merkle_tree(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::MerkleTree as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn self_program(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::SelfProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn system_program(&self) -> Result<&'a T> {
+        let index = MintToAccountInfosIndex::SystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn sol_pool_pda(&self) -> Result<&'a T> {
+        if !self.config.has_sol_pool_pda {
+            return Err(LightTokenSdkTypeError::SolPoolPdaUndefined);
+        }
+        let index = MintToAccountInfosIndex::SolPoolPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn get_account_info(&self, index: usize) -> Result<&'a T> {
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_infos(&self) -> &'a [T] {
+        self.accounts
+    }
+
+    pub fn config(&self) -> &MintToAccountInfosConfig {
+        &self.config
+    }
+
+    pub fn system_accounts_len(&self) -> usize {
+        let mut len = 15; // Base accounts from the enum
+        if !self.config.has_sol_pool_pda {
+            len -= 1; // Remove sol_pool_pda if it's None
+        }
+        len
     }
 }
 

@@ -1,4 +1,4 @@
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct AccountInfosConfig {

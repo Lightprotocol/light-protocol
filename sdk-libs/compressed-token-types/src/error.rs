@@ -10,6 +10,10 @@ pub enum LightTokenSdkTypeError {
     SenderTokenAccountDoesOnlyExistInCompressedMode,
     #[error("Decompression recipient token account does only exist in decompressed mode")]
     DecompressionRecipientTokenAccountDoesOnlyExistInDecompressedMode,
+    #[error("Sol pool PDA is undefined")]
+    SolPoolPdaUndefined,
+    #[error("Mint is undefined for batch compress")]
+    MintUndefinedForBatchCompress,
 }
 
 impl From<LightTokenSdkTypeError> for u32 {
@@ -18,6 +22,8 @@ impl From<LightTokenSdkTypeError> for u32 {
             LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(_) => 18001,
             LightTokenSdkTypeError::SenderTokenAccountDoesOnlyExistInCompressedMode => 18002,
             LightTokenSdkTypeError::DecompressionRecipientTokenAccountDoesOnlyExistInDecompressedMode => 18003,
+            LightTokenSdkTypeError::SolPoolPdaUndefined => 18004,
+            LightTokenSdkTypeError::MintUndefinedForBatchCompress => 18005,
         }
     }
 }

@@ -1,4 +1,7 @@
-use crate::account_infos::generic_struct::AccountInfoIndexGetter;
+use light_account_checks::AccountInfoTrait;
+use crate::{AnchorDeserialize, AnchorSerialize};
+
+use crate::error::{LightTokenSdkTypeError, Result};
 
 #[repr(usize)]
 pub enum FreezeAccountInfosIndex {
@@ -15,59 +18,144 @@ pub enum FreezeAccountInfosIndex {
     Mint,
 }
 
-impl AccountInfoIndexGetter for FreezeAccountInfosIndex {
-    const SYSTEM_ACCOUNTS_LEN: usize = 11;
-    
-    fn cpi_authority_index() -> usize {
-        FreezeAccountInfosIndex::CpiAuthorityPda as usize
+pub struct FreezeAccountInfos<'a, T: AccountInfoTrait + Clone> {
+    fee_payer: &'a T,
+    authority: &'a T,
+    accounts: &'a [T],
+    config: FreezeAccountInfosConfig,
+}
+
+#[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct FreezeAccountInfosConfig {
+    pub cpi_context: bool,
+}
+
+impl FreezeAccountInfosConfig {
+    pub const fn new() -> Self {
+        Self {
+            cpi_context: false,
+        }
     }
 
-    fn light_system_program_index() -> usize {
-        FreezeAccountInfosIndex::LightSystemProgram as usize
+    pub const fn new_with_cpi_context() -> Self {
+        Self {
+            cpi_context: true,
+        }
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> FreezeAccountInfos<'a, T> {
+    pub fn new(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config: FreezeAccountInfosConfig::new(),
+        }
     }
 
-    fn registered_program_pda_index() -> usize {
-        FreezeAccountInfosIndex::RegisteredProgramPda as usize
+    pub fn new_with_config(
+        fee_payer: &'a T,
+        authority: &'a T,
+        accounts: &'a [T],
+        config: FreezeAccountInfosConfig,
+    ) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config,
+        }
     }
 
-    fn noop_program_index() -> usize {
-        FreezeAccountInfosIndex::NoopProgram as usize
+    pub fn fee_payer(&self) -> &'a T {
+        self.fee_payer
     }
 
-    fn account_compression_authority_index() -> usize {
-        FreezeAccountInfosIndex::AccountCompressionAuthority as usize
+    pub fn authority(&self) -> &'a T {
+        self.authority
     }
 
-    fn account_compression_program_index() -> usize {
-        FreezeAccountInfosIndex::AccountCompressionProgram as usize
+    pub fn cpi_authority_pda(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::CpiAuthorityPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn ctoken_program_index() -> usize {
-        FreezeAccountInfosIndex::SelfProgram as usize
+    pub fn light_system_program(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::LightSystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn token_pool_pda_index() -> usize {
-        // Freeze instruction doesn't use token pool pda
-        0
+    pub fn registered_program_pda(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::RegisteredProgramPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn decompression_recipient_index() -> usize {
-        // Freeze instruction doesn't use decompression recipient
-        0
+    pub fn noop_program(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::NoopProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn spl_token_program_index() -> usize {
-        // Freeze instruction doesn't use spl token program
-        0
+    pub fn account_compression_authority(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::AccountCompressionAuthority as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn system_program_index() -> usize {
-        FreezeAccountInfosIndex::SystemProgram as usize
+    pub fn account_compression_program(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::AccountCompressionProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn cpi_context_index() -> usize {
-        // Freeze instruction doesn't use cpi context
-        0
+    pub fn self_program(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::SelfProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn system_program(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::SystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn mint(&self) -> Result<&'a T> {
+        let index = FreezeAccountInfosIndex::Mint as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn get_account_info(&self, index: usize) -> Result<&'a T> {
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_infos(&self) -> &'a [T] {
+        self.accounts
+    }
+
+    pub fn config(&self) -> &FreezeAccountInfosConfig {
+        &self.config
+    }
+
+    pub fn system_accounts_len(&self) -> usize {
+        // FreezeInstruction has a fixed number of accounts
+        11 // All accounts from the enum
     }
 }
 

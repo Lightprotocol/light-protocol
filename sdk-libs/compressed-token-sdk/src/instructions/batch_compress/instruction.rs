@@ -1,4 +1,5 @@
 use crate::{AnchorDeserialize, AnchorSerialize};
+use light_compressed_token_types::BATCH_COMPRESS;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -49,10 +50,18 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     };
 
     // Serialize instruction data
-    let serialized_data = instruction_data
+    let data_vec = instruction_data
         .try_to_vec()
         .map_err(|_| TokenSdkError::SerializationError)?;
-
+    let mut data = Vec::with_capacity(data_vec.len() + 8 + 4);
+    data.extend_from_slice(BATCH_COMPRESS.as_slice());
+    data.extend_from_slice(
+        u32::try_from(data_vec.len())
+            .unwrap()
+            .to_le_bytes()
+            .as_slice(),
+    );
+    data.extend(&data_vec);
     // Create account meta config for batch_compress (uses MintToInstruction accounts)
     let meta_config = BatchCompressMetaConfig {
         fee_payer: Some(inputs.fee_payer),
@@ -70,6 +79,6 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     Ok(Instruction {
         program_id: Pubkey::new_from_array(light_compressed_token_types::PROGRAM_ID),
         accounts: account_metas,
-        data: serialized_data,
+        data,
     })
 }

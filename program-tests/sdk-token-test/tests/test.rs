@@ -11,7 +11,7 @@ use light_compressed_token_sdk::{
             get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
         },
     },
-    token_pool::get_token_pool_pda,
+    token_pool::{find_token_pool_pda_with_index, get_token_pool_pda},
     TokenAccountMeta, SPL_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
@@ -580,38 +580,32 @@ async fn batch_compress_spl_tokens(
     token_account: Pubkey,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
-    let token_pool_pda = get_token_pool_pda(&mint);
+    remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
+    let token_pool_index = 0;
+    let (token_pool_pda, token_pool_bump) = find_token_pool_pda_with_index(&mint, token_pool_index);
     println!("token_pool_pda {:?}", token_pool_pda);
     // Use batch compress account metas
     let config = BatchCompressMetaConfig::new_client(
         token_pool_pda,
         token_account,
         SPL_TOKEN_PROGRAM_ID.into(),
-        rpc.get_random_state_tree_info().unwrap().tree,
+        rpc.get_random_state_tree_info().unwrap().queue,
         false, // with_lamports
     );
-
-    remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let metas = get_batch_compress_instruction_account_metas(config);
+    println!("metas {:?}", metas);
     remaining_accounts.add_pre_accounts_metas(metas.as_slice());
 
-    let output_tree_index = rpc
-        .get_random_state_tree_info()
-        .unwrap()
-        .pack_output_tree_index(&mut remaining_accounts)
-        .unwrap();
-
-    let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
+    let (accounts, _, _) = remaining_accounts.to_account_metas();
+    println!("accounts {:?}", accounts);
 
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
-        accounts: [remaining_accounts].concat(),
+        accounts,
         data: sdk_token_test::instruction::BatchCompressTokens {
             recipients,
-            _output_tree_index: output_tree_index,
-            _mint: mint,
-            token_pool_index: 0,  // Default pool index
-            token_pool_bump: 255, // Default bump
+            token_pool_index,
+            token_pool_bump,
         }
         .data(),
     };

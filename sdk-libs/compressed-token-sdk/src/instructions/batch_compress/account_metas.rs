@@ -78,8 +78,8 @@ pub fn get_batch_compress_instruction_account_metas(
     // Base accounts:   cpi_authority_pda + token_pool_pda + token_program + light_system_program +
     //                  registered_program_pda + noop_program + account_compression_authority +
     //                  account_compression_program + merkle_tree +
-    //                  self_program + system_program
-    let base_capacity = 10;
+    //                  self_program + system_program + sender_token_account
+    let base_capacity = 11;
 
     // Direct invoke accounts: fee_payer + authority + mint_placeholder + sol_pool_pda_or_placeholder
     let fee_payer_capacity = if config.fee_payer.is_some() { 4 } else { 0 };
@@ -113,7 +113,8 @@ pub fn get_batch_compress_instruction_account_metas(
             false,
         ));
     }
-
+    println!("config {:?}", config);
+    println!("default_pubkeys {:?}", default_pubkeys);
     // token_pool_pda (mut)
     metas.push(AccountMeta::new(config.token_pool_pda, false));
 
@@ -174,6 +175,9 @@ pub fn get_batch_compress_instruction_account_metas(
             false,
         ));
     }
+
+    // sender_token_account (mut) - last account
+    metas.push(AccountMeta::new(config.sender_token_account, false));
 
     metas
 }

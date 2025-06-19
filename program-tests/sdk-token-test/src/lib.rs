@@ -20,6 +20,8 @@ declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
 #[program]
 pub mod sdk_token_test {
 
+    use light_compressed_token_sdk::account_infos::BatchCompressAccountInfos;
+
     use super::*;
 
     pub fn compress_tokens<'info>(
@@ -145,12 +147,10 @@ pub mod sdk_token_test {
     pub fn batch_compress_tokens<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         recipients: Vec<Recipient>,
-        _output_tree_index: u8,
-        _mint: Pubkey,
         token_pool_index: u8,
         token_pool_bump: u8,
     ) -> Result<()> {
-        let light_cpi_accounts = TransferAccountInfos::new_compress(
+        let light_cpi_accounts = BatchCompressAccountInfos::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
@@ -174,8 +174,8 @@ pub mod sdk_token_test {
             authority: *ctx.accounts.signer.key,
             token_pool_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
             sender_token_account: *light_cpi_accounts.sender_token_account().unwrap().key,
-            token_program: *light_cpi_accounts.spl_token_program().unwrap().key,
-            merkle_tree: *light_cpi_accounts.tree_accounts().unwrap()[0].key,
+            token_program: *light_cpi_accounts.token_program().unwrap().key,
+            merkle_tree: *light_cpi_accounts.merkle_tree().unwrap().key,
             recipients: sdk_recipients,
             lamports: None,
             token_pool_index,
