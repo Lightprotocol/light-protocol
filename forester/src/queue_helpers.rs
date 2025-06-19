@@ -48,11 +48,20 @@ pub async fn fetch_queue_item_data<R: Rpc>(
 pub async fn fetch_state_v2_queue_length<R: Rpc>(
     rpc: &mut R,
     output_queue_pubkey: &Pubkey,
+    merkle_tree_pubkey: &Pubkey,
 ) -> Result<usize> {
     trace!(
         "Fetching StateV2 queue length for {:?}",
         output_queue_pubkey
     );
+
+    debug!(
+        "Fetching StateV2 queue length for queue {:?} tree {:?} ({:?})",
+        output_queue_pubkey,
+        merkle_tree_pubkey,
+        merkle_tree_pubkey.to_bytes()
+    );
+
     if let Some(mut account) = rpc.get_account(*output_queue_pubkey).await? {
         let output_queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())?;
 
@@ -82,10 +91,12 @@ pub async fn fetch_address_v2_queue_length<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
 ) -> Result<usize> {
-    trace!(
-        "Fetching AddressV2 queue length for {:?}",
-        merkle_tree_pubkey
+    debug!(
+        "Fetching AddressV2 queue length for {:?} ({:?})",
+        merkle_tree_pubkey,
+        merkle_tree_pubkey.to_bytes()
     );
+
     if let Some(mut account) = rpc.get_account(*merkle_tree_pubkey).await? {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             account.data.as_mut_slice(),

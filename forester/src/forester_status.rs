@@ -188,8 +188,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
     // run_queue_info(config.clone(), trees.clone(), TreeType::StateV1).await;
     // run_queue_info(config.clone(), trees.clone(), TreeType::AddressV1).await;
 
-    // run_queue_info(config.clone(), trees.clone(), TreeType::StateV2).await;
-
+    run_queue_info(config.clone(), trees.clone(), TreeType::StateV2).await;
     run_queue_info(config.clone(), trees.clone(), TreeType::AddressV2).await;
 
     // for tree in &trees {

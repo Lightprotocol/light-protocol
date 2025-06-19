@@ -3,9 +3,12 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{config::GeneralConfig, epoch_manager::WorkReport, run_pipeline, ForesterConfig};
-use forester_utils::utils::wait_for_indexer;
+use forester_utils::{
+    instructions::state_batch_append::{get_merkle_tree_metadata, get_output_queue_metadata},
+    utils::wait_for_indexer,
+};
 use light_batched_merkle_tree::{
-    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_client::{
@@ -23,7 +26,7 @@ use light_compressed_account::{
         data::{NewAddressParams, NewAddressParamsAssigned, OutputCompressedAccountWithContext},
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
-    TreeType,
+    QueueType, TreeType,
 };
 use light_compressed_token::process_transfer::{
     transfer_sdk::{create_transfer_instruction, to_account_metas},
@@ -40,6 +43,7 @@ use light_test_utils::{
         create_pda_instruction, CreateCompressedPdaInstructionInputs,
     },
     pack::{pack_new_address_params_assigned, pack_output_compressed_accounts},
+    spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,
 };
 use rand::{prelude::StdRng, seq::SliceRandom, Rng, SeedableRng};
@@ -52,13 +56,17 @@ use solana_sdk::{
 };
 use std::env;
 use tokio::sync::{mpsc, oneshot, Mutex};
-
+use tracing::debug;
+use light_prover_client::proof::deserialize_hex_string_to_be_bytes;
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
 
 fn get_photon_indexer_url() -> String {
-    env::var("PHOTON_INDEXER_URL").unwrap_or_else(|_| "http://127.0.0.1:8784".to_string())
+    let indexer_url =
+        env::var("PHOTON_INDEXER_URL").unwrap_or_else(|_| "http://127.0.0.1:8784".to_string());
+    println!("Photon Indexer URL: {}", indexer_url);
+    indexer_url
 }
 
 fn create_photon_indexer() -> PhotonIndexer {
@@ -99,12 +107,12 @@ async fn test_testnet() {
     let program_id = LIGHT_SYSTEM_PROGRAM_ID;
     let pda = Pubkey::find_program_address(&[program_id.as_slice()], &account_compression::ID).0;
     println!("pda: {}", pda);
-    let seed = 0;
+    let seed = 1;
     println!("\n\ne2e test seed {}\n\n", seed);
 
     let mut rng = StdRng::seed_from_u64(seed);
 
-    for _ in 0..40000 {
+    for _ in 0..50 {
         let _ = rng.gen::<u64>();
     }
 
@@ -131,110 +139,190 @@ async fn test_testnet() {
     .await
     .unwrap();
     rpc.payer = env.protocol.forester.insecure_clone();
-
-    let acc_pubkey = &env.v2_state_trees[0].output_queue;
-    let mut account = rpc.get_account(*acc_pubkey).await.unwrap().unwrap();
-    println!("acc_pubkey {:?}", acc_pubkey);
-    println!("account {:?}", account.owner);
-    println!("account[0..8] = {:?}", account.data[0..8].to_vec());
-    let queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()).unwrap();
-    println!("state queue {:?}", queue.get_metadata());
-
-    let address_acc_pubkey = &env.v2_address_trees[0];
-    let mut account = rpc.get_account(*address_acc_pubkey).await.unwrap().unwrap();
-    println!("address_acc_pubkey {:?}", acc_pubkey);
-    println!("address account {:?}", account.owner);
-    println!("address  account[0..8] = {:?}", account.data[0..8].to_vec());
-    let queue = BatchedMerkleTreeAccount::address_from_bytes(
-        account.data.as_mut_slice(),
-        light_compressed_account::Pubkey::new_from_array(address_acc_pubkey.to_bytes()).as_ref(),
-    )
-    .unwrap();
-    println!("address tree {:?}", queue.get_metadata());
-
-    // let mint_keypair: [u8; 64] = [
-    //     252, 188, 100, 55, 45, 34, 146, 113, 156, 209, 84, 80, 67, 178, 150, 224, 27, 158, 159,
-    //     140, 54, 122, 217, 223, 134, 145, 104, 172, 55, 171, 181, 115, 144, 165, 49, 170, 28, 148,
-    //     60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169, 234, 29, 230, 22, 74, 49, 189,
-    //     28, 226, 242, 128, 191, 112,
-    // ];
-
-    let mint_pubkey = [
-        144, 165, 49, 170, 28, 148, 60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169,
-        234, 29, 230, 22, 74, 49, 189, 28, 226, 242, 128, 191, 112,
-    ];
-
-    // let mint_keypair: [u8; 64] = [
-    //     34, 68, 161, 27, 78, 253, 99, 153, 78, 49, 80, 3, 91, 36, 109, 239, 124, 205, 252, 8, 215,
-    //     224, 39, 252, 166, 9, 245, 56, 195, 218, 140, 14, 173, 222, 249, 91, 197, 119, 150, 178,
-    //     25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60, 253, 39, 235, 125, 43, 59, 137, 54, 5,
-    //     38, 118, 47, 170,
-    // ];
-    // let mint_keypair = Keypair::from_bytes(&mint_keypair).unwrap();
-    // let mint_keypair = Keypair::new();
-    // println!("mint keypair: {:?}", mint_keypair.to_bytes());
-    let batch_payer = &env.protocol.forester.insecure_clone();
-    // let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, batch_payer, &mint_keypair).await;
-    // let mint_pubkey: [u8; 32] = [
-    //     173, 222, 249, 91, 197, 119, 150, 178, 25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60,
-    //     253, 39, 235, 125, 43, 59, 137, 54, 5, 38, 118, 47, 170,
-    // ];
-    let mint_pubkey = Pubkey::from(mint_pubkey);
-    // println!("mint_pubkey: {:?}", mint_pubkey.to_pubkey_bytes());
-    // println!("mint_pubkey: {:?}", mint_pubkey.to_string());
-
-    // let sig = mint_to(
-    //     &mut rpc,
-    //     &env.v2_state_trees[0].output_queue,
-    //     batch_payer,
-    //     &mint_pubkey,
-    // )
-    // .await;
-    // println!("mint_to: {:?}", sig);
-
-    let photon_indexer = create_photon_indexer();
-    // wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
+    let mut photon_indexer = create_photon_indexer();
 
     {
-        // let batch_size = get_state_batch_size(&mut rpc, &env.v2_state_trees[0].merkle_tree).await;
-        // println!("state batch size: {}", batch_size);
-        // for i in 0..batch_size {
-        //     let batch_compress_sig = compress(
-        //         &mut rpc,
-        //         &env.v2_state_trees[0].output_queue,
-        //         batch_payer,
-        //         if i == 0 { 1_000_000 } else { 10_000 },
-        //     )
-        //     .await;
-        //     println!("{} batch compress: {:?}", i, batch_compress_sig);
-        // }
+        println!("==== state tree debug ====");
+        let output_queue_pubkey = &env.v2_state_trees[0].output_queue;
+        let merkle_tree_pubkey = &env.v2_state_trees[0].merkle_tree;
 
-        // {
-        //     let batch_transfer_sig = transfer::<true, LightClient>(
-        //         &mut rpc,
-        //         &env.v2_state_trees[0].output_queue,
-        //         batch_payer,
-        //         &env,
-        //     )
-        //     .await;
-        //     println!("{} batch transfer: {:?}", i, batch_transfer_sig);
-        // }
+        println!("state merkle tree: {:?}", merkle_tree_pubkey);
+        println!("state merkle tree: {:?}", merkle_tree_pubkey.to_bytes());
 
-        //     {
-        //         let batch_transfer_token_sig = compressed_token_transfer::<LightClient>(
-        //             &mut rpc,
-        //             &env.v2_state_trees[0].output_queue,
-        //             batch_payer,
-        //             &mint_pubkey,
-        //         )
-        //         .await;
-        //         println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
-        //     }
-        // }
+        let mut account = rpc
+            .get_account(*output_queue_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+        let queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()).unwrap();
+
+        let batch_metadata = &queue.get_metadata().batch_metadata;
+        let zkp_batch_size = batch_metadata.zkp_batch_size as usize;
+
+        let mut queue_length: usize = 0;
+        for (idx, batch) in batch_metadata.batches.iter().enumerate() {
+            let total_zkp_batches = batch.get_num_zkp_batches() as usize;
+            let inserted_zkp_batches = batch.get_num_inserted_zkps() as usize;
+            let remaining_zkp_batches = total_zkp_batches.saturating_sub(inserted_zkp_batches);
+
+            println!("total_zkp_batches[{}]: {}", idx, total_zkp_batches);
+            println!("inserted_zkp_batches[{}]: {}", idx, inserted_zkp_batches);
+            println!("remaining_zkp_batches[{}]: {}", idx, remaining_zkp_batches);
+            queue_length += remaining_zkp_batches * zkp_batch_size;
+        }
+
+        println!("queue_length = {}", queue_length);
+
+        let (zkp_batch_size, leaves_hash_chains) =
+            get_output_queue_metadata(&mut rpc, *output_queue_pubkey)
+                .await
+                .unwrap();
+
+        println!("zkp_batch_size: {}", zkp_batch_size);
+        println!("leaves_hash_chains: {:?}", leaves_hash_chains);
+
+        let (merkle_tree_next_index, current_root, root_history) =
+            get_merkle_tree_metadata(&mut rpc, *merkle_tree_pubkey)
+                .await
+                .unwrap();
+
+        println!("merkle_tree_next_index: {}", merkle_tree_next_index);
+        println!("current_root: {:?}", current_root);
+        println!("root_history: {:?}", root_history);
+
+        let indexer_root = "0x08457E3019E9FD7496FF3C7BDDF684A91869F2EA44ACBD30A3AF886A5C42803F";
+        let indexer_root_bytes = deserialize_hex_string_to_be_bytes(indexer_root);
+        println!("indexer_root: {:?}", indexer_root_bytes);
+
+        let total_elements = zkp_batch_size as usize * leaves_hash_chains.len();
+        let offset = merkle_tree_next_index;
+
+        let queue_elements = photon_indexer
+            .get_queue_elements(
+                merkle_tree_pubkey.to_bytes(),
+                QueueType::OutputStateV2,
+                total_elements as u16,
+                Some(offset),
+                None,
+            )
+            .await
+            .map_err(|e| {
+                panic!("Failed to get queue elements from indexer: {:?}", e);
+            })
+            .unwrap()
+            .value
+            .items;
+
+        println!("queue_elements: {:?}", queue_elements);
     }
 
-    let (_, _, pre_root) = get_initial_merkle_tree_state(&mut rpc, &env.v2_address_trees[0]).await;
     {
+        println!("==== address tree debug ====");
+        // let acc_pubkey = &env.v2_state_trees[0].output_queue;
+        // let mut account = rpc.get_account(*acc_pubkey).await.unwrap().unwrap();
+        // println!("acc_pubkey {:?}", acc_pubkey);
+        // println!("account {:?}", account.owner);
+        // println!("account[0..8] = {:?}", account.data[0..8].to_vec());
+        // let queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()).unwrap();
+        // println!("state queue {:?}", queue.get_metadata());
+
+        let merkle_tree_pubkey = &env.v2_address_trees[0];
+        println!("address merkle tree: {:?}", merkle_tree_pubkey);
+        println!("address merkle tree: {:?}", merkle_tree_pubkey.to_bytes());
+        // 0xA52648440B8BB4F0F061FDF1933099A041C03A451F7E847F83FE695C9B879B5C
+        let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
+
+        let (leaves_hash_chains, start_index, current_root, batch_size) = {
+            let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                merkle_tree_account.data.as_mut_slice(),
+                &(*merkle_tree_pubkey).into(),
+            )
+            .unwrap();
+
+            let full_batch_index = merkle_tree.queue_batches.pending_batch_index;
+            let batch = &merkle_tree.queue_batches.batches[full_batch_index as usize];
+
+            let mut hash_chains = Vec::new();
+            let zkp_batch_index = batch.get_num_inserted_zkps();
+            let current_zkp_batch_index = batch.get_current_zkp_batch_index();
+
+            println!(
+                "Full batch index: {}, inserted ZKPs: {}, current ZKP index: {}, ready for insertion: {}",
+                full_batch_index, zkp_batch_index, current_zkp_batch_index, current_zkp_batch_index - zkp_batch_index
+            );
+
+            for i in zkp_batch_index..current_zkp_batch_index {
+                hash_chains
+                    .push(merkle_tree.hash_chain_stores[full_batch_index as usize][i as usize]);
+            }
+
+            let start_index = merkle_tree.next_index;
+
+            merkle_tree
+                .root_history
+                .as_slice()
+                .iter()
+                .enumerate()
+                .for_each(|(i, root)| {
+                    println!("Root at index {}: {:?}", i, root);
+                });
+
+            let current_root = *merkle_tree.root_history.last().unwrap();
+            let zkp_batch_size = batch.zkp_batch_size as u16;
+
+            (hash_chains, start_index, current_root, zkp_batch_size)
+        };
+
+        let indexer_root = "0x28144AF4BCE54E81FC4E524A73F06B9EE79A015498A5454CAD7B618AD4115426";
+        let indexer_root_bytes = deserialize_hex_string_to_be_bytes(indexer_root);
+
+        println!("indexer_root: {:?}", indexer_root_bytes);
+        println!("on-chain root: {:?}", current_root);
+
+        /*
+        batch 0 state: Fill
+        batch 0 zkp_batch_size: 250
+        batch 0 total_zkp_batches: 60
+        batch 0 get_current_zkp_batch_index: 10
+        batch 0 inserted_zkp_batches: 10
+        batch 0 remaining_zkp_batches: 50
+        batch 0 is ready to insert? false
+        AddressV2 queue C7g8NqRsEDhi3v9AyVpCfL16YYdHPhrR74douckfrhqu length: 12500
+        */
+
+        let total_elements = std::cmp::min(batch_size as usize * leaves_hash_chains.len(), 500);
+        println!("Requesting {} total elements from indexer", total_elements);
+
+        let indexer_update_info = photon_indexer
+            .get_address_queue_with_proofs(merkle_tree_pubkey, total_elements as u16, None, None)
+            .await
+            .unwrap();
+        println!("indexer_update_info {:?}", indexer_update_info);
+
+        if indexer_update_info.value.non_inclusion_proofs.is_empty() {
+            println!("No non-inclusion proofs found");
+        } else {
+            let indexer_root = indexer_update_info
+                .value
+                .non_inclusion_proofs
+                .first()
+                .unwrap()
+                .root;
+
+            if indexer_root != current_root {
+                println!("Indexer root does not match on-chain root");
+                println!("Indexer root: {:?}", indexer_root);
+                println!("On-chain root: {:?}", current_root);
+            }
+        }
+    }
+
+    let batch_payer = &env.protocol.forester.insecure_clone();
+
+    {
+        let (_, _, pre_root) =
+            get_initial_merkle_tree_state(&mut rpc, &env.v2_address_trees[0]).await;
+
         let batch_size = get_address_batch_size(&mut rpc, &env.v2_address_trees[0]).await;
         let num_addresses = 2;
 
@@ -290,6 +378,88 @@ async fn test_testnet() {
 
         println!("Address tree metadata: {:?}", address_tree.get_metadata());
     }
+
+    {
+        // let mint_keypair: [u8; 64] = [
+        //     252, 188, 100, 55, 45, 34, 146, 113, 156, 209, 84, 80, 67, 178, 150, 224, 27, 158, 159,
+        //     140, 54, 122, 217, 223, 134, 145, 104, 172, 55, 171, 181, 115, 144, 165, 49, 170, 28, 148,
+        //     60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169, 234, 29, 230, 22, 74, 49, 189,
+        //     28, 226, 242, 128, 191, 112,
+        // ];
+
+        let mint_pubkey = [
+            144, 165, 49, 170, 28, 148, 60, 153, 101, 66, 81, 199, 63, 165, 38, 240, 206, 220, 169,
+            234, 29, 230, 22, 74, 49, 189, 28, 226, 242, 128, 191, 112,
+        ];
+
+        // let mint_keypair: [u8; 64] = [
+        //     34, 68, 161, 27, 78, 253, 99, 153, 78, 49, 80, 3, 91, 36, 109, 239, 124, 205, 252, 8, 215,
+        //     224, 39, 252, 166, 9, 245, 56, 195, 218, 140, 14, 173, 222, 249, 91, 197, 119, 150, 178,
+        //     25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60, 253, 39, 235, 125, 43, 59, 137, 54, 5,
+        //     38, 118, 47, 170,
+        // ];
+        // let mint_keypair = Keypair::from_bytes(&mint_keypair).unwrap();
+        let mint_keypair = Keypair::new();
+        println!("mint keypair: {:?}", mint_keypair.to_bytes());
+        let mint_pubkey =
+            create_mint_helper_with_keypair(&mut rpc, batch_payer, &mint_keypair).await;
+        // let mint_pubkey: [u8; 32] = [
+        //     173, 222, 249, 91, 197, 119, 150, 178, 25, 88, 80, 224, 210, 133, 225, 204, 170, 35, 60,
+        //     253, 39, 235, 125, 43, 59, 137, 54, 5, 38, 118, 47, 170,
+        // ];
+        let mint_pubkey = Pubkey::from(mint_pubkey);
+        // println!("mint_pubkey: {:?}", mint_pubkey.to_pubkey_bytes());
+        // println!("mint_pubkey: {:?}", mint_pubkey.to_string());
+
+        let sig = mint_to(
+            &mut rpc,
+            &env.v2_state_trees[0].output_queue,
+            batch_payer,
+            &mint_pubkey,
+        )
+            .await;
+        println!("mint_to: {:?}", sig);
+
+        wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
+        let batch_size = get_state_batch_size(&mut rpc, &env.v2_state_trees[0].merkle_tree).await;
+        println!("state batch size: {}", batch_size);
+        for i in 0..batch_size {
+            {
+                let batch_compress_sig = compress(
+                    &mut rpc,
+                    &env.v2_state_trees[0].output_queue,
+                    batch_payer,
+                    if i == 0 { 1_000_000 } else { 10_000 },
+                )
+                    .await;
+                println!("{} batch compress: {:?}", i, batch_compress_sig);
+            }
+
+            {
+                let batch_transfer_sig = transfer::<true, LightClient>(
+                    &mut rpc,
+                    &env.v2_state_trees[0].output_queue,
+                    batch_payer,
+                    &env,
+                )
+                    .await;
+                println!("{} batch transfer: {:?}", i, batch_transfer_sig);
+            }
+
+            {
+                let batch_transfer_token_sig = compressed_token_transfer::<LightClient>(
+                    &mut rpc,
+                    &env.v2_state_trees[0].output_queue,
+                    batch_payer,
+                    &mint_pubkey,
+                )
+                    .await;
+                println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
+            }
+        }
+    }
+
+
     // let (service_handle, shutdown_sender, mut work_report_receiver) =
     //     setup_forester_pipeline(&config).await;
 
@@ -423,13 +593,17 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
         .await
         .unwrap();
 
+    println!("- new root: {:?}", proof_result.value.addresses.first().unwrap().root);
+    println!("- new root index: {:?}", proof_result.value.addresses.first().unwrap().root_index);
+    println!("=====================================");
+
     if num_addresses == 1 {
         let data: [u8; 31] = [1; 31];
         let new_address_params = NewAddressParams {
             seed: address_seeds[0],
             address_merkle_tree_pubkey: (*batch_address_merkle_tree).into(),
             address_queue_pubkey: (*batch_address_merkle_tree).into(),
-            address_merkle_tree_root_index: proof_result.value.get_address_root_indices()[0],
+            address_merkle_tree_root_index: 10, //proof_result.value.get_address_root_indices()[0],
         };
 
         let create_ix_inputs = CreateCompressedPdaInstructionInputs {
@@ -463,7 +637,7 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
                 seed: *seed,
                 address_queue_pubkey: (*batch_address_merkle_tree).into(),
                 address_merkle_tree_pubkey: (*batch_address_merkle_tree).into(),
-                address_merkle_tree_root_index: proof_result.value.get_address_root_indices()[i],
+                address_merkle_tree_root_index: 10, //proof_result.value.get_address_root_indices()[i],
                 assigned_account_index: None,
             })
             .collect::<Vec<_>>();

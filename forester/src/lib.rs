@@ -89,9 +89,11 @@ pub async fn run_queue_info(
             .await
             .unwrap()
             .len(),
-            TreeType::StateV2 => fetch_state_v2_queue_length(&mut rpc, &tree_data.queue)
-                .await
-                .unwrap(),
+            TreeType::StateV2 => {
+                fetch_state_v2_queue_length(&mut rpc, &tree_data.queue, &tree_data.merkle_tree)
+                    .await
+                    .unwrap()
+            }
             TreeType::AddressV2 => fetch_address_v2_queue_length(&mut rpc, &tree_data.merkle_tree)
                 .await
                 .unwrap(),

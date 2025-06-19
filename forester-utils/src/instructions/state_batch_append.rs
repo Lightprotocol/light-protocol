@@ -193,7 +193,7 @@ async fn generate_zkp_proof(
 }
 
 /// Get metadata from the Merkle tree account
-async fn get_merkle_tree_metadata(
+pub async fn get_merkle_tree_metadata(
     rpc: &mut impl Rpc,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<(u64, [u8; 32], Vec<[u8; 32]>), ForesterUtilsError> {
@@ -217,7 +217,7 @@ async fn get_merkle_tree_metadata(
 }
 
 /// Get metadata and hash chains from the output queue
-async fn get_output_queue_metadata(
+pub async fn get_output_queue_metadata(
     rpc: &mut impl Rpc,
     output_queue_pubkey: Pubkey,
 ) -> Result<(u16, Vec<[u8; 32]>), ForesterUtilsError> {
