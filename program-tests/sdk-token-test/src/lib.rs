@@ -96,9 +96,10 @@ pub mod sdk_token_test {
             sol_pool_pda: false,
             sol_compression_recipient: false,
         };
+        let (token_account_infos, system_account_infos) = ctx.remaining_accounts.split_at(8);
         let light_cpi_accounts = CpiAccounts::new_with_config(
             ctx.accounts.signer.as_ref(),
-            ctx.remaining_accounts,
+            system_account_infos,
             config,
         );
 
@@ -109,7 +110,19 @@ pub mod sdk_token_test {
             mint,
             recipient,
             deposit_amount,
+            token_account_infos,
         )?;
+        let config = CpiAccountsConfig {
+            cpi_signer: crate::LIGHT_CPI_SIGNER,
+            cpi_context: true,
+            sol_pool_pda: false,
+            sol_compression_recipient: false,
+        };
+        let light_cpi_accounts = CpiAccounts::new_with_config(
+            ctx.accounts.signer.as_ref(),
+            system_account_infos,
+            config,
+        );
         process_create_compressed_account(
             light_cpi_accounts,
             proof,

@@ -137,6 +137,7 @@ pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
     msg!("invoke_cpi_with_read_only");
     let (inputs, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
+    pinocchio::msg!(format!("instruction_data {:?}", inputs.cpi_context).as_str());
 
     shared_invoke_cpi(
         accounts,

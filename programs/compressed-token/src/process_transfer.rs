@@ -265,6 +265,10 @@ pub fn create_output_compressed_accounts(
                 err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch)
             }
         }?;
+        msg!("hashed_mint {:?}", hashed_mint);
+        msg!("hashed_owner {:?}", hashed_owner);
+        msg!("amount_bytes {:?}", amount_bytes);
+        msg!("hashed_delegate {:?}", hashed_delegate);
 
         let data_hash = TokenData::hash_with_hashed_values(
             hashed_mint,
@@ -273,6 +277,7 @@ pub fn create_output_compressed_accounts(
             &hashed_delegate,
         )
         .map_err(ProgramError::from)?;
+        msg!("data_hash {:?}", data_hash);
         let data = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,

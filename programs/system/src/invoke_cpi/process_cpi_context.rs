@@ -41,6 +41,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
     remaining_accounts: &[AccountInfo],
 ) -> Result<Option<(usize, WrappedInstructionData<'a, T>)>> {
     let cpi_context = &instruction_data.cpi_context();
+    msg!(format!("cpi_context {:?}", cpi_context).as_str());
     if cpi_context_account_info.is_some() && cpi_context.is_none() {
         msg!("cpi context account is some but cpi context is none");
         return Err(SystemProgramError::CpiContextMissing.into());
@@ -51,6 +52,12 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             Some(cpi_context_account_info) => cpi_context_account_info,
             None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
         };
+        msg!("pre deserialize_cpi_context_account");
+        msg!(format!(
+            "cpi_context_account_info {:?}",
+            solana_pubkey::Pubkey::new_from_array(*cpi_context_account_info.key())
+        )
+        .as_str());
         let (mut cpi_context_account, outputs_offsets) =
             deserialize_cpi_context_account(cpi_context_account_info)?;
 
@@ -113,6 +120,7 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
 
             let mut new_cpi_context_data = InstructionDataInvokeCpi::default();
             instruction_data.into_instruction_data_invoke_cpi(&mut new_cpi_context_data);
+            msg!(format!("new_cpi_context_data {:?}", new_cpi_context_data).as_str());
             cpi_context_account.context.push(new_cpi_context_data);
         } else if cpi_context_account.fee_payer == fee_payer
             && !cpi_context_account.context.is_empty()

@@ -54,6 +54,11 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             current_mt_index = merkle_context.merkle_tree_pubkey_index;
             current_hashed_mt = match &accounts[current_mt_index as usize] {
                 AcpAccount::BatchedStateTree(tree) => {
+                    pinocchio::msg!(format!(
+                        "tree {:?}",
+                        solana_pubkey::Pubkey::new_from_array(tree.pubkey().to_bytes())
+                    )
+                    .as_str());
                     context.set_network_fee(
                         tree.metadata.rollover_metadata.network_fee,
                         current_mt_index,
@@ -89,11 +94,24 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             owner_pubkey = *input_compressed_account_with_context.owner();
             hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
         }
+        pinocchio::msg!(format!(
+            "owner_pubkey {:?}",
+            solana_pubkey::Pubkey::new_from_array(owner_pubkey.to_bytes())
+        )
+        .as_str());
         let merkle_context = input_compressed_account_with_context.merkle_context();
         let queue_index =
             context.get_index_or_insert(merkle_context.queue_pubkey_index, remaining_accounts);
         let tree_index = context
             .get_index_or_insert(merkle_context.merkle_tree_pubkey_index, remaining_accounts);
+
+        pinocchio::msg!(
+            format!("data {:?}", input_compressed_account_with_context.data()).as_str()
+        );
+        pinocchio::msg!(
+            format!("merkle_context.leaf_index {:?}", merkle_context.leaf_index).as_str()
+        );
+        pinocchio::msg!(format!("is_batched {:?}", is_batched).as_str());
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
                 .hash_with_hashed_values(

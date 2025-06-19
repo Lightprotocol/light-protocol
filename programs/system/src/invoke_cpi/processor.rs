@@ -1,3 +1,4 @@
+use light_account_checks::AccountInfoTrait;
 use light_compressed_account::instruction_data::traits::InstructionData;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
@@ -35,7 +36,7 @@ pub fn process_invoke_cpi<
         accounts.get_authority().key(),
         &instruction_data,
     )?;
-
+    pinocchio::msg!("post cpi_signer_checks");
     let (cpi_context_inputs_len, instruction_data) = match process_cpi_context(
         instruction_data,
         accounts.get_cpi_context_account(),
@@ -46,6 +47,15 @@ pub fn process_invoke_cpi<
         Ok(None) => return Ok(()),
         Err(err) => return Err(err),
     };
+    pinocchio::msg!("post process_cpi_context");
+    let remaining_accounts_pubkeys = remaining_accounts
+        .iter()
+        .map(|x| solana_pubkey::Pubkey::new_from_array(x.pubkey()))
+        .collect::<Vec<_>>();
+    pinocchio::msg!(format!("remaining_accounts {:?}", remaining_accounts_pubkeys).as_str());
+    instruction_data
+        .new_addresses()
+        .for_each(|x| pinocchio::msg!(format!("instruction_data {:?}", x).as_str()));
 
     // 3. Process input data and cpi the account compression program.
     process::<ADDRESS_ASSIGNMENT, A, T>(
