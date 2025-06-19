@@ -2,10 +2,7 @@ use std::marker::PhantomData;
 
 use light_account_checks::AccountInfoTrait;
 
-use crate::{
-    account_infos::TransferAccountInfosConfig,
-    error::{LightTokenSdkTypeError, Result},
-};
+use crate::error::{LightTokenSdkTypeError, Result};
 
 pub trait AccountInfoIndexGetter {
     const SYSTEM_ACCOUNTS_LEN: usize;
@@ -27,7 +24,7 @@ pub struct AccountInfos<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGett
     fee_payer: &'a T,
     authority: &'a T,
     accounts: &'a [T],
-    config: TransferAccountInfosConfig,
+    cpi_context: bool,
     _p: PhantomData<I>,
 }
 
@@ -37,42 +34,17 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> AccountInfos<'a
             fee_payer,
             authority,
             accounts,
-            config: TransferAccountInfosConfig::default(),
+            cpi_context: false,
             _p: PhantomData,
         }
     }
 
-    pub fn new_compress(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
+    pub fn new_with_cpi_context(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
         Self {
             fee_payer,
             authority,
             accounts,
-            config: TransferAccountInfosConfig::new_compress(),
-            _p: PhantomData,
-        }
-    }
-
-    pub fn new_decompress(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
-        Self {
-            fee_payer,
-            authority,
-            accounts,
-            config: TransferAccountInfosConfig::new_decompress(),
-            _p: PhantomData,
-        }
-    }
-
-    pub fn new_with_config(
-        fee_payer: &'a T,
-        authority: &'a T,
-        accounts: &'a [T],
-        config: TransferAccountInfosConfig,
-    ) -> Self {
-        Self {
-            fee_payer,
-            authority,
-            accounts,
-            config,
+            cpi_context: true,
             _p: PhantomData,
         }
     }
@@ -142,9 +114,6 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> AccountInfos<'a
     }
 
     pub fn decompression_recipient(&self) -> Result<&'a T> {
-        if !self.config.decompress {
-            return Err(LightTokenSdkTypeError::DecompressionRecipientTokenAccountDoesOnlyExistInDecompressedMode);
-        };
         let index = I::decompression_recipient_index();
         self.accounts
             .get(index)
@@ -152,9 +121,6 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> AccountInfos<'a
     }
 
     pub fn sender_token_account(&self) -> Result<&'a T> {
-        if !self.config.compress {
-            return Err(LightTokenSdkTypeError::SenderTokenAccountDoesOnlyExistInCompressedMode);
-        };
         let index = I::decompression_recipient_index();
         self.accounts
             .get(index)
@@ -175,21 +141,8 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> AccountInfos<'a
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    pub fn config(&self) -> &TransferAccountInfosConfig {
-        &self.config
-    }
-
     pub fn system_accounts_len(&self) -> usize {
-        let mut len = I::SYSTEM_ACCOUNTS_LEN;
-        if !self.config.is_compress_or_decompress() {
-            solana_msg::msg!("System accounts length calculation");
-            // Token pool pda & compression sender or decompression recipient
-            len -= 3;
-        }
-        if !self.config.cpi_context {
-            solana_msg::msg!("System accounts length calculation");
-            len -= 1;
-        }
+        let len = I::SYSTEM_ACCOUNTS_LEN;
         len
     }
 
