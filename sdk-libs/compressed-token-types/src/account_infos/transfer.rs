@@ -1,12 +1,7 @@
-use std::marker::PhantomData;
-
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 use light_account_checks::AccountInfoTrait;
 
-use crate::{
-    account_infos::generic_struct::AccountInfoIndexGetter,
-    error::{LightTokenSdkTypeError, Result},
-};
+use crate::error::{LightTokenSdkTypeError, Result};
 
 #[repr(usize)]
 pub enum TransferAccountInfosIndex {
@@ -24,56 +19,6 @@ pub enum TransferAccountInfosIndex {
     CpiContext,
 }
 
-impl AccountInfoIndexGetter for TransferAccountInfosIndex {
-    const SYSTEM_ACCOUNTS_LEN: usize = 12;
-    fn cpi_authority_index() -> usize {
-        TransferAccountInfosIndex::CpiAuthority as usize
-    }
-
-    fn light_system_program_index() -> usize {
-        TransferAccountInfosIndex::LightSystemProgram as usize
-    }
-
-    fn registered_program_pda_index() -> usize {
-        TransferAccountInfosIndex::RegisteredProgramPda as usize
-    }
-
-    fn noop_program_index() -> usize {
-        TransferAccountInfosIndex::NoopProgram as usize
-    }
-
-    fn account_compression_authority_index() -> usize {
-        TransferAccountInfosIndex::AccountCompressionAuthority as usize
-    }
-
-    fn account_compression_program_index() -> usize {
-        TransferAccountInfosIndex::AccountCompressionProgram as usize
-    }
-
-    fn ctoken_program_index() -> usize {
-        TransferAccountInfosIndex::CTokenProgram as usize
-    }
-
-    fn token_pool_pda_index() -> usize {
-        TransferAccountInfosIndex::TokenPoolPda as usize
-    }
-
-    fn decompression_recipient_index() -> usize {
-        TransferAccountInfosIndex::DecompressionRecipient as usize
-    }
-
-    fn spl_token_program_index() -> usize {
-        TransferAccountInfosIndex::SplTokenProgram as usize
-    }
-
-    fn system_program_index() -> usize {
-        TransferAccountInfosIndex::SystemProgram as usize
-    }
-
-    fn cpi_context_index() -> usize {
-        TransferAccountInfosIndex::CpiContext as usize
-    }
-}
 
 #[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct TransferAccountInfosConfig {
@@ -112,22 +57,20 @@ impl TransferAccountInfosConfig {
     }
 }
 
-pub struct TransferAccountInfos<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> {
+pub struct TransferAccountInfos<'a, T: AccountInfoTrait + Clone> {
     fee_payer: &'a T,
     authority: &'a T,
     accounts: &'a [T],
     config: TransferAccountInfosConfig,
-    _p: PhantomData<I>,
 }
 
-impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccountInfos<'a, T, I> {
+impl<'a, T: AccountInfoTrait + Clone> TransferAccountInfos<'a, T> {
     pub fn new(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
         Self {
             fee_payer,
             authority,
             accounts,
             config: TransferAccountInfosConfig::default(),
-            _p: PhantomData,
         }
     }
 
@@ -137,7 +80,6 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
             authority,
             accounts,
             config: TransferAccountInfosConfig::new_compress(),
-            _p: PhantomData,
         }
     }
 
@@ -147,7 +89,6 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
             authority,
             accounts,
             config: TransferAccountInfosConfig::new_decompress(),
-            _p: PhantomData,
         }
     }
 
@@ -162,7 +103,6 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
             authority,
             accounts,
             config,
-            _p: PhantomData,
         }
     }
 
@@ -171,7 +111,7 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
     }
 
     pub fn light_system_program(&self) -> Result<&'a T> {
-        let index = I::light_system_program_index();
+        let index = TransferAccountInfosIndex::LightSystemProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
@@ -182,49 +122,49 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
     }
 
     pub fn ctoken_program(&self) -> Result<&'a T> {
-        let index = I::ctoken_program_index();
+        let index = TransferAccountInfosIndex::CTokenProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn spl_token_program(&self) -> Result<&'a T> {
-        let index = I::spl_token_program_index();
+        let index = TransferAccountInfosIndex::SplTokenProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn registered_program_pda(&self) -> Result<&'a T> {
-        let index = I::registered_program_pda_index();
+        let index = TransferAccountInfosIndex::RegisteredProgramPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn noop_program(&self) -> Result<&'a T> {
-        let index = I::noop_program_index();
+        let index = TransferAccountInfosIndex::NoopProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn account_compression_authority(&self) -> Result<&'a T> {
-        let index = I::account_compression_authority_index();
+        let index = TransferAccountInfosIndex::AccountCompressionAuthority as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn account_compression_program(&self) -> Result<&'a T> {
-        let index = I::account_compression_program_index();
+        let index = TransferAccountInfosIndex::AccountCompressionProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn token_pool_pda(&self) -> Result<&'a T> {
-        let index = I::token_pool_pda_index();
+        let index = TransferAccountInfosIndex::TokenPoolPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
@@ -234,7 +174,7 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
         if !self.config.decompress {
             return Err(LightTokenSdkTypeError::DecompressionRecipientTokenAccountDoesOnlyExistInDecompressedMode);
         };
-        let index = I::decompression_recipient_index();
+        let index = TransferAccountInfosIndex::DecompressionRecipient as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
@@ -244,21 +184,21 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
         if !self.config.compress {
             return Err(LightTokenSdkTypeError::SenderTokenAccountDoesOnlyExistInCompressedMode);
         };
-        let index = I::decompression_recipient_index();
+        let index = TransferAccountInfosIndex::DecompressionRecipient as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn system_program(&self) -> Result<&'a T> {
-        let index = I::system_program_index();
+        let index = TransferAccountInfosIndex::SystemProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn cpi_context(&self) -> Result<&'a T> {
-        let index = I::cpi_context_index();
+        let index = TransferAccountInfosIndex::CpiContext as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
@@ -269,14 +209,12 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
     }
 
     pub fn system_accounts_len(&self) -> usize {
-        let mut len = I::SYSTEM_ACCOUNTS_LEN;
+        let mut len = 12; // Base system accounts length
         if !self.config.is_compress_or_decompress() {
-            solana_msg::msg!("System accounts length calculation");
             // Token pool pda & compression sender or decompression recipient
             len -= 3;
         }
         if !self.config.cpi_context {
-            solana_msg::msg!("System accounts length calculation");
             len -= 1;
         }
         len
@@ -326,7 +264,7 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
 
     /// Create a vector of account info references
     pub fn to_account_info_refs(&self) -> Vec<&'a T> {
-        let mut account_infos = Vec::with_capacity(1 + I::SYSTEM_ACCOUNTS_LEN);
+        let mut account_infos = Vec::with_capacity(1 + self.system_accounts_len());
         account_infos.push(self.fee_payer());
         self.account_infos()[1..]
             .iter()
@@ -336,7 +274,7 @@ impl<'a, T: AccountInfoTrait + Clone, I: AccountInfoIndexGetter> TransferAccount
 
     /// Create a vector of account info references
     pub fn to_account_infos(&self) -> Vec<T> {
-        let mut account_infos = Vec::with_capacity(1 + I::SYSTEM_ACCOUNTS_LEN);
+        let mut account_infos = Vec::with_capacity(1 + self.system_accounts_len());
         account_infos.push(self.fee_payer().clone());
         self.account_infos()
             .iter()

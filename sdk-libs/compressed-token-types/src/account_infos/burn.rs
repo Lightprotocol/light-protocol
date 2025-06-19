@@ -1,4 +1,7 @@
-use crate::account_infos::generic_struct::AccountInfoIndexGetter;
+use light_account_checks::AccountInfoTrait;
+use crate::{AnchorDeserialize, AnchorSerialize};
+
+use crate::error::{LightTokenSdkTypeError, Result};
 
 #[repr(usize)]
 pub enum BurnAccountInfosIndex {
@@ -17,57 +20,158 @@ pub enum BurnAccountInfosIndex {
     SystemProgram,
 }
 
-impl AccountInfoIndexGetter for BurnAccountInfosIndex {
-    const SYSTEM_ACCOUNTS_LEN: usize = 13;
-    
-    fn cpi_authority_index() -> usize {
-        BurnAccountInfosIndex::CpiAuthorityPda as usize
+pub struct BurnAccountInfos<'a, T: AccountInfoTrait + Clone> {
+    fee_payer: &'a T,
+    authority: &'a T,
+    accounts: &'a [T],
+    config: BurnAccountInfosConfig,
+}
+
+#[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct BurnAccountInfosConfig {
+    pub cpi_context: bool,
+}
+
+impl BurnAccountInfosConfig {
+    pub const fn new() -> Self {
+        Self {
+            cpi_context: false,
+        }
     }
 
-    fn light_system_program_index() -> usize {
-        BurnAccountInfosIndex::LightSystemProgram as usize
+    pub const fn new_with_cpi_context() -> Self {
+        Self {
+            cpi_context: true,
+        }
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> BurnAccountInfos<'a, T> {
+    pub fn new(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config: BurnAccountInfosConfig::new(),
+        }
     }
 
-    fn registered_program_pda_index() -> usize {
-        BurnAccountInfosIndex::RegisteredProgramPda as usize
+    pub fn new_with_config(
+        fee_payer: &'a T,
+        authority: &'a T,
+        accounts: &'a [T],
+        config: BurnAccountInfosConfig,
+    ) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config,
+        }
     }
 
-    fn noop_program_index() -> usize {
-        BurnAccountInfosIndex::NoopProgram as usize
+    pub fn fee_payer(&self) -> &'a T {
+        self.fee_payer
     }
 
-    fn account_compression_authority_index() -> usize {
-        BurnAccountInfosIndex::AccountCompressionAuthority as usize
+    pub fn authority(&self) -> &'a T {
+        self.authority
     }
 
-    fn account_compression_program_index() -> usize {
-        BurnAccountInfosIndex::AccountCompressionProgram as usize
+    pub fn cpi_authority_pda(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::CpiAuthorityPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn ctoken_program_index() -> usize {
-        BurnAccountInfosIndex::SelfProgram as usize
+    pub fn mint(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::Mint as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn token_pool_pda_index() -> usize {
-        BurnAccountInfosIndex::TokenPoolPda as usize
+    pub fn token_pool_pda(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::TokenPoolPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn decompression_recipient_index() -> usize {
-        // Burn instruction doesn't use decompression recipient
-        0
+    pub fn token_program(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::TokenProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn spl_token_program_index() -> usize {
-        BurnAccountInfosIndex::TokenProgram as usize
+    pub fn light_system_program(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::LightSystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn system_program_index() -> usize {
-        BurnAccountInfosIndex::SystemProgram as usize
+    pub fn registered_program_pda(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::RegisteredProgramPda as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
-    fn cpi_context_index() -> usize {
-        // Burn instruction doesn't use cpi context
-        0
+    pub fn noop_program(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::NoopProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_compression_authority(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::AccountCompressionAuthority as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_compression_program(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::AccountCompressionProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn self_program(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::SelfProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn system_program(&self) -> Result<&'a T> {
+        let index = BurnAccountInfosIndex::SystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn get_account_info(&self, index: usize) -> Result<&'a T> {
+        self.accounts
+            .get(index)
+            .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_infos(&self) -> &'a [T] {
+        self.accounts
+    }
+
+    pub fn config(&self) -> &BurnAccountInfosConfig {
+        &self.config
+    }
+
+    pub fn system_accounts_len(&self) -> usize {
+        // BurnInstruction has a fixed number of accounts
+        13 // All accounts from the enum
     }
 }
 
