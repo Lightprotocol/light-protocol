@@ -47,6 +47,13 @@ impl PackedAccounts {
     pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
         self.system_accounts
             .extend(get_light_system_account_metas(config));
+        if let Some(pubkey) = config.cpi_context {
+            if self.next_index != 0 {
+                panic!("next index must be 0 when adding cpi context");
+            }
+            self.next_index += 1;
+            self.system_accounts.push(AccountMeta::new(pubkey, false));
+        }
     }
 
     /// Returns the index of the provided `pubkey` in the collection.

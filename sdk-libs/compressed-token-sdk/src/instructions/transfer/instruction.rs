@@ -33,6 +33,7 @@ use crate::{
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
 pub struct TransferConfig {
+    pub cpi_context_pubkey: Option<Pubkey>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub with_transaction_hash: bool,
     pub filter_zero_amount_outputs: bool,
@@ -120,6 +121,15 @@ pub fn create_transfer_instruction_raw(
     data.extend(serialized);
     solana_msg::msg!("meta config1 {:?}", meta_config);
     let mut account_metas = get_transfer_instruction_account_metas(meta_config);
+    if let Some(cpi_context_pubkey) = transfer_config.cpi_context_pubkey {
+        if transfer_config.cpi_context.is_some() {
+            account_metas.push(AccountMeta::new(cpi_context_pubkey, false));
+        } else {
+            // TODO: throw error
+            panic!("cpi_context.is_none() but transfer_config.cpi_context_pubkey is some");
+        }
+    }
+
     // let account_metas = to_compressed_token_account_metas(cpi_accounts)?;
     for tree_pubkey in tree_pubkeys {
         account_metas.push(AccountMeta::new(tree_pubkey, false));

@@ -65,7 +65,7 @@ pub const SYSTEM_ACCOUNTS_LEN: usize = 11;
 pub struct CpiAccounts<'a, T: AccountInfoTrait> {
     fee_payer: &'a T,
     accounts: &'a [T],
-    config: CpiAccountsConfig,
+    pub config: CpiAccountsConfig,
 }
 
 impl<'a, T: AccountInfoTrait> CpiAccounts<'a, T> {
