@@ -170,7 +170,9 @@ pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
         SlotTracker::run(arc_slot_tracker_clone, &mut *rpc).await;
     });
 
-    let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(15)));
+    let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(
+        config.transaction_config.tx_cache_ttl_seconds,
+    )));
 
     debug!("Starting Forester pipeline");
     run_service(

@@ -8,6 +8,7 @@ use forester_utils::{
     instructions::state_batch_append::{get_merkle_tree_metadata, get_output_queue_metadata},
     utils::wait_for_indexer,
 };
+use futures::future::join_all;
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -57,7 +58,7 @@ use solana_sdk::{
     signer::Signer,
 };
 use std::env;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
 use tracing::debug;
 
 mod test_utils;
@@ -109,10 +110,8 @@ async fn test_testnet() {
     println!("pda: {}", pda);
     let seed = 2;
     println!("\n\ne2e test seed {}\n\n", seed);
-
     let mut rng = StdRng::seed_from_u64(seed);
-
-    for _ in 0..1100 {
+    for _ in 0..10000 {
         let _ = rng.gen::<u64>();
     }
 
@@ -336,35 +335,97 @@ async fn test_testnet() {
         println!("num_batches: {:?}", num_batches);
         println!("remaining_addresses: {:?}", remaining_addresses);
 
+        // Create addresses in parallel with bounded concurrency
+        const MAX_CONCURRENT_TASKS: usize = 50; // Limit concurrent tasks to avoid overwhelming RPC
+        let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS));
+        let mut tasks = Vec::new();
+
+        // Create tasks for batch creation
         for i in 0..num_batches {
-            println!("====== Creating v2 address {} ======", i);
-            let result = create_v2_addresses(
-                &mut rpc,
-                &env.v2_address_trees[0],
-                &env.protocol.registered_program_pda,
-                batch_payer,
-                &env,
-                &mut rng,
-                num_addresses as usize,
-            )
-            .await;
-            println!("====== result: {:?} ======", result);
-            result.expect("Create address in v2 tree not successful.");
+            let semaphore = semaphore.clone();
+            let address_tree = env.v2_address_trees[0];
+            let registered_program_pda = env.protocol.registered_program_pda;
+            let payer_clone = batch_payer.insecure_clone();
+            let env_clone = env.clone();
+            let mut rng_clone = StdRng::from_seed(rng.gen());
+            let num_addresses_batch = num_addresses as usize;
+
+            let task = tokio::spawn(async move {
+                // Acquire semaphore permit to limit concurrency
+                let _permit = semaphore.acquire().await.unwrap();
+
+                println!("====== Creating v2 address batch {} ======", i);
+                // Create a new RPC client for this task
+                let mut rpc_task = LightClient::new(LightClientConfig {
+                    url: RpcUrl::Devnet.to_string(),
+                    photon_url: Some(get_photon_indexer_url()),
+                    commitment_config: Some(CommitmentConfig::processed()),
+                    fetch_active_tree: false,
+                })
+                .await
+                .unwrap();
+
+                let result = create_v2_addresses(
+                    &mut rpc_task,
+                    &address_tree,
+                    &registered_program_pda,
+                    &payer_clone,
+                    &env_clone,
+                    &mut rng_clone,
+                    num_addresses_batch,
+                )
+                .await;
+                println!("====== result for batch {}: {:?} ======", i, result);
+                result.expect("Create address in v2 tree not successful.");
+            });
+            tasks.push(task);
         }
+
+        // Create tasks for remaining individual addresses
         for i in 0..remaining_addresses {
-            println!("====== Creating v2 address {} ======", i);
-            let result = create_v2_addresses(
-                &mut rpc,
-                &env.v2_address_trees[0],
-                &env.protocol.registered_program_pda,
-                batch_payer,
-                &env,
-                &mut rng,
-                1,
-            )
-            .await;
-            println!("====== result: {:?} ======", result);
+            let semaphore = semaphore.clone();
+            let address_tree = env.v2_address_trees[0];
+            let registered_program_pda = env.protocol.registered_program_pda;
+            let payer_clone = batch_payer.insecure_clone();
+            let env_clone = env.clone();
+            let mut rng_clone = StdRng::from_seed(rng.gen());
+
+            let task = tokio::spawn(async move {
+                // Acquire semaphore permit to limit concurrency
+                let _permit = semaphore.acquire().await.unwrap();
+
+                println!("====== Creating v2 address {} ======", i);
+                // Create a new RPC client for this task
+                let mut rpc_task = LightClient::new(LightClientConfig {
+                    url: RpcUrl::Devnet.to_string(),
+                    photon_url: Some(get_photon_indexer_url()),
+                    commitment_config: Some(CommitmentConfig::processed()),
+                    fetch_active_tree: false,
+                })
+                .await
+                .unwrap();
+
+                let result = create_v2_addresses(
+                    &mut rpc_task,
+                    &address_tree,
+                    &registered_program_pda,
+                    &payer_clone,
+                    &env_clone,
+                    &mut rng_clone,
+                    1,
+                )
+                .await;
+                println!(
+                    "====== result for remaining address {}: {:?} ======",
+                    i, result
+                );
+                result.expect("Create address in v2 tree not successful.");
+            });
+            tasks.push(task);
         }
+
+        // Wait for all tasks to complete
+        join_all(tasks).await;
 
         let mut address_tree_account = rpc
             .get_account(env.v2_address_trees[0])
@@ -552,9 +613,10 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
     registered_program_pda: &Pubkey,
     payer: &Keypair,
     env: &TestAccounts,
-    rng: &mut StdRng,
+    _rng: &mut StdRng,
     num_addresses: usize,
 ) -> Result<(), light_client::rpc::RpcError> {
+    let mut rng = StdRng::from_entropy();
     let mut address_seeds = Vec::with_capacity(num_addresses);
     let mut addresses = Vec::with_capacity(num_addresses);
 

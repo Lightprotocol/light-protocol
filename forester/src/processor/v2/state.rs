@@ -31,6 +31,22 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    // Create a unique hash for this append batch operation
+    let batch_hash = format!("state_append_{}_{}", context.merkle_tree, context.epoch);
+
+    // Check if this batch is already being processed
+    {
+        let mut cache = context.tx_cache.lock().await;
+        if cache.contains(&batch_hash) {
+            debug!(
+                "Skipping already processed state append batch: {}",
+                batch_hash
+            );
+            return Ok(());
+        }
+        cache.add(&batch_hash);
+    }
+
     let instruction_data_vec = create_append_batch_ix_data(
         rpc,
         &mut *context.indexer.lock().await,
@@ -48,6 +64,9 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
 
     if instruction_data_vec.is_empty() {
         debug!("No zkp batches to append");
+        // Remove from cache since we're not actually processing anything
+        let mut cache = context.tx_cache.lock().await;
+        cache.cleanup();
         return Ok(());
     }
 
@@ -143,6 +162,22 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    // Create a unique hash for this nullify batch operation
+    let batch_hash = format!("state_nullify_{}_{}", context.merkle_tree, context.epoch);
+
+    // Check if this batch is already being processed
+    {
+        let mut cache = context.tx_cache.lock().await;
+        if cache.contains(&batch_hash) {
+            debug!(
+                "Skipping already processed state nullify batch: {}",
+                batch_hash
+            );
+            return Ok(());
+        }
+        cache.add(&batch_hash);
+    }
+
     let batch_index = get_batch_index(context, rpc).await?;
     let instruction_data_vec = create_nullify_batch_ix_data(
         rpc,
@@ -160,6 +195,9 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
 
     if instruction_data_vec.is_empty() {
         debug!("No zkp batches to nullify");
+        // Remove from cache since we're not actually processing anything
+        let mut cache = context.tx_cache.lock().await;
+        cache.cleanup();
         return Ok(());
     }
 

@@ -1138,6 +1138,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 .unwrap_or_else(|| "http://localhost:3001".to_string()),
             prover_polling_interval: Duration::from_secs(1),
             prover_max_wait_time: Duration::from_secs(120),
+            tx_cache: self.tx_cache.clone(),
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
@@ -1248,6 +1249,10 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 info!("Work reported");
             }
             Err(e) => {
+                if e.to_string().contains("already been processed") {
+                    info!("Work already reported for epoch {}", epoch_info.epoch.epoch);
+                    return Ok(());
+                }
                 if let RpcError::ClientError(client_error) = &e {
                     if let Some(TransactionError::InstructionError(
                         _,
