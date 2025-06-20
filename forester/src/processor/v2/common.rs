@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use forester_utils::rpc_pool::SolanaRpcPool;
 use light_batched_merkle_tree::{
@@ -26,6 +26,9 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
     pub ixs_per_tx: usize,
+    pub prover_url: String,
+    pub prover_polling_interval: Duration,
+    pub prover_max_wait_time: Duration,
 }
 
 #[derive(Debug)]

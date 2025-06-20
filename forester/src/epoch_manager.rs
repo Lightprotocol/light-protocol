@@ -1130,6 +1130,14 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
             merkle_tree: tree_accounts.merkle_tree,
             output_queue: tree_accounts.queue,
             ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
+            prover_url: self
+                .config
+                .external_services
+                .prover_url
+                .clone()
+                .unwrap_or_else(|| "http://localhost:3001".to_string()),
+            prover_polling_interval: Duration::from_secs(1),
+            prover_max_wait_time: Duration::from_secs(120),
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)

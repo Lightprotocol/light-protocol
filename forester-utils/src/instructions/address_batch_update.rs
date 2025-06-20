@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use futures::future;
 use light_batched_merkle_tree::{
@@ -27,6 +29,9 @@ pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
+    prover_url: String,
+    polling_interval: Duration,
+    max_wait_time: Duration,
 ) -> Result<(Vec<InstructionDataBatchNullifyInputs>, u16), ForesterUtilsError>
 where
     R: Rpc,
@@ -253,7 +258,7 @@ where
     }
 
     info!("Generating {} ZK proofs asynchronously", all_inputs.len());
-    let proof_client = ProofClient::local();
+    let proof_client = ProofClient::with_config(prover_url, polling_interval, max_wait_time);
     let proof_futures = all_inputs
         .into_iter()
         .map(|inputs| proof_client.generate_batch_address_append_proof(inputs));
