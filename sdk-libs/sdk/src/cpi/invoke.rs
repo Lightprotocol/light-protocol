@@ -8,6 +8,7 @@ use light_compressed_account::{
     },
 };
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
+use solana_msg::msg;
 
 use crate::{
     cpi::{to_account_metas, CpiAccounts},
@@ -96,6 +97,7 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
     if cpi_inputs.read_only_address.is_some() {
         unimplemented!("read_only_addresses are only supported with v2 soon on Devnet.");
     }
+    msg!("cpi_inputs.cpi_context {:?}", cpi_inputs.cpi_context);
 
     let inputs = InstructionDataInvokeCpi {
         proof: cpi_inputs.proof.into(),

@@ -26,6 +26,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 #[program]
 pub mod sdk_token_test {
+    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_sdk::cpi::CpiAccounts;
     use light_sdk_types::CpiAccountsConfig;
 
@@ -96,12 +97,12 @@ pub mod sdk_token_test {
             sol_pool_pda: false,
             sol_compression_recipient: false,
         };
+        let (token_account_infos, system_account_infos) = ctx.remaining_accounts.split_at(8);
         let light_cpi_accounts = CpiAccounts::new_with_config(
             ctx.accounts.signer.as_ref(),
-            ctx.remaining_accounts,
+            system_account_infos,
             config,
         );
-
         deposit_tokens(
             &light_cpi_accounts,
             token_metas,
@@ -109,6 +110,7 @@ pub mod sdk_token_test {
             mint,
             recipient,
             deposit_amount,
+            token_account_infos,
         )?;
         process_create_compressed_account(
             light_cpi_accounts,

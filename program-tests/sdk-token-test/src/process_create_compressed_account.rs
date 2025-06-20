@@ -21,7 +21,7 @@ pub struct MyTokenCompressedAccount {
     pub owner: Pubkey,
 }
 
-pub fn process_create_compressed_account<'info>(
+pub fn process_create_compressed_account(
     cpi_accounts: CpiAccounts,
     proof: ValidityProof,
     address_tree_info: PackedAddressTreeInfo,
@@ -58,11 +58,15 @@ pub fn process_create_compressed_account<'info>(
         cpi_context: Some(CompressedCpiContext {
             set_context: false,
             first_set_context: false,
-            cpi_context_account_index: (cpi_accounts.system_accounts_len() - 1) as u8, // TODO: confirm
+            cpi_context_account_index: 0, // seems to be useless. Seems to be unused.
+                                          // TODO: unify the account meta generation on and offchain.
         }),
         ..Default::default()
     };
-
+    msg!(
+        "(cpi_accounts.system_accounts_len() - 2) {}",
+        (cpi_accounts.system_accounts_len() - 2)
+    );
     cpi_inputs
         .invoke_light_system_program(cpi_accounts)
         .map_err(ProgramError::from)?;
@@ -70,33 +74,48 @@ pub fn process_create_compressed_account<'info>(
     Ok(())
 }
 
-pub fn deposit_tokens(
-    cpi_accounts: &CpiAccounts,
-    token_metas: Vec<TokenAccountMeta>,
-    output_tree_index: u8,
+pub fn deposit_tokens<'info>(
+    cpi_accounts: &CpiAccounts<'_, 'info>,
+    mut token_metas: Vec<TokenAccountMeta>,
+    mut output_tree_index: u8,
     mint: Pubkey,
     recipient: Pubkey,
     amount: u64,
+    token_account_infos: &[AccountInfo<'info>],
 ) -> Result<()> {
+    // // Cpi context is part of the remaining accounts for the token program
+    // // but not for the system program.
+    // // We created the accounts from the system programs perspective
+    // this is true but there is a bug in the system program that adds the cpi context to the remaining accounts
+    // for token_meta in token_metas.iter_mut() {
+    //     token_meta.packed_tree_info.merkle_tree_pubkey_index += 1;
+    //     token_meta.packed_tree_info.queue_pubkey_index += 1;
+    // }
+    // output_tree_index += 1;
     let sender_account = CTokenAccount::new(
         mint,
         *cpi_accounts.fee_payer().key,
         token_metas,
         output_tree_index,
     );
+    let tree_pubkeys = cpi_accounts.tree_pubkeys().unwrap();
+    msg!("tree_pubkeys {:?}", tree_pubkeys);
+    let cpi_context_pubkey = tree_pubkeys[0];
+    msg!("cpi_context_pubkey {:?}", cpi_context_pubkey);
     let transfer_inputs = TransferInputs {
         fee_payer: *cpi_accounts.fee_payer().key,
         sender_account,
         // No validity proof necessary we are just storing things in the cpi context.
         validity_proof: None.into(),
         recipient,
-        tree_pubkeys: cpi_accounts.tree_pubkeys().unwrap(),
+        tree_pubkeys: tree_pubkeys[1..].to_vec(),
         config: Some(TransferConfig {
             cpi_context: Some(CompressedCpiContext {
                 set_context: true,
                 first_set_context: true,
-                cpi_context_account_index: (cpi_accounts.system_accounts_len() - 1) as u8,
+                cpi_context_account_index: 0, // TODO: replace with Pubkey (maybe not because it is in tree pubkeys 1 in this case)
             }),
+            cpi_context_pubkey: Some(cpi_context_pubkey),
             ..Default::default()
         }),
         amount,
@@ -104,10 +123,14 @@ pub fn deposit_tokens(
     let instruction =
         light_compressed_token_sdk::instructions::transfer::instruction::transfer(transfer_inputs)
             .unwrap();
+    msg!("instruction {:?}", instruction);
     // We can use the property that account infos don't have to be in order if you use
     // solana program invoke.
     let mut account_infos = cpi_accounts.account_infos().to_vec();
+    account_infos.extend_from_slice(token_account_infos);
     account_infos.push(cpi_accounts.fee_payer().clone());
+    account_infos.push(cpi_accounts.registered_program_pda().unwrap().clone());
+
     anchor_lang::solana_program::program::invoke(&instruction, account_infos.as_slice())?;
 
     Ok(())
