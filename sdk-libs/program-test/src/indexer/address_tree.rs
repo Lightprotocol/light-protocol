@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_ROOT_HISTORY_LEN;
+use light_batched_merkle_tree::constants::DEFAULT_BATCH_ROOT_HISTORY_LEN;
 use light_client::{
     fee::FeeConfig,
     indexer::{AddressMerkleTreeAccounts, IndexerError},
@@ -59,7 +59,7 @@ impl AddressMerkleTreeBundle {
         >::new(height, canopy)
         .map_err(|_| IndexerError::InvalidResponseData)?;
         merkle_tree.merkle_tree.root_history_array_len =
-            Some(DEFAULT_BATCH_STATE_ROOT_HISTORY_LEN as usize);
+            Some(DEFAULT_BATCH_ROOT_HISTORY_LEN as usize);
         let merkle_tree = IndexedMerkleTreeVersion::V2(Box::new(merkle_tree));
 
         Ok(AddressMerkleTreeBundle {

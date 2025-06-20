@@ -7,8 +7,8 @@ use light_merkle_tree_metadata::{
 
 use crate::{
     constants::{
-        DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_SIZE,
-        DEFAULT_ZKP_BATCH_SIZE,
+        DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
+        DEFAULT_BATCH_ROOT_HISTORY_LEN, DEFAULT_BATCH_SIZE,
     },
     errors::BatchedMerkleTreeError,
     initialize_state_tree::match_circuit_size,
@@ -43,7 +43,7 @@ impl Default for InitAddressTreeAccountsInstructionData {
             input_queue_batch_size: DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
             height: 40,
-            root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
+            root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
             bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
             network_fee: Some(5000),
             rollover_threshold: Some(95),
@@ -172,7 +172,8 @@ pub mod test_utils {
     pub use super::InitAddressTreeAccountsInstructionData;
     use crate::constants::{
         ADDRESS_BLOOM_FILTER_CAPACITY, ADDRESS_BLOOM_FILTER_NUM_HASHES,
-        DEFAULT_ADDRESS_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
+        DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_BATCH_ROOT_HISTORY_LEN, TEST_DEFAULT_BATCH_SIZE,
+        TEST_DEFAULT_ZKP_BATCH_SIZE,
     };
 
     impl InitAddressTreeAccountsInstructionData {
@@ -185,7 +186,7 @@ pub mod test_utils {
                 input_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
                 input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 height: 40,
-                root_history_capacity: 20,
+                root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: 20_000 * 8,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),
@@ -202,7 +203,7 @@ pub mod test_utils {
                 input_queue_batch_size: 500,
                 input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 height: 40,
-                root_history_capacity: 20,
+                root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: 20_000 * 8,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),
@@ -218,7 +219,7 @@ pub mod test_utils {
                 input_queue_batch_size: 15000,
                 input_queue_zkp_batch_size: DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
                 height: 40,
-                root_history_capacity: 20,
+                root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: ADDRESS_BLOOM_FILTER_CAPACITY,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),

@@ -9,8 +9,8 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{
     constants::{
-        DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE,
-        TEST_DEFAULT_ZKP_BATCH_SIZE,
+        DEFAULT_BATCH_ROOT_HISTORY_LEN, DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES,
+        TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
     },
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -57,7 +57,7 @@ impl Default for BatchedMerkleTreeMetadata {
             sequence_number: 0,
             tree_type: TreeType::StateV2 as u64,
             height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
-            root_history_capacity: 20,
+            root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
             capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
             queue_batches: QueueBatches {
                 currently_processing_batch_index: 0,
