@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::log::sol_log_compute_units;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
     account::CTokenAccount,
@@ -63,21 +64,20 @@ pub fn process_create_compressed_account(
         }),
         ..Default::default()
     };
-    msg!(
-        "(cpi_accounts.system_accounts_len() - 2) {}",
-        (cpi_accounts.system_accounts_len() - 2)
-    );
+    msg!("invoke");
+    sol_log_compute_units();
     cpi_inputs
         .invoke_light_system_program(cpi_accounts)
         .map_err(ProgramError::from)?;
+    sol_log_compute_units();
 
     Ok(())
 }
 
 pub fn deposit_tokens<'info>(
     cpi_accounts: &CpiAccounts<'_, 'info>,
-    mut token_metas: Vec<TokenAccountMeta>,
-    mut output_tree_index: u8,
+    token_metas: Vec<TokenAccountMeta>,
+    output_tree_index: u8,
     mint: Pubkey,
     recipient: Pubkey,
     amount: u64,
@@ -98,10 +98,10 @@ pub fn deposit_tokens<'info>(
         token_metas,
         output_tree_index,
     );
-    let tree_pubkeys = cpi_accounts.tree_pubkeys().unwrap();
-    msg!("tree_pubkeys {:?}", tree_pubkeys);
+    // We need to be careful what accounts we pass.
+    // Big accounts cost many CU.
+    let tree_pubkeys = cpi_accounts.tree_pubkeys().unwrap()[..3].to_vec();
     let cpi_context_pubkey = tree_pubkeys[0];
-    msg!("cpi_context_pubkey {:?}", cpi_context_pubkey);
     let transfer_inputs = TransferInputs {
         fee_payer: *cpi_accounts.fee_payer().key,
         sender_account,
@@ -123,15 +123,18 @@ pub fn deposit_tokens<'info>(
     let instruction =
         light_compressed_token_sdk::instructions::transfer::instruction::transfer(transfer_inputs)
             .unwrap();
-    msg!("instruction {:?}", instruction);
     // We can use the property that account infos don't have to be in order if you use
     // solana program invoke.
-    let mut account_infos = cpi_accounts.account_infos().to_vec();
-    account_infos.extend_from_slice(token_account_infos);
+    sol_log_compute_units();
+    // 874 CU
+    let mut account_infos = token_account_infos.to_vec();
     account_infos.push(cpi_accounts.fee_payer().clone());
-    account_infos.push(cpi_accounts.registered_program_pda().unwrap().clone());
-
+    account_infos.extend_from_slice(cpi_accounts.tree_accounts().unwrap());
+    sol_log_compute_units();
+    msg!("invoke");
+    sol_log_compute_units();
     anchor_lang::solana_program::program::invoke(&instruction, account_infos.as_slice())?;
+    sol_log_compute_units();
 
     Ok(())
 }

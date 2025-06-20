@@ -119,7 +119,6 @@ pub fn create_transfer_instruction_raw(
     data.extend_from_slice(&TRANSFER);
     data.extend(u32::try_from(serialized.len()).unwrap().to_le_bytes());
     data.extend(serialized);
-    solana_msg::msg!("meta config1 {:?}", meta_config);
     let mut account_metas = get_transfer_instruction_account_metas(meta_config);
     if let Some(cpi_context_pubkey) = transfer_config.cpi_context_pubkey {
         if transfer_config.cpi_context.is_some() {

@@ -295,8 +295,6 @@ pub fn hash_with_hashed_values(
         vec.push(&discriminator_bytes);
         vec.push(data_hash);
     }
-    println!("hashed with hashed values {:?}", vec);
-    solana_msg::msg!("hashed with hashed values {:?}", vec);
     Ok(Poseidon::hashv(&vec)?)
 }
 
