@@ -106,13 +106,13 @@ impl CTokenAccount {
         if amount > self.output.amount {
             return Err(TokenSdkError::InsufficientBalance);
         }
-        
+
         // Deduct the delegated amount from current account
         self.output.amount -= amount;
         let merkle_tree_index = output_merkle_tree_index.unwrap_or(self.output.merkle_tree_index);
 
         self.method_used = true;
-        
+
         // Create a new delegated account with the specified delegate
         // Note: In the actual instruction, this will create the proper delegation structure
         Ok(Self {
@@ -121,7 +121,7 @@ impl CTokenAccount {
             is_decompress: false,
             inputs: vec![],
             output: PackedTokenTransferOutputData {
-                owner: self.output.owner,  // Owner remains the same, but delegate is set
+                owner: self.output.owner, // Owner remains the same, but delegate is set
                 amount,
                 lamports: None,
                 tlv: None,
@@ -188,6 +188,9 @@ impl CTokenAccount {
 
     pub fn owner(&self) -> Pubkey {
         Pubkey::new_from_array(self.owner)
+    }
+    pub fn input_metas(&self) -> &[TokenAccountMeta] {
+        self.inputs.as_slice()
     }
 
     /// Consumes token account for instruction creation.

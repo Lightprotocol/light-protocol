@@ -124,6 +124,8 @@ async fn create_deposit_compressed_account(
     println!("tree_info {:?}", tree_info);
 
     let mut remaining_accounts = PackedAccounts::default();
+    // new_with_anchor_none is only recommended for pinocchio else additional account infos cost approx 1k CU
+    // used here for consistentcy with into_account_infos_checked
     let config = TokenAccountsMetaConfig::new_client();
     let metas = get_transfer_instruction_account_metas(config);
     println!("metas {:?}", metas);
@@ -181,7 +183,9 @@ async fn create_deposit_compressed_account(
         tlv: None,
     }];
 
-    let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
+    let (remaining_accounts, system_accounts_start_offset, _packed_accounts_start_offset) =
+        remaining_accounts.to_account_metas();
+    let system_accounts_start_offset = system_accounts_start_offset as u8;
     println!("remaining_accounts {:?}", remaining_accounts);
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
@@ -198,6 +202,7 @@ async fn create_deposit_compressed_account(
             token_metas,
             mint,
             recipient,
+            system_accounts_start_offset,
         }
         .data(),
     };
