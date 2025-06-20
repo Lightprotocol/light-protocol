@@ -245,8 +245,8 @@ pub mod test_utils {
     use super::*;
     use crate::{
         constants::{
-            STATE_BLOOM_FILTER_CAPACITY, STATE_BLOOM_FILTER_NUM_HASHES, TEST_DEFAULT_BATCH_SIZE,
-            TEST_DEFAULT_ZKP_BATCH_SIZE,
+            DEFAULT_BATCH_ROOT_HISTORY_LEN, STATE_BLOOM_FILTER_CAPACITY,
+            STATE_BLOOM_FILTER_NUM_HASHES, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
         },
         queue::{test_utils::assert_queue_inited, BatchedQueueMetadata},
         queue_batch_metadata::QueueBatches,
@@ -265,7 +265,7 @@ pub mod test_utils {
                 input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
-                root_history_capacity: 20,
+                root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: 20_000 * 8,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),
@@ -285,7 +285,7 @@ pub mod test_utils {
                 input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
-                root_history_capacity: 20,
+                root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: 20_000 * 8,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),
@@ -305,7 +305,7 @@ pub mod test_utils {
                 input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
                 output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
                 height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
-                root_history_capacity: 20,
+                root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: STATE_BLOOM_FILTER_CAPACITY,
                 network_fee: Some(5000),
                 rollover_threshold: Some(95),

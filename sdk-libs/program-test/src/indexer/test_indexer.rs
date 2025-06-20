@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_batched_merkle_tree::{
     constants::{
-        DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_ROOT_HISTORY_LEN,
+        DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_ROOT_HISTORY_LEN,
         DEFAULT_BATCH_STATE_TREE_HEIGHT,
     },
     merkle_tree::BatchedMerkleTreeAccount,
@@ -1296,7 +1296,7 @@ impl TestIndexer {
                     DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
                     0,
                     0,
-                    DEFAULT_BATCH_STATE_ROOT_HISTORY_LEN as usize,
+                    DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
                 ));
                 (
                     TreeType::StateV2,
@@ -1508,7 +1508,7 @@ impl TestIndexer {
                         DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
                         0,
                         0,
-                        DEFAULT_BATCH_STATE_ROOT_HISTORY_LEN as usize,
+                        DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
 
                     ));
                     (FeeConfig::test_batched().state_merkle_tree_rollover as i64,merkle_tree, Some(params.output_queue_batch_size as usize))
