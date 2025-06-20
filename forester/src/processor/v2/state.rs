@@ -34,7 +34,7 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
     let batch_hash = format!("state_append_{}_{}", context.merkle_tree, context.epoch);
 
     {
-        let mut cache = context.tx_cache.lock().await;
+        let mut cache = context.ops_cache.lock().await;
         if cache.contains(&batch_hash) {
             trace!(
                 "Skipping already processed state append batch: {}",
@@ -62,7 +62,7 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
 
     if instruction_data_vec.is_empty() {
         trace!("No zkp batches to append");
-        let mut cache = context.tx_cache.lock().await;
+        let mut cache = context.ops_cache.lock().await;
         cache.cleanup();
         return Ok(());
     }
@@ -162,7 +162,7 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
     let batch_hash = format!("state_nullify_{}_{}", context.merkle_tree, context.epoch);
 
     {
-        let mut cache = context.tx_cache.lock().await;
+        let mut cache = context.ops_cache.lock().await;
         if cache.contains(&batch_hash) {
             trace!(
                 "Skipping already processed state nullify batch: {}",
@@ -190,7 +190,7 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
 
     if instruction_data_vec.is_empty() {
         trace!("No zkp batches to nullify");
-        let mut cache = context.tx_cache.lock().await;
+        let mut cache = context.ops_cache.lock().await;
         cache.cleanup();
         return Ok(());
     }

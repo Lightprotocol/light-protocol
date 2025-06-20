@@ -20,7 +20,7 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
 
     let batch_hash = format!("address_batch_{}_{}", context.merkle_tree, context.epoch);
     {
-        let mut cache = context.tx_cache.lock().await;
+        let mut cache = context.ops_cache.lock().await;
         if cache.contains(&batch_hash) {
             trace!("Skipping already processed address batch: {}", batch_hash);
             return Ok(0);
@@ -49,7 +49,7 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
 
     if instruction_data_vec.is_empty() {
         trace!("No ZKP batches to process for address tree");
-        let mut cache = context.tx_cache.lock().await;
+        let mut cache = context.ops_cache.lock().await;
         cache.cleanup();
         return Ok(0);
     }

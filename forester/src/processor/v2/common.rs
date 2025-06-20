@@ -29,7 +29,7 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub prover_url: String,
     pub prover_polling_interval: Duration,
     pub prover_max_wait_time: Duration,
-    pub tx_cache: Arc<Mutex<ProcessedHashCache>>,
+    pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
 #[derive(Debug)]

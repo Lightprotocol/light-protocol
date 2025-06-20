@@ -167,8 +167,13 @@ pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
     });
 
     let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(
+        config.transaction_config.tx_cache_ttl_seconds,
+    )));
+
+    let ops_cache = Arc::new(Mutex::new(ProcessedHashCache::new(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
+
 
     debug!("Starting Forester pipeline");
     run_service(
@@ -180,6 +185,7 @@ pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
         work_report_sender,
         arc_slot_tracker,
         tx_cache,
+        ops_cache,
     )
     .await?;
     Ok(())
