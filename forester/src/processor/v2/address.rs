@@ -4,7 +4,7 @@ use light_client::{indexer::Indexer, rpc::Rpc};
 use light_merkle_tree_metadata::events::MerkleTreeEvent;
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_sdk::signer::Signer;
-use tracing::{debug, info, instrument, log::error};
+use tracing::{debug, info, instrument, log::error, trace};
 
 use super::{
     common::BatchContext,
@@ -16,7 +16,18 @@ use crate::indexer_type::{finalize_batch_address_tree_update, IndexerType};
 pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
 ) -> Result<usize> {
-    info!("Processing address batch operation");
+    trace!("Processing address batch operation");
+
+    let batch_hash = format!("address_batch_{}_{}", context.merkle_tree, context.epoch);
+    {
+        let mut cache = context.tx_cache.lock().await;
+        if cache.contains(&batch_hash) {
+            trace!("Skipping already processed address batch: {}", batch_hash);
+            return Ok(0);
+        }
+        cache.add(&batch_hash);
+    }
+
     let mut rpc = context.rpc_pool.get_connection().await?;
 
     let (instruction_data_vec, zkp_batch_size) = create_batch_update_address_tree_instruction_data(
@@ -37,7 +48,9 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
     })?;
 
     if instruction_data_vec.is_empty() {
-        debug!("No ZKP batches to process for address tree");
+        trace!("No ZKP batches to process for address tree");
+        let mut cache = context.tx_cache.lock().await;
+        cache.cleanup();
         return Ok(0);
     }
 

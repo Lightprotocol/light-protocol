@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use tracing::{error, trace};
 
 use super::{address, error::Result, state, BatchProcessError};
-use crate::indexer_type::IndexerType;
+use crate::{indexer_type::IndexerType, processor::tx_cache::ProcessedHashCache};
 
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc, I: Indexer> {
@@ -29,6 +29,7 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub prover_url: String,
     pub prover_polling_interval: Duration,
     pub prover_max_wait_time: Duration,
+    pub tx_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
 #[derive(Debug)]

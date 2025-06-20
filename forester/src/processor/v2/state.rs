@@ -8,7 +8,7 @@ use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
 use solana_sdk::signer::Signer;
-use tracing::{debug, info, instrument, log::error};
+use tracing::{debug, info, instrument, log::error, trace};
 
 use super::{
     common::BatchContext,
@@ -31,6 +31,20 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    let batch_hash = format!("state_append_{}_{}", context.merkle_tree, context.epoch);
+
+    {
+        let mut cache = context.tx_cache.lock().await;
+        if cache.contains(&batch_hash) {
+            trace!(
+                "Skipping already processed state append batch: {}",
+                batch_hash
+            );
+            return Ok(());
+        }
+        cache.add(&batch_hash);
+    }
+
     let instruction_data_vec = create_append_batch_ix_data(
         rpc,
         &mut *context.indexer.lock().await,
@@ -47,7 +61,9 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
     })?;
 
     if instruction_data_vec.is_empty() {
-        debug!("No zkp batches to append");
+        trace!("No zkp batches to append");
+        let mut cache = context.tx_cache.lock().await;
+        cache.cleanup();
         return Ok(());
     }
 
@@ -143,6 +159,20 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    let batch_hash = format!("state_nullify_{}_{}", context.merkle_tree, context.epoch);
+
+    {
+        let mut cache = context.tx_cache.lock().await;
+        if cache.contains(&batch_hash) {
+            trace!(
+                "Skipping already processed state nullify batch: {}",
+                batch_hash
+            );
+            return Ok(());
+        }
+        cache.add(&batch_hash);
+    }
+
     let batch_index = get_batch_index(context, rpc).await?;
     let instruction_data_vec = create_nullify_batch_ix_data(
         rpc,
@@ -159,7 +189,9 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
     })?;
 
     if instruction_data_vec.is_empty() {
-        debug!("No zkp batches to nullify");
+        trace!("No zkp batches to nullify");
+        let mut cache = context.tx_cache.lock().await;
+        cache.cleanup();
         return Ok(());
     }
 
