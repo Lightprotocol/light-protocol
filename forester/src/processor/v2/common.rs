@@ -50,7 +50,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
     }
 
     pub async fn process(&self) -> Result<usize> {
-        debug!(
+        trace!(
             "Starting batch processing for tree type: {:?}",
             self.tree_type
         );
@@ -93,7 +93,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
                 result
             }
             BatchReadyState::NotReady => {
-                debug!(
+                trace!(
                     "Batch not ready for processing, tree: {}",
                     self.context.merkle_tree
                 );
@@ -115,9 +115,11 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             false
         };
 
-        debug!(
+        trace!(
             "self.tree_type: {}, input_ready: {}, output_ready: {}",
-            self.tree_type, input_ready, output_ready
+            self.tree_type,
+            input_ready,
+            output_ready
         );
 
         if self.tree_type == TreeType::AddressV2 {

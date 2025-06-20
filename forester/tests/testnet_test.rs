@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use crate::test_utils::{forester_config, init};
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{config::GeneralConfig, epoch_manager::WorkReport, run_pipeline, ForesterConfig};
@@ -33,6 +34,7 @@ use light_compressed_token::process_transfer::{
     TokenTransferOutputData,
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, Indexer};
+use light_prover_client::proof::deserialize_hex_string_to_be_bytes;
 use light_sdk::{
     constants::LIGHT_SYSTEM_PROGRAM_ID, instruction::MerkleContext,
     token::TokenDataWithMerkleContext,
@@ -57,8 +59,6 @@ use solana_sdk::{
 use std::env;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
-use light_prover_client::proof::deserialize_hex_string_to_be_bytes;
-use crate::test_utils::{forester_config, init};
 
 mod test_utils;
 
@@ -107,12 +107,12 @@ async fn test_testnet() {
     let program_id = LIGHT_SYSTEM_PROGRAM_ID;
     let pda = Pubkey::find_program_address(&[program_id.as_slice()], &account_compression::ID).0;
     println!("pda: {}", pda);
-    let seed = 1;
+    let seed = 2;
     println!("\n\ne2e test seed {}\n\n", seed);
 
     let mut rng = StdRng::seed_from_u64(seed);
 
-    for _ in 0..50 {
+    for _ in 0..1100 {
         let _ = rng.gen::<u64>();
     }
 
@@ -273,10 +273,12 @@ async fn test_testnet() {
             (hash_chains, start_index, current_root, zkp_batch_size)
         };
 
-        let indexer_root = "0x28144AF4BCE54E81FC4E524A73F06B9EE79A015498A5454CAD7B618AD4115426";
-        let indexer_root_bytes = deserialize_hex_string_to_be_bytes(indexer_root);
+        // let indexer_root = "0x28144AF4BCE54E81FC4E524A73F06B9EE79A015498A5454CAD7B618AD4115426";
+        // let indexer_root_bytes = deserialize_hex_string_to_be_bytes(indexer_root);
+        // println!("indexer_root: {:?}", indexer_root_bytes);
 
-        println!("indexer_root: {:?}", indexer_root_bytes);
+        println!("leaves_hash_chains.len(): {:?}", leaves_hash_chains.len());
+        println!("zkp_batch_size: {:?}", batch_size);
         println!("on-chain root: {:?}", current_root);
 
         /*
@@ -417,7 +419,7 @@ async fn test_testnet() {
             batch_payer,
             &mint_pubkey,
         )
-            .await;
+        .await;
         println!("mint_to: {:?}", sig);
 
         wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
@@ -431,7 +433,7 @@ async fn test_testnet() {
                     batch_payer,
                     if i == 0 { 1_000_000 } else { 10_000 },
                 )
-                    .await;
+                .await;
                 println!("{} batch compress: {:?}", i, batch_compress_sig);
             }
 
@@ -442,7 +444,7 @@ async fn test_testnet() {
                     batch_payer,
                     &env,
                 )
-                    .await;
+                .await;
                 println!("{} batch transfer: {:?}", i, batch_transfer_sig);
             }
 
@@ -453,12 +455,11 @@ async fn test_testnet() {
                     batch_payer,
                     &mint_pubkey,
                 )
-                    .await;
+                .await;
                 println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
             }
         }
     }
-
 
     // let (service_handle, shutdown_sender, mut work_report_receiver) =
     //     setup_forester_pipeline(&config).await;
@@ -593,8 +594,14 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
         .await
         .unwrap();
 
-    println!("- new root: {:?}", proof_result.value.addresses.first().unwrap().root);
-    println!("- new root index: {:?}", proof_result.value.addresses.first().unwrap().root_index);
+    println!(
+        "- new root: {:?}",
+        proof_result.value.addresses.first().unwrap().root
+    );
+    println!(
+        "- new root index: {:?}",
+        proof_result.value.addresses.first().unwrap().root_index
+    );
     println!("=====================================");
 
     if num_addresses == 1 {
@@ -637,7 +644,7 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
                 seed: *seed,
                 address_queue_pubkey: (*batch_address_merkle_tree).into(),
                 address_merkle_tree_pubkey: (*batch_address_merkle_tree).into(),
-                address_merkle_tree_root_index: 10, //proof_result.value.get_address_root_indices()[i],
+                address_merkle_tree_root_index: proof_result.value.get_address_root_indices()[i],
                 assigned_account_index: None,
             })
             .collect::<Vec<_>>();
