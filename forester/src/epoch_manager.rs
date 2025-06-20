@@ -101,6 +101,7 @@ pub struct EpochManager<R: Rpc, I: Indexer> {
     processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
     new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
+    ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
 impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
@@ -117,6 +118,7 @@ impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
             processing_epochs: self.processing_epochs.clone(),
             new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
+            ops_cache: self.ops_cache.clone(),
         }
     }
 }
@@ -133,6 +135,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         slot_tracker: Arc<SlotTracker>,
         new_tree_sender: broadcast::Sender<TreeAccounts>,
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
+        ops_cache: Arc<Mutex<ProcessedHashCache>>,
     ) -> Result<Self> {
         Ok(Self {
             config,
@@ -146,6 +149,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
             processing_epochs: Arc::new(DashMap::new()),
             new_tree_sender,
             tx_cache,
+            ops_cache,
         })
     }
 
@@ -987,6 +991,10 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 }
             };
 
+            debug!(
+                "Processed {} items in slot {:?}",
+                items_processed_this_iteration, forester_slot_details.slot
+            );
             self.update_metrics_and_counts(
                 epoch_info.epoch,
                 items_processed_this_iteration,
@@ -1138,6 +1146,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 .unwrap_or_else(|| "http://127.0.0.1:3001".to_string()),
             prover_polling_interval: Duration::from_secs(1),
             prover_max_wait_time: Duration::from_secs(120),
+            ops_cache: self.ops_cache.clone(),
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
@@ -1363,6 +1372,7 @@ pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
     work_report_sender: mpsc::Sender<WorkReport>,
     slot_tracker: Arc<SlotTracker>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
+    ops_cache: Arc<Mutex<ProcessedHashCache>>,
 ) -> Result<()> {
     info_span!("run_service", forester = %config.payer_keypair.pubkey())
         .in_scope(|| async {
@@ -1406,6 +1416,7 @@ pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
                     slot_tracker.clone(),
                     new_tree_sender.clone(),
                     tx_cache.clone(),
+                    ops_cache.clone(),
                 )
                 .await
                 {

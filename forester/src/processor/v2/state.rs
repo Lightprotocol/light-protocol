@@ -8,7 +8,7 @@ use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
 use solana_sdk::signer::Signer;
-use tracing::{debug, info, instrument, log::error};
+use tracing::{debug, info, instrument, log::error, trace};
 
 use super::{
     common::BatchContext,
@@ -47,7 +47,9 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
     })?;
 
     if instruction_data_vec.is_empty() {
-        debug!("No zkp batches to append");
+        trace!("No zkp batches to append");
+        let mut cache = context.ops_cache.lock().await;
+        cache.cleanup();
         return Ok(());
     }
 
@@ -159,7 +161,9 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
     })?;
 
     if instruction_data_vec.is_empty() {
-        debug!("No zkp batches to nullify");
+        trace!("No zkp batches to nullify");
+        let mut cache = context.ops_cache.lock().await;
+        cache.cleanup();
         return Ok(());
     }
 

@@ -64,6 +64,8 @@ pub struct TransactionConfig {
     pub max_concurrent_batches: usize,
     pub cu_limit: u32,
     pub enable_priority_fees: bool,
+    pub tx_cache_ttl_seconds: u64,
+    pub ops_cache_ttl_seconds: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -155,6 +157,8 @@ impl Default for TransactionConfig {
             max_concurrent_batches: 20,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
+            tx_cache_ttl_seconds: 15,
+            ops_cache_ttl_seconds: 180,
         }
     }
 }
@@ -234,6 +238,8 @@ impl ForesterConfig {
                 max_concurrent_batches: args.transaction_max_concurrent_batches,
                 cu_limit: args.cu_limit,
                 enable_priority_fees: args.enable_priority_fees,
+                tx_cache_ttl_seconds: args.tx_cache_ttl_seconds,
+                ops_cache_ttl_seconds: args.ops_cache_ttl_seconds,
             },
             general_config: GeneralConfig {
                 slot_update_interval_seconds: args.slot_update_interval_seconds,

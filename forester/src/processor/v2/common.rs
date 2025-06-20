@@ -11,10 +11,10 @@ use light_compressed_account::TreeType;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
-use tracing::{error, trace};
+use tracing::{debug, error, trace};
 
 use super::{address, error::Result, state, BatchProcessError};
-use crate::indexer_type::IndexerType;
+use crate::{indexer_type::IndexerType, processor::tx_cache::ProcessedHashCache};
 
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc, I: Indexer> {
@@ -29,6 +29,7 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub prover_url: String,
     pub prover_polling_interval: Duration,
     pub prover_max_wait_time: Duration,
+    pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
 #[derive(Debug)]
@@ -58,7 +59,40 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
 
         match state {
             BatchReadyState::ReadyForAppend => match self.tree_type {
-                TreeType::AddressV2 => address::process_batch(&self.context).await,
+                TreeType::AddressV2 => {
+                    trace!(
+                        "Processing address append for tree: {}",
+                        self.context.merkle_tree
+                    );
+
+                    let batch_hash = format!(
+                        "address_batch_{}_{}",
+                        self.context.merkle_tree, self.context.epoch
+                    );
+                    {
+                        let mut cache = self.context.ops_cache.lock().await;
+                        if cache.contains(&batch_hash) {
+                            debug!("Skipping already processed address batch: {}", batch_hash);
+                            return Ok(0);
+                        }
+                        cache.add(&batch_hash);
+                    }
+
+                    let result = address::process_batch(&self.context).await;
+
+                    if let Err(ref e) = result {
+                        error!(
+                            "Address append failed for tree {}: {:?}",
+                            self.context.merkle_tree, e
+                        );
+                    }
+
+                    let mut cache = self.context.ops_cache.lock().await;
+                    cache.cleanup_by_key(&batch_hash);
+                    trace!("Cache cleaned up for batch: {}", batch_hash);
+
+                    result
+                }
                 TreeType::StateV2 => {
                     trace!(
                         "Process state append for tree: {}",
@@ -218,7 +252,31 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
     async fn process_state_append(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (_, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
+
+        let batch_hash = format!(
+            "state_append_{}_{}",
+            self.context.merkle_tree, self.context.epoch
+        );
+        {
+            let mut cache = self.context.ops_cache.lock().await;
+            if cache.contains(&batch_hash) {
+                trace!(
+                    "Skipping already processed state append batch: {}",
+                    batch_hash
+                );
+                return Ok(0);
+            }
+            cache.add(&batch_hash);
+        }
         state::perform_append(&self.context, &mut rpc).await?;
+        trace!(
+            "State append operation completed for tree: {}",
+            self.context.merkle_tree
+        );
+
+        let mut cache = self.context.ops_cache.lock().await;
+        cache.cleanup_by_key(&batch_hash);
+
         Ok(zkp_batch_size)
     }
 
@@ -231,7 +289,34 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             zkp_batch_size,
             inserted_zkps_count
         );
+
+        let batch_hash = format!(
+            "state_nullify_{}_{}",
+            self.context.merkle_tree, self.context.epoch
+        );
+
+        {
+            let mut cache = self.context.ops_cache.lock().await;
+            if cache.contains(&batch_hash) {
+                trace!(
+                    "Skipping already processed state nullify batch: {}",
+                    batch_hash
+                );
+                return Ok(0);
+            }
+            cache.add(&batch_hash);
+        }
+
         state::perform_nullify(&self.context, &mut rpc).await?;
+
+        trace!(
+            "State nullify operation completed for tree: {}",
+            self.context.merkle_tree
+        );
+        let mut cache = self.context.ops_cache.lock().await;
+        cache.cleanup_by_key(&batch_hash);
+        trace!("Cache cleaned up for batch: {}", batch_hash);
+
         Ok(zkp_batch_size)
     }
 
