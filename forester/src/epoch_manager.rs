@@ -1135,7 +1135,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 .external_services
                 .prover_url
                 .clone()
-                .unwrap_or_else(|| "http://localhost:3001".to_string()),
+                .unwrap_or_else(|| "http://127.0.0.1:3001".to_string()),
             prover_polling_interval: Duration::from_secs(1),
             prover_max_wait_time: Duration::from_secs(120),
         };
