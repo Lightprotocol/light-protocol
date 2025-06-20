@@ -3382,6 +3382,7 @@ name = "light-compressed-token-sdk"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "arrayvec",
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
@@ -5448,6 +5449,7 @@ version = "1.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "arrayvec",
  "light-client",
  "light-compressed-account",
  "light-compressed-token-sdk",
