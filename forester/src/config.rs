@@ -157,7 +157,7 @@ impl Default for TransactionConfig {
             max_concurrent_batches: 20,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
-            tx_cache_ttl_seconds: 180,
+            tx_cache_ttl_seconds: 15,
             ops_cache_ttl_seconds: 180,
         }
     }
