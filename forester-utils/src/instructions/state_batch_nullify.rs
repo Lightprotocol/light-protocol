@@ -1,3 +1,5 @@
+use std::{sync::Arc, time::Duration};
+
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
@@ -19,6 +21,9 @@ pub async fn create_nullify_batch_ix_data<R: Rpc, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
+    prover_url: String,
+    polling_interval: Duration,
+    max_wait_time: Duration,
 ) -> Result<Vec<InstructionDataBatchNullifyInputs>, ForesterUtilsError> {
     trace!("create_multiple_nullify_batch_ix_data");
     // Get the tree information and find out how many ZKP batches need processing
@@ -124,6 +129,11 @@ pub async fn create_nullify_batch_ix_data<R: Rpc, I: Indexer>(
 
     let mut all_changelogs = Vec::new();
     let mut proof_futures = Vec::new();
+    let proof_client = Arc::new(ProofClient::with_config(
+        prover_url.clone(),
+        polling_interval,
+        max_wait_time,
+    ));
 
     let mut current_root = old_root;
 
@@ -205,48 +215,36 @@ pub async fn create_nullify_batch_ix_data<R: Rpc, I: Indexer>(
                     ForesterUtilsError::Prover("Failed to convert new root to bytes".into())
                 })?;
 
-        let proof_future = tokio::spawn(generate_nullify_zkp_proof(circuit_inputs));
+        let client = Arc::clone(&proof_client);
+        let proof_future = generate_nullify_zkp_proof(circuit_inputs, client);
         proof_futures.push(proof_future);
     }
 
-    // Wait for all proof generation to complete
-    let mut results = Vec::new();
+    let proof_results = futures::future::join_all(proof_futures).await;
+    let mut instruction_data_vec = Vec::new();
 
-    for (i, future) in futures::future::join_all(proof_futures)
-        .await
-        .into_iter()
-        .enumerate()
-    {
-        match future {
-            Ok(result) => match result {
-                Ok((proof, new_root)) => {
-                    results.push(InstructionDataBatchNullifyInputs {
-                        new_root,
-                        compressed_proof: proof,
-                    });
-                    trace!("Successfully generated proof for batch {}", i);
-                }
-                Err(e) => {
-                    error!("Error generating proof for batch {}: {:?}", i, e);
-                    return Err(e);
-                }
-            },
+    for (i, proof_result) in proof_results.into_iter().enumerate() {
+        match proof_result {
+            Ok((proof, new_root)) => {
+                trace!("Successfully generated proof for batch {}", i);
+                instruction_data_vec.push(InstructionDataBatchNullifyInputs {
+                    new_root,
+                    compressed_proof: proof,
+                });
+            }
             Err(e) => {
-                error!("Task error for batch {}: {:?}", i, e);
-                return Err(ForesterUtilsError::Prover(format!(
-                    "Task error for batch {}: {:?}",
-                    i, e
-                )));
+                error!("Failed to generate proof for batch {}: {:?}", i, e);
+                return Err(e);
             }
         }
     }
 
-    Ok(results)
+    Ok(instruction_data_vec)
 }
 async fn generate_nullify_zkp_proof(
     inputs: BatchUpdateCircuitInputs,
+    proof_client: Arc<ProofClient>,
 ) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
-    let proof_client = ProofClient::local();
     let (proof, new_root) = proof_client
         .generate_batch_update_proof(inputs)
         .await

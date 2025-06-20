@@ -23,6 +23,9 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
         &mut *rpc,
         &mut *context.indexer.lock().await,
         &context.merkle_tree,
+        context.prover_url.clone(),
+        context.prover_polling_interval,
+        context.prover_max_wait_time,
     )
     .await
     .map_err(|e| {
