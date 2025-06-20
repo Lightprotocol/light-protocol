@@ -18,16 +18,6 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
 ) -> Result<usize> {
     trace!("Processing address batch operation");
 
-    let batch_hash = format!("address_batch_{}_{}", context.merkle_tree, context.epoch);
-    {
-        let mut cache = context.ops_cache.lock().await;
-        if cache.contains(&batch_hash) {
-            trace!("Skipping already processed address batch: {}", batch_hash);
-            return Ok(0);
-        }
-        cache.add(&batch_hash);
-    }
-
     let mut rpc = context.rpc_pool.get_connection().await?;
 
     let (instruction_data_vec, zkp_batch_size) = create_batch_update_address_tree_instruction_data(

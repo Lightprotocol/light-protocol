@@ -31,20 +31,6 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
-    let batch_hash = format!("state_append_{}_{}", context.merkle_tree, context.epoch);
-
-    {
-        let mut cache = context.ops_cache.lock().await;
-        if cache.contains(&batch_hash) {
-            trace!(
-                "Skipping already processed state append batch: {}",
-                batch_hash
-            );
-            return Ok(());
-        }
-        cache.add(&batch_hash);
-    }
-
     let instruction_data_vec = create_append_batch_ix_data(
         rpc,
         &mut *context.indexer.lock().await,
@@ -159,20 +145,6 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
-    let batch_hash = format!("state_nullify_{}_{}", context.merkle_tree, context.epoch);
-
-    {
-        let mut cache = context.ops_cache.lock().await;
-        if cache.contains(&batch_hash) {
-            trace!(
-                "Skipping already processed state nullify batch: {}",
-                batch_hash
-            );
-            return Ok(());
-        }
-        cache.add(&batch_hash);
-    }
-
     let batch_index = get_batch_index(context, rpc).await?;
     let instruction_data_vec = create_nullify_batch_ix_data(
         rpc,

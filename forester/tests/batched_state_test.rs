@@ -246,8 +246,8 @@ async fn test_state_batched() {
     let timeout_duration = Duration::from_secs(60 * 10);
     match timeout(timeout_duration, work_report_receiver.recv()).await {
         Ok(Some(report)) => {
-            info!("Received work report: {:?}", report);
-            info!(
+            println!("Received work report: {:?}", report);
+            println!(
                 "Work report debug:
                 reported_items: {}
                 batch_size: {}
@@ -284,6 +284,7 @@ async fn test_state_batched() {
     )
     .unwrap();
 
+    println!("Merkle tree metadata: {:?}", merkle_tree.get_metadata());
     assert!(
         merkle_tree.get_metadata().queue_batches.pending_batch_index > 0,
         "No batches were processed"

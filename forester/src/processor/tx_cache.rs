@@ -30,4 +30,8 @@ impl ProcessedHashCache {
         self.entries
             .retain(|_, timestamp| now.duration_since(*timestamp) < self.ttl);
     }
+
+    pub fn cleanup_by_key(&mut self, key: &str) {
+        self.entries.remove(key);
+    }
 }

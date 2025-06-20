@@ -991,6 +991,10 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 }
             };
 
+            debug!(
+                "Processed {} items in slot {:?}",
+                items_processed_this_iteration, forester_slot_details.slot
+            );
             self.update_metrics_and_counts(
                 epoch_info.epoch,
                 items_processed_this_iteration,
