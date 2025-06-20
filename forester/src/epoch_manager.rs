@@ -118,7 +118,7 @@ impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
             processing_epochs: self.processing_epochs.clone(),
             new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
-            ops_cache:self.ops_cache.clone(),
+            ops_cache: self.ops_cache.clone(),
         }
     }
 }

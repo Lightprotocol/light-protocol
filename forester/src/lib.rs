@@ -174,7 +174,6 @@ pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
 
-
     debug!("Starting Forester pipeline");
     run_service(
         config,
