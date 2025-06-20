@@ -13,6 +13,7 @@ pub struct TokenAccountsMetaConfig {
     pub token_program: Option<Pubkey>,
     pub is_compress: bool,
     pub is_decompress: bool,
+    pub with_anchor_none: bool,
 }
 
 impl TokenAccountsMetaConfig {
@@ -25,6 +26,7 @@ impl TokenAccountsMetaConfig {
             token_program: None,
             is_compress: false,
             is_decompress: false,
+            with_anchor_none: false,
         }
     }
 
@@ -37,6 +39,20 @@ impl TokenAccountsMetaConfig {
             token_program: None,
             is_compress: false,
             is_decompress: false,
+            with_anchor_none: false,
+        }
+    }
+
+    pub fn new_with_anchor_none() -> Self {
+        Self {
+            fee_payer: None,
+            authority: None,
+            token_pool_pda: None,
+            compress_or_decompress_token_account: None,
+            token_program: None,
+            is_compress: false,
+            is_decompress: false,
+            with_anchor_none: true,
         }
     }
 
@@ -56,6 +72,7 @@ impl TokenAccountsMetaConfig {
             token_program: Some(spl_program_id),
             is_compress: true,
             is_decompress: false,
+            with_anchor_none: false,
         }
     }
 
@@ -72,6 +89,7 @@ impl TokenAccountsMetaConfig {
             token_program: Some(spl_program_id),
             is_compress: true,
             is_decompress: false,
+            with_anchor_none: false,
         }
     }
 
@@ -90,6 +108,7 @@ impl TokenAccountsMetaConfig {
             token_program: Some(spl_program_id),
             is_compress: false,
             is_decompress: true,
+            with_anchor_none: false,
         }
     }
 
@@ -106,6 +125,7 @@ impl TokenAccountsMetaConfig {
             token_program: Some(spl_program_id),
             is_compress: false,
             is_decompress: true,
+            with_anchor_none: false,
         }
     }
 
@@ -164,17 +184,17 @@ pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -
     // Optional token pool PDA (for compression/decompression)
     if let Some(token_pool_pda) = config.token_pool_pda {
         metas.push(AccountMeta::new(token_pool_pda, false));
-    } else if config.fee_payer.is_some() {
+    } else if config.fee_payer.is_some() || config.with_anchor_none {
         metas.push(AccountMeta::new_readonly(
             default_pubkeys.compressed_token_program,
             false,
         ));
     }
-
+    println!("config.with_anchor_none {}", config.with_anchor_none);
     // Optional compress/decompress token account
     if let Some(token_account) = config.compress_or_decompress_token_account {
         metas.push(AccountMeta::new(token_account, false));
-    } else if config.fee_payer.is_some() {
+    } else if config.fee_payer.is_some() || config.with_anchor_none {
         metas.push(AccountMeta::new_readonly(
             default_pubkeys.compressed_token_program,
             false,
@@ -184,7 +204,7 @@ pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -
     // Optional token program
     if let Some(token_program) = config.token_program {
         metas.push(AccountMeta::new_readonly(token_program, false));
-    } else if config.fee_payer.is_some() {
+    } else if config.fee_payer.is_some() || config.with_anchor_none {
         metas.push(AccountMeta::new_readonly(
             default_pubkeys.compressed_token_program,
             false,

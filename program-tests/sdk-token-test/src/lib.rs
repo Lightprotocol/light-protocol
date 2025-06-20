@@ -89,16 +89,21 @@ pub mod sdk_token_test {
         token_metas: Vec<TokenAccountMeta>,
         mint: Pubkey,
         recipient: Pubkey,
+        system_accounts_start_offset: u8,
     ) -> Result<()> {
         // It makes sense to parse accounts once.
         let config = CpiAccountsConfig {
             cpi_signer: crate::LIGHT_CPI_SIGNER,
+            // TODO: add sanity check that account is a cpi context account.
             cpi_context: true,
+            // TODO: add sanity check that account is a sol_pool_pda account.
             sol_pool_pda: false,
             sol_compression_recipient: false,
         };
-        let (token_account_infos, system_account_infos) = ctx.remaining_accounts.split_at(8);
-
+        let (token_account_infos, system_account_infos) = ctx
+            .remaining_accounts
+            .split_at(system_accounts_start_offset as usize);
+        // Could add with pre account infos Option<u8>
         let light_cpi_accounts = CpiAccounts::new_with_config(
             ctx.accounts.signer.as_ref(),
             system_account_infos,
