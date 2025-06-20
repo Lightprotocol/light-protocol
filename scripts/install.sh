@@ -7,12 +7,12 @@ INSTALL_LOG="${PREFIX}/.install_log"
 
 # Versions
 VERSIONS=(
-    "go:1.21.7"
-    "node:20.9.0"
-    "pnpm:9.5.0"
+    "go:1.24.4"
+    "node:22.16.0"
+    "pnpm:10.12.1"
     "solana:2.2.15"
     "anchor:anchor-v0.29.0"
-    "jq:jq-1.7.1"
+    "jq:jq-1.8.0"
     "photon:0.50.1"
     "redis:8.0.1"
 )
