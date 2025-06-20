@@ -117,7 +117,6 @@ impl TokenAccountsMetaConfig {
 /// Get the standard account metas for a compressed token transfer instruction
 pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -> Vec<AccountMeta> {
     let default_pubkeys = CTokenDefaultAccounts::default();
-    solana_msg::msg!("config.fee_payer  {:?}", config.fee_payer);
     // Direct invoke adds fee_payer, and authority
     let mut metas = if let Some(fee_payer) = config.fee_payer {
         let authority = if let Some(authority) = config.authority {
@@ -125,7 +124,6 @@ pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -
         } else {
             panic!("Missing authority");
         };
-        solana_msg::msg!("adding fee payer and authority");
         vec![
             AccountMeta::new(fee_payer, true),
             AccountMeta::new_readonly(authority, true),

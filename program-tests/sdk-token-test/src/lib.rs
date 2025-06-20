@@ -26,7 +26,6 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 #[program]
 pub mod sdk_token_test {
-    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_sdk::cpi::CpiAccounts;
     use light_sdk_types::CpiAccountsConfig;
 
@@ -91,6 +90,7 @@ pub mod sdk_token_test {
         mint: Pubkey,
         recipient: Pubkey,
     ) -> Result<()> {
+        // It makes sense to parse accounts once.
         let config = CpiAccountsConfig {
             cpi_signer: crate::LIGHT_CPI_SIGNER,
             cpi_context: true,
@@ -98,6 +98,7 @@ pub mod sdk_token_test {
             sol_compression_recipient: false,
         };
         let (token_account_infos, system_account_infos) = ctx.remaining_accounts.split_at(8);
+
         let light_cpi_accounts = CpiAccounts::new_with_config(
             ctx.accounts.signer.as_ref(),
             system_account_infos,
