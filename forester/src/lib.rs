@@ -167,7 +167,7 @@ pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
     });
 
     let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(
-        config.transaction_config.tx_cache_ttl_seconds,
+        config.transaction_config.ops_cache_ttl_seconds,
     )));
 
     debug!("Starting Forester pipeline");

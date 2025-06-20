@@ -68,11 +68,11 @@ pub struct StartArgs {
 
     #[arg(
         long,
-        env = "FORESTER_TX_CACHE_TTL_SECONDS",
+        env = "FORESTER_OPS_CACHE_TTL_SECONDS",
         default_value = "180",
-        help = "Transaction cache TTL in seconds to prevent duplicate tx processing"
+        help = "Cache TTL in seconds to prevent duplicate operations processing"
     )]
-    pub tx_cache_ttl_seconds: u64,
+    pub ops_cache_ttl_seconds: u64,
 
     #[arg(long, env = "FORESTER_CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,

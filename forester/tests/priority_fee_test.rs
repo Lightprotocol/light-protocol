@@ -53,7 +53,7 @@ async fn test_priority_fee_request() {
         legacy_ixs_per_tx: 1,
         batch_ixs_per_tx: 4,
         transaction_max_concurrent_batches: 20,
-        tx_cache_ttl_seconds: 180,
+        ops_cache_ttl_seconds: 180,
         cu_limit: 1_000_000,
         enable_priority_fees: true,
         rpc_pool_size: 20,
