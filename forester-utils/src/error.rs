@@ -1,3 +1,4 @@
+use light_hasher::HasherError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -12,4 +13,6 @@ pub enum ForesterUtilsError {
     Indexer(String),
     #[error("invalid slot number")]
     InvalidSlotNumber,
+    #[error("Hasher error: {0}")]
+    Hasher(#[from] HasherError),
 }

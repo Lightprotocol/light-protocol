@@ -56,7 +56,7 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_LEGACY_XS_PER_TX", default_value = "1")]
     pub legacy_ixs_per_tx: usize,
 
-    #[arg(long, env = "FORESTER_BATCH_IXS_PER_TX", default_value = "1")]
+    #[arg(long, env = "FORESTER_BATCH_IXS_PER_TX", default_value = "4")]
     pub batch_ixs_per_tx: usize,
 
     #[arg(
