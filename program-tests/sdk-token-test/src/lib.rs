@@ -178,19 +178,10 @@ pub mod sdk_token_test {
             sol_pool_pda: false,
             sol_compression_recipient: false,
         };
-        msg!(
-            "crate::LIGHT_CPI_SIGNER, {:?}",
-            anchor_lang::prelude::Pubkey::new_from_array(crate::LIGHT_CPI_SIGNER.cpi_signer)
-        );
-        msg!(
-            "system_accounts_start_offset {}",
-            system_accounts_start_offset
-        );
-        let (token_account_infos, system_account_infos) = ctx
+
+        let (_token_account_infos, system_account_infos) = ctx
             .remaining_accounts
             .split_at(system_accounts_start_offset as usize);
-        msg!("token_account_infos: {:?}", token_account_infos);
-        msg!("system_account_infos: {:?}", system_account_infos);
         // TODO: figure out why the offsets are wrong.
         // Could add with pre account infos Option<u8>
         let light_cpi_accounts = CpiAccounts::try_new_with_config(
@@ -199,13 +190,10 @@ pub mod sdk_token_test {
             config,
         )
         .unwrap();
-        msg!(
-            "light_cpi_accounts {:?}",
-            light_cpi_accounts.authority().unwrap()
-        );
+
         let recipient = ctx.accounts.authority.key();
         deposit_additional_tokens(
-            &light_cpi_accounts,
+            light_cpi_accounts,
             depositing_token_metas,
             escrowed_token_meta,
             output_tree_index,
@@ -217,14 +205,11 @@ pub mod sdk_token_test {
             account_meta.address,
             ctx.remaining_accounts,
             ctx.accounts.authority.to_account_info(),
-        )?;
-        process_update_escrow_pda(
-            light_cpi_accounts,
+            existing_amount,
             account_meta,
             proof,
-            existing_amount,
-            deposit_amount,
-        )
+        )?;
+        Ok(())
     }
 }
 
