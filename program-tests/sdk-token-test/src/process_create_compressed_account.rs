@@ -3,24 +3,20 @@ use anchor_lang::solana_program::log::sol_log_compute_units;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
     account::CTokenAccount,
-    instructions::transfer::{
-        account_infos::{filter_packed_accounts, TransferAccountInfos, MAX_ACCOUNT_INFOS},
-        instruction::{TransferConfig, TransferInputs},
-    },
+    instructions::transfer::instruction::{TransferConfig, TransferInputs},
     TokenAccountMeta,
 };
 use light_sdk::{
     account::LightAccount,
-    address::{v1::derive_address, NewAddressParams},
     cpi::{CpiAccounts, CpiInputs},
-    instruction::{PackedAddressTreeInfo, ValidityProof},
+    instruction::ValidityProof,
     light_account_checks::AccountInfoTrait,
     LightDiscriminator, LightHasher,
 };
 
 #[event]
 #[derive(Clone, Debug, Default, LightHasher, LightDiscriminator)]
-pub struct MyTokenCompressedAccount {
+pub struct CompressedEscrowPda {
     pub amount: u64,
     #[hash]
     pub owner: Pubkey,
@@ -34,7 +30,7 @@ pub fn process_create_compressed_account(
     address: [u8; 32],
     new_address_params: light_sdk::address::PackedNewAddressParams,
 ) -> Result<()> {
-    let mut my_compressed_account = LightAccount::<'_, MyTokenCompressedAccount>::new_init(
+    let mut my_compressed_account = LightAccount::<'_, CompressedEscrowPda>::new_init(
         &crate::ID,
         Some(address),
         output_tree_index,

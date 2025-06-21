@@ -26,15 +26,29 @@ use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
 
+#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct TokenParams {
+    pub deposit_amount: u64,
+    pub depositing_token_metas: Vec<TokenAccountMeta>,
+    pub mint: Pubkey,
+    pub escrowed_token_meta: TokenAccountMeta,
+    pub recipient_bump: u8,
+}
+
+#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct PdaParams {
+    pub account_meta: CompressedAccountMeta,
+    pub existing_amount: u64,
+}
+
 #[program]
 pub mod sdk_token_test {
-    use anchor_lang::solana_program::pubkey;
     use light_sdk::address::v1::derive_address;
     use light_sdk_types::CpiAccountsConfig;
 
     use crate::{
         process_create_compressed_account::deposit_tokens,
-        process_update_depost::{deposit_additional_tokens, process_update_escrow_pda},
+        process_update_depost::process_update_deposit,
     };
 
     use super::*;
@@ -160,56 +174,19 @@ pub mod sdk_token_test {
         proof: LightValidityProof,
         output_tree_index: u8,
         output_tree_queue_index: u8,
-        deposit_amount: u64,
-        depositing_token_metas: Vec<TokenAccountMeta>,
-        mint: Pubkey,
-        escrowed_token_meta: TokenAccountMeta,
         system_accounts_start_offset: u8,
-        account_meta: CompressedAccountMeta,
-        existing_amount: u64,
-        recipient_bump: u8,
+        token_params: TokenParams,
+        pda_params: PdaParams,
     ) -> Result<()> {
-        // It makes sense to parse accounts once.
-        let config = CpiAccountsConfig {
-            cpi_signer: crate::LIGHT_CPI_SIGNER,
-            // TODO: add sanity check that account is a cpi context account.
-            cpi_context: true,
-            // TODO: add sanity check that account is a sol_pool_pda account.
-            sol_pool_pda: false,
-            sol_compression_recipient: false,
-        };
-
-        let (_token_account_infos, system_account_infos) = ctx
-            .remaining_accounts
-            .split_at(system_accounts_start_offset as usize);
-        // TODO: figure out why the offsets are wrong.
-        // Could add with pre account infos Option<u8>
-        let light_cpi_accounts = CpiAccounts::try_new_with_config(
-            ctx.accounts.signer.as_ref(),
-            system_account_infos,
-            config,
-        )
-        .unwrap();
-
-        let recipient = ctx.accounts.authority.key();
-        deposit_additional_tokens(
-            light_cpi_accounts,
-            depositing_token_metas,
-            escrowed_token_meta,
+        process_update_deposit(
+            ctx,
             output_tree_index,
             output_tree_queue_index,
-            mint,
-            recipient,
-            recipient_bump,
-            deposit_amount,
-            account_meta.address,
-            ctx.remaining_accounts,
-            ctx.accounts.authority.to_account_info(),
-            existing_amount,
-            account_meta,
             proof,
-        )?;
-        Ok(())
+            system_accounts_start_offset,
+            token_params,
+            pda_params,
+        )
     }
 }
 
