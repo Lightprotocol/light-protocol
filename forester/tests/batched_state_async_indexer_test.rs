@@ -1,7 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
-use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
-use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
+use forester::{
+    epoch_manager::WorkReport, run_pipeline, utils::get_protocol_config, ForesterConfig,
+};
+use forester_utils::utils::wait_for_indexer;
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -25,10 +27,6 @@ use light_compressed_token::process_transfer::{
 };
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
-use light_registry::{
-    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
-    utils::get_protocol_config_pda_address,
-};
 use light_sdk::token::TokenDataWithMerkleContext;
 use light_test_utils::{
     conversions::sdk_to_program_token_data, spl::create_mint_helper_with_keypair,
@@ -46,7 +44,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::test_utils::{forester_config, init};
+use crate::test_utils::{forester_config, get_active_phase_start_slot, init, wait_for_slot};
 
 mod test_utils;
 
@@ -72,7 +70,6 @@ const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 // ```
 // 2025-05-13T22:43:27.825147Z ERROR process_queue{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0 tree=HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu}:process_light_slot{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0 tree=HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu}:process_batched_operations{epoch=0 tree=HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu tree_type=StateV2}: forester::processor::v2::common: State append failed for tree HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu: InstructionData("prover error: \"Failed to send request: error sending request for url (http://localhost:3001/prove): error trying to connect: dns error: task 145 was cancelled\"")
 // ```
-#[ignore = "multiple flaky errors post light-client refactor"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
 async fn test_state_indexer_async_batched() {
@@ -236,15 +233,6 @@ fn create_photon_indexer() -> PhotonIndexer {
     PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None)
 }
 
-async fn get_protocol_config(rpc: &mut LightClient) -> ProtocolConfig {
-    let protocol_config_pda_address = get_protocol_config_pda_address().0;
-    rpc.get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
-        .await
-        .unwrap()
-        .unwrap()
-        .config
-}
-
 async fn get_initial_merkle_tree_state(
     rpc: &mut LightClient,
     merkle_tree_pubkey: &Pubkey,
@@ -297,17 +285,6 @@ async fn setup_forester_pipeline(
     ));
 
     (service_handle, shutdown_sender, work_report_receiver)
-}
-
-async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
-    while rpc.get_slot().await.unwrap() < target_slot {
-        println!(
-            "waiting for active phase slot: {}, current slot: {}",
-            target_slot,
-            rpc.get_slot().await.unwrap()
-        );
-        sleep(Duration::from_millis(400)).await;
-    }
 }
 
 async fn print_queue_states(
@@ -607,16 +584,6 @@ async fn verify_root_changed(
         merkle_tree.get_root().unwrap(),
         "Root should have changed"
     );
-}
-
-pub async fn get_active_phase_start_slot<R: Rpc>(
-    rpc: &mut R,
-    protocol_config: &ProtocolConfig,
-) -> u64 {
-    let current_slot = rpc.get_slot().await.unwrap();
-    let current_epoch = protocol_config.get_current_epoch(current_slot);
-    let phases = get_epoch_phases(protocol_config, current_epoch);
-    phases.active.start
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

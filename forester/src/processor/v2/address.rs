@@ -1,11 +1,12 @@
 use crate::{
-    errors::ForesterError,
     indexer_type::{finalize_batch_address_tree_update, IndexerType},
     processor::v2::common::BatchContext,
     Result,
 };
 use borsh::BorshSerialize;
-use forester_utils::instructions::address_batch_update::get_address_update_stream;
+use forester_utils::instructions::address_batch_update::{
+    get_address_update_stream, AddressUpdateConfig,
+};
 use futures::{pin_mut, stream::StreamExt};
 use light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs;
 use light_client::{indexer::Indexer, rpc::Rpc};
@@ -55,19 +56,18 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
 ) -> Result<usize> {
     trace!("Processing address batch operation");
+    let rpc_conn = context.rpc_pool.get_connection().await?;
 
-    let mut rpc_conn = context.rpc_pool.get_connection().await?;
+    let config = AddressUpdateConfig {
+        rpc: &*rpc_conn,
+        indexer: context.indexer.clone(),
+        merkle_tree_pubkey: &context.merkle_tree,
+        prover_url: context.prover_url.clone(),
+        polling_interval: context.prover_polling_interval,
+        max_wait_time: context.prover_max_wait_time,
+    };
 
-    let mut binding = context.indexer.lock().await;
-    let (instruction_stream, zkp_batch_size) = get_address_update_stream(
-        &mut *rpc_conn,
-        &mut *binding,
-        &context.merkle_tree,
-        context.prover_url.clone(),
-        context.prover_polling_interval,
-        context.prover_max_wait_time,
-    )
-    .await?;
+    let (instruction_stream, zkp_batch_size) = get_address_update_stream(config).await?;
 
     if zkp_batch_size == 0 {
         trace!("ZKP batch size is 0, no work to do.");
@@ -102,14 +102,17 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R>>(
         return Ok(0);
     }
 
-    debug!("Finalizing batch update after all transactions are sent...");
-    finalize_batch_address_tree_update(
-        &mut *rpc_conn,
-        context.indexer.clone(),
-        context.merkle_tree,
-    )
-    .await?;
-    debug!("Batch finalization successful.");
+    {
+        debug!("Finalizing batch update after all transactions are sent...");
+        let rpc_conn = context.rpc_pool.get_connection().await?;
+        finalize_batch_address_tree_update(
+            &*rpc_conn,
+            context.indexer.clone(),
+            context.merkle_tree,
+        )
+        .await?;
+        debug!("Batch finalization successful.");
+    }
 
     let total_items_processed = total_instructions_processed * zkp_batch_size as usize;
 

@@ -699,10 +699,14 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         &self,
         epoch_info: &ForesterEpochInfo,
     ) -> Result<ForesterEpochInfo> {
-        info!("Waiting for active phase");
-
         let mut rpc = self.rpc_pool.get_connection().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
+        let waiting_slots = active_phase_start_slot - self.slot_tracker.estimated_current_slot();
+        let waiting_secs = waiting_slots / 2;
+        info!("Waiting for active phase to start. Current slot: {}. Active phase start slot: {}. Waiting time: ~ {} seconds",
+            self.slot_tracker.estimated_current_slot(),
+            active_phase_start_slot,
+            waiting_secs);
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(

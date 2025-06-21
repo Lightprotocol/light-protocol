@@ -1,8 +1,6 @@
-use std::{pin::Pin, time::Duration}; // <-- Add Pin to imports
-
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::{future, stream::StreamExt, Stream};
+use futures::{future, Stream};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
     merkle_tree::{BatchedMerkleTreeAccount, InstructionDataAddressAppendInputs},
@@ -18,28 +16,36 @@ use light_prover_client::{
         get_batch_address_append_circuit_inputs, BatchAddressAppendInputs,
     },
 };
-use light_sparse_merkle_tree::{
-    changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
-};
+use light_sparse_merkle_tree::SparseMerkleTree;
+use std::{pin::Pin, sync::Arc, time::Duration};
+use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
 use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
 
-// The return type is changed to reflect the Boxed and Pinned stream.
+pub struct AddressUpdateConfig<'a, R, I>
+where
+    R: Rpc + Send + Sync + 'a,
+    I: Indexer + Send + 'a,
+{
+    pub rpc: &'a R,
+    pub indexer: Arc<Mutex<I>>,
+    pub merkle_tree_pubkey: &'a Pubkey,
+    pub prover_url: String,
+    pub polling_interval: Duration,
+    pub max_wait_time: Duration,
+}
+
 pub async fn get_address_update_stream<'a, R, I>(
-    rpc: &'a mut R,
-    indexer: &'a mut I,
-    merkle_tree_pubkey: &'a Pubkey,
-    prover_url: String,
-    polling_interval: Duration,
-    max_wait_time: Duration,
+    config: AddressUpdateConfig<'a, R, I>,
 ) -> Result<
     (
         Pin<
             Box<
                 dyn Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>>
+                    + Send
                     + 'a,
             >,
         >,
@@ -48,20 +54,21 @@ pub async fn get_address_update_stream<'a, R, I>(
     ForesterUtilsError,
 >
 where
-    R: Rpc + 'a,
-    I: Indexer + 'a,
+    R: Rpc + Send + Sync + 'a,
+    I: Indexer + Send + 'a,
 {
     info!("Fetching on-chain state to initialize address update stream");
 
-    let mut merkle_tree_account = rpc
-        .get_account(*merkle_tree_pubkey)
+    let mut merkle_tree_account = config
+        .rpc
+        .get_account(*config.merkle_tree_pubkey)
         .await?
         .ok_or_else(|| ForesterUtilsError::Rpc("Merkle tree account not found".into()))?;
 
     let (leaves_hash_chains, start_index, current_root, zkp_batch_size) = {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
-            &(*merkle_tree_pubkey).into(),
+            &(*config.merkle_tree_pubkey).into(),
         )
         .map_err(|e| {
             ForesterUtilsError::AccountZeroCopy(format!("Failed to parse merkle tree: {}", e))
@@ -91,49 +98,40 @@ where
 
     if leaves_hash_chains.is_empty() {
         debug!("No hash chains to process, returning empty stream.");
-        // FIX #1: Box and pin the empty stream.
         return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
     }
 
-    wait_for_indexer(rpc, indexer).await?;
+    wait_for_indexer(config.rpc, &mut *config.indexer.lock().await).await?;
 
     let stream = stream_instruction_data(
-        indexer,
-        merkle_tree_pubkey,
-        prover_url,
-        polling_interval,
-        max_wait_time,
+        config,
         leaves_hash_chains,
         start_index,
-        current_root,
         zkp_batch_size,
+        current_root,
     );
 
-    // FIX #2: Box and pin the instruction data stream.
     Ok((Box::pin(stream), zkp_batch_size))
 }
 
-// Helper function's return type also changes to match.
-fn stream_instruction_data<'a, I>(
-    indexer: &'a mut I,
-    merkle_tree_pubkey: &'a Pubkey,
-    prover_url: String,
-    polling_interval: Duration,
-    max_wait_time: Duration,
+fn stream_instruction_data<'a, R, I>(
+    config: AddressUpdateConfig<'a, R, I>,
     leaves_hash_chains: Vec<[u8; 32]>,
     start_index: u64,
-    mut current_root: [u8; 32],
     zkp_batch_size: u16,
-) -> impl Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>> + 'a
+    mut current_root: [u8; 32],
+) -> impl Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>> + Send + 'a
 where
-    I: Indexer + 'a,
+    R: Rpc + Send + Sync + 'a,
+    I: Indexer + Send + 'a,
 {
     stream! {
-        let proof_client = ProofClient::with_config(prover_url, polling_interval, max_wait_time);
+        let proof_client = ProofClient::with_config(config.prover_url, config.polling_interval, config.max_wait_time);
         let max_zkp_batches_per_call = calculate_max_zkp_batches_per_call(zkp_batch_size);
         let total_chunks = (leaves_hash_chains.len() + max_zkp_batches_per_call - 1) / max_zkp_batches_per_call;
 
         for chunk_idx in 0..total_chunks {
+            let mut indexer_guard = config.indexer.lock().await;
             let chunk_start = chunk_idx * max_zkp_batches_per_call;
             let chunk_end = std::cmp::min(chunk_start + max_zkp_batches_per_call, leaves_hash_chains.len());
             let chunk_hash_chains = &leaves_hash_chains[chunk_start..chunk_end];
@@ -141,9 +139,9 @@ where
             let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
             let processed_items_offset = chunk_start * zkp_batch_size as usize;
 
-            let indexer_update_info = match indexer
+            let indexer_update_info = match indexer_guard
                 .get_address_queue_with_proofs(
-                    merkle_tree_pubkey,
+                    config.merkle_tree_pubkey,
                     elements_for_chunk as u16,
                     Some(processed_items_offset as u64),
                     None,

@@ -271,7 +271,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             }
             cache.add(&batch_hash);
         }
-        state::perform_append(&self.context, &mut rpc).await?;
+        state::perform_append(&self.context).await?;
         trace!(
             "State append operation completed for tree: {}",
             self.context.merkle_tree
@@ -310,7 +310,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             cache.add(&batch_hash);
         }
 
-        state::perform_nullify(&self.context, &mut rpc).await?;
+        state::perform_nullify(&self.context).await?;
 
         trace!(
             "State nullify operation completed for tree: {}",
