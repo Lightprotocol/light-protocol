@@ -391,14 +391,18 @@ async fn update_deposit_compressed_account(
                 .merkle_tree_pubkey_index,
             output_tree_queue_index: packed_accounts.state_trees.unwrap().packed_tree_infos[0]
                 .queue_pubkey_index,
-            deposit_amount: amount,
-            depositing_token_metas,
-            escrowed_token_meta,
-            account_meta,
-            mint,
-            recipient_bump,
             system_accounts_start_offset,
-            existing_amount: amount,
+            token_params: sdk_token_test::TokenParams {
+                deposit_amount: amount,
+                depositing_token_metas,
+                mint,
+                escrowed_token_meta,
+                recipient_bump,
+            },
+            pda_params: sdk_token_test::PdaParams {
+                account_meta,
+                existing_amount: amount,
+            },
         }
         .data(),
     };
