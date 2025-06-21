@@ -1,6 +1,5 @@
 pub use light_sdk_types::CpiAccountsConfig;
 use light_sdk_types::{CpiAccounts as GenericCpiAccounts, SYSTEM_ACCOUNTS_LEN};
-use solana_msg::msg;
 
 use crate::{
     error::{LightSdkError, Result},

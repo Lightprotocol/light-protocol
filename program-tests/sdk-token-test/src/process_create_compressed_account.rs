@@ -11,7 +11,7 @@ use light_compressed_token_sdk::{
 };
 use light_sdk::{
     account::LightAccount,
-    address::v1::derive_address,
+    address::{v1::derive_address, NewAddressParams},
     cpi::{CpiAccounts, CpiInputs},
     instruction::{PackedAddressTreeInfo, ValidityProof},
     light_account_checks::AccountInfoTrait,
@@ -29,19 +29,11 @@ pub struct MyTokenCompressedAccount {
 pub fn process_create_compressed_account(
     cpi_accounts: CpiAccounts,
     proof: ValidityProof,
-    address_tree_info: PackedAddressTreeInfo,
     output_tree_index: u8,
     amount: u64,
+    address: [u8; 32],
+    new_address_params: light_sdk::address::PackedNewAddressParams,
 ) -> Result<()> {
-    let (address, address_seed) = derive_address(
-        &[b"deposit", cpi_accounts.fee_payer().key.to_bytes().as_ref()],
-        &address_tree_info
-            .get_tree_pubkey(&cpi_accounts)
-            .map_err(|_| ErrorCode::AccountNotEnoughKeys)?,
-        &crate::ID,
-    );
-    let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
-
     let mut my_compressed_account = LightAccount::<'_, MyTokenCompressedAccount>::new_init(
         &crate::ID,
         Some(address),
@@ -82,7 +74,7 @@ pub fn deposit_tokens<'info>(
     mint: Pubkey,
     recipient: Pubkey,
     amount: u64,
-    token_account_infos: &[AccountInfo<'info>],
+    remaining_accounts: &[AccountInfo<'info>],
 ) -> Result<()> {
     let sender_account = CTokenAccount::new(
         mint,
@@ -94,14 +86,14 @@ pub fn deposit_tokens<'info>(
     // We need to be careful what accounts we pass.
     // Big accounts cost many CU.
     // TODO: replace
-    let tree_account_infos =
-        filter_packed_accounts(&[&sender_account], cpi_accounts.tree_accounts().unwrap());
+    let tree_account_infos = cpi_accounts.tree_accounts().unwrap();
+    let tree_account_len = tree_account_infos.len();
+    // skip cpi context account and omit the address tree and queue accounts.
+    let tree_account_infos = &tree_account_infos[1..tree_account_len - 2];
     let tree_pubkeys = tree_account_infos
         .iter()
         .map(|x| x.pubkey())
         .collect::<Vec<Pubkey>>();
-    // msg!("tree_pubkeys {:?}", tree_pubkeys);
-    let cpi_context = cpi_accounts.cpi_context().unwrap();
     let cpi_context_pubkey = *cpi_accounts.cpi_context().unwrap().key;
     // msg!("cpi_context_pubkey {:?}", cpi_context_pubkey);
     let transfer_inputs = TransferInputs {
@@ -133,16 +125,22 @@ pub fn deposit_tokens<'info>(
     msg!("create_account_infos");
     sol_log_compute_units();
     // TODO: initialize from CpiAccounts, use with_compressed_pda() offchain.
-    let account_infos: TransferAccountInfos<'_, 'info, MAX_ACCOUNT_INFOS> = TransferAccountInfos {
-        fee_payer: cpi_accounts.fee_payer(),
-        authority: cpi_accounts.fee_payer(),
-        packed_accounts: tree_account_infos.as_slice(),
-        ctoken_accounts: token_account_infos,
-        cpi_context: Some(cpi_context),
-    };
-    let account_infos = account_infos.into_account_infos();
+    // let account_infos: TransferAccountInfos<'_, 'info, MAX_ACCOUNT_INFOS> = TransferAccountInfos {
+    //     fee_payer: cpi_accounts.fee_payer(),
+    //     authority: cpi_accounts.fee_payer(),
+    //     packed_accounts: tree_account_infos.as_slice(),
+    //     ctoken_accounts: token_account_infos,
+    //     cpi_context: Some(cpi_context),
+    // };
+    // let account_infos = account_infos.into_account_infos();
+    // We can remove the address Merkle tree accounts.
+    let len = remaining_accounts.len() - 2;
     // into_account_infos_checked() can be used for debugging but doubles CU cost to 1.5k CU
-
+    let account_infos = [
+        &[cpi_accounts.fee_payer().clone()][..],
+        &remaining_accounts[..len],
+    ]
+    .concat();
     sol_log_compute_units();
 
     sol_log_compute_units();

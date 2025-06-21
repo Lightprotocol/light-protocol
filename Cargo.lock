@@ -3714,6 +3714,7 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-zero-copy",
+ "solana-msg",
  "solana-pubkey",
  "thiserror 2.0.12",
 ]
@@ -5450,6 +5451,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "arrayvec",
+ "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",
  "light-compressed-token-sdk",

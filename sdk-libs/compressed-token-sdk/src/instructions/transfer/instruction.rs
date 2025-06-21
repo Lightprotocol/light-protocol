@@ -225,7 +225,7 @@ pub fn transfer(inputs: TransferInputs) -> Result<Instruction> {
 
     create_transfer_instruction_raw(
         *sender_account.mint(),
-        vec![sender_account, recipient_token_account],
+        vec![recipient_token_account, sender_account],
         validity_proof,
         config.unwrap_or_default(),
         account_meta_config,
