@@ -10,13 +10,11 @@ use light_registry::account_compression_cpi::sdk::{
 use solana_sdk::signer::Signer;
 use tracing::{debug, info, instrument, log::error, trace};
 
-use super::{
-    common::BatchContext,
-    error::{BatchProcessError, Result},
-};
+use super::common::BatchContext;
 use crate::indexer_type::{
     update_test_indexer_after_append, update_test_indexer_after_nullification, IndexerType,
 };
+use crate::Result;
 
 #[instrument(
     level = "debug",
@@ -40,11 +38,7 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
         context.prover_polling_interval,
         context.prover_max_wait_time,
     )
-    .await
-    .map_err(|e| {
-        error!("Failed to create append batch instruction data: {}", e);
-        BatchProcessError::InstructionData(e.to_string())
-    })?;
+    .await?;
 
     if instruction_data_vec.is_empty() {
         trace!("No zkp batches to append");
@@ -81,9 +75,7 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
                 context.merkle_tree,
                 context.output_queue,
                 context.epoch,
-                instruction_data
-                    .try_to_vec()
-                    .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+                instruction_data.try_to_vec()?,
             ));
         }
 
@@ -121,11 +113,7 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + IndexerType<R>>(
             context.merkle_tree,
             context.output_queue,
         )
-        .await
-        .map_err(|e| {
-            error!("Failed to update test indexer after append: {:?}", e);
-            BatchProcessError::Indexer(e.to_string())
-        })?;
+        .await?;
     }
 
     Ok(())
@@ -154,11 +142,7 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
         context.prover_polling_interval,
         context.prover_max_wait_time,
     )
-    .await
-    .map_err(|e| {
-        error!("Failed to create nullify batch instruction data: {}", e);
-        BatchProcessError::InstructionData(e.to_string())
-    })?;
+    .await?;
 
     if instruction_data_vec.is_empty() {
         trace!("No zkp batches to nullify");
@@ -188,9 +172,7 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
                 context.derivation,
                 context.merkle_tree,
                 context.epoch,
-                instruction_data
-                    .try_to_vec()
-                    .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+                instruction_data.try_to_vec()?,
             ));
         }
 
@@ -229,11 +211,7 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + IndexerType<R>>(
             context.merkle_tree,
             batch_index,
         )
-        .await
-        .map_err(|e| {
-            error!("Failed to update test indexer after nullification: {:?}", e);
-            BatchProcessError::Indexer(e.to_string())
-        })?;
+        .await?;
     }
 
     Ok(())
@@ -244,16 +222,13 @@ async fn get_batch_index<R: Rpc, I: Indexer>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<usize> {
-    let mut account = rpc.get_account(context.merkle_tree).await?.ok_or_else(|| {
-        BatchProcessError::Rpc(format!("Account not found: {}", context.merkle_tree))
-    })?;
+    let mut account = rpc.get_account(context.merkle_tree).await?;
 
     let merkle_tree =
         light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount::state_from_bytes(
-            account.data.as_mut_slice(),
+            account?.data.as_mut_slice(),
             &context.merkle_tree.into(),
-        )
-        .map_err(|e| BatchProcessError::MerkleTreeParsing(e.to_string()))?;
+        )?;
 
     Ok(merkle_tree.queue_batches.pending_batch_index as usize)
 }

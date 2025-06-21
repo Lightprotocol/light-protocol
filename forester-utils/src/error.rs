@@ -15,4 +15,10 @@ pub enum ForesterUtilsError {
     InvalidSlotNumber,
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
+
+    #[error("Account zero-copy error: {0}")]
+    AccountZeroCopy(String),
+
+    #[error("light client error: {0}")]
+    LightClient(#[from] light_client::rpc::RpcError),
 }

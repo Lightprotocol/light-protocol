@@ -1,13 +1,11 @@
-use std::time::Duration;
+use std::{pin::Pin, time::Duration}; // <-- Add Pin to imports
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
-use futures::future;
+use async_stream::stream;
+use futures::{future, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
-    merkle_tree::{
-        BatchedMerkleTreeAccount, InstructionDataAddressAppendInputs,
-        InstructionDataBatchNullifyInputs,
-    },
+    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataAddressAppendInputs},
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::{
@@ -16,7 +14,9 @@ use light_compressed_account::{
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
     proof_client::ProofClient,
-    proof_types::batch_address_append::get_batch_address_append_circuit_inputs,
+    proof_types::batch_address_append::{
+        get_batch_address_append_circuit_inputs, BatchAddressAppendInputs,
+    },
 };
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
@@ -27,48 +27,48 @@ use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
 
-fn calculate_max_zkp_batches_per_call(batch_size: u16) -> usize {
-    std::cmp::max(1, MAX_PHOTON_ELEMENTS_PER_CALL / batch_size as usize)
-}
-
-pub async fn create_batch_update_address_tree_instruction_data<R, I, F, Fut>(
-    rpc: &mut R,
-    indexer: &mut I,
-    merkle_tree_pubkey: &Pubkey,
+// The return type is changed to reflect the Boxed and Pinned stream.
+pub async fn get_address_update_stream<'a, R, I>(
+    rpc: &'a mut R,
+    indexer: &'a mut I,
+    merkle_tree_pubkey: &'a Pubkey,
     prover_url: String,
     polling_interval: Duration,
     max_wait_time: Duration,
-    instructions_per_tx: usize,
-    mut tx_callback: F,
-) -> Result<usize, ForesterUtilsError>
+) -> Result<
+    (
+        Pin<
+            Box<
+                dyn Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>>
+                    + 'a,
+            >,
+        >,
+        u16,
+    ),
+    ForesterUtilsError,
+>
 where
-    R: Rpc,
-    I: Indexer,
-    // ===== THIS IS THE TYPE SIGNATURE FIX =====
-    F: FnMut(Vec<InstructionDataAddressAppendInputs>, u16) -> Fut,
-    Fut: std::future::Future<Output = Result<(), ForesterUtilsError>>,
+    R: Rpc + 'a,
+    I: Indexer + 'a,
 {
-    info!("Creating batch update address tree instruction data");
+    info!("Fetching on-chain state to initialize address update stream");
 
     let mut merkle_tree_account = rpc
         .get_account(*merkle_tree_pubkey)
-        .await
-        .map_err(|e| {
-            error!("Failed to get account data from rpc: {:?}", e);
-            ForesterUtilsError::Rpc("Failed to get account data".into())
-        })?
-        .unwrap();
+        .await?
+        .ok_or_else(|| ForesterUtilsError::Rpc("Merkle tree account not found".into()))?;
 
-    let (leaves_hash_chains, start_index, current_root, batch_size) = {
+    let (leaves_hash_chains, start_index, current_root, zkp_batch_size) = {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
             &(*merkle_tree_pubkey).into(),
         )
-        .unwrap();
+        .map_err(|e| {
+            ForesterUtilsError::AccountZeroCopy(format!("Failed to parse merkle tree: {}", e))
+        })?;
 
         let full_batch_index = merkle_tree.queue_batches.pending_batch_index;
         let batch = &merkle_tree.queue_batches.batches[full_batch_index as usize];
-
         let mut hash_chains = Vec::new();
         let zkp_batch_index = batch.get_num_inserted_zkps();
         let current_zkp_batch_index = batch.get_current_zkp_batch_index();
@@ -77,120 +77,159 @@ where
             hash_chains.push(merkle_tree.hash_chain_stores[full_batch_index as usize][i as usize]);
         }
 
+        let root = *merkle_tree.root_history.last().ok_or_else(|| {
+            ForesterUtilsError::Prover("Merkle tree root history is empty".into())
+        })?;
+
         (
             hash_chains,
             merkle_tree.next_index,
-            *merkle_tree.root_history.last().unwrap(),
+            root,
             batch.zkp_batch_size as u16,
         )
     };
 
     if leaves_hash_chains.is_empty() {
-        debug!("No hash chains to process");
-        return Ok(0);
+        debug!("No hash chains to process, returning empty stream.");
+        // FIX #1: Box and pin the empty stream.
+        return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
     }
 
     wait_for_indexer(rpc, indexer).await?;
 
-    let max_zkp_batches_per_call = calculate_max_zkp_batches_per_call(batch_size);
-    info!(
-        "Processing {} ZK proof batches in chunks of {} (max {} elements per call)",
-        leaves_hash_chains.len(),
-        max_zkp_batches_per_call,
-        MAX_PHOTON_ELEMENTS_PER_CALL
+    let stream = stream_instruction_data(
+        indexer,
+        merkle_tree_pubkey,
+        prover_url,
+        polling_interval,
+        max_wait_time,
+        leaves_hash_chains,
+        start_index,
+        current_root,
+        zkp_batch_size,
     );
 
-    let proof_client = ProofClient::with_config(prover_url, polling_interval, max_wait_time);
-    let mut pending_instructions: Vec<InstructionDataAddressAppendInputs> = Vec::new();
-    let mut total_processed = 0;
-
-    let total_chunks =
-        (leaves_hash_chains.len() + max_zkp_batches_per_call - 1) / max_zkp_batches_per_call;
-
-    for chunk_idx in 0..total_chunks {
-        let chunk_start = chunk_idx * max_zkp_batches_per_call;
-        let chunk_end = std::cmp::min(
-            chunk_start + max_zkp_batches_per_call,
-            leaves_hash_chains.len(),
-        );
-        let chunk_hash_chains = &leaves_hash_chains[chunk_start..chunk_end];
-
-        let elements_for_chunk = chunk_hash_chains.len() * batch_size as usize;
-        let processed_items_offset = chunk_start * batch_size as usize;
-
-        let indexer_update_info = indexer
-            .get_address_queue_with_proofs(
-                merkle_tree_pubkey,
-                elements_for_chunk as u16,
-                Some(processed_items_offset as u64),
-                None,
-            )
-            .await
-            .map_err(|e| {
-                error!("Failed to get batch address update info: {:?}", e);
-                ForesterUtilsError::Indexer("Failed to get batch address update info".into())
-            })?;
-
-        if chunk_idx == 0 {
-            let indexer_root = indexer_update_info
-                .value
-                .non_inclusion_proofs
-                .first()
-                .unwrap()
-                .root;
-            if indexer_root != current_root {
-                warn!("Indexer root does not match on-chain root");
-                return Err(ForesterUtilsError::Indexer(
-                    "Indexer root does not match on-chain root".into(),
-                ));
-            }
-        }
-
-        let chunk_processed = process_hash_chain_chunk_streaming(
-            chunk_hash_chains,
-            &indexer_update_info,
-            &proof_client,
-            batch_size,
-            chunk_start,
-            start_index,
-            current_root,
-            instructions_per_tx,
-            &mut pending_instructions,
-            &mut tx_callback,
-        )
-        .await?;
-        total_processed += chunk_processed;
-    }
-
-    if !pending_instructions.is_empty() {
-        tx_callback(pending_instructions, batch_size).await?;
-    }
-
-    info!(
-        "Successfully processed {} instruction batches across {} chunks",
-        total_processed, total_chunks
-    );
-    Ok(total_processed)
+    // FIX #2: Box and pin the instruction data stream.
+    Ok((Box::pin(stream), zkp_batch_size))
 }
 
-async fn process_hash_chain_chunk_streaming<F, Fut>(
+// Helper function's return type also changes to match.
+fn stream_instruction_data<'a, I>(
+    indexer: &'a mut I,
+    merkle_tree_pubkey: &'a Pubkey,
+    prover_url: String,
+    polling_interval: Duration,
+    max_wait_time: Duration,
+    leaves_hash_chains: Vec<[u8; 32]>,
+    start_index: u64,
+    mut current_root: [u8; 32],
+    zkp_batch_size: u16,
+) -> impl Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>> + 'a
+where
+    I: Indexer + 'a,
+{
+    stream! {
+        let proof_client = ProofClient::with_config(prover_url, polling_interval, max_wait_time);
+        let max_zkp_batches_per_call = calculate_max_zkp_batches_per_call(zkp_batch_size);
+        let total_chunks = (leaves_hash_chains.len() + max_zkp_batches_per_call - 1) / max_zkp_batches_per_call;
+
+        for chunk_idx in 0..total_chunks {
+            let chunk_start = chunk_idx * max_zkp_batches_per_call;
+            let chunk_end = std::cmp::min(chunk_start + max_zkp_batches_per_call, leaves_hash_chains.len());
+            let chunk_hash_chains = &leaves_hash_chains[chunk_start..chunk_end];
+
+            let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
+            let processed_items_offset = chunk_start * zkp_batch_size as usize;
+
+            let indexer_update_info = match indexer
+                .get_address_queue_with_proofs(
+                    merkle_tree_pubkey,
+                    elements_for_chunk as u16,
+                    Some(processed_items_offset as u64),
+                    None,
+                )
+                .await {
+                    Ok(info) => info,
+                    Err(e) => {
+                        yield Err(ForesterUtilsError::Indexer(format!("Failed to get address queue with proofs: {}", e)));
+                        return;
+                    }
+                };
+
+            if chunk_idx == 0 {
+                if let Some(first_proof) = indexer_update_info.value.non_inclusion_proofs.first() {
+                    if first_proof.root != current_root {
+                        warn!("Indexer root does not match on-chain root");
+                        yield Err(ForesterUtilsError::Indexer("Indexer root does not match on-chain root".into()));
+                        return;
+                    }
+                } else {
+                    yield Err(ForesterUtilsError::Indexer("No non-inclusion proofs found in indexer response".into()));
+                    return;
+                }
+            }
+
+            let (all_inputs, new_current_root) = match get_all_circuit_inputs_for_chunk(
+                chunk_hash_chains,
+                &indexer_update_info,
+                zkp_batch_size,
+                chunk_start,
+                start_index,
+                current_root,
+            ) {
+                Ok((inputs, new_root)) => (inputs, new_root),
+                Err(e) => {
+                    yield Err(e);
+                    return;
+                }
+            };
+            current_root = new_current_root;
+
+            info!("Generating {} ZK proofs concurrently for chunk {}", all_inputs.len(), chunk_idx + 1);
+            let proof_futures = all_inputs
+                .into_iter()
+                .map(|inputs| proof_client.generate_batch_address_append_proof(inputs));
+
+            let proof_results = future::join_all(proof_futures).await;
+
+            for proof_result in proof_results {
+                match proof_result {
+                    Ok((compressed_proof, new_root)) => {
+                        let instruction_data = InstructionDataAddressAppendInputs {
+                            new_root,
+                            compressed_proof: CompressedProof {
+                                a: compressed_proof.a,
+                                b: compressed_proof.b,
+                                c: compressed_proof.c,
+                            },
+                        };
+                        yield Ok(instruction_data);
+                    }
+                    Err(e) => {
+                        error!("A proof failed to generate: {:?}", e);
+                        yield Err(ForesterUtilsError::Prover(e.to_string()));
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn calculate_max_zkp_batches_per_call(batch_size: u16) -> usize {
+    std::cmp::max(1, MAX_PHOTON_ELEMENTS_PER_CALL / batch_size as usize)
+}
+
+fn get_all_circuit_inputs_for_chunk(
     chunk_hash_chains: &[[u8; 32]],
     indexer_update_info: &light_client::indexer::Response<
         light_client::indexer::BatchAddressUpdateIndexerResponse,
     >,
-    proof_client: &ProofClient,
     batch_size: u16,
     chunk_start_idx: usize,
     global_start_index: u64,
     mut current_root: [u8; 32],
-    instructions_per_tx: usize,
-    pending_instructions: &mut Vec<InstructionDataAddressAppendInputs>,
-    tx_callback: &mut F,
-) -> Result<usize, ForesterUtilsError>
-where
-    F: FnMut(Vec<InstructionDataAddressAppendInputs>, u16) -> Fut,
-    Fut: std::future::Future<Output = Result<(), ForesterUtilsError>>,
-{
+) -> Result<(Vec<BatchAddressAppendInputs>, [u8; 32]), ForesterUtilsError> {
     let subtrees_array: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] =
         indexer_update_info
             .value
@@ -282,35 +321,5 @@ where
         all_inputs.push(inputs);
     }
 
-    info!("Generating {} ZK proofs concurrently", all_inputs.len());
-    let proof_futures = all_inputs
-        .into_iter()
-        .map(|inputs| proof_client.generate_batch_address_append_proof(inputs));
-    let proof_results = future::join_all(proof_futures).await;
-
-    let mut processed_count = 0;
-    for proof_result in proof_results {
-        match proof_result {
-            Ok((compressed_proof, new_root)) => {
-                let instruction_data = InstructionDataAddressAppendInputs {
-                    new_root,
-                    compressed_proof: CompressedProof {
-                        a: compressed_proof.a,
-                        b: compressed_proof.b,
-                        c: compressed_proof.c,
-                    },
-                };
-                pending_instructions.push(instruction_data);
-                processed_count += 1;
-
-                if pending_instructions.len() >= instructions_per_tx {
-                    let tx_batch = pending_instructions.drain(0..instructions_per_tx).collect();
-                    tx_callback(tx_batch, batch_size).await?;
-                }
-            }
-            Err(e) => return Err(ForesterUtilsError::Prover(e.to_string())),
-        }
-    }
-
-    Ok(processed_count)
+    Ok((all_inputs, current_root))
 }
