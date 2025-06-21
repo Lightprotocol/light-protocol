@@ -554,14 +554,12 @@ impl Indexer for TestIndexer {
                     }
                 }
 
-                // reverse so that we can pop elements.
-                proof_inputs.reverse();
-                // Reinsert.
-                for index in indices_to_remove.iter().rev() {
-                    if root_indices.len() <= *index {
-                        root_indices.push(proof_inputs.pop().unwrap());
+                // Reinsert proof_inputs at their original positions in forward order
+                for (proof_input, &index) in proof_inputs.iter().zip(indices_to_remove.iter()) {
+                    if root_indices.len() <= index {
+                        root_indices.push(proof_input.clone());
                     } else {
-                        root_indices.insert(*index, proof_inputs.pop().unwrap());
+                        root_indices.insert(index, proof_input.clone());
                     }
                 }
                 root_indices
