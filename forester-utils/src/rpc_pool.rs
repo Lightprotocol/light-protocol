@@ -27,6 +27,7 @@ pub enum PoolError {
 pub struct SolanaConnectionManager<R: Rpc + 'static> {
     url: String,
     photon_url: Option<String>,
+    api_key: Option<String>,
     commitment: CommitmentConfig,
     // TODO: implement Rpc for SolanaConnectionManager and rate limit requests.
     _rpc_rate_limiter: Option<RateLimiter>,
@@ -38,6 +39,7 @@ impl<R: Rpc + 'static> SolanaConnectionManager<R> {
     pub fn new(
         url: String,
         photon_url: Option<String>,
+        api_key: Option<String>,
         commitment: CommitmentConfig,
         rpc_rate_limiter: Option<RateLimiter>,
         send_tx_rate_limiter: Option<RateLimiter>,
@@ -45,6 +47,7 @@ impl<R: Rpc + 'static> SolanaConnectionManager<R> {
         Self {
             url,
             photon_url,
+            api_key,
             commitment,
             _rpc_rate_limiter: rpc_rate_limiter,
             _send_tx_rate_limiter: send_tx_rate_limiter,
@@ -64,6 +67,7 @@ impl<R: Rpc + 'static> bb8::ManageConnection for SolanaConnectionManager<R> {
             photon_url: self.photon_url.clone(),
             commitment_config: Some(self.commitment),
             fetch_active_tree: false,
+            api_key: self.api_key.clone(),
         };
 
         Ok(R::new(config).await?)
@@ -90,7 +94,7 @@ pub struct SolanaRpcPool<R: Rpc + 'static> {
 pub struct SolanaRpcPoolBuilder<R: Rpc> {
     url: Option<String>,
     photon_url: Option<String>,
-
+    api_key: Option<String>,
     commitment: Option<CommitmentConfig>,
 
     max_size: u32,
@@ -116,6 +120,7 @@ impl<R: Rpc> SolanaRpcPoolBuilder<R> {
         Self {
             url: None,
             photon_url: None,
+            api_key: None,
             commitment: None,
             max_size: 50,
             connection_timeout_secs: 15,
@@ -195,6 +200,7 @@ impl<R: Rpc> SolanaRpcPoolBuilder<R> {
         let manager = SolanaConnectionManager::new(
             url,
             self.photon_url,
+            self.api_key,
             commitment,
             self.rpc_rate_limiter,
             self.send_tx_rate_limiter,

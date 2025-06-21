@@ -103,7 +103,24 @@ async fn test_create_v2_address() {
     println!("num_batches: {:?}", num_batches);
     println!("remaining_addresses: {:?}", remaining_addresses);
 
-    for i in 0..num_batches {
+    let mut address_tree_account = rpc
+        .get_account(env.v2_address_trees[0])
+        .await
+        .unwrap()
+        .unwrap();
+
+    let address_tree = BatchedMerkleTreeAccount::address_from_bytes(
+        address_tree_account.data.as_mut_slice(),
+        &env.v2_address_trees[0].into(),
+    )
+    .unwrap();
+
+    println!("Address tree metadata: {:?}", address_tree.get_metadata());
+
+    let (service_handle, shutdown_sender, mut work_report_receiver) =
+        setup_forester_pipeline(&config).await;
+
+    for i in 0..num_batches * 10 {
         println!("====== Creating v2 address {} ======", i);
         let result = create_v2_addresses(
             &mut rpc,
@@ -132,23 +149,6 @@ async fn test_create_v2_address() {
         .await;
         println!("====== result: {:?} ======", result);
     }
-
-    let mut address_tree_account = rpc
-        .get_account(env.v2_address_trees[0])
-        .await
-        .unwrap()
-        .unwrap();
-
-    let address_tree = BatchedMerkleTreeAccount::address_from_bytes(
-        address_tree_account.data.as_mut_slice(),
-        &env.v2_address_trees[0].into(),
-    )
-    .unwrap();
-
-    println!("Address tree metadata: {:?}", address_tree.get_metadata());
-
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
 
     wait_for_work_report(&mut work_report_receiver, &tree_params).await;
 

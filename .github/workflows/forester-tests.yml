@@ -38,38 +38,14 @@ jobs:
         test-name:
           [
             {
+              name: "e2e (legacy)",
+              command: "test_e2e_v1",
+              timeout: 60,
+              needs-test-program: false,
+            },
+            {
               name: "e2e",
-              command: "test_state_indexer_async_batched",
-              timeout: 60,
-              needs-test-program: false,
-            },
-            {
-              name: "address-batched",
-              command: "test_address_batched",
-              timeout: 60,
-              needs-test-program: true,
-            },
-            {
-              name: "state-batched",
-              command: "test_state_batched",
-              timeout: 60,
-              needs-test-program: false,
-            },
-            {
-              name: "state-photon-batched",
-              command: "test_state_indexer_batched",
-              timeout: 60,
-              needs-test-program: false,
-            },
-            {
-              name: "2-foresters",
-              command: "test_epoch_monitor_with_2_foresters",
-              timeout: 60,
-              needs-test-program: false,
-            },
-            {
-              name: "double-registration",
-              command: "test_epoch_double_registration",
+              command: "test_e2e_v2",
               timeout: 60,
               needs-test-program: false,
             },

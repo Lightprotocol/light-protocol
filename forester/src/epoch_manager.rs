@@ -40,7 +40,6 @@ use crate::{
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
-    indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     processor::{
@@ -53,7 +52,9 @@ use crate::{
         v2::{process_batched_operations, BatchContext},
     },
     queue_helpers::QueueItemData,
-    rollover::is_tree_ready_for_rollover,
+    rollover::{
+        is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
+    },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
     tree_data_sync::fetch_trees,
     tree_finder::TreeFinder,
@@ -89,7 +90,7 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: Rpc, I: Indexer> {
+pub struct EpochManager<R: Rpc, I: Indexer + 'static> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -123,7 +124,7 @@ impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
+impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -480,11 +481,11 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
+            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: None,
             fetch_active_tree: false,
         })
-        .await
-        .unwrap();
+        .await?;
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -509,7 +510,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                         e
                     );
                     if attempt < max_retries - 1 {
-                        tokio::task::yield_now().await;
                         sleep(retry_delay).await;
                     } else {
                         if let Err(alert_err) = send_pagerduty_alert(
@@ -548,12 +548,12 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         info!("Registering for epoch: {}", epoch);
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: None,
+            photon_url: self.config.external_services.indexer_url.clone(),
+            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: None,
             fetch_active_tree: false,
         })
-        .await
-        .unwrap();
+        .await?;
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -699,10 +699,23 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         &self,
         epoch_info: &ForesterEpochInfo,
     ) -> Result<ForesterEpochInfo> {
-        info!("Waiting for active phase");
-
         let mut rpc = self.rpc_pool.get_connection().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
+        let current_slot = self.slot_tracker.estimated_current_slot();
+
+        if current_slot >= active_phase_start_slot {
+            info!(
+                "Active phase has already started. Current slot: {}. Active phase start slot: {}",
+                current_slot, active_phase_start_slot
+            );
+        } else {
+            let waiting_slots = active_phase_start_slot - current_slot;
+            let waiting_secs = waiting_slots / 2;
+            info!("Waiting for active phase to start. Current slot: {}. Active phase start slot: {}. Waiting time: ~ {} seconds",
+                current_slot,
+                active_phase_start_slot,
+                waiting_secs);
+        }
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
@@ -902,7 +915,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 break 'outer_slot_loop;
             }
 
-            tokio::task::yield_now().await;
             current_slot = self.slot_tracker.estimated_current_slot();
         }
 
@@ -990,11 +1002,13 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                     break 'inner_processing_loop;
                 }
             };
+            if items_processed_this_iteration > 0 {
+                debug!(
+                    "Processed {} items in slot {:?}",
+                    items_processed_this_iteration, forester_slot_details.slot
+                );
+            }
 
-            debug!(
-                "Processed {} items in slot {:?}",
-                items_processed_this_iteration, forester_slot_details.slot
-            );
             self.update_metrics_and_counts(
                 epoch_info.epoch,
                 items_processed_this_iteration,
@@ -1004,6 +1018,9 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
 
             push_metrics(&self.config.external_services.pushgateway_url).await?;
             estimated_slot = self.slot_tracker.estimated_current_slot();
+
+            // Add polling interval to reduce RPC pressure and improve response time
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         }
         Ok(())
     }
@@ -1213,12 +1230,12 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         info!("Reporting work");
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: None,
+            photon_url: self.config.external_services.indexer_url.clone(),
+            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: None,
             fetch_active_tree: false,
         })
-        .await
-        .unwrap();
+        .await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
             &self.config.derivation_pubkey,
@@ -1305,7 +1322,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 rollover_address_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
-                    self.indexer.clone(),
                     tree_account,
                     current_epoch,
                 )
@@ -1315,7 +1331,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 rollover_state_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
-                    self.indexer.clone(),
                     tree_account,
                     current_epoch,
                 )
@@ -1363,7 +1378,7 @@ fn calculate_remaining_time_or_default(
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
+pub async fn run_service<R: Rpc, I: Indexer + 'static>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -1444,7 +1459,6 @@ pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
                         retry_count += 1;
                         if retry_count < config.retry_config.max_retries {
                             debug!("Retrying in {:?}", retry_delay);
-                            tokio::task::yield_now().await;
                             sleep(retry_delay).await;
                             retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
                         } else {

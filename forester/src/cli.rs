@@ -56,7 +56,7 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_LEGACY_XS_PER_TX", default_value = "1")]
     pub legacy_ixs_per_tx: usize,
 
-    #[arg(long, env = "FORESTER_BATCH_IXS_PER_TX", default_value = "1")]
+    #[arg(long, env = "FORESTER_BATCH_IXS_PER_TX", default_value = "4")]
     pub batch_ixs_per_tx: usize,
 
     #[arg(
@@ -88,7 +88,7 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_ENABLE_PRIORITY_FEES", default_value = "false")]
     pub enable_priority_fees: bool,
 
-    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "50")]
+    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "100")]
     pub rpc_pool_size: u32,
 
     #[arg(

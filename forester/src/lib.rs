@@ -6,7 +6,6 @@ pub mod epoch_manager;
 pub mod errors;
 pub mod forester_status;
 pub mod helius_priority_fee_types;
-mod indexer_type;
 pub mod metrics;
 pub mod pagerduty;
 pub mod processor;
@@ -38,7 +37,6 @@ use tracing::debug;
 
 use crate::{
     epoch_manager::{run_service, WorkReport},
-    indexer_type::IndexerType,
     metrics::QUEUE_LENGTH,
     processor::tx_cache::ProcessedHashCache,
     queue_helpers::{
@@ -55,7 +53,8 @@ pub async fn run_queue_info(
 ) -> Result<()> {
     let mut rpc = LightClient::new(LightClientConfig {
         url: config.external_services.rpc_url.to_string(),
-        photon_url: None,
+        photon_url: config.external_services.indexer_url.clone(),
+        api_key: config.external_services.photon_api_key.clone(),
         commitment_config: None,
         fetch_active_tree: false,
     })
@@ -111,7 +110,7 @@ pub async fn run_queue_info(
     Ok(())
 }
 
-pub async fn run_pipeline<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
+pub async fn run_pipeline<R: Rpc, I: Indexer + 'static>(
     config: Arc<ForesterConfig>,
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,

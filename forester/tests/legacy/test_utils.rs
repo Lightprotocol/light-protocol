@@ -1,28 +1,19 @@
-use std::time::Duration;
-
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig},
     metrics::register_metrics,
     telemetry::setup_telemetry,
     ForesterConfig,
 };
-use forester_utils::forester_epoch::get_epoch_phases;
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, Indexer, NewAddressProofWithContext},
     local_test_validator::{spawn_validator, LightValidatorConfig},
-    rpc::{LightClient, Rpc},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
-use light_registry::{
-    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
-    utils::get_protocol_config_pda_address,
-};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-use tokio::time::sleep;
 use tracing::debug;
 
 #[allow(dead_code)]
@@ -293,37 +284,4 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
             }
         }
     }
-}
-
-#[allow(dead_code)]
-pub async fn get_active_phase_start_slot<R: Rpc>(
-    rpc: &mut R,
-    protocol_config: &ProtocolConfig,
-) -> u64 {
-    let current_slot = rpc.get_slot().await.unwrap();
-    let current_epoch = protocol_config.get_current_epoch(current_slot);
-    let phases = get_epoch_phases(protocol_config, current_epoch);
-    phases.active.start
-}
-
-#[allow(dead_code)]
-pub async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
-    while rpc.get_slot().await.unwrap() < target_slot {
-        println!(
-            "waiting for active phase slot: {}, current slot: {}",
-            target_slot,
-            rpc.get_slot().await.unwrap()
-        );
-        sleep(Duration::from_millis(400)).await;
-    }
-}
-
-#[allow(dead_code)]
-async fn get_protocol_config(rpc: &mut LightClient) -> ProtocolConfig {
-    let protocol_config_pda_address = get_protocol_config_pda_address().0;
-    rpc.get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
-        .await
-        .unwrap()
-        .unwrap()
-        .config
 }

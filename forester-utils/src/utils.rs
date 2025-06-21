@@ -29,7 +29,7 @@ pub async fn airdrop_lamports<R: Rpc>(
 }
 
 pub async fn wait_for_indexer<R: Rpc, I: Indexer>(
-    rpc: &mut R,
+    rpc: &R,
     indexer: &I,
 ) -> Result<(), ForesterUtilsError> {
     let rpc_slot = rpc

@@ -1,20 +1,22 @@
-use std::{sync::Arc, time::Duration};
+use std::{future::Future, sync::Arc, time::Duration};
 
+use borsh::BorshSerialize;
 use forester_utils::rpc_pool::SolanaRpcPool;
+use futures::{pin_mut, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
     batch::{Batch, BatchState},
     merkle_tree::BatchedMerkleTreeAccount,
     queue::BatchedQueueAccount,
 };
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::rpc::Rpc;
 use light_compressed_account::TreeType;
-use solana_program::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
+use light_program_test::Indexer;
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
-use tracing::{debug, error, trace};
+use tracing::{debug, error, info, trace};
 
-use super::{address, error::Result, state, BatchProcessError};
-use crate::{indexer_type::IndexerType, processor::tx_cache::ProcessedHashCache};
+use super::{address, state};
+use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, Result};
 
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc, I: Indexer> {
@@ -32,6 +34,136 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
+pub(crate) async fn process_stream<R, I, S, D, FutC>(
+    context: &BatchContext<R, I>,
+    stream_creator_future: FutC,
+    instruction_builder: impl Fn(&D) -> Instruction,
+    tree_type_str: &str,
+    operation: Option<&str>,
+) -> Result<usize>
+where
+    R: Rpc,
+    I: Indexer,
+    S: Stream<Item = Result<D>> + Send,
+    D: BorshSerialize,
+    FutC: Future<Output = Result<(S, u16)>> + Send,
+{
+    let start_time = std::time::Instant::now();
+    trace!("Executing generic stream processor");
+
+    let (instruction_stream, zkp_batch_size) = stream_creator_future.await?;
+
+    if zkp_batch_size == 0 {
+        trace!("ZKP batch size is 0, no work to do.");
+        return Ok(0);
+    }
+
+    pin_mut!(instruction_stream);
+    let mut instruction_buffer: Vec<D> = Vec::new();
+    let mut total_instructions_processed = 0;
+    let mut transactions_sent = 0;
+
+    while let Some(result) = instruction_stream.next().await {
+        let data = result?;
+        instruction_buffer.push(data);
+        total_instructions_processed += 1;
+
+        if instruction_buffer.len() >= context.ixs_per_tx {
+            let instructions = instruction_buffer
+                .iter()
+                .map(&instruction_builder)
+                .collect();
+
+            let tx_start = std::time::Instant::now();
+            let signature = send_transaction_batch(context, instructions).await?;
+            transactions_sent += 1;
+            let tx_duration = tx_start.elapsed();
+
+            let operation_suffix = operation
+                .map(|op| format!(" operation={}", op))
+                .unwrap_or_default();
+            info!(
+                "V2_TPS_METRIC: transaction_sent tree_type={}{} tree={} tx_num={} signature={} instructions={} tx_duration_ms={}",
+                tree_type_str, operation_suffix, context.merkle_tree, transactions_sent, signature, instruction_buffer.len(), tx_duration.as_millis()
+            );
+
+            instruction_buffer.clear();
+        }
+    }
+
+    if !instruction_buffer.is_empty() {
+        let instructions = instruction_buffer
+            .iter()
+            .map(&instruction_builder)
+            .collect();
+
+        let tx_start = std::time::Instant::now();
+        let signature = send_transaction_batch(context, instructions).await?;
+        transactions_sent += 1;
+        let tx_duration = tx_start.elapsed();
+
+        let operation_suffix = operation
+            .map(|op| format!(" operation={}", op))
+            .unwrap_or_default();
+        info!(
+            "V2_TPS_METRIC: transaction_sent tree_type={}{} tree={} tx_num={} signature={} instructions={} tx_duration_ms={}",
+            tree_type_str, operation_suffix, context.merkle_tree, transactions_sent, signature, instruction_buffer.len(), tx_duration.as_millis()
+        );
+    }
+
+    if total_instructions_processed == 0 {
+        trace!("No instructions were processed from the stream.");
+        return Ok(0);
+    }
+
+    let total_duration = start_time.elapsed();
+    let total_items_processed = total_instructions_processed * zkp_batch_size as usize;
+    let tps = if total_duration.as_secs_f64() > 0.0 {
+        transactions_sent as f64 / total_duration.as_secs_f64()
+    } else {
+        0.0
+    };
+    let ips = if total_duration.as_secs_f64() > 0.0 {
+        total_instructions_processed as f64 / total_duration.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    let operation_suffix = operation
+        .map(|op| format!(" operation={}", op))
+        .unwrap_or_default();
+    info!(
+        "V2_TPS_METRIC: operation_complete tree_type={}{} tree={} epoch={} zkp_batches={} transactions={} instructions={} duration_ms={} tps={:.2} ips={:.2} items_processed={}", tree_type_str, operation_suffix, context.merkle_tree, context.epoch, total_instructions_processed, transactions_sent, total_instructions_processed,
+        total_duration.as_millis(), tps, ips, total_items_processed
+    );
+
+    info!(
+        "Stream processing complete. Processed {} total items.",
+        total_items_processed
+    );
+
+    Ok(total_items_processed)
+}
+
+async fn send_transaction_batch<R: Rpc, I: Indexer>(
+    context: &BatchContext<R, I>,
+    instructions: Vec<Instruction>,
+) -> Result<String> {
+    info!(
+        "Sending transaction with {} instructions...",
+        instructions.len()
+    );
+    let mut rpc = context.rpc_pool.get_connection().await?;
+    let signature = rpc
+        .create_and_send_transaction(
+            &instructions,
+            &context.authority.pubkey(),
+            &[&context.authority],
+        )
+        .await?;
+    Ok(signature.to_string())
+}
+
 #[derive(Debug)]
 pub enum BatchReadyState {
     NotReady,
@@ -40,12 +172,12 @@ pub enum BatchReadyState {
 }
 
 #[derive(Debug)]
-pub struct BatchProcessor<R: Rpc, I: Indexer + IndexerType<R>> {
+pub struct BatchProcessor<R: Rpc, I: Indexer> {
     context: BatchContext<R, I>,
     tree_type: TreeType,
 }
 
-impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
+impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
     pub fn new(context: BatchContext<R, I>, tree_type: TreeType) -> Self {
         Self { context, tree_type }
     }
@@ -109,7 +241,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
                 }
                 _ => {
                     error!("Unsupported tree type for append: {:?}", self.tree_type);
-                    Err(BatchProcessError::UnsupportedTreeType(self.tree_type))
+                    Err(ForesterError::InvalidTreeType(self.tree_type).into())
                 }
             },
             BatchReadyState::ReadyForNullify => {
@@ -155,6 +287,17 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             input_ready,
             output_ready
         );
+
+        // Log queue metrics
+        if !input_ready && !output_ready {
+            info!(
+                "QUEUE_METRIC: queue_empty tree_type={} tree={}",
+                self.tree_type, self.context.merkle_tree
+            );
+        } else {
+            info!("QUEUE_METRIC: queue_has_elements tree_type={} tree={} input_ready={} output_ready={}",
+                self.tree_type, self.context.merkle_tree, input_ready, output_ready);
+        }
 
         if self.tree_type == TreeType::AddressV2 {
             return if input_ready {
@@ -268,7 +411,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             }
             cache.add(&batch_hash);
         }
-        state::perform_append(&self.context, &mut rpc).await?;
+        state::perform_append(&self.context).await?;
         trace!(
             "State append operation completed for tree: {}",
             self.context.merkle_tree
@@ -307,7 +450,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             cache.add(&batch_hash);
         }
 
-        state::perform_nullify(&self.context, &mut rpc).await?;
+        state::perform_nullify(&self.context).await?;
 
         trace!(
             "State nullify operation completed for tree: {}",
@@ -326,8 +469,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             let mut output_queue_account =
                 rpc.get_account(self.context.output_queue).await?.unwrap();
             let output_queue =
-                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
-                    .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
+                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())?;
 
             let batch_index = output_queue.batch_metadata.pending_batch_index;
             let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
