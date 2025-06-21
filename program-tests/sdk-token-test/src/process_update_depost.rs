@@ -68,7 +68,7 @@ pub fn process_update_escrow_pda(
 }
 
 pub fn deposit_additional_tokens<'info>(
-    cpi_accounts: &CpiAccounts<'_, 'info>,
+    cpi_accounts: CpiAccounts<'_, 'info>,
     depositing_token_metas: Vec<TokenAccountMeta>,
     escrowed_token_meta: TokenAccountMeta,
     output_tree_index: u8,
@@ -80,15 +80,22 @@ pub fn deposit_additional_tokens<'info>(
     address: [u8; 32],
     remaining_accounts: &[AccountInfo<'info>],
     authority: AccountInfo<'info>,
+    existing_amount: u64,
+    account_meta: CompressedAccountMeta,
+    proof: ValidityProof,
 ) -> Result<()> {
-    let tree_pubkeys = cpi_accounts.tree_pubkeys().unwrap();
-    msg!("tree_pubkeys: {:?}", tree_pubkeys);
-    msg!("output_tree_queue_index {:?}", output_tree_queue_index);
-    msg!("output_tree_index {:?}", output_tree_index);
     // We want to keep only one escrow compressed token account
     // But ctoken transfers can only have one signer -> we cannot from 2 signers at the same time
     // 1. transfer depositing token to recipient pda -> escrow token account 2
-    // 2. merge escrow token account 2 into escrow token account
+    // 2. update escrow pda balance
+    // 3. merge escrow token account 2 into escrow token account
+    // Note:
+    // - if the escrow pda only stores the amount and the owner we can omit the escrow pda.
+    // - the escrowed token accounts are owned by a pda derived from the owner
+    //      that is sufficient to verify ownership.
+    // - no escrow pda will simplify the transaction, for no cpi context account is required
+
+    // 1.transfer depositing token to recipient pda -> escrow token account 2
     let escrow_token_account_meta_2 = {
         let sender_account = CTokenAccount::new(
             mint,
@@ -104,9 +111,9 @@ pub fn deposit_additional_tokens<'info>(
         )
         .unwrap();
         // SAFETY: state trees are height 32
-        let leaf_index = output_queue.batch_metadata.next_index as u32;
+        let leaf_index = output_queue.batch_metadata.next_index as u32 + 1;
 
-        let new_input = TokenAccountMeta {
+        let escrow_token_account_meta_2 = TokenAccountMeta {
             amount,
             delegate_index: None,
             lamports: None,
@@ -126,7 +133,6 @@ pub fn deposit_additional_tokens<'info>(
             .iter()
             .map(|x| x.pubkey())
             .collect::<Vec<Pubkey>>();
-        msg!("tree_pubkeys {:?}", tree_pubkeys);
         let cpi_context_pubkey = *cpi_accounts.cpi_context().unwrap().key;
         let transfer_inputs = TransferInputs {
             fee_payer: *cpi_accounts.fee_payer().key,
@@ -166,41 +172,55 @@ pub fn deposit_additional_tokens<'info>(
             &[&seeds],
         )?;
         sol_log_compute_units();
-        new_input
+        escrow_token_account_meta_2
     };
+    let tree_account_infos = cpi_accounts.tree_accounts().unwrap()[1..].to_vec();
+    let fee_payer = cpi_accounts.fee_payer().clone();
 
+    // 2. Update escrow pda balance
+    // - settle tx 1 in the same instruction with the cpi context account
+    process_update_escrow_pda(cpi_accounts, account_meta, proof, existing_amount, amount)?;
+
+    // 3. Merge the newly escrowed tokens into the existing escrow account.
     {
-        msg!("recipient {}", recipient);
-        msg!("escrowed_token_meta {:?}", escrowed_token_meta);
+        // We remove the cpi context account -> we decrement all packed account indices by 1.
+        let mut output_tree_queue_index = output_tree_queue_index;
+        output_tree_queue_index -= 1;
+        let mut escrowed_token_meta = escrowed_token_meta;
+        escrowed_token_meta
+            .packed_tree_info
+            .merkle_tree_pubkey_index -= 1;
+        escrowed_token_meta.packed_tree_info.queue_pubkey_index -= 1;
+        let mut escrow_token_account_meta_2 = escrow_token_account_meta_2;
+        escrow_token_account_meta_2
+            .packed_tree_info
+            .merkle_tree_pubkey_index -= 1;
+        escrow_token_account_meta_2
+            .packed_tree_info
+            .queue_pubkey_index -= 1;
         let escrow_account = CTokenAccount::new(
             mint,
             recipient,
             vec![escrowed_token_meta, escrow_token_account_meta_2],
             output_tree_queue_index,
         );
+
         let total_escrowed_amount = escrow_account.amount;
 
-        let tree_account_infos = cpi_accounts.tree_accounts().unwrap();
-        let tree_account_infos = &tree_account_infos[1..];
         let tree_pubkeys = tree_account_infos
             .iter()
             .map(|x| x.pubkey())
             .collect::<Vec<Pubkey>>();
-        let cpi_context_pubkey = *cpi_accounts.cpi_context().unwrap().key;
         let transfer_inputs = TransferInputs {
-            fee_payer: *cpi_accounts.fee_payer().key,
+            fee_payer: *fee_payer.key,
             sender_account: escrow_account,
             // No validity proof necessary we are just storing state in the cpi context.
             validity_proof: None.into(),
             recipient,
             tree_pubkeys,
             config: Some(TransferConfig {
-                cpi_context: Some(CompressedCpiContext {
-                    set_context: true,
-                    first_set_context: true,
-                    cpi_context_account_index: 0, // TODO: replace with Pubkey (maybe not because it is in tree pubkeys 1 in this case)
-                }),
-                cpi_context_pubkey: Some(cpi_context_pubkey),
+                cpi_context: None,
+                cpi_context_pubkey: None,
                 ..Default::default()
             }),
             amount: total_escrowed_amount,
@@ -211,16 +231,8 @@ pub fn deposit_additional_tokens<'info>(
             )
             .unwrap();
 
-        let account_infos = [
-            &[cpi_accounts.fee_payer().clone(), authority][..],
-            remaining_accounts,
-        ]
-        .concat();
-        sol_log_compute_units();
+        let account_infos = [&[fee_payer, authority][..], remaining_accounts].concat();
 
-        sol_log_compute_units();
-        msg!("invoke");
-        sol_log_compute_units();
         let seeds = [&b"escrow"[..], &address, &[recipient_bump]];
         anchor_lang::solana_program::program::invoke_signed(
             &instruction,
