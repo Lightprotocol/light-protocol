@@ -321,12 +321,11 @@ async fn update_deposit_compressed_account(
     println!("packed_accounts {:?}", packed_accounts.state_trees);
     // TODO: investigate why packed_tree_infos seem to be out of order
     // Create token meta from compressed account
-    let mut tree_info = packed_accounts
+    let tree_info = packed_accounts
         .state_trees
         .as_ref()
         .unwrap()
-        .packed_tree_infos[2];
-    tree_info.leaf_index = 3;
+        .packed_tree_infos[1];
     let depositing_token_metas = vec![TokenAccountMeta {
         amount: deposit_ctoken_account.token.amount,
         delegate_index: None,
@@ -335,12 +334,11 @@ async fn update_deposit_compressed_account(
         tlv: None,
     }];
     println!("depositing_token_metas {:?}", depositing_token_metas);
-    let mut tree_info = packed_accounts
+    let tree_info = packed_accounts
         .state_trees
         .as_ref()
         .unwrap()
-        .packed_tree_infos[1];
-    tree_info.leaf_index = 2;
+        .packed_tree_infos[2];
     let escrowed_token_meta = TokenAccountMeta {
         amount: escrow_ctoken_account.token.amount,
         delegate_index: None,
@@ -355,12 +353,11 @@ async fn update_deposit_compressed_account(
     let system_accounts_start_offset = system_accounts_start_offset as u8;
     println!("remaining_accounts {:?}", remaining_accounts);
 
-    let mut tree_info = packed_accounts
+    let tree_info = packed_accounts
         .state_trees
         .as_ref()
         .unwrap()
         .packed_tree_infos[0];
-    tree_info.leaf_index = 1;
     let account_meta = CompressedAccountMeta {
         tree_info,
         address: escrow_pda.address.unwrap(),
