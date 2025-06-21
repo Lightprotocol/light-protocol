@@ -2179,6 +2179,7 @@ version = "2.0.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "async-stream",
  "async-trait",
  "bb8",
  "futures",

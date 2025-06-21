@@ -13,8 +13,11 @@ use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
 use tracing::{debug, error, trace};
 
-use super::{address, error::Result, state, BatchProcessError};
-use crate::{indexer_type::IndexerType, processor::tx_cache::ProcessedHashCache};
+use super::{address, state};
+use crate::{
+    errors::ForesterError, indexer_type::IndexerType, processor::tx_cache::ProcessedHashCache,
+    Result,
+};
 
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc, I: Indexer> {
@@ -109,7 +112,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
                 }
                 _ => {
                     error!("Unsupported tree type for append: {:?}", self.tree_type);
-                    Err(BatchProcessError::UnsupportedTreeType(self.tree_type))
+                    Err(ForesterError::InvalidTreeType(self.tree_type).into())
                 }
             },
             BatchReadyState::ReadyForNullify => {
@@ -326,8 +329,7 @@ impl<R: Rpc, I: Indexer + IndexerType<R>> BatchProcessor<R, I> {
             let mut output_queue_account =
                 rpc.get_account(self.context.output_queue).await?.unwrap();
             let output_queue =
-                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
-                    .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
+                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())?;
 
             let batch_index = output_queue.batch_metadata.pending_batch_index;
             let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
