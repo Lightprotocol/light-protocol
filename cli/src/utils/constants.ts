@@ -19,12 +19,12 @@ export const SOLANA_VALIDATOR_PROCESS_NAME = "solana-test-validator";
 export const LIGHT_PROVER_PROCESS_NAME = "light-prover";
 export const INDEXER_PROCESS_NAME = "photon";
 
-export const PHOTON_VERSION = "0.50.1";
+export const PHOTON_VERSION = "0.50.0";
 
 // Set these to override Photon requirements with a specific git commit:
 export const USE_PHOTON_FROM_GIT = true; // If true, will show git install command instead of crates.io.
 export const PHOTON_GIT_REPO = "https://github.com/lightprotocol/photon.git";
-export const PHOTON_GIT_COMMIT = "49b7e7f0d668babbc4d65fe8a0a7236df76f75a8"; // If empty, will use main branch.
+export const PHOTON_GIT_COMMIT = "e53cbf27faa595301e8a6a7d79fd4e17f8c811bc"; // If empty, will use main branch.
 
 export const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 export const BASE_PATH = "../../bin/";

@@ -3,7 +3,10 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use anchor_lang::Discriminator;
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
-use forester::{config::GeneralConfig, epoch_manager::WorkReport, run_pipeline, ForesterConfig};
+use forester::{
+    config::GeneralConfig, epoch_manager::WorkReport, run_pipeline, utils::get_protocol_config,
+    ForesterConfig,
+};
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
@@ -35,12 +38,12 @@ use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::{signature::Keypair, signer::Signer};
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::test_utils::{forester_config, init};
+use crate::test_utils::{forester_config, get_active_phase_start_slot, init, wait_for_slot};
 
 mod test_utils;
 
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
-const DEFAULT_TIMEOUT_SECONDS: u64 = 120;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 360;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
@@ -54,7 +57,7 @@ async fn test_create_v2_address() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: true,
-        wait_time: 90,
+        wait_time: 10,
         prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
@@ -66,7 +69,6 @@ async fn test_create_v2_address() {
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = env.protocol.forester.insecure_clone();
     config.derivation_pubkey = env.protocol.forester.pubkey();
     config.general_config = GeneralConfig::test_address_v2();
@@ -95,13 +97,34 @@ async fn test_create_v2_address() {
     let batch_size = get_batch_size(&mut rpc, &env.v2_address_trees[0]).await;
     let num_addresses = 2;
 
-    let num_batches = batch_size / num_addresses;
+    let num_batches = 10 * batch_size / num_addresses;
     let remaining_addresses = batch_size % num_addresses;
 
     println!("num_addresses: {:?}", num_addresses);
     println!("batch_size: {:?}", batch_size);
     println!("num_batches: {:?}", num_batches);
     println!("remaining_addresses: {:?}", remaining_addresses);
+
+    let mut address_tree_account = rpc
+        .get_account(env.v2_address_trees[0])
+        .await
+        .unwrap()
+        .unwrap();
+
+    let address_tree = BatchedMerkleTreeAccount::address_from_bytes(
+        address_tree_account.data.as_mut_slice(),
+        &env.v2_address_trees[0].into(),
+    )
+    .unwrap();
+
+    println!("Address tree metadata: {:?}", address_tree.get_metadata());
+
+    let (service_handle, shutdown_sender, mut work_report_receiver) =
+        setup_forester_pipeline(&config).await;
+
+    let protocol_config = get_protocol_config(&mut rpc).await;
+    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
+    wait_for_slot(&mut rpc, active_phase_slot).await;
 
     for i in 0..num_batches {
         println!("====== Creating v2 address {} ======", i);
@@ -133,25 +156,7 @@ async fn test_create_v2_address() {
         println!("====== result: {:?} ======", result);
     }
 
-    let mut address_tree_account = rpc
-        .get_account(env.v2_address_trees[0])
-        .await
-        .unwrap()
-        .unwrap();
-
-    let address_tree = BatchedMerkleTreeAccount::address_from_bytes(
-        address_tree_account.data.as_mut_slice(),
-        &env.v2_address_trees[0].into(),
-    )
-    .unwrap();
-
-    println!("Address tree metadata: {:?}", address_tree.get_metadata());
-
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
-
     wait_for_work_report(&mut work_report_receiver, &tree_params).await;
-
     verify_root_changed(&mut rpc, &env.v2_address_trees[0], &pre_root).await;
 
     shutdown_sender
@@ -285,6 +290,12 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
         .get_validity_proof(Vec::new(), address_with_trees, None)
         .await
         .unwrap();
+
+    let root = proof_result.value.addresses[0].root;
+    let root_index = proof_result.value.addresses[0].root_index;
+
+    println!("root: {:?}", root);
+    println!("root_index: {:?}", root_index);
 
     if num_addresses == 1 {
         let data: [u8; 31] = [1; 31];
@@ -435,6 +446,8 @@ async fn get_initial_merkle_tree_state(
         &merkle_tree_pubkey.into(),
     )
     .unwrap();
+
+    println!("root history {:?}", merkle_tree.root_history);
 
     let initial_next_index = merkle_tree.get_metadata().next_index;
     let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
