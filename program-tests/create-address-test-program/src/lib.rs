@@ -77,7 +77,8 @@ pub mod system_cpi_test {
         } else {
             use light_sdk::cpi::CpiAccounts;
             let cpi_accounts =
-                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+                CpiAccounts::try_new_with_config(&fee_payer, ctx.remaining_accounts, config)
+                    .unwrap();
             let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas =

@@ -6,7 +6,7 @@ use light_account_checks::AccountInfoTrait;
 
 use crate::{
     error::{LightSdkTypesError, Result},
-    CpiSigner,
+    CpiSigner, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, SOL_POOL_PDA,
 };
 
 #[derive(Debug, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -77,12 +77,30 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         }
     }
 
-    pub fn new_with_config(fee_payer: &'a T, accounts: &'a [T], config: CpiAccountsConfig) -> Self {
-        Self {
+    pub fn try_new_with_config(
+        fee_payer: &'a T,
+        accounts: &'a [T],
+        config: CpiAccountsConfig,
+    ) -> Result<Self> {
+        let res = Self {
             fee_payer,
             accounts,
             config,
+        };
+        if res.config().cpi_context {
+            let cpi_context = res.cpi_context()?;
+            let discriminator_bytes = &cpi_context.try_borrow_data()?[..8];
+            if discriminator_bytes != CPI_CONTEXT_ACCOUNT_DISCRIMINATOR.as_slice() {
+                solana_msg::msg!("Invalid CPI context account: {:?}", cpi_context.pubkey());
+                return Err(LightSdkTypesError::InvalidCpiContextAccount);
+            }
         }
+
+        if res.config().sol_pool_pda && res.sol_pool_pda()?.key() != SOL_POOL_PDA {
+            return Err(LightSdkTypesError::InvalidSolPoolPdaAccount);
+        }
+
+        Ok(res)
     }
 
     pub fn fee_payer(&self) -> &'a T {

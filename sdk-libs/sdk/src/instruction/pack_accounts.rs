@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Default, Debug)]
 pub struct PackedAccounts {
-    pre_accounts: Vec<AccountMeta>,
+    pub pre_accounts: Vec<AccountMeta>,
     system_accounts: Vec<AccountMeta>,
     next_index: u8,
     map: HashMap<Pubkey, (u8, AccountMeta)>,

@@ -1,13 +1,11 @@
 use anchor_lang::InstructionData;
-use light_client::indexer::CompressedTokenAccount;
+use light_client::indexer::{CompressedAccount, CompressedTokenAccount, IndexerRpcConfig};
 use light_compressed_token_sdk::{
     instructions::{
         batch_compress::{
             get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
         },
-        transfer::account_metas::{
-            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
-        },
+        CTokenDefaultAccounts,
     },
     token_pool::find_token_pool_pda_with_index,
     TokenAccountMeta, SPL_TOKEN_PROGRAM_ID,
@@ -15,7 +13,7 @@ use light_compressed_token_sdk::{
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,
-    instruction::{PackedAccounts, SystemAccountMetaConfig},
+    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
 };
 use light_test_utils::{
     spl::{create_mint_helper, create_token_account, mint_spl_tokens},
@@ -42,7 +40,7 @@ async fn test_deposit_compressed_account() {
 
     let recipients = vec![Recipient {
         pubkey: payer.pubkey(),
-        amount: 100_000,
+        amount: 100_000_000,
     }];
 
     // Execute batch compress (this will create mint, token account, and compress)
@@ -77,23 +75,23 @@ async fn test_deposit_compressed_account() {
     // Derive the address that will be created for deposit
     let address_tree_info = rpc.get_address_tree_v1();
     let (deposit_address, _) = derive_address(
-        &[b"deposit", payer.pubkey().to_bytes().as_ref()],
+        &[b"escrow", payer.pubkey().to_bytes().as_ref()],
         &address_tree_info.tree,
         &sdk_token_test::ID,
     );
 
     // Derive recipient PDA from the deposit address
-    let (recipient_pda, _) = Pubkey::find_program_address(
-        &[b"recipient", deposit_address.as_ref()],
-        &sdk_token_test::ID,
-    );
-
+    let (recipient_pda, recipient_bump) =
+        Pubkey::find_program_address(&[b"escrow", deposit_address.as_ref()], &sdk_token_test::ID);
+    println!("seeds: {:?}", b"escrow");
+    println!("seeds: {:?}", deposit_address);
+    println!("recipient_bump: {:?}", recipient_bump);
     // Create deposit instruction with the compressed token account
     create_deposit_compressed_account(
         &mut rpc,
         &payer,
         ctoken_account,
-        recipient_pda,
+        recipient_bump,
         deposit_amount,
     )
     .await
@@ -111,13 +109,49 @@ async fn test_deposit_compressed_account() {
     println!("Created compressed account: {:?}", compressed_account);
 
     println!("Deposit compressed account test completed successfully!");
+
+    let slot = rpc.get_slot().await.unwrap();
+
+    let deposit_account = rpc
+        .get_compressed_token_accounts_by_owner(
+            &payer.pubkey(),
+            None,
+            Some(IndexerRpcConfig {
+                slot,
+                ..Default::default()
+            }),
+        )
+        .await
+        .unwrap()
+        .value
+        .items[0]
+        .clone();
+    let escrow_token_account = rpc
+        .get_compressed_token_accounts_by_owner(&recipient_pda, None, None)
+        .await
+        .unwrap()
+        .value
+        .items[0]
+        .clone();
+
+    update_deposit_compressed_account(
+        &mut rpc,
+        &payer,
+        &deposit_account,
+        &escrow_token_account,
+        compressed_account,
+        recipient_bump,
+        deposit_amount,
+    )
+    .await
+    .unwrap();
 }
 
 async fn create_deposit_compressed_account(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     ctoken_account: &CompressedTokenAccount,
-    recipient: Pubkey,
+    recipient_bump: u8,
     amount: u64,
 ) -> Result<Signature, RpcError> {
     let tree_info = rpc.get_random_state_tree_info().unwrap();
@@ -126,11 +160,17 @@ async fn create_deposit_compressed_account(
     let mut remaining_accounts = PackedAccounts::default();
     // new_with_anchor_none is only recommended for pinocchio else additional account infos cost approx 1k CU
     // used here for consistentcy with into_account_infos_checked
-    let config = TokenAccountsMetaConfig::new_client();
-    let metas = get_transfer_instruction_account_metas(config);
-    println!("metas {:?}", metas);
-    println!("metas len() {}", metas.len());
-    remaining_accounts.add_pre_accounts_metas(metas.as_slice());
+    // let config = TokenAccountsMetaConfig::new_client();
+    // let metas = get_transfer_instruction_account_metas(config);
+    // remaining_accounts.add_pre_accounts_metas(metas);
+    // Alternative even though we pass fewer account infos this is minimally more efficient.
+    let default_pubkeys = CTokenDefaultAccounts::default();
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(
+        default_pubkeys.compressed_token_program,
+        false,
+    ));
+    remaining_accounts
+        .add_pre_accounts_meta(AccountMeta::new(default_pubkeys.cpi_authority_pda, false));
 
     let config = SystemAccountMetaConfig::new_with_cpi_context(
         sdk_token_test::ID,
@@ -141,7 +181,7 @@ async fn create_deposit_compressed_account(
     let address_tree_info = rpc.get_address_tree_v1();
 
     let (address, _) = derive_address(
-        &[b"deposit", payer.pubkey().to_bytes().as_ref()],
+        &[b"escrow", payer.pubkey().to_bytes().as_ref()],
         &address_tree_info.tree,
         &sdk_token_test::ID,
     );
@@ -201,8 +241,164 @@ async fn create_deposit_compressed_account(
             deposit_amount: amount,
             token_metas,
             mint,
-            recipient,
+            recipient_bump,
             system_accounts_start_offset,
+        }
+        .data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
+}
+
+async fn update_deposit_compressed_account(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    deposit_ctoken_account: &CompressedTokenAccount,
+    escrow_ctoken_account: &CompressedTokenAccount,
+    escrow_pda: CompressedAccount,
+    recipient_bump: u8,
+    amount: u64,
+) -> Result<Signature, RpcError> {
+    println!("deposit_ctoken_account {:?}", deposit_ctoken_account);
+    println!("escrow_ctoken_account {:?}", escrow_ctoken_account);
+    println!("escrow_pda {:?}", escrow_pda);
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![
+                escrow_pda.hash,
+                deposit_ctoken_account.account.hash,
+                escrow_ctoken_account.account.hash,
+            ],
+            vec![],
+            None,
+        )
+        .await?
+        .value;
+    let mut remaining_accounts = PackedAccounts::default();
+
+    let default_pubkeys = CTokenDefaultAccounts::default();
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(
+        default_pubkeys.compressed_token_program,
+        false,
+    ));
+    remaining_accounts
+        .add_pre_accounts_meta(AccountMeta::new(default_pubkeys.cpi_authority_pda, false));
+
+    let config = SystemAccountMetaConfig::new_with_cpi_context(
+        sdk_token_test::ID,
+        rpc_result.accounts[0].tree_info.cpi_context.unwrap(),
+    );
+    println!("pre accounts {:?}", remaining_accounts.pre_accounts);
+
+    println!("cpi_context {:?}", config);
+    remaining_accounts.add_system_accounts(config);
+    println!(
+        "rpc_result.accounts[0].tree_info.tree {:?}",
+        rpc_result.accounts[0].tree_info.tree.to_bytes()
+    );
+    println!(
+        "rpc_result.accounts[0].tree_info.queue {:?}",
+        rpc_result.accounts[0].tree_info.queue.to_bytes()
+    );
+    // We need to pack the tree after the cpi context.
+    let index = remaining_accounts.insert_or_get(rpc_result.accounts[0].tree_info.tree);
+    println!("index {}", index);
+    // Get mint from the compressed token account
+    let mint = deposit_ctoken_account.token.mint;
+    println!(
+        "ctoken_account.account.hash {:?}",
+        deposit_ctoken_account.account.hash
+    );
+    println!(
+        "deposit_ctoken_account.account {:?}",
+        deposit_ctoken_account.account
+    );
+    // Get validity proof for the compressed token account and new address
+    println!("rpc_result {:?}", rpc_result);
+
+    let packed_accounts = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    println!("packed_accounts {:?}", packed_accounts.state_trees);
+    // TODO: investigate why packed_tree_infos seem to be out of order
+    // Create token meta from compressed account
+    let mut tree_info = packed_accounts
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[2];
+    tree_info.leaf_index = 3;
+    let depositing_token_metas = vec![TokenAccountMeta {
+        amount: deposit_ctoken_account.token.amount,
+        delegate_index: None,
+        packed_tree_info: tree_info,
+        lamports: None,
+        tlv: None,
+    }];
+    println!("depositing_token_metas {:?}", depositing_token_metas);
+    let mut tree_info = packed_accounts
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[1];
+    tree_info.leaf_index = 2;
+    let escrowed_token_meta = TokenAccountMeta {
+        amount: escrow_ctoken_account.token.amount,
+        delegate_index: None,
+        packed_tree_info: tree_info,
+        lamports: None,
+        tlv: None,
+    };
+    println!("escrowed_token_meta {:?}", escrowed_token_meta);
+
+    let (remaining_accounts, system_accounts_start_offset, _packed_accounts_start_offset) =
+        remaining_accounts.to_account_metas();
+    let system_accounts_start_offset = system_accounts_start_offset as u8;
+    println!("remaining_accounts {:?}", remaining_accounts);
+
+    let mut tree_info = packed_accounts
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[0];
+    tree_info.leaf_index = 1;
+    let account_meta = CompressedAccountMeta {
+        tree_info,
+        address: escrow_pda.address.unwrap(),
+        output_state_tree_index: packed_accounts
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .output_tree_index,
+    };
+
+    let instruction = Instruction {
+        program_id: sdk_token_test::ID,
+        accounts: [
+            vec![
+                AccountMeta::new(payer.pubkey(), true),
+                AccountMeta::new_readonly(escrow_ctoken_account.token.owner, false),
+            ],
+            remaining_accounts,
+        ]
+        .concat(),
+        data: sdk_token_test::instruction::UpdateDeposit {
+            proof: rpc_result.proof,
+            output_tree_index: packed_accounts
+                .state_trees
+                .as_ref()
+                .unwrap()
+                .packed_tree_infos[0]
+                .merkle_tree_pubkey_index,
+            output_tree_queue_index: packed_accounts.state_trees.unwrap().packed_tree_infos[0]
+                .queue_pubkey_index,
+            deposit_amount: amount,
+            depositing_token_metas,
+            escrowed_token_meta,
+            account_meta,
+            mint,
+            recipient_bump,
+            system_accounts_start_offset,
+            existing_amount: amount,
         }
         .data(),
     };

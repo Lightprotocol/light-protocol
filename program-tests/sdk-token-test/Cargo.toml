@@ -26,6 +26,7 @@ light-sdk = { workspace = true }
 light-sdk-types = { workspace = true }
 light-compressed-account = { workspace = true }
 arrayvec = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }

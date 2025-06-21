@@ -10,7 +10,9 @@ mod process_compress_tokens;
 mod process_create_compressed_account;
 mod process_decompress_tokens;
 mod process_transfer_tokens;
+mod process_update_depost;
 
+use light_sdk::{cpi::CpiAccounts, instruction::account_meta::CompressedAccountMeta};
 use process_batch_compress_tokens::process_batch_compress_tokens;
 use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
@@ -26,10 +28,14 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 #[program]
 pub mod sdk_token_test {
-    use light_sdk::cpi::CpiAccounts;
+    use anchor_lang::solana_program::pubkey;
+    use light_sdk::address::v1::derive_address;
     use light_sdk_types::CpiAccountsConfig;
 
-    use crate::process_create_compressed_account::deposit_tokens;
+    use crate::{
+        process_create_compressed_account::deposit_tokens,
+        process_update_depost::{deposit_additional_tokens, process_update_escrow_pda},
+    };
 
     use super::*;
 
@@ -88,8 +94,8 @@ pub mod sdk_token_test {
         deposit_amount: u64,
         token_metas: Vec<TokenAccountMeta>,
         mint: Pubkey,
-        recipient: Pubkey,
         system_accounts_start_offset: u8,
+        recipient_bump: u8,
     ) -> Result<()> {
         // It makes sense to parse accounts once.
         let config = CpiAccountsConfig {
@@ -100,15 +106,34 @@ pub mod sdk_token_test {
             sol_pool_pda: false,
             sol_compression_recipient: false,
         };
-        let (token_account_infos, system_account_infos) = ctx
+        let (_, system_account_infos) = ctx
             .remaining_accounts
             .split_at(system_accounts_start_offset as usize);
         // Could add with pre account infos Option<u8>
-        let light_cpi_accounts = CpiAccounts::new_with_config(
+        let light_cpi_accounts = CpiAccounts::try_new_with_config(
             ctx.accounts.signer.as_ref(),
             system_account_infos,
             config,
+        )
+        .unwrap();
+        let (address, address_seed) = derive_address(
+            &[
+                b"escrow",
+                light_cpi_accounts.fee_payer().key.to_bytes().as_ref(),
+            ],
+            &address_tree_info
+                .get_tree_pubkey(&light_cpi_accounts)
+                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?,
+            &crate::ID,
         );
+        msg!("seeds: {:?}", b"escrow");
+        msg!("seeds: {:?}", address);
+        msg!("recipient_bump: {:?}", recipient_bump);
+        let recipient = Pubkey::create_program_address(
+            &[b"escrow", &address, &[recipient_bump]],
+            ctx.program_id,
+        )
+        .unwrap();
         deposit_tokens(
             &light_cpi_accounts,
             token_metas,
@@ -116,13 +141,88 @@ pub mod sdk_token_test {
             mint,
             recipient,
             deposit_amount,
-            token_account_infos,
+            ctx.remaining_accounts,
         )?;
+        let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
+
         process_create_compressed_account(
             light_cpi_accounts,
             proof,
-            address_tree_info,
             output_tree_index,
+            deposit_amount,
+            address,
+            new_address_params,
+        )
+    }
+
+    pub fn update_deposit<'info>(
+        ctx: Context<'_, '_, '_, 'info, GenericWithAuthority<'info>>,
+        proof: LightValidityProof,
+        output_tree_index: u8,
+        output_tree_queue_index: u8,
+        deposit_amount: u64,
+        depositing_token_metas: Vec<TokenAccountMeta>,
+        mint: Pubkey,
+        escrowed_token_meta: TokenAccountMeta,
+        system_accounts_start_offset: u8,
+        account_meta: CompressedAccountMeta,
+        existing_amount: u64,
+        recipient_bump: u8,
+    ) -> Result<()> {
+        // It makes sense to parse accounts once.
+        let config = CpiAccountsConfig {
+            cpi_signer: crate::LIGHT_CPI_SIGNER,
+            // TODO: add sanity check that account is a cpi context account.
+            cpi_context: true,
+            // TODO: add sanity check that account is a sol_pool_pda account.
+            sol_pool_pda: false,
+            sol_compression_recipient: false,
+        };
+        msg!(
+            "crate::LIGHT_CPI_SIGNER, {:?}",
+            anchor_lang::prelude::Pubkey::new_from_array(crate::LIGHT_CPI_SIGNER.cpi_signer)
+        );
+        msg!(
+            "system_accounts_start_offset {}",
+            system_accounts_start_offset
+        );
+        let (token_account_infos, system_account_infos) = ctx
+            .remaining_accounts
+            .split_at(system_accounts_start_offset as usize);
+        msg!("token_account_infos: {:?}", token_account_infos);
+        msg!("system_account_infos: {:?}", system_account_infos);
+        // TODO: figure out why the offsets are wrong.
+        // Could add with pre account infos Option<u8>
+        let light_cpi_accounts = CpiAccounts::try_new_with_config(
+            ctx.accounts.signer.as_ref(),
+            system_account_infos,
+            config,
+        )
+        .unwrap();
+        msg!(
+            "light_cpi_accounts {:?}",
+            light_cpi_accounts.authority().unwrap()
+        );
+        let recipient = ctx.accounts.authority.key();
+        deposit_additional_tokens(
+            &light_cpi_accounts,
+            depositing_token_metas,
+            escrowed_token_meta,
+            output_tree_index,
+            output_tree_queue_index,
+            mint,
+            recipient,
+            recipient_bump,
+            deposit_amount,
+            account_meta.address,
+            ctx.remaining_accounts,
+            ctx.accounts.authority.to_account_info(),
+        )?;
+        process_update_escrow_pda(
+            light_cpi_accounts,
+            account_meta,
+            proof,
+            existing_amount,
             deposit_amount,
         )
     }
@@ -133,4 +233,12 @@ pub struct Generic<'info> {
     // fee payer and authority are the same
     #[account(mut)]
     pub signer: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct GenericWithAuthority<'info> {
+    // fee payer and authority are the same
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    pub authority: AccountInfo<'info>,
 }
