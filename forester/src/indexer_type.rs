@@ -48,11 +48,7 @@ pub trait IndexerType<R: Rpc>: Indexer + sealed::Sealed {
 
     fn handle_address_bundle(&mut self, new_merkle_tree: &Keypair, new_queue: &Keypair);
 
-    async fn finalize_batch_address_tree_update(
-        &mut self,
-        rpc: &mut R,
-        new_merkle_tree_pubkey: Pubkey,
-    );
+    async fn finalize_batch_address_tree_update(&mut self, rpc: &R, new_merkle_tree_pubkey: Pubkey);
 
     async fn update_test_indexer_after_nullification(
         &mut self,
@@ -101,11 +97,7 @@ impl<R: Rpc> IndexerType<R> for TestIndexer {
         self.add_address_merkle_tree_accounts(new_merkle_tree, new_queue, None);
     }
 
-    async fn finalize_batch_address_tree_update(
-        &mut self,
-        rpc: &mut R,
-        merkle_tree_pubkey: Pubkey,
-    ) {
+    async fn finalize_batch_address_tree_update(&mut self, rpc: &R, merkle_tree_pubkey: Pubkey) {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         self.finalize_batched_address_tree_update(merkle_tree_pubkey, account.data.as_mut_slice())
             .await;
@@ -252,7 +244,7 @@ impl<R: Rpc> IndexerType<R> for PhotonIndexer {
 
     async fn finalize_batch_address_tree_update(
         &mut self,
-        _rpc: &mut R,
+        _rpc: &R,
         _new_merkle_tree_pubkey: Pubkey,
     ) {
         // No-op for production indexer
@@ -345,7 +337,7 @@ pub async fn rollover_address_merkle_tree<R: Rpc, I: IndexerType<R>>(
 }
 
 pub async fn finalize_batch_address_tree_update<R: Rpc, I: IndexerType<R>>(
-    rpc: &mut R,
+    rpc: &R,
     indexer: Arc<Mutex<I>>,
     new_merkle_tree_pubkey: Pubkey,
 ) -> Result<(), ForesterError> {
