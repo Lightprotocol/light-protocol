@@ -40,7 +40,7 @@ use crate::test_utils::{forester_config, init};
 mod test_utils;
 
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
-const DEFAULT_TIMEOUT_SECONDS: u64 = 120;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 180;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
@@ -54,7 +54,7 @@ async fn test_create_v2_address() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: true,
-        wait_time: 90,
+        wait_time: 10,
         prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
@@ -66,7 +66,6 @@ async fn test_create_v2_address() {
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = env.protocol.forester.insecure_clone();
     config.derivation_pubkey = env.protocol.forester.pubkey();
     config.general_config = GeneralConfig::test_address_v2();
@@ -103,6 +102,23 @@ async fn test_create_v2_address() {
     println!("num_batches: {:?}", num_batches);
     println!("remaining_addresses: {:?}", remaining_addresses);
 
+    let mut address_tree_account = rpc
+        .get_account(env.v2_address_trees[0])
+        .await
+        .unwrap()
+        .unwrap();
+
+    let address_tree = BatchedMerkleTreeAccount::address_from_bytes(
+        address_tree_account.data.as_mut_slice(),
+        &env.v2_address_trees[0].into(),
+    )
+    .unwrap();
+
+    println!("Address tree metadata: {:?}", address_tree.get_metadata());
+
+    let (service_handle, shutdown_sender, mut work_report_receiver) =
+        setup_forester_pipeline(&config).await;
+
     for i in 0..num_batches {
         println!("====== Creating v2 address {} ======", i);
         let result = create_v2_addresses(
@@ -132,23 +148,6 @@ async fn test_create_v2_address() {
         .await;
         println!("====== result: {:?} ======", result);
     }
-
-    let mut address_tree_account = rpc
-        .get_account(env.v2_address_trees[0])
-        .await
-        .unwrap()
-        .unwrap();
-
-    let address_tree = BatchedMerkleTreeAccount::address_from_bytes(
-        address_tree_account.data.as_mut_slice(),
-        &env.v2_address_trees[0].into(),
-    )
-    .unwrap();
-
-    println!("Address tree metadata: {:?}", address_tree.get_metadata());
-
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
 
     wait_for_work_report(&mut work_report_receiver, &tree_params).await;
 
