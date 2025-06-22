@@ -1,3 +1,5 @@
+use std::{pin::Pin, sync::Arc, time::Duration};
+
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
 use futures::{future, Stream};
@@ -17,29 +19,28 @@ use light_prover_client::{
     },
 };
 use light_sparse_merkle_tree::SparseMerkleTree;
-use std::{pin::Pin, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
-use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
+use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
 
-pub struct AddressUpdateConfig<'a, R, I>
+pub struct AddressUpdateConfig<R, I>
 where
-    R: Rpc + Send + Sync + 'a,
-    I: Indexer + Send + 'a,
+    R: Rpc + Send + Sync,
+    I: Indexer + Send,
 {
-    pub rpc: &'a R,
+    pub rpc_pool: Arc<SolanaRpcPool<R>>,
     pub indexer: Arc<Mutex<I>>,
-    pub merkle_tree_pubkey: &'a Pubkey,
+    pub merkle_tree_pubkey: Pubkey,
     pub prover_url: String,
     pub polling_interval: Duration,
     pub max_wait_time: Duration,
 }
 
 pub async fn get_address_update_stream<'a, R, I>(
-    config: AddressUpdateConfig<'a, R, I>,
+    config: AddressUpdateConfig<R, I>,
 ) -> Result<
     (
         Pin<
@@ -59,16 +60,17 @@ where
 {
     info!("Fetching on-chain state to initialize address update stream");
 
-    let mut merkle_tree_account = config
-        .rpc
-        .get_account(*config.merkle_tree_pubkey)
+    let rpc = config.rpc_pool.get_connection().await?;
+
+    let mut merkle_tree_account = rpc
+        .get_account(config.merkle_tree_pubkey)
         .await?
         .ok_or_else(|| ForesterUtilsError::Rpc("Merkle tree account not found".into()))?;
 
     let (leaves_hash_chains, start_index, current_root, zkp_batch_size) = {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
-            &(*config.merkle_tree_pubkey).into(),
+            &config.merkle_tree_pubkey.into(),
         )
         .map_err(|e| {
             ForesterUtilsError::AccountZeroCopy(format!("Failed to parse merkle tree: {}", e))
@@ -101,10 +103,14 @@ where
         return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
     }
 
-    wait_for_indexer(config.rpc, &mut *config.indexer.lock().await).await?;
+    wait_for_indexer(&*rpc, &*config.indexer.lock().await).await?;
 
     let stream = stream_instruction_data(
-        config,
+        config.indexer,
+        config.merkle_tree_pubkey,
+        config.prover_url,
+        config.polling_interval,
+        config.max_wait_time,
         leaves_hash_chains,
         start_index,
         zkp_batch_size,
@@ -114,24 +120,27 @@ where
     Ok((Box::pin(stream), zkp_batch_size))
 }
 
-fn stream_instruction_data<'a, R, I>(
-    config: AddressUpdateConfig<'a, R, I>,
+#[allow(clippy::too_many_arguments)]
+fn stream_instruction_data<'a, I>(
+    indexer: Arc<Mutex<I>>,
+    merkle_tree_pubkey: Pubkey,
+    prover_url: String,
+    polling_interval: Duration,
+    max_wait_time: Duration,
     leaves_hash_chains: Vec<[u8; 32]>,
     start_index: u64,
     zkp_batch_size: u16,
     mut current_root: [u8; 32],
 ) -> impl Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>> + Send + 'a
 where
-    R: Rpc + Send + Sync + 'a,
     I: Indexer + Send + 'a,
 {
     stream! {
-        let proof_client = ProofClient::with_config(config.prover_url, config.polling_interval, config.max_wait_time);
+        let proof_client = ProofClient::with_config(prover_url, polling_interval, max_wait_time);
         let max_zkp_batches_per_call = calculate_max_zkp_batches_per_call(zkp_batch_size);
-        let total_chunks = (leaves_hash_chains.len() + max_zkp_batches_per_call - 1) / max_zkp_batches_per_call;
-
+        let total_chunks = leaves_hash_chains.len().div_ceil(max_zkp_batches_per_call);
         for chunk_idx in 0..total_chunks {
-            let mut indexer_guard = config.indexer.lock().await;
+            let mut indexer_guard = indexer.lock().await;
             let chunk_start = chunk_idx * max_zkp_batches_per_call;
             let chunk_end = std::cmp::min(chunk_start + max_zkp_batches_per_call, leaves_hash_chains.len());
             let chunk_hash_chains = &leaves_hash_chains[chunk_start..chunk_end];
@@ -141,7 +150,7 @@ where
 
             let indexer_update_info = match indexer_guard
                 .get_address_queue_with_proofs(
-                    config.merkle_tree_pubkey,
+                    &merkle_tree_pubkey,
                     elements_for_chunk as u16,
                     Some(processed_items_offset as u64),
                     None,

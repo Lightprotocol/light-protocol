@@ -7,10 +7,10 @@ use forester::{
     ForesterConfig,
 };
 use forester_utils::forester_epoch::get_epoch_phases;
-use light_client::rpc::{LightClient, Rpc};
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, Indexer, NewAddressProofWithContext},
     local_test_validator::{spawn_validator, LightValidatorConfig},
+    rpc::{LightClient, Rpc},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
 use light_registry::{

@@ -2,10 +2,11 @@ mod address;
 mod common;
 mod state;
 
-use crate::Result;
 use common::BatchProcessor;
 use light_client::rpc::Rpc;
 use tracing::{instrument, trace};
+
+use crate::Result;
 
 #[instrument(
     level = "debug",
@@ -16,7 +17,7 @@ use tracing::{instrument, trace};
     ),
     skip(context)
 )]
-pub async fn process_batched_operations<R: Rpc, I: Indexer + IndexerType<R>>(
+pub async fn process_batched_operations<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
     context: BatchContext<R, I>,
     tree_type: TreeType,
 ) -> Result<usize> {
