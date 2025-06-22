@@ -40,7 +40,6 @@ use crate::{
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
-    indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     processor::{
@@ -53,7 +52,9 @@ use crate::{
         v2::{process_batched_operations, BatchContext},
     },
     queue_helpers::QueueItemData,
-    rollover::is_tree_ready_for_rollover,
+    rollover::{
+        is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
+    },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
     tree_data_sync::fetch_trees,
     tree_finder::TreeFinder,
@@ -89,7 +90,7 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: Rpc, I: Indexer> {
+pub struct EpochManager<R: Rpc, I: Indexer + 'static> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -123,7 +124,7 @@ impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
+impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -699,10 +700,14 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         &self,
         epoch_info: &ForesterEpochInfo,
     ) -> Result<ForesterEpochInfo> {
-        info!("Waiting for active phase");
-
         let mut rpc = self.rpc_pool.get_connection().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
+        let waiting_slots = active_phase_start_slot - self.slot_tracker.estimated_current_slot();
+        let waiting_secs = waiting_slots / 2;
+        info!("Waiting for active phase to start. Current slot: {}. Active phase start slot: {}. Waiting time: ~ {} seconds",
+            self.slot_tracker.estimated_current_slot(),
+            active_phase_start_slot,
+            waiting_secs);
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
@@ -990,11 +995,13 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                     break 'inner_processing_loop;
                 }
             };
+            if items_processed_this_iteration > 0 {
+                debug!(
+                    "Processed {} items in slot {:?}",
+                    items_processed_this_iteration, forester_slot_details.slot
+                );
+            }
 
-            debug!(
-                "Processed {} items in slot {:?}",
-                items_processed_this_iteration, forester_slot_details.slot
-            );
             self.update_metrics_and_counts(
                 epoch_info.epoch,
                 items_processed_this_iteration,
@@ -1305,7 +1312,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 rollover_address_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
-                    self.indexer.clone(),
                     tree_account,
                     current_epoch,
                 )
@@ -1315,7 +1321,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 rollover_state_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
-                    self.indexer.clone(),
                     tree_account,
                     current_epoch,
                 )
@@ -1363,7 +1368,7 @@ fn calculate_remaining_time_or_default(
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
+pub async fn run_service<R: Rpc, I: Indexer + 'static>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,

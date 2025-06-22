@@ -90,9 +90,9 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc, I: Indexer>(
     };
 
     let indexer_guard = indexer.lock().await;
-    let mut rpc = pool.get_connection().await?;
+    let rpc = pool.get_connection().await?;
 
-    if let Err(e) = wait_for_indexer(&mut *rpc, &*indexer_guard).await {
+    if let Err(e) = wait_for_indexer(&*rpc, &*indexer_guard).await {
         warn!("Indexer not fully caught up, but proceeding anyway: {}", e);
     }
 
