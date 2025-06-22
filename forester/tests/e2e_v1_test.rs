@@ -32,7 +32,7 @@ use test_utils::*;
 
 #[serial]
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
-async fn test_epoch_monitor_with_2_foresters() {
+async fn test_e2e_v1() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 90,

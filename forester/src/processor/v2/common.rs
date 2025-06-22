@@ -16,10 +16,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use super::{address, state};
-use crate::{
-    errors::ForesterError, indexer_type::IndexerType, processor::tx_cache::ProcessedHashCache,
-    Result,
-};
+use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, Result};
 
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc, I: Indexer> {
@@ -37,11 +34,10 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
-pub(crate) async fn process_stream<R, I, S, D, FutC, FutF>(
+pub(crate) async fn process_stream<R, I, S, D, FutC>(
     context: &BatchContext<R, I>,
     stream_creator_future: FutC,
     instruction_builder: impl Fn(&D) -> Instruction,
-    finalizer_future: FutF,
 ) -> Result<usize>
 where
     R: Rpc,
@@ -49,7 +45,6 @@ where
     S: Stream<Item = Result<D>> + Send,
     D: BorshSerialize,
     FutC: Future<Output = Result<(S, u16)>> + Send,
-    FutF: Future<Output = Result<()>> + Send,
 {
     trace!("Executing generic stream processor");
 
@@ -92,8 +87,6 @@ where
         return Ok(0);
     }
 
-    finalizer_future.await?;
-
     let total_items_processed = total_instructions_processed * zkp_batch_size as usize;
     info!(
         "Stream processing complete. Processed {} total items.",
@@ -129,12 +122,12 @@ pub enum BatchReadyState {
 }
 
 #[derive(Debug)]
-pub struct BatchProcessor<R: Rpc, I: Indexer + IndexerType<R>> {
+pub struct BatchProcessor<R: Rpc, I: Indexer> {
     context: BatchContext<R, I>,
     tree_type: TreeType,
 }
 
-impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> BatchProcessor<R, I> {
+impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
     pub fn new(context: BatchContext<R, I>, tree_type: TreeType) -> Self {
         Self { context, tree_type }
     }

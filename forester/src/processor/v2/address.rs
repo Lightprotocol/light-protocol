@@ -12,10 +12,7 @@ use solana_sdk::signer::Signer;
 use tracing::instrument;
 
 use super::common::{process_stream, BatchContext};
-use crate::{
-    indexer_type::{finalize_batch_address_tree_update, IndexerType},
-    Result,
-};
+use crate::Result;
 
 async fn create_stream_future<R, I>(
     ctx: &BatchContext<R, I>,
@@ -25,7 +22,7 @@ async fn create_stream_future<R, I>(
 )>
 where
     R: Rpc,
-    I: Indexer + IndexerType<R> + 'static,
+    I: Indexer + 'static,
 {
     let config = AddressUpdateConfig {
         rpc_pool: ctx.rpc_pool.clone(),
@@ -42,19 +39,8 @@ where
     Ok((stream, size))
 }
 
-async fn create_finalizer_future<R, I>(ctx: &BatchContext<R, I>) -> Result<()>
-where
-    R: Rpc,
-    I: Indexer + IndexerType<R> + 'static,
-{
-    let rpc = ctx.rpc_pool.get_connection().await?;
-    finalize_batch_address_tree_update(&*rpc, ctx.indexer.clone(), ctx.merkle_tree)
-        .await
-        .map_err(Error::from)
-}
-
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
-pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
+pub(crate) async fn process_batch<R: Rpc, I: Indexer + 'static>(
     context: &BatchContext<R, I>,
 ) -> Result<usize> {
     let instruction_builder = |data: &InstructionDataAddressAppendInputs| -> Instruction {
@@ -69,13 +55,5 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + IndexerType<R> + 'static>
     };
 
     let stream_future = create_stream_future(context);
-    let finalizer_future = create_finalizer_future(context);
-
-    process_stream(
-        context,
-        stream_future,
-        instruction_builder,
-        finalizer_future,
-    )
-    .await
+    process_stream(context, stream_future, instruction_builder).await
 }
