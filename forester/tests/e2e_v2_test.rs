@@ -431,17 +431,17 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
         .await;
         println!("{} v2 token transfer: {:?}", i, batch_transfer_token_sig);
 
-        let sig_v1_addr = create_v1_address(
-            rpc,
-            indexer,
-            rng,
-            &env.v1_address_trees[0].merkle_tree,
-            &env.v1_address_trees[0].queue,
-            legacy_payer,
-            address_v1_counter,
-        )
-        .await;
-        println!("{} v1 address create: {:?}", i, sig_v1_addr);
+        // let sig_v1_addr = create_v1_address(
+        //     rpc,
+        //     indexer,
+        //     rng,
+        //     &env.v1_address_trees[0].merkle_tree,
+        //     &env.v1_address_trees[0].queue,
+        //     legacy_payer,
+        //     address_v1_counter,
+        // )
+        // .await;
+        // println!("{} v1 address create: {:?}", i, sig_v1_addr);
 
         let sig_v2_addr = create_v2_addresses(
             rpc,
