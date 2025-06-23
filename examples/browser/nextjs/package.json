@@ -15,7 +15,7 @@
         "@lightprotocol/compressed-token": "workspace:*",
         "@lightprotocol/stateless.js": "workspace:*",
         "@solana/wallet-adapter-base": "^0.9.26",
-        "@solana/wallet-adapter-react": "^0.15.38",
+        "@solana/wallet-adapter-react": "^0.15.39",
         "@solana/wallet-adapter-react-ui": "^0.9.39",
         "@solana/wallet-adapter-unsafe-burner": "^0.1.10",
         "@solana/web3.js": "1.98.0",
