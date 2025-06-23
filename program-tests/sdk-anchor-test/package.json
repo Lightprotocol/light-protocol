@@ -12,7 +12,7 @@
     "mocha": "^11.5.0",
     "ts-mocha": "^11.1.0",
     "@types/bn.js": "^5.2.0",
-    "@types/chai": "^5.0.1",
+    "@types/chai": "^5.2.2",
     "@types/mocha": "^10.0.7",
     "typescript": "^5.8.3",
     "prettier": "^3.4.2"
