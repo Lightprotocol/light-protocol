@@ -157,7 +157,7 @@ fn transfer_tokens_to_escrow_pda<'info>(
             .unwrap(),
     )
     .unwrap();
-    // SAFETY: state trees are height 32
+    // SAFETY: state trees are height 32 -> as u32 will always succeed
     let leaf_index = output_queue.batch_metadata.next_index as u32 + 1;
 
     let escrow_token_account_meta_2 = TokenAccountMeta {
