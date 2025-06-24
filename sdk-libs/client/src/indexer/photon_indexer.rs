@@ -1191,7 +1191,7 @@ impl Indexer for PhotonIndexer {
                         merkle_tree: Pubkey::from_str_const(x.merkle_tree.as_str()),
                         proof,
                         root_seq: x.root_seq,
-                        root: [0u8; 32],
+                        root: <[u8; 32] as Base58Conversions>::from_base58(&x.root)?,
                     })
                 })
                 .collect::<Result<Vec<MerkleProof>, IndexerError>>()?;
