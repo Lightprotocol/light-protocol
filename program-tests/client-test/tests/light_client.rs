@@ -1,15 +1,18 @@
 use light_client::{
     indexer::{
-        AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer,
-        IndexerRpcConfig, PaginatedOptions, RetryConfig,
+        AccountProofInputs, AddressProofInputs, AddressWithTree,
+        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerRpcConfig,
+        MerkleProof, PaginatedOptions, RetryConfig, RootIndex, TreeInfo, ValidityProofWithContext,
     },
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig},
 };
-use light_compressed_account::hash_to_bn254_field_size_be;
+use light_compressed_account::{hash_to_bn254_field_size_be, TreeType};
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
+use light_hasher::Poseidon;
+use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::ProverConfig;
 use light_sdk::{
@@ -66,6 +69,7 @@ async fn test_all_endpoints() {
         .await
         .unwrap();
     let mt = test_accounts.v1_state_trees[0].merkle_tree;
+    let _address_mt = test_accounts.v1_address_trees[0].merkle_tree;
 
     let lamports = LAMPORTS_PER_SOL / 2;
     let lamports_1 = LAMPORTS_PER_SOL / 2 + 1;
@@ -109,11 +113,20 @@ async fn test_all_endpoints() {
     };
 
     let account_hashes: Vec<Hash> = initial_accounts.items.iter().map(|a| a.hash).collect();
+    let mut reference_tree = MerkleTree::<Poseidon>::new(26, 10);
+    for hash in &account_hashes {
+        reference_tree.append(hash).unwrap();
+    }
     let account_addresses: Vec<Hash> = initial_accounts
         .items
         .iter()
         .map(|a| a.address.unwrap())
         .collect();
+
+    // Create reference address tree and add the addresses
+    let _reference_address_tree = IndexedMerkleTree::<Poseidon, usize>::new(26, 10).unwrap();
+
+    // Don't add the test address to the reference tree since we want non-inclusion proof
 
     // 2. get_multiple_compressed_accounts
     let accounts = rpc
@@ -158,6 +171,53 @@ async fn test_all_endpoints() {
             .value;
         assert_eq!(result.accounts.len(), account_hashes.len());
         assert_eq!(result.addresses.len(), new_addresses.len());
+
+        println!("account_proof {:?}", result);
+
+        // Build expected ValidityProofWithContext using reference tree
+        let expected_result = ValidityProofWithContext {
+            proof: result.proof, // Keep the actual proof as-is
+            accounts: account_hashes
+                .iter()
+                .enumerate()
+                .map(|(i, &hash)| AccountProofInputs {
+                    hash,
+                    root: reference_tree.root(),
+                    root_index: RootIndex::new_some(2),
+                    leaf_index: i as u64,
+                    tree_info: TreeInfo {
+                        cpi_context: None,
+                        next_tree_info: None,
+                        queue: test_accounts.v1_state_trees[0].nullifier_queue,
+                        tree: mt,
+                        tree_type: TreeType::StateV1,
+                    },
+                })
+                .collect(),
+            addresses: new_addresses
+                .iter()
+                .enumerate()
+                .map(|(i, addr_with_tree)| {
+                    // TODO: enable once photon bug is fixed
+                    // let address_bigint = BigUint::from_bytes_be(&addr_with_tree.address);
+                    // let non_inclusion_proof = reference_address_tree.get_non_inclusion_proof(&address_bigint).unwrap();
+                    AddressProofInputs {
+                        address: addr_with_tree.address,
+                        root: result.addresses[i].root,
+                        root_index: 3,
+                        tree_info: TreeInfo {
+                            cpi_context: None,
+                            next_tree_info: None,
+                            queue: test_accounts.v1_address_trees[0].queue,
+                            tree: addr_with_tree.tree,
+                            tree_type: TreeType::AddressV1,
+                        },
+                    }
+                })
+                .collect(),
+        };
+
+        assert_eq!(result, expected_result);
     }
     // 4. get_compressed_account
     let first_account = rpc
@@ -252,21 +312,62 @@ async fn test_all_endpoints() {
         assert!(!proofs.items.is_empty());
         assert_eq!(proofs.items[0].hash, account_hashes[0]);
 
+        // Build expected Vec<MerkleProof> using reference tree
+        let expected_proofs: Vec<MerkleProof> = account_hashes
+            .iter()
+            .enumerate()
+            .map(|(i, &hash)| {
+                let expected_proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
+                MerkleProof {
+                    hash,
+                    leaf_index: i as u64,
+                    merkle_tree: mt,
+                    proof: expected_proof,
+                    root_seq: 2,
+                    root: reference_tree.root(),
+                }
+            })
+            .collect();
+
+        assert_eq!(proofs.items, expected_proofs);
+
         // 12. get_multiple_new_address_proofs
         let addresses = vec![address];
         let new_address_proofs = rpc
             .get_multiple_new_address_proofs(
                 test_accounts.v1_address_trees[0].merkle_tree.to_bytes(),
-                addresses,
+                addresses.clone(),
                 None,
             )
             .await
             .unwrap();
         assert!(!new_address_proofs.value.items.is_empty());
-        assert_eq!(
-            new_address_proofs.value.items[0].merkle_tree.to_bytes(),
-            test_accounts.v1_address_trees[0].merkle_tree.to_bytes()
-        );
+        // TODO: update once photon is ready
+        // Build expected Vec<NewAddressProofWithContext> using reference address tree
+        // let expected_address_proofs: Vec<NewAddressProofWithContext> = addresses
+        //     .iter()
+        //     .map(|&addr| {
+        //         let address_bigint = BigUint::from_bytes_be(&addr);
+        //         let non_inclusion_proof = reference_address_tree
+        //             .get_non_inclusion_proof(&address_bigint)
+        //             .unwrap();
+
+        //         NewAddressProofWithContext {
+        //             merkle_tree: address_mt,
+        //             root: non_inclusion_proof.root,
+        //             root_seq: 3,
+        //             low_address_index: non_inclusion_proof.leaf_index as u64,
+        //             low_address_value: non_inclusion_proof.leaf_lower_range_value,
+        //             low_address_next_index: non_inclusion_proof.next_index as u64,
+        //             low_address_next_value: non_inclusion_proof.leaf_higher_range_value,
+        //             low_address_proof: non_inclusion_proof.merkle_proof,
+        //             new_low_element: None,
+        //             new_element: None,
+        //             new_element_next_value: None,
+        //         }
+        //     })
+        //     .collect();
+        assert_eq!(new_address_proofs.value.items.len(), 1);
     }
 
     test_token_api(&rpc, &test_accounts).await;

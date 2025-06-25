@@ -25,9 +25,12 @@ light-zero-copy = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 light-compressed-token = { workspace = true }
+light-indexed-array = { workspace = true }
+light-merkle-tree-reference = { workspace = true }
 
 tokio = { workspace = true }
 rand = { workspace = true }
+num-bigint = { workspace = true }
 
 solana-sdk = { workspace = true }
 spl-token = { workspace = true }

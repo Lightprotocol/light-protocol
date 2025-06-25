@@ -1236,6 +1236,8 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-hasher",
+ "light-indexed-array",
+ "light-merkle-tree-reference",
  "light-program-test",
  "light-prover-client",
  "light-sdk",
@@ -1243,6 +1245,7 @@ dependencies = [
  "light-sdk-types",
  "light-test-utils",
  "light-zero-copy",
+ "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-account",
  "solana-account-decoder-client-types",
@@ -3287,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
