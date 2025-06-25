@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
