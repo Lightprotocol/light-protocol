@@ -422,8 +422,21 @@ main() {
                 ;;
             *)
                 echo "Unknown option: $1"
-                echo "Usage: $0 [--full-keys] [--no-reset] [--skip-components <comma-separated-list>] [--force-reinstall]"
-                echo "Components that can be skipped: go,rust,node,pnpm,solana,anchor,jq,photon,keys,dependencies,redis"
+                echo "------------------------------------------------"
+                echo "Usage: $0 [OPTIONS]"
+                echo "Options:"
+                echo "  --full-keys             Download full set of keys for production use"
+                echo "  --no-reset              Don't reset installation log"
+                echo "  --skip-components LIST   Skip installation of specified components"
+                echo "  --force-reinstall       Force reinstall of all components"
+                echo ""
+                echo "LIST is a comma-separated list of components:"
+                echo "  go,rust,node,pnpm,solana,anchor,jq,photon,keys,dependencies,redis"
+                echo ""
+                echo "Examples:"
+                echo "  $0 --full-keys          # Install with full production keys"
+                echo "  $0 --skip-components redis,keys,go  # Skip Redis, keys and Go installation"
+                echo "------------------------------------------------"
                 exit 1
                 ;;
         esac
