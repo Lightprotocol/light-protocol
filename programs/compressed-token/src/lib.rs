@@ -18,8 +18,10 @@ pub use burn::*;
 pub mod batch_compress;
 pub mod create_mint;
 pub mod process_create_compressed_mint;
+pub mod process_create_spl_mint;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 pub use process_create_compressed_mint::*;
+pub use process_create_spl_mint::*;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -83,6 +85,28 @@ pub mod light_compressed_token {
             None,
             None,
             Some(compressed_mint_inputs),
+        )
+    }
+
+    /// Creates a Token-2022 mint account that corresponds to a compressed mint
+    /// and updates the compressed mint to mark it as is_decompressed=true.
+    /// The mint PDA must match the spl_mint field stored in the compressed mint.
+    /// This enables syncing between compressed and SPL representations.
+    pub fn create_spl_mint<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateSplMintInstruction<'info>>,
+        token_pool_bump: u8,
+        decimals: u8,
+        mint_authority: Pubkey,
+        freeze_authority: Option<Pubkey>,
+        compressed_mint_inputs: process_mint::CompressedMintInputs,
+    ) -> Result<()> {
+        process_create_spl_mint::process_create_spl_mint(
+            ctx,
+            token_pool_bump,
+            decimals,
+            mint_authority,
+            freeze_authority,
+            compressed_mint_inputs,
         )
     }
 
@@ -326,4 +350,5 @@ pub enum ErrorCode {
     NoAmount,
     AmountsAndAmountProvided,
     MintIsNone,
+    InvalidMintPda,
 }
