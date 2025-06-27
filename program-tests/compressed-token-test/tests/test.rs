@@ -6099,3 +6099,133 @@ pub fn create_batch_compress_instruction(
         data: instruction_data.data(),
     }
 }
+
+#[serial]
+#[tokio::test]
+async fn test_create_compressed_mint() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test parameters
+    let decimals = 6u8;
+    let mint_authority = Pubkey::new_unique();
+    let freeze_authority = Some(Pubkey::new_unique());
+    let mint_signer = Keypair::new();
+
+    // Get address tree for creating compressed mint address
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+
+    // Find mint PDA and bump
+    let (mint_pda, mint_bump) = Pubkey::find_program_address(
+        &[b"compressed_mint", mint_signer.pubkey().as_ref()],
+        &light_compressed_token::ID,
+    );
+
+    // Use the mint PDA as the seed for the compressed account address
+    let address_seed = mint_pda.to_bytes();
+
+    let compressed_mint_address = light_compressed_account::address::derive_address(
+        &address_seed,
+        &address_tree_pubkey.to_bytes(),
+        &light_compressed_token::ID.to_bytes(),
+    );
+
+    // Get validity proof for address creation
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![light_program_test::AddressWithTree {
+                address: compressed_mint_address,
+                tree: address_tree_pubkey,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    let proof = rpc_result.proof.0.unwrap();
+    let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
+
+    // Create instruction
+    let instruction_data = light_compressed_token::instruction::CreateCompressedMint {
+        decimals,
+        mint_authority,
+        freeze_authority,
+        proof,
+        mint_bump,
+        address_merkle_tree_root_index,
+    };
+
+    let accounts = light_compressed_token::accounts::CreateCompressedMintInstruction {
+        fee_payer: payer.pubkey(),
+        cpi_authority_pda: light_compressed_token::process_transfer::get_cpi_authority_pda().0,
+        light_system_program: light_system_program::ID,
+        account_compression_program: account_compression::ID,
+        registered_program_pda: light_system_program::utils::get_registered_program_pda(
+            &light_system_program::ID,
+        ),
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+            &light_system_program::ID,
+        ),
+        self_program: light_compressed_token::ID,
+        system_program: system_program::ID,
+        address_merkle_tree: address_tree_pubkey,
+        output_queue,
+        mint_signer: mint_signer.pubkey(),
+    };
+
+    let instruction = Instruction {
+        program_id: light_compressed_token::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    };
+
+    // Send transaction
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
+        .await
+        .unwrap();
+
+    // Verify the compressed mint was created
+    let compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    // Create expected compressed mint for comparison
+    let expected_compressed_mint = light_compressed_token::create_mint::CompressedMint {
+        spl_mint: mint_pda,
+        supply: 0,
+        decimals,
+        is_decompressed: false,
+        mint_authority: Some(mint_authority),
+        freeze_authority,
+        num_extensions: 0,
+    };
+
+    // Verify the account exists and has correct properties
+    assert_eq!(compressed_mint_account.address.unwrap(), compressed_mint_address);
+    assert_eq!(compressed_mint_account.owner, light_compressed_token::ID);
+    assert_eq!(compressed_mint_account.lamports, 0);
+
+    // Verify the compressed mint data
+    let compressed_account_data = compressed_mint_account.data.unwrap();
+    assert_eq!(
+        compressed_account_data.discriminator,
+        light_compressed_token::constants::COMPRESSED_MINT_DISCRIMINATOR
+    );
+
+    // Deserialize and verify the CompressedMint struct matches expected
+    let actual_compressed_mint: light_compressed_token::create_mint::CompressedMint =
+        anchor_lang::AnchorDeserialize::deserialize(&mut compressed_account_data.data.as_slice())
+            .unwrap();
+
+    assert_eq!(actual_compressed_mint, expected_compressed_mint);
+}
