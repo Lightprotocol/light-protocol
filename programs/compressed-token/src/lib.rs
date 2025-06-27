@@ -17,6 +17,8 @@ pub mod burn;
 pub use burn::*;
 pub mod batch_compress;
 pub mod create_mint;
+pub mod process_create_compressed_mint;
+pub use process_create_compressed_mint::*;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
@@ -40,6 +42,29 @@ pub mod light_compressed_token {
 
     use super::*;
 
+    /// Creates a compressed mint stored as a compressed account.
+    /// Follows Token-2022 InitializeMint2 pattern with authorities as instruction data.
+    /// No SPL mint backing - creates a standalone compressed mint.
+    pub fn create_compressed_mint<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateCompressedMintInstruction<'info>>,
+        decimals: u8,
+        mint_authority: Pubkey,
+        freeze_authority: Option<Pubkey>,
+        proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof,
+        mint_bump: u8,
+        address_merkle_tree_root_index: u16,
+    ) -> Result<()> {
+        process_create_compressed_mint::process_create_compressed_mint(
+            ctx,
+            decimals,
+            mint_authority,
+            freeze_authority,
+            proof,
+            mint_bump,
+            address_merkle_tree_root_index,
+        )
+    }
+
     /// This instruction creates a token pool for a given mint. Every spl mint
     /// can have one token pool. When a token is compressed the tokens are
     /// transferrred to the token pool, and their compressed equivalent is
@@ -47,7 +72,7 @@ pub mod light_compressed_token {
     pub fn create_token_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
     ) -> Result<()> {
-        create_token_pool::assert_mint_extensions(
+        instructions::create_token_pool::assert_mint_extensions(
             &ctx.accounts.mint.to_account_info().try_borrow_data()?,
         )
     }
