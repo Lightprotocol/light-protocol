@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use std::{assert_eq, str::FromStr};
 
@@ -6110,7 +6110,8 @@ async fn test_create_compressed_mint() {
 
     // Test parameters
     let decimals = 6u8;
-    let mint_authority = Pubkey::new_unique();
+    let mint_authority_keypair = Keypair::new(); // Create keypair so we can sign
+    let mint_authority = mint_authority_keypair.pubkey();
     let freeze_authority = Some(Pubkey::new_unique());
     let mint_signer = Keypair::new();
 
@@ -6211,7 +6212,10 @@ async fn test_create_compressed_mint() {
     };
 
     // Verify the account exists and has correct properties
-    assert_eq!(compressed_mint_account.address.unwrap(), compressed_mint_address);
+    assert_eq!(
+        compressed_mint_account.address.unwrap(),
+        compressed_mint_address
+    );
     assert_eq!(compressed_mint_account.owner, light_compressed_token::ID);
     assert_eq!(compressed_mint_account.lamports, 0);
 
@@ -6228,4 +6232,143 @@ async fn test_create_compressed_mint() {
             .unwrap();
 
     assert_eq!(actual_compressed_mint, expected_compressed_mint);
+
+    // Test mint_to_compressed functionality
+    let recipient = Pubkey::new_unique();
+    let mint_amount = 1000u64;
+    let lamports = Some(10000u64);
+
+    // Get state tree for output token accounts
+    let state_tree_info = rpc.get_random_state_tree_info().unwrap();
+    let state_tree_pubkey = state_tree_info.tree;
+    let state_output_queue = state_tree_info.queue;
+    println!("state_tree_pubkey {:?}", state_tree_pubkey);
+    println!("state_output_queue {:?}", state_output_queue);
+
+    // Prepare compressed mint inputs for minting
+    let compressed_mint_inputs = light_compressed_token::process_mint::CompressedMintInputs {
+        merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
+            merkle_tree_pubkey_index: 1, // Will be set in remaining accounts
+            queue_pubkey_index: 0,
+            leaf_index: compressed_mint_account.leaf_index,
+            prove_by_index: true,
+        },
+        root_index: address_merkle_tree_root_index,
+        address: compressed_mint_address,
+        compressed_mint_input: light_compressed_token::process_mint::CompressedMintInput {
+            spl_mint: mint_pda,
+            supply: 0, // Current supply
+            decimals,
+            is_decompressed: false, // Pure compressed mint
+            freeze_authority_is_set: freeze_authority.is_some(),
+            freeze_authority: freeze_authority.unwrap_or_default(),
+            num_extensions: 0,
+        },
+        output_merkle_tree_index: 0,
+        proof: None, // Reuse the proof from creation
+    };
+
+    // Create mint_to_compressed instruction
+    let mint_to_instruction_data = light_compressed_token::instruction::MintToCompressed {
+        public_keys: vec![recipient],
+        amounts: vec![mint_amount],
+        lamports,
+        compressed_mint_inputs,
+    };
+
+    let mint_to_accounts = light_compressed_token::accounts::MintToInstruction {
+        fee_payer: payer.pubkey(),
+        authority: mint_authority, // The mint authority
+        cpi_authority_pda: light_compressed_token::process_transfer::get_cpi_authority_pda().0,
+        mint: Some(mint_pda), // No SPL mint for pure compressed mint
+        token_pool_pda: Pubkey::new_unique(), // No token pool for pure compressed mint
+        token_program: spl_token::ID, // No token program for pure compressed mint
+        light_system_program: light_system_program::ID,
+        registered_program_pda: light_system_program::utils::get_registered_program_pda(
+            &light_system_program::ID,
+        ),
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+            &light_system_program::ID,
+        ),
+        account_compression_program: account_compression::ID,
+        merkle_tree: output_queue, // Output merkle tree for new token accounts
+        self_program: light_compressed_token::ID,
+        system_program: system_program::ID,
+        sol_pool_pda: Some(light_system_program::utils::get_sol_pool_pda()),
+    };
+
+    let mut mint_instruction = Instruction {
+        program_id: light_compressed_token::ID,
+        accounts: mint_to_accounts.to_account_metas(Some(true)),
+        data: mint_to_instruction_data.data(),
+    };
+
+    // Add remaining accounts: compressed mint's address tree, then output state tree
+    mint_instruction.accounts.extend_from_slice(&[
+        AccountMeta::new(state_tree_pubkey, false), // Compressed mint's queue
+    ]);
+
+    // Execute mint_to_compressed
+    // Note: We need the mint authority to sign since it's the authority for minting
+    rpc.create_and_send_transaction(
+        &[mint_instruction],
+        &payer.pubkey(),
+        &[&payer, &mint_authority_keypair],
+    )
+    .await
+    .unwrap();
+
+    // Verify minted token account
+    let token_accounts = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_token_accounts_by_owner(&recipient, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    assert_eq!(
+        token_accounts.len(),
+        1,
+        "Should have exactly one token account"
+    );
+    let token_account = &token_accounts[0].token;
+    assert_eq!(
+        token_account.mint, mint_pda,
+        "Token account should have correct mint"
+    );
+    assert_eq!(
+        token_account.amount, mint_amount,
+        "Token account should have correct amount"
+    );
+    assert_eq!(
+        token_account.owner, recipient,
+        "Token account should have correct owner"
+    );
+
+    // Verify updated compressed mint supply
+    let updated_compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    let updated_compressed_mint: light_compressed_token::create_mint::CompressedMint =
+        anchor_lang::AnchorDeserialize::deserialize(
+            &mut updated_compressed_mint_account
+                .data
+                .unwrap()
+                .data
+                .as_slice(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        updated_compressed_mint.supply, mint_amount,
+        "Compressed mint supply should be updated to match minted amount"
+    );
 }
