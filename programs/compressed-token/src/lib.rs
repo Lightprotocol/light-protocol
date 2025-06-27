@@ -16,6 +16,7 @@ pub use instructions::*;
 pub mod burn;
 pub use burn::*;
 pub mod batch_compress;
+pub mod create_mint;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
