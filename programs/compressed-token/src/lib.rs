@@ -18,8 +18,8 @@ pub use burn::*;
 pub mod batch_compress;
 pub mod create_mint;
 pub mod process_create_compressed_mint;
-pub use process_create_compressed_mint::*;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+pub use process_create_compressed_mint::*;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -62,6 +62,27 @@ pub mod light_compressed_token {
             proof,
             mint_bump,
             address_merkle_tree_root_index,
+        )
+    }
+
+    /// Mints tokens from a compressed mint to compressed token accounts.
+    /// If the compressed mint has is_decompressed=true, also mints to SPL token pool.
+    /// Authority validation handled through proof verification.
+    pub fn mint_to_compressed<'info>(
+        ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+        public_keys: Vec<Pubkey>,
+        amounts: Vec<u64>,
+        lamports: Option<u64>,
+        compressed_mint_inputs: process_mint::CompressedMintInputs,
+    ) -> Result<()> {
+        process_mint_to_or_compress::<MINT_TO>(
+            ctx,
+            &public_keys,
+            &amounts,
+            lamports,
+            None,
+            None,
+            Some(compressed_mint_inputs),
         )
     }
 
@@ -114,6 +135,7 @@ pub mod light_compressed_token {
             lamports,
             None,
             None,
+            None,
         )
     }
 
@@ -142,6 +164,7 @@ pub mod light_compressed_token {
             inputs.lamports.map(|x| (*x).into()),
             Some(inputs.index),
             Some(inputs.bump),
+            None,
         )
     }
 
@@ -302,4 +325,5 @@ pub enum ErrorCode {
     NoMatchingBumpFound,
     NoAmount,
     AmountsAndAmountProvided,
+    MintIsNone,
 }
