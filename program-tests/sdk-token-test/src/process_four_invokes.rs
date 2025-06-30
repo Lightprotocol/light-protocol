@@ -33,9 +33,9 @@ pub struct CompressParams {
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct FourInvokesParams {
-    pub mint1: CompressParams,
-    pub mint2: TransferParams,
-    pub mint3: TransferParams,
+    pub compress_1: CompressParams,
+    pub transfer_2: TransferParams,
+    pub transfer_3: TransferParams,
 }
 
 pub fn process_four_invokes<'info>(
@@ -72,9 +72,9 @@ pub fn process_four_invokes<'info>(
     compress_tokens_with_cpi_context(
         &cpi_accounts,
         ctx.remaining_accounts,
-        four_invokes_params.mint1.mint,
-        four_invokes_params.mint1.recipient,
-        four_invokes_params.mint1.amount,
+        four_invokes_params.compress_1.mint,
+        four_invokes_params.compress_1.recipient,
+        four_invokes_params.compress_1.amount,
         output_tree_index,
     )?;
 
@@ -82,28 +82,28 @@ pub fn process_four_invokes<'info>(
     transfer_tokens_to_escrow_pda(
         &cpi_accounts,
         ctx.remaining_accounts,
-        four_invokes_params.mint2.mint,
-        four_invokes_params.mint2.transfer_amount,
-        &four_invokes_params.mint2.recipient,
+        four_invokes_params.transfer_2.mint,
+        four_invokes_params.transfer_2.transfer_amount,
+        &four_invokes_params.transfer_2.recipient,
         output_tree_index,
         output_tree_queue_index,
         address,
-        four_invokes_params.mint2.recipient_bump,
-        four_invokes_params.mint2.token_metas,
+        four_invokes_params.transfer_2.recipient_bump,
+        four_invokes_params.transfer_2.token_metas,
     )?;
 
     // Invocation 3: Transfer mint 3 (writes to CPI context)
     transfer_tokens_to_escrow_pda(
         &cpi_accounts,
         ctx.remaining_accounts,
-        four_invokes_params.mint3.mint,
-        four_invokes_params.mint3.transfer_amount,
-        &four_invokes_params.mint3.recipient,
+        four_invokes_params.transfer_3.mint,
+        four_invokes_params.transfer_3.transfer_amount,
+        &four_invokes_params.transfer_3.recipient,
         output_tree_index,
         output_tree_queue_index,
         address,
-        four_invokes_params.mint3.recipient_bump,
-        four_invokes_params.mint3.token_metas,
+        four_invokes_params.transfer_3.recipient_bump,
+        four_invokes_params.transfer_3.token_metas,
     )?;
 
     // Invocation 4: Execute CPI context with system program
