@@ -1,7 +1,10 @@
 use anchor_lang::{prelude::AccountMeta, AccountDeserialize, InstructionData};
 use light_compressed_token_sdk::{
-    instructions::transfer::account_metas::{
-        get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+    instructions::{
+        transfer::account_metas::{
+            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+        },
+        CTokenDefaultAccounts,
     },
     token_pool::get_token_pool_pda,
     SPL_TOKEN_PROGRAM_ID,
@@ -67,6 +70,22 @@ async fn test_4_invocations() {
         "✅ Created compressed escrow PDA with address: {:?}",
         escrow_address
     );
+
+    // Test the four_invokes instruction
+    test_four_invokes_instruction(
+        &mut rpc,
+        &payer,
+        mint1,
+        mint2,
+        mint3,
+        escrow_address,
+        initial_amount,
+        token_account_1,
+    )
+    .await
+    .unwrap();
+
+    println!("✅ Successfully executed four_invokes instruction");
 }
 
 async fn create_mints_and_tokens(
@@ -394,4 +413,186 @@ async fn create_compressed_escrow_pda(
         .await?;
 
     Ok(address)
+}
+
+async fn test_four_invokes_instruction(
+    rpc: &mut (impl Rpc + Indexer),
+    payer: &Keypair,
+    mint1: Pubkey,
+    mint2: Pubkey,
+    mint3: Pubkey,
+    escrow_address: [u8; 32],
+    initial_escrow_amount: u64,
+    compression_token_account: Pubkey,
+) -> Result<(), RpcError> {
+    let default_pubkeys = CTokenDefaultAccounts::default();
+    let mut remaining_accounts = PackedAccounts::default();
+    remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
+    let token_pool_pda1 = get_token_pool_pda(&mint1);
+    // Remaining accounts 0
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(compression_token_account, false));
+    // Remaining accounts 1
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(token_pool_pda1, false));
+    // Remaining accounts 2
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(SPL_TOKEN_PROGRAM_ID.into(), false));
+    // Remaining accounts 3
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(
+        default_pubkeys.compressed_token_program,
+        false,
+    ));
+    // Remaining accounts 4
+    remaining_accounts
+        .add_pre_accounts_meta(AccountMeta::new(default_pubkeys.cpi_authority_pda, false));
+
+    // Add system accounts configuration with CPI context
+    let tree_info = rpc.get_random_state_tree_info().unwrap();
+
+    // Check if CPI context is available, otherwise this instruction can't work
+    if tree_info.cpi_context.is_none() {
+        panic!("CPI context account is required for four_invokes instruction but not available in tree_info");
+    }
+
+    let config = SystemAccountMetaConfig::new_with_cpi_context(
+        sdk_token_test::ID,
+        tree_info.cpi_context.unwrap(),
+    );
+    remaining_accounts.add_system_accounts(config);
+
+    // Get validity proof - need to prove the escrow PDA and compressed token accounts
+    let escrow_account = rpc
+        .get_compressed_account(escrow_address, None)
+        .await?
+        .value;
+
+    // Get compressed token accounts for mint2 and mint3
+    let compressed_token_accounts = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+        .await?
+        .value
+        .items;
+
+    let mint2_token_account = compressed_token_accounts
+        .iter()
+        .find(|acc| acc.token.mint == mint2)
+        .expect("Compressed token account for mint2 should exist");
+
+    let mint3_token_account = compressed_token_accounts
+        .iter()
+        .find(|acc| acc.token.mint == mint3)
+        .expect("Compressed token account for mint3 should exist");
+
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![
+                escrow_account.hash,
+                mint2_token_account.account.hash,
+                mint3_token_account.account.hash,
+            ],
+            vec![],
+            None,
+        )
+        .await?
+        .value;
+    // We need to pack the tree after the cpi context.
+    remaining_accounts.insert_or_get(rpc_result.accounts[0].tree_info.tree);
+
+    let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let output_tree_index = packed_tree_info
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .output_tree_index;
+
+    // Create token metas from compressed accounts - each uses its respective tree info index
+    // Index 0: escrow PDA, Index 1: mint2 token account, Index 2: mint3 token account
+    let mint2_tree_info = packed_tree_info
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[1];
+
+    let mint3_tree_info = packed_tree_info
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[2];
+
+    // Create FourInvokesParams
+    let four_invokes_params = sdk_token_test::FourInvokesParams {
+        compress_1: sdk_token_test::CompressParams {
+            mint: mint1,
+            amount: 500,
+            recipient: payer.pubkey(),
+            recipient_bump: 0,
+            token_account: compression_token_account,
+        },
+        transfer_2: sdk_token_test::TransferParams {
+            mint: mint2,
+            transfer_amount: 300,
+            token_metas: vec![light_compressed_token_sdk::TokenAccountMeta {
+                amount: mint2_token_account.token.amount,
+                delegate_index: None,
+                packed_tree_info: mint2_tree_info,
+                lamports: None,
+                tlv: None,
+            }],
+            recipient: payer.pubkey(),
+            recipient_bump: 0,
+        },
+        transfer_3: sdk_token_test::TransferParams {
+            mint: mint3,
+            transfer_amount: 200,
+            token_metas: vec![light_compressed_token_sdk::TokenAccountMeta {
+                amount: mint3_token_account.token.amount,
+                delegate_index: None,
+                packed_tree_info: mint3_tree_info,
+                lamports: None,
+                tlv: None,
+            }],
+            recipient: payer.pubkey(),
+            recipient_bump: 0,
+        },
+    };
+
+    // Create PdaParams - escrow PDA uses tree info index 0
+    let escrow_tree_info = packed_tree_info
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[0];
+
+    let pda_params = sdk_token_test::PdaParams {
+        account_meta: light_sdk::instruction::account_meta::CompressedAccountMeta {
+            address: escrow_address,
+            tree_info: escrow_tree_info,
+            output_state_tree_index: output_tree_index,
+        },
+        existing_amount: initial_escrow_amount,
+    };
+
+    let (accounts, system_accounts_start_offset, _) = remaining_accounts.to_account_metas();
+    let (_token_account_infos, system_account_infos) =
+        accounts.split_at(system_accounts_start_offset as usize);
+    println!("token_account_infos: {:?}", _token_account_infos);
+    println!("system_account_infos: {:?}", system_account_infos);
+
+    let instruction = Instruction {
+        program_id: sdk_token_test::ID,
+        accounts,
+        data: sdk_token_test::instruction::FourInvokes {
+            output_tree_index,
+            proof: rpc_result.proof,
+            system_accounts_start_offset: system_accounts_start_offset as u8,
+            four_invokes_params,
+            pda_params,
+        }
+        .data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await?;
+
+    Ok(())
 }

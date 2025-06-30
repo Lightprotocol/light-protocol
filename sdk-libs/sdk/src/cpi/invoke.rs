@@ -114,6 +114,9 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
     data.extend(inputs);
 
     let account_metas: Vec<AccountMeta> = to_account_metas(cpi_accounts)?;
+    use solana_msg::msg;
+    msg!("account_metas {:?}", account_metas);
+
     Ok(Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,

@@ -5,10 +5,7 @@ use light_sdk::{
     instruction::ValidityProof as LightValidityProof,
 };
 
-use crate::{
-    process_create_compressed_account::process_create_compressed_account,
-    process_update_deposit::CompressedEscrowPda,
-};
+use crate::process_update_deposit::CompressedEscrowPda;
 
 pub fn process_create_escrow_pda<'info>(
     ctx: Context<'_, '_, '_, 'info, crate::Generic<'info>>,

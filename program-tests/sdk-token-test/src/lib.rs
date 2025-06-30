@@ -20,7 +20,8 @@ use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
 use process_create_escrow_pda::process_create_escrow_pda;
 use process_decompress_tokens::process_decompress_tokens;
-use process_four_invokes::{process_four_invokes, FourInvokesParams};
+use process_four_invokes::process_four_invokes;
+pub use process_four_invokes::{CompressParams, FourInvokesParams, TransferParams};
 use process_transfer_tokens::process_transfer_tokens;
 
 declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
@@ -193,9 +194,8 @@ pub mod sdk_token_test {
     }
 
     pub fn four_invokes<'info>(
-        ctx: Context<'_, '_, '_, 'info, GenericWithAuthority<'info>>,
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         output_tree_index: u8,
-        output_tree_queue_index: u8,
         proof: LightValidityProof,
         system_accounts_start_offset: u8,
         four_invokes_params: FourInvokesParams,
@@ -204,7 +204,6 @@ pub mod sdk_token_test {
         process_four_invokes(
             ctx,
             output_tree_index,
-            output_tree_queue_index,
             proof,
             system_accounts_start_offset,
             four_invokes_params,

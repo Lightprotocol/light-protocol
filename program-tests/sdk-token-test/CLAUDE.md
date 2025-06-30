@@ -1,219 +1,170 @@
 # SDK Token Test Debugging Guide
 
-This document contains debugging findings for the Light Protocol SDK Token Test program, specifically for implementing the 4 invocations instruction and compressed escrow PDA creation.
-
 ## Error Code Reference
 
-### Light SDK Errors
+| Error Code | Error Name | Description | Common Fix |
+|------------|------------|-------------|------------|
+| 16031 | `CpiAccountsIndexOutOfBounds` | Missing account in accounts array | Add signer with `add_pre_accounts_signer_mut()` |
+| 6020 | `CpiContextAccountUndefined` | CPI context expected but not provided | Set `cpi_context: None` for simple operations |
 
-| Error Code | Hex Code | Error Name | Description |
-|------------|----------|------------|-------------|
-| 16031 | 0x3e9f | `CpiAccountsIndexOutOfBounds` | Trying to access an account index that doesn't exist in the account list |
-| 16032 | 0x3ea0 | `InvalidCpiContextAccount` | CPI context account is invalid |
-| 16033 | 0x3ea1 | `InvalidSolPoolPdaAccount` | Sol pool PDA account is invalid |
-
-### Light System Program Errors
-
-| Error Code | Hex Code | Error Name | Description |
-|------------|----------|------------|-------------|
-| 6017 | 0x1781 | `ProofIsNone` | Proof is required but not provided |
-| 6018 | 0x1782 | `ProofIsSome` | Proof provided when not expected |
-| 6019 | 0x1783 | `EmptyInputs` | Empty inputs provided |
-| 6020 | 0x1784 | `CpiContextAccountUndefined` | CPI context account is not properly defined |
-| 6021 | 0x1785 | `CpiContextEmpty` | CPI context is empty |
-| 6022 | 0x1786 | `CpiContextMissing` | CPI context is missing |
-| 6023 | 0x1787 | `DecompressionRecipientDefined` | Decompression recipient wrongly defined |
+### Light System Program Errors (Full Reference)
+| 6017 | `ProofIsNone` | 6018 | `ProofIsSome` | 6019 | `EmptyInputs` | 6020 | `CpiContextAccountUndefined` |
+| 6021 | `CpiContextEmpty` | 6022 | `CpiContextMissing` | 6023 | `DecompressionRecipientDefined` |
 
 ## Common Issues and Solutions
 
 ### 1. `CpiAccountsIndexOutOfBounds` (Error 16031)
-
-**Problem**: Attempting to access an account at an index that doesn't exist in the accounts array.
-
-**Solution**: Ensure all required accounts are properly added to the `PackedAccounts` structure before calling `to_account_metas()`.
-
-**Example Fix**:
-```rust
-// ❌ Wrong - missing signer account
-let (accounts, _, _) = remaining_accounts.to_account_metas();
-
-// ✅ Correct - add signer first
-remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
-let (accounts, _, _) = remaining_accounts.to_account_metas();
-```
+Missing signer account. **Fix**: `remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey())`
 
 ### 2. Privilege Escalation Error
-
-**Problem**: "Cross-program invocation with unauthorized signer or writable account"
-
-**Root Cause**: Manually adding signer accounts to instruction accounts array instead of using the PackedAccounts structure.
-
-**Solution**: Use `add_pre_accounts_signer_mut()` instead of manually prepending accounts.
-
-**Example Fix**:
-```rust
-// ❌ Wrong - manual signer addition
-let instruction = Instruction {
-    program_id: sdk_token_test::ID,
-    accounts: [vec![AccountMeta::new(payer.pubkey(), true)], accounts].concat(),
-    data: instruction_data.data(),
-};
-
-// ✅ Correct - use PackedAccounts
-remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
-let (accounts, _, _) = remaining_accounts.to_account_metas();
-let instruction = Instruction {
-    program_id: sdk_token_test::ID,
-    accounts,
-    data: instruction_data.data(),
-};
-```
+Manually adding accounts instead of using PackedAccounts. **Fix**: Use `add_pre_accounts_signer_mut()` instead of manual account concatenation.
 
 ### 3. Account Structure Mismatch
-
-**Problem**: Using wrong account structure (e.g., `GenericWithAuthority` vs `Generic`)
-
-**Root Cause**: `GenericWithAuthority` expects 2 accounts (`signer` + `authority`), while `Generic` expects 1 account (`signer` only).
-
-**Solution**: Choose the correct account structure based on your needs.
-
-**Example**:
-```rust
-// For PDA creation - only need signer
-pub fn create_escrow_pda<'info>(
-    ctx: Context<'_, '_, '_, 'info, Generic<'info>>, // ✅ Correct
-    // ...
-) -> Result<()>
-
-// For operations requiring authority
-pub fn four_invokes<'info>(
-    ctx: Context<'_, '_, '_, 'info, GenericWithAuthority<'info>>, // ✅ Correct
-    // ...
-) -> Result<()>
-```
+Wrong context type. **Fix**: Use `Generic<'info>` for single signer, `GenericWithAuthority<'info>` for signer + authority.
 
 ### 4. `CpiContextAccountUndefined` (Error 6020)
+**Root Cause**: Using functions designed for CPI context when you don't need it.
 
-**Problem**: CPI context account is not properly defined or provided to the Light System program.
-
-**Root Cause**: This error occurs when trying to use CPI context functionality without properly providing the CPI context account. The error comes from `process_cpi_context.rs:52` in the Light System program.
-
-**Common Causes**:
-- Using functions that expect CPI context (like `process_create_compressed_account`) when you don't actually need CPI context
-- Missing CPI context configuration in `SystemAccountMetaConfig`
-- Wrong CPI context account in tree info
-- Reusing code that was designed for CPI context operations in non-CPI context scenarios
-
-**Understanding CPI Context**:
-CPI context is used to optimize transactions that need multiple cross-program invocations with compressed accounts. It allows:
-- Sending only one proof for the entire instruction instead of multiple proofs
-- Caching signer checks across multiple CPIs
-- Combining instruction data from different programs
-
-**Example Flow**:
-1. First invocation (e.g., token program): Performs signer checks, caches in CPI context, returns without state transition
-2. Second invocation (e.g., PDA program): Reads CPI context, combines instruction data, executes with combined proof
-3. Subsequent invocations can add more data to the context
-4. Final invocation executes all accumulated operations
+**CPI Context Purpose**: Optimize multi-program transactions by using one proof instead of multiple. Flow:
+1. First program: Cache signer checks in CPI context
+2. Second program: Read context, combine data, execute with single proof
 
 **Solutions**:
-
-**Option 1 - Don't use CPI context (Recommended for simple operations)**:
 ```rust
-// ✅ For simple operations without cross-program complexity
+// ✅ Simple operations - no CPI context
 let cpi_inputs = CpiInputs {
     proof,
-    account_infos: Some(vec![my_compressed_account.to_account_info().unwrap()]),
+    account_infos: Some(vec![account.to_account_info().unwrap()]),
     new_addresses: Some(vec![new_address_params]),
-    cpi_context: None, // ← Key: Set to None
+    cpi_context: None, // ← Key
     ..Default::default()
 };
+
+// ✅ Complex multi-program operations - use CPI context  
+let config = SystemAccountMetaConfig::new_with_cpi_context(program_id, cpi_context_account);
+```
+
+### 5. Avoid Complex Function Reuse
+**Problem**: Functions like `process_create_compressed_account` expect CPI context setup.
+
+**Fix**: Use direct Light SDK approach:
+```rust
+// ❌ Complex function with CPI context dependency
+process_create_compressed_account(...)
+
+// ✅ Direct approach
+let mut account = LightAccount::<'_, CompressedEscrowPda>::new_init(&crate::ID, Some(address), tree_index);
+account.amount = amount;
+account.owner = *cpi_accounts.fee_payer().key;
+let cpi_inputs = CpiInputs { proof, account_infos: Some(vec![account.to_account_info().unwrap()]), cpi_context: None, ..Default::default() };
 cpi_inputs.invoke_light_system_program(cpi_accounts)
 ```
 
-**Option 2 - Proper CPI context setup (For complex cross-program operations)**:
+### 6. Critical Four Invokes Implementation Learnings
+
+**CompressInputs Structure for CPI Context Operations**:
 ```rust
-// ✅ Only use when you actually need CPI context optimization
-let tree_info = rpc.get_random_state_tree_info().unwrap();
-let config = SystemAccountMetaConfig::new_with_cpi_context(
-    program_id,
-    tree_info.cpi_context.unwrap(), // Ensure CPI context exists
-);
-remaining_accounts.add_system_accounts(config);
+let compress_inputs = CompressInputs {
+    fee_payer: *cpi_accounts.fee_payer().key,
+    authority: *cpi_accounts.fee_payer().key,
+    mint,
+    recipient,
+    sender_token_account: *remaining_accounts[0].key, // ← Use remaining_accounts index
+    amount,
+    output_tree_index,
+    // ❌ Wrong: output_queue_pubkey: *cpi_accounts.tree_accounts().unwrap()[0].key,
+    token_pool_pda: *remaining_accounts[1].key, // ← From remaining_accounts
+    transfer_config: Some(TransferConfig {
+        cpi_context: Some(CompressedCpiContext {
+            set_context: true,
+            first_set_context: true,
+            cpi_context_account_index: 0,
+        }),
+        cpi_context_pubkey: Some(cpi_context_pubkey),
+        ..Default::default()
+    }),
+    spl_token_program: *remaining_accounts[2].key, // ← SPL_TOKEN_PROGRAM_ID
+    tree_accounts: cpi_accounts.tree_pubkeys().unwrap(), // ← From CPI accounts
+};
+```
+
+**Critical Account Ordering for Four Invokes**:
+```rust
+// Test setup - exact order matters for remaining_accounts indices
+remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
+// Remaining accounts 0 - compression token account
+remaining_accounts.add_pre_accounts_meta(AccountMeta::new(compression_token_account, false));
+// Remaining accounts 1 - token pool PDA
+remaining_accounts.add_pre_accounts_meta(AccountMeta::new(token_pool_pda1, false));
+// Remaining accounts 2 - SPL token program
+remaining_accounts.add_pre_accounts_meta(AccountMeta::new(SPL_TOKEN_PROGRAM_ID.into(), false));
+// Remaining accounts 3 - compressed token program
+remaining_accounts.add_pre_accounts_meta(AccountMeta::new(compressed_token_program, false));
+// Remaining accounts 4 - CPI authority PDA
+remaining_accounts.add_pre_accounts_meta(AccountMeta::new(cpi_authority_pda, false));
+```
+
+**Validity Proof and Tree Info Management**:
+```rust
+// Get escrow account directly by address (more efficient)
+let escrow_account = rpc.get_compressed_account(escrow_address, None).await?.value;
+
+// Pack tree infos BEFORE constructing TokenAccountMeta
+let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+
+// Use correct tree info indices for each compressed account
+let mint2_tree_info = packed_tree_info.state_trees.as_ref().unwrap().packed_tree_infos[1];
+let mint3_tree_info = packed_tree_info.state_trees.as_ref().unwrap().packed_tree_infos[2];
+let escrow_tree_info = packed_tree_info.state_trees.as_ref().unwrap().packed_tree_infos[0];
+```
+
+**System Accounts Start Offset**:
+```rust
+// Use the actual offset returned by to_account_metas()
+let (accounts, system_accounts_start_offset, _) = remaining_accounts.to_account_metas();
+// Pass this offset to the instruction
+system_accounts_start_offset: system_accounts_start_offset as u8,
 ```
 
 ## Best Practices
 
+### CPI Context Decision
+- **Use**: Multi-program transactions with compressed accounts (saves proofs)
+- **Avoid**: Simple single-program operations (PDA creation, basic transfers)
+
 ### Account Management
-1. Always use `PackedAccounts` for account management
-2. Add signer accounts using `add_pre_accounts_signer_mut()`
-3. Add system accounts using `add_system_accounts()` with proper config
-4. Never manually manipulate the accounts array
+- Use `PackedAccounts` and `add_pre_accounts_signer_mut()`
+- Choose `Generic<'info>` (1 account) vs `GenericWithAuthority<'info>` (2 accounts)
+- Set `cpi_context: None` for simple operations
 
-### CPI Context
-1. Always check that `tree_info.cpi_context` is `Some()` before using
-2. Use `new_with_cpi_context()` for operations requiring CPI context
-3. Ensure CPI context configuration matches the instruction requirements
-
-### Error Debugging
-1. Convert hex error codes to decimal for easier lookup
-2. Check both Light SDK and Light System program error codes
-3. Use the error code tables above for quick reference
-
-## Testing
-
-### Compress Function Pattern
-The working compress function follows this pattern:
+### Working Patterns
 ```rust
-async fn compress_spl_tokens(
-    rpc: &mut impl Rpc,
-    payer: &Keypair,
-    recipient: Pubkey,
-    mint: Pubkey,
-    amount: u64,
-    token_account: Pubkey,
-) -> Result<Signature, RpcError> {
-    let mut remaining_accounts = PackedAccounts::default();
-    let token_pool_pda = get_token_pool_pda(&mint);
-    let config = TokenAccountsMetaConfig::compress_client(
-        token_pool_pda,
-        token_account,
-        SPL_TOKEN_PROGRAM_ID.into(),
-    );
-    remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
-    let metas = get_transfer_instruction_account_metas(config);
-    remaining_accounts.add_pre_accounts_metas(metas.as_slice());
+// Compress tokens pattern
+let mut remaining_accounts = PackedAccounts::default();
+remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
+let metas = get_transfer_instruction_account_metas(config);
+remaining_accounts.add_pre_accounts_metas(metas.as_slice());
+let output_tree_index = rpc.get_random_state_tree_info().unwrap().pack_output_tree_index(&mut remaining_accounts).unwrap();
 
-    let output_tree_index = rpc
-        .get_random_state_tree_info()
-        .unwrap()
-        .pack_output_tree_index(&mut remaining_accounts)
-        .unwrap();
-
-    let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
-
-    let instruction = Instruction {
-        program_id: sdk_token_test::ID,
-        accounts: remaining_accounts,
-        data: sdk_token_test::instruction::CompressTokens {
-            output_tree_index,
-            recipient,
-            mint,
-            amount,
-        }
-        .data(),
-    };
-
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
-        .await
-}
+// Test flow: Setup → Compress → Create PDA → Execute
 ```
 
-### Test Structure
-A typical test follows this flow:
-1. **Setup**: Create mints and token accounts
-2. **Compress**: Compress tokens using the compress function
-3. **Create PDA**: Create compressed escrow PDA
-4. **Execute**: Run the 4 invocations instruction
+## Implementation Status
 
-This debugging guide should help future developers avoid common pitfalls when working with Light Protocol compressed accounts and CPI operations.
+### ✅ Working Features
+1. **Basic PDA Creation**: `create_escrow_pda` instruction works correctly
+2. **Token Compression**: Individual token compression operations work  
+3. **Four Invokes Instruction**: Complete CPI context implementation working
+   - Account structure: Uses `Generic<'info>` (single signer)
+   - CPI context: Proper multi-program proof optimization 
+   - Token accounts: Correct account ordering and tree info management
+   - Compress CPI: Working with proper `CompressInputs` structure
+   - Transfer CPI: Custom `transfer_tokens_with_cpi_context` wrapper replaces `transfer_tokens_to_escrow_pda`
+4. **Error Handling**: Comprehensive error code documentation and fixes
+
+### Key Implementation Success
+The `four_invokes` instruction successfully demonstrates the complete CPI context pattern for Light Protocol, enabling:
+- **Single Proof Optimization**: One validity proof for multiple compressed account operations
+- **Cross-Program Integration**: Token program + system program coordination  
+- **Production Ready**: Complete account setup and tree info management
+- **Custom Transfer Wrapper**: Purpose-built transfer function for four invokes instruction

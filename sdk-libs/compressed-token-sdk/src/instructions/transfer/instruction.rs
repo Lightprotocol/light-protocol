@@ -148,10 +148,11 @@ pub struct CompressInputs {
     pub output_tree_index: u8,
     pub sender_token_account: Pubkey,
     pub amount: u64,
-    pub output_queue_pubkey: Pubkey,
+    // pub output_queue_pubkey: Pubkey,
     pub token_pool_pda: Pubkey,
     pub transfer_config: Option<TransferConfig>,
     pub spl_token_program: Pubkey,
+    pub tree_accounts: Vec<Pubkey>,
 }
 
 // TODO: consider adding compress to existing token accounts
@@ -165,16 +166,16 @@ pub fn compress(inputs: CompressInputs) -> Result<Instruction> {
         recipient,
         sender_token_account,
         amount,
-        output_queue_pubkey,
         token_pool_pda,
         transfer_config,
         spl_token_program,
         output_tree_index,
+        tree_accounts,
     } = inputs;
     let mut token_account =
         crate::account::CTokenAccount::new_empty(mint, recipient, output_tree_index);
     token_account.compress(amount).unwrap();
-
+    solana_msg::msg!("spl_token_program {:?}", spl_token_program);
     let config = transfer_config.unwrap_or_default();
     let meta_config = TokenAccountsMetaConfig::compress(
         fee_payer,
@@ -190,7 +191,7 @@ pub fn compress(inputs: CompressInputs) -> Result<Instruction> {
         ValidityProof::default(),
         config,
         meta_config,
-        vec![output_queue_pubkey],
+        tree_accounts,
     )
 }
 

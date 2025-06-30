@@ -27,10 +27,10 @@ pub fn process_compress_tokens<'info>(
         sender_token_account: *light_cpi_accounts.sender_token_account().unwrap().key,
         amount,
         output_tree_index,
-        output_queue_pubkey: *light_cpi_accounts.tree_accounts().unwrap()[0].key,
         token_pool_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
         transfer_config: None,
         spl_token_program: *light_cpi_accounts.spl_token_program().unwrap().key,
+        tree_accounts: light_cpi_accounts.tree_pubkeys().unwrap(),
     };
 
     let instruction = compress(compress_inputs).map_err(ProgramError::from)?;
