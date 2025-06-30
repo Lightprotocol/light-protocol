@@ -530,63 +530,63 @@ pub fn serialize_mint_to_cpi_instruction_data_with_inputs(
 }
 
 // #[cfg(target_os = "solana")]
-fn create_compressed_mint_update_accounts(
-    updated_compressed_mint: CompressedMint,
-    compressed_inputs: CompressedMintInputs,
-) -> Result<(
-    PackedCompressedAccountWithMerkleContext,
-    OutputCompressedAccountWithPackedContext,
-)> {
-    // Create input compressed account for existing mint
-    let input_compressed_account = PackedCompressedAccountWithMerkleContext {
-        compressed_account: CompressedAccount {
-            owner: crate::ID.into(),
-            lamports: 0,
-            address: Some(compressed_inputs.address),
-            data: Some(CompressedAccountData {
-                discriminator: COMPRESSED_MINT_DISCRIMINATOR,
-                data: Vec::new(),
-                data_hash: updated_compressed_mint.hash().map_err(ProgramError::from)?,
-            }),
-        },
-        merkle_context: compressed_inputs.merkle_context,
-        root_index: compressed_inputs.root_index,
-        read_only: false,
-    };
-    msg!(
-        "compressed_inputs.merkle_context: {:?}",
-        compressed_inputs.merkle_context
-    );
+// fn create_compressed_mint_update_accounts(
+//     updated_compressed_mint: CompressedMint,
+//     compressed_inputs: CompressedMintInputs,
+// ) -> Result<(
+//     PackedCompressedAccountWithMerkleContext,
+//     OutputCompressedAccountWithPackedContext,
+// )> {
+//     // Create input compressed account for existing mint
+//     let input_compressed_account = PackedCompressedAccountWithMerkleContext {
+//         compressed_account: CompressedAccount {
+//             owner: crate::ID.into(),
+//             lamports: 0,
+//             address: Some(compressed_inputs.address),
+//             data: Some(CompressedAccountData {
+//                 discriminator: COMPRESSED_MINT_DISCRIMINATOR,
+//                 data: Vec::new(),
+//                 data_hash: updated_compressed_mint.hash().map_err(ProgramError::from)?,
+//             }),
+//         },
+//         merkle_context: compressed_inputs.merkle_context,
+//         root_index: compressed_inputs.root_index,
+//         read_only: false,
+//     };
+//     msg!(
+//         "compressed_inputs.merkle_context: {:?}",
+//         compressed_inputs.merkle_context
+//     );
 
-    // Create output compressed account for updated mint
-    let mut updated_mint_bytes = Vec::new();
-    updated_compressed_mint.serialize(&mut updated_mint_bytes)?;
-    let updated_data_hash = updated_compressed_mint
-        .hash()
-        .map_err(|_| crate::ErrorCode::HashToFieldError)?;
+//     // Create output compressed account for updated mint
+//     let mut updated_mint_bytes = Vec::new();
+//     updated_compressed_mint.serialize(&mut updated_mint_bytes)?;
+//     let updated_data_hash = updated_compressed_mint
+//         .hash()
+//         .map_err(|_| crate::ErrorCode::HashToFieldError)?;
 
-    let updated_compressed_account_data = CompressedAccountData {
-        discriminator: COMPRESSED_MINT_DISCRIMINATOR,
-        data: updated_mint_bytes,
-        data_hash: updated_data_hash,
-    };
+//     let updated_compressed_account_data = CompressedAccountData {
+//         discriminator: COMPRESSED_MINT_DISCRIMINATOR,
+//         data: updated_mint_bytes,
+//         data_hash: updated_data_hash,
+//     };
 
-    let output_compressed_mint_account = OutputCompressedAccountWithPackedContext {
-        compressed_account: CompressedAccount {
-            owner: crate::ID.into(),
-            lamports: 0,
-            address: Some(compressed_inputs.address),
-            data: Some(updated_compressed_account_data),
-        },
-        merkle_tree_index: compressed_inputs.output_merkle_tree_index,
-    };
-    msg!(
-        "compressed_inputs.output_merkle_tree_index {}",
-        compressed_inputs.output_merkle_tree_index
-    );
+//     let output_compressed_mint_account = OutputCompressedAccountWithPackedContext {
+//         compressed_account: CompressedAccount {
+//             owner: crate::ID.into(),
+//             lamports: 0,
+//             address: Some(compressed_inputs.address),
+//             data: Some(updated_compressed_account_data),
+//         },
+//         merkle_tree_index: compressed_inputs.output_merkle_tree_index,
+//     };
+//     msg!(
+//         "compressed_inputs.output_merkle_tree_index {}",
+//         compressed_inputs.output_merkle_tree_index
+//     );
 
-    Ok((input_compressed_account, output_compressed_mint_account))
-}
+//     Ok((input_compressed_account, output_compressed_mint_account))
+// }
 
 // #[cfg(target_os = "solana")]
 // #[inline(never)]
