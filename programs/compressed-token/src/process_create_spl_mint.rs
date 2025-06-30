@@ -1,13 +1,5 @@
-use crate::{
-    constants::{COMPRESSED_MINT_DISCRIMINATOR, POOL_SEED},
-    create_mint::CompressedMint,
-    instructions::create_spl_mint::CreateSplMintInstruction,
-    process_mint::CompressedMintInputs,
-    process_transfer::get_cpi_signer_seeds,
-};
 use anchor_lang::prelude::*;
-use anchor_spl::token_2022;
-use anchor_spl::token_interface;
+use anchor_spl::{token_2022, token_interface};
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -15,6 +7,14 @@ use light_compressed_account::{
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
     },
+};
+
+use crate::{
+    constants::{COMPRESSED_MINT_DISCRIMINATOR, POOL_SEED},
+    create_mint::CompressedMint,
+    instructions::create_spl_mint::CreateSplMintInstruction,
+    process_mint::CompressedMintInputs,
+    process_transfer::get_cpi_signer_seeds,
 };
 
 /// Creates a Token-2022 mint account that corresponds to a compressed mint

@@ -1,8 +1,3 @@
-use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR, create_mint::CompressedMint,
-    instructions::create_compressed_mint::CreateCompressedMintInstruction,
-    process_transfer::get_cpi_signer_seeds,
-};
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     address::derive_address,
@@ -12,6 +7,12 @@ use light_compressed_account::{
         data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
         invoke_cpi::InstructionDataInvokeCpi,
     },
+};
+
+use crate::{
+    constants::COMPRESSED_MINT_DISCRIMINATOR, create_mint::CompressedMint,
+    instructions::create_compressed_mint::CreateCompressedMintInstruction,
+    process_transfer::get_cpi_signer_seeds,
 };
 
 fn execute_cpi_invoke<'info>(
@@ -168,8 +169,9 @@ pub fn process_create_compressed_mint<'info>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rand::Rng;
+
+    use super::*;
 
     #[test]
     fn test_rnd_create_compressed_mint_account() {

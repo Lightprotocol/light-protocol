@@ -2,10 +2,7 @@ use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use light_compressed_account::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        PackedMerkleContext,
-    },
+    compressed_account::{PackedCompressedAccountWithMerkleContext, PackedMerkleContext},
     instruction_data::{
         compressed_proof::CompressedProof, data::OutputCompressedAccountWithPackedContext,
     },
@@ -17,17 +14,17 @@ use light_zero_copy::num_trait::ZeroCopyNumTrait;
 use {
     crate::{
         check_spl_token_pool_derivation_with_index,
-        process_transfer::create_output_compressed_accounts,
-        process_transfer::get_cpi_signer_seeds, spl_compression::spl_token_transfer,
+        constants::COMPRESSED_MINT_DISCRIMINATOR,
+        create_mint::CompressedMint,
+        process_transfer::{create_output_compressed_accounts, get_cpi_signer_seeds},
+        spl_compression::spl_token_transfer,
     },
+    light_compressed_account::compressed_account::{CompressedAccount, CompressedAccountData},
     light_compressed_account::hash_to_bn254_field_size_be,
     light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
 };
 
-use crate::{
-    check_spl_token_pool_derivation, constants::COMPRESSED_MINT_DISCRIMINATOR,
-    create_mint::CompressedMint, program::LightCompressedToken,
-};
+use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
 
 pub const COMPRESS: bool = false;
 pub const MINT_TO: bool = true;
@@ -219,6 +216,7 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
     Ok(())
 }
 
+#[cfg(target_os = "solana")]
 fn mint_with_compressed_mint<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     amounts: &[impl ZeroCopyNumTrait],
@@ -1070,7 +1068,7 @@ mod test {
                 &mut inputs,
                 &input_compressed_accounts,
                 &output_compressed_accounts,
-                proof.clone(),
+                proof,
             );
             let sum = output_compressed_accounts
                 .iter()
