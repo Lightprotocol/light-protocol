@@ -133,7 +133,7 @@ fn merge_escrow_token_accounts<'info>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn transfer_tokens_to_escrow_pda<'info>(
+pub fn transfer_tokens_to_escrow_pda<'info>(
     cpi_accounts: &CpiAccounts<'_, 'info>,
     remaining_accounts: &[AccountInfo<'info>],
     mint: Pubkey,

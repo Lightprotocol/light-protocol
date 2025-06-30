@@ -11,6 +11,7 @@ mod process_create_compressed_account;
 mod process_decompress_tokens;
 mod process_transfer_tokens;
 mod process_update_deposit;
+mod process_four_invokes;
 
 use light_sdk::{cpi::CpiAccounts, instruction::account_meta::CompressedAccountMeta};
 use process_batch_compress_tokens::process_batch_compress_tokens;
@@ -18,6 +19,7 @@ use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
 use process_decompress_tokens::process_decompress_tokens;
 use process_transfer_tokens::process_transfer_tokens;
+use process_four_invokes::{process_four_invokes, FourInvokesParams};
 
 declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
 
@@ -184,6 +186,26 @@ pub mod sdk_token_test {
             proof,
             system_accounts_start_offset,
             token_params,
+            pda_params,
+        )
+    }
+
+    pub fn four_invokes<'info>(
+        ctx: Context<'_, '_, '_, 'info, GenericWithAuthority<'info>>,
+        output_tree_index: u8,
+        output_tree_queue_index: u8,
+        proof: LightValidityProof,
+        system_accounts_start_offset: u8,
+        four_invokes_params: FourInvokesParams,
+        pda_params: PdaParams,
+    ) -> Result<()> {
+        process_four_invokes(
+            ctx,
+            output_tree_index,
+            output_tree_queue_index,
+            proof,
+            system_accounts_start_offset,
+            four_invokes_params,
             pda_params,
         )
     }
