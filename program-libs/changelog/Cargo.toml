@@ -1,0 +1,8 @@
+[package]
+name = "changelog"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+light-zero-copy = { workspace = true }
+zerocopy = { workspace = true, features = ["derive"] }

@@ -1149,6 +1149,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "changelog"
+version = "0.1.0"
+dependencies = [
+ "light-zero-copy",
+ "zerocopy",
+]
+
+[[package]]
+name = "changelog-test"
+version = "1.0.0"
+dependencies = [
+ "borsh 0.10.4",
+ "changelog",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-types",
+ "light-zero-copy",
+ "solana-program",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
