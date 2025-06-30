@@ -9,7 +9,9 @@ use solana_pubkey::Pubkey;
 use crate::{
     account::CTokenAccount,
     error::{Result, TokenSdkError},
-    instructions::approve::account_metas::{get_approve_instruction_account_metas, ApproveMetaConfig},
+    instructions::approve::account_metas::{
+        get_approve_instruction_account_metas, ApproveMetaConfig,
+    },
 };
 
 #[derive(Debug, Clone)]

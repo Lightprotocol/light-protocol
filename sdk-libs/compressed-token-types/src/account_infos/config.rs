@@ -7,14 +7,10 @@ pub struct AccountInfosConfig {
 
 impl AccountInfosConfig {
     pub const fn new() -> Self {
-        Self {
-            cpi_context: false,
-        }
+        Self { cpi_context: false }
     }
 
     pub const fn new_with_cpi_context() -> Self {
-        Self {
-            cpi_context: true,
-        }
+        Self { cpi_context: true }
     }
 }

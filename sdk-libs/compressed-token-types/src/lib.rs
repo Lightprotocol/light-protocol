@@ -9,7 +9,6 @@ pub mod token_data;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-
 // TODO: remove the reexports
 // Re-export everything at the crate root level
 pub use constants::*;

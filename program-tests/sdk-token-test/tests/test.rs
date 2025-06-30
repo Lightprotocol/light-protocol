@@ -2,6 +2,7 @@
 
 use anchor_lang::{AccountDeserialize, InstructionData};
 use anchor_spl::token::TokenAccount;
+use light_client::indexer::CompressedTokenAccount;
 use light_compressed_token_sdk::{
     instructions::{
         batch_compress::{
@@ -25,8 +26,6 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
-
-use light_client::indexer::CompressedTokenAccount;
 
 #[tokio::test]
 async fn test() {
@@ -613,4 +612,3 @@ async fn batch_compress_spl_tokens(
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
 }
-

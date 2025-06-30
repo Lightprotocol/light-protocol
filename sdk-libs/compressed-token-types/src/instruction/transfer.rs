@@ -1,7 +1,9 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
-pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-pub use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+pub use light_compressed_account::instruction_data::{
+    compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+};
 use light_sdk_types::instruction::PackedStateTreeInfo;
+
+use crate::{AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct PackedMerkleContext {

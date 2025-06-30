@@ -1,7 +1,9 @@
 use light_account_checks::AccountInfoTrait;
-use crate::{AnchorDeserialize, AnchorSerialize};
 
-use crate::error::{LightTokenSdkTypeError, Result};
+use crate::{
+    error::{LightTokenSdkTypeError, Result},
+    AnchorDeserialize, AnchorSerialize,
+};
 
 #[repr(usize)]
 pub enum MintToAccountInfosIndex {
@@ -32,7 +34,7 @@ pub struct MintToAccountInfos<'a, T: AccountInfoTrait + Clone> {
 #[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct MintToAccountInfosConfig {
     pub cpi_context: bool,
-    pub has_mint: bool, // false for batch_compress, true for mint_to
+    pub has_mint: bool,         // false for batch_compress, true for mint_to
     pub has_sol_pool_pda: bool, // can be Some or None in both cases
 }
 
@@ -229,4 +231,3 @@ impl<'a, T: AccountInfoTrait + Clone> MintToAccountInfos<'a, T> {
         len
     }
 }
-

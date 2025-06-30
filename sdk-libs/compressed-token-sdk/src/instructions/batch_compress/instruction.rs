@@ -1,13 +1,16 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
-use light_compressed_token_types::BATCH_COMPRESS;
+use light_compressed_token_types::{
+    instruction::batch_compress::BatchCompressInstructionData, BATCH_COMPRESS,
+};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
-use crate::error::{Result, TokenSdkError};
-use crate::instructions::batch_compress::account_metas::{
-    get_batch_compress_instruction_account_metas, BatchCompressMetaConfig,
+use crate::{
+    error::{Result, TokenSdkError},
+    instructions::batch_compress::account_metas::{
+        get_batch_compress_instruction_account_metas, BatchCompressMetaConfig,
+    },
+    AnchorDeserialize, AnchorSerialize,
 };
-use light_compressed_token_types::instruction::batch_compress::BatchCompressInstructionData;
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct Recipient {

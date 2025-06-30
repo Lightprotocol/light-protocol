@@ -1,8 +1,9 @@
 use std::ops::Deref;
 
-use crate::error::TokenSdkError;
 use light_compressed_token_types::{PackedTokenTransferOutputData, TokenAccountMeta};
 use solana_pubkey::Pubkey;
+
+use crate::error::TokenSdkError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount {

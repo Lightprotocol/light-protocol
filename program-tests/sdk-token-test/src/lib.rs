@@ -1,8 +1,8 @@
 #![allow(unexpected_cfgs)]
+#![allow(clippy::too_many_arguments)]
 
 use anchor_lang::prelude::*;
-use light_compressed_token_sdk::instructions::Recipient;
-use light_compressed_token_sdk::{TokenAccountMeta, ValidityProof};
+use light_compressed_token_sdk::{instructions::Recipient, TokenAccountMeta, ValidityProof};
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
 
 mod process_batch_compress_tokens;
@@ -46,12 +46,11 @@ pub mod sdk_token_test {
     use light_sdk::address::v1::derive_address;
     use light_sdk_types::CpiAccountsConfig;
 
+    use super::*;
     use crate::{
         process_create_compressed_account::deposit_tokens,
         process_update_deposit::process_update_deposit,
     };
-
-    use super::*;
 
     pub fn compress_tokens<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,

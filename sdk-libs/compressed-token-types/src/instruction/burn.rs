@@ -1,7 +1,8 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+
 use crate::instruction::transfer::{
     CompressedCpiContext, CompressedProof, DelegatedTransfer, TokenAccountMeta,
 };
-use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct CompressedTokenInstructionDataBurn {

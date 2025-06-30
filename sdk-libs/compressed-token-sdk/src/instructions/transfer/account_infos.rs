@@ -1,8 +1,9 @@
-use crate::{account::CTokenAccount, error::Result};
 use arrayvec::ArrayVec;
 use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
 use solana_msg::msg;
+
+use crate::{account::CTokenAccount, error::Result};
 
 pub const MAX_ACCOUNT_INFOS: usize = 20;
 

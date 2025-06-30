@@ -1,7 +1,9 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
 use light_account_checks::AccountInfoTrait;
 
-use crate::error::{LightTokenSdkTypeError, Result};
+use crate::{
+    error::{LightTokenSdkTypeError, Result},
+    AnchorDeserialize, AnchorSerialize,
+};
 
 #[repr(usize)]
 pub enum TransferAccountInfosIndex {
@@ -18,7 +20,6 @@ pub enum TransferAccountInfosIndex {
     SystemProgram,
     CpiContext,
 }
-
 
 #[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct TransferAccountInfosConfig {

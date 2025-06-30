@@ -1,5 +1,4 @@
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::log::sol_log_compute_units;
+use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
     account::CTokenAccount,

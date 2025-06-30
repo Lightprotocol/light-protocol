@@ -1,4 +1,3 @@
-use crate::{PdaParams, TokenParams};
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
@@ -15,6 +14,8 @@ use light_sdk::{
     LightDiscriminator, LightHasher,
 };
 use light_sdk_types::CpiAccountsConfig;
+
+use crate::{PdaParams, TokenParams};
 
 #[event]
 #[derive(Clone, Debug, Default, LightHasher, LightDiscriminator)]
@@ -131,6 +132,7 @@ fn merge_escrow_token_accounts<'info>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn transfer_tokens_to_escrow_pda<'info>(
     cpi_accounts: &CpiAccounts<'_, 'info>,
     remaining_accounts: &[AccountInfo<'info>],

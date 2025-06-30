@@ -1,7 +1,9 @@
 use light_account_checks::AccountInfoTrait;
-use crate::{AnchorDeserialize, AnchorSerialize};
 
-use crate::error::{LightTokenSdkTypeError, Result};
+use crate::{
+    error::{LightTokenSdkTypeError, Result},
+    AnchorDeserialize, AnchorSerialize,
+};
 
 #[repr(usize)]
 pub enum FreezeAccountInfosIndex {
@@ -32,15 +34,11 @@ pub struct FreezeAccountInfosConfig {
 
 impl FreezeAccountInfosConfig {
     pub const fn new() -> Self {
-        Self {
-            cpi_context: false,
-        }
+        Self { cpi_context: false }
     }
 
     pub const fn new_with_cpi_context() -> Self {
-        Self {
-            cpi_context: true,
-        }
+        Self { cpi_context: true }
     }
 }
 
@@ -158,4 +156,3 @@ impl<'a, T: AccountInfoTrait + Clone> FreezeAccountInfos<'a, T> {
         11 // All accounts from the enum
     }
 }
-

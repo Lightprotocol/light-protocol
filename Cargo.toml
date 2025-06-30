@@ -184,7 +184,7 @@ light-compressed-token = { path = "programs/compressed-token", version = "2.0.0"
 ] }
 light-compressed-token-types = { path = "sdk-libs/compressed-token-types", name = "light-compressed-token-types" }
 light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk" }
-light-system-program-anchor = { path = "anchor-programs/system", version = "1.2.0", features = [
+light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }
 light-registry = { path = "programs/registry", version = "2.0.0", features = [

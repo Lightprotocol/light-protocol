@@ -1,5 +1,6 @@
-use crate::instruction::transfer::{CompressedCpiContext, CompressedProof, TokenAccountMeta};
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use crate::instruction::transfer::{CompressedCpiContext, CompressedProof, TokenAccountMeta};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct CompressedTokenInstructionDataApprove {
