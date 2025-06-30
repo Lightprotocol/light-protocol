@@ -1,5 +1,7 @@
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::{prelude::borsh, AnchorDeserialize, AnchorSerialize};
+use anchor_lang::{
+    prelude::{borsh, Pubkey},
+    AnchorDeserialize, AnchorSerialize,
+};
 use light_compressed_account::hash_to_bn254_field_size_be;
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
 
@@ -121,8 +123,9 @@ impl CompressedMint {
 
 #[cfg(test)]
 pub mod test {
-    use super::*;
     use rand::Rng;
+
+    use super::*;
 
     #[test]
     fn test_equivalency_of_hash_functions() {

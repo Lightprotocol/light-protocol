@@ -1,12 +1,11 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
-use anchor_lang::solana_program::program_pack::Pack;
 use std::{assert_eq, str::FromStr};
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
-    prelude::AccountMeta, system_program, AccountDeserialize, AnchorDeserialize, AnchorSerialize,
-    InstructionData, ToAccountMetas,
+    prelude::AccountMeta, solana_program::program_pack::Pack, system_program, AccountDeserialize,
+    AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
 };
 use anchor_spl::{
     token::{Mint, TokenAccount},
@@ -6113,7 +6112,7 @@ async fn test_create_compressed_mint() {
     let decimals = 6u8;
     let mint_authority_keypair = Keypair::new(); // Create keypair so we can sign
     let mint_authority = mint_authority_keypair.pubkey();
-    let freeze_authority = Some(Pubkey::new_unique());
+    let freeze_authority = Pubkey::new_unique();
     let mint_signer = Keypair::new();
 
     // Get address tree for creating compressed mint address
@@ -6157,7 +6156,7 @@ async fn test_create_compressed_mint() {
     let instruction_data = light_compressed_token::instruction::CreateCompressedMint {
         decimals,
         mint_authority,
-        freeze_authority,
+        freeze_authority: Some(freeze_authority),
         proof,
         mint_bump,
         address_merkle_tree_root_index,
@@ -6209,7 +6208,7 @@ async fn test_create_compressed_mint() {
         decimals,
         is_decompressed: false,
         mint_authority: Some(mint_authority),
-        freeze_authority,
+        freeze_authority: Some(freeze_authority),
         num_extensions: 0,
     };
 
@@ -6262,8 +6261,8 @@ async fn test_create_compressed_mint() {
             supply: 0, // Current supply
             decimals,
             is_decompressed: false, // Pure compressed mint
-            freeze_authority_is_set: freeze_authority.is_some(),
-            freeze_authority: freeze_authority.unwrap_or_default(),
+            freeze_authority_is_set: true,
+            freeze_authority,
             num_extensions: 0,
         },
         output_merkle_tree_index: 0,
@@ -6399,8 +6398,8 @@ async fn test_create_compressed_mint() {
                 supply: mint_amount, // Current supply after minting
                 decimals,
                 is_decompressed: false, // Not yet decompressed
-                freeze_authority_is_set: freeze_authority.is_some(),
-                freeze_authority: freeze_authority.unwrap_or_default(),
+                freeze_authority_is_set: true,
+                freeze_authority,
                 num_extensions: 0,
             },
             output_merkle_tree_index: 2,
@@ -6412,7 +6411,7 @@ async fn test_create_compressed_mint() {
         token_pool_bump,
         decimals,
         mint_authority,
-        freeze_authority,
+        freeze_authority: Some(freeze_authority),
         compressed_mint_inputs: compressed_mint_inputs_for_spl,
     };
 
@@ -6504,8 +6503,8 @@ async fn test_create_compressed_mint() {
         )
         .unwrap();
 
-    assert_eq!(
-        final_compressed_mint.is_decompressed, true,
+    assert!(
+        final_compressed_mint.is_decompressed,
         "Compressed mint should now be marked as decompressed"
     );
 
@@ -6523,7 +6522,6 @@ async fn test_create_compressed_mint() {
     )
     .await
     .unwrap();
-    let recipient_token_account = recipient_token_keypair.pubkey();
 
     // Get the compressed token account for decompression
     let compressed_token_accounts = rpc
@@ -6540,11 +6538,11 @@ async fn test_create_compressed_mint() {
         1,
         "Should have one compressed token account"
     );
-    let input_compressed_account = compressed_token_accounts[0].clone();
+    let _input_compressed_account = compressed_token_accounts[0].clone();
 
     // Decompress half of the tokens (500 out of 1000)
-    let decompress_amount = mint_amount / 2;
-    let output_merkle_tree_pubkey = state_tree_pubkey;
+    let _decompress_amount = mint_amount / 2;
+    let _output_merkle_tree_pubkey = state_tree_pubkey;
 
     // Since we need a keypair to sign, and tokens were minted to a pubkey, let's skip decompression test for now
     // and just verify the basic create_spl_mint functionality worked
