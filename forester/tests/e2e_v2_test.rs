@@ -313,7 +313,7 @@ async fn test_e2e_v2() {
     if test_mode == TestMode::Local {
         ensure_sufficient_balance(&mut rpc, &payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
     } else {
-        ensure_sufficient_balance(&mut rpc, &payer.pubkey(), LAMPORTS_PER_SOL * 1).await;
+        ensure_sufficient_balance(&mut rpc, &payer.pubkey(), LAMPORTS_PER_SOL).await;
     }
 
     // V1 mint if V1 test enabled
@@ -625,17 +625,6 @@ async fn verify_root_changed(
         "Root should have changed for {:?}",
         kind
     );
-}
-
-async fn get_state_zkp_batch_size<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {
-    let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-    let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-        merkle_tree_account.data.as_mut_slice(),
-        &merkle_tree_pubkey.into(),
-    )
-    .unwrap();
-
-    merkle_tree.get_metadata().queue_batches.zkp_batch_size
 }
 
 async fn get_state_v2_batch_size<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {
@@ -1001,11 +990,7 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
     counter: &mut u64,
     test_accounts: &TestAccounts,
 ) -> Signature {
-    println!(
-        "transfer V2: {} merkle_tree: {}",
-        V2,
-        merkle_tree_pubkey.to_string()
-    );
+    println!("transfer V2: {} merkle_tree: {}", V2, merkle_tree_pubkey);
     wait_for_indexer(rpc, indexer).await.unwrap();
     let mut input_compressed_accounts = indexer
         .get_compressed_accounts_by_owner(&payer.pubkey(), None, None)

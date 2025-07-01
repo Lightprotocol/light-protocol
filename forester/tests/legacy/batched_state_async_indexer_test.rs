@@ -177,7 +177,7 @@ async fn test_state_indexer_async_batched() {
         &env.v2_state_trees[0].output_queue,
     )
     .await;
-    wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
+    wait_for_indexer(&rpc, &photon_indexer).await.unwrap();
 
     let input_compressed_accounts =
         get_token_accounts::<PhotonIndexer>(&photon_indexer, &batch_payer.pubkey(), &mint_pubkey)
@@ -414,13 +414,13 @@ async fn execute_test_transactions<R: Rpc + Indexer, I: Indexer>(
         .await;
         println!("{} legacy compress: {:?}", i, compress_sig);
 
-        // verify_queue_states(
-        //     rpc,
-        //     env,
-        //     *sender_batched_accs_counter,
-        //     *sender_batched_token_counter,
-        // )
-        // .await;
+        verify_queue_states(
+            rpc,
+            env,
+            *sender_batched_accs_counter,
+            *sender_batched_token_counter,
+        )
+        .await;
 
         sleep(Duration::from_millis(1000)).await;
         let batch_transfer_sig = transfer::<true, R, I>(
@@ -458,20 +458,20 @@ async fn execute_test_transactions<R: Rpc + Indexer, I: Indexer>(
         sleep(Duration::from_millis(1000)).await;
     }
 
-    // let sig = create_v1_address(
-    //     rpc,
-    //     indexer,
-    //     rng,
-    //     &env.v1_address_trees[0].merkle_tree,
-    //     &env.v1_address_trees[0].queue,
-    //     legacy_payer,
-    //     address_counter,
-    // )
-    // .await;
-    // println!(
-    //     "total num addresses created {}, create address: {:?}",
-    //     address_counter, sig,
-    // );
+    let sig = create_v1_address(
+        rpc,
+        indexer,
+        rng,
+        &env.v1_address_trees[0].merkle_tree,
+        &env.v1_address_trees[0].queue,
+        legacy_payer,
+        address_counter,
+    )
+    .await;
+    println!(
+        "total num addresses created {}, create address: {:?}",
+        address_counter, sig,
+    );
 }
 
 async fn verify_queue_states<R: Rpc>(
