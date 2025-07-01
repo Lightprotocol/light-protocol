@@ -193,10 +193,10 @@ install_photon() {
     local expected_version=$(get_version "photon")
     local photon_installed=false
     local photon_correct_version=false
-    
+
     export CARGO_HOME="${PREFIX}/cargo"
     export PATH="${PREFIX}/cargo/bin:${PATH}"
-    
+
     if [ -f "${PREFIX}/cargo/bin/photon" ]; then
         photon_installed=true
         # Check version
@@ -206,11 +206,11 @@ install_photon() {
             fi
         fi
     fi
-    
+
     if [ "$photon_installed" = false ] || [ "$photon_correct_version" = false ]; then
         echo "Installing Photon indexer (version $expected_version)..."
         # Use git commit for now as specified in constants.ts
-        cargo install --git https://github.com/lightprotocol/photon.git --rev 6ee3c027226ab9c90dc9d16691cdf76dd2f29dbf --locked --force
+        cargo install --git https://github.com/lightprotocol/photon.git --rev f0711369bfe01edad9c7bd8e038d00800f233115 --locked --force
         log "photon"
     else
         echo "Photon already installed with correct version, skipping..."
@@ -397,7 +397,7 @@ main() {
     local reset_log=true
     local skip_components=""
     local force_reinstall=false
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --full-keys)
