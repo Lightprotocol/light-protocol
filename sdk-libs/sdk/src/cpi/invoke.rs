@@ -52,10 +52,7 @@ impl CpiInputs {
         }
     }
 
-    pub fn invoke_light_system_program<'a, 'info>(
-        self,
-        cpi_accounts: CpiAccounts<'a, 'info>,
-    ) -> Result<()> {
+    pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts<'_, '_>) -> Result<()> {
         let bump = cpi_accounts.bump();
         let account_infos = cpi_accounts.to_account_infos();
         let instruction = create_light_system_progam_instruction_invoke_cpi(self, cpi_accounts)?;
@@ -63,9 +60,9 @@ impl CpiInputs {
     }
 }
 
-pub fn create_light_system_progam_instruction_invoke_cpi<'a, 'info>(
+pub fn create_light_system_progam_instruction_invoke_cpi(
     cpi_inputs: CpiInputs,
-    cpi_accounts: CpiAccounts<'a, 'info>,
+    cpi_accounts: CpiAccounts<'_, '_>,
 ) -> Result<Instruction> {
     let owner = *cpi_accounts.invoking_program()?.key;
     let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
@@ -142,8 +139,6 @@ pub fn create_light_system_progam_instruction_invoke_cpi<'a, 'info>(
     };
 
     let account_metas = get_account_metas_from_config(config);
-    use solana_msg::msg;
-    msg!("account_metas {:?}", account_metas);
 
     Ok(Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),

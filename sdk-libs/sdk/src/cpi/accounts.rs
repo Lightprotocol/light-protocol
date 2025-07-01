@@ -11,14 +11,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct CpiInstructionConfig<'a> {
+pub struct CpiInstructionConfig<'a, 'info> {
     pub fee_payer: Pubkey,
     pub cpi_signer: Pubkey, // pre-computed authority
     pub invoking_program: Pubkey,
     pub sol_pool_pda_pubkey: Option<Pubkey>,
     pub sol_compression_recipient_pubkey: Option<Pubkey>,
     pub cpi_context_pubkey: Option<Pubkey>,
-    pub packed_accounts: &'a [AccountInfo<'a>], // account info slice
+    pub packed_accounts: &'a [AccountInfo<'info>], // account info slice
 }
 
 pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, AccountInfo<'info>>;
@@ -123,7 +123,7 @@ pub fn to_account_metas(cpi_accounts: CpiAccounts<'_, '_>) -> Result<Vec<Account
     Ok(account_metas)
 }
 
-pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_>) -> Vec<AccountMeta> {
+pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_, '_>) -> Vec<AccountMeta> {
     let mut account_metas = Vec::with_capacity(1 + SYSTEM_ACCOUNTS_LEN);
 
     // 1. Fee payer (signer, writable)

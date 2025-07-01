@@ -6,7 +6,7 @@ use light_account_checks::AccountInfoTrait;
 
 use crate::{
     error::{LightSdkTypesError, Result},
-    CpiSigner, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, SOL_POOL_PDA,
+    CpiSigner, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, LIGHT_SYSTEM_PROGRAM_ID, SOL_POOL_PDA,
 };
 
 #[derive(Debug, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -77,6 +77,17 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         }
     }
 
+    pub fn try_new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Result<Self> {
+        if accounts[0].key() != LIGHT_SYSTEM_PROGRAM_ID {
+            return Err(LightSdkTypesError::InvalidCpiAccountsOffset);
+        }
+        Ok(Self {
+            fee_payer,
+            accounts,
+            config: CpiAccountsConfig::new(cpi_signer),
+        })
+    }
+
     pub fn try_new_with_config(
         fee_payer: &'a T,
         accounts: &'a [T],
@@ -87,6 +98,9 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
             accounts,
             config,
         };
+        if accounts[0].key() != LIGHT_SYSTEM_PROGRAM_ID {
+            return Err(LightSdkTypesError::InvalidCpiAccountsOffset);
+        }
         if res.config().cpi_context {
             let cpi_context = res.cpi_context()?;
             let discriminator_bytes = &cpi_context.try_borrow_data()?[..8];

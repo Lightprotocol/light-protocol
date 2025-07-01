@@ -73,6 +73,8 @@ pub enum LightSdkError {
     InvalidCpiContextAccount,
     #[error("Invalid sol pool pda account")]
     InvalidSolPoolPdaAccount,
+    #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
+    InvalidCpiAccountsOffset,
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
@@ -121,6 +123,7 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::InvalidCpiContextAccount => LightSdkError::InvalidCpiContextAccount,
             LightSdkTypesError::InvalidSolPoolPdaAccount => LightSdkError::InvalidSolPoolPdaAccount,
             LightSdkTypesError::AccountError(e) => LightSdkError::AccountError(e),
+            LightSdkTypesError::InvalidCpiAccountsOffset => LightSdkError::InvalidCpiAccountsOffset,
         }
     }
 }
@@ -160,6 +163,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::CpiAccountsIndexOutOfBounds(_) => 16031,
             LightSdkError::InvalidCpiContextAccount => 16032,
             LightSdkError::InvalidSolPoolPdaAccount => 16033,
+            LightSdkError::InvalidCpiAccountsOffset => 16034,
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
