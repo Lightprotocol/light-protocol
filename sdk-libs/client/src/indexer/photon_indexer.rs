@@ -662,14 +662,12 @@ impl Indexer for PhotonIndexer {
                     ),
                     ..Default::default()
                 };
-                println!("{:?}", request);
                 let result =
                     photon_api::apis::default_api::get_compressed_token_accounts_by_owner_v2_post(
                         &self.configuration,
                         request,
                     )
                     .await?;
-                println!("{:?}", result);
                 let response = result.result.ok_or(IndexerError::AccountNotFound)?;
                 if response.context.slot < config.slot {
                     return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -1103,19 +1101,16 @@ impl Indexer for PhotonIndexer {
     }
 
     async fn get_indexer_slot(&self, config: Option<RetryConfig>) -> Result<u64, IndexerError> {
-        println!("{:?}", self.configuration);
         let config = config.unwrap_or_default();
         self.retry(config, || async {
             let request = photon_api::models::GetIndexerSlotPostRequest {
                 ..Default::default()
             };
 
-            println!("{:?}", request);
             let result =
                 photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
                     .await?;
 
-            println!("{:?}", result);
             let result = Self::extract_result_with_error_check(
                 "get_indexer_slot",
                 result.error,
@@ -1144,15 +1139,12 @@ impl Indexer for PhotonIndexer {
                     ..Default::default()
                 };
 
-            debug!("API request: {:?}", request);
-
             let result =
                 photon_api::apis::default_api::get_multiple_compressed_account_proofs_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
-            debug!("Raw API response: {:?}", result);
 
             if let Some(error) = &result.error {
                 let error_msg = error.message.as_deref().unwrap_or("Unknown error");
@@ -1401,16 +1393,11 @@ impl Indexer for PhotonIndexer {
                     ..Default::default()
                 };
 
-                println!("Sending request to Photon API");
-                println!("Request: {:?}", request);
-
                 let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
-
-                println!("Response: {:?}", result);
 
                 let api_response = Self::extract_result_with_error_check(
                     "get_validity_proof_v2",
