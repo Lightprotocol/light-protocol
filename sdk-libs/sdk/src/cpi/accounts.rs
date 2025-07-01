@@ -1,3 +1,7 @@
+use light_sdk_types::constants::{
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
+    NOOP_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
+};
 pub use light_sdk_types::CpiAccountsConfig;
 use light_sdk_types::{CpiAccounts as GenericCpiAccounts, SYSTEM_ACCOUNTS_LEN};
 
@@ -5,6 +9,17 @@ use crate::{
     error::{LightSdkError, Result},
     AccountInfo, AccountMeta, Pubkey,
 };
+
+#[derive(Debug)]
+pub struct CpiInstructionConfig<'a> {
+    pub fee_payer: Pubkey,
+    pub cpi_signer: Pubkey, // pre-computed authority
+    pub invoking_program: Pubkey,
+    pub sol_pool_pda_pubkey: Option<Pubkey>,
+    pub sol_compression_recipient_pubkey: Option<Pubkey>,
+    pub cpi_context_pubkey: Option<Pubkey>,
+    pub packed_accounts: &'a [AccountInfo<'a>], // account info slice
+}
 
 pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, AccountInfo<'info>>;
 
@@ -106,4 +121,113 @@ pub fn to_account_metas(cpi_accounts: CpiAccounts<'_, '_>) -> Result<Vec<Account
         });
     });
     Ok(account_metas)
+}
+
+pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_>) -> Vec<AccountMeta> {
+    let mut account_metas = Vec::with_capacity(1 + SYSTEM_ACCOUNTS_LEN);
+
+    // 1. Fee payer (signer, writable)
+    account_metas.push(AccountMeta {
+        pubkey: config.fee_payer,
+        is_signer: true,
+        is_writable: true,
+    });
+
+    // 2. Authority/CPI Signer (signer, readonly)
+    account_metas.push(AccountMeta {
+        pubkey: config.cpi_signer,
+        is_signer: true,
+        is_writable: false,
+    });
+
+    // 3. Registered Program PDA (readonly) - hardcoded constant
+    account_metas.push(AccountMeta {
+        pubkey: Pubkey::from(REGISTERED_PROGRAM_PDA),
+        is_signer: false,
+        is_writable: false,
+    });
+
+    // 4. Noop Program (readonly) - hardcoded constant
+    account_metas.push(AccountMeta {
+        pubkey: Pubkey::from(NOOP_PROGRAM_ID),
+        is_signer: false,
+        is_writable: false,
+    });
+
+    // 5. Account Compression Authority (readonly) - hardcoded constant
+    account_metas.push(AccountMeta {
+        pubkey: Pubkey::from(ACCOUNT_COMPRESSION_AUTHORITY_PDA),
+        is_signer: false,
+        is_writable: false,
+    });
+
+    // 6. Account Compression Program (readonly) - hardcoded constant
+    account_metas.push(AccountMeta {
+        pubkey: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
+        is_signer: false,
+        is_writable: false,
+    });
+
+    // 7. Invoking Program (readonly)
+    account_metas.push(AccountMeta {
+        pubkey: config.invoking_program,
+        is_signer: false,
+        is_writable: false,
+    });
+
+    // 8. Sol Pool PDA (writable) OR Light System Program (readonly)
+    let light_system_program_meta = AccountMeta {
+        pubkey: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
+        is_signer: false,
+        is_writable: false,
+    };
+    if let Some(sol_pool_pda_pubkey) = config.sol_pool_pda_pubkey {
+        account_metas.push(AccountMeta {
+            pubkey: sol_pool_pda_pubkey,
+            is_signer: false,
+            is_writable: true,
+        });
+    } else {
+        account_metas.push(light_system_program_meta.clone());
+    }
+
+    // 9. Sol Compression Recipient (writable) OR Light System Program (readonly)
+    if let Some(sol_compression_recipient_pubkey) = config.sol_compression_recipient_pubkey {
+        account_metas.push(AccountMeta {
+            pubkey: sol_compression_recipient_pubkey,
+            is_signer: false,
+            is_writable: true,
+        });
+    } else {
+        account_metas.push(light_system_program_meta.clone());
+    }
+
+    // 10. System Program (readonly) - always default pubkey
+    account_metas.push(AccountMeta {
+        pubkey: Pubkey::default(),
+        is_signer: false,
+        is_writable: false,
+    });
+
+    // 11. CPI Context (writable) OR Light System Program (readonly)
+    if let Some(cpi_context_pubkey) = config.cpi_context_pubkey {
+        account_metas.push(AccountMeta {
+            pubkey: cpi_context_pubkey,
+            is_signer: false,
+            is_writable: true,
+        });
+    } else {
+        account_metas.push(light_system_program_meta);
+    }
+
+    // 12. Packed accounts (variable number)
+    for acc in config.packed_accounts {
+        account_metas.push(AccountMeta {
+            pubkey: *acc.key,
+            is_signer: false,
+            is_writable: acc.is_writable,
+        });
+    }
+
+    account_metas
 }

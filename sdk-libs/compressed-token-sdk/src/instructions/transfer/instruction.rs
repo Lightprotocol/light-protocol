@@ -184,7 +184,6 @@ pub fn compress(inputs: CompressInputs) -> Result<Instruction> {
         sender_token_account,
         spl_token_program,
     );
-    solana_msg::msg!("meta config {:?}", meta_config);
     create_transfer_instruction_raw(
         mint,
         vec![token_account],

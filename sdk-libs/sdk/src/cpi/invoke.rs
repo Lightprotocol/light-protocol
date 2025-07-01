@@ -10,10 +10,12 @@ use light_compressed_account::{
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 
 use crate::{
-    cpi::{to_account_metas, CpiAccounts},
+    cpi::{get_account_metas_from_config, CpiAccounts, CpiInstructionConfig},
     error::{LightSdkError, Result},
     instruction::{account_info::CompressedAccountInfoTrait, ValidityProof},
-    invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
+    invoke_signed,
+    light_account_checks::AccountInfoTrait,
+    AccountInfo, AnchorSerialize, Instruction,
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -50,7 +52,10 @@ impl CpiInputs {
         }
     }
 
-    pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts) -> Result<()> {
+    pub fn invoke_light_system_program<'a, 'info>(
+        self,
+        cpi_accounts: CpiAccounts<'a, 'info>,
+    ) -> Result<()> {
         let bump = cpi_accounts.bump();
         let account_infos = cpi_accounts.to_account_infos();
         let instruction = create_light_system_progam_instruction_invoke_cpi(self, cpi_accounts)?;
@@ -58,9 +63,9 @@ impl CpiInputs {
     }
 }
 
-pub fn create_light_system_progam_instruction_invoke_cpi(
+pub fn create_light_system_progam_instruction_invoke_cpi<'a, 'info>(
     cpi_inputs: CpiInputs,
-    cpi_accounts: CpiAccounts,
+    cpi_accounts: CpiAccounts<'a, 'info>,
 ) -> Result<Instruction> {
     let owner = *cpi_accounts.invoking_program()?.key;
     let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
@@ -113,7 +118,30 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
 
-    let account_metas: Vec<AccountMeta> = to_account_metas(cpi_accounts)?;
+    // Use new config-based approach instead of expensive to_account_metas
+    let config = CpiInstructionConfig {
+        fee_payer: cpi_accounts.fee_payer().key().into(),
+        cpi_signer: cpi_accounts.config.cpi_signer().into(),
+        invoking_program: cpi_accounts.config.cpi_signer.program_id.into(),
+        sol_pool_pda_pubkey: if cpi_accounts.config.sol_pool_pda {
+            Some(cpi_accounts.sol_pool_pda()?.key().into())
+        } else {
+            None
+        },
+        sol_compression_recipient_pubkey: if cpi_accounts.config.sol_compression_recipient {
+            Some(cpi_accounts.decompression_recipient()?.key().into())
+        } else {
+            None
+        },
+        cpi_context_pubkey: if cpi_accounts.config.cpi_context {
+            Some(cpi_accounts.cpi_context()?.key().into())
+        } else {
+            None
+        },
+        packed_accounts: cpi_accounts.tree_accounts().unwrap_or(&[]),
+    };
+
+    let account_metas = get_account_metas_from_config(config);
     use solana_msg::msg;
     msg!("account_metas {:?}", account_metas);
 
@@ -127,7 +155,7 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
 /// Invokes the light system program to verify and apply a zk-compressed state
 /// transition. Serializes CPI instruction data, configures necessary accounts,
 /// and executes the CPI.
-pub fn verify_borsh<T>(light_system_accounts: CpiAccounts, inputs: &T) -> Result<()>
+pub fn verify_borsh<'a, T>(light_system_accounts: CpiAccounts<'a, 'a>, inputs: &T) -> Result<()>
 where
     T: AnchorSerialize,
 {
@@ -140,7 +168,36 @@ where
     let account_infos = light_system_accounts.to_account_infos();
 
     let bump = light_system_accounts.bump();
-    let account_metas: Vec<AccountMeta> = to_account_metas(light_system_accounts)?;
+    // Use new config-based approach instead of expensive to_account_metas
+    let config = CpiInstructionConfig {
+        fee_payer: light_system_accounts.fee_payer().key().into(),
+        cpi_signer: light_system_accounts.config.cpi_signer().into(),
+        invoking_program: light_system_accounts.config.cpi_signer.program_id.into(),
+        sol_pool_pda_pubkey: if light_system_accounts.config.sol_pool_pda {
+            Some(light_system_accounts.sol_pool_pda()?.key().into())
+        } else {
+            None
+        },
+        sol_compression_recipient_pubkey: if light_system_accounts.config.sol_compression_recipient
+        {
+            Some(
+                light_system_accounts
+                    .decompression_recipient()?
+                    .key()
+                    .into(),
+            )
+        } else {
+            None
+        },
+        cpi_context_pubkey: if light_system_accounts.config.cpi_context {
+            Some(light_system_accounts.cpi_context()?.key().into())
+        } else {
+            None
+        },
+        packed_accounts: light_system_accounts.tree_accounts().unwrap_or(&[]),
+    };
+
+    let account_metas = get_account_metas_from_config(config);
     let instruction = Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,

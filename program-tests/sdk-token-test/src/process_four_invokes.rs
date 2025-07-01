@@ -11,9 +11,8 @@ use anchor_lang::solana_program::program::invoke;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
     account::CTokenAccount,
-    instructions::transfer::{
-        instruction::{compress, transfer, CompressInputs, TransferConfig, TransferInputs},
-        TransferAccountInfos,
+    instructions::transfer::instruction::{
+        compress, transfer, CompressInputs, TransferConfig, TransferInputs,
     },
 };
 
@@ -50,14 +49,13 @@ pub fn process_four_invokes<'info>(
     four_invokes_params: FourInvokesParams,
     pda_params: PdaParams,
 ) -> Result<()> {
-    // Parse CPI accounts once
+    // Parse CPI accounts once for the final system program invocation
     let config = CpiAccountsConfig {
         cpi_signer: crate::LIGHT_CPI_SIGNER,
         cpi_context: true,
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
-
     let (_token_account_infos, system_account_infos) = ctx
         .remaining_accounts
         .split_at(system_accounts_start_offset as usize);
@@ -129,7 +127,7 @@ fn transfer_tokens_with_cpi_context<'info>(
     // Get tree pubkeys excluding the CPI context account (first account)
     // We already pass the cpi context pubkey separately.
     let tree_account_infos = cpi_accounts.tree_accounts().unwrap();
-    // let tree_account_infos = &tree_account_infos[1..];
+    let tree_account_infos = &tree_account_infos[1..];
     let tree_pubkeys = tree_account_infos
         .iter()
         .map(|x| x.pubkey())

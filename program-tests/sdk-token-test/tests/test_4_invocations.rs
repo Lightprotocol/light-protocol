@@ -427,7 +427,6 @@ async fn test_four_invokes_instruction(
 ) -> Result<(), RpcError> {
     let default_pubkeys = CTokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
-    remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let token_pool_pda1 = get_token_pool_pda(&mint1);
     // Remaining accounts 0
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(compression_token_account, false));
@@ -573,11 +572,9 @@ async fn test_four_invokes_instruction(
     };
 
     let (accounts, system_accounts_start_offset, _) = remaining_accounts.to_account_metas();
-    let (_token_account_infos, system_account_infos) =
-        accounts.split_at(system_accounts_start_offset as usize);
-    println!("token_account_infos: {:?}", _token_account_infos);
-    println!("system_account_infos: {:?}", system_account_infos);
 
+    // We need to concat here to separate remaining accounts from the payer account.
+    let accounts = [vec![AccountMeta::new(payer.pubkey(), true)], accounts].concat();
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
         accounts,
