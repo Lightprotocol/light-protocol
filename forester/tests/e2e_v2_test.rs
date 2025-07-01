@@ -123,38 +123,43 @@ fn get_api_key() -> Option<String> {
 }
 
 fn get_forester_keypair() -> Keypair {
-    let keypair_string = get_env_var("FORESTER_KEYPAIR");
+    match TestMode::from_env() {
+        TestMode::Local => Keypair::new(),
+        TestMode::Devnet => {
+            let keypair_string = get_env_var("FORESTER_KEYPAIR");
 
-    if keypair_string.starts_with('[') && keypair_string.ends_with(']') {
-        let bytes_str = &keypair_string[1..keypair_string.len() - 1]; // Remove [ ]
-        let bytes: Result<Vec<u8>, _> = bytes_str
-            .split(',')
-            .map(|s| s.trim().parse::<u8>())
-            .collect();
+            if keypair_string.starts_with('[') && keypair_string.ends_with(']') {
+                let bytes_str = &keypair_string[1..keypair_string.len() - 1]; // Remove [ ]
+                let bytes: Result<Vec<u8>, _> = bytes_str
+                    .split(',')
+                    .map(|s| s.trim().parse::<u8>())
+                    .collect();
 
-        match bytes {
-            Ok(byte_vec) => {
-                if byte_vec.len() == 64 {
-                    return Keypair::from_bytes(&byte_vec)
-                        .expect("Failed to create keypair from byte array");
-                } else {
-                    panic!(
-                        "Keypair byte array must be exactly 64 bytes, got {}",
-                        byte_vec.len()
-                    );
+                match bytes {
+                    Ok(byte_vec) => {
+                        if byte_vec.len() == 64 {
+                            return Keypair::from_bytes(&byte_vec)
+                                .expect("Failed to create keypair from byte array");
+                        } else {
+                            panic!(
+                                "Keypair byte array must be exactly 64 bytes, got {}",
+                                byte_vec.len()
+                            );
+                        }
+                    }
+                    Err(e) => panic!("Failed to parse keypair byte array: {}", e),
                 }
             }
-            Err(e) => panic!("Failed to parse keypair byte array: {}", e),
-        }
-    }
 
-    match bs58::decode(&keypair_string).into_vec() {
-        Ok(bytes) => {
-            Keypair::from_bytes(&bytes).expect("Failed to create keypair from base58 bytes")
+            match bs58::decode(&keypair_string).into_vec() {
+                Ok(bytes) => {
+                    Keypair::from_bytes(&bytes).expect("Failed to create keypair from base58 bytes")
+                }
+                Err(_) => panic!(
+                    "FORESTER_KEYPAIR must be either base58 encoded or byte array format [1,2,3,...]"
+                ),
+            }
         }
-        Err(_) => panic!(
-            "FORESTER_KEYPAIR must be either base58 encoded or byte array format [1,2,3,...]"
-        ),
     }
 }
 
@@ -224,7 +229,7 @@ async fn test_e2e_v2() {
     if test_mode == TestMode::Local {
         init(Some(LightValidatorConfig {
             enable_indexer: true,
-            wait_time: 30,
+            wait_time: 60,
             prover_config: None,
             sbf_programs: vec![(
                 "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
