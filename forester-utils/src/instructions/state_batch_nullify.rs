@@ -174,11 +174,30 @@ where
 
         let proof_results = future::join_all(proof_futures).await;
 
-        for proof_result in proof_results {
+       let mut successful_proofs = Vec::new();
+        let mut first_error = None;
+
+        for (index, proof_result) in proof_results.into_iter().enumerate() {
             match proof_result {
-                Ok(data) => yield Ok(data),
-                Err(e) => yield Err(e),
+                Ok(data) => {
+                    if first_error.is_none() {
+                        successful_proofs.push(data);
+                    }
+                },
+                Err(e) => {
+                    if first_error.is_none() {
+                        first_error = Some((index, e));
+                    }
+                }
             }
+        }
+
+        for proof in successful_proofs {
+            yield Ok(proof);
+        }
+
+        if let Some((index, error)) = first_error {
+            yield Err(ForesterUtilsError::Prover(format!("Nullify proof generation failed at batch {}: {}", index, error)));
         }
     };
 

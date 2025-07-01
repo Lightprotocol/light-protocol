@@ -50,14 +50,13 @@ where
 {
     trace!("Initializing append batch instruction stream");
 
-    let mut rpc = rpc_pool.get_connection().await?;
-    let indexer_guard = indexer.lock().await;
+    let (indexer_guard, rpc_result) = tokio::join!(indexer.lock(), rpc_pool.get_connection());
+    let rpc = rpc_result?;
 
-    let (merkle_tree_next_index, mut current_root, _) =
-        get_merkle_tree_metadata(&mut *rpc, merkle_tree_pubkey).await?;
-
-    let (zkp_batch_size, leaves_hash_chains) =
-        get_output_queue_metadata(&mut *rpc, output_queue_pubkey).await?;
+    let ((merkle_tree_next_index, mut current_root, _), (zkp_batch_size, leaves_hash_chains)) = tokio::try_join!(
+        get_merkle_tree_metadata(&*rpc, merkle_tree_pubkey),
+        get_output_queue_metadata(&*rpc, output_queue_pubkey)
+    )?;
 
     if leaves_hash_chains.is_empty() {
         trace!("No hash chains to process, returning empty stream.");
@@ -141,11 +140,31 @@ where
 
         let proof_results = future::join_all(proof_futures).await;
 
-        for proof_result in proof_results {
+
+        let mut successful_proofs = Vec::new();
+        let mut first_error = None;
+
+        for (index, proof_result) in proof_results.into_iter().enumerate() {
             match proof_result {
-                Ok(data) => yield Ok(data),
-                Err(e) => yield Err(e),
+                Ok(data) => {
+                    if first_error.is_none() {
+                        successful_proofs.push(data);
+                    }
+                },
+                Err(e) => {
+                    if first_error.is_none() {
+                        first_error = Some((index, e));
+                    }
+                }
             }
+        }
+
+        for proof in successful_proofs {
+            yield Ok(proof);
+        }
+
+        if let Some((index, error)) = first_error {
+            yield Err(ForesterUtilsError::Prover(format!("Proof generation failed at batch {}: {}", index, error)));
         }
     };
 
@@ -171,7 +190,7 @@ async fn generate_zkp_proof(
 }
 
 async fn get_merkle_tree_metadata(
-    rpc: &mut impl Rpc,
+    rpc: &impl Rpc,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<(u64, [u8; 32], Vec<[u8; 32]>), ForesterUtilsError> {
     let mut merkle_tree_account = rpc
@@ -192,7 +211,7 @@ async fn get_merkle_tree_metadata(
 }
 
 async fn get_output_queue_metadata(
-    rpc: &mut impl Rpc,
+    rpc: &impl Rpc,
     output_queue_pubkey: Pubkey,
 ) -> Result<(u16, Vec<[u8; 32]>), ForesterUtilsError> {
     let mut output_queue_account = rpc

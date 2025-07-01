@@ -199,25 +199,41 @@ where
 
             let proof_results = future::join_all(proof_futures).await;
 
-            for proof_result in proof_results {
+            // Implement fail-fast with partial recovery: collect successful proofs up to first failure
+            let mut successful_proofs = Vec::new();
+            let mut first_error = None;
+
+            for (index, proof_result) in proof_results.into_iter().enumerate() {
                 match proof_result {
                     Ok((compressed_proof, new_root)) => {
-                        let instruction_data = InstructionDataAddressAppendInputs {
-                            new_root,
-                            compressed_proof: CompressedProof {
-                                a: compressed_proof.a,
-                                b: compressed_proof.b,
-                                c: compressed_proof.c,
-                            },
-                        };
-                        yield Ok(instruction_data);
+                        if first_error.is_none() {
+                            let instruction_data = InstructionDataAddressAppendInputs {
+                                new_root,
+                                compressed_proof: CompressedProof {
+                                    a: compressed_proof.a,
+                                    b: compressed_proof.b,
+                                    c: compressed_proof.c,
+                                },
+                            };
+                            successful_proofs.push(instruction_data);
+                        }
                     }
                     Err(e) => {
-                        error!("A proof failed to generate: {:?}", e);
-                        yield Err(ForesterUtilsError::Prover(e.to_string()));
-                        return;
+                        if first_error.is_none() {
+                            first_error = Some((index, e));
+                        }
                     }
                 }
+            }
+
+            for proof in successful_proofs {
+                yield Ok(proof);
+            }
+
+            if let Some((index, error)) = first_error {
+                error!("Address proof failed to generate at index {}: {:?}", index, error);
+                yield Err(ForesterUtilsError::Prover(format!("Address proof generation failed at batch {} in chunk {}: {}", index, chunk_idx, error)));
+                return;
             }
         }
     }
