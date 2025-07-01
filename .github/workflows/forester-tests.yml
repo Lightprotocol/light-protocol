@@ -30,6 +30,11 @@ concurrency:
 env:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: "--cfg tokio_unstable -D warnings"
+  TEST_MODE: "local"
+  TEST_V1_STATE: "true"
+  TEST_V2_STATE: "true"
+  TEST_V1_ADDRESS: "true"
+  TEST_V2_ADDRESS: "true"
 
 jobs:
   test:
