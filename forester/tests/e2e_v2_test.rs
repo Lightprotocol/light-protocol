@@ -366,6 +366,9 @@ async fn test_e2e_v2() {
     println!("seed {}", rng_seed);
     let rng = &mut StdRng::seed_from_u64(rng_seed);
 
+    let (service_handle, shutdown_sender, mut work_report_receiver) =
+        setup_forester_pipeline(&config).await;
+
     execute_test_transactions(
         &mut rpc,
         &mut photon_indexer,
@@ -381,9 +384,6 @@ async fn test_e2e_v2() {
         &mut address_v2_counter,
     )
     .await;
-
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
 
     wait_for_work_report(&mut work_report_receiver, &state_tree_params).await;
 
