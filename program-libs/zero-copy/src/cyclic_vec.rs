@@ -218,8 +218,9 @@ where
     pub fn iter(&self) -> ZeroCopyCyclicVecIterator<'_, L, T, PAD> {
         ZeroCopyCyclicVecIterator {
             vec: self,
-            current: self.first_index(),
-            is_finished: false,
+            front: self.first_index(),
+            back: self.last_index(),
+            remaining: self.len(),
             _marker: PhantomData,
         }
     }
@@ -234,8 +235,9 @@ where
         }
         Ok(ZeroCopyCyclicVecIterator {
             vec: self,
-            current: start,
-            is_finished: false,
+            front: start,
+            back: self.last_index(),
+            remaining: self.len() - start,
             _marker: PhantomData,
         })
     }
@@ -323,8 +325,9 @@ where
     u64: From<L> + TryInto<L>,
 {
     vec: &'a ZeroCopyCyclicVec<'a, L, T, PAD>,
-    current: usize,
-    is_finished: bool,
+    front: usize,
+    back: usize,
+    remaining: usize,
     _marker: PhantomData<T>,
 }
 
@@ -338,16 +341,40 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.vec.capacity() == 0 || self.is_finished {
+        if self.remaining == 0 {
             None
         } else {
-            // Perform one more iteration to perform len() iterations.
-            if self.current == self.vec.last_index() {
-                self.is_finished = true;
-            }
-            let new_current = (self.current + 1) % self.vec.capacity();
-            let element = self.vec.get(self.current);
-            self.current = new_current;
+            let element = self.vec.get(self.front);
+            self.front = (self.front + 1) % self.vec.capacity();
+            self.remaining -= 1;
+            element
+        }
+    }
+    
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a, L, T, const PAD: bool> DoubleEndedIterator for ZeroCopyCyclicVecIterator<'a, L, T, PAD>
+where
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
+{
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            None
+        } else {
+            let element = self.vec.get(self.back);
+            self.back = if self.back == 0 {
+                self.vec.capacity() - 1
+            } else {
+                self.back - 1
+            };
+            self.remaining -= 1;
             element
         }
     }
@@ -416,4 +443,89 @@ fn test_private_getters() {
         assert_eq!(zcv.get_len(), i + 1);
         assert_eq!(zcv.get_len_mut(), &mut (i + 1));
     }
+}
+
+#[test]
+fn test_double_ended_iterator() {
+    let mut backing_store = [0u8; 64];
+    let mut zcv = ZeroCopyCyclicVecU16::<u16>::new(5, &mut backing_store).unwrap();
+    
+    // Push some values
+    for i in 0..5 {
+        zcv.push(i);
+    }
+    
+    // Test forward iteration
+    let mut iter = zcv.iter();
+    assert_eq!(iter.next(), Some(&0));
+    assert_eq!(iter.next(), Some(&1));
+    assert_eq!(iter.next(), Some(&2));
+    assert_eq!(iter.next(), Some(&3));
+    assert_eq!(iter.next(), Some(&4));
+    assert_eq!(iter.next(), None);
+    
+    // Test backward iteration
+    let mut iter = zcv.iter();
+    assert_eq!(iter.next_back(), Some(&4));
+    assert_eq!(iter.next_back(), Some(&3));
+    assert_eq!(iter.next_back(), Some(&2));
+    assert_eq!(iter.next_back(), Some(&1));
+    assert_eq!(iter.next_back(), Some(&0));
+    assert_eq!(iter.next_back(), None);
+    
+    // Test mixed iteration
+    let mut iter = zcv.iter();
+    assert_eq!(iter.next(), Some(&0));  // forward
+    assert_eq!(iter.next_back(), Some(&4));  // backward
+    assert_eq!(iter.next(), Some(&1));  // forward
+    assert_eq!(iter.next_back(), Some(&3));  // backward
+    assert_eq!(iter.next(), Some(&2));  // forward (last element)
+    assert_eq!(iter.next(), None);  // exhausted
+    assert_eq!(iter.next_back(), None);  // exhausted
+}
+
+#[test]
+fn test_double_ended_iterator_wrap_around() {
+    let mut backing_store = [0u8; 64];
+    let mut zcv = ZeroCopyCyclicVecU16::<u16>::new(3, &mut backing_store).unwrap();
+    
+    // Fill capacity and then push more to cause wrap-around
+    for i in 0..5 {
+        zcv.push(i * 10);
+    }
+    
+    // Debug: Let's see what the actual state is
+    // After pushing 5 elements to capacity 3:
+    // push(0): [0, _, _], current_index=1, len=1
+    // push(10): [0, 10, _], current_index=2, len=2  
+    // push(20): [0, 10, 20], current_index=0, len=3
+    // push(30): [30, 10, 20], current_index=1, len=3 (overwrites index 0)
+    // push(40): [30, 40, 20], current_index=2, len=3 (overwrites index 1)
+    // So: [30, 40, 20] with current_index=2, first_index=2, last_index=1
+    
+    // Test what first() and last() actually return
+    assert_eq!(zcv.first(), Some(&20));  // first element in logical order
+    assert_eq!(zcv.last(), Some(&40));   // last element in logical order
+    
+    // Test forward iteration: should be [20, 30, 40] (first to last in logical order)
+    let mut iter = zcv.iter();
+    assert_eq!(iter.next(), Some(&20));
+    assert_eq!(iter.next(), Some(&30));
+    assert_eq!(iter.next(), Some(&40));
+    assert_eq!(iter.next(), None);
+    
+    // Test backward iteration: should be [40, 30, 20] (last to first in logical order)
+    let mut iter = zcv.iter();
+    assert_eq!(iter.next_back(), Some(&40));
+    assert_eq!(iter.next_back(), Some(&30));
+    assert_eq!(iter.next_back(), Some(&20));
+    assert_eq!(iter.next_back(), None);
+    
+    // Test mixed iteration - should handle wrap around at index 0
+    let mut iter = zcv.iter();
+    assert_eq!(iter.next(), Some(&20));      // forward from first
+    assert_eq!(iter.next_back(), Some(&40)); // backward from last  
+    assert_eq!(iter.next(), Some(&30));      // forward (remaining element)
+    assert_eq!(iter.next(), None);           // exhausted
+    assert_eq!(iter.next_back(), None);      // exhausted
 }
