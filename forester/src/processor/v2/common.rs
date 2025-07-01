@@ -34,6 +34,24 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
+/// Processes a stream of instruction data into batches and sends them as transactions.
+///
+/// # Type Parameters
+/// * `R` - RPC client type
+/// * `I` - Indexer type
+/// * `S` - Stream type yielding instruction data
+/// * `D` - Instruction data type (must be BorshSerializable)
+/// * `FutC` - Future that creates the stream and returns zkp batch size
+///
+/// # Arguments
+/// * `context` - Batch processing context containing RPC pool, authority, etc.
+/// * `stream_creator_future` - Future that creates the instruction stream
+/// * `instruction_builder` - Function to convert data to Solana instructions
+/// * `tree_type_str` - Tree type identifier for logging
+/// * `operation` - Optional operation name for logging
+///
+/// # Returns
+/// Total number of items processed (instructions * zkp_batch_size)
 pub(crate) async fn process_stream<R, I, S, D, FutC>(
     context: &BatchContext<R, I>,
     stream_creator_future: FutC,
