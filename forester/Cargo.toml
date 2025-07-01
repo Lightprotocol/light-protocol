@@ -42,7 +42,7 @@ tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 anyhow = { workspace = true }
 
-prometheus = "0.13"
+prometheus = "0.14"
 lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"
