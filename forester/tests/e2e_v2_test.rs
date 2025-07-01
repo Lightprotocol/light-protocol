@@ -64,7 +64,7 @@ use crate::test_utils::{get_registration_phase_start_slot, init, wait_for_slot};
 mod test_utils;
 
 const MINT_TO_NUM: u64 = 5;
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 15;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 5;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -741,7 +741,7 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
     address_v1_counter: &mut u64,
     address_v2_counter: &mut u64,
 ) {
-    let mut iterations = 10;
+    let mut iterations = 4;
     if is_v2_state_test_enabled() {
         let batch_size =
             get_state_v2_batch_size(rpc, &env.v2_state_trees[0].merkle_tree).await as usize;

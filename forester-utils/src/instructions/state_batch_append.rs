@@ -182,7 +182,7 @@ where
                         }
                         pending_count -= 1;
                     }
-                }
+        }
 
                 if !proof_buffer.is_empty() {
                     yield Ok(proof_buffer.clone());
@@ -204,9 +204,9 @@ where
                 Err(e) => {
                     yield Err(e);
                     return;
+                    }
                 }
             }
-        }
 
         // Yield any remaining proofs
         if !proof_buffer.is_empty() {

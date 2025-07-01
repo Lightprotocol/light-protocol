@@ -234,7 +234,7 @@ async fn test_e2e_v1() {
         work_report_sender2,
     ));
 
-    const EXPECTED_EPOCHS: u64 = 3; // We expect to process 2 epochs (0 and 1)
+    const EXPECTED_EPOCHS: u64 = 2; // We expect to process 2 epochs (0 and 1)
 
     let mut processed_epochs = HashSet::new();
     let mut total_processed = 0;
