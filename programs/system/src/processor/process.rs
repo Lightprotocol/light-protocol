@@ -9,6 +9,7 @@ use light_compressed_account::{
     },
     tx_hash::create_tx_hash_from_hash_chains,
 };
+use light_profiler::profile;
 use light_zero_copy::slice_mut::ZeroCopySliceMut;
 use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
@@ -22,8 +23,8 @@ use crate::{
     },
     constants::CPI_AUTHORITY_PDA_BUMP,
     context::WrappedInstructionData,
+    cpi_context::process_cpi_context::copy_cpi_context_outputs,
     errors::SystemProgramError,
-    invoke_cpi::process_cpi_context::copy_cpi_context_outputs,
     processor::{
         cpi::{cpi_account_compression_program, create_cpi_data_and_context},
         create_address_cpi_data::derive_new_addresses,
@@ -75,6 +76,7 @@ use crate::{
 ///    `read_only_addresses`
 ///    4.1. Verify non-inclusion in queue
 ///    4.2. Verify inclusion by zkp
+#[profile]
 pub fn process<
     'a,
     'info,
@@ -87,7 +89,6 @@ pub fn process<
     ctx: &A,
     cpi_context_inputs_len: usize,
     remaining_accounts: &'info [AccountInfo],
-    cpi_context_account_info: Option<&'info AccountInfo>,
 ) -> Result<()> {
     let num_input_accounts = inputs.input_len();
     let num_new_addresses = inputs.address_len();
@@ -102,6 +103,17 @@ pub fn process<
 
     let cpi_outputs_data_len =
         inputs.get_cpi_context_outputs_end_offset() - inputs.get_cpi_context_outputs_start_offset();
+    // msg!(&format!("cpi_outputs_data_len {:?}", cpi_outputs_data_len));
+    // msg!(&format!(
+    //     "cpi_context_inputs_len {:?}",
+    //     cpi_context_inputs_len
+    // ));
+    // msg!(&format!("num_new_addresses {:?}", num_new_addresses));
+    // msg!(&format!("num_input_accounts {:?}", num_input_accounts));
+    // msg!(&format!(
+    //     "num_output_compressed_accounts {:?}",
+    //     num_output_compressed_accounts
+    // ));
     // 1. Allocate cpi data and initialize context
     let (mut context, mut cpi_ix_bytes) = create_cpi_data_and_context(
         ctx,
@@ -115,7 +127,9 @@ pub fn process<
     )?;
 
     // 2. Deserialize and check all Merkle tree and queue accounts.
+    // msg!("trying from account infos");
     let mut accounts = try_from_account_infos(remaining_accounts, &mut context)?;
+    // msg!("done from account infos");
     // 3. Deserialize cpi instruction data as zero copy to fill it.
     let (mut cpi_ix_data, bytes) = InsertIntoQueuesInstructionDataMut::new_at(
         &mut cpi_ix_bytes[12..], // 8 bytes instruction discriminator + 4 bytes vector length
@@ -150,10 +164,12 @@ pub fn process<
         context.addresses.push(account.address());
     });
 
+    // msg!("trying derive new addresses");
     // 7. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
         derive_new_addresses::<ADDRESS_ASSIGNMENT>(
             inputs.new_addresses(),
+            inputs.new_addresses_owners().as_slice(),
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,
@@ -169,6 +185,7 @@ pub fn process<
             return Err(SystemProgramError::InvalidAddress.into());
         }
     }
+    // msg!("done deriving new addresses");
 
     // 7. Verify read only address non-inclusion in bloom filters
     verify_read_only_address_queue_non_inclusion(
@@ -337,14 +354,7 @@ pub fn process<
     }
 
     // 18. Copy CPI context outputs ---------------------------------------------------
-    copy_cpi_context_outputs(
-        inputs.get_cpi_context_account(),
-        inputs.get_cpi_context_outputs_start_offset(),
-        inputs.get_cpi_context_outputs_end_offset(),
-        cpi_context_account_info,
-        cpi_outputs_data_len,
-        bytes,
-    )?;
+    copy_cpi_context_outputs(inputs.get_cpi_context_account(), bytes)?;
     // 19. CPI account compression program ---------------------------------------------------
     cpi_account_compression_program(context, cpi_ix_bytes)
 }
@@ -353,6 +363,7 @@ pub fn process<
 /// Multiple reads of the same account are allowed.
 /// Multiple writes of the same account will fail at nullifier queue insertion.
 #[inline(always)]
+#[profile]
 fn check_no_duplicate_accounts_in_inputs_and_read_only(
     input_nullifiers: &ZeroCopySliceMut<'_, u8, InsertNullifierInput, false>,
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
@@ -368,6 +379,7 @@ fn check_no_duplicate_accounts_in_inputs_and_read_only(
 }
 
 #[inline(always)]
+#[profile]
 fn filter_for_accounts_not_proven_by_index(
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
     input_compressed_account_hashes: &ZeroCopySliceMut<'_, u8, InsertNullifierInput, false>,

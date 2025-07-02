@@ -1,3 +1,6 @@
+use solana_msg::msg;
+use solana_pubkey::Pubkey;
+
 use crate::{
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
     error::AccountError,
@@ -81,6 +84,11 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
     }
 
     if T::LIGHT_DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
+        solana_msg::msg!(
+            "expected discriminator {:?} != {:?} actual",
+            T::LIGHT_DISCRIMINATOR,
+            &bytes[0..DISCRIMINATOR_LEN]
+        );
         return Err(AccountError::InvalidDiscriminator);
     }
     Ok(())
@@ -130,6 +138,12 @@ pub fn check_owner<A: AccountInfoTrait>(
     account_info: &A,
 ) -> Result<(), AccountError> {
     if !account_info.is_owned_by(owner) {
+        msg!("account_info.pubkey(): {:?}", account_info.pubkey());
+        msg!(
+            "account_info.key(): {:?}",
+            Pubkey::new_from_array(account_info.key())
+        );
+        msg!("owner: {}", Pubkey::new_from_array(*owner));
         return Err(AccountError::AccountOwnedByWrongProgram);
     }
     Ok(())

@@ -11,6 +11,7 @@ import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import {
     ValidityProof,
+    ValidityProofWithContext,
     LightSystemProgram,
     ParsedTokenAccount,
     bn,
@@ -65,6 +66,10 @@ import {
     checkTokenPoolInfo,
     TokenPoolInfo,
 } from './utils/get-token-pool-infos';
+import {
+    createMintInstruction,
+    createTokenMetadata,
+} from './mint/instructions/create-mint';
 
 export type CompressParams = {
     /**
@@ -702,7 +707,7 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct createMint instruction for compressed tokens.
+     * Construct createMintSPL instruction for SPL tokens.
      *
      * @param feePayer              Fee payer.
      * @param mint                  SPL Mint address.
@@ -719,7 +724,7 @@ export class CompressedTokenProgram {
      * Note that `createTokenPoolInstruction` must be executed after
      * `initializeMintInstruction`.
      */
-    static async createMint({
+    static async createMintSPL({
         feePayer,
         mint,
         authority,
@@ -763,7 +768,7 @@ export class CompressedTokenProgram {
 
     /**
      * Enable compression for an existing SPL mint, creating an omnibus account.
-     * For new mints, use `CompressedTokenProgram.createMint`.
+     * For new mints, use `CompressedTokenProgram.createMintSPL`.
      *
      * @param feePayer              Fee payer.
      * @param mint                  SPL Mint address.
@@ -795,6 +800,76 @@ export class CompressedTokenProgram {
             keys,
             data: CREATE_TOKEN_POOL_DISCRIMINATOR,
         });
+    }
+
+    /**
+     * Construct createMint instruction.
+     *
+     *
+     * @param mintSigner            Mint keypair public key (signer, used to derive mint PDA)
+     * @param decimals              Number of base 10 digits to the right of the decimal place
+     * @param mintAuthority         Account that will control minting (must sign)
+     * @param freezeAuthority       Optional account that can freeze token accounts
+     * @param payer                 Transaction fee payer
+     * @param validityProof         Validity proof for address derivation
+     * @param addressTree           Address tree pubkey
+     * @param outputQueue           Output queue for the compressed account
+     * @param metadata              Optional token metadata (name, symbol, uri, updateAuthority)
+     *
+     * @returns The createMint instruction
+     */
+    static createMint(
+        mintSigner: PublicKey,
+        decimals: number,
+        mintAuthority: PublicKey,
+        freezeAuthority: PublicKey | null,
+        payer: PublicKey,
+        validityProof: ValidityProofWithContext,
+        addressTree: PublicKey,
+        outputQueue: PublicKey,
+        metadata?: {
+            name: string;
+            symbol: string;
+            uri: string;
+            updateAuthority?: PublicKey | null;
+        },
+    ): TransactionInstruction {
+        const tokenMetadata = metadata
+            ? createTokenMetadata(
+                  metadata.name,
+                  metadata.symbol,
+                  metadata.uri,
+                  metadata.updateAuthority ?? null,
+              )
+            : undefined;
+
+        // Construct tree info objects from pubkeys
+        const addressTreeInfo = {
+            tree: addressTree,
+            queue: addressTree, // V2 uses same account
+            treeType: TreeType.AddressV2,
+            nextTreeInfo: null,
+        };
+
+        const outputStateTreeInfo = {
+            tree: outputQueue, // Using queue as tree for compatibility
+            queue: outputQueue,
+            treeType: TreeType.StateV1,
+            cpiContext: undefined,
+            nextTreeInfo: null,
+        };
+
+        return createMintInstruction(
+            mintSigner,
+            decimals,
+            mintAuthority,
+            freezeAuthority,
+            payer,
+            validityProof,
+            tokenMetadata,
+            addressTreeInfo,
+            outputStateTreeInfo,
+        );
     }
 
     /**
@@ -1082,6 +1157,47 @@ export class CompressedTokenProgram {
         recentSlot,
         remainingAccounts,
     }: CreateTokenProgramLookupTableParams) {
+        // Gather all keys into a single deduped array before creating instructions
+        const allKeys: PublicKey[] = [
+            SystemProgram.programId,
+            ComputeBudgetProgram.programId,
+            this.deriveCpiAuthorityPda,
+            LightSystemProgram.programId,
+            CompressedTokenProgram.programId,
+            defaultStaticAccountsStruct().registeredProgramPda,
+            defaultStaticAccountsStruct().noopProgram,
+            defaultStaticAccountsStruct().accountCompressionAuthority,
+            defaultStaticAccountsStruct().accountCompressionProgram,
+            defaultTestStateTreeAccounts().merkleTree,
+            defaultTestStateTreeAccounts().nullifierQueue,
+            defaultTestStateTreeAccounts().addressTree,
+            defaultTestStateTreeAccounts().addressQueue,
+            this.programId,
+            TOKEN_PROGRAM_ID,
+            TOKEN_2022_PROGRAM_ID,
+            authority,
+        ];
+
+        if (mints) {
+            allKeys.push(
+                ...mints,
+                ...mints.map(mint => this.deriveTokenPoolPda(mint)),
+            );
+        }
+
+        if (remainingAccounts && remainingAccounts.length > 0) {
+            allKeys.push(...remainingAccounts);
+        }
+
+        // Deduplicate keys
+        const seen = new Set<string>();
+        const dedupedKeys = allKeys.filter(key => {
+            const keyStr = key.toBase58();
+            if (seen.has(keyStr)) return false;
+            seen.add(keyStr);
+            return true;
+        });
+
         const [createInstruction, lookupTableAddress] =
             AddressLookupTableProgram.createLookupTable({
                 authority,
@@ -1089,53 +1205,18 @@ export class CompressedTokenProgram {
                 recentSlot,
             });
 
-        let optionalMintKeys: PublicKey[] = [];
-        if (mints) {
-            optionalMintKeys = [
-                ...mints,
-                ...mints.map(mint => this.deriveTokenPoolPda(mint)),
-            ];
-        }
+        const instructions = [createInstruction];
 
-        const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-            payer,
-            authority,
-            lookupTable: lookupTableAddress,
-            addresses: [
-                SystemProgram.programId,
-                ComputeBudgetProgram.programId,
-                this.deriveCpiAuthorityPda,
-                LightSystemProgram.programId,
-                CompressedTokenProgram.programId,
-                defaultStaticAccountsStruct().registeredProgramPda,
-                defaultStaticAccountsStruct().noopProgram,
-                defaultStaticAccountsStruct().accountCompressionAuthority,
-                defaultStaticAccountsStruct().accountCompressionProgram,
-                defaultTestStateTreeAccounts().merkleTree,
-                defaultTestStateTreeAccounts().nullifierQueue,
-                defaultTestStateTreeAccounts().addressTree,
-                defaultTestStateTreeAccounts().addressQueue,
-                this.programId,
-                TOKEN_PROGRAM_ID,
-                TOKEN_2022_PROGRAM_ID,
+        // Add up to 25 keys per extend instruction
+        for (let i = 0; i < dedupedKeys.length; i += 25) {
+            const chunk = dedupedKeys.slice(i, i + 25);
+            const extendIx = AddressLookupTableProgram.extendLookupTable({
+                payer,
                 authority,
-                ...optionalMintKeys,
-            ],
-        });
-
-        const instructions = [createInstruction, extendInstruction];
-
-        if (remainingAccounts && remainingAccounts.length > 0) {
-            for (let i = 0; i < remainingAccounts.length; i += 25) {
-                const chunk = remainingAccounts.slice(i, i + 25);
-                const extendIx = AddressLookupTableProgram.extendLookupTable({
-                    payer,
-                    authority,
-                    lookupTable: lookupTableAddress,
-                    addresses: chunk,
-                });
-                instructions.push(extendIx);
-            }
+                lookupTable: lookupTableAddress,
+                addresses: chunk,
+            });
+            instructions.push(extendIx);
         }
 
         return {

@@ -10,3 +10,5 @@ export * from './sleep';
 export * from './validation';
 export * from './state-tree-lookup-table';
 export * from './get-state-tree-infos';
+export * from './packed-accounts';
+export * from './estimate-compute-units';

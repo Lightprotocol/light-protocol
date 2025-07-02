@@ -1,23 +1,34 @@
 use std::collections::HashMap;
 
 use crate::{
+    error::LightSdkError,
     instruction::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
     AccountMeta, Pubkey,
 };
 
 #[derive(Default, Debug)]
 pub struct PackedAccounts {
-    pre_accounts: Vec<AccountMeta>,
+    pub pre_accounts: Vec<AccountMeta>,
     system_accounts: Vec<AccountMeta>,
     next_index: u8,
     map: HashMap<Pubkey, (u8, AccountMeta)>,
+    /// Field to sanity check
+    system_accounts_set: bool,
+}
+
+pub trait AccountMetasVec {
+    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError>;
 }
 
 impl PackedAccounts {
-    pub fn new_with_system_accounts(config: SystemAccountMetaConfig) -> Self {
+    pub fn new_with_system_accounts(config: SystemAccountMetaConfig) -> crate::error::Result<Self> {
         let mut remaining_accounts = PackedAccounts::default();
-        remaining_accounts.add_system_accounts(config);
-        remaining_accounts
+        remaining_accounts.add_system_accounts(config)?;
+        Ok(remaining_accounts)
+    }
+
+    pub fn system_accounts_set(&self) -> bool {
+        self.system_accounts_set
     }
 
     pub fn add_pre_accounts_signer(&mut self, pubkey: Pubkey) {
@@ -40,9 +51,59 @@ impl PackedAccounts {
         self.pre_accounts.push(account_meta);
     }
 
-    pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
+    pub fn add_pre_accounts_metas(&mut self, account_metas: &[AccountMeta]) {
+        self.pre_accounts.extend_from_slice(account_metas);
+    }
+
+    pub fn add_custom_system_accounts<T: AccountMetasVec>(
+        &mut self,
+        accounts: T,
+    ) -> crate::error::Result<()> {
+        accounts.get_account_metas_vec(self)
+    }
+    #[inline(never)]
+    pub fn add_system_accounts(
+        &mut self,
+        config: SystemAccountMetaConfig,
+    ) -> crate::error::Result<()> {
+        if self.system_accounts_set {
+            return Err(LightSdkError::SystemAccountsAlreadySet);
+        }
         self.system_accounts
             .extend(get_light_system_account_metas(config));
+        // note cpi context account is part of the system accounts
+        /*  if let Some(pubkey) = config.cpi_context {
+            if self.next_index != 0 {
+                return Err(crate::error::LightSdkError::CpiContextOrderingViolation);
+            }
+            self.insert_or_get(pubkey);
+        }*/
+        self.system_accounts_set = true;
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    #[inline(never)]
+    pub fn add_system_accounts_small(
+        &mut self,
+        config: SystemAccountMetaConfig,
+    ) -> crate::error::Result<()> {
+        if self.system_accounts_set {
+            return Err(LightSdkError::SystemAccountsAlreadySet);
+        }
+        self.system_accounts
+            .extend(crate::instruction::get_light_system_account_metas_small(
+                config,
+            ));
+        // note cpi context account is part of the system accounts
+        /*  if let Some(pubkey) = config.cpi_context {
+            if self.next_index != 0 {
+                return Err(crate::error::LightSdkError::CpiContextOrderingViolation);
+            }
+            self.insert_or_get(pubkey);
+        }*/
+        self.system_accounts_set = true;
+        Ok(())
     }
 
     /// Returns the index of the provided `pubkey` in the collection.
@@ -66,21 +127,33 @@ impl PackedAccounts {
         is_signer: bool,
         is_writable: bool,
     ) -> u8 {
-        self.map
-            .entry(pubkey)
-            .or_insert_with(|| {
+        match self.map.get_mut(&pubkey) {
+            Some((index, entry)) => {
+                if !entry.is_writable {
+                    entry.is_writable = is_writable;
+                }
+                if !entry.is_signer {
+                    entry.is_signer = is_signer;
+                }
+                *index
+            }
+            None => {
                 let index = self.next_index;
                 self.next_index += 1;
-                (
-                    index,
-                    AccountMeta {
-                        pubkey,
-                        is_signer,
-                        is_writable,
-                    },
-                )
-            })
-            .0
+                self.map.insert(
+                    pubkey,
+                    (
+                        index,
+                        AccountMeta {
+                            pubkey,
+                            is_signer,
+                            is_writable,
+                        },
+                    ),
+                );
+                index
+            }
+        }
     }
 
     fn hash_set_accounts_to_metas(&self) -> Vec<AccountMeta> {
@@ -117,6 +190,13 @@ impl PackedAccounts {
             system_accounts_start_offset,
             packed_accounts_start_offset,
         )
+    }
+
+    pub fn packed_pubkeys(&self) -> Vec<Pubkey> {
+        self.hash_set_accounts_to_metas()
+            .iter()
+            .map(|meta| meta.pubkey)
+            .collect()
     }
 }
 

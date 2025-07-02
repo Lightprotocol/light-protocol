@@ -12,7 +12,11 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TokenBalance {
-    #[serde(rename = "balance")]
+    #[serde(
+        rename = "balance",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub balance: u64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "mint")]

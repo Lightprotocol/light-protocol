@@ -6,7 +6,8 @@ use light_compressed_account::{
     },
 };
 use light_hasher::{Hasher, Poseidon};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use light_profiler::profile;
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount,
@@ -19,6 +20,7 @@ use crate::{
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(always)]
+#[profile]
 pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     remaining_accounts: &'info [AccountInfo],
     instruction_data: &WrappedInstructionData<'a, T>,
@@ -77,6 +79,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                         .hashed_pubkey
                 }
                 _ => {
+                    msg!(format!("create_inputs_cpi_data {} ", current_mt_index).as_str());
                     return Err(
                         SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
                     );
@@ -94,6 +97,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             context.get_index_or_insert(merkle_context.queue_pubkey_index, remaining_accounts);
         let tree_index = context
             .get_index_or_insert(merkle_context.merkle_tree_pubkey_index, remaining_accounts);
+
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
                 .hash_with_hashed_values(

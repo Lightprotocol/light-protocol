@@ -14,7 +14,7 @@ import {
   getTestRpc,
   sendAndConfirmTx,
 } from "@lightprotocol/stateless.js";
-import { createMint, mintTo } from "@lightprotocol/compressed-token";
+import { createMintSPL, mintTo } from "@lightprotocol/compressed-token";
 import {
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
@@ -34,10 +34,11 @@ export async function createTestMint(mintKeypair: Keypair) {
   const lightWasm = await WasmFactory.getInstance();
   const rpc = await getTestRpc(lightWasm);
 
-  const { mint, transactionSignature } = await createMint(
+  const { mint, transactionSignature } = await createMintSPL(
     rpc,
     await getPayer(),
     (await getPayer()).publicKey,
+    null,
     9,
     mintKeypair,
   );

@@ -1,3 +1,6 @@
+// Allow deprecated to suppress warnings from anchor_lang::AccountInfo::realloc
+// which is used in the #[program] macro but we don't directly control
+#![allow(deprecated)]
 #![allow(clippy::too_many_arguments)]
 use account_compression::{
     utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
@@ -15,9 +18,14 @@ pub use account_compression_cpi::{
     rollover_batched_address_tree::*, rollover_batched_state_tree::*, rollover_state_tree::*,
     update_address_tree::*,
 };
+pub use compressible::{
+    claim::*, compress_and_close::*, create_config::*, create_config_counter::*, update_config::*,
+    withdraw_funding_pool::*,
+};
 pub use protocol_config::{initialize::*, update::*};
 
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
+pub mod compressible;
 pub mod constants;
 pub mod epoch;
 pub mod protocol_config;
@@ -31,10 +39,12 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
+use light_compressible::rent::RentConfig;
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
+use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -51,6 +61,7 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 pub mod light_registry {
 
     use constants::DEFAULT_WORK_V1;
+    use light_compressible::config::CompressibleConfig;
 
     use super::*;
 
@@ -654,6 +665,100 @@ pub mod light_registry {
             DEFAULT_WORK_V1,
         )?;
         process_migrate_state(&ctx, bump, inputs)
+    }
+
+    /// Creates the config counter PDA
+    pub fn create_config_counter(ctx: Context<CreateConfigCounter>) -> Result<()> {
+        ctx.accounts.config_counter.counter += 1;
+        Ok(())
+    }
+
+    /// Creates a new compressible config
+    pub fn create_compressible_config(
+        ctx: Context<CreateCompressibleConfig>,
+        rent_config: RentConfig,
+        update_authority: Pubkey,
+        withdrawal_authority: Pubkey,
+        active: bool,
+    ) -> Result<()> {
+        ctx.accounts
+            .compressible_config
+            .set_inner(CompressibleConfig::new_ctoken(
+                ctx.accounts.config_counter.counter,
+                active,
+                update_authority,
+                withdrawal_authority,
+                rent_config,
+            ));
+        ctx.accounts.config_counter.counter += 1;
+        Ok(())
+    }
+
+    /// Updates an existing compressible config
+    pub fn update_compressible_config(
+        ctx: Context<UpdateCompressibleConfig>,
+        new_update_authority: Option<Pubkey>,
+        new_withdrawal_authority: Option<Pubkey>,
+    ) -> Result<()> {
+        // Update the update_authority if provided
+        if let Some(authority) = new_update_authority {
+            ctx.accounts.compressible_config.update_authority = authority;
+        }
+
+        // Update the withdrawal_authority if provided
+        if let Some(authority) = new_withdrawal_authority {
+            ctx.accounts.compressible_config.withdrawal_authority = authority;
+        }
+
+        Ok(())
+    }
+
+    /// Pauses the compressible config
+    pub fn pause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
+        ctx.accounts.compressible_config.state = 0;
+        Ok(())
+    }
+
+    /// Unpauses the compressible config
+    pub fn unpause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
+        ctx.accounts.compressible_config.state = 1;
+        Ok(())
+    }
+
+    /// Withdraws funds from compressed token pool
+    pub fn withdraw_funding_pool(ctx: Context<WithdrawFundingPool>, amount: u64) -> Result<()> {
+        process_withdraw_funding_pool(&ctx, amount)
+    }
+
+    /// Claims rent from compressible token accounts
+    pub fn claim<'info>(ctx: Context<'_, '_, '_, 'info, ClaimContext<'info>>) -> Result<()> {
+        // Check forester and track work
+        // Using [0u8; 32] as the queue pubkey since claim doesn't have a specific queue
+        ForesterEpochPda::check_forester_in_program(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+            &Pubkey::default(),
+            0,
+        )?;
+
+        // Process the claim CPI
+        process_claim(&ctx)
+    }
+
+    /// Compress and close token accounts via transfer2
+    pub fn compress_and_close<'info>(
+        ctx: Context<'_, '_, '_, 'info, CompressAndCloseContext<'info>>,
+        indices: Vec<CompressAndCloseIndices>,
+    ) -> Result<()> {
+        // Check forester and track work
+        // Using [0u8; 32] as the queue pubkey since compress_and_close doesn't have a specific queue
+        ForesterEpochPda::check_forester_in_program(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+            &Pubkey::default(),
+            0,
+        )?;
+        process_compress_and_close(&ctx, indices)
     }
 }
 

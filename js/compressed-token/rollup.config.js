@@ -20,8 +20,14 @@ const rolls = (fmt, env) => ({
     external: [
         '@solana/web3.js',
         '@solana/spl-token',
-        '@coral-xyz/borsh',
+        '@solana/buffer-layout',
+        '@solana/buffer-layout-utils',
         '@lightprotocol/stateless.js',
+        '@aws-sdk/client-s3',
+        '@coral-xyz/borsh',
+        'buffer',
+        'buffer-layout',
+        'bn.js',
     ],
     plugins: [
         replace({
@@ -85,7 +91,24 @@ const rolls = (fmt, env) => ({
 const typesConfig = {
     input: 'src/index.ts',
     output: [{ file: 'dist/types/index.d.ts', format: 'es' }],
-    plugins: [dts()],
+    external: [
+        '@solana/web3.js',
+        '@solana/spl-token',
+        '@solana/buffer-layout',
+        '@solana/buffer-layout-utils',
+        '@lightprotocol/stateless.js',
+        '@aws-sdk/client-s3',
+        'buffer',
+        'bn.js',
+        '@coral-xyz/borsh',
+        'buffer-layout',
+    ],
+    plugins: [
+        dts({
+            respectExternal: true,
+            tsconfig: './tsconfig.json',
+        }),
+    ],
 };
 
 export default [rolls('cjs', 'browser'), rolls('cjs', 'node'), typesConfig];

@@ -28,4 +28,6 @@ pub enum RegistryError {
     GetCurrentActiveEpochFailed,
     ForesterUndefined,
     ForesterDefined,
+    #[msg("Insufficient funds in pool")]
+    InsufficientFunds,
 }

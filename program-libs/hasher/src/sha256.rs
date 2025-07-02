@@ -9,6 +9,7 @@ use crate::{
 pub struct Sha256;
 
 impl Hasher for Sha256 {
+    const ID: u8 = 1;
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
         Self::hashv(&[val])
     }
@@ -46,6 +47,34 @@ impl Hasher for Sha256 {
     }
 
     fn zero_indexed_leaf() -> [u8; 32] {
+        ZERO_INDEXED_LEAF
+    }
+}
+/// Sha256 hash that is truncated to 248 be bit
+#[derive(Clone, Copy)] // To allow using with zero copy Solana accounts.
+pub struct Sha256BE;
+
+impl Hasher for Sha256BE {
+    const ID: u8 = 2;
+    fn hash(val: &[u8]) -> Result<Hash, HasherError> {
+        let mut hash = Self::hashv(&[val])?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+
+    fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
+        let mut hash = Sha256::hashv(vals)?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+
+    fn zero_bytes() -> ZeroBytes {
+        // TODO: regenerate
+        ZERO_BYTES
+    }
+
+    fn zero_indexed_leaf() -> [u8; 32] {
+        // TODO: regenerate
         ZERO_INDEXED_LEAF
     }
 }

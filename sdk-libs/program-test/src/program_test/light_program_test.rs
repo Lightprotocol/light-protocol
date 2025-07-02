@@ -1,18 +1,28 @@
-use std::fmt::{self, Debug, Formatter};
+use std::{
+    fmt::{self, Debug, Formatter},
+    fs::File,
+    io::Write,
+};
 
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
+use base64::{engine::general_purpose, Engine as _};
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{merkle_tree::MerkleTreeExt, RpcError},
+    rpc::{merkle_tree::MerkleTreeExt, Rpc, RpcError},
 };
 use light_prover_client::prover::{spawn_prover, ProverConfig};
 use litesvm::LiteSVM;
+use serde_json::json;
 use solana_account::WritableAccount;
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::{
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+};
 
 use crate::{
     accounts::{
-        initialize::initialize_accounts, test_accounts::TestAccounts, test_keypairs::TestKeypairs,
+        compressible_config::create_compressible_config, initialize::initialize_accounts,
+        test_accounts::TestAccounts, test_keypairs::TestKeypairs,
     },
     indexer::TestIndexer,
     program_test::TestRpc,
@@ -23,9 +33,11 @@ use crate::{
 pub struct LightProgramTest {
     pub config: ProgramTestConfig,
     pub context: LiteSVM,
+    pub pre_context: Option<LiteSVM>,
     pub indexer: Option<TestIndexer>,
     pub test_accounts: TestAccounts,
     pub payer: Keypair,
+    pub transaction_counter: usize,
 }
 
 impl LightProgramTest {
@@ -46,6 +58,13 @@ impl LightProgramTest {
     /// - registers a forester
     /// - advances to the active phase slot 2
     /// - active phase doesn't end
+    ///   Get an account from the pre-transaction context (before the last transaction)
+    pub fn get_pre_transaction_account(&self, pubkey: &Pubkey) -> Option<solana_account::Account> {
+        self.pre_context
+            .as_ref()
+            .and_then(|ctx| ctx.get_account(pubkey))
+    }
+
     pub async fn new(config: ProgramTestConfig) -> Result<LightProgramTest, RpcError> {
         let mut context = setup_light_programs(config.additional_programs.clone())?;
         let payer = Keypair::new();
@@ -54,10 +73,12 @@ impl LightProgramTest {
             .expect("Payer airdrop failed.");
         let mut context = Self {
             context,
+            pre_context: None,
             indexer: None,
             test_accounts: TestAccounts::get_program_test_test_accounts(),
             payer,
             config: config.clone(),
+            transaction_counter: 0,
         };
         let keypairs = TestKeypairs::program_test_default();
 
@@ -76,6 +97,8 @@ impl LightProgramTest {
                 context.config.no_logs = true;
             }
             initialize_accounts(&mut context, &config, &keypairs).await?;
+            create_compressible_config(&mut context).await?;
+
             if context.config.skip_startup_logs {
                 context.config.no_logs = restore_logs;
             }
@@ -112,6 +135,15 @@ impl LightProgramTest {
                 context.set_account(address_queue_pubkey, account);
             }
         }
+
+        // reset tx counter after program setup.
+        context.transaction_counter = 0;
+
+        let pool_pda_pubkey = context.test_accounts.funding_pool_config.rent_sponsor_pda;
+        context
+            .airdrop_lamports(&pool_pda_pubkey, 1_000_000_000_000)
+            .await?;
+
         // Will always start a prover server.
         #[cfg(feature = "devenv")]
         let prover_config = if config.prover_config.is_none() {
@@ -152,11 +184,6 @@ impl LightProgramTest {
         self.test_accounts.v1_address_trees[0]
     }
 
-    #[cfg(feature = "v2")]
-    pub fn get_address_merkle_tree_v2(&self) -> solana_sdk::pubkey::Pubkey {
-        self.test_accounts.v2_address_trees[0]
-    }
-
     pub async fn add_indexer(
         &mut self,
         test_accounts: &TestAccounts,
@@ -178,6 +205,41 @@ impl LightProgramTest {
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?)
         .clone())
+    }
+
+    /// Save account to JSON file in CLI accounts directory
+    /// Filename will be the pubkey + ".json"
+    pub async fn save_account_to_cli(
+        &mut self,
+        pubkey: &Pubkey,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let account = self.get_account(*pubkey).await?;
+
+        if let Some(account) = account {
+            let data_base64 = general_purpose::STANDARD.encode(&account.data);
+            let json_obj = json!({
+                "pubkey": pubkey.to_string(),
+                "account": {
+                    "lamports": account.lamports,
+                    "data": [data_base64, "base64"],
+                    "owner": account.owner.to_string(),
+                    "executable": account.executable,
+                    "rentEpoch": account.rent_epoch,
+                    "space": account.data.len(),
+                }
+            });
+
+            // Save to CLI accounts directory using pubkey as filename
+            let filename = format!("{}.json", pubkey);
+            let cli_path = format!("../../cli/accounts/{}", filename);
+            let mut file = File::create(&cli_path)?;
+            file.write_all(json_obj.to_string().as_bytes())?;
+
+            println!("✅ Saved account {} to {}", pubkey, cli_path);
+            Ok(())
+        } else {
+            Err(format!("❌ Account {} not found", pubkey).into())
+        }
     }
 }
 

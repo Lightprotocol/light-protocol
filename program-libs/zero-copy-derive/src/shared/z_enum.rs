@@ -124,7 +124,7 @@ pub fn generate_enum_deserialize_impl(
                     #discriminant => {
                         let (value, remaining_bytes) =
                             <#field_type as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at(remaining_data)?;
-                        Ok((#z_enum_name::#variant_name(value), remaining_bytes))
+                       Ok((#z_enum_name::#variant_name(value), remaining_bytes))
                     }
                 })
             }

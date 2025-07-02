@@ -4,12 +4,16 @@ on:
       - main
     paths:
       - "examples/**"
+      - "program-tests/sdk-anchor-test/**"
+      - "program-tests/sdk-pinocchio-test/**"
       - "sdk-libs/**"
   pull_request:
     branches:
       - "*"
     paths:
       - "examples/**"
+      - "program-tests/sdk-anchor-test/**"
+      - "program-tests/sdk-pinocchio-test/**"
       - "sdk-libs/**"
     types:
       - opened
@@ -24,8 +28,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  system-programs:
-    name: system-programs
+  examples-tests:
+    name: examples-tests
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -48,7 +52,7 @@ jobs:
       matrix:
         include:
           - program: sdk-test-program
-            sub-tests: '["cargo-test-sbf -p sdk-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-native-test"]'
           - program: sdk-anchor-test-program
             sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-test"]'
 

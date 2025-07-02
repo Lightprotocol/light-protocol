@@ -14,6 +14,7 @@ use light_compressed_account::{
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, msg};
 
 use crate::{
@@ -46,6 +47,7 @@ pub enum AcpAccount<'info> {
     Unknown(),
 }
 
+#[profile]
 pub(crate) fn try_from_account_infos<'info>(
     account_infos: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
@@ -59,6 +61,7 @@ pub(crate) fn try_from_account_infos<'info>(
 }
 
 #[inline(always)]
+#[profile]
 pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     account_info: &'info AccountInfo,
     context: &mut SystemContext<'info>,
@@ -138,6 +141,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 return Err(SystemProgramError::InvalidAccount);
             }
             let merkle_tree = &mut merkle_tree.map_err(|_| SystemProgramError::InvalidAccount)?;
+            // SAFETY: merkle_tree is a valid RefMut<[u8]>, pointer and length are valid
             let data_slice: &'info mut [u8] = unsafe {
                 std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
             };
@@ -167,6 +171,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let mut merkle_tree = account_info
                 .try_borrow_mut_data()
                 .map_err(|_| SystemProgramError::InvalidAccount)?;
+            // SAFETY: merkle_tree is a valid RefMut<[u8]>, pointer and length are valid
             let data_slice: &'info mut [u8] = unsafe {
                 std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
             };

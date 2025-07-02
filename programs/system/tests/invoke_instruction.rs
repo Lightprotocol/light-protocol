@@ -29,25 +29,25 @@ fn functional_from_account_infos() {
     let decompression_recipient = get_self_program_account_info();
 
     let ref_invoke_cpi_instruction = InvokeInstruction {
-        fee_payer: &fee_payer.clone(),
-        authority: &authority.clone(),
-        registered_program_pda: &registered_program_pda.clone(),
-        account_compression_authority: &account_compression_authority.clone(),
-        account_compression_program: &account_compression_program.clone(),
+        fee_payer: &fee_payer,
+        authority: &authority,
+        registered_program_pda: &registered_program_pda,
+        account_compression_authority: &account_compression_authority,
+        account_compression_program: &account_compression_program,
         sol_pool_pda: None,
         decompression_recipient: None,
-        system_program: &system_program.clone(),
+        system_program: &system_program,
     };
     let account_info_array = [
-        fee_payer.clone(),
-        authority.clone(),
-        registered_program_pda.clone(),
-        noop_program.clone(),
-        account_compression_authority.clone(),
-        account_compression_program.clone(),
-        sol_pool_pda_none.clone(),
-        decompression_recipient.clone(),
-        system_program.clone(),
+        fee_payer,
+        authority,
+        registered_program_pda,
+        noop_program,
+        account_compression_authority,
+        account_compression_program,
+        sol_pool_pda_none,
+        decompression_recipient,
+        system_program,
     ];
     let (invoke_cpi_instruction, _) =
         InvokeInstruction::from_account_infos(account_info_array.as_slice()).unwrap();
@@ -63,16 +63,21 @@ fn functional_from_account_infos() {
     assert_eq!(
         invoke_cpi_instruction
             .get_account_compression_authority()
+            .unwrap()
             .key(),
         account_compression_authority.key()
     );
     assert_eq!(
-        invoke_cpi_instruction.get_registered_program_pda().key(),
+        invoke_cpi_instruction
+            .get_registered_program_pda()
+            .unwrap()
+            .key(),
         registered_program_pda.key()
     );
-    assert!(invoke_cpi_instruction.get_sol_pool_pda().is_none());
+    assert!(invoke_cpi_instruction.get_sol_pool_pda().unwrap().is_none());
     assert!(invoke_cpi_instruction
         .get_decompression_recipient()
+        .unwrap()
         .is_none());
 }
 
@@ -89,25 +94,25 @@ fn failing_from_account_infos() {
     let decompression_recipient = get_self_program_account_info();
 
     let ref_invoke_cpi_instruction = InvokeInstruction {
-        fee_payer: &fee_payer.clone(),
-        authority: &authority.clone(),
-        registered_program_pda: &registered_program_pda.clone(),
-        account_compression_authority: &account_compression_authority.clone(),
-        account_compression_program: &account_compression_program.clone(),
+        fee_payer: &fee_payer,
+        authority: &authority,
+        registered_program_pda: &registered_program_pda,
+        account_compression_authority: &account_compression_authority,
+        account_compression_program: &account_compression_program,
         sol_pool_pda: None,
         decompression_recipient: None,
-        system_program: &system_program.clone(),
+        system_program: &system_program,
     };
     let account_info_array = [
-        fee_payer.clone(),
-        authority.clone(),
-        registered_program_pda.clone(),
-        noop_program.clone(),
-        account_compression_authority.clone(),
-        account_compression_program.clone(),
-        sol_pool_pda_none.clone(),
-        decompression_recipient.clone(),
-        system_program.clone(),
+        fee_payer,
+        authority,
+        registered_program_pda,
+        noop_program,
+        account_compression_authority,
+        account_compression_program,
+        sol_pool_pda_none,
+        decompression_recipient,
+        system_program,
     ];
     // 1. Functional
     {
@@ -117,35 +122,35 @@ fn failing_from_account_infos() {
     }
     // 3. Registered Program Pda mutable
     {
-        let mut account_info_array = account_info_array.clone();
+        let mut account_info_array = account_info_array;
         account_info_array[2] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::AccountMutable)));
     }
     // 4. account_compression_authority mutable
     {
-        let mut account_info_array = account_info_array.clone();
+        let mut account_info_array = account_info_array;
         account_info_array[4] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::AccountMutable)));
     }
     // 5. account_compression_program invalid program id
     {
-        let mut account_info_array = account_info_array.clone();
+        let mut account_info_array = account_info_array;
         account_info_array[5] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::InvalidProgramId)));
     }
     // 6. account_compression_program not executable
     {
-        let mut account_info_array = account_info_array.clone();
+        let mut account_info_array = account_info_array;
         account_info_array[5] = get_non_executable_account_compression_program_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::ProgramNotExecutable)));
     }
     // 7. sol_pool_pda invalid address
     {
-        let mut account_info_array = account_info_array.clone();
+        let mut account_info_array = account_info_array;
         account_info_array[6] = get_mut_account_info();
         // Panics with Unable to find a viable program address bump seed
         let result = catch_unwind(|| {
@@ -159,7 +164,7 @@ fn failing_from_account_infos() {
     }
     // 8. system_program invalid program id
     {
-        let mut account_info_array = account_info_array.clone();
+        let mut account_info_array = account_info_array;
         account_info_array[8] = get_mut_account_info();
         let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
         assert!(res == Err(ProgramError::from(AccountError::InvalidProgramId)));

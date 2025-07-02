@@ -6,12 +6,16 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
+[features]
+default = []
+anchor-discriminator-compat = []
+
 [dependencies]
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
-
+heck = "0.4.1"
 light-hasher = { workspace = true }
 light-poseidon = { workspace = true }
 

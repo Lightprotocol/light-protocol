@@ -147,6 +147,10 @@ export function getProverNameByArch(): string {
   let binaryName = `prover-${platform}-${arch}`;
 
   if (platform.toString() === "windows") {
+    throw new Error(
+      "Windows OS support is not included in this NPM release. Please reach out to team@lightprotocol.com to get the Windows binary.",
+    );
+    //@ts-ignore
     binaryName += ".exe";
   }
   return binaryName;

@@ -1,0 +1,59 @@
+[package]
+name = "anchor-compressed-token"
+version = "2.0.0"
+description = "Generalized token compression on Solana"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "anchor_compressed_token"
+
+[features]
+no-entrypoint = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+custom-heap = ["light-heap"]
+mem-profiling = []
+default = ["custom-heap", "idl-build"]
+test-sbf = []
+bench-sbf = []
+cpi-context = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+cpi-without-program-ids = []
+
+[dependencies]
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+spl-token = { workspace = true, features = ["no-entrypoint"] }
+account-compression = { workspace = true, features = ["cpi", "no-idl"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+solana-security-txt = "1.1.0"
+light-hasher = { workspace = true }
+light-heap = { workspace = true, optional = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
+spl-token-2022 = { workspace = true }
+light-zero-copy = { workspace = true }
+zerocopy = { workspace = true }
+light-ctoken-types = { workspace = true, features = ["anchor"] }
+pinocchio-pubkey = { workspace = true }
+
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = { workspace = true }
+
+
+[dev-dependencies]
+rand = { workspace = true }
+num-bigint = { workspace = true }
+light-compressed-account = { workspace = true, features = [
+    "anchor",
+    "new-unique",
+] }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

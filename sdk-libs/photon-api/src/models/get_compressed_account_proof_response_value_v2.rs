@@ -15,7 +15,11 @@ pub struct GetCompressedAccountProofResponseValueV2 {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "hash")]
     pub hash: String,
-    #[serde(rename = "leafIndex")]
+    #[serde(
+        rename = "leafIndex",
+        deserialize_with = "crate::string_u64::u32_direct::deserialize",
+        serialize_with = "crate::string_u64::u32_direct::serialize"
+    )]
     pub leaf_index: u32,
     #[serde(rename = "proof")]
     pub proof: Vec<String>,
@@ -24,7 +28,11 @@ pub struct GetCompressedAccountProofResponseValueV2 {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "root")]
     pub root: String,
-    #[serde(rename = "rootSeq")]
+    #[serde(
+        rename = "rootSeq",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub root_seq: u64,
     #[serde(rename = "treeContext")]
     pub tree_context: Box<models::TreeContextInfo>,

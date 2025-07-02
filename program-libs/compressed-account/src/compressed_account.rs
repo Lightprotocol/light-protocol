@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use light_hasher::{Hasher, Poseidon};
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
     address::pack_account,
@@ -11,7 +12,8 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, CompressedAccountError, Pubkey, TreeType,
 };
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
@@ -133,7 +135,8 @@ pub struct ReadOnlyCompressedAccount {
     pub root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: PackedMerkleContext,
@@ -149,7 +152,18 @@ pub struct MerkleContext {
     pub tree_type: TreeType,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[repr(C)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    AnchorSerialize,
+    AnchorDeserialize,
+    PartialEq,
+    Default,
+    ZeroCopy,
+    ZeroCopyMut,
+)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub queue_pubkey_index: u8,
@@ -217,7 +231,8 @@ pub fn pack_merkle_context(
         .collect::<Vec<_>>()
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct CompressedAccount {
     pub owner: Pubkey,
     pub lamports: u64,
@@ -234,7 +249,10 @@ pub struct InCompressedAccount {
     pub address: Option<[u8; 32]>,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(
+    Debug, Eq, Hash, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut,
+)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
@@ -283,7 +301,6 @@ pub fn hash_with_hashed_values(
 
         vec.push(lamports_bytes.as_slice());
     }
-
     if let Some(address) = address {
         vec.push(address);
     }

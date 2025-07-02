@@ -21,9 +21,8 @@ pub use traits::ZeroCopyStructInner;
 #[cfg(feature = "derive")]
 pub use zerocopy::{
     little_endian::{self, U16, U32, U64},
-    Ref, Unaligned,
+    FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
-pub use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -42,6 +41,16 @@ pub fn u32_to_usize(value: u32) -> Result<usize, errors::ZeroCopyError> {
     }
     Ok(result)
 }
-pub trait ZeroCopyTraits: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
+pub trait ZeroCopyTraits:
+    Copy + zerocopy::KnownLayout + zerocopy::Immutable + zerocopy::FromBytes + zerocopy::IntoBytes
+{
+}
 
-impl<T> ZeroCopyTraits for T where T: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
+impl<T> ZeroCopyTraits for T where
+    T: Copy
+        + zerocopy::KnownLayout
+        + zerocopy::Immutable
+        + zerocopy::FromBytes
+        + zerocopy::IntoBytes
+{
+}

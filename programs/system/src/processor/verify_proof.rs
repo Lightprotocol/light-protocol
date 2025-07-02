@@ -9,6 +9,7 @@ use light_compressed_account::{
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
+use light_profiler::profile;
 use light_verifier::{
     select_verifying_key, verify_create_addresses_and_inclusion_proof,
     verify_create_addresses_proof, verify_inclusion_proof,
@@ -23,6 +24,7 @@ const IS_STATE: bool = true;
 const IS_NOT_STATE: bool = false;
 
 #[inline(always)]
+#[profile]
 pub fn read_input_state_roots<'a: 'b, 'b>(
     remaining_accounts: &[AcpAccount<'_>],
     input_compressed_accounts_with_merkle_context: impl Iterator<Item = &'b (dyn InputAccount<'a> + 'b)>,
@@ -59,6 +61,7 @@ pub fn read_input_state_roots<'a: 'b, 'b>(
 }
 
 /// Check that internal height matches tree height.
+#[profile]
 fn check_tree_height<const IS_STATE_TREE: bool>(
     tree_height: &mut u8,
     internal_height: u8,
@@ -81,6 +84,7 @@ fn check_tree_height<const IS_STATE_TREE: bool>(
 }
 
 #[inline(always)]
+#[profile]
 pub fn read_address_roots<'a, 'b: 'a>(
     remaining_accounts: &[AcpAccount<'_>],
     new_address_params: impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)>,
@@ -109,12 +113,39 @@ pub fn read_address_roots<'a, 'b: 'a>(
 }
 
 #[inline(always)]
+#[profile]
 fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
     merkle_tree_account: &AcpAccount<'_>,
     root_index: u16,
     roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let height;
+
+    // let account_type = match &merkle_tree_account {
+    //     AcpAccount::Authority(_) => "Authority",
+    //     AcpAccount::RegisteredProgramPda(_) => "RegisteredProgramPda",
+    //     AcpAccount::SystemProgram(_) => "SystemProgram",
+    //     AcpAccount::OutputQueue(_) => "OutputQueue",
+    //     AcpAccount::BatchedStateTree(_) => "BatchedStateTree",
+    //     AcpAccount::BatchedAddressTree(_) => "BatchedAddressTree",
+    //     AcpAccount::StateTree(_) => "StateTree",
+    //     AcpAccount::AddressTree(_) => "AddressTree",
+    //     AcpAccount::AddressQueue(_, _) => "AddressQueue",
+    //     AcpAccount::V1Queue(_) => "V1Queue",
+    //     AcpAccount::Unknown() => "Unknown",
+    // };
+    // // msg!(&format!("merkle_tree_account type: {}", account_type));
+    // let pubkey = match &merkle_tree_account {
+    //     AcpAccount::AddressTree((pubkey, _)) => pubkey,
+    //     AcpAccount::BatchedAddressTree(tree) => tree.pubkey(),
+    //     _ => {
+    //         msg!("fu");
+    //         return Err(SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into());
+    //     }
+    // };
+
+    // msg!(&format!("root_index:{:?} pubkey: {:?}", root_index, pubkey));
+
     match merkle_tree_account {
         AcpAccount::AddressTree((_, merkle_tree)) => {
             if IS_READ_ONLY {
@@ -146,6 +177,7 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
             return if IS_STATE {
                 Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch)
             } else {
+                msg!("is_state: false");
                 Err(SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch)
             }
         }
@@ -154,6 +186,7 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn verify_proof(
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],

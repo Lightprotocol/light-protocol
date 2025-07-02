@@ -25,6 +25,15 @@ pub struct CpiContextAccount {
     pub context: Vec<InstructionDataInvokeCpi>,
 }
 
+#[aligned_sized(anchor)]
+#[derive(Debug, PartialEq, Default)]
+#[account]
+#[repr(C)]
+pub struct CpiContextAccount2 {
+    pub fee_payer: Pubkey,
+    pub associated_merkle_tree: Pubkey,
+}
+
 impl CpiContextAccount {
     pub fn init(&mut self, associated_merkle_tree: Pubkey) {
         self.associated_merkle_tree = associated_merkle_tree;

@@ -12,7 +12,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
-    createMint,
+    createMintSPL,
     mintTo,
     approve,
     revoke,
@@ -122,10 +122,11 @@ describe('delegate', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
         mint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )

@@ -30,6 +30,7 @@ use crate::{
         test_accounts::{ProtocolAccounts, StateMerkleTreeAccountsV2, TestAccounts},
         test_keypairs::*,
     },
+    compressible::FundingPoolConfig,
     program_test::TestRpc,
     ProgramTestConfig,
 };
@@ -177,6 +178,18 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             *v2_state_tree_config,
         )
         .await?;
+
+        // Initialize the second v2 state tree
+        create_batched_state_merkle_tree(
+            &keypairs.governance_authority,
+            true,
+            context,
+            &keypairs.batched_state_merkle_tree_2,
+            &keypairs.batched_output_queue_2,
+            &keypairs.batched_cpi_context_2,
+            *v2_state_tree_config,
+        )
+        .await?;
     }
     #[cfg(feature = "v2")]
     if let Some(params) = _v2_address_tree_config {
@@ -187,6 +200,12 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             *params,
         )
         .await?;
+    }
+
+    // Register forester for epoch 0 if enabled
+    if config.with_forester {
+        use crate::forester::register_forester::register_forester_for_compress_and_close;
+        register_forester_for_compress_and_close(context, &keypairs.forester).await?;
     }
 
     let registered_system_program_pda =
@@ -211,12 +230,20 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             merkle_tree: keypairs.address_merkle_tree.pubkey(),
             queue: keypairs.address_merkle_tree_queue.pubkey(),
         }],
-        v2_state_trees: vec![StateMerkleTreeAccountsV2 {
-            merkle_tree: keypairs.batched_state_merkle_tree.pubkey(),
-            output_queue: keypairs.batched_output_queue.pubkey(),
-            cpi_context: keypairs.batched_cpi_context.pubkey(),
-        }],
+        v2_state_trees: vec![
+            StateMerkleTreeAccountsV2 {
+                merkle_tree: keypairs.batched_state_merkle_tree.pubkey(),
+                output_queue: keypairs.batched_output_queue.pubkey(),
+                cpi_context: keypairs.batched_cpi_context.pubkey(),
+            },
+            StateMerkleTreeAccountsV2 {
+                merkle_tree: keypairs.batched_state_merkle_tree_2.pubkey(),
+                output_queue: keypairs.batched_output_queue_2.pubkey(),
+                cpi_context: keypairs.batched_cpi_context_2.pubkey(),
+            },
+        ],
         v2_address_trees: vec![keypairs.batch_address_merkle_tree.pubkey()],
+        funding_pool_config: FundingPoolConfig::get_v1(),
     })
 }
 

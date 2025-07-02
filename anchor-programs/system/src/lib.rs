@@ -1,3 +1,7 @@
+// Allow deprecated to suppress warnings from anchor_lang::AccountInfo::realloc
+// which is used in the #[program] macro but we don't directly control
+#![allow(deprecated)]
+
 use anchor_lang::prelude::*;
 
 pub mod account_traits;
@@ -21,6 +25,10 @@ pub mod light_system_program {
     use super::*;
 
     pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
+    pub fn re_init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }
 

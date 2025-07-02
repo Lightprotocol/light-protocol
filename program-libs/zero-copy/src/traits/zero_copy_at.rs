@@ -1,6 +1,7 @@
 use core::mem::size_of;
 use std::vec::Vec;
 
+use arrayvec::ArrayVec;
 use zerocopy::{
     little_endian::{I16, I32, I64, U16, U32, U64},
     FromBytes, Immutable, KnownLayout, Ref,
@@ -128,6 +129,33 @@ impl<'a, T: ZeroCopyAt<'a>> ZeroCopyAt<'a> for Vec<T> {
             ));
         }
         let mut slices = Vec::with_capacity(num_slices);
+        for _ in 0..num_slices {
+            let (slice, _bytes) = T::zero_copy_at(bytes)?;
+            bytes = _bytes;
+            slices.push(slice);
+        }
+        Ok((slices, bytes))
+    }
+}
+
+impl<'a, T: ZeroCopyAt<'a>, const N: usize> ZeroCopyAt<'a> for ArrayVec<T, N> {
+    type ZeroCopyAt = ArrayVec<T::ZeroCopyAt, N>;
+    #[inline]
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
+        let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
+        let num_slices = crate::u32_to_usize(u32::from(*num_slices))?;
+        // Prevent heap exhaustion attacks by checking if num_slices is reasonable
+        // Each element needs at least 1 byte when serialized
+        if bytes.len() < num_slices {
+            return Err(ZeroCopyError::InsufficientMemoryAllocated(
+                bytes.len(),
+                num_slices,
+            ));
+        }
+        if num_slices > N {
+            return Err(ZeroCopyError::InsufficientMemoryAllocated(N, num_slices));
+        }
+        let mut slices = ArrayVec::new();
         for _ in 0..num_slices {
             let (slice, _bytes) = T::zero_copy_at(bytes)?;
             bytes = _bytes;

@@ -1,4 +1,5 @@
 import { airdropSol } from "@lightprotocol/stateless.js";
+import { CTOKEN_RENT_SPONSOR } from "@lightprotocol/compressed-token";
 import { getConfig, getPayer, setAnchorProvider, setConfig } from "./utils";
 import {
   BASE_PATH,
@@ -19,6 +20,7 @@ import {
 } from "./process";
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
+import { PublicKey } from "@solana/web3.js";
 
 type Program = { id: string; name?: string; tag?: string; path?: string };
 export const SYSTEM_PROGRAMS: Program[] = [
@@ -133,6 +135,21 @@ export async function initTestEnv({
   });
   await waitForServers([{ port: rpcPort, path: "/health" }]);
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
+
+  // Airdrop SOL to CToken rent recipient
+
+  try {
+    console.log("Airdropping 10 SOL to CToken rent recipient...");
+    const provider = await setAnchorProvider();
+    await airdropSol({
+      connection: provider.connection,
+      recipientPublicKey: CTOKEN_RENT_SPONSOR,
+      lamports: 10e9,
+    }); // 10 SOL
+    console.log(`Funded rent_sponsor: ${CTOKEN_RENT_SPONSOR.toBase58()}`);
+  } catch (error) {
+    throw new Error(`Failed to airdrop to CToken rent recipient: ${error}`);
+  }
 
   if (indexer) {
     const config = getConfig();

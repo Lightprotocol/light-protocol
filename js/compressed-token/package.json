@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/compressed-token",
-    "version": "0.22.0",
+    "version": "0.22.1-alpha.0",
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
@@ -29,7 +29,10 @@
     ],
     "license": "Apache-2.0",
     "peerDependencies": {
+        "@aws-sdk/client-s3": ">=3.751.0",
         "@lightprotocol/stateless.js": "workspace:*",
+        "@solana/buffer-layout": "^4.0.0",
+        "@solana/buffer-layout-utils": "^0.2.0",
         "@solana/spl-token": ">=0.3.9",
         "@solana/web3.js": ">=1.73.5"
     },
@@ -38,7 +41,13 @@
         "bn.js": "^5.2.1",
         "buffer": "6.0.3"
     },
+    "peerDependenciesMeta": {
+        "@aws-sdk/client-s3": {
+            "optional": true
+        }
+    },
     "devDependencies": {
+        "@aws-sdk/client-s3": "^3.901.0",
         "@coral-xyz/anchor": "^0.29.0",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@lightprotocol/hasher.rs": "0.2.1",
@@ -88,6 +97,14 @@
         "test-validator": "./../../cli/test_bin/run test-validator",
         "test-validator-skip-prover": "./../../cli/test_bin/run test-validator --skip-prover",
         "test:e2e:create-mint": "pnpm test-validator && NODE_OPTIONS='--trace-deprecation' vitest run tests/e2e/create-mint.test.ts --reporter=verbose",
+        "test:e2e:create-compressed-mint": "pnpm test-validator && vitest run tests/e2e/create-compressed-mint.test.ts --reporter=verbose",
+        "test:e2e:mint-to-compressed": "pnpm test-validator && vitest run tests/e2e/mint-to-compressed.test.ts --reporter=verbose",
+        "test:e2e:mint-to-ctoken": "pnpm test-validator && vitest run tests/e2e/mint-to-ctoken.test.ts --reporter=verbose",
+        "test:e2e:mint-to-interface": "pnpm test-validator && vitest run tests/e2e/mint-to-interface.test.ts --reporter=verbose",
+        "test:e2e:update-mint": "pnpm test-validator && vitest run tests/e2e/update-mint.test.ts --reporter=verbose",
+        "test:e2e:update-metadata": "pnpm test-validator && vitest run tests/e2e/update-metadata.test.ts --reporter=verbose",
+        "test:e2e:create-associated-ctoken": "pnpm test-validator && vitest run tests/e2e/create-associated-ctoken.test.ts --reporter=verbose",
+        "test:e2e:mint-workflow": "pnpm test-validator && vitest run tests/e2e/mint-workflow.test.ts --reporter=verbose",
         "test:e2e:layout": "vitest run tests/e2e/layout.test.ts --reporter=verbose --bail=1",
         "test:e2e:select-accounts": "vitest run tests/e2e/select-accounts.test.ts --reporter=verbose",
         "test:e2e:create-token-pool": "pnpm test-validator && vitest run tests/e2e/create-token-pool.test.ts",

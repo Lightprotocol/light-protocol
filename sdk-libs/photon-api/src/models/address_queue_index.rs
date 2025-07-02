@@ -15,7 +15,11 @@ pub struct AddressQueueIndex {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "address")]
     pub address: String,
-    #[serde(rename = "queueIndex")]
+    #[serde(
+        rename = "queueIndex",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub queue_index: u64,
 }
 

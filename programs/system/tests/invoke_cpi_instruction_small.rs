@@ -2,12 +2,11 @@ use std::panic::catch_unwind;
 
 use light_account_checks::{
     account_info::test_account_info::pinocchio::{get_account_info, pubkey_unique},
-    discriminator::Discriminator,
     error::AccountError,
 };
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use light_system_program_pinocchio::invoke_cpi::{
-    account::CpiContextAccount, instruction_small::InvokeCpiInstructionSmall,
+use light_system_program_pinocchio::{
+    invoke_cpi::instruction_small::InvokeCpiInstructionSmall, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR,
 };
 // We'll avoid direct PDA validation as it's difficult in unit tests
 use pinocchio::account_info::AccountInfo;
@@ -16,9 +15,10 @@ use pinocchio::program_error::ProgramError;
 // Import the account info getters from the invoke_cpi_instruction test file
 mod invoke_cpi_instruction;
 use invoke_cpi_instruction::{
-    get_account_compression_authority_account_info, get_authority_account_info,
-    get_fee_payer_account_info, get_mut_account_info, get_registered_program_pda_account_info,
-    get_self_program_account_info,
+    get_account_compression_authority_account_info, get_account_compression_program_account_info,
+    get_authority_account_info, get_fee_payer_account_info, get_mut_account_info,
+    get_registered_program_pda_account_info, get_self_program_account_info,
+    get_system_program_account_info,
 };
 
 // Helper function to get a valid cpi_context_account with correct discriminator
@@ -28,7 +28,7 @@ fn get_valid_cpi_context_account_info() -> AccountInfo {
 
     // Create data with the correct discriminator at the beginning
     let mut data = vec![0; 100]; // Extra space for the account data
-    data[0..8].copy_from_slice(&CpiContextAccount::LIGHT_DISCRIMINATOR);
+    data[0..8].copy_from_slice(&CPI_CONTEXT_ACCOUNT_DISCRIMINATOR);
 
     get_account_info(
         pubkey_unique(), // Random pubkey
@@ -59,6 +59,8 @@ fn functional_from_account_infos_small() {
     let authority = get_authority_account_info();
     let registered_program_pda = get_registered_program_pda_account_info();
     let account_compression_authority = get_account_compression_authority_account_info();
+    let account_compression_program = get_account_compression_program_account_info();
+    let system_program = get_system_program_account_info();
 
     // No optional accounts
     {
@@ -66,13 +68,18 @@ fn functional_from_account_infos_small() {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: false,
+            write_to_cpi_context: false,
         };
 
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            get_mut_account_info(), // Dummy remaining account
+            get_mut_account_info(), // Another dummy remaining account
         ];
         let result = InvokeCpiInstructionSmall::from_account_infos(
             account_info_array.as_slice(),
@@ -90,17 +97,32 @@ fn functional_from_account_infos_small() {
             authority.key()
         );
         assert_eq!(
-            invoke_cpi_instruction_small.registered_program_pda.key(),
+            invoke_cpi_instruction_small
+                .exec_accounts
+                .as_ref()
+                .unwrap()
+                .registered_program_pda
+                .key(),
             registered_program_pda.key()
         );
         assert_eq!(
             invoke_cpi_instruction_small
+                .exec_accounts
+                .as_ref()
+                .unwrap()
                 .account_compression_authority
                 .key(),
             account_compression_authority.key()
         );
-        assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
         assert!(invoke_cpi_instruction_small
+            .exec_accounts
+            .as_ref()
+            .unwrap()
+            .sol_pool_pda
+            .is_none());
+        assert!(invoke_cpi_instruction_small
+            .exec_accounts
+            .unwrap()
             .decompression_recipient
             .is_none());
         assert!(invoke_cpi_instruction_small.cpi_context_account.is_none());
@@ -113,14 +135,18 @@ fn functional_from_account_infos_small() {
             sol_pool_pda: false,
             decompression_recipient: true,
             cpi_context_account: false,
+            write_to_cpi_context: false, // TODO: test with write_to_cpi_context
         };
 
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            decompression_recipient.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            decompression_recipient,
+            get_mut_account_info(), // Remaining account required for CPI
         ];
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -137,9 +163,16 @@ fn functional_from_account_infos_small() {
             invoke_cpi_instruction_small.authority.key(),
             authority.key()
         );
-        assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
+        assert!(invoke_cpi_instruction_small
+            .exec_accounts
+            .as_ref()
+            .unwrap()
+            .sol_pool_pda
+            .is_none());
         assert_eq!(
             invoke_cpi_instruction_small
+                .exec_accounts
+                .unwrap()
                 .decompression_recipient
                 .unwrap()
                 .key(),
@@ -153,20 +186,26 @@ fn functional_from_account_infos_small() {
         let authority = get_authority_account_info();
         let registered_program_pda = get_registered_program_pda_account_info();
         let account_compression_authority = get_account_compression_authority_account_info();
+        let account_compression_program = get_account_compression_program_account_info();
+        let system_program = get_system_program_account_info();
         let cpi_context_account = get_valid_cpi_context_account_info();
 
         let options_config = AccountOptions {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: true,
+            write_to_cpi_context: false,
         };
 
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            cpi_context_account.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            cpi_context_account,
+            get_mut_account_info(), // Remaining account required for CPI
         ];
 
         // This should pass with valid discriminator
@@ -185,8 +224,15 @@ fn functional_from_account_infos_small() {
             invoke_cpi_instruction_small.authority.key(),
             authority.key()
         );
-        assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
         assert!(invoke_cpi_instruction_small
+            .exec_accounts
+            .as_ref()
+            .unwrap()
+            .sol_pool_pda
+            .is_none());
+        assert!(invoke_cpi_instruction_small
+            .exec_accounts
+            .unwrap()
             .decompression_recipient
             .is_none());
         assert_eq!(
@@ -210,16 +256,22 @@ fn test_cpi_context_account_error_handling() {
         sol_pool_pda: false, // Avoid PDA validation
         decompression_recipient: false,
         cpi_context_account: true,
+        write_to_cpi_context: false,
     };
     // Invalid program owner
     {
         let invalid_cpi_context_account = get_self_program_account_info();
+        let account_compression_program = get_account_compression_program_account_info();
+        let system_program = get_system_program_account_info();
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            invalid_cpi_context_account.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            invalid_cpi_context_account,
+            get_mut_account_info(), // Remaining account required for CPI
         ];
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -233,12 +285,17 @@ fn test_cpi_context_account_error_handling() {
     {
         let invalid_cpi_context_account = get_valid_cpi_context_account_info();
         invalid_cpi_context_account.try_borrow_mut_data().unwrap()[..8].copy_from_slice(&[0; 8]);
+        let account_compression_program = get_account_compression_program_account_info();
+        let system_program = get_system_program_account_info();
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            invalid_cpi_context_account.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            invalid_cpi_context_account,
+            get_mut_account_info(), // Remaining account required for CPI
         ];
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -264,15 +321,21 @@ fn test_decompression_recipient_and_cpi_context_validation() {
         sol_pool_pda: false,
         decompression_recipient: true,
         cpi_context_account: true,
+        write_to_cpi_context: false,
     };
 
+    let account_compression_program = get_account_compression_program_account_info();
+    let system_program = get_system_program_account_info();
     let account_info_array = [
-        fee_payer.clone(),
-        authority.clone(),
-        registered_program_pda.clone(),
-        account_compression_authority.clone(),
-        decompression_recipient.clone(),
-        cpi_context_account.clone(),
+        fee_payer,
+        authority,
+        registered_program_pda,
+        account_compression_authority,
+        account_compression_program,
+        system_program,
+        decompression_recipient,
+        cpi_context_account,
+        get_mut_account_info(), // Remaining account required for CPI
     ];
 
     // This should pass with valid discriminator
@@ -291,9 +354,16 @@ fn test_decompression_recipient_and_cpi_context_validation() {
         invoke_cpi_instruction_small.authority.key(),
         authority.key()
     );
-    assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
+    assert!(invoke_cpi_instruction_small
+        .exec_accounts
+        .as_ref()
+        .unwrap()
+        .sol_pool_pda
+        .is_none());
     assert_eq!(
         invoke_cpi_instruction_small
+            .exec_accounts
+            .unwrap()
             .decompression_recipient
             .unwrap()
             .key(),
@@ -315,12 +385,17 @@ fn failing_from_account_infos_small() {
     let registered_program_pda = get_registered_program_pda_account_info();
     let account_compression_authority = get_account_compression_authority_account_info();
 
+    let account_compression_program = get_account_compression_program_account_info();
+    let system_program = get_system_program_account_info();
     // Base array for tests
     let account_info_array = [
-        fee_payer.clone(),
-        authority.clone(),
-        registered_program_pda.clone(),
-        account_compression_authority.clone(),
+        fee_payer,
+        authority,
+        registered_program_pda,
+        account_compression_authority,
+        account_compression_program,
+        system_program,
+        get_mut_account_info(), // Remaining account required for CPI
     ];
 
     // 1. Functional test
@@ -329,6 +404,7 @@ fn failing_from_account_infos_small() {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: false,
+            write_to_cpi_context: false,
         };
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -344,9 +420,10 @@ fn failing_from_account_infos_small() {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: false,
+            write_to_cpi_context: false,
         };
 
-        let mut account_info_array_clone = account_info_array.clone();
+        let mut account_info_array_clone = account_info_array;
         account_info_array_clone[1] = get_fee_payer_account_info(); // Use a mutable account
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -366,9 +443,10 @@ fn failing_from_account_infos_small() {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: false,
+            write_to_cpi_context: false,
         };
 
-        let mut account_info_array_clone = account_info_array.clone();
+        let mut account_info_array_clone = account_info_array;
         account_info_array_clone[2] = get_mut_account_info();
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -388,9 +466,10 @@ fn failing_from_account_infos_small() {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: false,
+            write_to_cpi_context: false,
         };
 
-        let mut account_info_array_clone = account_info_array.clone();
+        let mut account_info_array_clone = account_info_array;
         account_info_array_clone[3] = get_mut_account_info();
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -412,11 +491,12 @@ fn failing_from_account_infos_small() {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: false,
+            write_to_cpi_context: false,
         };
 
         let insufficient_array = [
-            fee_payer.clone(),
-            authority.clone(),
+            fee_payer,
+            authority,
             // Missing registered_program_pda and account_compression_authority
         ];
 
@@ -434,18 +514,24 @@ fn failing_from_account_infos_small() {
     // 6. Test with optional accounts (with decompression_recipient and checking it's set correctly)
     {
         let decompression_recipient = get_decompression_recipient_account_info();
+        let account_compression_program = get_account_compression_program_account_info();
+        let system_program = get_system_program_account_info();
         let options_with_decompression = AccountOptions {
             sol_pool_pda: false,
             decompression_recipient: true,
             cpi_context_account: false,
+            write_to_cpi_context: false,
         };
 
         let account_array_with_decompression = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            decompression_recipient.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            decompression_recipient,
+            get_mut_account_info(), // Remaining account required for CPI
         ];
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
@@ -455,9 +541,20 @@ fn failing_from_account_infos_small() {
 
         // This should pass since it doesn't require PDA validation
         let (instruction, _) = result.unwrap();
-        assert!(instruction.sol_pool_pda.is_none());
+        assert!(instruction
+            .exec_accounts
+            .as_ref()
+            .unwrap()
+            .sol_pool_pda
+            .is_none());
         assert_eq!(
-            instruction.decompression_recipient.unwrap().key(),
+            instruction
+                .exec_accounts
+                .as_ref()
+                .unwrap()
+                .decompression_recipient
+                .unwrap()
+                .key(),
             decompression_recipient.key()
         );
         assert!(instruction.cpi_context_account.is_none());

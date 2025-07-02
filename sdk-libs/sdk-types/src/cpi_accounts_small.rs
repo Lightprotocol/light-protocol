@@ -7,28 +7,30 @@ use crate::{
 
 #[repr(usize)]
 pub enum CompressionCpiAccountIndexSmall {
-    LightSystemProgram,        // Only exposed to outer instruction
-    AccountCompressionProgram, // Only exposed to outer instruction
-    SystemProgram,             // Only exposed to outer instruction
-    Authority, // Cpi authority of the custom program, used to invoke the light system program.
-    RegisteredProgramPda,
-    AccountCompressionAuthority,
-    SolPoolPda,             // Optional
-    DecompressionRecipient, // Optional
-    CpiContext,             // Optional
+    LightSystemProgram,          // index 0 - hardcoded in cpi hence no getter.
+    Authority, // index 1 - Cpi authority of the custom program, used to invoke the light system program.
+    RegisteredProgramPda, // index 2 - registered_program_pda
+    AccountCompressionAuthority, // index 3 - account_compression_authority
+    AccountCompressionProgram, // index 4 - account_compression_program
+    SystemProgram, // index 5 - system_program
+    SolPoolPda, // index 6 - Optional
+    DecompressionRecipient, // index 7 - Optional
+    CpiContext, // index 8 - Optional
 }
 
-pub const PROGRAM_ACCOUNTS_LEN: usize = 3;
-// 6 + 3 program ids, fee payer is extra.
+pub const PROGRAM_ACCOUNTS_LEN: usize = 0; // No program accounts in CPI
+                                           // 6 base accounts + 3 optional accounts
 pub const SMALL_SYSTEM_ACCOUNTS_LEN: usize = 9;
 
-pub struct CpiAccountsSmall<'a, T: AccountInfoTrait> {
+#[derive(Clone)]
+pub struct CpiAccountsSmall<'a, T: AccountInfoTrait + Clone> {
     fee_payer: &'a T,
     accounts: &'a [T],
     config: CpiAccountsConfig,
 }
 
-impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
+impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
+    #[inline(never)]
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,
@@ -36,7 +38,8 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
             config: CpiAccountsConfig::new(cpi_signer),
         }
     }
-
+    #[inline(never)]
+    #[cold]
     pub fn new_with_config(fee_payer: &'a T, accounts: &'a [T], config: CpiAccountsConfig) -> Self {
         Self {
             fee_payer,
@@ -56,6 +59,13 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
+    pub fn light_system_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndexSmall::LightSystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
     pub fn registered_program_pda(&self) -> Result<&'a T> {
         let index = CompressionCpiAccountIndexSmall::RegisteredProgramPda as usize;
         self.accounts
@@ -65,6 +75,20 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
 
     pub fn account_compression_authority(&self) -> Result<&'a T> {
         let index = CompressionCpiAccountIndexSmall::AccountCompressionAuthority as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn account_compression_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndexSmall::AccountCompressionProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
+    pub fn system_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndexSmall::SystemProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
@@ -85,7 +109,13 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
     }
 
     pub fn cpi_context(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::CpiContext as usize;
+        let mut index = CompressionCpiAccountIndexSmall::CpiContext as usize;
+        if !self.config.sol_pool_pda {
+            index -= 1;
+        }
+        if !self.config.sol_compression_recipient {
+            index -= 1;
+        }
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
@@ -132,6 +162,17 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
             ))
     }
 
+    /// Returns accounts after the system accounts; instruction-specific
+    /// remaining_accounts start at this offset.
+    pub fn post_system_accounts(&self) -> Result<&'a [T]> {
+        let system_offset = self.system_accounts_end_offset();
+        self.accounts
+            .get(system_offset..)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(
+                system_offset,
+            ))
+    }
+
     pub fn get_tree_account_info(&self, tree_index: usize) -> Result<&'a T> {
         let tree_accounts = self.tree_accounts()?;
         tree_accounts
@@ -141,17 +182,42 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
             ))
     }
 
-    /// Create a vector of account info references
-    pub fn to_account_infos(&self) -> Vec<&'a T> {
-        let mut account_infos = Vec::with_capacity(1 + self.accounts.len() - PROGRAM_ACCOUNTS_LEN);
-        account_infos.push(self.fee_payer());
-        self.accounts[PROGRAM_ACCOUNTS_LEN..]
-            .iter()
-            .for_each(|acc| account_infos.push(acc));
-        account_infos
+    // TODO: unify with get_tree_account_info
+    pub fn get_tree_address(&self, tree_index: u8) -> Result<&'a T> {
+        let tree_accounts = self.tree_accounts()?;
+        tree_accounts.get(tree_index as usize).ok_or(
+            LightSdkTypesError::CpiAccountsIndexOutOfBounds(
+                self.system_accounts_end_offset() + tree_index as usize,
+            ),
+        )
     }
 
+    /// Create a vector of account info references
+    pub fn to_account_infos(&self) -> Vec<T> {
+        let mut account_infos = Vec::with_capacity(1 + self.accounts.len());
+        account_infos.push(self.fee_payer().clone());
+        // Skip system light program
+        self.accounts[1..]
+            .iter()
+            .for_each(|acc| account_infos.push(acc.clone()));
+        account_infos
+    }
+    pub fn bump(&self) -> u8 {
+        self.config.cpi_signer.bump
+    }
+
+    pub fn invoking_program(&self) -> [u8; 32] {
+        self.config.cpi_signer.program_id
+    }
     pub fn account_infos_slice(&self) -> &[T] {
         &self.accounts[PROGRAM_ACCOUNTS_LEN..]
+    }
+
+    pub fn tree_pubkeys(&self) -> Result<Vec<T::Pubkey>> {
+        Ok(self
+            .tree_accounts()?
+            .iter()
+            .map(|x| x.pubkey())
+            .collect::<Vec<T::Pubkey>>())
     }
 }

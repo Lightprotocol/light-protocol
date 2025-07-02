@@ -113,7 +113,10 @@
 //! ```
 
 pub mod accounts;
+pub mod compressible;
+pub mod forester;
 pub mod indexer;
+pub mod logging;
 pub mod program_test;
 pub mod utils;
 
@@ -121,4 +124,7 @@ pub use light_client::{
     indexer::{AddressWithTree, Indexer},
     rpc::{Rpc, RpcError},
 };
-pub use program_test::{config::ProgramTestConfig, LightProgramTest};
+pub use program_test::{
+    config::ProgramTestConfig, initialize_compression_config, setup_mock_program_data,
+    update_compression_config, LightProgramTest,
+};

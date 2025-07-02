@@ -193,6 +193,8 @@ async fn test_initialize_protocol_config() {
         test_accounts: TestAccounts::get_program_test_test_accounts(),
         payer,
         config: ProgramTestConfig::default(),
+        transaction_counter: 0,
+        pre_context: None,
     };
 
     let payer = rpc.get_payer().insecure_clone();

@@ -1,4 +1,9 @@
-import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
+import {
+    AccountInfo,
+    Connection,
+    ConnectionConfig,
+    PublicKey,
+} from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     getCompressedAccountByHashTest,
@@ -13,6 +18,7 @@ import {
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import {
+    CTOKEN_PROGRAM_ID,
     defaultTestStateTreeAccounts,
     localTestActiveStateTreeInfos,
 } from '../../constants';
@@ -28,6 +34,7 @@ import {
     SignatureWithMetadata,
     WithContext,
     WithCursor,
+    AddressWithTreeInfoV2,
 } from '../../rpc-interface';
 import {
     ValidityProofWithContext,
@@ -39,8 +46,10 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
+    MerkleContext,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
+    TokenData,
     TreeType,
     bn,
 } from '../../state';
@@ -951,4 +960,36 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             newAddresses.map(address => address.address),
         );
     }
+
+    async getValidityProofV2(
+        accountMerkleContexts: (MerkleContext | undefined)[] = [],
+        newAddresses: AddressWithTreeInfoV2[] = [],
+    ): Promise<ValidityProofWithContext> {
+        throw new Error('getValidityProofV2 not implemented in test-rpc');
+    }
+
+    async getAccountInfoInterface(
+        _address: PublicKey,
+        _programId: PublicKey,
+        _addressTreeInfo: TreeInfo,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        isCompressed: boolean;
+        merkleContext?: MerkleContext;
+    } | null> {
+        throw new Error('getAccountInfoInterface not implemented in test-rpc');
+    }
+    // async getCompressibleTokenAccount(
+    //     _address: PublicKey,
+    //     _tokenProgramId: PublicKey = CTOKEN_PROGRAM_ID,
+    // ): Promise<{
+    //     accountInfo: AccountInfo<Buffer>;
+    //     parsed: TokenData;
+    //     isCompressed: boolean;
+    //     merkleContext?: MerkleContext;
+    // } | null> {
+    //     throw new Error(
+    //         'getCompressibleTokenAccount not implemented in test-rpc',
+    //     );
+    // }
 }

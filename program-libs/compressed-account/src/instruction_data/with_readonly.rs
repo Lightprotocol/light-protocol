@@ -1,6 +1,8 @@
 use std::ops::Deref;
 
-use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
+use light_zero_copy::{
+    errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt, ZeroCopyMut,
+};
 use zerocopy::{
     little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -30,7 +32,8 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, CompressedAccountError,
 };
 
-#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InAccount {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -193,7 +196,8 @@ impl<'a> Deref for ZInAccount<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpiWithReadOnly {
     /// 0 With program ids
     /// 1 without program ids
@@ -258,13 +262,24 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
 }
 
 impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
-    fn account_option_config(&self) -> AccountOptions {
-        AccountOptions {
-            sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
-            decompression_recipient: self.compress_or_decompress_lamports().is_some()
-                && !self.is_compress(),
-            cpi_context_account: self.cpi_context().is_some(),
+    fn account_option_config(&self) -> Result<AccountOptions, CompressedAccountError> {
+        let sol_pool_pda = self.compress_or_decompress_lamports().is_some();
+        let decompression_recipient = sol_pool_pda && !self.is_compress();
+        let cpi_context_account = self.cpi_context().is_some();
+        let write_to_cpi_context =
+            self.cpi_context.first_set_context() || self.cpi_context.set_context();
+
+        // Validate: if we want to write to CPI context, we must have a CPI context
+        if write_to_cpi_context && !cpi_context_account {
+            return Err(CompressedAccountError::InvalidCpiContext);
         }
+
+        Ok(AccountOptions {
+            sol_pool_pda,
+            decompression_recipient,
+            cpi_context_account,
+            write_to_cpi_context,
+        })
     }
 
     fn with_transaction_hash(&self) -> bool {
@@ -290,6 +305,12 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
         self.new_address_params.as_slice()
     }
 
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        // Return one owner per address
+        (0..self.new_address_params.len())
+            .map(|_| Some(self.invoking_program_id))
+            .collect()
+    }
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
         self.proof
     }
@@ -507,7 +528,7 @@ fn test_read_only_zero_copy() {
     assert_eq!(zero_copy, borsh_struct);
 }
 
-#[cfg(not(feature = "pinocchio"))]
+#[cfg(all(not(feature = "pinocchio"), feature = "new-unique"))]
 #[cfg(test)]
 mod test {
     use borsh::BorshSerialize;

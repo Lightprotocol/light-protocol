@@ -10,9 +10,12 @@ cargo clippy \
         --workspace \
         --no-deps \
         --all-features \
-        --exclude name-service \
         --exclude photon-api \
         --exclude name-service \
+        --exclude anchor-compressible-derived \
+        --exclude native-compressible \
+        --exclude sdk-native-test \
+        --exclude fetch-accounts \
         -- -A clippy::result_large_err \
            -A clippy::empty-docs \
            -A clippy::to-string-trait-impl \
@@ -26,7 +29,7 @@ cargo test-sbf -p system-cpi-test --no-run
 cargo test-sbf -p system-cpi-v2-test --no-run
 cargo test-sbf -p e2e-test --no-run
 cargo test-sbf -p compressed-token-test --no-run
-cargo test-sbf -p sdk-test --no-run
+cargo test-sbf -p sdk-native-test --no-run
 cargo test-sbf -p sdk-anchor-test --no-run
 cargo test-sbf -p client-test --no-run
 cargo test-sbf -p sdk-pinocchio-test --no-run

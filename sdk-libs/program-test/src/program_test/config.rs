@@ -9,6 +9,9 @@ use light_prover_client::prover::ProverConfig;
 use light_registry::protocol_config::state::ProtocolConfig;
 use solana_sdk::pubkey::Pubkey;
 
+use crate::logging::EnhancedLoggingConfig;
+
+/// Configuration for Light Program Test
 #[derive(Debug, Clone)]
 pub struct ProgramTestConfig {
     pub additional_programs: Option<Vec<(&'static str, Pubkey)>>,
@@ -25,9 +28,18 @@ pub struct ProgramTestConfig {
     pub v2_state_tree_config: Option<InitStateTreeAccountsInstructionData>,
     pub v2_address_tree_config: Option<InitAddressTreeAccountsInstructionData>,
     pub skip_protocol_init: bool,
+    /// Log failed transactions
     pub log_failed_tx: bool,
+    /// Disable all logging
     pub no_logs: bool,
+    /// Skip startup logs
     pub skip_startup_logs: bool,
+    /// Log Light Protocol events (BatchPublicTransactionEvent, etc.)
+    pub log_light_protocol_events: bool,
+    /// Enhanced transaction logging configuration
+    pub enhanced_logging: EnhancedLoggingConfig,
+    /// Register a forester for epoch 0 during setup
+    pub with_forester: bool,
 }
 
 impl ProgramTestConfig {
@@ -77,19 +89,17 @@ impl ProgramTestConfig {
         }
     }
 
-    // TODO: uncomment once batched trees are on devnet.
-    // #[cfg(not(feature = "devenv"))]
-    // pub fn default_with_batched_trees() -> Self {
-    //     Self {
-    //         additional_programs: None,
-    //         with_prover: false,
-    //         v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::default()),
-    //         v2_address_tree_config: Some(
-    //             InitAddressTreeAccountsInstructionData::default(),
-    //         ),
-    //         ..Default::default()
-    //     }
-    // }
+    /// Enable Light Protocol event logging
+    pub fn with_light_protocol_events(mut self) -> Self {
+        self.log_light_protocol_events = true;
+        self
+    }
+
+    /// Disable Light Protocol event logging
+    pub fn without_light_protocol_events(mut self) -> Self {
+        self.log_light_protocol_events = false;
+        self
+    }
 }
 
 impl Default for ProgramTestConfig {
@@ -119,6 +129,9 @@ impl Default for ProgramTestConfig {
             log_failed_tx: true,
             no_logs: false,
             skip_startup_logs: true,
+            log_light_protocol_events: false, // Disabled by default
+            enhanced_logging: EnhancedLoggingConfig::from_env(),
+            with_forester: true,
         }
     }
 }

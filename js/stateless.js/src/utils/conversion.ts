@@ -4,7 +4,7 @@ import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import camelcaseKeys from 'camelcase-keys';
+import { camelcaseKeys } from './camelcase';
 import {
     InstructionDataInvoke,
     PackedCompressedAccountWithMerkleContext,
@@ -79,6 +79,7 @@ export function hashToBn254FieldSizeBe(bytes: Buffer): [Buffer, number] | null {
 }
 
 /**
+ * TODO: make consistent with latest rust. (use u8::max bumpseed)
  * Hash the provided `bytes` with Keccak256 and ensure that the result fits in
  * the BN254 prime field by truncating the resulting hash to 31 bytes.
  *

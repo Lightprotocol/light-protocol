@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+//#![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
@@ -1258,6 +1258,15 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         )
         .await
         .unwrap();
+        println!(
+            "approve accounts: {:?}",
+            test_indexer
+                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value
+                .items
+        );
         let compressed_token_data = test_indexer
             .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
@@ -1287,6 +1296,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             .filter(|x| x.token.delegate.is_some())
             .collect::<Vec<_>>()[0]
             .clone();
+        println!("compressed_token_data {:?}", compressed_token_data);
         perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,
@@ -1299,6 +1309,15 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         )
         .await
         .unwrap();
+        println!(
+            "revoke accounts {:?}",
+            test_indexer
+                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value
+                .items
+        );
         let compressed_token_data = test_indexer
             .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
@@ -1935,6 +1954,8 @@ pub async fn perform_with_input_accounts<R: Rpc, I: Indexer + TestIndexerExtensi
                 .merkle_tree_pubkey,
         );
     }
+    // CPi context order changed, since it is always 2 accounts in this case it is reversed.
+    hashes.reverse();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
     let nullifier_pubkey = compressed_account.merkle_context.queue_pubkey;
     let cpi_context = match mode {

@@ -14,10 +14,20 @@ no-entrypoint = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 mem-profiling = []
-default = ["debug", "readonly"]
+# The reinit feature enables CPI context account migration from V1 to current version.
+# Deployment process:
+# 1. Deploy program WITH reinit feature enabled
+# 2. Execute all necessary CPI context account reinitializations
+# 3. Recompile program WITHOUT reinit feature
+# 4. Redeploy program to remove migration code
+reinit = []
+default = ["debug", "readonly", "reinit"]
 test-sbf = []
 debug = []
 readonly = []
+profile-program = ["light-profiler/profile-program"]
+profile-heap = ["light-profiler/profile-heap", "dep:light-heap"]
+custom-heap = []
 
 [dependencies]
 light-concurrent-merkle-tree = { workspace = true, features = ["pinocchio"] }
@@ -38,8 +48,12 @@ light-zero-copy = { workspace = true, features = ["pinocchio"] }
 zerocopy = { workspace = true }
 light-account-checks = { workspace = true, features = ["pinocchio"] }
 pinocchio = { workspace = true }
-pinocchio-system = { version = "0.2.3" }
+pinocchio-system = { workspace = true  }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
+pinocchio-pubkey = { workspace = true }
+solana-msg = { workspace = true }
+light-profiler = { workspace = true }
+light-heap = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }

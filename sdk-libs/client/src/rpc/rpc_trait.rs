@@ -14,6 +14,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_signature::Signature;
+use solana_signer::Signer;
 use solana_transaction::Transaction;
 use solana_transaction_status_client_types::TransactionStatus;
 
@@ -58,7 +59,7 @@ impl LightClientConfig {
             commitment_config: Some(CommitmentConfig::confirmed()),
             photon_url: Some("http://127.0.0.1:8784".to_string()),
             api_key: None,
-            fetch_active_tree: false,
+            fetch_active_tree: true,
         }
     }
 
@@ -169,8 +170,22 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         signers: &'a [&'a Keypair],
     ) -> Result<Signature, RpcError> {
         let blockhash = self.get_latest_blockhash().await?.0;
-        let transaction =
-            Transaction::new_signed_with_payer(instructions, Some(payer), signers, blockhash);
+        let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
+        transaction.try_sign(signers, blockhash).map_err(|e| {
+            println!(
+                "Provided signers: {:?}",
+                signers.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
+            );
+
+            let message = transaction.message();
+            let num_required_signatures = message.header.num_required_signatures as usize;
+            println!(
+                "Expected signers (first {} accounts in message): {:?}",
+                num_required_signatures,
+                message.account_keys[..num_required_signatures].to_vec()
+            );
+            RpcError::CustomError(e.to_string())
+        })?;
         self.process_transaction(transaction).await
     }
 
@@ -204,6 +219,5 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     fn get_address_tree_v1(&self) -> TreeInfo;
 
-    // TODO: add with v2 release
-    // fn get_address_tree_v2(&self) -> Result<Vec<Pubkey>, RpcError>;
+    fn get_address_tree_v2(&self) -> TreeInfo;
 }
