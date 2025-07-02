@@ -21,7 +21,7 @@ pub struct NumericStruct {
     pub e: bool,
 }
 
-use light_zero_copy::borsh_mut::DeserializeMut;
+// use light_zero_copy::borsh_mut::DeserializeMut; // Not needed for non-mut derivations
 
 #[test]
 fn test_simple_from_implementation() {
