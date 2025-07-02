@@ -1,7 +1,7 @@
 // Edge case: Enum containing struct type
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::ZeroCopyAt;
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 #[derive(Debug, ZeroCopy, ZeroCopyMut, BorshSerialize, BorshDeserialize)]
@@ -27,11 +27,11 @@ fn main() {
 
     // Test Borsh serialization
     let bytes = instance.try_to_vec().unwrap();
-    let deserialized = EnumWithStruct::try_from_slice(&bytes).unwrap();
+    let _deserialized = EnumWithStruct::try_from_slice(&bytes).unwrap();
     
     // Test zero_copy_at
-    let (zero_copy_instance, remaining) = EnumWithStruct::zero_copy_at(&bytes).unwrap();
-    assert!(remaining.is_empty());
+    let (_zero_copy_instance, _remaining) = EnumWithStruct::zero_copy_at(&bytes).unwrap();
+    assert!(_remaining.is_empty());
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation for enums
     
     // Note: Enums do not support ZeroCopyEq

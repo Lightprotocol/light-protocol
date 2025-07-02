@@ -11,7 +11,7 @@ crate-type = ["cdylib", "lib"]
 name = "light_sdk"
 
 [features]
-default = ["borsh"]
+default = ["borsh", "v2"]
 idl-build = ["anchor-lang/idl-build"]
 anchor = [
     "anchor-lang",
@@ -19,7 +19,7 @@ anchor = [
     "light-sdk-types/anchor",
 ]
 v2 = ["light-sdk-types/v2"]
-small_ix = ["light-sdk-types/small_ix"]
+
 
 [dependencies]
 solana-pubkey = { workspace = true, features = ["borsh", "sha2", "curve25519"] }

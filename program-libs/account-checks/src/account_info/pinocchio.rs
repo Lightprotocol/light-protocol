@@ -19,14 +19,17 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         bytes
     }
 
+    #[inline(always)]
     fn is_writable(&self) -> bool {
         self.is_writable()
     }
 
+    #[inline(always)]
     fn is_signer(&self) -> bool {
         self.is_signer()
     }
 
+    #[inline(always)]
     fn executable(&self) -> bool {
         self.executable()
     }

@@ -1,6 +1,5 @@
-use light_compressed_token::{
-    token_data::AccountState as ProgramAccountState, TokenData as ProgramTokenData,
-};
+use light_compressed_token::TokenData as ProgramTokenData;
+use light_ctoken_types::state::AccountState as ProgramAccountState;
 use light_sdk::{self as sdk};
 
 // pub fn sdk_to_program_merkle_context(
@@ -104,10 +103,10 @@ pub fn program_to_sdk_account_state(
 
 pub fn sdk_to_program_token_data(sdk_token: sdk::token::TokenData) -> ProgramTokenData {
     ProgramTokenData {
-        mint: sdk_token.mint,
-        owner: sdk_token.owner,
+        mint: sdk_token.mint.into(),
+        owner: sdk_token.owner.into(),
         amount: sdk_token.amount,
-        delegate: sdk_token.delegate,
+        delegate: sdk_token.delegate.map(|d| d.into()),
         state: sdk_to_program_account_state(sdk_token.state),
         tlv: sdk_token.tlv,
     }
@@ -115,10 +114,10 @@ pub fn sdk_to_program_token_data(sdk_token: sdk::token::TokenData) -> ProgramTok
 
 pub fn program_to_sdk_token_data(program_token: ProgramTokenData) -> sdk::token::TokenData {
     sdk::token::TokenData {
-        mint: program_token.mint,
-        owner: program_token.owner,
+        mint: program_token.mint.into(),
+        owner: program_token.owner.into(),
         amount: program_token.amount,
-        delegate: program_token.delegate,
+        delegate: program_token.delegate.map(|d| d.into()),
         state: program_to_sdk_account_state(program_token.state),
         tlv: program_token.tlv,
     }

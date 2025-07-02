@@ -26,7 +26,7 @@ use crate::{
 pub fn setup_light_programs(
     additional_programs: Option<Vec<(&'static str, Pubkey)>>,
 ) -> Result<LiteSVM, RpcError> {
-    let program_test = LiteSVM::new();
+    let program_test = LiteSVM::new().with_log_bytes_limit(Some(100_000));
     let program_test = program_test.with_compute_budget(ComputeBudget {
         compute_unit_limit: 1_400_000,
         ..Default::default()

@@ -1,8 +1,8 @@
 // Edge case: Enum containing Vec
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
-use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
+use light_zero_copy::traits::ZeroCopyAt;
+use light_zero_copy_derive::ZeroCopy;
 
 #[derive(Debug, ZeroCopy, BorshSerialize, BorshDeserialize)]
 #[repr(C)]
@@ -19,8 +19,8 @@ fn main() {
     let bytes = instance.try_to_vec().unwrap();
 
     // Test zero_copy_at
-    let (zero_copy_instance, remaining) = EnumWithVec::zero_copy_at(&bytes).unwrap();
-    assert!(remaining.is_empty());
+    let (_zero_copy_instance, _remaining) = EnumWithVec::zero_copy_at(&bytes).unwrap();
+    assert!(_remaining.is_empty());
     // Note: Can't use assert_eq! due to ZeroCopyEq limitation for enums
 
     // Note: Enums do not support ZeroCopyEq
