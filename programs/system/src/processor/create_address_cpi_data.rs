@@ -100,6 +100,8 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
         }
         cpi_ix_data.addresses[i].address = address;
 
+        // msg!("setting rollover fee");
+
         context.set_rollover_fee(new_address_params.address_queue_index(), rollover_fee);
     }
     cpi_ix_data.num_address_queues = accounts

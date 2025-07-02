@@ -59,7 +59,7 @@ impl LightClientConfig {
             commitment_config: Some(CommitmentConfig::confirmed()),
             photon_url: Some("http://127.0.0.1:8784".to_string()),
             api_key: None,
-            fetch_active_tree: false,
+            fetch_active_tree: true,
         }
     }
 

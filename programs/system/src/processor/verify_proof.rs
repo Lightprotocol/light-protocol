@@ -120,6 +120,32 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
     roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let height;
+
+    // let account_type = match &merkle_tree_account {
+    //     AcpAccount::Authority(_) => "Authority",
+    //     AcpAccount::RegisteredProgramPda(_) => "RegisteredProgramPda",
+    //     AcpAccount::SystemProgram(_) => "SystemProgram",
+    //     AcpAccount::OutputQueue(_) => "OutputQueue",
+    //     AcpAccount::BatchedStateTree(_) => "BatchedStateTree",
+    //     AcpAccount::BatchedAddressTree(_) => "BatchedAddressTree",
+    //     AcpAccount::StateTree(_) => "StateTree",
+    //     AcpAccount::AddressTree(_) => "AddressTree",
+    //     AcpAccount::AddressQueue(_, _) => "AddressQueue",
+    //     AcpAccount::V1Queue(_) => "V1Queue",
+    //     AcpAccount::Unknown() => "Unknown",
+    // };
+    // // msg!(&format!("merkle_tree_account type: {}", account_type));
+    // let pubkey = match &merkle_tree_account {
+    //     AcpAccount::AddressTree((pubkey, _)) => pubkey,
+    //     AcpAccount::BatchedAddressTree(tree) => tree.pubkey(),
+    //     _ => {
+    //         msg!("fu");
+    //         return Err(SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into());
+    //     }
+    // };
+
+    // msg!(&format!("root_index:{:?} pubkey: {:?}", root_index, pubkey));
+
     match merkle_tree_account {
         AcpAccount::AddressTree((_, merkle_tree)) => {
             if IS_READ_ONLY {
@@ -151,6 +177,7 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
             return if IS_STATE {
                 Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch)
             } else {
+                msg!("is_state: false");
                 Err(SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch)
             }
         }

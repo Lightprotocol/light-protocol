@@ -176,6 +176,9 @@ mod pack_accounts;
 mod system_accounts;
 mod tree_info;
 
+/// Borsh compatible validity proof implementation. Proves the validity of
+/// existing compressed accounts and new addresses.
+pub use light_compressed_account::instruction_data::compressed_proof::borsh_compat;
 /// Zero-knowledge proof to prove the validity of existing compressed accounts and new addresses.
 pub use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 pub use light_sdk_types::instruction::*;

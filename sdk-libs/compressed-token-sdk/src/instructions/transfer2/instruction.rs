@@ -1,9 +1,15 @@
 use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, ValidityProof};
 use light_ctoken_types::{
-    instructions::transfer2::CompressedTokenInstructionDataTransfer2, COMPRESSED_TOKEN_PROGRAM_ID,
+    instructions::transfer2::{
+        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
+        MultiTokenTransferOutputData,
+    },
+    COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_profiler::profile;
 use solana_instruction::{AccountMeta, Instruction};
+use solana_msg::msg;
+use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{

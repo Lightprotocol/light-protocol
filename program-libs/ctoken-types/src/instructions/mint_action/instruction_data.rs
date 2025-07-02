@@ -68,6 +68,60 @@ pub struct CompressedMintWithContext {
     pub mint: CompressedMintInstructionData,
 }
 
+impl CompressedMintWithContext {
+    pub fn new(
+        compressed_address: [u8; 32],
+        root_index: u16,
+        decimals: u8,
+        mint_authority: Option<Pubkey>,
+        freeze_authority: Option<Pubkey>,
+        spl_mint: Pubkey,
+    ) -> Self {
+        Self {
+            leaf_index: 0,
+            prove_by_index: false,
+            root_index,
+            address: compressed_address,
+            mint: CompressedMintInstructionData {
+                version: 0,
+                spl_mint,
+                supply: 0, // TODO: dynamic?
+                decimals,
+                is_decompressed: false,
+                mint_authority,
+                freeze_authority,
+                extensions: None,
+            },
+        }
+    }
+
+    pub fn new_with_extensions(
+        compressed_address: [u8; 32],
+        root_index: u16,
+        decimals: u8,
+        mint_authority: Option<Pubkey>,
+        freeze_authority: Option<Pubkey>,
+        spl_mint: Pubkey,
+        extensions: Option<Vec<ExtensionInstructionData>>,
+    ) -> Self {
+        Self {
+            leaf_index: 0,
+            prove_by_index: false,
+            root_index,
+            address: compressed_address,
+            mint: CompressedMintInstructionData {
+                version: 0,
+                spl_mint,
+                supply: 0,
+                decimals,
+                is_decompressed: false,
+                mint_authority,
+                freeze_authority,
+                extensions,
+            },
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInstructionData {

@@ -5,7 +5,7 @@ edition = { workspace = true }
 
 [features]
 
-anchor = ["anchor-lang", "light-compressed-token-types/anchor"]
+anchor = ["anchor-lang", "light-compressed-token-types/anchor", "light-ctoken-types/anchor"]
 profile-program = [
     "light-profiler/profile-program",
     "light-compressed-account/profile-program",
@@ -44,6 +44,7 @@ light-profiler = { workspace = true }
 
 # Optional Anchor dependency
 anchor-lang = { workspace = true, optional = true }
+anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = ["memo", "metadata", "idl-build"] }
 
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "solana"] }

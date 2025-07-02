@@ -1,0 +1,89 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sdk-tests/**"
+      - "sdk-libs/**"
+      - "program-libs/**"
+      - ".github/workflows/sdk-tests.yml"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "sdk-tests/**"
+      - "sdk-libs/**"
+      - "program-libs/**"
+      - ".github/workflows/sdk-tests.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: sdk-tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sdk-tests:
+    name: sdk-tests
+    if: github.event.pull_request.draft == false
+    runs-on: warp-ubuntu-latest-x64-4x
+    timeout-minutes: 60
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379
+      RUST_MIN_STACK: 8388608
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis"
+
+      - name: Build CLI
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli
+
+      - name: Build core programs
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/programs
+
+      - name: Build and test all sdk-tests programs
+        run: |
+          source ./scripts/devenv.sh
+          # Increase stack size for SBF compilation to avoid regex_automata stack overflow
+          export RUST_MIN_STACK=16777216
+          # Remove -D warnings flag for SBF compilation to avoid compilation issues
+          export RUSTFLAGS=""
+
+          echo "Building and testing all sdk-tests programs sequentially..."
+          # Build and test each program one by one to ensure .so files exist
+
+          echo "Building and testing native-compressible"
+          cargo-test-sbf -p native-compressible
+
+          echo "Building and testing anchor-compressible"
+          cargo-test-sbf -p anchor-compressible
+
+          echo "Building and testing anchor-compressible-derived"
+          cargo-test-sbf -p anchor-compressible-derived

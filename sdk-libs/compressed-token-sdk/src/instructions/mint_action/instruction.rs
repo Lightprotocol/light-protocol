@@ -8,7 +8,6 @@ use light_ctoken_types::{
     },
 };
 use solana_instruction::Instruction;
-use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -39,6 +38,37 @@ pub struct MintActionInputs {
     pub output_queue: Pubkey,
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub token_pool: Option<TokenPool>,
+}
+
+impl MintActionInputs {
+    /// Creates a new MintActionInputs for creating a compressed mint
+    pub fn new_for_create_mint(
+        compressed_mint_inputs: CompressedMintWithContext,
+        actions: Vec<MintActionType>,
+        output_queue: Pubkey,
+        address_tree_pubkey: Pubkey,
+        mint_seed: Pubkey,
+        mint_bump: Option<u8>,
+        authority: Pubkey,
+        payer: Pubkey,
+        proof: Option<CompressedProof>,
+    ) -> Self {
+        Self {
+            compressed_mint_inputs,
+            mint_seed,
+            create_mint: true, // Always true for create mint
+            mint_bump,
+            authority,
+            payer,
+            proof,
+            actions,
+            address_tree_pubkey,
+            input_queue: None, // No input queue when creating new mint
+            output_queue,
+            tokens_out_queue: Some(output_queue), // Default to None, can be set separately if needed
+            token_pool: None, // Default to None, can be set separately if needed
+        }
+    }
 }
 
 /// High-level action types for the mint action instruction
@@ -255,7 +285,7 @@ pub fn create_mint_action_cpi(
     // Get account metas (before moving compressed_mint_inputs)
     let accounts =
         get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
-    msg!("account metas {:?}", accounts);
+
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
         mint_bump,
