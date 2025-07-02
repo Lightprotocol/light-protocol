@@ -59,7 +59,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::test_utils::{get_active_phase_start_slot, get_registration_phase_start_slot, init, wait_for_slot};
+use crate::test_utils::{get_registration_phase_start_slot, init, wait_for_slot};
 
 mod test_utils;
 
