@@ -5,6 +5,10 @@ edition = "2021"
 license = "Apache-2.0"
 description = "Proc macro for zero-copy deserialization"
 
+[features]
+default = []
+mut = []
+
 [lib]
 proc-macro = true
 

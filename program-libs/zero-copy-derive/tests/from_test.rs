@@ -2,17 +2,17 @@ use std::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, ZeroCopyEq};
-use light_zero_copy_derive::ZeroCopy;
+use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 // Simple struct with a primitive field and a vector
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq)]
 pub struct SimpleStruct {
     pub a: u8,
     pub b: Vec<u8>,
 }
 
 // Basic struct with all basic numeric types
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq)]
 pub struct NumericStruct {
     pub a: u8,
     pub b: u16,

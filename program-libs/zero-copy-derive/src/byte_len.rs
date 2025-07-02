@@ -52,6 +52,10 @@ pub fn generate_byte_len_impl<'a>(
                 // Handle boolean fields specially by using size_of instead of byte_len
                 if utils::is_bool_type(&field.ty) {
                     quote! { core::mem::size_of::<u8>() }
+                } else if utils::is_primitive_type(&field.ty) {
+                    // For primitive types, use core::mem::size_of directly
+                    let ty = &field.ty;
+                    quote! { core::mem::size_of::<#ty>() }
                 } else {
                     quote! { self.#field_name.byte_len() }
                 }
@@ -79,10 +83,18 @@ pub fn generate_byte_len_impl<'a>(
             | FieldType::Array(field_name, _)
             | FieldType::Option(field_name, _)
             | FieldType::Pubkey(field_name)
-            | FieldType::IntegerU64(field_name)
-            | FieldType::IntegerU32(field_name)
-            | FieldType::IntegerU16(field_name)
-            | FieldType::IntegerU8(field_name)
+            | FieldType::IntegerU64(field_name) => {
+                quote! { core::mem::size_of::<u64>() }
+            }
+            | FieldType::IntegerU32(field_name) => {
+                quote! { core::mem::size_of::<u32>() }
+            }
+            | FieldType::IntegerU16(field_name) => {
+                quote! { core::mem::size_of::<u16>() }
+            }
+            | FieldType::IntegerU8(field_name) => {
+                quote! { core::mem::size_of::<u8>() }
+            }
             | FieldType::Copy(field_name, _)
             | FieldType::NonCopy(field_name, _) => {
                 quote! { self.#field_name.byte_len() }

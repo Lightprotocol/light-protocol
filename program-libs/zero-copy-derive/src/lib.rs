@@ -205,6 +205,98 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
     })
 }
 
+/// ZeroCopyMut derivation macro for mutable zero-copy deserialization
+///
+/// This macro generates mutable zero-copy implementations including:
+/// - DeserializeMut trait implementation
+/// - Mutable Z-struct with `Mut` suffix  
+/// - byte_len() method implementation
+/// - Mutable ZeroCopyStructInner implementation
+///
+/// # Usage
+///
+/// ```rust
+/// #[derive(ZeroCopyMut)]
+/// pub struct MyStruct {
+///     pub a: u8,
+///     pub vec: Vec<u8>,
+/// }
+/// ```
+///
+/// This will generate:
+/// - `MyStruct::zero_copy_at_mut()` method
+/// - `ZMyStructMut<'a>` type for mutable zero-copy access
+/// - `MyStruct::byte_len()` method
+///
+/// For both immutable and mutable functionality, use both derives:
+/// ```rust
+/// #[derive(ZeroCopy, ZeroCopyMut)]
+/// pub struct MyStruct {
+///     pub a: u8,
+/// }
+/// ```
+#[cfg(feature = "mut")]
+#[proc_macro_derive(ZeroCopyMut)]
+pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
+    // Parse the input DeriveInput
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let hasher = false; // Keep consistent with ZeroCopy macro
+
+    // Process the input to extract struct information
+    let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input);
+
+    // Process the fields to separate meta fields and struct fields
+    let (meta_fields, struct_fields) = utils::process_fields(fields);
+
+    // Generate mutable-specific implementations
+    let meta_struct_def_mut =
+        meta_struct::generate_meta_struct::<true>(&z_struct_meta_name, &meta_fields, hasher);
+    
+    let z_struct_def_mut = z_struct::generate_z_struct::<true>(
+        &z_struct_name,
+        &z_struct_meta_name,
+        &struct_fields,
+        &meta_fields,
+        hasher,
+    );
+    
+    let zero_copy_struct_inner_impl_mut =
+        zero_copy_struct_inner::generate_zero_copy_struct_inner::<true>(
+            name,
+            &format_ident!("{}Mut", z_struct_name),
+        );
+    
+    let deserialize_impl_mut = deserialize_impl::generate_deserialize_impl::<true>(
+        name,
+        &z_struct_name,
+        &z_struct_meta_name,
+        &struct_fields,
+        meta_fields.is_empty(),
+        quote! {},
+    );
+
+    let byte_len_impl = byte_len::generate_byte_len_impl(name, &meta_fields, &struct_fields);
+
+    // Combine all mutable implementations
+    let expanded = quote! {
+        #meta_struct_def_mut
+
+        #z_struct_def_mut
+
+        #zero_copy_struct_inner_impl_mut
+
+        #deserialize_impl_mut
+
+        // Include byte_len for mutable derivations
+        impl #name {
+            #byte_len_impl
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
 // #[cfg(test)]
 // mod tests {
 //     use quote::{format_ident, quote};
