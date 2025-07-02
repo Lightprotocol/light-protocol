@@ -235,6 +235,13 @@ fn struct_has_copy_derive(attrs: &[Attribute]) -> bool {
     })
 }
 
+/// Checks if a struct has a #[light_hasher] attribute
+pub fn struct_has_light_hasher_attribute(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("light_hasher"))
+}
+
 /// Determines whether a struct implements Copy by checking for the #[derive(Copy)] attribute.
 /// Results are cached for performance.
 ///

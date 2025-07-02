@@ -46,12 +46,8 @@ impl<'info> InvokeCpiInstruction<'info> {
         let fee_payer = check_fee_payer(accounts.next())?;
 
         let authority = check_authority(accounts.next())?;
-
         let registered_program_pda = check_non_mut_account_info(accounts.next())?;
-
-        // Unchecked since unused.
         let _noop_program = accounts.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
-
         let account_compression_authority = check_non_mut_account_info(accounts.next())?;
 
         let account_compression_program = check_account_compression_program(accounts.next())?;

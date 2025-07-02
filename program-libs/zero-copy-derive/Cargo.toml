@@ -24,3 +24,5 @@ rand = "0.8"
 borsh = { workspace = true }
 light-zero-copy = { workspace = true, features = ["std", "derive"] }
 zerocopy = { workspace = true, features = ["derive"] }
+light-sdk-macros = { workspace = true }
+light-hasher = { workspace = true, features = ["zero-copy"] }

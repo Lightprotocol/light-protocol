@@ -40,6 +40,19 @@ mod zero_copy_mut;
 /// }
 /// ```
 ///
+/// To derive LightHasher for the generated ZStruct, use the #[light_hasher] attribute:
+/// ```ignore
+/// use light_zero_copy_derive::ZeroCopy;
+/// #[derive(ZeroCopy)]
+/// #[light_hasher]  // Currently disabled due to Vec<u8>/&[u8] hash inconsistency
+/// pub struct MyStruct {
+///     pub a: u8,
+/// }
+/// ```
+///
+/// Note: #[light_hasher] is currently disabled due to hash inconsistency between
+/// Vec<u8> fields in the original struct and &[u8] slice fields in the generated ZStruct.
+///
 /// # Macro Rules
 /// 1. Create zero copy structs Z<StructName> and Z<StructName>Mut for the struct
 ///    1.1. The first fields are extracted into a meta struct until we reach a Vec, Option or type that does not implement Copy
@@ -54,7 +67,7 @@ mod zero_copy_mut;
 /// 3. Implement From<Z<StructName>> for StructName and From<Z<StructName>Mut> for StructName
 ///
 /// Note: Options are not supported in ZeroCopyEq
-#[proc_macro_derive(ZeroCopy)]
+#[proc_macro_derive(ZeroCopy, attributes(light_hasher, hash, skip))]
 pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
     let res = zero_copy::derive_zero_copy_impl(input);
     TokenStream::from(match res {

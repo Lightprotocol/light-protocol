@@ -1,3 +1,5 @@
+use light_zero_copy::ZeroCopyMut;
+
 use super::{
     cpi_context::CompressedCpiContext,
     data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
@@ -8,7 +10,7 @@ use crate::{
 };
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
