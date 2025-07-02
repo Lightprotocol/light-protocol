@@ -347,8 +347,14 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
         let (input_compressed_accounts, bytes) = {
             let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
             let num_slices = u32::from(*num_slices) as usize;
-            // TODO: add check that remaining data is enough to read num_slices
-            // This prevents agains invalid data allocating a lot of heap memory
+            // Prevent heap exhaustion attacks by checking if num_slices is reasonable
+            // Each element needs at least 1 byte when serialized
+            if bytes.len() < num_slices {
+                return Err(ZeroCopyError::InsufficientMemoryAllocated(
+                    bytes.len(),
+                    num_slices,
+                ));
+            }
             let mut slices = Vec::with_capacity(num_slices);
             for _ in 0..num_slices {
                 let (slice, _bytes) =
