@@ -71,18 +71,18 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
     let (meta_fields, struct_fields) = utils::process_fields(fields);
     // let hasher = false;
     // Generate each implementation part using the respective modules
-    let meta_struct_def_mut =
-        meta_struct::generate_meta_struct::<true>(&z_struct_meta_name, &meta_fields, hasher);
+    // let meta_struct_def_mut =
+    //     meta_struct::generate_meta_struct::<true>(&z_struct_meta_name, &meta_fields, hasher);
     let meta_struct_def =
         meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher);
 
-    let z_struct_def_mut = z_struct::generate_z_struct::<true>(
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        &meta_fields,
-        hasher,
-    );
+    // let z_struct_def_mut = z_struct::generate_z_struct::<true>(
+    //     &z_struct_name,
+    //     &z_struct_meta_name,
+    //     &struct_fields,
+    //     &meta_fields,
+    //     hasher,
+    // );
     let z_struct_def = z_struct::generate_z_struct::<false>(
         &z_struct_name,
         &z_struct_meta_name,
@@ -91,25 +91,25 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
         hasher,
     );
 
-    let zero_copy_struct_inner_impl_mut =
-        // For mutable version, we use the Mut suffix for the ZeroCopyInner type
-        zero_copy_struct_inner::generate_zero_copy_struct_inner::<true>(
-            name,
-            &format_ident!("{}Mut", z_struct_name),
-        );
+    // let zero_copy_struct_inner_impl_mut =
+    //     // For mutable version, we use the Mut suffix for the ZeroCopyInner type
+    //     zero_copy_struct_inner::generate_zero_copy_struct_inner::<true>(
+    //         name,
+    //         &format_ident!("{}Mut", z_struct_name),
+    //     );
     let zero_copy_struct_inner_impl =
         zero_copy_struct_inner::generate_zero_copy_struct_inner::<false>(name, &z_struct_name);
 
     let byte_len_impl = byte_len::generate_byte_len_impl(name, &meta_fields, &struct_fields);
 
-    let deserialize_impl_mut = deserialize_impl::generate_deserialize_impl::<true>(
-        name,
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        meta_fields.is_empty(),
-        byte_len_impl,
-    );
+    // let deserialize_impl_mut = deserialize_impl::generate_deserialize_impl::<true>(
+    //     name,
+    //     &z_struct_name,
+    //     &z_struct_meta_name,
+    //     &struct_fields,
+    //     meta_fields.is_empty(),
+    //     byte_len_impl,
+    // );
 
     let deserialize_impl = deserialize_impl::generate_deserialize_impl::<false>(
         name,
@@ -124,19 +124,19 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #meta_struct_def
 
-        #meta_struct_def_mut
+        // #meta_struct_def_mut
 
         #z_struct_def
 
-        #z_struct_def_mut
+        // #z_struct_def_mut
 
         #zero_copy_struct_inner_impl
 
-        #zero_copy_struct_inner_impl_mut
+        // #zero_copy_struct_inner_impl_mut
 
         #deserialize_impl
 
-        #deserialize_impl_mut
+        // #deserialize_impl_mut
 
     };
 
@@ -181,17 +181,17 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 
     let z_struct_name = format_ident!("{}Mut", z_struct_name);
     let z_struct_meta_name = format_ident!("{}Mut", z_struct_meta_name);
-    let mut_partial_eq_impl = partial_eq_impl::generate_partial_eq_impl(
-        name,
-        &z_struct_name,
-        &z_struct_meta_name,
-        &meta_fields,
-        &struct_fields,
-    );
+    // let mut_partial_eq_impl = partial_eq_impl::generate_partial_eq_impl(
+    //     name,
+    //     &z_struct_name,
+    //     &z_struct_meta_name,
+    //     &meta_fields,
+    //     &struct_fields,
+    // );
 
     TokenStream::from(quote! {
         #partial_eq_impl
-        #mut_partial_eq_impl
+        // #mut_partial_eq_impl
 
 
         #from_impl
