@@ -52,7 +52,7 @@ jobs:
               name: "e2e",
               command: "test_e2e_v2",
               timeout: 60,
-              needs-test-program: false,
+              needs-test-program: true,
             },
           ]
     name: test-${{ matrix.test-name.name }}
@@ -98,9 +98,6 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           cargo test-sbf -p create-address-test-program
-
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
 
       - name: Run ${{ matrix.test-name.name }} tests
         run: |
