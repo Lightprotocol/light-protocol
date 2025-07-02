@@ -59,7 +59,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use crate::test_utils::{get_active_phase_start_slot, init, wait_for_slot};
+use crate::test_utils::{get_active_phase_start_slot, get_registration_phase_start_slot, init, wait_for_slot};
 
 mod test_utils;
 
@@ -260,7 +260,7 @@ async fn test_e2e_v2() {
     let mut photon_indexer = create_photon_indexer();
     let protocol_config = get_protocol_config(&mut rpc).await;
 
-    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
+    let active_phase_slot = get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, active_phase_slot).await;
 
     // Get initial state for V1 state tree if enabled

@@ -296,6 +296,17 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
 }
 
 #[allow(dead_code)]
+pub async fn get_registration_phase_start_slot<R: Rpc>(
+    rpc: &mut R,
+    protocol_config: &ProtocolConfig,
+) -> u64 {
+    let current_slot = rpc.get_slot().await.unwrap();
+    let current_epoch = protocol_config.get_current_epoch(current_slot);
+    let phases = get_epoch_phases(protocol_config, current_epoch);
+    phases.registration.start
+}
+
+#[allow(dead_code)]
 pub async fn get_active_phase_start_slot<R: Rpc>(
     rpc: &mut R,
     protocol_config: &ProtocolConfig,
