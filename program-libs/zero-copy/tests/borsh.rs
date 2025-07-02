@@ -1,9 +1,9 @@
-#![cfg(all(feature = "std", feature = "derive"))]
+#![cfg(all(feature = "std", feature = "derive", feature = "mut"))]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::{borsh::Deserialize, ZeroCopy, ZeroCopyEq};
+use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ByteLen, ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 
 #[repr(C)]
-#[derive(Debug, PartialEq, ZeroCopy, ZeroCopyEq, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, PartialEq, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshDeserialize, BorshSerialize)]
 pub struct Struct1Derived {
     pub a: u8,
     pub b: u16,
@@ -12,8 +12,8 @@ pub struct Struct1Derived {
 #[test]
 fn test_struct_1_derived() {
     let ref_struct = Struct1Derived { a: 1, b: 2 };
-    let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    let mut bytes = ref_struct.try_to_vec().unwrap();
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     {
         let (struct1, remaining) = Struct1Derived::zero_copy_at(&bytes).unwrap();
@@ -22,22 +22,21 @@ fn test_struct_1_derived() {
         assert_eq!(struct1, ref_struct);
         assert_eq!(remaining, &[]);
     }
-    // Mutable derivation is disabled
-    // {
-    //     let (mut struct1, _) = Struct1Derived::zero_copy_at_mut(&mut bytes).unwrap();
-    //     struct1.a = 2;
-    //     struct1.b = 3.into();
-    // }
+    {
+        let (mut struct1, _) = Struct1Derived::zero_copy_at_mut(&mut bytes).unwrap();
+        struct1.a = 2;
+        struct1.b = 3.into();
+    }
     let borsh = Struct1Derived::deserialize(&mut &bytes[..]).unwrap();
     let (struct_1, _) = Struct1Derived::zero_copy_at(&bytes).unwrap();
-    assert_eq!(struct_1.a, 1); // Original value since mutable derivation is disabled
-    assert_eq!(struct_1.b, 2); // Original value since mutable derivation is disabled
+    assert_eq!(struct_1.a, 2); // Modified value from mutable operations
+    assert_eq!(struct_1.b, 3); // Modified value from mutable operations
     assert_eq!(struct_1, borsh);
 }
 
 // Struct2 equivalent: Manual implementation that should match Struct2
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, Clone, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct Struct2Derived {
     pub a: u8,
     pub b: u16,
@@ -52,7 +51,7 @@ fn test_struct_2_derived() {
         vec: vec![1u8; 32],
     };
     let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     let (struct2, remaining) = Struct2Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct2.a, 1u8);
@@ -64,7 +63,7 @@ fn test_struct_2_derived() {
 
 // Struct3 equivalent: fields should match Struct3
 #[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct Struct3Derived {
     pub a: u8,
     pub b: u16,
@@ -81,7 +80,7 @@ fn test_struct_3_derived() {
         c: 3,
     };
     let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     let (zero_copy, remaining) = Struct3Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -94,14 +93,14 @@ fn test_struct_3_derived() {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, Clone, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, Clone, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct Struct4NestedDerived {
     a: u8,
     b: u16,
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, Clone, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, Clone, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct Struct4Derived {
     pub a: u8,
     pub b: u16,
@@ -120,7 +119,7 @@ fn test_struct_4_derived() {
         vec_2: vec![Struct4NestedDerived { a: 1, b: 2 }; 32],
     };
     let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     let (zero_copy, remaining) = Struct4Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -134,7 +133,7 @@ fn test_struct_4_derived() {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct Struct5Derived {
     pub a: Vec<Vec<u8>>,
 }
@@ -145,7 +144,7 @@ fn test_struct_5_derived() {
         a: vec![vec![1u8; 32]; 32],
     };
     let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     let (zero_copy, remaining) = Struct5Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(
@@ -158,7 +157,7 @@ fn test_struct_5_derived() {
 
 // If a struct inside a vector contains a vector it must implement Deserialize.
 #[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct Struct6Derived {
     pub a: Vec<Struct2Derived>,
 }
@@ -176,7 +175,7 @@ fn test_struct_6_derived() {
         ],
     };
     let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     let (zero_copy, remaining) = Struct6Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(
@@ -195,7 +194,7 @@ fn test_struct_6_derived() {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
+#[derive(Debug, PartialEq, Clone, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ByteLen)]
 pub struct Struct7Derived {
     pub a: u8,
     pub b: u16,
@@ -210,7 +209,7 @@ fn test_struct_7_derived() {
         option: Some(3),
     };
     let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     let (zero_copy, remaining) = Struct7Derived::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1u8);
@@ -234,12 +233,12 @@ fn test_struct_7_derived() {
 
 // If a struct inside a vector contains a vector it must implement Deserialize.
 #[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct Struct8Derived {
     pub a: Vec<NestedStructDerived>,
 }
 
-#[derive(Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
 pub struct NestedStructDerived {
     pub a: u8,
     pub b: Struct2Derived,
@@ -261,7 +260,7 @@ fn test_struct_8_derived() {
         ],
     };
     let bytes = ref_struct.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), ref_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), ref_struct.byte_len());
 
     let (zero_copy, remaining) = Struct8Derived::zero_copy_at(&bytes).unwrap();
     // Check length of vec matches
@@ -272,7 +271,7 @@ fn test_struct_8_derived() {
 }
 
 #[repr(C)]
-#[derive(ZeroCopy, ZeroCopyEq, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub struct ArrayStruct {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -287,7 +286,7 @@ fn test_array_struct() -> Result<(), Box<dyn std::error::Error>> {
         c: [3u8; 32],
     };
     let bytes = array_struct.try_to_vec()?;
-    // assert_eq!(bytes.len(), array_struct.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), array_struct.byte_len());
 
     let (zero_copy, remaining) = ArrayStruct::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, [1u8; 32]);
@@ -299,7 +298,7 @@ fn test_array_struct() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[derive(
-    Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq,
+    Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen,
 )]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
@@ -315,7 +314,7 @@ fn test_compressed_account_data() {
         data_hash: [3u8; 32],
     };
     let bytes = compressed_account_data.try_to_vec().unwrap();
-    // assert_eq!(bytes.len(), compressed_account_data.byte_len()); // byte_len not available for non-mut derivations
+    assert_eq!(bytes.len(), compressed_account_data.byte_len());
 
     let (zero_copy, remaining) = CompressedAccountData::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.discriminator, [1u8; 8]);

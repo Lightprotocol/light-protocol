@@ -1,5 +1,7 @@
 #![no_std]
 
+#[cfg(feature = "std")]
+pub mod byte_len;
 pub mod cyclic_vec;
 pub mod errors;
 #[cfg(feature = "std")]
@@ -13,9 +15,13 @@ pub mod borsh;
 #[cfg(feature = "std")]
 pub mod borsh_mut;
 #[cfg(feature = "std")]
+pub use byte_len::ByteLen;
+#[cfg(feature = "std")]
 pub use borsh::ZeroCopyStructInner;
 #[cfg(feature = "derive")]
-pub use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
+pub use light_zero_copy_derive::{ByteLen, ZeroCopy, ZeroCopyEq};
+#[cfg(all(feature = "derive", feature = "mut"))]
+pub use light_zero_copy_derive::ZeroCopyMut;
 #[cfg(feature = "derive")]
 pub use zerocopy::{
     little_endian::{self, U16, U32, U64},

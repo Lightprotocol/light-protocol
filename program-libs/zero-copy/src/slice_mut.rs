@@ -284,9 +284,13 @@ impl<'a, T: ZeroCopyTraits + crate::borsh_mut::DeserializeMut<'a>> crate::borsh_
     fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         ZeroCopySliceMutBorsh::from_bytes_at(bytes)
     }
+}
 
+// Implement ByteLen for ZeroCopySliceMutBorsh
+#[cfg(feature = "std")]
+impl<T: ZeroCopyTraits> crate::ByteLen for ZeroCopySliceMutBorsh<'_, T> {
     fn byte_len(&self) -> usize {
-        Self::metadata_size() + self.len() * size_of::<T>()
+        Self::metadata_size() + self.len() * core::mem::size_of::<T>()
     }
 }
 

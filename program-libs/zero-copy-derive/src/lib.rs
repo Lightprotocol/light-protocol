@@ -3,6 +3,7 @@ use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput};
 
 mod byte_len;
+mod byte_len_derive;
 mod deserialize_impl;
 mod from_impl;
 mod meta_struct;
@@ -216,6 +217,8 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// # Usage
 ///
 /// ```rust
+/// use light_zero_copy_derive::ZeroCopyMut;
+/// 
 /// #[derive(ZeroCopyMut)]
 /// pub struct MyStruct {
 ///     pub a: u8,
@@ -230,6 +233,8 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 ///
 /// For both immutable and mutable functionality, use both derives:
 /// ```rust
+/// use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
+/// 
 /// #[derive(ZeroCopy, ZeroCopyMut)]
 /// pub struct MyStruct {
 ///     pub a: u8,
@@ -273,10 +278,8 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
         &z_struct_meta_name,
         &struct_fields,
         meta_fields.is_empty(),
-        quote! {},
+        quote! {}, // No byte_len implementation in DeserializeMut anymore
     );
-
-    let byte_len_impl = byte_len::generate_byte_len_impl(name, &meta_fields, &struct_fields);
 
     // Combine all mutable implementations
     let expanded = quote! {
@@ -287,14 +290,48 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
         #zero_copy_struct_inner_impl_mut
 
         #deserialize_impl_mut
-
-        // Include byte_len for mutable derivations
-        impl #name {
-            #byte_len_impl
-        }
     };
 
     TokenStream::from(expanded)
+}
+
+/// ByteLen derivation macro for calculating serialized byte length
+///
+/// This macro generates ByteLen trait implementation for structs.
+/// ByteLen is used to calculate the total byte length of a struct when serialized,
+/// which is essential for variable-sized types like Vec and Option.
+///
+/// # Usage
+///
+/// ```rust
+/// use light_zero_copy_derive::ByteLen;
+/// 
+/// #[derive(ByteLen)]
+/// pub struct MyStruct {
+///     pub a: u8,
+///     pub vec: Vec<u8>,
+/// }
+/// ```
+///
+/// This will generate:
+/// - `ByteLen` trait implementation with `byte_len(&self) -> usize` method
+/// - Proper handling of variable-sized fields like Vec and Option
+/// - Support for nested structs that also implement ByteLen
+#[proc_macro_derive(ByteLen)]
+pub fn derive_byte_len(input: TokenStream) -> TokenStream {
+    // Parse the input DeriveInput
+    let input = parse_macro_input!(input as DeriveInput);
+
+    // Process the input to extract struct information
+    let (name, _z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input);
+
+    // Process the fields to separate meta fields and struct fields
+    let (meta_fields, struct_fields) = utils::process_fields(fields);
+
+    // Generate ByteLen implementation
+    let byte_len_impl = byte_len_derive::generate_byte_len_derive_impl(&name, &meta_fields, &struct_fields);
+
+    TokenStream::from(byte_len_impl)
 }
 
 // #[cfg(test)]

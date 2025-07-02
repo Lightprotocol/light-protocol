@@ -7,7 +7,7 @@ use crate::{
     z_struct::{analyze_struct_fields, FieldType},
 };
 
-/// Generates byte_len implementation for structs
+/// Generates ByteLen implementation for structs
 ///
 /// RULES AND EXCEPTIONS FROM borsh_mut.rs:
 ///
@@ -36,7 +36,7 @@ use crate::{
 ///
 /// * Fixed-size types: Generally implement as their own fixed size
 ///   - Pubkey (line 45-46): hard-coded as 32 bytes
-pub fn generate_byte_len_impl<'a>(
+pub fn generate_byte_len_derive_impl<'a>(
     _name: &Ident,
     meta_fields: &'a [&'a Field],
     struct_fields: &'a [&'a Field],
@@ -118,87 +118,10 @@ pub fn generate_byte_len_impl<'a>(
 
     // Generate the final implementation
     quote! {
-        fn byte_len(&self) -> usize {
-            #combined_byte_len
+        impl light_zero_copy::ByteLen for #_name {
+            fn byte_len(&self) -> usize {
+                #combined_byte_len
+            }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use quote::format_ident;
-    use syn::parse_quote;
-
-    use super::*;
-
-    #[test]
-    fn test_generate_byte_len_simple() {
-        let name = format_ident!("TestStruct");
-
-        let field1: Field = parse_quote!(pub a: u8);
-        let field2: Field = parse_quote!(pub b: u16);
-
-        let meta_fields = vec![&field1, &field2];
-        let struct_fields: Vec<&Field> = vec![];
-
-        let result = generate_byte_len_impl(&name, &meta_fields, &struct_fields);
-        let result_str = result.to_string();
-
-        assert!(result_str.contains("fn byte_len (& self) -> usize"));
-        assert!(result_str.contains("self . a . byte_len () + self . b . byte_len ()"));
-    }
-
-    #[test]
-    fn test_generate_byte_len_with_vec() {
-        let name = format_ident!("TestStruct");
-
-        let field1: Field = parse_quote!(pub a: u8);
-        let field2: Field = parse_quote!(pub vec: Vec<u8>);
-        let field3: Field = parse_quote!(pub c: u32);
-
-        let meta_fields = vec![&field1];
-        let struct_fields = vec![&field2, &field3];
-
-        let result = generate_byte_len_impl(&name, &meta_fields, &struct_fields);
-        let result_str = result.to_string();
-
-        assert!(result_str.contains("fn byte_len (& self) -> usize"));
-        assert!(result_str.contains(
-            "self . a . byte_len () + self . vec . byte_len () + self . c . byte_len ()"
-        ));
-    }
-
-    #[test]
-    fn test_generate_byte_len_with_option() {
-        let name = format_ident!("TestStruct");
-
-        let field1: Field = parse_quote!(pub a: u8);
-        let field2: Field = parse_quote!(pub option: Option<u32>);
-
-        let meta_fields = vec![&field1];
-        let struct_fields = vec![&field2];
-
-        let result = generate_byte_len_impl(&name, &meta_fields, &struct_fields);
-        let result_str = result.to_string();
-
-        assert!(result_str.contains("fn byte_len (& self) -> usize"));
-        assert!(result_str.contains("self . a . byte_len () + self . option . byte_len ()"));
-    }
-
-    #[test]
-    fn test_generate_byte_len_with_bool() {
-        let name = format_ident!("TestStruct");
-
-        let field1: Field = parse_quote!(pub a: u8);
-        let field2: Field = parse_quote!(pub b: bool);
-
-        let meta_fields = vec![&field1, &field2];
-        let struct_fields: Vec<&Field> = vec![];
-
-        let result = generate_byte_len_impl(&name, &meta_fields, &struct_fields);
-        let result_str = result.to_string();
-
-        assert!(result_str.contains("fn byte_len (& self) -> usize"));
-        assert!(result_str.contains("self . a . byte_len () + core :: mem :: size_of :: < u8 > ()"));
     }
 }
