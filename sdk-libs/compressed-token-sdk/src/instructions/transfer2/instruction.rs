@@ -65,7 +65,7 @@ pub struct Transfer2Inputs {
 }
 
 /// Create the instruction for compressed token multi-transfer operations
-#[profile]
+#[inline(never)]
 pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instruction> {
     let Transfer2Inputs {
         token_accounts,

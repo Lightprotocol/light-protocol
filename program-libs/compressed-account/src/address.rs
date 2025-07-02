@@ -40,6 +40,19 @@ pub fn derive_address(
     hashv_to_bn254_field_size_be_const_array::<4>(&slices).unwrap()
 }
 
+/// Convenience function for calling derive_address with Pubkey types.
+pub fn derive_compressed_address(
+    account_address: &Pubkey,
+    address_tree_pubkey: &Pubkey,
+    program_id: &Pubkey,
+) -> [u8; 32] {
+    derive_address(
+        &account_address.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    )
+}
+
 pub fn add_and_get_remaining_account_indices(
     pubkeys: &[Pubkey],
     remaining_accounts: &mut HashMap<Pubkey, usize>,

@@ -5,3 +5,4 @@ export * from './idl';
 export * from './layout';
 export * from './program';
 export * from './types';
+export * from './compressible';

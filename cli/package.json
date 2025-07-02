@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/zk-compression-cli",
-  "version": "0.27.0",
+  "version": "0.27.1-alpha.1",
   "description": "ZK Compression: Secure Scaling on Solana",
   "maintainers": [
     {
@@ -19,6 +19,7 @@
     "!bin/cargo-generate",
     "!/bin/**/*.vkey",
     "!/bin/proving-keys/*.key",
+    "!/bin/prover-windows-*.exe",
     "/bin/proving-keys/combined_26_1_1.key",
     "/bin/proving-keys/combined_26_1_2.key",
     "/bin/proving-keys/combined_26_2_1.key",
@@ -37,6 +38,8 @@
     "/bin/proving-keys/non-inclusion_26_2.key",
     "/bin/proving-keys/non-inclusion_40_1.key",
     "/bin/proving-keys/non-inclusion_40_2.key",
+    "/bin/proving-keys/non-inclusion_40_3.key",
+    "/bin/proving-keys/non-inclusion_40_4.key",
     "/dist",
     "/test_bin",
     "./config.json",

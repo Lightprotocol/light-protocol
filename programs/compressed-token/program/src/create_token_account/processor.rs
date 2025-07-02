@@ -67,6 +67,9 @@ pub fn process_create_token_account(
                 b"pool".as_slice(),
                 compressible_config.rent_authority.as_ref(),
             ];
+            msg!("seeds2: {:?}", seeds2);
+            msg!("payer_pda_bump: {:?}", compressible_config.payer_pda_bump);
+
             let derived_pool_pda = pinocchio_pubkey::derive_address(
                 &seeds2,
                 Some(compressible_config.payer_pda_bump),
@@ -83,6 +86,7 @@ pub fn process_create_token_account(
                     derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
                 }
             } else {
+                msg!("InvalidInstructionData: rent_recipient does not match derived_pool_pda. rent_recipient: {:?}, derived_pool_pda: {:?}", compressible_config.rent_recipient, derived_pool_pda);
                 return Err(ProgramError::InvalidInstructionData);
             };
 
@@ -97,6 +101,7 @@ pub fn process_create_token_account(
             )?;
         }
 
+        msg!("transfer_lamports_via_cpi...");
         // Payer transfers the additional rent (compression incentive)
         transfer_lamports_via_cpi(rent, payer, token_account)?;
     }

@@ -49,13 +49,13 @@ pub struct MintActionCompressedInstructionData {
     /// If proof by index not used.
     pub root_index: u16,
     pub compressed_address: [u8; 32],
+    /// If some -> no input because we create mint
+    pub mint: CompressedMintInstructionData,
     pub token_pool_bump: u8,
     pub token_pool_index: u8,
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
-    /// If some -> no input because we create mint
-    pub mint: CompressedMintInstructionData,
 }
 
 #[repr(C)]
@@ -68,6 +68,64 @@ pub struct CompressedMintWithContext {
     pub mint: CompressedMintInstructionData,
 }
 
+impl CompressedMintWithContext {
+    pub fn new(
+        compressed_address: [u8; 32],
+        root_index: u16,
+        decimals: u8,
+        mint_authority: Option<Pubkey>,
+        freeze_authority: Option<Pubkey>,
+        spl_mint: Pubkey,
+    ) -> Self {
+        Self {
+            leaf_index: 0,
+            prove_by_index: false,
+            root_index,
+            address: compressed_address,
+            mint: CompressedMintInstructionData {
+                supply: 0,
+                decimals,
+                metadata: CompressedMintMetadata {
+                    version: 3,
+                    spl_mint: spl_mint.into(),
+                    is_decompressed: false,
+                },
+                mint_authority,
+                freeze_authority,
+                extensions: None,
+            },
+        }
+    }
+
+    pub fn new_with_extensions(
+        compressed_address: [u8; 32],
+        root_index: u16,
+        decimals: u8,
+        mint_authority: Option<Pubkey>,
+        freeze_authority: Option<Pubkey>,
+        spl_mint: Pubkey,
+        extensions: Option<Vec<ExtensionInstructionData>>,
+    ) -> Self {
+        Self {
+            leaf_index: 0,
+            prove_by_index: false,
+            root_index,
+            address: compressed_address,
+            mint: CompressedMintInstructionData {
+                supply: 0,
+                decimals,
+                metadata: CompressedMintMetadata {
+                    version: 3,
+                    spl_mint: spl_mint.into(),
+                    is_decompressed: false,
+                },
+                mint_authority,
+                freeze_authority,
+                extensions,
+            },
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInstructionData {

@@ -49,6 +49,7 @@ pub fn process_transfer2(
     let (inputs, _) = CompressedTokenInstructionDataTransfer2::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 
+    msg!("zerocopy deserialized inputs: {:?}", inputs);
     // Check CPI  context validity (multi-transfer modifies Solana account state)
     check_cpi_context(&inputs.cpi_context)?;
 

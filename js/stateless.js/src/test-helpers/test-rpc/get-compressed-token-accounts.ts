@@ -77,6 +77,25 @@ export function parseTokenLayoutWithIdl(
 }
 
 /**
+ * Manually parse the compressed token layout for a given compressed account.
+ * @param compressedAccount - The compressed account
+ * @returns The parsed token data
+ */
+export function parseTokenData(data: Buffer): TokenData | null {
+    if (data === null) return null;
+    if (data.length === 0) return null;
+
+    try {
+        const decoded = TokenDataLayout.decode(Buffer.from(data));
+
+        return decoded;
+    } catch (error) {
+        console.error('Decoding error:', error);
+        throw error;
+    }
+}
+
+/**
  * parse compressed accounts of an event with token layout
  * @internal
  */

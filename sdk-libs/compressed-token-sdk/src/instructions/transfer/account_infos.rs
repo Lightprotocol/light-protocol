@@ -65,6 +65,7 @@ impl<'info, const N: usize> TransferAccountInfos<'_, 'info, N> {
         let account_infos = self.into_account_infos();
         for (account_meta, account_info) in ix.accounts.iter().zip(account_infos.iter()) {
             if account_meta.pubkey != *account_info.key {
+                msg!("account info and meta don't match.");
                 msg!("account meta {:?}", account_meta);
                 msg!("account info {:?}", account_info);
 

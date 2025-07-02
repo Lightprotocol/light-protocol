@@ -311,6 +311,9 @@ pub fn new_testnet_setup() -> TestKeypairs {
         cpi_context_2: Keypair::new(),
         group_pda_seed: Keypair::new(),
         rent_authority: Keypair::new(),
+        batched_state_merkle_tree_2: Keypair::new(),
+        batched_output_queue_2: Keypair::new(),
+        batched_cpi_context_2: Keypair::new(),
     }
 }
 

@@ -4,7 +4,17 @@
   "license": "Apache-2.0",
   "description": "Test programs for Light Protocol uses test-sbf to build because build-sbf -- -p creates an infinite loop.",
   "scripts": {
-    "build": "cargo test-sbf -p create-address-test-program"
+    "build": "cargo test-sbf -p create-address-test-program",
+    "test": "RUSTFLAGS=\"-D warnings\" && pnpm test-account-compression && pnpm test-system && pnpm test-registry && pnpm test-compressed-token && pnpm test-system-cpi && pnpm test-system-cpi-v2 && pnpm test-e2e && pnpm test-sdk-anchor && pnpm test-sdk-pinocchio",
+    "test-account-compression": "cargo test-sbf -p account-compression-test",
+    "test-system": "cargo test-sbf -p system-test",
+    "test-registry": "cargo test-sbf -p registry-test",
+    "test-compressed-token": "cargo test-sbf -p compressed-token-test",
+    "test-system-cpi": "cargo test-sbf -p system-cpi-test",
+    "test-system-cpi-v2": "cargo test-sbf -p system-cpi-v2-test",
+    "test-e2e": "cargo test-sbf -p e2e-test",
+    "test-sdk-anchor": "cargo test-sbf -p sdk-anchor-test",
+    "test-sdk-pinocchio": "cargo test-sbf -p sdk-pinocchio-test"
   },
   "nx": {
     "targets": {

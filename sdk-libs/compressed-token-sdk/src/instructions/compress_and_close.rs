@@ -7,8 +7,10 @@ use light_sdk::{
 };
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_account_info::AccountInfo;
+use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_msg::msg;
+use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -273,7 +275,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     fee_payer: Pubkey,
     with_rent_authority: bool,
     output_queue: AccountInfo<'info>,
-    ctoken_solana_accounts: &[&AccountInfo<'info>],
+    ctoken_solana_accounts: &[AccountInfo<'info>],
     packed_accounts: &[AccountInfo<'info>],
 ) -> Result<Instruction, TokenSdkError> {
     if ctoken_solana_accounts.is_empty() {
@@ -382,6 +384,52 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         &indices_vec,
         packed_accounts_vec.as_slice(),
     )
+}
+
+/// Compress and close compressed token accounts and immediately invoke via CPI signer.
+///
+/// This is a convenience wrapper around `compress_and_close_ctoken_accounts` that
+/// builds the instruction and calls `invoke_signed` with the provided signer seeds.
+///
+/// Expected accounts provided to `remaining_accounts` should include the Light system
+/// accounts required by the transfer2 instruction (Light system program, CPI authority,
+/// registered_program_pda, account_compression_authority, account_compression_program,
+/// system_program, and any optional ones like CPI context or SOL pool if applicable),
+/// followed by any other accounts your caller chooses to pass. The packed tree accounts
+/// used by the instruction should be supplied separately via `packed_accounts`.
+#[allow(clippy::too_many_arguments)]
+#[profile]
+pub fn compress_and_close_ctoken_accounts_signed<'info>(
+    fee_payer: AccountInfo<'info>,
+    with_rent_authority: bool,
+    output_queue: AccountInfo<'info>,
+    ctoken_solana_accounts: &[AccountInfo<'info>],
+    remaining_accounts: &[AccountInfo<'info>],
+    signer_seeds: &[&[&[u8]]],
+) -> Result<(), ProgramError> {
+    let packed_accounts = remaining_accounts;
+    // Build transfer2 instruction for compress_and_close
+    let instruction = compress_and_close_ctoken_accounts(
+        *fee_payer.key,
+        with_rent_authority,
+        output_queue.clone(),
+        ctoken_solana_accounts,
+        packed_accounts,
+    )
+    .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+    // Assemble AccountInfos for invoke. Order is not required; invoke matches by pubkey.
+    // Provide fee payer and output_queue explicitly, then append all remaining accounts
+    // (system/cpi context/etc.) and packed tree accounts.
+    let mut account_infos: Vec<AccountInfo<'info>> =
+        Vec::with_capacity(2 + remaining_accounts.len() + packed_accounts.len());
+    account_infos.push(fee_payer);
+    account_infos.push(output_queue);
+    account_infos.extend_from_slice(remaining_accounts);
+    account_infos.extend_from_slice(packed_accounts);
+
+    invoke_signed(&instruction, &account_infos, signer_seeds)?;
+    Ok(())
 }
 
 pub struct CompressAndCloseAccounts {
