@@ -43,12 +43,10 @@ pub fn create_pda_account(
 
     let bump_bytes = [config.bump];
     let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
-
     for &seed in config.seeds {
         seed_vec.push(Seed::from(seed));
     }
     seed_vec.push(Seed::from(bump_bytes.as_ref()));
-
     let signer = Signer::from(seed_vec.as_slice());
     let create_account_ix = system_instruction::create_account(
         &solana_pubkey::Pubkey::new_from_array(*fee_payer.key()),

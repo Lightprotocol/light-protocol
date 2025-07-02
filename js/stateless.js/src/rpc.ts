@@ -101,10 +101,12 @@ export function parseAccountData({
     data: string;
     dataHash: BN;
 }) {
+    const discriminatorBytes = Buffer.from(discriminator.toArray('le', 8));
+
     return {
-        discriminator: discriminator.toArray('le', 8),
+        discriminator: Array.from(discriminatorBytes),
         data: Buffer.from(data, 'base64'),
-        dataHash: dataHash.toArray('le', 32),
+        dataHash: dataHash.toArray('be', 32),
     };
 }
 

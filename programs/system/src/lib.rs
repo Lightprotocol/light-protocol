@@ -89,9 +89,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
-    // remove vec prefix
     let instruction_data = &instruction_data[4..];
-
     let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(instruction_data)?;
     let (ctx, remaining_accounts) = InvokeInstruction::from_account_infos(accounts)?;
 
@@ -114,11 +112,8 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
-    // remove vec prefix
     let instruction_data = &instruction_data[4..];
-
     let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction_data)?;
-
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 
     process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
@@ -191,7 +186,9 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
                 ctx,
                 inputs,
                 remaining_accounts,
-            )
+            )?;
+
+            Ok(())
         }
     }
 }

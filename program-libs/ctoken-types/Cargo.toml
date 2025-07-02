@@ -1,4 +1,4 @@
-[package]
+w[package]
 name = "light-ctoken-types"
 version = "0.1.0"
 edition = { workspace = true }

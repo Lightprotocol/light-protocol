@@ -20,6 +20,7 @@ light-concurrent-merkle-tree = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
+light-compressible-client = { workspace = true, features = ["anchor"] }
 
 # unreleased
 light-client = { workspace = true, features = ["program-test"] }

@@ -79,6 +79,7 @@ export function hashToBn254FieldSizeBe(bytes: Buffer): [Buffer, number] | null {
 }
 
 /**
+ * TODO: make consistent with latest rust. (use u8::max bumpseed)
  * Hash the provided `bytes` with Keccak256 and ensure that the result fits in
  * the BN254 prime field by truncating the resulting hash to 31 bytes.
  *

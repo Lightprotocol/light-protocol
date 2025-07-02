@@ -305,6 +305,15 @@ const Base64EncodedCompressedAccountDataResult = coerce(
     string(),
     value => (value === '' ? null : value),
 );
+
+/**
+ *
+ * @internal
+ * Discriminator as base64 encoded string (8 bytes)
+ */
+const Base64EncodedDiscriminatorResult = coerce(string(), string(), value =>
+    value === '' ? null : value,
+);
 /**
  * @internal
  */

@@ -20,7 +20,6 @@ pub fn get_update_compressed_mint_instruction_account_metas(
     config: UpdateCompressedMintMetaConfig,
 ) -> Vec<AccountMeta> {
     let default_pubkeys = CTokenDefaultAccounts::default();
-
     let mut metas = Vec::new();
 
     // First two accounts are static non-CPI accounts as expected by CPI_ACCOUNTS_OFFSET = 2

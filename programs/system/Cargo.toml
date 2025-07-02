@@ -42,6 +42,7 @@ pinocchio-system = { version = "0.2.3" }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 pinocchio-pubkey = { workspace = true }
 solana-msg = { workspace = true }
+
 [dev-dependencies]
 rand = { workspace = true }
 light-compressed-account = { workspace = true, features = [

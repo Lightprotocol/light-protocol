@@ -74,12 +74,14 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         }
         if cpi_context.set_context || cpi_context.first_set_context {
             set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
+
             return Ok(None);
         } else {
             if cpi_context_account.is_empty() {
                 return Err(SystemProgramError::CpiContextEmpty.into());
             }
             if (*cpi_context_account.fee_payer).to_bytes() != fee_payer {
+                msg!("fee payer mismatch");
                 msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
                 return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
             }
@@ -89,6 +91,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             return Ok(Some((1, instruction_data)));
         }
     }
+    msg!("cpi context is none");
     Ok(Some((0, instruction_data)))
 }
 pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
