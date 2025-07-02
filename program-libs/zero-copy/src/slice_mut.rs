@@ -9,7 +9,7 @@ use std::vec::Vec;
 
 use zerocopy::{little_endian::U32, Ref};
 
-use crate::{add_padding, borsh_mut::DeserializeMut, errors::ZeroCopyError, ZeroCopyTraits};
+use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
 pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
 pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
@@ -277,10 +277,11 @@ where
     }
 }
 
-impl<T: ZeroCopyTraits + DeserializeMut> DeserializeMut for ZeroCopySliceMutBorsh<'_, T> {
-    type Output<'a> = ZeroCopySliceMutBorsh<'a, T>;
+#[cfg(feature = "std")]
+impl<'a, T: ZeroCopyTraits + crate::borsh_mut::DeserializeMut<'a>> crate::borsh_mut::DeserializeMut<'a> for ZeroCopySliceMutBorsh<'_, T> {
+    type Output = ZeroCopySliceMutBorsh<'a, T>;
 
-    fn zero_copy_at_mut(bytes: &mut [u8]) -> Result<(Self::Output, &mut [u8]), ZeroCopyError> {
+    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         ZeroCopySliceMutBorsh::from_bytes_at(bytes)
     }
 
@@ -288,3 +289,4 @@ impl<T: ZeroCopyTraits + DeserializeMut> DeserializeMut for ZeroCopySliceMutBors
         Self::metadata_size() + self.len() * size_of::<T>()
     }
 }
+

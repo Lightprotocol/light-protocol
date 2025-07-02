@@ -11,28 +11,28 @@ use zerocopy::{
 
 use crate::errors::ZeroCopyError;
 
-pub trait DeserializeMut
+pub trait DeserializeMut<'a>
 where
     Self: Sized,
 {
     // TODO: rename to ZeroCopy, can be used as <StructName as DeserializeMut>::ZeroCopy
-    type Output<'a>;
-    fn zero_copy_at_mut<'a>(
+    type Output;
+    fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError>;
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError>;
 
     /// Needs to be a method because of variable sized vectors and options.
     fn byte_len(&self) -> usize;
 }
 
 // Implement DeserializeMut for fixed-size array types
-impl<T: KnownLayout + Immutable + FromBytes, const N: usize> DeserializeMut for [T; N] {
-    type Output<'a> = Ref<&'a mut [u8], [T; N]>;
+impl<'a, T: KnownLayout + Immutable + FromBytes, const N: usize> DeserializeMut<'a> for [T; N] {
+    type Output = Ref<&'a mut [u8], [T; N]>;
 
     #[inline]
-    fn zero_copy_at_mut<'a>(
+    fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         let (bytes, remaining_bytes) = Ref::<&'a mut [u8], [T; N]>::from_prefix(bytes)?;
         Ok((bytes, remaining_bytes))
     }
@@ -42,13 +42,13 @@ impl<T: KnownLayout + Immutable + FromBytes, const N: usize> DeserializeMut for 
     }
 }
 
-impl<T: DeserializeMut> DeserializeMut for Option<T> {
-    type Output<'a> = Option<T::Output<'a>>;
+impl<'a, T: DeserializeMut<'a>> DeserializeMut<'a> for Option<T> {
+    type Output = Option<T::Output>;
 
     #[inline]
-    fn zero_copy_at_mut<'a>(
+    fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         if bytes.len() < size_of::<u8>() {
             return Err(ZeroCopyError::ArraySize(1, bytes.len()));
         }
@@ -72,13 +72,13 @@ impl<T: DeserializeMut> DeserializeMut for Option<T> {
     }
 }
 
-impl DeserializeMut for u8 {
-    type Output<'a> = Self;
+impl<'a> DeserializeMut<'a> for u8 {
+    type Output = Self;
 
     /// Not a zero copy but cheaper.
     /// A u8 should not be deserialized on it's own but as part of a struct.
     #[inline]
-    fn zero_copy_at_mut<'a>(bytes: &mut [u8]) -> Result<(u8, &mut [u8]), ZeroCopyError> {
+    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(u8, &'a mut [u8]), ZeroCopyError> {
         if bytes.len() < size_of::<u8>() {
             return Err(ZeroCopyError::ArraySize(1, bytes.len()));
         }
@@ -91,13 +91,13 @@ impl DeserializeMut for u8 {
 }
 
 // Implementation for specific zerocopy little-endian types
-impl<T: KnownLayout + Immutable + FromBytes> DeserializeMut for Ref<&mut [u8], T> {
-    type Output<'a> = Ref<&'a mut [u8], T>;
+impl<'a, T: KnownLayout + Immutable + FromBytes> DeserializeMut<'a> for Ref<&'a mut [u8], T> {
+    type Output = Ref<&'a mut [u8], T>;
 
     #[inline]
-    fn zero_copy_at_mut<'a>(
+    fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         let (bytes, remaining_bytes) = Ref::<&mut [u8], T>::from_prefix(bytes)?;
         Ok((bytes, remaining_bytes))
     }
@@ -107,12 +107,12 @@ impl<T: KnownLayout + Immutable + FromBytes> DeserializeMut for Ref<&mut [u8], T
     }
 }
 
-impl<T: DeserializeMut> DeserializeMut for Vec<T> {
-    type Output<'a> = Vec<T::Output<'a>>;
+impl<'a, T: DeserializeMut<'a>> DeserializeMut<'a> for Vec<T> {
+    type Output = Vec<T::Output>;
     #[inline]
-    fn zero_copy_at_mut<'a>(
+    fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         let (num_slices, mut bytes) = Ref::<&mut [u8], U32>::from_prefix(bytes)?;
         let num_slices = u32::from(*num_slices) as usize;
         // TODO: add check that remaining data is enough to read num_slices
@@ -135,11 +135,11 @@ impl<T: DeserializeMut> DeserializeMut for Vec<T> {
 macro_rules! impl_deserialize_for_primitive {
     ($($t:ty),*) => {
         $(
-            impl DeserializeMut for $t {
-                type Output<'a> = Ref<&'a mut [u8], $t>;
+            impl<'a> DeserializeMut<'a> for $t {
+                type Output = Ref<&'a mut [u8], $t>;
 
                 #[inline]
-                fn zero_copy_at_mut<'a>(bytes: &'a mut [u8]) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+                fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
                     Self::Output::zero_copy_at_mut(bytes)
                 }
 
@@ -182,13 +182,13 @@ impl DerefMut for VecU8<u8> {
     }
 }
 
-impl<T: DeserializeMut> DeserializeMut for VecU8<T> {
-    type Output<'a> = Vec<T::Output<'a>>;
+impl<'a, T: DeserializeMut<'a>> DeserializeMut<'a> for VecU8<T> {
+    type Output = Vec<T::Output>;
 
     #[inline]
-    fn zero_copy_at_mut<'a>(
+    fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         let (num_slices, mut bytes) = Ref::<&mut [u8], u8>::from_prefix(bytes)?;
         let num_slices = u32::from(*num_slices) as usize;
         let mut slices = Vec::with_capacity(num_slices);
@@ -389,12 +389,12 @@ pub mod test {
         }
     }
 
-    impl DeserializeMut for Struct1 {
-        type Output<'a> = ZStruct1<'a>;
+    impl<'a> DeserializeMut<'a> for Struct1 {
+        type Output = ZStruct1<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&mut [u8], ZStruct1Meta>::from_prefix(bytes)?;
             Ok((ZStruct1 { meta }, bytes))
         }
@@ -456,14 +456,14 @@ pub mod test {
         }
     }
 
-    impl DeserializeMut for Struct2 {
-        type Output<'a> = ZStruct2<'a>;
+    impl<'a> DeserializeMut<'a> for Struct2 {
+        type Output = ZStruct2<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&mut [u8], ZStruct2Meta>::from_prefix(bytes)?;
-            let (vec, bytes) = <Vec<u8> as DeserializeMut>::zero_copy_at_mut(bytes)?;
+            let (vec, bytes) = <Vec<u8> as DeserializeMut<'a>>::zero_copy_at_mut(bytes)?;
             Ok((ZStruct2 { meta, vec }, bytes))
         }
 
@@ -519,12 +519,12 @@ pub mod test {
         }
     }
 
-    impl DeserializeMut for Struct3 {
-        type Output<'a> = ZStruct3<'a>;
+    impl<'a> DeserializeMut<'a> for Struct3 {
+        type Output = ZStruct3<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&mut [u8], ZStruct3Meta>::from_prefix(bytes)?;
             let (vec, bytes) = ZeroCopySliceMutBorsh::zero_copy_at_mut(bytes)?;
             let (c, bytes) = Ref::<&mut [u8], U64>::from_prefix(bytes)?;
@@ -561,12 +561,12 @@ pub mod test {
         b: u16,
     }
 
-    impl DeserializeMut for Struct4Nested {
-        type Output<'a> = ZStruct4Nested;
+    impl<'a> DeserializeMut<'a> for Struct4Nested {
+        type Output = ZStruct4Nested;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (bytes, remaining_bytes) = Ref::<&mut [u8], ZStruct4Nested>::from_prefix(bytes)?;
             Ok((*bytes, remaining_bytes))
         }
@@ -623,12 +623,12 @@ pub mod test {
         }
     }
 
-    impl DeserializeMut for Struct4 {
-        type Output<'a> = ZStruct4<'a>;
+    impl<'a> DeserializeMut<'a> for Struct4 {
+        type Output = ZStruct4<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&mut [u8], ZStruct4Meta>::from_prefix(bytes)?;
             let (vec, bytes) = ZeroCopySliceMutBorsh::from_bytes_at(bytes)?;
             let (c, bytes) =
@@ -721,12 +721,12 @@ pub mod test {
         pub a: Vec<ZeroCopySliceMutBorsh<'a, <u8 as ZeroCopyStructInnerMut>::ZeroCopyInnerMut>>,
     }
 
-    impl DeserializeMut for Struct5 {
-        type Output<'a> = ZStruct5<'a>;
+    impl<'a> DeserializeMut<'a> for Struct5 {
+        type Output = ZStruct5<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (a, bytes) = Vec::<
                 ZeroCopySliceMutBorsh<<u8 as ZeroCopyStructInnerMut>::ZeroCopyInnerMut>,
             >::zero_copy_at_mut(bytes)?;
@@ -764,15 +764,15 @@ pub mod test {
     #[repr(C)]
     #[derive(Debug, PartialEq)]
     pub struct ZStruct6<'a> {
-        pub a: Vec<<Struct2 as DeserializeMut>::Output<'a>>,
+        pub a: Vec<<Struct2 as DeserializeMut<'a>>::Output>,
     }
 
-    impl DeserializeMut for Struct6 {
-        type Output<'a> = ZStruct6<'a>;
+    impl<'a> DeserializeMut<'a> for Struct6 {
+        type Output = ZStruct6<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (a, bytes) = Vec::<Struct2>::zero_copy_at_mut(bytes)?;
             Ok((ZStruct6 { a }, bytes))
         }
@@ -850,14 +850,14 @@ pub mod test {
         }
     }
 
-    impl DeserializeMut for Struct7 {
-        type Output<'a> = ZStruct7<'a>;
+    impl<'a> DeserializeMut<'a> for Struct7 {
+        type Output = ZStruct7<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&mut [u8], ZStruct7Meta>::from_prefix(bytes)?;
-            let (option, bytes) = <Option<u8> as DeserializeMut>::zero_copy_at_mut(bytes)?;
+            let (option, bytes) = <Option<u8> as DeserializeMut<'a>>::zero_copy_at_mut(bytes)?;
             Ok((ZStruct7 { meta, option }, bytes))
         }
         fn byte_len(&self) -> usize {
@@ -911,18 +911,18 @@ pub mod test {
     #[derive(Debug, PartialEq)]
     pub struct ZNestedStruct<'a> {
         pub a: <u8 as ZeroCopyStructInnerMut>::ZeroCopyInnerMut,
-        pub b: <Struct2 as DeserializeMut>::Output<'a>,
+        pub b: <Struct2 as DeserializeMut<'a>>::Output,
     }
 
-    impl DeserializeMut for NestedStruct {
-        type Output<'a> = ZNestedStruct<'a>;
+    impl<'a> DeserializeMut<'a> for NestedStruct {
+        type Output = ZNestedStruct<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (a, bytes) =
                 <u8 as ZeroCopyStructInnerMut>::ZeroCopyInnerMut::zero_copy_at_mut(bytes)?;
-            let (b, bytes) = <Struct2 as DeserializeMut>::zero_copy_at_mut(bytes)?;
+            let (b, bytes) = <Struct2 as DeserializeMut<'a>>::zero_copy_at_mut(bytes)?;
             Ok((ZNestedStruct { a, b }, bytes))
         }
 
@@ -940,15 +940,15 @@ pub mod test {
     #[repr(C)]
     #[derive(Debug, PartialEq)]
     pub struct ZStruct8<'a> {
-        pub a: Vec<<NestedStruct as DeserializeMut>::Output<'a>>,
+        pub a: Vec<<NestedStruct as DeserializeMut<'a>>::Output>,
     }
 
-    impl DeserializeMut for Struct8 {
-        type Output<'a> = ZStruct8<'a>;
+    impl<'a> DeserializeMut<'a> for Struct8 {
+        type Output = ZStruct8<'a>;
 
-        fn zero_copy_at_mut<'a>(
+        fn zero_copy_at_mut(
             bytes: &'a mut [u8],
-        ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
             let (a, bytes) = Vec::<NestedStruct>::zero_copy_at_mut(bytes)?;
             Ok((ZStruct8 { a }, bytes))
         }

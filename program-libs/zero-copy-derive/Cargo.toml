@@ -18,5 +18,5 @@ lazy_static = "1.4"
 trybuild = "1.0"
 rand = "0.8"
 borsh = { workspace = true }
-light-zero-copy = { workspace = true, features = ["std"] }
+light-zero-copy = { workspace = true, features = ["std", "derive"] }
 zerocopy = { workspace = true, features = ["derive"] }

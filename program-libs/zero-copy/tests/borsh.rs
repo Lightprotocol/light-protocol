@@ -1,4 +1,5 @@
-use ::borsh::{BorshDeserialize, BorshSerialize};
+#![cfg(all(feature = "std", feature = "derive"))]
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopy, ZeroCopyEq};
 
 #[repr(C)]

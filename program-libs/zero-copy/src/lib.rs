@@ -12,6 +12,8 @@ use core::mem::{align_of, size_of};
 pub mod borsh;
 #[cfg(feature = "std")]
 pub mod borsh_mut;
+#[cfg(feature = "std")]
+pub use borsh::ZeroCopyStructInner;
 #[cfg(feature = "derive")]
 pub use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
 #[cfg(feature = "derive")]

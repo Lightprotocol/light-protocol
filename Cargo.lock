@@ -3792,6 +3792,8 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.2.0"
 dependencies = [
+ "borsh 0.10.4",
+ "light-zero-copy-derive",
  "pinocchio",
  "rand 0.8.5",
  "solana-program-error",

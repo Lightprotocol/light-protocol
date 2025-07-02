@@ -11,13 +11,16 @@ default = []
 solana = ["solana-program-error"]
 pinocchio = ["dep:pinocchio"]
 std = []
+derive = ["light-zero-copy-derive"]
 
 [dependencies]
 solana-program-error = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
 zerocopy = { workspace = true }
+light-zero-copy-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
+borsh = { workspace = true }
