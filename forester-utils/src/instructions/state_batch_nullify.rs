@@ -5,7 +5,7 @@ use async_stream::stream;
 use futures::{future, stream::Stream};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
-    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs},
+    merkle_tree::{InstructionDataBatchNullifyInputs},
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
@@ -20,7 +20,24 @@ use tracing::{debug, trace};
 
 use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 
-/// Fetches on-chain state and returns a stream of batch nullify instructions.
+async fn generate_nullify_zkp_proof(
+    inputs: BatchUpdateCircuitInputs,
+    proof_client: Arc<ProofClient>,
+) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
+    let (proof, new_root) = proof_client
+        .generate_batch_update_proof(inputs)
+        .await
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
+    Ok(InstructionDataBatchNullifyInputs {
+        new_root,
+        compressed_proof: CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        },
+    })
+}
+
 pub async fn get_nullify_instruction_stream<'a, R, I>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     indexer: Arc<Mutex<I>>,
@@ -28,6 +45,7 @@ pub async fn get_nullify_instruction_stream<'a, R, I>(
     prover_url: String,
     polling_interval: Duration,
     max_wait_time: Duration,
+    merkle_tree_data: crate::ParsedMerkleTreeData,
 ) -> Result<
     (
         Pin<
@@ -46,38 +64,13 @@ where
     I: Indexer + Send + 'a,
 {
     let rpc = rpc_pool.get_connection().await?;
-    let (mut current_root, leaves_hash_chains, num_inserted_zkps, zkp_batch_size) = {
-        let mut account = rpc
-            .get_account(merkle_tree_pubkey)
-            .await?
-            .ok_or_else(|| ForesterUtilsError::Rpc("State tree account not found".into()))?;
-
-        let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-            account.data.as_mut_slice(),
-            &merkle_tree_pubkey.into(),
-        )?;
-
-        let batch_idx = merkle_tree.queue_batches.pending_batch_index as usize;
-        let batch = &merkle_tree.queue_batches.batches[batch_idx];
-        let num_inserted_zkps = batch.get_num_inserted_zkps();
-        let num_current_zkp = batch.get_current_zkp_batch_index();
-
-        let mut leaves_hash_chains = Vec::new();
-        for i in num_inserted_zkps..num_current_zkp {
-            leaves_hash_chains.push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
-        }
-
-        let root = *merkle_tree.root_history.last().ok_or_else(|| {
-            ForesterUtilsError::Prover("Merkle tree root history is empty".into())
-        })?;
-
-        (
-            root,
-            leaves_hash_chains,
-            num_inserted_zkps,
-            merkle_tree.queue_batches.zkp_batch_size as u16,
-        )
-    };
+    
+    let (mut current_root, leaves_hash_chains, num_inserted_zkps, zkp_batch_size) = (
+        merkle_tree_data.current_root,
+        merkle_tree_data.leaves_hash_chains,
+        merkle_tree_data.num_inserted_zkps,
+        merkle_tree_data.zkp_batch_size,
+    );
 
     if leaves_hash_chains.is_empty() {
         debug!("No hash chains to process for nullification, returning empty stream.");
@@ -202,22 +195,4 @@ where
     };
 
     Ok((Box::pin(stream), zkp_batch_size))
-}
-
-async fn generate_nullify_zkp_proof(
-    inputs: BatchUpdateCircuitInputs,
-    proof_client: Arc<ProofClient>,
-) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
-    let (proof, new_root) = proof_client
-        .generate_batch_update_proof(inputs)
-        .await
-        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
-    Ok(InstructionDataBatchNullifyInputs {
-        new_root,
-        compressed_proof: CompressedProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
-        },
-    })
 }

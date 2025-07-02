@@ -11,11 +11,13 @@ use solana_program::instruction::Instruction;
 use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
 
-use super::common::{process_stream, BatchContext};
+use super::common::{process_stream, BatchContext, ParsedMerkleTreeData};
 use crate::Result;
+
 
 async fn create_stream_future<R, I>(
     ctx: &BatchContext<R, I>,
+    merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<(
     impl Stream<Item = Result<InstructionDataAddressAppendInputs>> + Send,
     u16,
@@ -32,16 +34,19 @@ where
         polling_interval: ctx.prover_polling_interval,
         max_wait_time: ctx.prover_max_wait_time,
     };
-    let (stream, size) = get_address_update_stream(config)
+    let (stream, size) = get_address_update_stream(config, merkle_tree_data)
         .await
         .map_err(Error::from)?;
     let stream = stream.map(|item| item.map_err(Error::from));
     Ok((stream, size))
 }
 
+
+
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
 pub(crate) async fn process_batch<R: Rpc, I: Indexer + 'static>(
     context: &BatchContext<R, I>,
+    merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<usize> {
     info!(
         "V2_TPS_METRIC: operation_start tree_type=AddressV2 tree={} epoch={}",
@@ -58,7 +63,7 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + 'static>(
         )
     };
 
-    let stream_future = create_stream_future(context);
+    let stream_future = create_stream_future(context, merkle_tree_data);
     process_stream(
         context,
         stream_future,
@@ -68,3 +73,4 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + 'static>(
     )
     .await
 }
+

@@ -5,8 +5,7 @@ use async_stream::stream;
 use futures::{future, stream::Stream};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
-    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs},
-    queue::BatchedQueueAccount,
+    merkle_tree::{InstructionDataBatchAppendInputs},
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
@@ -22,15 +21,33 @@ use tracing::trace;
 
 use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 
-/// Fetches on-chain state and returns a stream of batch append instructions.
+async fn generate_zkp_proof(
+    circuit_inputs: BatchAppendsCircuitInputs,
+    proof_client: Arc<ProofClient>,
+) -> Result<InstructionDataBatchAppendInputs, ForesterUtilsError> {
+    let (proof, new_root) = proof_client
+        .generate_batch_append_proof(circuit_inputs)
+        .await
+        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
+    Ok(InstructionDataBatchAppendInputs {
+        new_root,
+        compressed_proof: CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        },
+    })
+}
+
 pub async fn get_append_instruction_stream<'a, R, I>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     indexer: Arc<Mutex<I>>,
     merkle_tree_pubkey: Pubkey,
-    output_queue_pubkey: Pubkey,
     prover_url: String,
     polling_interval: Duration,
     max_wait_time: Duration,
+    merkle_tree_data: crate::ParsedMerkleTreeData,
+    output_queue_data: crate::ParsedQueueData,
 ) -> Result<
     (
         Pin<
@@ -48,15 +65,13 @@ where
     R: Rpc + Send + Sync + 'a,
     I: Indexer + Send + 'a,
 {
-    trace!("Initializing append batch instruction stream");
+    trace!("Initializing append batch instruction stream with parsed data");
 
     let (indexer_guard, rpc_result) = tokio::join!(indexer.lock(), rpc_pool.get_connection());
     let rpc = rpc_result?;
 
-    let ((merkle_tree_next_index, mut current_root, _), (zkp_batch_size, leaves_hash_chains)) = tokio::try_join!(
-        get_merkle_tree_metadata(&*rpc, merkle_tree_pubkey),
-        get_output_queue_metadata(&*rpc, output_queue_pubkey)
-    )?;
+    let (merkle_tree_next_index, mut current_root, _,) = (merkle_tree_data.next_index, merkle_tree_data.current_root, merkle_tree_data.root_history);
+    let (zkp_batch_size, leaves_hash_chains)= (output_queue_data.zkp_batch_size, output_queue_data.leaves_hash_chains);
 
     if leaves_hash_chains.is_empty() {
         trace!("No hash chains to process, returning empty stream.");
@@ -140,7 +155,6 @@ where
 
         let proof_results = future::join_all(proof_futures).await;
 
-
         let mut successful_proofs = Vec::new();
         let mut first_error = None;
 
@@ -169,67 +183,4 @@ where
     };
 
     Ok((Box::pin(stream), zkp_batch_size))
-}
-
-async fn generate_zkp_proof(
-    circuit_inputs: BatchAppendsCircuitInputs,
-    proof_client: Arc<ProofClient>,
-) -> Result<InstructionDataBatchAppendInputs, ForesterUtilsError> {
-    let (proof, new_root) = proof_client
-        .generate_batch_append_proof(circuit_inputs)
-        .await
-        .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
-    Ok(InstructionDataBatchAppendInputs {
-        new_root,
-        compressed_proof: CompressedProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
-        },
-    })
-}
-
-async fn get_merkle_tree_metadata(
-    rpc: &impl Rpc,
-    merkle_tree_pubkey: Pubkey,
-) -> Result<(u64, [u8; 32], Vec<[u8; 32]>), ForesterUtilsError> {
-    let mut merkle_tree_account = rpc
-        .get_account(merkle_tree_pubkey)
-        .await?
-        .ok_or_else(|| ForesterUtilsError::Rpc("Merkle tree account not found".into()))?;
-
-    let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-        merkle_tree_account.data.as_mut_slice(),
-        &merkle_tree_pubkey.into(),
-    )?;
-
-    Ok((
-        merkle_tree.next_index,
-        *merkle_tree.root_history.last().unwrap(),
-        merkle_tree.root_history.to_vec(),
-    ))
-}
-
-async fn get_output_queue_metadata(
-    rpc: &impl Rpc,
-    output_queue_pubkey: Pubkey,
-) -> Result<(u16, Vec<[u8; 32]>), ForesterUtilsError> {
-    let mut output_queue_account = rpc
-        .get_account(output_queue_pubkey)
-        .await?
-        .ok_or_else(|| ForesterUtilsError::Rpc("Output queue account not found".into()))?;
-
-    let output_queue =
-        BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())?;
-
-    let full_batch_index = output_queue.batch_metadata.pending_batch_index;
-    let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
-    let batch = &output_queue.batch_metadata.batches[full_batch_index as usize];
-    let num_inserted_zkps = batch.get_num_inserted_zkps();
-    let mut leaves_hash_chains = Vec::new();
-    for i in num_inserted_zkps..batch.get_current_zkp_batch_index() {
-        leaves_hash_chains
-            .push(output_queue.hash_chain_stores[full_batch_index as usize][i as usize]);
-    }
-    Ok((zkp_batch_size as u16, leaves_hash_chains))
 }

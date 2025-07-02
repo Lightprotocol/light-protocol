@@ -5,7 +5,7 @@ use async_stream::stream;
 use futures::{future, Stream};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
-    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataAddressAppendInputs},
+    merkle_tree::{InstructionDataAddressAppendInputs},
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::{
@@ -37,87 +37,6 @@ where
     pub prover_url: String,
     pub polling_interval: Duration,
     pub max_wait_time: Duration,
-}
-
-pub async fn get_address_update_stream<'a, R, I>(
-    config: AddressUpdateConfig<R, I>,
-) -> Result<
-    (
-        Pin<
-            Box<
-                dyn Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>>
-                    + Send
-                    + 'a,
-            >,
-        >,
-        u16,
-    ),
-    ForesterUtilsError,
->
-where
-    R: Rpc + Send + Sync + 'a,
-    I: Indexer + Send + 'a,
-{
-    info!("Fetching on-chain state to initialize address update stream");
-
-    let rpc = config.rpc_pool.get_connection().await?;
-
-    let mut merkle_tree_account = rpc
-        .get_account(config.merkle_tree_pubkey)
-        .await?
-        .ok_or_else(|| ForesterUtilsError::Rpc("Merkle tree account not found".into()))?;
-
-    let (leaves_hash_chains, start_index, current_root, zkp_batch_size) = {
-        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
-            merkle_tree_account.data.as_mut_slice(),
-            &config.merkle_tree_pubkey.into(),
-        )
-        .map_err(|e| {
-            ForesterUtilsError::AccountZeroCopy(format!("Failed to parse merkle tree: {}", e))
-        })?;
-
-        let full_batch_index = merkle_tree.queue_batches.pending_batch_index;
-        let batch = &merkle_tree.queue_batches.batches[full_batch_index as usize];
-        let mut hash_chains = Vec::new();
-        let zkp_batch_index = batch.get_num_inserted_zkps();
-        let current_zkp_batch_index = batch.get_current_zkp_batch_index();
-
-        for i in zkp_batch_index..current_zkp_batch_index {
-            hash_chains.push(merkle_tree.hash_chain_stores[full_batch_index as usize][i as usize]);
-        }
-
-        let root = *merkle_tree.root_history.last().ok_or_else(|| {
-            ForesterUtilsError::Prover("Merkle tree root history is empty".into())
-        })?;
-
-        (
-            hash_chains,
-            merkle_tree.next_index,
-            root,
-            batch.zkp_batch_size as u16,
-        )
-    };
-
-    if leaves_hash_chains.is_empty() {
-        debug!("No hash chains to process, returning empty stream.");
-        return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
-    }
-
-    wait_for_indexer(&*rpc, &*config.indexer.lock().await).await?;
-
-    let stream = stream_instruction_data(
-        config.indexer,
-        config.merkle_tree_pubkey,
-        config.prover_url,
-        config.polling_interval,
-        config.max_wait_time,
-        leaves_hash_chains,
-        start_index,
-        zkp_batch_size,
-        current_root,
-    );
-
-    Ok((Box::pin(stream), zkp_batch_size))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -195,7 +114,7 @@ where
             info!("Generating {} ZK proofs concurrently for chunk {}", all_inputs.len(), chunk_idx + 1);
             let proof_futures = all_inputs
                 .into_iter()
-                .map(|inputs| proof_client.generate_batch_address_append_proof(inputs));
+                .map(|inputs| proof_client.generate_batch_address_append_proof(inputs.clone()));
 
             let proof_results = future::join_all(proof_futures).await;
 
@@ -345,4 +264,51 @@ fn get_all_circuit_inputs_for_chunk(
     }
 
     Ok((all_inputs, current_root))
+}
+
+pub async fn get_address_update_stream<'a, R, I>(
+    config: AddressUpdateConfig<R, I>,
+    merkle_tree_data: crate::ParsedMerkleTreeData,
+) -> Result<
+    (
+        Pin<
+            Box<
+                dyn Stream<Item = Result<InstructionDataAddressAppendInputs, ForesterUtilsError>>
+                    + Send
+                    + 'a,
+            >,
+        >,
+        u16,
+    ),
+    ForesterUtilsError,
+>
+where
+    R: Rpc + Send + Sync + 'a,
+    I: Indexer + Send + 'a,
+{
+    info!("Using parsed data to initialize address update stream without RPC calls");
+
+
+    if merkle_tree_data.leaves_hash_chains.is_empty() {
+        debug!("No hash chains to process, returning empty stream.");
+        return Ok((Box::pin(futures::stream::empty()), merkle_tree_data.zkp_batch_size));
+    }
+
+    // Still need to wait for indexer to be ready
+    let rpc = config.rpc_pool.get_connection().await?;
+    wait_for_indexer(&*rpc, &*config.indexer.lock().await).await?;
+
+    let stream = stream_instruction_data(
+        config.indexer,
+        config.merkle_tree_pubkey,
+        config.prover_url,
+        config.polling_interval,
+        config.max_wait_time,
+        merkle_tree_data.leaves_hash_chains,
+        merkle_tree_data.next_index,
+        merkle_tree_data.zkp_batch_size,
+        merkle_tree_data.current_root,
+    );
+
+    Ok((Box::pin(stream), merkle_tree_data.zkp_batch_size))
 }
