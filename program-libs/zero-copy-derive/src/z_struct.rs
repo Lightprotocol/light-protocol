@@ -183,7 +183,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                 FieldType::VecNonCopy(field_name, field_type) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name>::Output<'a>
+                        pub #field_name: <#field_type as #trait_name<'a>>::Output
                     }
                 }
                 FieldType::Array(field_name, field_type) => {
@@ -195,13 +195,13 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                 FieldType::Option(field_name, field_type) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name>::Output<'a>
+                        pub #field_name: <#field_type as #trait_name<'a>>::Output
                     }
                 }
                 FieldType::Pubkey(field_name) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <Pubkey as #trait_name>::Output<'a>
+                        pub #field_name: <Pubkey as #trait_name<'a>>::Output
                     }
                 }
                 FieldType::IntegerU64(field_name) => {
@@ -228,19 +228,19 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                 FieldType::IntegerU8(field_name) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <u8 as #trait_name>::Output<'a>
+                        pub #field_name: <u8 as #trait_name<'a>>::Output
                     }
                 }
                 FieldType::Bool(field_name) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <u8 as #trait_name>::Output<'a>
+                        pub #field_name: <u8 as #trait_name<'a>>::Output
                     }
                 }
                 FieldType::CopyU8Bool(field_name) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <u8 as #trait_name>::Output<'a>
+                        pub #field_name: <u8 as #trait_name<'a>>::Output
                     }
                 }
                 FieldType::Copy(field_name, field_type) => {
@@ -253,7 +253,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                 FieldType::NonCopy(field_name, field_type) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name>::Output<'a>
+                        pub #field_name: <#field_type as #trait_name<'a>>::Output
                     }
                 }
             }

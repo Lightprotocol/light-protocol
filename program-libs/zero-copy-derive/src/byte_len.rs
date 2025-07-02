@@ -7,7 +7,7 @@ use crate::{
     z_struct::{analyze_struct_fields, FieldType},
 };
 
-/// Generates byte_len implementation for DeserializeMut trait
+/// Generates byte_len implementation for structs
 ///
 /// RULES AND EXCEPTIONS FROM borsh_mut.rs:
 ///

@@ -82,6 +82,17 @@ macro_rules! impl_deserialize_for_primitive {
 impl_deserialize_for_primitive!(u16, i16, u32, i32, u64, i64);
 impl_deserialize_for_primitive!(U16, U32, U64);
 
+// Implement Deserialize for fixed-size array types
+impl<'a, T: KnownLayout + Immutable + FromBytes, const N: usize> Deserialize<'a> for [T; N] {
+    type Output = Ref<&'a [u8], [T; N]>;
+
+    #[inline]
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        let (bytes, remaining_bytes) = Ref::<&'a [u8], [T; N]>::from_prefix(bytes)?;
+        Ok((bytes, remaining_bytes))
+    }
+}
+
 impl<'a, T: Deserialize<'a>> Deserialize<'a> for Vec<T> {
     type Output = Vec<T::Output>;
     #[inline]
@@ -166,6 +177,12 @@ impl<T: ZeroCopyStructInner + Copy> ZeroCopyStructInner for Option<T> {
 // Add ZeroCopyStructInner for array types
 impl<const N: usize> ZeroCopyStructInner for [u8; N] {
     type ZeroCopyInner = Ref<&'static [u8], [u8; N]>;
+}
+
+pub fn borsh_vec_u8_as_slice(bytes: &[u8]) -> Result<(&[u8], &[u8]), ZeroCopyError> {
+    let (num_slices, bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
+    let num_slices = u32::from(*num_slices) as usize;
+    Ok(bytes.split_at(num_slices))
 }
 
 #[test]
@@ -265,9 +282,9 @@ pub mod test {
         IntoBytes, Ref, Unaligned,
     };
 
+    use super::ZeroCopyStructInner;
     use super::*;
     use crate::slice::ZeroCopySliceBorsh;
-    use super::ZeroCopyStructInner;
 
     // Rules:
     // 1. create ZStruct for the struct
