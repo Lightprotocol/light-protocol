@@ -1,6 +1,5 @@
-use borsh::BorshSerialize;
 use light_account_checks::{
-    checks::{account_info_init, check_owner, check_signer},
+    checks::{check_owner, check_signer},
     discriminator::Discriminator,
 };
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
@@ -9,7 +8,11 @@ use light_compressed_account::constants::{
 };
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
-use crate::{errors::SystemProgramError, invoke_cpi::account::CpiContextAccount, Result};
+use crate::{
+    cpi_context::state::{cpi_context_account_new, CpiContextAccountInitParams},
+    errors::SystemProgramError,
+    Result,
+};
 pub struct InitializeCpiContextAccount<'info> {
     pub fee_payer: &'info AccountInfo,
     pub cpi_context_account: &'info AccountInfo,
@@ -51,20 +54,9 @@ impl<'info> InitializeCpiContextAccount<'info> {
 pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
     // Check that Merkle tree is initialized.
     let ctx = InitializeCpiContextAccount::from_account_infos(accounts)?;
-
-    // 1. Check discriminator bytes are zeroed.
-    // 2. Set discriminator.
-    account_info_init::<CpiContextAccount, AccountInfo>(ctx.cpi_context_account)?;
-
-    let mut cpi_context_account_data = ctx.cpi_context_account.try_borrow_mut_data()?;
-    let cpi_context_account = CpiContextAccount {
-        associated_merkle_tree: *ctx.associated_merkle_tree.key(),
-        ..Default::default()
-    };
-    // Initialize account with data.
-    cpi_context_account
-        .serialize(&mut &mut cpi_context_account_data[8..])
-        .unwrap();
+    let params: CpiContextAccountInitParams =
+        CpiContextAccountInitParams::new(*ctx.associated_merkle_tree.key());
+    cpi_context_account_new(ctx.cpi_context_account, params)?;
 
     Ok(())
 }

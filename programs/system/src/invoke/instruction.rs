@@ -95,19 +95,19 @@ impl<'info> SignerAccounts<'info> for InvokeInstruction<'info> {
 }
 
 impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
-    fn get_registered_program_pda(&self) -> &'info AccountInfo {
-        self.registered_program_pda
+    fn get_registered_program_pda(&self) -> Result<&'info AccountInfo> {
+        Ok(self.registered_program_pda)
     }
 
-    fn get_account_compression_authority(&self) -> &'info AccountInfo {
-        self.account_compression_authority
+    fn get_account_compression_authority(&self) -> Result<&'info AccountInfo> {
+        Ok(self.account_compression_authority)
     }
 
-    fn get_sol_pool_pda(&self) -> Option<&'info AccountInfo> {
-        self.sol_pool_pda
+    fn get_sol_pool_pda(&self) -> Result<Option<&'info AccountInfo>> {
+        Ok(self.sol_pool_pda)
     }
 
-    fn get_decompression_recipient(&self) -> Option<&'info AccountInfo> {
-        self.decompression_recipient
+    fn get_decompression_recipient(&self) -> Result<Option<&'info AccountInfo>> {
+        Ok(self.decompression_recipient)
     }
 }

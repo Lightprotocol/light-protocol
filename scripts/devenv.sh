@@ -87,6 +87,7 @@ export CARGO_HOME
 export NPM_CONFIG_PREFIX
 export LIGHT_PROTOCOL_TOPLEVEL
 export LIGHT_PROTOCOL_DEVENV
+export SBF_OUT_DIR=./target/deploy
 
 # Set Redis URL if not already set
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379}"

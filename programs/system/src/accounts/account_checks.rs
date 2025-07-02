@@ -1,6 +1,11 @@
-use light_account_checks::checks::{
-    check_discriminator, check_mut, check_non_mut, check_owner, check_pda_seeds,
-    check_pda_seeds_with_bump, check_program, check_signer,
+use std::panic::Location;
+
+use light_account_checks::{
+    checks::{
+        check_discriminator, check_mut, check_non_mut, check_owner, check_pda_seeds,
+        check_pda_seeds_with_bump, check_program, check_signer,
+    },
+    AccountIterator,
 };
 use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, instruction_data::traits::AccountOptions,
@@ -8,7 +13,7 @@ use light_compressed_account::{
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
-    invoke_cpi::account::CpiContextAccount,
+    cpi_context::state::ZCpiContextAccount,
     processor::sol_compression::{SOL_POOL_PDA_BUMP, SOL_POOL_PDA_SEED},
     Result,
 };
@@ -90,7 +95,14 @@ pub fn check_anchor_option_cpi_context_account(
     } else {
         {
             check_owner(&crate::ID, option_cpi_context_account)?;
-            check_discriminator::<CpiContextAccount>(
+            /*     .inspect_err(|_| {
+                msg!(format!(
+                    "Invalid CPI context account {:?}",
+                    solana_pubkey::Pubkey::new_from_array(*option_cpi_context_account.key())
+                )
+                .as_str())
+            })?;*/
+            check_discriminator::<ZCpiContextAccount>(
                 option_cpi_context_account.try_borrow_data()?.as_ref(),
             )?;
         }
@@ -99,17 +111,13 @@ pub fn check_anchor_option_cpi_context_account(
     Ok(cpi_context_account)
 }
 
-pub fn check_option_decompression_recipient<'a, I>(
-    account_infos: &mut I,
+pub fn check_option_decompression_recipient<'a>(
+    account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
-) -> Result<Option<&'a AccountInfo>>
-where
-    I: Iterator<Item = &'a AccountInfo>,
-{
+) -> Result<Option<&'a AccountInfo>> {
     let account = if account_options.decompression_recipient {
-        let option_decompression_recipient = account_infos
-            .next()
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let option_decompression_recipient =
+            account_infos.next_account("decompression_recipient")?;
         check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
         Some(option_decompression_recipient)
     } else {
@@ -118,19 +126,34 @@ where
     Ok(account)
 }
 
-pub fn check_option_cpi_context_account<'a, I>(
-    account_infos: &mut I,
+#[track_caller]
+pub fn check_option_cpi_context_account<'a>(
+    account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
-) -> Result<Option<&'a AccountInfo>>
-where
-    I: Iterator<Item = &'a AccountInfo>,
-{
+) -> Result<Option<&'a AccountInfo>> {
     let account = if account_options.cpi_context_account {
-        let account_info = account_infos
-            .next()
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        check_owner(&crate::ID, account_info)?;
-        check_discriminator::<CpiContextAccount>(account_info.try_borrow_data()?.as_ref())?;
+        let account_info = account_infos.next_account("cpi_context")?;
+        check_owner(&crate::ID, account_info).inspect_err(|_| {
+            let location = Location::caller();
+            solana_msg::msg!(
+                "ERROR: check_owner {:?} owner: {:?} for cpi_context failed. {}:{}:{}",
+                solana_pubkey::Pubkey::new_from_array(*account_info.key()),
+                solana_pubkey::Pubkey::new_from_array(unsafe { *account_info.owner() }),
+                location.file(),
+                location.line(),
+                location.column()
+            )
+        })?;
+        check_discriminator::<ZCpiContextAccount>(account_info.try_borrow_data()?.as_ref())
+            .inspect_err(|_| {
+                let location = Location::caller();
+                solana_msg::msg!(
+                    "ERROR: check_discriminator for cpi_context failed. {}:{}:{}",
+                    location.file(),
+                    location.line(),
+                    location.column()
+                )
+            })?;
         Some(account_info)
     } else {
         None
@@ -138,17 +161,12 @@ where
     Ok(account)
 }
 
-pub fn check_option_sol_pool_pda<'a, I>(
-    account_infos: &mut I,
+pub fn check_option_sol_pool_pda<'a>(
+    account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
-) -> Result<Option<&'a AccountInfo>>
-where
-    I: Iterator<Item = &'a AccountInfo>,
-{
+) -> Result<Option<&'a AccountInfo>> {
     let sol_pool_pda = if account_options.sol_pool_pda {
-        let option_sol_pool_pda = account_infos
-            .next()
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let option_sol_pool_pda = account_infos.next_account("sol_pool_pda")?;
         check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
         check_mut(option_sol_pool_pda).map_err(ProgramError::from)?;
         Some(option_sol_pool_pda)

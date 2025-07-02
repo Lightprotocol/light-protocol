@@ -7,7 +7,7 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::{little_endian::U32, Ref};
+use zerocopy::{little_endian::U32, IntoBytes, Ref};
 
 use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
@@ -141,6 +141,15 @@ where
             .try_into()
             .map_err(|_| ZeroCopyError::InvalidConversion)
             .unwrap();
+    }
+
+    #[inline]
+    pub fn zero_out(&mut self) {
+        *self.get_len_mut() = 0
+            .try_into()
+            .map_err(|_| ZeroCopyError::InvalidConversion)
+            .unwrap();
+        self.slice.as_mut_bytes().fill(0);
     }
 
     #[inline]

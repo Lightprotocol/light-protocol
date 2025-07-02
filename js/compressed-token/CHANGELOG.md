@@ -1,9 +1,9 @@
 ## [0.22.0]
 
-- `CreateMint` action now allows passing a non-payer mint and freeze authority.
-- More efficient computebudgets for actions.
-- Better DX: Parameter lookup in call signatures of CompressedTokenProgram instructions
-- QoL: improved typedocs.
+-   `CreateMint` action now allows passing a non-payer mint and freeze authority.
+-   More efficient computebudgets for actions.
+-   Better DX: Parameter lookup in call signatures of CompressedTokenProgram instructions
+-   QoL: improved typedocs.
 
 ## [0.21.0]
 
@@ -58,23 +58,25 @@ const ix = await CompressedTokenProgram.decompress({
 
 ### Overview
 
-- new type: TokenPoolInfo
-- Instruction Changes:
-    - `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
-    - `decompress` now requires an array of one or more TokenPoolInfos.
-    - `decompress`, `transfer` now do not allow state tree overrides.
+-   new type: TokenPoolInfo
+-   Instruction Changes:
 
-- Action Changes:
-    - Removed optional tokenProgramId: PublicKey
-    - removed optional merkleTree: PublicKey
-    - removed optional outputStateTree: PublicKey
-    - added optional stateTreeInfo: StateTreeInfo
-    - added optional tokenPoolInfo: TokenPoolInfo
+    -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
+    -   `decompress` now requires an array of one or more TokenPoolInfos.
+    -   `decompress`, `transfer` now do not allow state tree overrides.
 
-- new instructions:
-    - `approve`, `revoke`: delegated transfer support.
-    - `addTokenPools`: you can now register additional token pool pdas. Use
-      this if you need very high concurrency.
+-   Action Changes:
+
+    -   Removed optional tokenProgramId: PublicKey
+    -   removed optional merkleTree: PublicKey
+    -   removed optional outputStateTree: PublicKey
+    -   added optional stateTreeInfo: StateTreeInfo
+    -   added optional tokenPoolInfo: TokenPoolInfo
+
+-   new instructions:
+    -   `approve`, `revoke`: delegated transfer support.
+    -   `addTokenPools`: you can now register additional token pool pdas. Use
+        this if you need very high concurrency.
 
 ### Why the Changes are helpful
 
@@ -94,32 +96,32 @@ accounts.
 
 ### Changed
 
-- improved documentation and error messages.
+-   improved documentation and error messages.
 
 ## [0.20.4] - 2025-02-19
 
 ### Breaking Changes
 
-- `selectMinCompressedTokenAccountsForTransfer` and
-  `selectSmartCompressedTokenAccountsForTransfer` now throw an error
-  if not enough accounts are found. In most cases this is not a breaking
-  change, because a proof request would fail anyway. This just makes the error
-  message more informative.
+-   `selectMinCompressedTokenAccountsForTransfer` and
+    `selectSmartCompressedTokenAccountsForTransfer` now throw an error
+    if not enough accounts are found. In most cases this is not a breaking
+    change, because a proof request would fail anyway. This just makes the error
+    message more informative.
 
 ### Added
 
-- `selectSmartCompressedTokenAccountsForTransfer` and
-  `selectSmartCompressedTokenAccountsForTransferOrPartial`
+-   `selectSmartCompressedTokenAccountsForTransfer` and
+    `selectSmartCompressedTokenAccountsForTransferOrPartial`
 
 ### Changed
 
-- `selectMinCompressedTokenAccountsForTransfer` and
-  `selectMinCompressedTokenAccountsForTransferorPartial` now accept an optional
-  `maxInputs` parameter, defaulting to 4.
+-   `selectMinCompressedTokenAccountsForTransfer` and
+    `selectMinCompressedTokenAccountsForTransferorPartial` now accept an optional
+    `maxInputs` parameter, defaulting to 4.
 
 ### Security
 
-- N/A
+-   N/A
 
 For previous release notes, check:
 https://www.zkcompression.com/release-notes/1.0.0-mainnet-beta

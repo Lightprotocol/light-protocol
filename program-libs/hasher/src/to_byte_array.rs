@@ -70,6 +70,36 @@ impl_to_byte_array_for_integer_type!(u64);
 impl_to_byte_array_for_integer_type!(i128);
 impl_to_byte_array_for_integer_type!(u128);
 
+// Macro for implementing ToByteArray for zero-copy types
+#[cfg(feature = "zero-copy")]
+macro_rules! impl_to_byte_array_for_zero_copy_type {
+    ($zero_copy_type:ty, $primitive_type:ty) => {
+        impl ToByteArray for $zero_copy_type {
+            const IS_PRIMITIVE: bool = true;
+            const NUM_FIELDS: usize = 1;
+
+            fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
+                let value: $primitive_type = (*self).into();
+                value.to_byte_array()
+            }
+        }
+    };
+}
+
+// ToByteArray implementations for zero-copy types
+#[cfg(feature = "zero-copy")]
+impl_to_byte_array_for_zero_copy_type!(zerocopy::little_endian::U16, u16);
+#[cfg(feature = "zero-copy")]
+impl_to_byte_array_for_zero_copy_type!(zerocopy::little_endian::U32, u32);
+#[cfg(feature = "zero-copy")]
+impl_to_byte_array_for_zero_copy_type!(zerocopy::little_endian::U64, u64);
+#[cfg(feature = "zero-copy")]
+impl_to_byte_array_for_zero_copy_type!(zerocopy::little_endian::I16, i16);
+#[cfg(feature = "zero-copy")]
+impl_to_byte_array_for_zero_copy_type!(zerocopy::little_endian::I32, i32);
+#[cfg(feature = "zero-copy")]
+impl_to_byte_array_for_zero_copy_type!(zerocopy::little_endian::I64, i64);
+
 /// Example usage:
 /// impl_to_byte_array_for_array! {
 ///     MyCustomType,

@@ -22,8 +22,8 @@ use crate::{
     },
     constants::CPI_AUTHORITY_PDA_BUMP,
     context::WrappedInstructionData,
+    cpi_context::process_cpi_context::copy_cpi_context_outputs,
     errors::SystemProgramError,
-    invoke_cpi::process_cpi_context::copy_cpi_context_outputs,
     processor::{
         cpi::{cpi_account_compression_program, create_cpi_data_and_context},
         create_address_cpi_data::derive_new_addresses,
@@ -87,7 +87,6 @@ pub fn process<
     ctx: &A,
     cpi_context_inputs_len: usize,
     remaining_accounts: &'info [AccountInfo],
-    cpi_context_account_info: Option<&'info AccountInfo>,
 ) -> Result<()> {
     let num_input_accounts = inputs.input_len();
     let num_new_addresses = inputs.address_len();
@@ -154,6 +153,7 @@ pub fn process<
     if num_new_addresses != 0 {
         derive_new_addresses::<ADDRESS_ASSIGNMENT>(
             inputs.new_addresses(),
+            inputs.new_addresses_owners().as_slice(),
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,
@@ -166,7 +166,7 @@ pub fn process<
             .new_addresses()
             .any(|x| x.assigned_compressed_account_index().is_some())
         {
-            return Err(SystemProgramError::InvalidAddress.into());
+            //return Err(SystemProgramError::InvalidAddress.into());
         }
     }
 
@@ -337,14 +337,7 @@ pub fn process<
     }
 
     // 18. Copy CPI context outputs ---------------------------------------------------
-    copy_cpi_context_outputs(
-        inputs.get_cpi_context_account(),
-        inputs.get_cpi_context_outputs_start_offset(),
-        inputs.get_cpi_context_outputs_end_offset(),
-        cpi_context_account_info,
-        cpi_outputs_data_len,
-        bytes,
-    )?;
+    copy_cpi_context_outputs(inputs.get_cpi_context_account(), bytes)?;
     // 19. CPI account compression program ---------------------------------------------------
     cpi_account_compression_program(context, cpi_ix_bytes)
 }

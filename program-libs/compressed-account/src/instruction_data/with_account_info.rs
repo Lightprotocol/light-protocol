@@ -311,6 +311,8 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
+            write_to_cpi_context: self.cpi_context.first_set_context()
+                || self.cpi_context.set_context(),
         }
     }
 
@@ -332,6 +334,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
+    }
+
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![Some(self.invoking_program_id); self.new_address_params.len()]
     }
 
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {

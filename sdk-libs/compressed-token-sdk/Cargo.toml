@@ -1,0 +1,37 @@
+[package]
+name = "light-compressed-token-sdk"
+version = "0.1.0"
+edition = { workspace = true }
+
+[features]
+
+anchor = ["anchor-lang", "light-compressed-token-types/anchor"]
+
+[dependencies]
+# Light Protocol dependencies
+light-compressed-token-types = { workspace = true }
+light-compressed-account = { workspace = true }
+light-ctoken-types = { workspace = true }
+light-sdk = { workspace = true }
+light-macros = { workspace = true }
+thiserror = { workspace = true }
+# Serialization
+borsh = { workspace = true }
+solana-msg = { workspace = true }
+# Solana dependencies
+solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }
+solana-instruction = { workspace = true }
+solana-account-info = { workspace = true }
+solana-cpi = { workspace = true }
+solana-program-error = { workspace = true }
+arrayvec = { workspace = true }
+spl-token-2022 = { workspace = true }
+spl-pod = { workspace = true }
+# Optional Anchor dependency
+light-account-checks = { workspace = true, features = ["solana"] }
+
+anchor-lang = { workspace = true, optional = true }
+[dev-dependencies]
+light-account-checks = { workspace = true, features = ["test-only", "solana"] }
+anchor-lang = { workspace = true }
+light-compressed-token = { workspace = true }

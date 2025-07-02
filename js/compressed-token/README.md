@@ -28,8 +28,8 @@ npm install --save \
 
 ### Documentation and examples
 
-- [Latest Source code](https://github.com/lightprotocol/light-protocol/tree/main/js/compressed-token)
-- [Creating and sending compressed tokens](https://www.zkcompression.com/developers/typescript-client#creating-minting-and-transferring-a-compressed-token)
+-   [Latest Source code](https://github.com/lightprotocol/light-protocol/tree/main/js/compressed-token)
+-   [Creating and sending compressed tokens](https://www.zkcompression.com/developers/typescript-client#creating-minting-and-transferring-a-compressed-token)
 
 ### Getting help
 
@@ -38,9 +38,9 @@ Check out the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](https://discor
 
 When asking for help, please include:
 
-- A detailed description of what you're trying to achieve
-- Source code, if possible
-- The text of any errors you encountered, with stacktraces if available
+-   A detailed description of what you're trying to achieve
+-   Source code, if possible
+-   The text of any errors you encountered, with stacktraces if available
 
 ### Contributing
 

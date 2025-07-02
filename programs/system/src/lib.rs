@@ -2,6 +2,7 @@ pub mod account_compression_state;
 pub mod accounts;
 pub mod constants;
 pub mod context;
+pub mod cpi_context;
 pub mod errors;
 pub mod invoke;
 pub mod invoke_cpi;
@@ -105,7 +106,6 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         &ctx,
         0,
         remaining_accounts,
-        None,
     )?;
     Ok(())
 }
@@ -185,6 +185,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
                 accounts,
                 inputs.account_option_config(),
             )?;
+
             process_invoke_cpi::<true, InvokeCpiInstructionSmall, T>(
                 invoking_program,
                 ctx,

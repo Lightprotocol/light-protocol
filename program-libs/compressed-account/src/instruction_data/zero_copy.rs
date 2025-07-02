@@ -90,7 +90,7 @@ pub struct ZPackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub queue_pubkey_index: u8,
     pub leaf_index: U32,
-    prove_by_index: u8,
+    pub prove_by_index: u8,
 }
 
 impl ZPackedMerkleContext {
@@ -474,6 +474,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
         self.new_address_params.as_slice()
     }
 
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![None; self.new_address_params.len()]
+    }
+
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts_with_merkle_context
             .as_slice()
@@ -562,6 +566,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
+            write_to_cpi_context: false, // Not used
         }
     }
 
@@ -596,6 +601,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
+    }
+
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![None; self.new_address_params.len()]
     }
 
     fn output_accounts(&self) -> &[impl OutputAccount<'a>] {
@@ -711,8 +720,8 @@ impl<'a> ZeroCopyAt<'a> for ZInstructionDataInvokeCpi<'a> {
 impl ZeroCopyAt<'_> for CompressedCpiContext {
     type ZeroCopyAt = Self;
     fn zero_copy_at(bytes: &[u8]) -> Result<(Self, &[u8]), ZeroCopyError> {
-        let (first_set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (set_context, bytes) = u8::zero_copy_at(bytes)?;
+        let (first_set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (cpi_context_account_index, bytes) = u8::zero_copy_at(bytes)?;
 
         Ok((

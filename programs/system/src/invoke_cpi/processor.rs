@@ -5,7 +5,10 @@ pub use crate::Result;
 use crate::{
     accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     context::WrappedInstructionData,
-    invoke_cpi::{process_cpi_context::process_cpi_context, verify_signer::cpi_signer_checks},
+    cpi_context::{
+        process_cpi_context::process_cpi_context, state::deserialize_cpi_context_account_cleared,
+    },
+    invoke_cpi::verify_signer::cpi_signer_checks,
     processor::process::process,
 };
 
@@ -46,7 +49,6 @@ pub fn process_invoke_cpi<
         Ok(None) => return Ok(()),
         Err(err) => return Err(err),
     };
-
     // 3. Process input data and cpi the account compression program.
     process::<ADDRESS_ASSIGNMENT, A, T>(
         instruction_data,
@@ -54,20 +56,11 @@ pub fn process_invoke_cpi<
         &accounts,
         cpi_context_inputs_len,
         remaining_accounts,
-        accounts.get_cpi_context_account(),
     )?;
 
     // 4. clear cpi context account
     if cpi_context_inputs_len > 0 {
-        clear_cpi_context_account(accounts.get_cpi_context_account())?;
+        deserialize_cpi_context_account_cleared(accounts.get_cpi_context_account().unwrap())?;
     }
-    Ok(())
-}
-
-/// Clear the CPI context account by setting the length to 0.
-pub fn clear_cpi_context_account(account_info: Option<&AccountInfo>) -> Result<()> {
-    let mut data = account_info.unwrap().try_borrow_mut_data()?;
-    let start_offset = 8 + 32 + 32;
-    data[start_offset..start_offset + 4].copy_from_slice(&[0u8, 0u8, 0u8, 0u8]);
     Ok(())
 }

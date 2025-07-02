@@ -28,7 +28,7 @@ fn main() {
     let serialized = original.try_to_vec().unwrap();
 
     // Test zero_copy_at (read-only)
-    let zero_copy_read = VeryLongFieldNames::zero_copy_at(&serialized).unwrap();
+    let _zero_copy_read = VeryLongFieldNames::zero_copy_at(&serialized).unwrap();
 
     // Test zero_copy_at_mut (mutable)
     let mut serialized_mut = serialized.clone();
