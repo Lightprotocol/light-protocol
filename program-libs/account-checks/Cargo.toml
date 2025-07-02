@@ -25,6 +25,7 @@ solana-pubkey = { workspace = true, optional = true, features = [
     "curve25519",
     "sha2",
 ] }
+solana-msg = { workspace = true }
 pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
 rand = { workspace = true, optional = true }

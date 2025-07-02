@@ -80,11 +80,15 @@ pub mod system_cpi_test {
             let cpi_accounts =
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
 
+<<<<<<< HEAD
             let account_infos = cpi_accounts
                 .to_account_infos()
                 .into_iter()
                 .cloned()
                 .collect::<Vec<_>>();
+=======
+            let account_infos = cpi_accounts.to_account_infos();
+>>>>>>> 37c039ad1 (feat: zero-copy-derive)
 
             let config = CpiInstructionConfig::try_from(&cpi_accounts)
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;

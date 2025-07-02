@@ -16,12 +16,13 @@ use light_client::{
     fee::FeeConfig,
     indexer::{
         AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
-        AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount, Context,
-        GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-        Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
-        MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions,
-        Response, RetryConfig, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts,
-        TokenAccount, TokenBalance, ValidityProofWithContext,
+        AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
+        CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
+        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
+        IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
+        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+        RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
+        ValidityProofWithContext,
     },
     rpc::{Rpc, RpcError},
 };
@@ -247,15 +248,15 @@ impl Indexer for TestIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         let mint = options.as_ref().and_then(|opts| opts.mint);
-        let token_accounts: Result<Vec<TokenAccount>, IndexerError> = self
+        let token_accounts: Result<Vec<CompressedTokenAccount>, IndexerError> = self
             .token_compressed_accounts
             .iter()
             .filter(|acc| {
                 acc.token_data.owner == *owner && mint.is_none_or(|m| acc.token_data.mint == m)
             })
-            .map(|acc| TokenAccount::try_from(acc.clone()))
+            .map(|acc| CompressedTokenAccount::try_from(acc.clone()))
             .collect();
         let token_accounts = token_accounts?;
         let token_accounts = if let Some(options) = options {
@@ -953,7 +954,7 @@ impl Indexer for TestIndexer {
         _delegate: &Pubkey,
         _options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         todo!("get_compressed_token_accounts_by_delegate not implemented")
     }
 
@@ -1693,8 +1694,13 @@ impl TestIndexer {
             // new accounts are inserted in front so that the newest accounts are found first
             match compressed_account.compressed_account.data.as_ref() {
                 Some(data) => {
-                    if compressed_account.compressed_account.owner == light_compressed_token::ID.to_bytes()
-                        && data.discriminator == light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR
+                    // Check for both V1 and V2 token account discriminators
+                    let is_v1_token = data.discriminator == light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR; // [2, 0, 0, 0, 0, 0, 0, 0]
+                    let is_v2_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 3]; // V2 discriminator
+
+                    if compressed_account.compressed_account.owner
+                        == light_compressed_token::ID.to_bytes()
+                        && (is_v1_token || is_v2_token)
                     {
                         if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
                             let token_account = TokenDataWithMerkleContext {
@@ -1708,7 +1714,7 @@ impl TestIndexer {
                                         merkle_tree_pubkey: merkle_tree_pubkey.into(),
                                         queue_pubkey: nullifier_queue_pubkey.into(),
                                         prove_by_index: false,
-                                        tree_type:merkle_tree.tree_type,
+                                        tree_type: merkle_tree.tree_type,
                                     },
                                 },
                             };
@@ -1723,7 +1729,7 @@ impl TestIndexer {
                                 merkle_tree_pubkey: merkle_tree_pubkey.into(),
                                 queue_pubkey: nullifier_queue_pubkey.into(),
                                 prove_by_index: false,
-                                tree_type: merkle_tree.tree_type
+                                tree_type: merkle_tree.tree_type,
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());

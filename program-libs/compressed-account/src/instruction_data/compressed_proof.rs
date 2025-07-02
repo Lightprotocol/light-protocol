@@ -1,4 +1,4 @@
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
+use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, ZeroCopyMut};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -17,6 +17,7 @@ use crate::{AnchorDeserialize, AnchorSerialize};
     FromBytes,
     IntoBytes,
     Unaligned,
+    ZeroCopyMut,
 )]
 pub struct CompressedProof {
     pub a: [u8; 32],

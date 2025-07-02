@@ -14,9 +14,11 @@ members = [
     "program-libs/indexed-merkle-tree",
     "program-libs/indexed-array",
     "program-libs/zero-copy-derive",
+    "program-libs/ctoken-types",
     "programs/account-compression",
     "programs/system",
-    "programs/compressed-token",
+    "programs/compressed-token/program",
+    "programs/compressed-token/anchor",
     "programs/registry",
     "anchor-programs/system",
     "sdk-libs/client",
@@ -27,6 +29,9 @@ members = [
     "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
+    "sdk-libs/compressed-token-types",
+    "sdk-libs/compressed-token-sdk",
+    "sdk-libs/token-client",
     "xtask",
     "program-tests/account-compression-test",
     "program-tests/compressed-token-test",
@@ -36,6 +41,7 @@ members = [
     "program-tests/system-cpi-v2-test",
     "program-tests/system-test",
     "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
+    "program-tests/sdk-token-test",
     "program-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
@@ -58,6 +64,10 @@ strip = "none"
 
 [profile.release]
 overflow-checks = true
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
 
 [workspace.dependencies]
 solana-banks-client = { version = "2.2" }
@@ -105,6 +115,7 @@ solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7", features = ["no-entrypoint"] }
+spl-pod = "0.5.1"
 pinocchio = { version = "0.8.4" }
 bs58 = "^0.5.1"
 litesvm = "0.6.1"
@@ -169,14 +180,18 @@ light-account-checks = { path = "program-libs/account-checks", version = "0.3.0"
 light-verifier = { path = "program-libs/verifier", version = "2.1.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.2.0" }
 light-zero-copy-derive = { path = "program-libs/zero-copy-derive", version = "0.1.0" }
+light-ctoken-types = { path = "program-libs/ctoken-types", version = "0.1.0" }
 photon-api = { path = "sdk-libs/photon-api", version = "0.51.0" }
 forester-utils = { path = "forester-utils", version = "2.0.0" }
 account-compression = { path = "programs/account-compression", version = "2.0.0", features = [
     "cpi",
 ] }
-light-compressed-token = { path = "programs/compressed-token", version = "2.0.0", features = [
+light-compressed-token = { path = "programs/compressed-token/program", version = "2.0.0", features = [
     "cpi",
 ] }
+light-compressed-token-types = { path = "sdk-libs/compressed-token-types", name = "light-compressed-token-types" }
+light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk" }
+light-token-client = { path = "sdk-libs/token-client" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }

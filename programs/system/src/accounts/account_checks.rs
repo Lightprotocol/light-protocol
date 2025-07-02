@@ -90,6 +90,13 @@ pub fn check_anchor_option_cpi_context_account(
     } else {
         {
             check_owner(&crate::ID, option_cpi_context_account)?;
+            /*     .inspect_err(|_| {
+                msg!(format!(
+                    "Invalid CPI context account {:?}",
+                    solana_pubkey::Pubkey::new_from_array(*option_cpi_context_account.key())
+                )
+                .as_str())
+            })?;*/
             check_discriminator::<CpiContextAccount>(
                 option_cpi_context_account.try_borrow_data()?.as_ref(),
             )?;

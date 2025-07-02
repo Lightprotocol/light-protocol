@@ -293,6 +293,12 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                         pub #field_name: <#field_type as #trait_name<'a>>::Output
                     }
                 }
+                // FieldType::Bool(field_name) => {
+                //     quote! {
+                //         #(#attributes)*
+                //         pub #field_name: <bool as #trait_name<'a>>::Output
+                //     }
+                // }
                 FieldType::Copy(field_name, field_type) => {
                     let zerocopy_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
@@ -377,13 +383,14 @@ pub fn generate_z_struct<const MUT: bool>(
     } else {
         quote! {}
     };
-    let hasher_flatten = if hasher {
-        quote! {
-            #[flatten]
-        }
-    } else {
-        quote! {}
-    };
+    // let hasher_flatten = if hasher {
+    //     quote! {
+    //         #[flatten]
+    //     }
+    // } else {
+    //     quote! {}
+    // };
+    let hasher_flatten = quote! {};
 
     let partial_eq_derive = if MUT { quote!() } else { quote!(, PartialEq) };
 
