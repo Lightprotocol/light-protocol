@@ -167,7 +167,7 @@ async fn test_metadata_field_updates() -> Result<(), light_client::rpc::RpcError
     let mint_before = get_actual_mint_state(&mut rpc, context.compressed_mint_address).await;
 
     // === ACT & ASSERT - Update name field ===
-    let update_name_actions = vec![MintActionType::UpdateMetadataField {
+    let update_name_actions = vec![MintActiownType::UpdateMetadataField {
         extension_index: 0,
         field_type: 0, // Name field
         key: vec![],

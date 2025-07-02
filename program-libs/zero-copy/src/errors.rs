@@ -20,6 +20,8 @@ pub enum ZeroCopyError {
     InvalidEnumValue,
     InsufficientCapacity,
     PlatformSizeOverflow,
+    // #[error("InvalidEnumValue")]
+    // InvalidEnumValue,
 }
 
 impl fmt::Display for ZeroCopyError {

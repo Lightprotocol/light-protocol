@@ -11,6 +11,8 @@ use light_sdk_types::{
     constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID},
     cpi_context_write::CpiContextWriteAccounts,
 };
+#[allow(unused_imports)] // TODO: Remove.
+use solana_msg::msg;
 
 use crate::{
     cpi::{
@@ -36,6 +38,38 @@ pub struct CpiInputs {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
+/// Builder pattern implementation for CpiInputs.
+///
+/// This provides a fluent API for constructing CPI inputs with various configurations.
+/// The most common pattern is to use one of the constructor methods and then chain
+/// builder methods to add additional configuration.
+///
+/// # Examples
+///
+/// Most common CPI context usage (no proof, assigned addresses):
+/// ```rust
+/// let cpi_inputs = CpiInputs::new_for_cpi_context(
+///     all_compressed_infos,
+///     vec![pool_new_address_params, observation_new_address_params],
+/// );
+/// ```
+///
+/// Basic usage with CPI context and custom proof:
+/// ```rust
+/// let cpi_inputs = CpiInputs::new_with_assigned_address(
+///     light_proof,
+///     all_compressed_infos,
+///     vec![pool_new_address_params, observation_new_address_params],
+/// )
+/// .with_first_set_cpi_context();
+/// ```
+///
+/// Advanced usage with multiple configurations:
+/// ```rust
+/// let cpi_inputs = CpiInputs::new(proof, account_infos)
+///     .with_first_set_cpi_context()
+///     .with_compress_lamports(1000000);
+/// ```
 impl CpiInputs {
     pub fn new(proof: ValidityProof, account_infos: Vec<CompressedAccountInfo>) -> Self {
         Self {
@@ -69,6 +103,88 @@ impl CpiInputs {
             new_assigned_addresses: Some(new_addresses),
             ..Default::default()
         }
+    }
+
+    // TODO: check if always unused!
+    /// Creates CpiInputs for the common CPI context pattern: no proof (None),
+    /// assigned addresses, and first set CPI context.
+    ///
+    /// This is the most common pattern when using CPI context for cross-program
+    /// compressed account operations.
+    ///
+    /// # Example
+    /// ```rust
+    /// let cpi_inputs = CpiInputs::new_for_cpi_context(
+    ///     all_compressed_infos,
+    ///     vec![user_new_address_params, game_new_address_params],
+    /// );
+    /// ```
+    pub fn new_first_cpi(
+        account_infos: Vec<CompressedAccountInfo>,
+        new_addresses: Vec<NewAddressParamsAssignedPacked>,
+    ) -> Self {
+        Self {
+            proof: ValidityProof(None),
+            account_infos: Some(account_infos),
+            new_assigned_addresses: Some(new_addresses),
+            cpi_context: Some(CompressedCpiContext {
+                set_context: false,
+                first_set_context: true,
+                cpi_context_account_index: 0, // unused
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// Sets a custom CPI context.
+    ///
+    /// # Example
+    /// ```
+    /// let cpi_inputs = CpiInputs::new_with_assigned_address(proof, infos, addresses)
+    ///     .with_cpi_context(CompressedCpiContext {
+    ///         set_context: true,
+    ///         first_set_context: false,
+    ///         cpi_context_account_index: 1,
+    ///     });
+    /// ```
+    pub fn with_cpi_context(mut self, cpi_context: CompressedCpiContext) -> Self {
+        self.cpi_context = Some(cpi_context);
+        self
+    }
+
+    // TODO: check if always unused!
+    /// Sets CPI context to first set context (clears any existing context).
+    /// This is the most common pattern for initializing CPI context.
+    ///
+    /// # Example
+    /// ```
+    /// let cpi_inputs = CpiInputs::new_with_assigned_address(proof, infos, addresses)
+    ///     .with_first_set_cpi_context();
+    /// ```
+    pub fn with_first_set_cpi_context(mut self) -> Self {
+        self.cpi_context = Some(CompressedCpiContext {
+            set_context: false,
+            first_set_context: true,
+            cpi_context_account_index: 0, // unused.
+        });
+        self
+    }
+
+    /// Sets CPI context to set context (updates existing context).
+    /// Use this when you want to update an existing CPI context.
+    ///
+    /// # Example
+    /// ```
+    /// let cpi_inputs = CpiInputs::new_with_assigned_address(proof, infos, addresses)
+    ///     .with_set_cpi_context(0);
+    /// ```
+    pub fn with_last_cpi_context(mut self, cpi_context_account_index: u8) -> Self {
+        self.cpi_context = Some(CompressedCpiContext {
+            set_context: true,
+            first_set_context: false,
+            cpi_context_account_index,
+        });
+        self
     }
 
     pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts<'_, '_>) -> Result<()> {

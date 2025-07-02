@@ -15,13 +15,13 @@ fn main() {
     let ref_struct = SingleU8 { value: 42 };
     let bytes = ref_struct.try_to_vec().unwrap();
 
-    let (struct_copy, remaining) = SingleU8::zero_copy_at(&bytes).unwrap();
+    let (struct_copy, _remaining) = SingleU8::zero_copy_at(&bytes).unwrap();
     assert_eq!(struct_copy, ref_struct);
-    assert!(remaining.is_empty());
+    assert!(_remaining.is_empty());
 
     let mut bytes_mut = bytes.clone();
-    let (_struct_copy_mut, remaining) = SingleU8::zero_copy_at_mut(&mut bytes_mut).unwrap();
-    assert!(remaining.is_empty());
+    let (_struct_copy_mut, _remaining) = SingleU8::zero_copy_at_mut(&mut bytes_mut).unwrap();
+    assert!(_remaining.is_empty());
     // assert byte len
     let config = ();
     let byte_len = SingleU8::byte_len(&config).unwrap();

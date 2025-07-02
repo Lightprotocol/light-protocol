@@ -5,7 +5,7 @@ use light_compressed_account::{
     },
     Pubkey,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount, context::SystemContext,
@@ -97,6 +97,8 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
             context.addresses.push(Some(address));
         }
         cpi_ix_data.addresses[i].address = address;
+
+        // msg!("setting rollover fee");
 
         context.set_rollover_fee(new_address_params.address_queue_index(), rollover_fee);
     }

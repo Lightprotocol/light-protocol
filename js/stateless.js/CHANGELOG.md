@@ -36,15 +36,15 @@ migrating.
 
 ### Breaking changes
 
--   Renamed `ActiveTreeBundle` to `StateTreeInfo`
--   Updated `StateTreeInfo` internal structure: `{ tree: PublicKey, queue: PublicKey, cpiContext: PublicKey | null, treeType: TreeType }`
--   Replaced `pickRandomTreeAndQueue` with `selectStateTreeInfo`
--   Use `selectStateTreeInfo` for tree selection instead of `pickRandomTreeAndQueue`
+- Renamed `ActiveTreeBundle` to `StateTreeInfo`
+- Updated `StateTreeInfo` internal structure: `{ tree: PublicKey, queue: PublicKey, cpiContext: PublicKey | null, treeType: TreeType }`
+- Replaced `pickRandomTreeAndQueue` with `selectStateTreeInfo`
+- Use `selectStateTreeInfo` for tree selection instead of `pickRandomTreeAndQueue`
 
 ### Deprecations
 
--   `rpc.getValidityProof` is now deprecated, use `rpc.getValidityProofV0` instead.
--   `CompressedProof` and `CompressedProofWithContext` were renamed to `ValidityProof` and `ValidityProofWithContext`
+- `rpc.getValidityProof` is now deprecated, use `rpc.getValidityProofV0` instead.
+- `CompressedProof` and `CompressedProofWithContext` were renamed to `ValidityProof` and `ValidityProofWithContext`
 
 ### Migration Guide
 
@@ -163,44 +163,43 @@ Fixed a bug where we lose precision on token amounts if compressed token account
 
 ### Breaking Changes
 
--   ActiveTreeBundle is now a tuple of `tree`, `queue`, `cpiContext`, and `treeType`. `treeType` is a new enum ensuring forward compatibility.
--   Updated LUT addresses for Mainnet and Devnet:
-    -   stateTreeLookupTableMainnet = '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';
-    -   nullifiedStateTreeLookupTableMainnet = 'H9QD4u1fG7KmkAzn2tDXhheushxFe1EcrjGGyEFXeMqT';
-    -   stateTreeLookupTableDevnet = '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
-    -   nullifiedStateTreeLookupTableDevnet = '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
+- ActiveTreeBundle is now a tuple of `tree`, `queue`, `cpiContext`, and `treeType`. `treeType` is a new enum ensuring forward compatibility.
+- Updated LUT addresses for Mainnet and Devnet:
+    - stateTreeLookupTableMainnet = '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';
+    - nullifiedStateTreeLookupTableMainnet = 'H9QD4u1fG7KmkAzn2tDXhheushxFe1EcrjGGyEFXeMqT';
+    - stateTreeLookupTableDevnet = '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
+    - nullifiedStateTreeLookupTableDevnet = '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
 
 ### Changed
 
--   `createRpc` can now also be called with only the `rpcEndpoint` parameter. In
-    this case, `compressionApiEndpoint` and `proverEndpoint` will default to the
-    same value. If no parameters are provided, default localnet values are used.
+- `createRpc` can now also be called with only the `rpcEndpoint` parameter. In
+  this case, `compressionApiEndpoint` and `proverEndpoint` will default to the
+  same value. If no parameters are provided, default localnet values are used.
 
 ## [0.19.0] - 2025-01-20
 
 ### Breaking Changes
 
--   Instruction methods (eg `LightSystemProgram.createAccount` and `CompressedTokenProgram.mintTo`) now require an explicit output state tree pubkey or input account, otherwise they will throw an error.
+- Instruction methods (eg `LightSystemProgram.createAccount` and `CompressedTokenProgram.mintTo`) now require an explicit output state tree pubkey or input account, otherwise they will throw an error.
 
 ### Added
 
--   Multiple State Tree support. Allows you to pass non-default state tree pubkeys to actions and instructions. Comes out of the box with public state trees.
+- Multiple State Tree support. Allows you to pass non-default state tree pubkeys to actions and instructions. Comes out of the box with public state trees.
+    - `pickRandomStateTreeAndQueue`
+    - `getLightStateTreeInfo`
 
-    -   `pickRandomStateTreeAndQueue`
-    -   `getLightStateTreeInfo`
-
--   createMint allows passing of freezeAuthority in action
+- createMint allows passing of freezeAuthority in action
 
 ### Changed
 
--   `createMint`action now lets you pass tokenprogramId explicitly. is backward compatible with boolean flag for t22.
+- `createMint`action now lets you pass tokenprogramId explicitly. is backward compatible with boolean flag for t22.
 
 ### Deprecated
 
--   `rpc.getValidityProof`. Now does another rpc round trip to fetch tree info. use `rpc.getValidityProofV0` and pass tree info explicitly instead.
+- `rpc.getValidityProof`. Now does another rpc round trip to fetch tree info. use `rpc.getValidityProofV0` and pass tree info explicitly instead.
 
 ### Security
 
--   N/A
+- N/A
 
 For previous release notes, check: https://www.zkcompression.com/release-notes/1.0.0-mainnet-beta

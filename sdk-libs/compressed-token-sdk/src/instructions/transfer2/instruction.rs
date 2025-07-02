@@ -1,8 +1,16 @@
 use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, ValidityProof};
 use light_ctoken_types::{
-    instructions::transfer2::CompressedTokenInstructionDataTransfer2, COMPRESSED_TOKEN_PROGRAM_ID,
+    instructions::transfer2::{
+        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
+        MultiTokenTransferOutputData,
+    },
+    COMPRESSED_TOKEN_PROGRAM_ID,
 };
+use solana_account_info::AccountInfo;
+use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
+use solana_msg::msg;
+use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -150,7 +158,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     // for packed_pubkey in packed_pubkeys {
     //     account_metas.push(AccountMeta::new(packed_pubkey, false));
     // }
-    println!("account metas {:?}", account_metas);
+
     Ok(Instruction {
         program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: account_metas,

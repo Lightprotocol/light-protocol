@@ -76,9 +76,11 @@ fi
 
 cd "$gnark_dir"
 
-# Windows
-build_prover windows amd64 "$out_dir"/prover-windows-x64.exe
-build_prover windows arm64 "$out_dir"/prover-windows-arm64.exe
+# Windows (only in development mode, not included in npm alpha releases to save space.)
+if [ "$RELEASE_ONLY" = false ]; then
+    build_prover windows amd64 "$out_dir"/prover-windows-x64.exe
+    build_prover windows arm64 "$out_dir"/prover-windows-arm64.exe
+fi
 
 # MacOS
 build_prover darwin amd64 "$out_dir"/prover-darwin-x64

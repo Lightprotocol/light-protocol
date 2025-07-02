@@ -43,7 +43,7 @@ impl CompressibleExtension {
         self.slots_until_compression
     }
 
-    pub fn set_last_written_slot(&mut self, slot: u64) {
+    pub fn bump_last_written_slot(&mut self, slot: u64) {
         self.last_written_slot = slot;
     }
 }

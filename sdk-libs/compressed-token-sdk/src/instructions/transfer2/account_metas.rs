@@ -29,10 +29,12 @@ impl Transfer2AccountsMetaConfig {
             packed_accounts: Some(packed_accounts),
         }
     }
-
-    pub fn new_decompressed_accounts_only(packed_accounts: Vec<AccountMeta>) -> Self {
+    pub fn new_decompressed_accounts_only(
+        _fee_payer: Pubkey,
+        packed_accounts: Vec<AccountMeta>,
+    ) -> Self {
         Self {
-            fee_payer: None,
+            fee_payer: None, // TODO: make it some once we add fee_per_write!
             sol_pool_pda: None,
             sol_decompression_recipient: None,
             cpi_context: None,
@@ -48,6 +50,7 @@ pub fn get_transfer2_instruction_account_metas(
     config: Transfer2AccountsMetaConfig,
 ) -> Vec<AccountMeta> {
     let default_pubkeys = CTokenDefaultAccounts::default();
+
     let packed_accounts_len = if let Some(packed_accounts) = config.packed_accounts.as_ref() {
         packed_accounts.len()
     } else {
@@ -104,6 +107,7 @@ pub fn get_transfer2_instruction_account_metas(
             false,
         ));
     }
+    // always add packed accounts
     if let Some(packed_accounts) = config.packed_accounts.as_ref() {
         for account in packed_accounts {
             metas.push(account.clone());
