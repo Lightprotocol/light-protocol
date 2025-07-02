@@ -8,7 +8,6 @@ use futures::stream::{Stream, StreamExt};
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
 };
-
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
@@ -19,8 +18,6 @@ use tracing::{info, instrument};
 
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData, ParsedQueueData};
 use crate::Result;
-
-
 
 async fn create_nullify_stream_future<R, I>(
     ctx: &BatchContext<R, I>,
@@ -76,11 +73,6 @@ where
     Ok((stream, size))
 }
 
-
-
-
-
-
 #[instrument(level = "debug", skip(context))]
 pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + 'static>(
     context: &BatchContext<R, I>,
@@ -135,11 +127,7 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + 'static>(
         )
     };
 
-    let stream_future = create_append_stream_future(
-        context,
-        merkle_tree_data,
-        output_queue_data,
-    );
+    let stream_future = create_append_stream_future(context, merkle_tree_data, output_queue_data);
     process_stream(
         context,
         stream_future,
@@ -150,4 +138,3 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + 'static>(
     .await?;
     Ok(())
 }
-

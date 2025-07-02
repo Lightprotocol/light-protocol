@@ -4,8 +4,7 @@ use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
 use futures::{future, Stream};
 use light_batched_merkle_tree::{
-    constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
-    merkle_tree::{InstructionDataAddressAppendInputs},
+    constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, merkle_tree::InstructionDataAddressAppendInputs,
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::{
@@ -288,10 +287,12 @@ where
 {
     info!("Using parsed data to initialize address update stream without RPC calls");
 
-
     if merkle_tree_data.leaves_hash_chains.is_empty() {
         debug!("No hash chains to process, returning empty stream.");
-        return Ok((Box::pin(futures::stream::empty()), merkle_tree_data.zkp_batch_size));
+        return Ok((
+            Box::pin(futures::stream::empty()),
+            merkle_tree_data.zkp_batch_size,
+        ));
     }
 
     // Still need to wait for indexer to be ready

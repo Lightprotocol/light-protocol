@@ -4,8 +4,7 @@ use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
 use futures::{future, stream::Stream};
 use light_batched_merkle_tree::{
-    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
-    merkle_tree::{InstructionDataBatchAppendInputs},
+    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT, merkle_tree::InstructionDataBatchAppendInputs,
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
@@ -19,7 +18,10 @@ use light_sparse_merkle_tree::changelog::ChangelogEntry;
 use tokio::sync::Mutex;
 use tracing::trace;
 
-use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
+use crate::{
+    error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
+    ParsedMerkleTreeData, ParsedQueueData,
+};
 
 async fn generate_zkp_proof(
     circuit_inputs: BatchAppendsCircuitInputs,
@@ -39,6 +41,7 @@ async fn generate_zkp_proof(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_append_instruction_stream<'a, R, I>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     indexer: Arc<Mutex<I>>,
@@ -46,8 +49,8 @@ pub async fn get_append_instruction_stream<'a, R, I>(
     prover_url: String,
     polling_interval: Duration,
     max_wait_time: Duration,
-    merkle_tree_data: crate::ParsedMerkleTreeData,
-    output_queue_data: crate::ParsedQueueData,
+    merkle_tree_data: ParsedMerkleTreeData,
+    output_queue_data: ParsedQueueData,
 ) -> Result<
     (
         Pin<
@@ -70,8 +73,15 @@ where
     let (indexer_guard, rpc_result) = tokio::join!(indexer.lock(), rpc_pool.get_connection());
     let rpc = rpc_result?;
 
-    let (merkle_tree_next_index, mut current_root, _,) = (merkle_tree_data.next_index, merkle_tree_data.current_root, merkle_tree_data.root_history);
-    let (zkp_batch_size, leaves_hash_chains)= (output_queue_data.zkp_batch_size, output_queue_data.leaves_hash_chains);
+    let (merkle_tree_next_index, mut current_root, _) = (
+        merkle_tree_data.next_index,
+        merkle_tree_data.current_root,
+        merkle_tree_data.root_history,
+    );
+    let (zkp_batch_size, leaves_hash_chains) = (
+        output_queue_data.zkp_batch_size,
+        output_queue_data.leaves_hash_chains,
+    );
 
     if leaves_hash_chains.is_empty() {
         trace!("No hash chains to process, returning empty stream.");

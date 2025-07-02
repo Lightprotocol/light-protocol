@@ -14,7 +14,6 @@ use tracing::{info, instrument};
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData};
 use crate::Result;
 
-
 async fn create_stream_future<R, I>(
     ctx: &BatchContext<R, I>,
     merkle_tree_data: ParsedMerkleTreeData,
@@ -40,8 +39,6 @@ where
     let stream = stream.map(|item| item.map_err(Error::from));
     Ok((stream, size))
 }
-
-
 
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
 pub(crate) async fn process_batch<R: Rpc, I: Indexer + 'static>(
@@ -73,4 +70,3 @@ pub(crate) async fn process_batch<R: Rpc, I: Indexer + 'static>(
     )
     .await
 }
-

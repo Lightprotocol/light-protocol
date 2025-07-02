@@ -4,8 +4,7 @@ use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
 use futures::{future, stream::Stream};
 use light_batched_merkle_tree::{
-    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
-    merkle_tree::{InstructionDataBatchNullifyInputs},
+    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT, merkle_tree::InstructionDataBatchNullifyInputs,
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
@@ -64,7 +63,7 @@ where
     I: Indexer + Send + 'a,
 {
     let rpc = rpc_pool.get_connection().await?;
-    
+
     let (mut current_root, leaves_hash_chains, num_inserted_zkps, zkp_batch_size) = (
         merkle_tree_data.current_root,
         merkle_tree_data.leaves_hash_chains,
