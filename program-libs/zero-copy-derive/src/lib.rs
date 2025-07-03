@@ -379,13 +379,16 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
         .chain(struct_fields.iter())
         .cloned()
         .collect();
-    let field_types = z_struct::analyze_struct_fields(&all_fields);
+    let all_field_types = z_struct::analyze_struct_fields(&all_fields);
 
-    // Generate configuration struct
-    let config_struct = config::generate_config_struct(&name, &field_types);
+    // Analyze only struct fields (non-meta fields)
+    let struct_field_types = z_struct::analyze_struct_fields(&struct_fields);
 
-    // Generate ZeroCopyInitMut implementation
-    let init_mut_impl = generate_init_mut_impl(&name, &field_types);
+    // Generate configuration struct based on all fields
+    let config_struct = config::generate_config_struct(&name, &all_field_types);
+
+    // Generate ZeroCopyInitMut implementation using struct fields only
+    let init_mut_impl = generate_init_mut_impl(&name, &struct_field_types);
 
     let expanded = quote! {
         #config_struct
@@ -399,23 +402,30 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
 /// Generate ZeroCopyInitMut implementation with new_at method for a struct
 fn generate_init_mut_impl(
     struct_name: &syn::Ident,
-    field_types: &[z_struct::FieldType],
+    struct_field_types: &[z_struct::FieldType],
 ) -> proc_macro2::TokenStream {
     let config_name = quote::format_ident!("{}Config", struct_name);
-    let meta_name = quote::format_ident!("{}Meta", struct_name);
-    let mut_name = quote::format_ident!("{}Mut", struct_name);
+    let z_meta_name = quote::format_ident!("Z{}MetaMut", struct_name);
+    let z_struct_mut_name = quote::format_ident!("Z{}Mut", struct_name);
 
-    // Generate field initialization code
-    let field_initializations: Vec<proc_macro2::TokenStream> = field_types
+    // Generate field initialization code for ALL struct fields (both configurable and non-configurable)
+    let field_initializations: Vec<proc_macro2::TokenStream> = struct_field_types
         .iter()
         .map(|field_type| config::generate_field_initialization(field_type))
         .collect();
 
-    // Generate struct construction
-    let struct_construction = generate_struct_construction(field_types, struct_name);
+    // Generate struct construction - only include struct fields that were initialized
+    // Meta fields are accessed via __meta.field_name in the generated ZStruct
+    let struct_field_names: Vec<proc_macro2::TokenStream> = struct_field_types
+        .iter()
+        .map(|field_type| {
+            let field_name = field_type.name();
+            quote! { #field_name, }
+        })
+        .collect();
 
     quote! {
-        impl<'a> light_zero_copy::ZeroCopyInitMut<'a> for #struct_name {
+        impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for #struct_name {
             type Config = #config_name;
             type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
 
@@ -423,13 +433,18 @@ fn generate_init_mut_impl(
                 bytes: &'a mut [u8],
                 config: Self::Config,
             ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-                // Initialize meta struct (fixed-size fields at the beginning)
-                let (meta, bytes) = zerocopy::Ref::<&mut [u8], #meta_name>::from_prefix(bytes)?;
+                use zerocopy::Ref;
+                
+                // Handle the meta struct (fixed-size fields at the beginning) - always present but may be empty
+                let (__meta, bytes) = Ref::<&mut [u8], #z_meta_name>::from_prefix(bytes)?;
 
                 #(#field_initializations)*
 
                 // Construct the final struct
-                let result = #struct_construction;
+                let result = #z_struct_mut_name {
+                    __meta,
+                    #(#struct_field_names)*
+                };
 
                 Ok((result, bytes))
             }
@@ -437,30 +452,6 @@ fn generate_init_mut_impl(
     }
 }
 
-/// Generate struct construction code based on field types
-fn generate_struct_construction(
-    field_types: &[z_struct::FieldType],
-    struct_name: &syn::Ident,
-) -> proc_macro2::TokenStream {
-    let mut_name = quote::format_ident!("Z{}Mut", struct_name);
-
-    let field_assignments: Vec<proc_macro2::TokenStream> = field_types
-        .iter()
-        .map(|field_type| {
-            let field_name = field_type.name();
-            quote! {
-                #field_name,
-            }
-        })
-        .collect();
-
-    quote! {
-        <#struct_name as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output {
-            meta,
-            #(#field_assignments)*
-        }
-    }
-}
 
 // #[cfg(test)]
 // mod tests {

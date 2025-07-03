@@ -116,17 +116,23 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
     match field_type {
         FieldType::VecU8(field_name) => {
             quote! {
-                let (#field_name, bytes) = light_zero_copy::ZeroCopySliceMut::<u8, u8, false>::new_at(
-                    config.#field_name,
-                    bytes
-                )?;
+                // Initialize the length prefix but don't use the returned ZeroCopySliceMut
+                {
+                    light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<u8>::new_at(
+                        config.#field_name.into(),
+                        bytes
+                    )?;
+                }
+                // Split off the length prefix (4 bytes) and get the slice
+                let (_, bytes) = bytes.split_at_mut(4);
+                let (#field_name, bytes) = bytes.split_at_mut(config.#field_name as usize);
             }
         }
 
         FieldType::VecCopy(field_name, inner_type) => {
             quote! {
-                let (#field_name, bytes) = light_zero_copy::ZeroCopySliceMut::<u8, #inner_type, false>::new_at(
-                    config.#field_name,
+                let (#field_name, bytes) = light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<#inner_type>::new_at(
+                    config.#field_name.into(),
                     bytes
                 )?;
             }
@@ -146,18 +152,59 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
             }
         }
 
-        // Fixed-size types don't need special initialization logic
+        // Fixed-size types that are struct fields (not meta fields) need initialization with () config
+        FieldType::IntegerU64(field_name) => {
+            quote! {
+                let (#field_name, bytes) = light_zero_copy::Ref::<
+                    &'a mut [u8],
+                    light_zero_copy::little_endian::U64
+                >::from_prefix(bytes)?;
+            }
+        }
+        
+        FieldType::IntegerU32(field_name) => {
+            quote! {
+                let (#field_name, bytes) = light_zero_copy::Ref::<
+                    &'a mut [u8],
+                    light_zero_copy::little_endian::U32
+                >::from_prefix(bytes)?;
+            }
+        }
+        
+        FieldType::IntegerU16(field_name) => {
+            quote! {
+                let (#field_name, bytes) = light_zero_copy::Ref::<
+                    &'a mut [u8],
+                    light_zero_copy::little_endian::U16
+                >::from_prefix(bytes)?;
+            }
+        }
+        
+        FieldType::IntegerU8(field_name) => {
+            quote! {
+                let (#field_name, bytes) = <u8 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+                    bytes,
+                    ()
+                )?;
+            }
+        }
+        
+        FieldType::Bool(field_name) => {
+            quote! {
+                let (#field_name, bytes) = <bool as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+                    bytes,
+                    ()
+                )?;
+            }
+        }
+        
+        // Types that are truly meta fields (shouldn't reach here for struct fields)
         FieldType::Array(_, _)
         | FieldType::Pubkey(_)
-        | FieldType::IntegerU64(_)
-        | FieldType::IntegerU32(_)
-        | FieldType::IntegerU16(_)
-        | FieldType::IntegerU8(_)
-        | FieldType::Bool(_)
         | FieldType::CopyU8Bool(_)
         | FieldType::Copy(_, _) => {
             quote! {
-                // Fixed-size fields will be initialized from the meta struct
+                // Should not reach here for struct fields - these should be meta fields
             }
         }
 
