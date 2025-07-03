@@ -136,7 +136,7 @@ If you still want to setup dependencies manually, these are the requirements:
 
 - [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
 - [NodeJS](https://nodejs.org/) [(20.9.0 LTS)](https://nodejs.org/en/blog/release/v20.9.0)
-- [Anchor](https://www.anchor-lang.com/) [(0.29.0)](https://crates.io/crates/anchor-cli/0.29.0)
+- [Anchor](https://www.anchor-lang.com/) [(0.31.1)](https://crates.io/crates/anchor-cli/0.31.1)
 
 If you are using Ubuntu and encounter errors during the build process, you may need to install additional dependencies. Use the following command:
 
