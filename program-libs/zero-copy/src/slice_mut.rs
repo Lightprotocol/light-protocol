@@ -278,19 +278,14 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<'a, T: ZeroCopyTraits + crate::borsh_mut::DeserializeMut<'a>> crate::borsh_mut::DeserializeMut<'a> for ZeroCopySliceMutBorsh<'_, T> {
+impl<'a, T: ZeroCopyTraits + crate::borsh_mut::DeserializeMut<'a>>
+    crate::borsh_mut::DeserializeMut<'a> for ZeroCopySliceMutBorsh<'_, T>
+{
     type Output = ZeroCopySliceMutBorsh<'a, T>;
 
-    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+    fn zero_copy_at_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         ZeroCopySliceMutBorsh::from_bytes_at(bytes)
     }
 }
-
-// Implement ByteLen for ZeroCopySliceMutBorsh
-#[cfg(feature = "std")]
-impl<T: ZeroCopyTraits> crate::ByteLen for ZeroCopySliceMutBorsh<'_, T> {
-    fn byte_len(&self) -> usize {
-        Self::metadata_size() + self.len() * core::mem::size_of::<T>()
-    }
-}
-

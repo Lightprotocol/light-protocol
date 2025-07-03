@@ -17,9 +17,7 @@ pub mod init_mut;
 #[cfg(feature = "std")]
 pub use borsh::ZeroCopyStructInner;
 #[cfg(feature = "std")]
-pub use byte_len::ByteLen;
-#[cfg(feature = "std")]
-pub use init_mut::ZeroCopyInitMut;
+pub use init_mut::ZeroCopyNew;
 #[cfg(all(feature = "derive", feature = "std", feature = "mut"))]
 pub use light_zero_copy_derive::ZeroCopyConfig;
 #[cfg(all(feature = "derive", feature = "mut"))]

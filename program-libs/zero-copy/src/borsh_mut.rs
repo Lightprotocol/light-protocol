@@ -17,9 +17,8 @@ where
 {
     // TODO: rename to ZeroCopy, can be used as <StructName as DeserializeMut>::ZeroCopy
     type Output;
-    fn zero_copy_at_mut(
-        bytes: &'a mut [u8],
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError>;
+    fn zero_copy_at_mut(bytes: &'a mut [u8])
+        -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError>;
 }
 
 // Implement DeserializeMut for fixed-size array types
@@ -83,7 +82,6 @@ impl<'a, T: KnownLayout + Immutable + FromBytes> DeserializeMut<'a> for Ref<&'a 
         let (bytes, remaining_bytes) = Ref::<&mut [u8], T>::from_prefix(bytes)?;
         Ok((bytes, remaining_bytes))
     }
-
 }
 
 impl<'a, T: DeserializeMut<'a>> DeserializeMut<'a> for Vec<T> {
@@ -104,7 +102,6 @@ impl<'a, T: DeserializeMut<'a>> DeserializeMut<'a> for Vec<T> {
         }
         Ok((slices, bytes))
     }
-
 }
 
 macro_rules! impl_deserialize_for_primitive {
@@ -129,8 +126,12 @@ impl<'a> DeserializeMut<'a> for zerocopy::little_endian::U16 {
     type Output = Ref<&'a mut [u8], zerocopy::little_endian::U16>;
 
     #[inline]
-    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        Ok(Ref::<&mut [u8], zerocopy::little_endian::U16>::from_prefix(bytes)?)
+    fn zero_copy_at_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&mut [u8], zerocopy::little_endian::U16>::from_prefix(
+            bytes,
+        )?)
     }
 }
 
@@ -138,8 +139,12 @@ impl<'a> DeserializeMut<'a> for zerocopy::little_endian::U32 {
     type Output = Ref<&'a mut [u8], zerocopy::little_endian::U32>;
 
     #[inline]
-    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        Ok(Ref::<&mut [u8], zerocopy::little_endian::U32>::from_prefix(bytes)?)
+    fn zero_copy_at_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&mut [u8], zerocopy::little_endian::U32>::from_prefix(
+            bytes,
+        )?)
     }
 }
 
@@ -147,8 +152,12 @@ impl<'a> DeserializeMut<'a> for zerocopy::little_endian::U64 {
     type Output = Ref<&'a mut [u8], zerocopy::little_endian::U64>;
 
     #[inline]
-    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        Ok(Ref::<&mut [u8], zerocopy::little_endian::U64>::from_prefix(bytes)?)
+    fn zero_copy_at_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&mut [u8], zerocopy::little_endian::U64>::from_prefix(
+            bytes,
+        )?)
     }
 }
 
@@ -197,14 +206,6 @@ impl<'a, T: DeserializeMut<'a>> DeserializeMut<'a> for VecU8<T> {
             slices.push(slice);
         }
         Ok((slices, bytes))
-    }
-}
-
-// Implement ByteLen for VecU8<T>
-impl<T> crate::ByteLen for VecU8<T> {
-    fn byte_len(&self) -> usize {
-        // Vec length + each element length
-        1 + core::mem::size_of::<T>()
     }
 }
 
@@ -331,7 +332,7 @@ pub mod test {
     use std::vec;
 
     use borsh::{BorshDeserialize, BorshSerialize};
-    use crate::ByteLen;
+
     use zerocopy::{
         little_endian::{U16, U64},
         IntoBytes, Ref, Unaligned,
@@ -364,12 +365,6 @@ pub mod test {
     pub struct Struct1 {
         pub a: u8,
         pub b: u16,
-    }
-
-    impl crate::ByteLen for Struct1 {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len() + self.b.byte_len()
-        }
     }
 
     #[repr(C)]
@@ -413,7 +408,7 @@ pub mod test {
     fn test_struct_1() {
         let ref_struct = Struct1 { a: 1, b: 2 };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
+
         let (mut struct1, remaining) = Struct1::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(struct1.a, 1u8);
         assert_eq!(struct1.b, 2u16);
@@ -427,12 +422,6 @@ pub mod test {
         pub a: u8,
         pub b: u16,
         pub vec: Vec<u8>,
-    }
-
-    impl crate::ByteLen for Struct2 {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len() + self.b.byte_len() + self.vec.byte_len()
-        }
     }
 
     #[repr(C)]
@@ -487,7 +476,7 @@ pub mod test {
             vec: vec![1u8; 32],
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
+
         let (struct2, remaining) = Struct2::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(struct2.a, 1u8);
         assert_eq!(struct2.b, 2u16);
@@ -502,12 +491,6 @@ pub mod test {
         pub b: u16,
         pub vec: Vec<u8>,
         pub c: u64,
-    }
-
-    impl crate::ByteLen for Struct3 {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len() + self.b.byte_len() + self.vec.byte_len() + self.c.byte_len()
-        }
     }
 
     #[repr(C)]
@@ -554,7 +537,7 @@ pub mod test {
             c: 3,
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
+
         let (zero_copy, remaining) = Struct3::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
         assert_eq!(zero_copy.b, 2u16);
@@ -568,12 +551,6 @@ pub mod test {
     pub struct Struct4Nested {
         a: u8,
         b: u16,
-    }
-
-    impl crate::ByteLen for Struct4Nested {
-        fn byte_len(&self) -> usize {
-            core::mem::size_of::<u8>() + core::mem::size_of::<u16>()
-        }
     }
 
     impl<'a> DeserializeMut<'a> for Struct4Nested {
@@ -608,17 +585,6 @@ pub mod test {
         pub vec: Vec<u8>,
         pub c: u64,
         pub vec_2: Vec<Struct4Nested>,
-    }
-
-    impl crate::ByteLen for Struct4 {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len()
-                + self.b.byte_len()
-                + self.vec.byte_len()
-                + self.c.byte_len()
-                + 4 // Vec header size for vec_2
-                + self.vec_2.iter().map(|n| n.byte_len()).sum::<usize>()
-        }
     }
 
     #[repr(C)]
@@ -709,7 +675,7 @@ pub mod test {
             vec_2: vec![Struct4Nested { a: 1, b: 2 }; 32],
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
+
         let (zero_copy, remaining) = Struct4::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
         assert_eq!(zero_copy.b, 2u16);
@@ -726,12 +692,6 @@ pub mod test {
     #[derive(Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize)]
     pub struct Struct5 {
         pub a: Vec<Vec<u8>>,
-    }
-
-    impl crate::ByteLen for Struct5 {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len()
-        }
     }
 
     #[repr(C)]
@@ -759,7 +719,6 @@ pub mod test {
             a: vec![vec![1u8; 32]; 32],
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
 
         let (zero_copy, remaining) = Struct5::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(
@@ -774,12 +733,6 @@ pub mod test {
     #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize)]
     pub struct Struct6 {
         pub a: Vec<Struct2>,
-    }
-
-    impl crate::ByteLen for Struct6 {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len()
-        }
     }
 
     #[repr(C)]
@@ -812,7 +765,7 @@ pub mod test {
             ],
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
+
         let (zero_copy, remaining) = Struct6::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(
             zero_copy.a.iter().collect::<Vec<_>>(),
@@ -880,12 +833,6 @@ pub mod test {
         }
     }
 
-    impl crate::ByteLen for Struct7 {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len() + self.b.byte_len() + self.option.byte_len()
-        }
-    }
-
     #[test]
     fn test_struct_7() {
         let ref_struct = Struct7 {
@@ -894,7 +841,7 @@ pub mod test {
             option: Some(3),
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
+
         let (zero_copy, remaining) = Struct7::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
         assert_eq!(zero_copy.b, 2u16);
@@ -907,7 +854,7 @@ pub mod test {
             option: None,
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
+
         let (zero_copy, remaining) = Struct7::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(zero_copy.a, 1u8);
         assert_eq!(zero_copy.b, 2u16);
@@ -948,12 +895,6 @@ pub mod test {
         }
     }
 
-    impl crate::ByteLen for NestedStruct {
-        fn byte_len(&self) -> usize {
-            self.a.byte_len() + self.b.byte_len()
-        }
-    }
-
     impl PartialEq<NestedStruct> for ZNestedStruct<'_> {
         fn eq(&self, other: &NestedStruct) -> bool {
             self.a == other.a && self.b == other.b
@@ -977,13 +918,6 @@ pub mod test {
         }
     }
 
-    impl crate::ByteLen for Struct8 {
-        fn byte_len(&self) -> usize {
-            4 // Vec header size
-            + self.a.iter().map(|n| n.byte_len()).sum::<usize>()
-        }
-    }
-
     #[test]
     fn test_struct_8() {
         let ref_struct = Struct8 {
@@ -1000,7 +934,6 @@ pub mod test {
             ],
         };
         let mut bytes = ref_struct.try_to_vec().unwrap();
-        assert_eq!(ref_struct.byte_len(), bytes.len());
 
         let (zero_copy, remaining) = Struct8::zero_copy_at_mut(&mut bytes).unwrap();
         assert_eq!(
