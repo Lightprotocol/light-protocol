@@ -126,7 +126,7 @@ async fn test_program_owned_merkle_tree() {
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
         post_merkle_tree.root(),
-        test_indexer.state_merkle_trees[2].merkle_tree.root()
+        test_indexer.state_merkle_trees[3].merkle_tree.root()
     );
 
     let invalid_program_owned_merkle_tree_keypair = Keypair::new();
