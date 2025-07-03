@@ -52,7 +52,17 @@ impl PartialEq<<Pubkey as Deserialize<'_>>::Output> for Pubkey {
     }
 }
 
-#[derive(ZeroCopy, ZeroCopyMut, ByteLen, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone)]
+#[derive(
+    ZeroCopy,
+    ZeroCopyMut,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
+)]
 pub struct InstructionDataInvoke {
     pub proof: Option<CompressedProof>,
     pub input_compressed_accounts_with_merkle_context:
@@ -65,7 +75,15 @@ pub struct InstructionDataInvoke {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct OutputCompressedAccountWithContext {
     pub compressed_account: CompressedAccount,
@@ -73,7 +91,16 @@ pub struct OutputCompressedAccountWithContext {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
@@ -81,7 +108,17 @@ pub struct OutputCompressedAccountWithPackedContext {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone, Copy,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
+    Copy,
 )]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
@@ -91,7 +128,15 @@ pub struct NewAddressParamsPacked {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct NewAddressParams {
     pub seed: [u8; 32],
@@ -101,7 +146,16 @@ pub struct NewAddressParams {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone, Copy,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
+    Copy,
 )]
 pub struct PackedReadOnlyAddress {
     pub address: [u8; 32],
@@ -110,7 +164,15 @@ pub struct PackedReadOnlyAddress {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct ReadOnlyAddress {
     pub address: [u8; 32],
@@ -118,7 +180,18 @@ pub struct ReadOnlyAddress {
     pub address_merkle_tree_root_index: u16,
 }
 
-#[derive(ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshDeserialize, BorshSerialize, Debug, PartialEq, Clone, Copy)]
+#[derive(
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Clone,
+    Copy,
+)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -159,7 +232,16 @@ pub struct CompressedCpiContext {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
@@ -171,7 +253,16 @@ pub struct PackedCompressedAccountWithMerkleContext {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, Clone, Copy, PartialEq, Default,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Default,
 )]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
@@ -181,7 +272,15 @@ pub struct MerkleContext {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct CompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
@@ -189,7 +288,15 @@ pub struct CompressedAccountWithMerkleContext {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct ReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
@@ -198,7 +305,15 @@ pub struct ReadOnlyCompressedAccount {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
@@ -207,7 +322,17 @@ pub struct PackedReadOnlyCompressedAccount {
 }
 
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshDeserialize, BorshSerialize, Debug, Clone, Copy, PartialEq, Default,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Default,
 )]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
@@ -216,7 +341,17 @@ pub struct PackedMerkleContext {
     pub prove_by_index: bool,
 }
 
-#[derive(ZeroCopy, ZeroCopyMut, ByteLen, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone)]
+#[derive(
+    ZeroCopy,
+    ZeroCopyMut,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
+)]
 pub struct CompressedAccount {
     pub owner: [u8; 32],
     pub lamports: u64,
@@ -321,7 +456,16 @@ impl PartialEq<ZCompressedAccount<'_>> for CompressedAccount {
     }
 }
 #[derive(
-    ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
+    ZeroCopy,
+    ZeroCopyMut,
+    ZeroCopyEq,
+    ByteLen,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
 )]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
@@ -332,16 +476,74 @@ pub struct CompressedAccountData {
 #[test]
 fn readme() {
     use borsh::{BorshDeserialize, BorshSerialize};
-    use light_zero_copy_derive::{ByteLen, ZeroCopy, ZeroCopyMut, ZeroCopyEq};
+    use light_zero_copy_derive::{ByteLen, ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 
     #[repr(C)]
-    #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq, ByteLen)]
+    #[derive(
+        Debug,
+        PartialEq,
+        BorshSerialize,
+        BorshDeserialize,
+        ZeroCopy,
+        ZeroCopyMut,
+        ZeroCopyEq,
+        ByteLen,
+    )]
+    pub struct MyStructOption {
+        pub a: u8,
+        pub b: u16,
+        pub vec: Vec<Option<u64>>,
+        pub c: Option<u64>,
+    }
+
+    pub struct MyStructConfig {
+        vec_len: Vec<bool>,
+        c_is_some: bool,
+    }
+
+    #[repr(C)]
+    #[derive(
+        Debug,
+        PartialEq,
+        BorshSerialize,
+        BorshDeserialize,
+        ZeroCopy,
+        ZeroCopyMut,
+        ZeroCopyEq,
+        ByteLen,
+    )]
     pub struct MyStruct {
         pub a: u8,
         pub b: u16,
         pub vec: Vec<u8>,
         pub c: u64,
     }
+
+    // Test the new ZeroCopyConfig functionality
+    use light_zero_copy_derive::ZeroCopyConfig;
+
+    #[repr(C)]
+    #[derive(
+        Debug,
+        PartialEq,
+        BorshSerialize,
+        BorshDeserialize,
+        ZeroCopy,
+        ZeroCopyMut,
+        ZeroCopyEq,
+        ByteLen,
+    )]
+    pub struct TestConfigStruct {
+        pub a: u8,
+        pub b: u16,
+        pub vec: Vec<u8>,
+        pub option: Option<u64>,
+    }
+
+    pub struct MyStructConfig {
+        vec_len: u32,
+    }
+
     let my_struct = MyStruct {
         a: 1,
         b: 2,

@@ -4,6 +4,7 @@ use syn::{parse_macro_input, DeriveInput};
 
 mod byte_len;
 mod byte_len_derive;
+mod config;
 mod deserialize_impl;
 mod from_impl;
 mod meta_struct;
@@ -332,6 +333,118 @@ pub fn derive_byte_len(input: TokenStream) -> TokenStream {
     let byte_len_impl = byte_len_derive::generate_byte_len_derive_impl(&name, &meta_fields, &struct_fields);
 
     TokenStream::from(byte_len_impl)
+}
+
+/// ZeroCopyConfig derivation macro for configuration-based zero-copy initialization
+///
+/// This macro generates configuration structs and initialization methods for structs
+/// with Vec and Option fields that need to be initialized with specific configurations.
+///
+/// # Usage
+///
+/// ```rust
+/// use light_zero_copy_derive::ZeroCopyConfig;
+/// 
+/// #[derive(ZeroCopyConfig)]
+/// pub struct MyStruct {
+///     pub a: u8,
+///     pub vec: Vec<u8>,
+///     pub option: Option<u64>,
+/// }
+/// ```
+///
+/// This will generate:
+/// - `MyStructConfig` struct with configuration fields
+/// - `ZeroCopyInitMut` implementation for `MyStruct`
+/// - `new_zero_copy(bytes, config)` method for initialization
+///
+/// The configuration struct will have fields based on the complexity of the original fields:
+/// - `Vec<Primitive>` → `field_name: u32` (length)
+/// - `Option<Primitive>` → `field_name: bool` (is_some)
+/// - `Vec<Complex>` → `field_name: Vec<ComplexConfig>` (config per element)
+/// - `Option<Complex>` → `field_name: Option<ComplexConfig>` (config if some)
+#[proc_macro_derive(ZeroCopyConfig)]
+pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
+    // Parse the input DeriveInput
+    let input = parse_macro_input!(input as DeriveInput);
+
+    // Process the input to extract struct information
+    let (name, _z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input);
+
+    // Process the fields to separate meta fields and struct fields
+    let (meta_fields, struct_fields) = utils::process_fields(fields);
+
+    // Analyze all fields to determine their types
+    let all_fields: Vec<&syn::Field> = meta_fields.iter().chain(struct_fields.iter()).cloned().collect();
+    let field_types = z_struct::analyze_struct_fields(&all_fields);
+
+    // Generate configuration struct
+    let config_struct = config::generate_config_struct(&name, &field_types);
+
+    // Generate ZeroCopyInitMut implementation
+    let init_mut_impl = generate_init_mut_impl(&name, &field_types);
+
+    let expanded = quote! {
+        #config_struct
+
+        #init_mut_impl
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Generate ZeroCopyInitMut implementation for a struct
+fn generate_init_mut_impl(struct_name: &syn::Ident, field_types: &[z_struct::FieldType]) -> proc_macro2::TokenStream {
+    let config_name = quote::format_ident!("{}Config", struct_name);
+    
+    // Generate field initialization code
+    let field_initializations: Vec<proc_macro2::TokenStream> = field_types
+        .iter()
+        .map(|field_type| config::generate_field_initialization(field_type))
+        .collect();
+
+    // Generate struct construction
+    let struct_construction = generate_struct_construction(field_types);
+
+    quote! {
+        impl<'a> light_zero_copy::ZeroCopyInitMut<'a> for #struct_name {
+            type Config = #config_name;
+
+            fn new_zero_copy(
+                bytes: &'a mut [u8], 
+                config: Self::Config
+            ) -> Result<(Self, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+                // Initialize meta struct (fixed-size fields at the beginning)
+                let (meta, mut bytes) = zerocopy::Ref::<&mut [u8], #struct_name>::from_prefix(bytes)?;
+                
+                #(#field_initializations)*
+
+                // Construct the final struct
+                let result = #struct_construction;
+
+                Ok((result, bytes))
+            }
+        }
+    }
+}
+
+/// Generate struct construction code based on field types
+fn generate_struct_construction(field_types: &[z_struct::FieldType]) -> proc_macro2::TokenStream {
+    let field_assignments: Vec<proc_macro2::TokenStream> = field_types
+        .iter()
+        .map(|field_type| {
+            let field_name = field_type.name();
+            quote! {
+                #field_name: #field_name,
+            }
+        })
+        .collect();
+
+    quote! {
+        Self {
+            #(#field_assignments)*
+        }
+    }
 }
 
 // #[cfg(test)]

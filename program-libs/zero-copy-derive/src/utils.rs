@@ -97,6 +97,21 @@ pub fn get_vec_inner_type(ty: &Type) -> Option<&Type> {
     None
 }
 
+pub fn get_option_inner_type(ty: &Type) -> Option<&Type> {
+    if let Type::Path(TypePath { path, .. }) = ty {
+        if let Some(segment) = path.segments.first() {
+            if segment.ident == "Option" {
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
+                        return Some(inner_ty);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 pub fn is_primitive_integer(ty: &Type) -> bool {
     if let Type::Path(TypePath { path, .. }) = ty {
         if let Some(segment) = path.segments.first() {

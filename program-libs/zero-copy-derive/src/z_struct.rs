@@ -44,6 +44,7 @@ impl<'a> FieldType<'a> {
             FieldType::NonCopy(name, _) => name,
         }
     }
+
 }
 
 /// Analyze struct fields and return vector of FieldType enums
