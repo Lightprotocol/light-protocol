@@ -3,7 +3,7 @@ use std::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, errors::ZeroCopyError};
-use light_zero_copy_derive::{ByteLen, ZeroCopy, ZeroCopyConfig, ZeroCopyEq, ZeroCopyMut};
+use light_zero_copy_derive::{ZeroCopy, ZeroCopyConfig, ZeroCopyEq, ZeroCopyMut};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 #[derive(
@@ -56,6 +56,10 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for Pubkey {
     type Config = ();
     type Output = <Self as DeserializeMut<'a>>::Output;
 
+    fn byte_len(_config: &Self::Config) -> usize {
+        32 // Pubkey is always 32 bytes
+    }
+
     fn new_zero_copy(
         bytes: &'a mut [u8],
         _config: Self::Config,
@@ -67,7 +71,6 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for Pubkey {
 #[derive(
     ZeroCopy,
     ZeroCopyMut,
-    ByteLen,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -194,7 +197,6 @@ pub struct OutputCompressedAccountWithContext {
     ZeroCopy,
     ZeroCopyMut,
     ZeroCopyEq,
-    ByteLen,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -234,7 +236,6 @@ pub struct OutputCompressedAccountWithPackedContext {
     ZeroCopy,
     ZeroCopyMut,
     ZeroCopyEq,
-    ByteLen,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -321,7 +322,6 @@ pub struct ReadOnlyAddress {
     ZeroCopy,
     ZeroCopyMut,
     ZeroCopyEq,
-    ByteLen,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -386,7 +386,6 @@ pub struct CompressedCpiContext {
     ZeroCopy,
     ZeroCopyMut,
     ZeroCopyEq,
-    ByteLen,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -523,7 +522,6 @@ pub struct PackedReadOnlyCompressedAccount {
     ZeroCopy,
     ZeroCopyMut,
     ZeroCopyEq,
-    ByteLen,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -565,7 +563,6 @@ pub struct CompressedAccountZeroCopyConfig {
 #[derive(
     ZeroCopy,
     ZeroCopyMut,
-    ByteLen,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -707,7 +704,7 @@ impl PartialEq<ZCompressedAccount<'_>> for CompressedAccount {
             return false;
         }
 
-        self.owner == other.owner && self.lamports == other.lamports.into()
+        self.owner == other.owner && self.lamports == u64::from(other.lamports)
     }
 }
 
@@ -715,7 +712,6 @@ impl PartialEq<ZCompressedAccount<'_>> for CompressedAccount {
     ZeroCopy,
     ZeroCopyMut,
     ZeroCopyEq,
-    ByteLen,
     ZeroCopyConfig,
     BorshDeserialize,
     BorshSerialize,
@@ -765,11 +761,17 @@ pub struct CompressedAccountData {
 #[test]
 fn test_compressed_account_data_new_at() {
     use light_zero_copy::init_mut::ZeroCopyInitMut;
-    let mut bytes = vec![0u8; 100];
     let config = CompressedAccountDataConfig { data: 10 };
+    
+    // Calculate exact buffer size needed and allocate
+    let buffer_size = CompressedAccountData::byte_len(&config);
+    let mut bytes = vec![0u8; buffer_size];
     let result = CompressedAccountData::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
-    let (mut mut_account, _remaining) = result.unwrap();
+    let (mut mut_account, remaining) = result.unwrap();
+    
+    // Verify we used exactly the calculated number of bytes
+    assert_eq!(remaining.len(), 0, "Should have used exactly {} bytes", buffer_size);
 
     // Test that we can set discriminator
     mut_account.__meta.discriminator = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -808,14 +810,20 @@ fn test_compressed_account_data_new_at() {
 #[test]
 fn test_compressed_account_new_at() {
     use light_zero_copy::init_mut::ZeroCopyInitMut;
-    let mut bytes = vec![0u8; 200];
     let config = CompressedAccountConfig {
         address: (true, ()),
         data: (true, CompressedAccountDataConfig { data: 10 }),
     };
+    
+    // Calculate exact buffer size needed and allocate
+    let buffer_size = CompressedAccount::byte_len(&config);
+    let mut bytes = vec![0u8; buffer_size];
     let result = CompressedAccount::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
-    let (mut mut_account, _remaining) = result.unwrap();
+    let (mut mut_account, remaining) = result.unwrap();
+    
+    // Verify we used exactly the calculated number of bytes
+    assert_eq!(remaining.len(), 0, "Should have used exactly {} bytes", buffer_size);
 
     // Set values
     mut_account.__meta.owner = [1u8; 32];
@@ -834,8 +842,6 @@ fn test_compressed_account_new_at() {
 #[test]
 fn test_instruction_data_invoke_new_at() {
     use light_zero_copy::init_mut::ZeroCopyInitMut;
-    let mut bytes = vec![0u8; 5000]; // Large buffer for complex structure with alignment
-
     // Create different configs to test various combinations
     let compressed_account_config1 = CompressedAccountZeroCopyConfig {
         address_enabled: true,
@@ -921,12 +927,19 @@ fn test_instruction_data_invoke_new_at() {
         compress_or_decompress_lamports: true, // Enable decompress lamports
     };
 
+    // Calculate exact buffer size needed and allocate
+    let buffer_size = InstructionDataInvoke::byte_len(&config);
+    let mut bytes = vec![0u8; buffer_size];
+
     let result = InstructionDataInvoke::new_zero_copy(&mut bytes, config);
     if let Err(ref e) = result {
         eprintln!("Error: {:?}", e);
     }
     assert!(result.is_ok());
-    let (mut instruction_data, _remaining) = result.unwrap();
+    let (mut instruction_data, remaining) = result.unwrap();
+    
+    // Verify we used exactly the calculated number of bytes
+    assert_eq!(remaining.len(), 0, "Should have used exactly {} bytes", buffer_size);
 
     // Test deserialization round-trip first
     let (mut deserialized, _) = InstructionDataInvoke::zero_copy_at_mut(&mut bytes).unwrap();
@@ -1054,11 +1067,11 @@ fn test_instruction_data_invoke_new_at() {
 #[test]
 fn readme() {
     use borsh::{BorshDeserialize, BorshSerialize};
-    use light_zero_copy_derive::{ByteLen, ZeroCopy, ZeroCopyEq, ZeroCopyMut};
+    use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 
     #[repr(C)]
     #[derive(
-        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ByteLen,
+        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut,
     )]
     pub struct MyStructOption {
         pub a: u8,
@@ -1076,8 +1089,7 @@ fn readme() {
         ZeroCopy,
         ZeroCopyMut,
         ZeroCopyEq,
-        ByteLen,
-    )]
+        )]
     pub struct MyStruct {
         pub a: u8,
         pub b: u16,
@@ -1089,7 +1101,7 @@ fn readme() {
 
     #[repr(C)]
     #[derive(
-        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ByteLen,
+        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut,
     )]
     pub struct TestConfigStruct {
         pub a: u8,

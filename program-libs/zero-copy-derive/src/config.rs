@@ -263,3 +263,114 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
         }
     }
 }
+
+/// Generate byte length calculation for a field based on its configuration
+pub fn generate_byte_len_calculation(field_type: &FieldType) -> TokenStream {
+    match field_type {
+        // Vec types that require configuration
+        FieldType::VecU8(field_name) => {
+            quote! {
+                (4 + config.#field_name as usize) // 4 bytes for length + actual data
+            }
+        }
+
+        FieldType::VecCopy(field_name, inner_type) => {
+            quote! {
+                (4 + (config.#field_name as usize * core::mem::size_of::<#inner_type>()))
+            }
+        }
+
+        FieldType::VecNonCopy(field_name, vec_type) => {
+            quote! {
+                <#vec_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&config.#field_name)
+            }
+        }
+
+        // Option types
+        FieldType::Option(field_name, option_type) => {
+            quote! {
+                <#option_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&config.#field_name)
+            }
+        }
+
+        FieldType::OptionU64(field_name) => {
+            quote! {
+                <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&(config.#field_name, ()))
+            }
+        }
+
+        FieldType::OptionU32(field_name) => {
+            quote! {
+                <Option<u32> as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&(config.#field_name, ()))
+            }
+        }
+
+        FieldType::OptionU16(field_name) => {
+            quote! {
+                <Option<u16> as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&(config.#field_name, ()))
+            }
+        }
+
+        // Fixed-size types don't need configuration and have known sizes
+        FieldType::IntegerU64(_) => {
+            quote! {
+                core::mem::size_of::<light_zero_copy::little_endian::U64>()
+            }
+        }
+        
+        FieldType::IntegerU32(_) => {
+            quote! {
+                core::mem::size_of::<light_zero_copy::little_endian::U32>()
+            }
+        }
+        
+        FieldType::IntegerU16(_) => {
+            quote! {
+                core::mem::size_of::<light_zero_copy::little_endian::U16>()
+            }
+        }
+        
+        FieldType::IntegerU8(_) => {
+            quote! {
+                core::mem::size_of::<u8>()
+            }
+        }
+        
+        FieldType::Bool(_) => {
+            quote! {
+                core::mem::size_of::<u8>()  // bool is serialized as u8
+            }
+        }
+        
+        FieldType::Array(_, array_type) => {
+            quote! {
+                core::mem::size_of::<#array_type>()
+            }
+        }
+        
+        FieldType::Pubkey(_) => {
+            quote! {
+                32  // Pubkey is always 32 bytes
+            }
+        }
+
+        // Meta field types (should not appear in struct fields, but handle gracefully)
+        FieldType::CopyU8Bool(_) => {
+            quote! {
+                core::mem::size_of::<u8>()
+            }
+        }
+        
+        FieldType::Copy(_, field_type) => {
+            quote! {
+                core::mem::size_of::<#field_type>()
+            }
+        }
+
+        FieldType::NonCopy(field_name, field_type) => {
+            quote! {
+                <#field_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&config.#field_name)
+            }
+        }
+    }
+}

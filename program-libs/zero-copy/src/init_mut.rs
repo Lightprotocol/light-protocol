@@ -18,6 +18,11 @@ where
     /// Output type - the mutable zero-copy view of this type
     type Output;
     
+    /// Calculate the byte length needed for this type with the given configuration
+    /// 
+    /// This is essential for allocating the correct buffer size before calling new_zero_copy
+    fn byte_len(config: &Self::Config) -> usize;
+    
     /// Initialize this type in a mutable byte slice with the given configuration
     /// 
     /// Returns the initialized mutable view and remaining bytes
@@ -34,6 +39,17 @@ where
 {
     type Config = (bool, T::Config); // (enabled, inner_config)
     type Output = Option<T::Output>;
+    
+    fn byte_len(config: &Self::Config) -> usize {
+        let (enabled, inner_config) = config;
+        if *enabled {
+            // 1 byte for Some discriminant + inner type's byte_len
+            1 + T::byte_len(inner_config)
+        } else {
+            // Just 1 byte for None discriminant
+            1
+        }
+    }
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 
@@ -60,6 +76,10 @@ impl<'a> ZeroCopyInitMut<'a> for u64 {
     type Config = ();
     type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U64>;
     
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<zerocopy::little_endian::U64>()
+    }
+    
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
@@ -72,6 +92,10 @@ impl<'a> ZeroCopyInitMut<'a> for u64 {
 impl<'a> ZeroCopyInitMut<'a> for u32 {
     type Config = ();
     type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U32>;
+    
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<zerocopy::little_endian::U32>()
+    }
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 
@@ -86,6 +110,10 @@ impl<'a> ZeroCopyInitMut<'a> for u16 {
     type Config = ();
     type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U16>;
     
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<zerocopy::little_endian::U16>()
+    }
+    
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
@@ -99,6 +127,10 @@ impl<'a> ZeroCopyInitMut<'a> for u8 {
     type Config = ();
     type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
     
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<u8>()
+    }
+    
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
@@ -111,6 +143,10 @@ impl<'a> ZeroCopyInitMut<'a> for u8 {
 impl<'a> ZeroCopyInitMut<'a> for bool {
     type Config = ();
     type Output = <u8 as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<u8>()  // bool is serialized as u8
+    }
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 
@@ -126,6 +162,10 @@ impl<'a, T: Copy + Default + zerocopy::KnownLayout + zerocopy::Immutable + zeroc
     type Config = ();
     type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
     
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<Self>()
+    }
+    
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
@@ -140,6 +180,10 @@ impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U16 {
     type Config = ();
     type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U16>;
     
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<zerocopy::little_endian::U16>()
+    }
+    
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
@@ -151,6 +195,10 @@ impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U16 {
 impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U32 {
     type Config = ();
     type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U32>;
+    
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<zerocopy::little_endian::U32>()
+    }
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 
@@ -164,6 +212,10 @@ impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U64 {
     type Config = ();
     type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U64>;
     
+    fn byte_len(_config: &Self::Config) -> usize {
+        size_of::<zerocopy::little_endian::U64>()
+    }
+    
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
@@ -176,6 +228,11 @@ impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U64 {
 impl<'a, T: ZeroCopyInitMut<'a>> ZeroCopyInitMut<'a> for Vec<T> {
     type Config = Vec<T::Config>; // Vector of configs for each item
     type Output = Vec<T::Output>;
+    
+    fn byte_len(config: &Self::Config) -> usize {
+        // 4 bytes for length prefix + sum of byte_len for each element config
+        4 + config.iter().map(|config| T::byte_len(config)).sum::<usize>()
+    }
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 

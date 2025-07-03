@@ -2,8 +2,8 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput};
 
-mod byte_len;
-mod byte_len_derive;
+// mod byte_len;
+// mod byte_len_derive;
 mod config;
 mod deserialize_impl;
 mod from_impl;
@@ -102,7 +102,7 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
     let zero_copy_struct_inner_impl =
         zero_copy_struct_inner::generate_zero_copy_struct_inner::<false>(name, &z_struct_name);
 
-    let _byte_len_impl = byte_len::generate_byte_len_impl(name, &meta_fields, &struct_fields);
+    // let _byte_len_impl = byte_len::generate_byte_len_impl(name, &meta_fields, &struct_fields);
 
     // let deserialize_impl_mut = deserialize_impl::generate_deserialize_impl::<true>(
     //     name,
@@ -294,45 +294,37 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// ByteLen derivation macro for calculating serialized byte length
-///
-/// This macro generates ByteLen trait implementation for structs.
-/// ByteLen is used to calculate the total byte length of a struct when serialized,
-/// which is essential for variable-sized types like Vec and Option.
-///
-/// # Usage
-///
-/// ```rust
-/// use light_zero_copy_derive::ByteLen;
-///
-/// #[derive(ByteLen)]
-/// pub struct MyStruct {
-///     pub a: u8,
-///     pub vec: Vec<u8>,
-/// }
-/// ```
-///
-/// This will generate:
-/// - `ByteLen` trait implementation with `byte_len(&self) -> usize` method
-/// - Proper handling of variable-sized fields like Vec and Option
-/// - Support for nested structs that also implement ByteLen
-#[proc_macro_derive(ByteLen)]
-pub fn derive_byte_len(input: TokenStream) -> TokenStream {
-    // Parse the input DeriveInput
-    let input = parse_macro_input!(input as DeriveInput);
+// ByteLen derivation macro has been merged into ZeroCopyInitMut trait
+// 
+// The ByteLen functionality is now available as a static method on ZeroCopyInitMut:
+// ```rust
+// use light_zero_copy::init_mut::ZeroCopyInitMut;
+// 
+// // Calculate buffer size needed for configuration
+// let config = MyStructConfig { /* ... */ };
+// let buffer_size = MyStruct::byte_len(&config);
+// let mut buffer = vec![0u8; buffer_size];
+// ```
+//
+// This provides more accurate sizing since it accounts for the actual configuration
+// rather than just the current state of an existing struct instance.
+// #[proc_macro_derive(ByteLen)]
+// pub fn derive_byte_len(input: TokenStream) -> TokenStream {
+//     // Parse the input DeriveInput
+//     let input = parse_macro_input!(input as DeriveInput);
 
-    // Process the input to extract struct information
-    let (name, _z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input);
+//     // Process the input to extract struct information
+//     let (name, _z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input);
 
-    // Process the fields to separate meta fields and struct fields
-    let (meta_fields, struct_fields) = utils::process_fields(fields);
+//     // Process the fields to separate meta fields and struct fields
+//     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
-    // Generate ByteLen implementation
-    let byte_len_impl =
-        byte_len_derive::generate_byte_len_derive_impl(&name, &meta_fields, &struct_fields);
+//     // Generate ByteLen implementation
+//     let byte_len_impl =
+//         byte_len_derive::generate_byte_len_derive_impl(&name, &meta_fields, &struct_fields);
 
-    TokenStream::from(byte_len_impl)
-}
+//     TokenStream::from(byte_len_impl)
+// }
 
 /// ZeroCopyConfig derivation macro for configuration-based zero-copy initialization
 ///
@@ -450,10 +442,29 @@ fn generate_init_mut_impl(
         }
     };
 
+    // Generate byte_len calculation for each field type
+    let byte_len_calculations: Vec<proc_macro2::TokenStream> = struct_field_types
+        .iter()
+        .map(|field_type| config::generate_byte_len_calculation(field_type))
+        .collect();
+
+    // Calculate meta size if there are meta fields
+    let meta_size_calculation = if has_meta_fields {
+        quote! {
+            core::mem::size_of::<#z_meta_name>()
+        }
+    } else {
+        quote! { 0 }
+    };
+
     quote! {
         impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for #struct_name {
             type Config = #config_name;
             type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
+
+            fn byte_len(config: &Self::Config) -> usize {
+                #meta_size_calculation #(+ #byte_len_calculations)*
+            }
 
             fn new_zero_copy(
                 bytes: &'a mut [u8],
