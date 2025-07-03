@@ -86,8 +86,9 @@ use crate::accounts::{
 use crate::{
     accounts::{
         address_tree::create_address_merkle_tree_and_queue_account,
-        state_tree::create_state_merkle_tree_and_queue_account, test_accounts::TestAccounts,
-        test_keypairs::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR,
+        state_tree::create_state_merkle_tree_and_queue_account,
+        test_accounts::TestAccounts,
+        test_keypairs::{BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR, BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2},
     },
     indexer::TestIndexerExtensions,
 };
@@ -1287,9 +1288,12 @@ impl TestIndexer {
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
             let test_batched_output_queue =
                 Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap();
+            let test_batched_output_queue_2 =
+                Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2).unwrap();
             let (tree_type, merkle_tree, output_queue_batch_size) = if state_merkle_tree_account
                 .nullifier_queue
                 == test_batched_output_queue.pubkey()
+                || state_merkle_tree_account.nullifier_queue == test_batched_output_queue_2.pubkey()
             {
                 let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
                     DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
@@ -2005,11 +2009,20 @@ impl TestIndexer {
         let mut address_root_indices = Vec::new();
         let mut tree_heights = Vec::new();
         for (i, address) in addresses.iter().enumerate() {
+            // TODO: Remove
+            println!("Processing non-inclusion proof for address {:?}", address);
+            println!(
+                "address_merkle_tree_pubkeys[i]: {:?}",
+                address_merkle_tree_pubkeys[i]
+            );
+            println!("address_merkle_trees: {:?}", self.address_merkle_trees);
             let address_tree = self
                 .address_merkle_trees
                 .iter()
                 .find(|x| x.accounts.merkle_tree == address_merkle_tree_pubkeys[i])
                 .unwrap();
+            // TODO: Remove after debugging.
+            println!("address_tree: {:?}", address_tree);
             tree_heights.push(address_tree.height());
 
             let proof_inputs = address_tree.get_non_inclusion_proof_inputs(address)?;
