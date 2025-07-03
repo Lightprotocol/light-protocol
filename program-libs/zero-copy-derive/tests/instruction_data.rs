@@ -102,16 +102,27 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for InstructionDataInvok
         // Initialize each field using the corresponding config, following DeserializeMut order
         let (proof, bytes) = <Option<CompressedProof> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
             bytes, 
-            (config.proof_config.is_some(), ())
+            (config.proof_config.is_some(), CompressedProofConfig {})
         )?;
         
-        let input_configs: Vec<CompressedAccountZeroCopyConfig> = config.input_accounts_configs;
+        let input_configs: Vec<PackedCompressedAccountWithMerkleContextConfig> = config.input_accounts_configs
+            .into_iter()
+            .map(|compressed_account_config| PackedCompressedAccountWithMerkleContextConfig {
+                compressed_account: compressed_account_config,
+                merkle_context: PackedMerkleContextConfig {},
+            })
+            .collect();
         let (input_compressed_accounts_with_merkle_context, bytes) = <Vec<PackedCompressedAccountWithMerkleContext> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
             bytes,
             input_configs
         )?;
         
-        let output_configs: Vec<CompressedAccountZeroCopyConfig> = config.output_accounts_configs;
+        let output_configs: Vec<OutputCompressedAccountWithPackedContextConfig> = config.output_accounts_configs
+            .into_iter()
+            .map(|compressed_account_config| OutputCompressedAccountWithPackedContextConfig {
+                compressed_account: compressed_account_config,
+            })
+            .collect();
         let (output_compressed_accounts, bytes) = <Vec<OutputCompressedAccountWithPackedContext> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
             bytes,
             output_configs
@@ -122,7 +133,10 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for InstructionDataInvok
             (config.relay_fee_config.is_some(), ())
         )?;
         
-        let new_address_configs: Vec<()> = config.new_address_configs;
+        let new_address_configs: Vec<NewAddressParamsPackedConfig> = config.new_address_configs
+            .into_iter()
+            .map(|_| NewAddressParamsPackedConfig {})
+            .collect();
         let (new_address_params, bytes) = <Vec<NewAddressParamsPacked> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
             bytes,
             new_address_configs
@@ -180,33 +194,34 @@ pub struct OutputCompressedAccountWithContext {
     PartialEq,
     Default,
     Clone,
+    ZeroCopyConfig,
 )]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for OutputCompressedAccountWithPackedContext {
-    type Config = CompressedAccountZeroCopyConfig;
-    type Output = <Self as DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZOutputCompressedAccountWithPackedContextMetaMut>::from_prefix(bytes)?;
-        let (compressed_account, bytes) = <CompressedAccount as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, config)?;
-        let (merkle_tree_index, bytes) = <u8 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
-        
-        Ok((
-            ZOutputCompressedAccountWithPackedContextMut {
-                compressed_account,
-                merkle_tree_index,
-            },
-            bytes,
-        ))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for OutputCompressedAccountWithPackedContext {
+//     type Config = CompressedAccountZeroCopyConfig;
+//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8], 
+//         config: Self::Config
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZOutputCompressedAccountWithPackedContextMetaMut>::from_prefix(bytes)?;
+//         let (compressed_account, bytes) = <CompressedAccount as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, config)?;
+//         let (merkle_tree_index, bytes) = <u8 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
+//         
+//         Ok((
+//             ZOutputCompressedAccountWithPackedContextMut {
+//                 compressed_account,
+//                 merkle_tree_index,
+//             },
+//             bytes,
+//         ))
+//     }
+// }
 
 #[derive(
     ZeroCopy,
@@ -220,6 +235,7 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for OutputCompressedAcco
     Default,
     Clone,
     Copy,
+    ZeroCopyConfig,
 )]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
@@ -228,18 +244,18 @@ pub struct NewAddressParamsPacked {
     pub address_merkle_tree_root_index: u16,
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for NewAddressParamsPacked {
-    type Config = ();
-    type Output = <Self as DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        _config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZNewAddressParamsPackedMetaMut>::from_prefix(bytes)?;
-        Ok((ZNewAddressParamsPackedMut { __meta }, bytes))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for NewAddressParamsPacked {
+//     type Config = ();
+//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8], 
+//         _config: Self::Config
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZNewAddressParamsPackedMetaMut>::from_prefix(bytes)?;
+//         Ok((ZNewAddressParamsPackedMut { __meta }, bytes))
+//     }
+// }
 
 #[derive(
     ZeroCopy,
@@ -305,6 +321,7 @@ pub struct ReadOnlyAddress {
     PartialEq,
     Clone,
     Copy,
+    ZeroCopyConfig,
 )]
 pub struct CompressedProof {
     pub a: [u8; 32],
@@ -322,18 +339,18 @@ impl Default for CompressedProof {
     }
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedProof {
-    type Config = ();
-    type Output = <Self as DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        _config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZCompressedProofMetaMut>::from_prefix(bytes)?;
-        Ok((ZCompressedProofMut { __meta }, bytes))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedProof {
+//     type Config = ();
+//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8], 
+//         _config: Self::Config
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedProofMetaMut>::from_prefix(bytes)?;
+//         Ok((ZCompressedProofMut { __meta }, bytes))
+//     }
+// }
 
 #[derive(
     ZeroCopy,
@@ -369,6 +386,7 @@ pub struct CompressedCpiContext {
     PartialEq,
     Default,
     Clone,
+    ZeroCopyConfig,
 )]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
@@ -379,31 +397,31 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub read_only: bool,
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for PackedCompressedAccountWithMerkleContext {
-    type Config = CompressedAccountZeroCopyConfig;
-    type Output = <Self as DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZPackedCompressedAccountWithMerkleContextMetaMut>::from_prefix(bytes)?;
-        let (compressed_account, bytes) = <CompressedAccount as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, config)?;
-        let (merkle_context, bytes) = <PackedMerkleContext as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
-        let (root_index, bytes) = <zerocopy::little_endian::U16 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
-        let (read_only, bytes) = <bool as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
-        
-        Ok((
-            ZPackedCompressedAccountWithMerkleContextMut {
-                compressed_account,
-                merkle_context, 
-                root_index,
-                read_only,
-            },
-            bytes,
-        ))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for PackedCompressedAccountWithMerkleContext {
+//     type Config = CompressedAccountZeroCopyConfig;
+//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8], 
+//         config: Self::Config
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZPackedCompressedAccountWithMerkleContextMetaMut>::from_prefix(bytes)?;
+//         let (compressed_account, bytes) = <CompressedAccount as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, config)?;
+//         let (merkle_context, bytes) = <PackedMerkleContext as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
+//         let (root_index, bytes) = <zerocopy::little_endian::U16 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
+//         let (read_only, bytes) = <bool as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
+//         
+//         Ok((
+//             ZPackedCompressedAccountWithMerkleContextMut {
+//                 compressed_account,
+//                 merkle_context, 
+//                 root_index,
+//                 read_only,
+//             },
+//             bytes,
+//         ))
+//     }
+// }
 
 #[derive(
     ZeroCopy,
@@ -416,6 +434,7 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for PackedCompressedAcco
     Copy,
     PartialEq,
     Default,
+    ZeroCopyConfig,
 )]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
@@ -424,24 +443,24 @@ pub struct MerkleContext {
     pub prove_by_index: bool,
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for MerkleContext {
-    type Config = ();
-    type Output = <Self as DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        _config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZMerkleContextMetaMut>::from_prefix(bytes)?;
-        
-        Ok((
-            ZMerkleContextMut {
-                __meta,
-            },
-            bytes,
-        ))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for MerkleContext {
+//     type Config = ();
+//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8], 
+//         _config: Self::Config
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZMerkleContextMetaMut>::from_prefix(bytes)?;
+//         
+//         Ok((
+//             ZMerkleContextMut {
+//                 __meta,
+//             },
+//             bytes,
+//         ))
+//     }
+// }
 
 #[derive(
     ZeroCopy,
@@ -505,6 +524,7 @@ pub struct PackedReadOnlyCompressedAccount {
     Copy,
     PartialEq,
     Default,
+    ZeroCopyConfig,
 )]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
@@ -513,18 +533,18 @@ pub struct PackedMerkleContext {
     pub prove_by_index: bool,
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for PackedMerkleContext {
-    type Config = ();
-    type Output = <Self as DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        _config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZPackedMerkleContextMetaMut>::from_prefix(bytes)?;
-        Ok((ZPackedMerkleContextMut { __meta }, bytes))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for PackedMerkleContext {
+//     type Config = ();
+//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8], 
+//         _config: Self::Config
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZPackedMerkleContextMetaMut>::from_prefix(bytes)?;
+//         Ok((ZPackedMerkleContextMut { __meta }, bytes))
+//     }
+// }
 
 #[derive(Debug, PartialEq, Default, Clone, Copy)]
 pub struct CompressedAccountZeroCopyConfig {
@@ -553,6 +573,7 @@ pub struct InstructionDataInvokeConfig {
     PartialEq,
     Default,
     Clone,
+    ZeroCopyConfig,
 )]
 pub struct CompressedAccount {
     pub owner: [u8; 32],
@@ -561,38 +582,38 @@ pub struct CompressedAccount {
     pub data: Option<CompressedAccountData>,
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedAccount {
-    type Config = CompressedAccountZeroCopyConfig;
-    type Output = <Self as DeserializeMut<'a>>::Output;
-
-    fn new_zero_copy(
-        bytes: &'a mut [u8],
-        config: Self::Config,
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountMetaMut>::from_prefix(bytes)?;
-
-        // Use generic Option implementation for address field
-        let (address, bytes) = <Option<[u8; 32]> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            (config.address_enabled, ())
-        )?;
-
-        // Use generic Option implementation for data field
-        let (data, bytes) = <Option<CompressedAccountData> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            (config.data_enabled, CompressedAccountDataConfig { data: config.data_capacity })
-        )?;
-
-        Ok((
-            ZCompressedAccountMut {
-                __meta,
-                address,
-                data,
-            },
-            bytes,
-        ))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedAccount {
+//     type Config = CompressedAccountZeroCopyConfig;
+//     type Output = <Self as DeserializeMut<'a>>::Output;
+// 
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8],
+//         config: Self::Config,
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountMetaMut>::from_prefix(bytes)?;
+// 
+//         // Use generic Option implementation for address field
+//         let (address, bytes) = <Option<[u8; 32]> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             (config.address_enabled, ())
+//         )?;
+// 
+//         // Use generic Option implementation for data field
+//         let (data, bytes) = <Option<CompressedAccountData> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             (config.data_enabled, CompressedAccountDataConfig { data: config.data_capacity })
+//         )?;
+// 
+//         Ok((
+//             ZCompressedAccountMut {
+//                 __meta,
+//                 address,
+//                 data,
+//             },
+//             bytes,
+//         ))
+//     }
+// }
 
 impl<'a> From<ZCompressedAccount<'a>> for CompressedAccount {
     fn from(value: ZCompressedAccount<'a>) -> Self {
