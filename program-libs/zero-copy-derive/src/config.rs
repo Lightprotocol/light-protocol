@@ -8,9 +8,6 @@ use crate::{utils, z_struct::FieldType};
 ///
 /// This module provides functionality to generate configuration structs and
 /// initialization logic for zero-copy structures with Vec and Option fields.
-
-// Note: The ZeroCopyInitMut trait is defined in the main zero-copy crate
-// This module only contains helper functions for the derive macro
 /// Helper functions for FieldType to support configuration
 /// Determine if this field type requires configuration for initialization
 pub fn requires_config(field_type: &FieldType) -> bool {
@@ -46,7 +43,7 @@ pub fn config_type(field_type: &FieldType) -> TokenStream {
         // Complex Vec types: need config for each element
         FieldType::VecNonCopy(_, vec_type) => {
             if let Some(inner_type) = utils::get_vec_inner_type(vec_type) {
-                quote! { Vec<<#inner_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::Config> }
+                quote! { Vec<<#inner_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::Config> }
             } else {
                 panic!("Could not determine inner type for VecNonCopy config");
             }
@@ -54,7 +51,7 @@ pub fn config_type(field_type: &FieldType) -> TokenStream {
 
         // Option types: delegate to the Option's Config type
         FieldType::Option(_, option_type) => {
-            quote! { <#option_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::Config }
+            quote! { <#option_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::Config }
         }
 
         // Fixed-size types don't need configuration
@@ -69,11 +66,13 @@ pub fn config_type(field_type: &FieldType) -> TokenStream {
         | FieldType::Copy(_, _) => quote! { () },
 
         // Option integer types: use bool config to determine if enabled
-        FieldType::OptionU64(_) | FieldType::OptionU32(_) | FieldType::OptionU16(_) => quote! { bool },
+        FieldType::OptionU64(_) | FieldType::OptionU32(_) | FieldType::OptionU16(_) => {
+            quote! { bool }
+        }
 
         // NonCopy types: delegate to their Config type (Config is typically 'static)
         FieldType::NonCopy(_, field_type) => {
-            quote! { <#field_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::Config }
+            quote! { <#field_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::Config }
         }
     }
 }
@@ -140,7 +139,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::VecNonCopy(field_name, vec_type) => {
             quote! {
-                let (#field_name, bytes) = <#vec_type as light_zero_copy::init_mut::ZeroCopyInitMut<'a>>::new_zero_copy(
+                let (#field_name, bytes) = <#vec_type as light_zero_copy::init_mut::ZeroCopyNew<'a>>::new_zero_copy(
                     bytes,
                     config.#field_name
                 )?;
@@ -149,7 +148,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::Option(field_name, option_type) => {
             quote! {
-                let (#field_name, bytes) = <#option_type as light_zero_copy::init_mut::ZeroCopyInitMut<'a>>::new_zero_copy(bytes, config.#field_name)?;
+                let (#field_name, bytes) = <#option_type as light_zero_copy::init_mut::ZeroCopyNew<'a>>::new_zero_copy(bytes, config.#field_name)?;
             }
         }
 
@@ -162,7 +161,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
                 >::from_prefix(bytes)?;
             }
         }
-        
+
         FieldType::IntegerU32(field_name) => {
             quote! {
                 let (#field_name, bytes) = light_zero_copy::Ref::<
@@ -171,7 +170,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
                 >::from_prefix(bytes)?;
             }
         }
-        
+
         FieldType::IntegerU16(field_name) => {
             quote! {
                 let (#field_name, bytes) = light_zero_copy::Ref::<
@@ -180,19 +179,19 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
                 >::from_prefix(bytes)?;
             }
         }
-        
+
         FieldType::IntegerU8(field_name) => {
             quote! {
                 let (#field_name, bytes) = light_zero_copy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
             }
         }
-        
+
         FieldType::Bool(field_name) => {
             quote! {
                 let (#field_name, bytes) = light_zero_copy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
             }
         }
-        
+
         // Array fields that are struct fields (come after Vec/Option)
         FieldType::Array(field_name, array_type) => {
             quote! {
@@ -202,7 +201,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
                 >::from_prefix(bytes)?;
             }
         }
-        
+
         FieldType::Pubkey(field_name) => {
             quote! {
                 let (#field_name, bytes) = light_zero_copy::Ref::<
@@ -211,10 +210,9 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
                 >::from_prefix(bytes)?;
             }
         }
-        
+
         // Types that are truly meta fields (shouldn't reach here for struct fields)
-        FieldType::CopyU8Bool(_)
-        | FieldType::Copy(_, _) => {
+        FieldType::CopyU8Bool(_) | FieldType::Copy(_, _) => {
             quote! {
                 // Should not reach here for struct fields - these should be meta fields
             }
@@ -222,7 +220,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::OptionU64(field_name) => {
             quote! {
-                let (#field_name, bytes) = <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+                let (#field_name, bytes) = <Option<u64> as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -231,7 +229,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::OptionU32(field_name) => {
             quote! {
-                let (#field_name, bytes) = <Option<u32> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+                let (#field_name, bytes) = <Option<u32> as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -240,7 +238,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::OptionU16(field_name) => {
             quote! {
-                let (#field_name, bytes) = <Option<u16> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+                let (#field_name, bytes) = <Option<u16> as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -249,7 +247,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::NonCopy(field_name, field_type) => {
             quote! {
-                let (#field_name, bytes) = <#field_type as light_zero_copy::init_mut::ZeroCopyInitMut<'a>>::new_zero_copy(
+                let (#field_name, bytes) = <#field_type as light_zero_copy::init_mut::ZeroCopyNew<'a>>::new_zero_copy(
                     bytes,
                     config.#field_name
                 )?;
@@ -276,32 +274,32 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> TokenStream {
 
         FieldType::VecNonCopy(field_name, vec_type) => {
             quote! {
-                <#vec_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&config.#field_name)
+                <#vec_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
             }
         }
 
         // Option types
         FieldType::Option(field_name, option_type) => {
             quote! {
-                <#option_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&config.#field_name)
+                <#option_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
             }
         }
 
         FieldType::OptionU64(field_name) => {
             quote! {
-                <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&(config.#field_name, ()))
+                <Option<u64> as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
             }
         }
 
         FieldType::OptionU32(field_name) => {
             quote! {
-                <Option<u32> as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&(config.#field_name, ()))
+                <Option<u32> as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
             }
         }
 
         FieldType::OptionU16(field_name) => {
             quote! {
-                <Option<u16> as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&(config.#field_name, ()))
+                <Option<u16> as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
             }
         }
 
@@ -311,37 +309,37 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> TokenStream {
                 core::mem::size_of::<light_zero_copy::little_endian::U64>()
             }
         }
-        
+
         FieldType::IntegerU32(_) => {
             quote! {
                 core::mem::size_of::<light_zero_copy::little_endian::U32>()
             }
         }
-        
+
         FieldType::IntegerU16(_) => {
             quote! {
                 core::mem::size_of::<light_zero_copy::little_endian::U16>()
             }
         }
-        
+
         FieldType::IntegerU8(_) => {
             quote! {
                 core::mem::size_of::<u8>()
             }
         }
-        
+
         FieldType::Bool(_) => {
             quote! {
                 core::mem::size_of::<u8>()  // bool is serialized as u8
             }
         }
-        
+
         FieldType::Array(_, array_type) => {
             quote! {
                 core::mem::size_of::<#array_type>()
             }
         }
-        
+
         FieldType::Pubkey(_) => {
             quote! {
                 32  // Pubkey is always 32 bytes
@@ -354,7 +352,7 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> TokenStream {
                 core::mem::size_of::<u8>()
             }
         }
-        
+
         FieldType::Copy(_, field_type) => {
             quote! {
                 core::mem::size_of::<#field_type>()
@@ -363,7 +361,7 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> TokenStream {
 
         FieldType::NonCopy(field_name, field_type) => {
             quote! {
-                <#field_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::byte_len(&config.#field_name)
+                <#field_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
             }
         }
     }

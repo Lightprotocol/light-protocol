@@ -35,14 +35,14 @@ mod zero_copy_struct_inner;
 ///
 /// # Macro Rules
 /// 1. Create zero copy structs Z<StructName> and Z<StructName>Mut for the struct
-///     1.1. The first fields are extracted into a meta struct until we reach a Vec, Option or type that does not implement Copy
-///     1.2. Represent vectors to ZeroCopySlice & don't include these into the meta struct
-///     1.3. Replace u16 with U16, u32 with U32, etc
-///     1.4. Every field after the first vector is directly included in the ZStruct and deserialized 1 by 1
-///     1.5. If a vector contains a nested vector (does not implement Copy) it must implement Deserialize
-///     1.6. Elements in an Option must implement Deserialize
-///     1.7. A type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
-///     1.8. is u8 deserialized as u8::zero_copy_at instead of Ref<&'a [u8], u8> for non  mut, for mut it is Ref<&'a mut [u8], u8>
+/// 1.1. The first fields are extracted into a meta struct until we reach a Vec, Option or type that does not implement Copy
+/// 1.2. Represent vectors to ZeroCopySlice & don't include these into the meta struct
+/// 1.3. Replace u16 with U16, u32 with U32, etc
+/// 1.4. Every field after the first vector is directly included in the ZStruct and deserialized 1 by 1
+/// 1.5. If a vector contains a nested vector (does not implement Copy) it must implement Deserialize
+/// 1.6. Elements in an Option must implement Deserialize
+/// 1.7. A type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
+/// 1.8. is u8 deserialized as u8::zero_copy_at instead of Ref<&'a [u8], u8> for non  mut, for mut it is Ref<&'a mut [u8], u8>
 /// 2. Implement Deserialize and DeserializeMut which return Z<StructName> and Z<StructName>Mut
 /// 3. Implement From<Z<StructName>> for StructName and From<Z<StructName>Mut> for StructName
 ///
@@ -294,11 +294,11 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-// ByteLen derivation macro has been merged into ZeroCopyInitMut trait
+// ByteLen derivation macro has been merged into ZeroCopyNew trait
 //
-// The ByteLen functionality is now available as a static method on ZeroCopyInitMut:
+// The ByteLen functionality is now available as a static method on ZeroCopyNew:
 // ```rust
-// use light_zero_copy::init_mut::ZeroCopyInitMut;
+// use light_zero_copy::init_mut::ZeroCopyNew;
 //
 // // Calculate buffer size needed for configuration
 // let config = MyStructConfig { /* ... */ };
@@ -346,7 +346,7 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
 ///
 /// This will generate:
 /// - `MyStructConfig` struct with configuration fields
-/// - `ZeroCopyInitMut` implementation for `MyStruct`
+/// - `ZeroCopyNew` implementation for `MyStruct`
 /// - `new_zero_copy(bytes, config)` method for initialization
 ///
 /// The configuration struct will have fields based on the complexity of the original fields:
@@ -376,7 +376,7 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
     // Generate configuration struct based on all fields that need config (type-based)
     let config_struct = config::generate_config_struct(name, &all_field_types);
 
-    // Generate ZeroCopyInitMut implementation using the existing field separation
+    // Generate ZeroCopyNew implementation using the existing field separation
     let init_mut_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields);
 
     let expanded = quote! {
@@ -388,7 +388,7 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Generate ZeroCopyInitMut implementation with new_at method for a struct
+/// Generate ZeroCopyNew implementation with new_at method for a struct
 fn generate_init_mut_impl(
     struct_name: &syn::Ident,
     _meta_fields: &[&syn::Field],
@@ -462,7 +462,7 @@ fn generate_init_mut_impl(
     };
 
     quote! {
-        impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for #struct_name {
+        impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for #struct_name {
             type Config = #config_name;
             type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
 

@@ -2,7 +2,7 @@
 use std::assert_eq;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, init_mut::ZeroCopyInitMut};
+use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, init_mut::ZeroCopyNew};
 use rand::{
     rngs::{StdRng, ThreadRng},
     Rng,
@@ -44,88 +44,128 @@ fn populate_invoke_cpi_zero_copy(
     dst: &mut ZInstructionDataInvokeCpiMut,
 ) {
     *dst.is_compress = if src.is_compress { 1 } else { 0 };
-    
+
     // Copy proof if present
     if let (Some(src_proof), Some(dst_proof)) = (&src.proof, &mut dst.proof) {
         dst_proof.a.copy_from_slice(&src_proof.a);
         dst_proof.b.copy_from_slice(&src_proof.b);
         dst_proof.c.copy_from_slice(&src_proof.c);
     }
-    
+
     // Copy new_address_params
-    for (src_param, dst_param) in src.new_address_params.iter()
-        .zip(dst.new_address_params.iter_mut()) {
+    for (src_param, dst_param) in src
+        .new_address_params
+        .iter()
+        .zip(dst.new_address_params.iter_mut())
+    {
         dst_param.seed.copy_from_slice(&src_param.seed);
         dst_param.address_queue_account_index = src_param.address_queue_account_index;
         dst_param.address_merkle_tree_account_index = src_param.address_merkle_tree_account_index;
         dst_param.address_merkle_tree_root_index = src_param.address_merkle_tree_root_index.into();
     }
-    
+
     // Copy input_compressed_accounts_with_merkle_context
-    for (src_input, dst_input) in src.input_compressed_accounts_with_merkle_context.iter()
-        .zip(dst.input_compressed_accounts_with_merkle_context.iter_mut()) {
+    for (src_input, dst_input) in src
+        .input_compressed_accounts_with_merkle_context
+        .iter()
+        .zip(dst.input_compressed_accounts_with_merkle_context.iter_mut())
+    {
         // Copy compressed account
-        dst_input.compressed_account.owner.copy_from_slice(&src_input.compressed_account.owner);
+        dst_input
+            .compressed_account
+            .owner
+            .copy_from_slice(&src_input.compressed_account.owner);
         dst_input.compressed_account.lamports = src_input.compressed_account.lamports.into();
-        
+
         // Copy address if present
-        if let (Some(src_addr), Some(dst_addr)) = (&src_input.compressed_account.address, &mut dst_input.compressed_account.address) {
+        if let (Some(src_addr), Some(dst_addr)) = (
+            &src_input.compressed_account.address,
+            &mut dst_input.compressed_account.address,
+        ) {
             dst_addr.copy_from_slice(src_addr);
         }
-        
+
         // Copy data if present
-        if let (Some(src_data), Some(dst_data)) = (&src_input.compressed_account.data, &mut dst_input.compressed_account.data) {
-            dst_data.discriminator.copy_from_slice(&src_data.discriminator);
+        if let (Some(src_data), Some(dst_data)) = (
+            &src_input.compressed_account.data,
+            &mut dst_input.compressed_account.data,
+        ) {
+            dst_data
+                .discriminator
+                .copy_from_slice(&src_data.discriminator);
             dst_data.data_hash.copy_from_slice(&src_data.data_hash);
             for (src_byte, dst_byte) in src_data.data.iter().zip(dst_data.data.iter_mut()) {
                 *dst_byte = *src_byte;
             }
         }
-        
+
         // Copy merkle context
-        dst_input.merkle_context.merkle_tree_pubkey_index = src_input.merkle_context.merkle_tree_pubkey_index;
-        dst_input.merkle_context.nullifier_queue_pubkey_index = src_input.merkle_context.nullifier_queue_pubkey_index;
+        dst_input.merkle_context.merkle_tree_pubkey_index =
+            src_input.merkle_context.merkle_tree_pubkey_index;
+        dst_input.merkle_context.nullifier_queue_pubkey_index =
+            src_input.merkle_context.nullifier_queue_pubkey_index;
         dst_input.merkle_context.leaf_index = src_input.merkle_context.leaf_index.into();
-        dst_input.merkle_context.prove_by_index = if src_input.merkle_context.prove_by_index { 1 } else { 0 };
-        
+        dst_input.merkle_context.prove_by_index = if src_input.merkle_context.prove_by_index {
+            1
+        } else {
+            0
+        };
+
         *dst_input.root_index = src_input.root_index.into();
         *dst_input.read_only = if src_input.read_only { 1 } else { 0 };
     }
-    
+
     // Copy output_compressed_accounts
-    for (src_output, dst_output) in src.output_compressed_accounts.iter()
-        .zip(dst.output_compressed_accounts.iter_mut()) {
+    for (src_output, dst_output) in src
+        .output_compressed_accounts
+        .iter()
+        .zip(dst.output_compressed_accounts.iter_mut())
+    {
         // Copy compressed account
-        dst_output.compressed_account.owner.copy_from_slice(&src_output.compressed_account.owner);
+        dst_output
+            .compressed_account
+            .owner
+            .copy_from_slice(&src_output.compressed_account.owner);
         dst_output.compressed_account.lamports = src_output.compressed_account.lamports.into();
-        
+
         // Copy address if present
-        if let (Some(src_addr), Some(dst_addr)) = (&src_output.compressed_account.address, &mut dst_output.compressed_account.address) {
+        if let (Some(src_addr), Some(dst_addr)) = (
+            &src_output.compressed_account.address,
+            &mut dst_output.compressed_account.address,
+        ) {
             dst_addr.copy_from_slice(src_addr);
         }
-        
+
         // Copy data if present
-        if let (Some(src_data), Some(dst_data)) = (&src_output.compressed_account.data, &mut dst_output.compressed_account.data) {
-            dst_data.discriminator.copy_from_slice(&src_data.discriminator);
+        if let (Some(src_data), Some(dst_data)) = (
+            &src_output.compressed_account.data,
+            &mut dst_output.compressed_account.data,
+        ) {
+            dst_data
+                .discriminator
+                .copy_from_slice(&src_data.discriminator);
             dst_data.data_hash.copy_from_slice(&src_data.data_hash);
             for (src_byte, dst_byte) in src_data.data.iter().zip(dst_data.data.iter_mut()) {
                 *dst_byte = *src_byte;
             }
         }
-        
+
         *dst_output.merkle_tree_index = src_output.merkle_tree_index;
     }
-    
+
     // Copy relay_fee if present
     if let (Some(src_fee), Some(dst_fee)) = (&src.relay_fee, &mut dst.relay_fee) {
         **dst_fee = (*src_fee).into();
     }
-    
+
     // Copy compress_or_decompress_lamports if present
-    if let (Some(src_lamports), Some(dst_lamports)) = (&src.compress_or_decompress_lamports, &mut dst.compress_or_decompress_lamports) {
+    if let (Some(src_lamports), Some(dst_lamports)) = (
+        &src.compress_or_decompress_lamports,
+        &mut dst.compress_or_decompress_lamports,
+    ) {
         **dst_lamports = (*src_lamports).into();
     }
-    
+
     // Copy cpi_context if present
     if let (Some(src_ctx), Some(dst_ctx)) = (&src.cpi_context, &mut dst.cpi_context) {
         dst_ctx.set_context = if src_ctx.set_context { 1 } else { 0 };
@@ -135,90 +175,127 @@ fn populate_invoke_cpi_zero_copy(
 }
 
 // Function to populate mutable zero-copy structure with data from InstructionDataInvoke
-fn populate_invoke_zero_copy(
-    src: &InstructionDataInvoke,
-    dst: &mut ZInstructionDataInvokeMut,
-) {
+fn populate_invoke_zero_copy(src: &InstructionDataInvoke, dst: &mut ZInstructionDataInvokeMut) {
     *dst.is_compress = if src.is_compress { 1 } else { 0 };
-    
+
     // Copy proof if present
     if let (Some(src_proof), Some(dst_proof)) = (&src.proof, &mut dst.proof) {
         dst_proof.a.copy_from_slice(&src_proof.a);
         dst_proof.b.copy_from_slice(&src_proof.b);
         dst_proof.c.copy_from_slice(&src_proof.c);
     }
-    
+
     // Copy new_address_params
-    for (src_param, dst_param) in src.new_address_params.iter()
-        .zip(dst.new_address_params.iter_mut()) {
+    for (src_param, dst_param) in src
+        .new_address_params
+        .iter()
+        .zip(dst.new_address_params.iter_mut())
+    {
         dst_param.seed.copy_from_slice(&src_param.seed);
         dst_param.address_queue_account_index = src_param.address_queue_account_index;
         dst_param.address_merkle_tree_account_index = src_param.address_merkle_tree_account_index;
         dst_param.address_merkle_tree_root_index = src_param.address_merkle_tree_root_index.into();
     }
-    
+
     // Copy input_compressed_accounts_with_merkle_context
-    for (src_input, dst_input) in src.input_compressed_accounts_with_merkle_context.iter()
-        .zip(dst.input_compressed_accounts_with_merkle_context.iter_mut()) {
+    for (src_input, dst_input) in src
+        .input_compressed_accounts_with_merkle_context
+        .iter()
+        .zip(dst.input_compressed_accounts_with_merkle_context.iter_mut())
+    {
         // Copy compressed account
-        dst_input.compressed_account.owner.copy_from_slice(&src_input.compressed_account.owner);
+        dst_input
+            .compressed_account
+            .owner
+            .copy_from_slice(&src_input.compressed_account.owner);
         dst_input.compressed_account.lamports = src_input.compressed_account.lamports.into();
-        
+
         // Copy address if present
-        if let (Some(src_addr), Some(dst_addr)) = (&src_input.compressed_account.address, &mut dst_input.compressed_account.address) {
+        if let (Some(src_addr), Some(dst_addr)) = (
+            &src_input.compressed_account.address,
+            &mut dst_input.compressed_account.address,
+        ) {
             dst_addr.copy_from_slice(src_addr);
         }
-        
+
         // Copy data if present
-        if let (Some(src_data), Some(dst_data)) = (&src_input.compressed_account.data, &mut dst_input.compressed_account.data) {
-            dst_data.discriminator.copy_from_slice(&src_data.discriminator);
+        if let (Some(src_data), Some(dst_data)) = (
+            &src_input.compressed_account.data,
+            &mut dst_input.compressed_account.data,
+        ) {
+            dst_data
+                .discriminator
+                .copy_from_slice(&src_data.discriminator);
             dst_data.data_hash.copy_from_slice(&src_data.data_hash);
             for (src_byte, dst_byte) in src_data.data.iter().zip(dst_data.data.iter_mut()) {
                 *dst_byte = *src_byte;
             }
         }
-        
+
         // Copy merkle context
-        dst_input.merkle_context.merkle_tree_pubkey_index = src_input.merkle_context.merkle_tree_pubkey_index;
-        dst_input.merkle_context.nullifier_queue_pubkey_index = src_input.merkle_context.nullifier_queue_pubkey_index;
+        dst_input.merkle_context.merkle_tree_pubkey_index =
+            src_input.merkle_context.merkle_tree_pubkey_index;
+        dst_input.merkle_context.nullifier_queue_pubkey_index =
+            src_input.merkle_context.nullifier_queue_pubkey_index;
         dst_input.merkle_context.leaf_index = src_input.merkle_context.leaf_index.into();
-        dst_input.merkle_context.prove_by_index = if src_input.merkle_context.prove_by_index { 1 } else { 0 };
-        
+        dst_input.merkle_context.prove_by_index = if src_input.merkle_context.prove_by_index {
+            1
+        } else {
+            0
+        };
+
         *dst_input.root_index = src_input.root_index.into();
         *dst_input.read_only = if src_input.read_only { 1 } else { 0 };
     }
-    
+
     // Copy output_compressed_accounts
-    for (src_output, dst_output) in src.output_compressed_accounts.iter()
-        .zip(dst.output_compressed_accounts.iter_mut()) {
+    for (src_output, dst_output) in src
+        .output_compressed_accounts
+        .iter()
+        .zip(dst.output_compressed_accounts.iter_mut())
+    {
         // Copy compressed account
-        dst_output.compressed_account.owner.copy_from_slice(&src_output.compressed_account.owner);
+        dst_output
+            .compressed_account
+            .owner
+            .copy_from_slice(&src_output.compressed_account.owner);
         dst_output.compressed_account.lamports = src_output.compressed_account.lamports.into();
-        
+
         // Copy address if present
-        if let (Some(src_addr), Some(dst_addr)) = (&src_output.compressed_account.address, &mut dst_output.compressed_account.address) {
+        if let (Some(src_addr), Some(dst_addr)) = (
+            &src_output.compressed_account.address,
+            &mut dst_output.compressed_account.address,
+        ) {
             dst_addr.copy_from_slice(src_addr);
         }
-        
+
         // Copy data if present
-        if let (Some(src_data), Some(dst_data)) = (&src_output.compressed_account.data, &mut dst_output.compressed_account.data) {
-            dst_data.discriminator.copy_from_slice(&src_data.discriminator);
+        if let (Some(src_data), Some(dst_data)) = (
+            &src_output.compressed_account.data,
+            &mut dst_output.compressed_account.data,
+        ) {
+            dst_data
+                .discriminator
+                .copy_from_slice(&src_data.discriminator);
             dst_data.data_hash.copy_from_slice(&src_data.data_hash);
             for (src_byte, dst_byte) in src_data.data.iter().zip(dst_data.data.iter_mut()) {
                 *dst_byte = *src_byte;
             }
         }
-        
+
         *dst_output.merkle_tree_index = src_output.merkle_tree_index;
     }
-    
+
     // Copy relay_fee if present
     if let (Some(src_fee), Some(dst_fee)) = (&src.relay_fee, &mut dst.relay_fee) {
         **dst_fee = (*src_fee).into();
     }
-    
+
     // Copy compress_or_decompress_lamports if present
-    if let (Some(src_lamports), Some(dst_lamports)) = (&src.compress_or_decompress_lamports, &mut dst.compress_or_decompress_lamports) {
+    if let (Some(src_lamports), Some(dst_lamports)) = (
+        &src.compress_or_decompress_lamports,
+        &mut dst.compress_or_decompress_lamports,
+    ) {
         **dst_lamports = (*src_lamports).into();
     }
 }
