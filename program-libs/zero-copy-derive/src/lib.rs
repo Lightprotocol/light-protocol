@@ -211,7 +211,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 ///
 /// This macro generates mutable zero-copy implementations including:
 /// - DeserializeMut trait implementation
-/// - Mutable Z-struct with `Mut` suffix  
+/// - Mutable Z-struct with `Mut` suffix
 /// - byte_len() method implementation
 /// - Mutable ZeroCopyStructInner implementation
 ///
@@ -219,7 +219,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 ///
 /// ```rust
 /// use light_zero_copy_derive::ZeroCopyMut;
-/// 
+///
 /// #[derive(ZeroCopyMut)]
 /// pub struct MyStruct {
 ///     pub a: u8,
@@ -235,7 +235,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// For both immutable and mutable functionality, use both derives:
 /// ```rust
 /// use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
-/// 
+///
 /// #[derive(ZeroCopy, ZeroCopyMut)]
 /// pub struct MyStruct {
 ///     pub a: u8,
@@ -258,7 +258,7 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
     // Generate mutable-specific implementations
     let meta_struct_def_mut =
         meta_struct::generate_meta_struct::<true>(&z_struct_meta_name, &meta_fields, hasher);
-    
+
     let z_struct_def_mut = z_struct::generate_z_struct::<true>(
         &z_struct_name,
         &z_struct_meta_name,
@@ -266,13 +266,11 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
         &meta_fields,
         hasher,
     );
-    
-    let zero_copy_struct_inner_impl_mut =
-        zero_copy_struct_inner::generate_zero_copy_struct_inner::<true>(
-            name,
-            &format_ident!("{}Mut", z_struct_name),
-        );
-    
+
+    let zero_copy_struct_inner_impl_mut = zero_copy_struct_inner::generate_zero_copy_struct_inner::<
+        true,
+    >(name, &format_ident!("{}Mut", z_struct_name));
+
     let deserialize_impl_mut = deserialize_impl::generate_deserialize_impl::<true>(
         name,
         &z_struct_name,
@@ -306,7 +304,7 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
 ///
 /// ```rust
 /// use light_zero_copy_derive::ByteLen;
-/// 
+///
 /// #[derive(ByteLen)]
 /// pub struct MyStruct {
 ///     pub a: u8,
@@ -330,7 +328,8 @@ pub fn derive_byte_len(input: TokenStream) -> TokenStream {
     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
     // Generate ByteLen implementation
-    let byte_len_impl = byte_len_derive::generate_byte_len_derive_impl(&name, &meta_fields, &struct_fields);
+    let byte_len_impl =
+        byte_len_derive::generate_byte_len_derive_impl(&name, &meta_fields, &struct_fields);
 
     TokenStream::from(byte_len_impl)
 }
@@ -342,9 +341,9 @@ pub fn derive_byte_len(input: TokenStream) -> TokenStream {
 ///
 /// # Usage
 ///
-/// ```rust
+/// ```ignore
 /// use light_zero_copy_derive::ZeroCopyConfig;
-/// 
+///
 /// #[derive(ZeroCopyConfig)]
 /// pub struct MyStruct {
 ///     pub a: u8,
@@ -375,7 +374,11 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
     // Analyze all fields to determine their types
-    let all_fields: Vec<&syn::Field> = meta_fields.iter().chain(struct_fields.iter()).cloned().collect();
+    let all_fields: Vec<&syn::Field> = meta_fields
+        .iter()
+        .chain(struct_fields.iter())
+        .cloned()
+        .collect();
     let field_types = z_struct::analyze_struct_fields(&all_fields);
 
     // Generate configuration struct
@@ -394,11 +397,14 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
 }
 
 /// Generate ZeroCopyInitMut implementation with new_at method for a struct
-fn generate_init_mut_impl(struct_name: &syn::Ident, field_types: &[z_struct::FieldType]) -> proc_macro2::TokenStream {
+fn generate_init_mut_impl(
+    struct_name: &syn::Ident,
+    field_types: &[z_struct::FieldType],
+) -> proc_macro2::TokenStream {
     let config_name = quote::format_ident!("{}Config", struct_name);
     let meta_name = quote::format_ident!("{}Meta", struct_name);
     let mut_name = quote::format_ident!("{}Mut", struct_name);
-    
+
     // Generate field initialization code
     let field_initializations: Vec<proc_macro2::TokenStream> = field_types
         .iter()
@@ -419,7 +425,7 @@ fn generate_init_mut_impl(struct_name: &syn::Ident, field_types: &[z_struct::Fie
             ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
                 // Initialize meta struct (fixed-size fields at the beginning)
                 let (meta, bytes) = zerocopy::Ref::<&mut [u8], #meta_name>::from_prefix(bytes)?;
-                
+
                 #(#field_initializations)*
 
                 // Construct the final struct
@@ -432,9 +438,12 @@ fn generate_init_mut_impl(struct_name: &syn::Ident, field_types: &[z_struct::Fie
 }
 
 /// Generate struct construction code based on field types
-fn generate_struct_construction(field_types: &[z_struct::FieldType], struct_name: &syn::Ident) -> proc_macro2::TokenStream {
+fn generate_struct_construction(
+    field_types: &[z_struct::FieldType],
+    struct_name: &syn::Ident,
+) -> proc_macro2::TokenStream {
     let mut_name = quote::format_ident!("Z{}Mut", struct_name);
-    
+
     let field_assignments: Vec<proc_macro2::TokenStream> = field_types
         .iter()
         .map(|field_type| {

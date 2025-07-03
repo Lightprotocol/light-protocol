@@ -474,6 +474,76 @@ pub struct CompressedAccountData {
     pub data_hash: [u8; 32],
 }
 
+impl<'a> CompressedAccountData {
+    pub fn new_at(
+        bytes: &'a mut [u8],
+        data_capacity: u32,
+    ) -> std::result::Result<(<Self as DeserializeMut<'a>>::Output, &'a mut [u8]), ZeroCopyError>
+    {
+        let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountDataMetaMut>::from_prefix(bytes)?;
+        // For u8 slices we just use &mut [u8] so we init the len and the split mut separately.
+        {
+            light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<u8>::new_at(
+                data_capacity.into(),
+                bytes,
+            )?;
+        }
+        // Split off len for
+        let (_, bytes) = bytes.split_at_mut(4);
+        let (data, bytes) = bytes.split_at_mut(data_capacity as usize);
+        let (data_hash, bytes) = Ref::<&mut [u8], [u8; 32]>::from_prefix(bytes)?;
+        Ok((
+            ZCompressedAccountDataMut {
+                __meta,
+                data,
+                data_hash,
+            },
+            bytes,
+        ))
+    }
+}
+
+#[test]
+fn test_compressed_account_data_new_at() {
+    let mut bytes = vec![0u8; 100];
+    let result = CompressedAccountData::new_at(&mut bytes, 10);
+    assert!(result.is_ok());
+    let (mut mut_account, _remaining) = result.unwrap();
+
+    // Test that we can set discriminator
+    mut_account.__meta.discriminator = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    // Test that we can write to data
+    mut_account.data[0] = 42;
+    mut_account.data[1] = 43;
+
+    // Test that we can set data_hash
+    mut_account.data_hash[0] = 99;
+    mut_account.data_hash[1] = 100;
+
+    assert_eq!(mut_account.__meta.discriminator, [1, 2, 3, 4, 5, 6, 7, 8]);
+    assert_eq!(mut_account.data[0], 42);
+    assert_eq!(mut_account.data[1], 43);
+    assert_eq!(mut_account.data_hash[0], 99);
+    assert_eq!(mut_account.data_hash[1], 100);
+
+    // Test deserializing the initialized bytes with zero_copy_at_mut
+    let deserialize_result = CompressedAccountData::zero_copy_at_mut(&mut bytes);
+    assert!(deserialize_result.is_ok());
+    let (deserialized_account, _remaining) = deserialize_result.unwrap();
+
+    // Verify the deserialized data matches what we set
+    assert_eq!(
+        deserialized_account.__meta.discriminator,
+        [1, 2, 3, 4, 5, 6, 7, 8]
+    );
+    assert_eq!(deserialized_account.data.len(), 10);
+    assert_eq!(deserialized_account.data[0], 42);
+    assert_eq!(deserialized_account.data[1], 43);
+    assert_eq!(deserialized_account.data_hash[0], 99);
+    assert_eq!(deserialized_account.data_hash[1], 100);
+}
+
 #[test]
 fn readme() {
     use borsh::{BorshDeserialize, BorshSerialize};
@@ -481,13 +551,7 @@ fn readme() {
 
     #[repr(C)]
     #[derive(
-        Debug,
-        PartialEq,
-        BorshSerialize,
-        BorshDeserialize,
-        ZeroCopy,
-        ZeroCopyMut,
-        ByteLen,
+        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ByteLen,
     )]
     pub struct MyStructOption {
         pub a: u8,
@@ -495,7 +559,6 @@ fn readme() {
         pub vec: Vec<Option<u64>>,
         pub c: Option<u64>,
     }
-
 
     #[repr(C)]
     #[derive(
@@ -520,13 +583,7 @@ fn readme() {
 
     #[repr(C)]
     #[derive(
-        Debug,
-        PartialEq,
-        BorshSerialize,
-        BorshDeserialize,
-        ZeroCopy,
-        ZeroCopyMut,
-        ByteLen,
+        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ByteLen,
     )]
     pub struct TestConfigStruct {
         pub a: u8,
@@ -534,7 +591,6 @@ fn readme() {
         pub vec: Vec<u8>,
         pub option: Option<u64>,
     }
-
 
     let my_struct = MyStruct {
         a: 1,

@@ -84,18 +84,7 @@ impl<'a> ZeroCopyInitMut<'a> for u8 {
     }
 }
 
-impl<'a> ZeroCopyInitMut<'a> for bool {
-    type Config = ();
-    type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        _config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Use the DeserializeMut trait to create the proper output
-        Self::zero_copy_at_mut(bytes)
-    }
-}
+// Note: bool doesn't implement DeserializeMut, so no ZeroCopyInitMut implementation
 
 // Implementation for fixed-size arrays  
 impl<'a, T: Copy + Default + zerocopy::KnownLayout + zerocopy::Immutable + zerocopy::FromBytes, const N: usize> ZeroCopyInitMut<'a> for [T; N] {
