@@ -86,6 +86,11 @@ pub fn generate_byte_len_impl<'a>(
             | FieldType::Copy(field_name, _)
             | FieldType::NonCopy(field_name, _) => {
                 quote! { self.#field_name.byte_len() }
+            },
+            FieldType::OptionU64(field_name)
+            | FieldType::OptionU32(field_name)
+            | FieldType::OptionU16(field_name) => {
+                quote! { self.#field_name.as_ref().map_or(1, |x| 1 + x.byte_len()) }
             }
         }
     });
@@ -182,7 +187,7 @@ mod tests {
         let result_str = result.to_string();
 
         assert!(result_str.contains("fn byte_len (& self) -> usize"));
-        assert!(result_str.contains("self . a . byte_len () + self . option . byte_len ()"));
+        assert!(result_str.contains("self . a . byte_len () + self . option . as_ref () . map_or (1 , | x | 1 + x . byte_len ())"));
     }
 
     #[test]

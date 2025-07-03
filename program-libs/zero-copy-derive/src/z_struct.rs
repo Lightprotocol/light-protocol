@@ -13,6 +13,9 @@ pub enum FieldType<'a> {
     VecNonCopy(&'a Ident, &'a Type),
     Array(&'a Ident, &'a Type),
     Option(&'a Ident, &'a Type),
+    OptionU64(&'a Ident),
+    OptionU32(&'a Ident),
+    OptionU16(&'a Ident),
     Pubkey(&'a Ident),
     IntegerU64(&'a Ident),
     IntegerU32(&'a Ident),
@@ -33,6 +36,9 @@ impl<'a> FieldType<'a> {
             FieldType::VecNonCopy(name, _) => name,
             FieldType::Array(name, _) => name,
             FieldType::Option(name, _) => name,
+            FieldType::OptionU64(name) => name,
+            FieldType::OptionU32(name) => name,
+            FieldType::OptionU16(name) => name,
             FieldType::Pubkey(name) => name,
             FieldType::IntegerU64(name) => name,
             FieldType::IntegerU32(name) => name,
@@ -44,7 +50,6 @@ impl<'a> FieldType<'a> {
             FieldType::NonCopy(name, _) => name,
         }
     }
-
 }
 
 /// Analyze struct fields and return vector of FieldType enums
@@ -70,7 +75,22 @@ pub fn analyze_struct_fields<'a>(struct_fields: &'a [&'a Field]) -> Vec<FieldTyp
                 } else if let Type::Array(_) = field_type {
                     FieldType::Array(field_name, field_type)
                 } else if utils::is_option_type(field_type) {
-                    FieldType::Option(field_name, field_type)
+                    // Check the inner type of the Option and convert to appropriate FieldType
+                    if let Some(inner_type) = utils::get_option_inner_type(field_type) {
+                        if utils::is_primitive_integer(inner_type) {
+                            let field_ty_str = inner_type.to_token_stream().to_string();
+                            match field_ty_str.as_str() {
+                                "u64" => FieldType::OptionU64(field_name),
+                                "u32" => FieldType::OptionU32(field_name),
+                                "u16" => FieldType::OptionU16(field_name),
+                                _ => FieldType::Option(field_name, field_type),
+                            }
+                        } else {
+                            FieldType::Option(field_name, field_type)
+                        }
+                    } else {
+                        FieldType::Option(field_name, field_type)
+                    }
                 } else if utils::is_pubkey_type(field_type) {
                     FieldType::Pubkey(field_name)
                 } else if utils::is_bool_type(field_type) {
@@ -197,6 +217,27 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     quote! {
                         #(#attributes)*
                         pub #field_name: <#field_type as #trait_name<'a>>::Output
+                    }
+                }
+                FieldType::OptionU64(field_name) => {
+                    let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u64));
+                    quote! {
+                        #(#attributes)*
+                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                    }
+                }
+                FieldType::OptionU32(field_name) => {
+                    let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u32));
+                    quote! {
+                        #(#attributes)*
+                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                    }
+                }
+                FieldType::OptionU16(field_name) => {
+                    let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
+                    quote! {
+                        #(#attributes)*
+                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
                     }
                 }
                 FieldType::Pubkey(field_name) => {

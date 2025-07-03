@@ -31,6 +31,8 @@ pub fn requires_config(field_type: &FieldType) -> bool {
         | FieldType::Copy(_, _) => false,
         // NonCopy types might need configuration if they contain Vec/Option
         FieldType::NonCopy(_, _) => true, // Conservative: assume they need config
+        // Option integer types need config to determine if they're enabled
+        FieldType::OptionU64(_) | FieldType::OptionU32(_) | FieldType::OptionU16(_) => true,
     }
 }
 
@@ -65,6 +67,9 @@ pub fn config_type(field_type: &FieldType) -> TokenStream {
         | FieldType::Bool(_)
         | FieldType::CopyU8Bool(_)
         | FieldType::Copy(_, _) => quote! { () },
+
+        // Option integer types: use bool config to determine if enabled
+        FieldType::OptionU64(_) | FieldType::OptionU32(_) | FieldType::OptionU16(_) => quote! { bool },
 
         // NonCopy types: delegate to their Config type
         FieldType::NonCopy(_, field_type) => {
@@ -153,6 +158,33 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
         | FieldType::Copy(_, _) => {
             quote! {
                 // Fixed-size fields will be initialized from the meta struct
+            }
+        }
+
+        FieldType::OptionU64(field_name) => {
+            quote! {
+                let (#field_name, bytes) = <Option<u64> as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(
+                    bytes,
+                    (config.#field_name, ())
+                )?;
+            }
+        }
+
+        FieldType::OptionU32(field_name) => {
+            quote! {
+                let (#field_name, bytes) = <Option<u32> as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(
+                    bytes,
+                    (config.#field_name, ())
+                )?;
+            }
+        }
+
+        FieldType::OptionU16(field_name) => {
+            quote! {
+                let (#field_name, bytes) = <Option<u16> as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(
+                    bytes,
+                    (config.#field_name, ())
+                )?;
             }
         }
 

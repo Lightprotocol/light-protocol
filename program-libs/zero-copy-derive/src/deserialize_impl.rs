@@ -105,6 +105,24 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
                 quote! {
                     let (#field_name, bytes) = <#field_type #trait_path(bytes)?;
                 }
+            },
+            FieldType::OptionU64(field_name) => {
+                let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u64));
+                quote! {
+                    let (#field_name, bytes) = <Option<#field_ty_zerocopy> #trait_path(bytes)?;
+                }
+            },
+            FieldType::OptionU32(field_name) => {
+                let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u32));
+                quote! {
+                    let (#field_name, bytes) = <Option<#field_ty_zerocopy> #trait_path(bytes)?;
+                }
+            },
+            FieldType::OptionU16(field_name) => {
+                let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
+                quote! {
+                    let (#field_name, bytes) = <Option<#field_ty_zerocopy> #trait_path(bytes)?;
+                }
             }
         }
     })

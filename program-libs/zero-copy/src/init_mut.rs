@@ -64,7 +64,7 @@ impl<'a> ZeroCopyInitMut<'a> for u64 {
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Return U64 little-endian type to match generated structs
+        // Return U64 little-endian type for generated structs
         Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U64>::from_prefix(bytes)?)
     }
 }
@@ -77,7 +77,7 @@ impl<'a> ZeroCopyInitMut<'a> for u32 {
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Return U32 little-endian type to match generated structs
+        // Return U32 little-endian type for generated structs
         Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U32>::from_prefix(bytes)?)
     }
 }
@@ -90,7 +90,7 @@ impl<'a> ZeroCopyInitMut<'a> for u16 {
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Return U16 little-endian type to match generated structs
+        // Return U16 little-endian type for generated structs
         Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U16>::from_prefix(bytes)?)
     }
 }
@@ -169,5 +169,33 @@ impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U64 {
         _config: Self::Config
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U64>::from_prefix(bytes)?)
+    }
+}
+
+// Implementation for Vec<T>
+impl<'a, T: ZeroCopyInitMut<'a>> ZeroCopyInitMut<'a> for Vec<T> {
+    type Config = Vec<T::Config>; // Vector of configs for each item
+    type Output = Vec<T::Output>;
+    
+    fn new_zero_copy(
+        bytes: &'a mut [u8], 
+        configs: Self::Config
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        use zerocopy::{Ref, little_endian::U32};
+        
+        // Write length as U32
+        let len = configs.len() as u32;
+        let (mut len_ref, mut bytes) = Ref::<&mut [u8], U32>::from_prefix(bytes)?;
+        *len_ref = U32::new(len);
+        
+        // Initialize each item with its config
+        let mut items = Vec::with_capacity(configs.len());
+        for config in configs {
+            let (item, remaining_bytes) = T::new_zero_copy(bytes, config)?;
+            bytes = remaining_bytes;
+            items.push(item);
+        }
+        
+        Ok((items, bytes))
     }
 }

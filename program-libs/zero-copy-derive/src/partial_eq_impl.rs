@@ -186,6 +186,15 @@ pub fn generate_struct_field_comparisons<'a>(
                         return false;
                     }
                 }
+            },
+            FieldType::OptionU64(field_name)
+            | FieldType::OptionU32(field_name)
+            | FieldType::OptionU16(field_name) => {
+                quote! {
+                    if self.#field_name != other.#field_name {
+                        return false;
+                    }
+                }
             }
         }
     })

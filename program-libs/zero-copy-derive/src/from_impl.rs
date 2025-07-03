@@ -130,6 +130,15 @@ pub fn generate_from_impl<const MUT: bool>(
                 FieldType::Copy(field_name, _) => {
                     quote! { #field_name: *value.#field_name, }
                 }
+                FieldType::OptionU64(field_name) => {
+                    quote! { #field_name: value.#field_name.as_ref().map(|x| u64::from(**x)), }
+                }
+                FieldType::OptionU32(field_name) => {
+                    quote! { #field_name: value.#field_name.as_ref().map(|x| u32::from(**x)), }
+                }
+                FieldType::OptionU16(field_name) => {
+                    quote! { #field_name: value.#field_name.as_ref().map(|x| u16::from(**x)), }
+                }
                 FieldType::NonCopy(field_name, field_type) => {
                     // For complex non-copy types, dereference and clone directly
                     quote! { #field_name: #field_type::from(&value.#field_name), }

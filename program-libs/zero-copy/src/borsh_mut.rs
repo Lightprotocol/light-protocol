@@ -124,6 +124,34 @@ macro_rules! impl_deserialize_for_primitive {
 
 impl_deserialize_for_primitive!(u16, u32, u64, i16, i32, i64);
 
+// Add DeserializeMut for zerocopy little-endian types
+impl<'a> DeserializeMut<'a> for zerocopy::little_endian::U16 {
+    type Output = Ref<&'a mut [u8], zerocopy::little_endian::U16>;
+
+    #[inline]
+    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&mut [u8], zerocopy::little_endian::U16>::from_prefix(bytes)?)
+    }
+}
+
+impl<'a> DeserializeMut<'a> for zerocopy::little_endian::U32 {
+    type Output = Ref<&'a mut [u8], zerocopy::little_endian::U32>;
+
+    #[inline]
+    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&mut [u8], zerocopy::little_endian::U32>::from_prefix(bytes)?)
+    }
+}
+
+impl<'a> DeserializeMut<'a> for zerocopy::little_endian::U64 {
+    type Output = Ref<&'a mut [u8], zerocopy::little_endian::U64>;
+
+    #[inline]
+    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&mut [u8], zerocopy::little_endian::U64>::from_prefix(bytes)?)
+    }
+}
+
 pub fn borsh_vec_u8_as_slice_mut(
     bytes: &mut [u8],
 ) -> Result<(&mut [u8], &mut [u8]), ZeroCopyError> {
