@@ -332,7 +332,6 @@ pub mod test {
     use std::vec;
 
     use borsh::{BorshDeserialize, BorshSerialize};
-
     use zerocopy::{
         little_endian::{U16, U64},
         IntoBytes, Ref, Unaligned,
@@ -387,7 +386,7 @@ pub mod test {
         }
     }
 
-    impl<'a> DerefMut for ZStruct1<'_> {
+    impl DerefMut for ZStruct1<'_> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             &mut self.meta
         }

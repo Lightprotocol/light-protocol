@@ -282,8 +282,7 @@ pub mod test {
         IntoBytes, Ref, Unaligned,
     };
 
-    use super::ZeroCopyStructInner;
-    use super::*;
+    use super::{ZeroCopyStructInner, *};
     use crate::slice::ZeroCopySliceBorsh;
 
     // Rules:

@@ -1,16 +1,14 @@
 #![cfg(all(feature = "std", feature = "derive"))]
 
-use std::{vec, ops::Deref};
+use std::{ops::Deref, vec};
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use light_zero_copy::{
+    borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh, ZeroCopyStructInner,
+};
 use zerocopy::{
     little_endian::{U16, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
-};
-
-use light_zero_copy::{
-    borsh::Deserialize, borsh_mut::DeserializeMut, errors::ZeroCopyError,
-    slice::ZeroCopySliceBorsh, ZeroCopyStructInner,
 };
 
 // Rules:

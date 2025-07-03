@@ -25,31 +25,14 @@ pub struct Pubkey(pub(crate) [u8; 32]);
 
 impl Pubkey {
     pub fn new_unique() -> Self {
-        // Generate a unique pubkey (for testing purposes)
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        std::time::SystemTime::now().hash(&mut hasher);
-        std::thread::current().id().hash(&mut hasher);
-
-        let hash = hasher.finish();
-        let mut bytes = [0u8; 32];
-        bytes[0..8].copy_from_slice(&hash.to_le_bytes());
-        // Fill rest with a pattern to make it unique
-        for i in 8..32 {
-            bytes[i] = ((hash >> (i % 8)) & 0xFF) as u8;
-        }
-
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let bytes = rng.gen::<[u8; 32]>();
         Pubkey(bytes)
     }
 
-    pub fn to_bytes(&self) -> [u8; 32] {
+    pub fn to_bytes(self) -> [u8; 32] {
         self.0
-    }
-
-    pub fn default() -> Self {
-        Pubkey([0u8; 32])
     }
 }
 
@@ -412,16 +395,6 @@ pub struct CompressedCpiContext {
     pub first_set_context: bool,
     /// Index of cpi context account in remaining accounts.
     pub cpi_context_account_index: u8,
-}
-
-impl CompressedCpiContext {
-    pub fn set_context(&self) -> bool {
-        self.set_context
-    }
-
-    pub fn first_set_context(&self) -> bool {
-        self.first_set_context
-    }
 }
 
 #[derive(
@@ -988,7 +961,7 @@ fn test_instruction_data_invoke_new_at() {
         eprintln!("Error: {:?}", e);
     }
     assert!(result.is_ok());
-    let (mut instruction_data, remaining) = result.unwrap();
+    let (_instruction_data, remaining) = result.unwrap();
 
     // Verify we used exactly the calculated number of bytes
     assert_eq!(

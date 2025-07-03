@@ -331,7 +331,7 @@ fn generate_bool_accessor_methods<'a, const MUT: bool>(
             } else {
                 quote! { self.#field_name > 0 }
             };
-            
+
             Some(quote! {
                 pub fn #field_name(&self) -> bool {
                     #comparison
@@ -385,7 +385,7 @@ pub fn generate_z_struct<const MUT: bool>(
     };
 
     let partial_eq_derive = if MUT { quote!() } else { quote!(, PartialEq) };
-    
+
     let mut z_struct = if meta_fields.is_empty() {
         quote! {
             // ZStruct

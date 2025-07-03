@@ -88,7 +88,7 @@ fn test_simple_vec_struct_new_zero_copy() {
     let (deserialized, _remaining) = deserialize_result.unwrap();
 
     // Verify the deserialized data matches what we set
-    assert_eq!(u8::from(deserialized.__meta.a), 42);
+    assert_eq!(deserialized.__meta.a, 42);
     assert_eq!(deserialized.vec[0], 10);
     assert_eq!(deserialized.vec[1], 20);
     assert_eq!(deserialized.vec[2], 30);
@@ -149,7 +149,7 @@ fn test_simple_option_struct_new_zero_copy() {
 
     // Test deserializing
     let (deserialized, _) = SimpleOptionStruct::zero_copy_at_mut(&mut bytes).unwrap();
-    assert_eq!(u8::from(deserialized.__meta.a), 123);
+    assert_eq!(deserialized.__meta.a, 123);
     assert!(deserialized.option.is_some());
     if let Some(ref opt_val) = deserialized.option {
         assert_eq!(u64::from(**opt_val), 98765);
@@ -191,7 +191,7 @@ fn test_simple_option_struct_disabled() {
 
     // Test deserializing
     let (deserialized, _) = SimpleOptionStruct::zero_copy_at_mut(&mut bytes).unwrap();
-    assert_eq!(u8::from(deserialized.__meta.a), 200);
+    assert_eq!(deserialized.__meta.a, 200);
     assert!(deserialized.option.is_none());
 
     println!("Option disabled new_zero_copy test passed!");
@@ -264,7 +264,7 @@ fn test_mixed_struct_new_zero_copy() {
 
     // Test deserializing
     let (deserialized, _) = MixedStruct::zero_copy_at_mut(&mut bytes).unwrap();
-    assert_eq!(u8::from(deserialized.__meta.a), 77);
+    assert_eq!(deserialized.__meta.a, 77);
     assert_eq!(deserialized.vec[0], 11);
     assert_eq!(deserialized.vec[3], 44);
     assert_eq!(deserialized.vec[7], 88);
@@ -314,7 +314,7 @@ fn test_mixed_struct_option_disabled() {
 
     // Test deserializing
     let (deserialized, _) = MixedStruct::zero_copy_at_mut(&mut bytes).unwrap();
-    assert_eq!(u8::from(deserialized.__meta.a), 99);
+    assert_eq!(deserialized.__meta.a, 99);
     assert_eq!(deserialized.vec[0], 255);
     assert_eq!(deserialized.vec[2], 128);
     assert!(deserialized.option.is_none());
@@ -432,7 +432,7 @@ fn test_dynamic_buffer_allocation_with_byte_len() {
 
     // Verify round-trip works
     let (deserialized, _) = MixedStruct::zero_copy_at_mut(&mut bytes).unwrap();
-    assert_eq!(u8::from(deserialized.__meta.a), 42);
+    assert_eq!(deserialized.__meta.a, 42);
     assert_eq!(deserialized.vec[5], 123);
     if let Some(ref opt_val) = deserialized.option {
         assert_eq!(u64::from(**opt_val), 9999);

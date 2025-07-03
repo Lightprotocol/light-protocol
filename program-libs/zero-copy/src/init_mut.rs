@@ -1,8 +1,7 @@
 use core::mem::size_of;
 use std::vec::Vec;
 
-use crate::borsh_mut::DeserializeMut;
-use crate::errors::ZeroCopyError;
+use crate::{borsh_mut::DeserializeMut, errors::ZeroCopyError};
 
 /// Trait for types that can be initialized in mutable byte slices with configuration
 ///

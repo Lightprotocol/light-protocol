@@ -1,13 +1,12 @@
 #![cfg(feature = "mut")]
 use std::assert_eq;
 
-use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, init_mut::ZeroCopyNew};
+use borsh::BorshDeserialize;
+use light_zero_copy::{borsh::Deserialize, init_mut::ZeroCopyNew};
 use rand::{
     rngs::{StdRng, ThreadRng},
     Rng,
 };
-use zerocopy::IntoBytes;
 
 mod instruction_data;
 use instruction_data::{

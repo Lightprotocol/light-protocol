@@ -35,14 +35,14 @@ mod zero_copy_struct_inner;
 ///
 /// # Macro Rules
 /// 1. Create zero copy structs Z<StructName> and Z<StructName>Mut for the struct
-/// 1.1. The first fields are extracted into a meta struct until we reach a Vec, Option or type that does not implement Copy
-/// 1.2. Represent vectors to ZeroCopySlice & don't include these into the meta struct
-/// 1.3. Replace u16 with U16, u32 with U32, etc
-/// 1.4. Every field after the first vector is directly included in the ZStruct and deserialized 1 by 1
-/// 1.5. If a vector contains a nested vector (does not implement Copy) it must implement Deserialize
-/// 1.6. Elements in an Option must implement Deserialize
-/// 1.7. A type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
-/// 1.8. is u8 deserialized as u8::zero_copy_at instead of Ref<&'a [u8], u8> for non  mut, for mut it is Ref<&'a mut [u8], u8>
+///    1.1. The first fields are extracted into a meta struct until we reach a Vec, Option or type that does not implement Copy
+///    1.2. Represent vectors to ZeroCopySlice & don't include these into the meta struct
+///    1.3. Replace u16 with U16, u32 with U32, etc
+///    1.4. Every field after the first vector is directly included in the ZStruct and deserialized 1 by 1
+///    1.5. If a vector contains a nested vector (does not implement Copy) it must implement Deserialize
+///    1.6. Elements in an Option must implement Deserialize
+///    1.7. A type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
+///    1.8. is u8 deserialized as u8::zero_copy_at instead of Ref<&'a [u8], u8> for non  mut, for mut it is Ref<&'a mut [u8], u8>
 /// 2. Implement Deserialize and DeserializeMut which return Z<StructName> and Z<StructName>Mut
 /// 3. Implement From<Z<StructName>> for StructName and From<Z<StructName>Mut> for StructName
 ///
