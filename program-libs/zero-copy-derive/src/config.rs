@@ -46,7 +46,7 @@ pub fn config_type(field_type: &FieldType) -> TokenStream {
         // Complex Vec types: need config for each element
         FieldType::VecNonCopy(_, vec_type) => {
             if let Some(inner_type) = utils::get_vec_inner_type(vec_type) {
-                quote! { Vec<<#inner_type as light_zero_copy::ZeroCopyInitMut>::Config> }
+                quote! { Vec<<#inner_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::Config> }
             } else {
                 panic!("Could not determine inner type for VecNonCopy config");
             }
@@ -54,7 +54,7 @@ pub fn config_type(field_type: &FieldType) -> TokenStream {
 
         // Option types: delegate to the Option's Config type
         FieldType::Option(_, option_type) => {
-            quote! { <#option_type as light_zero_copy::ZeroCopyInitMut>::Config }
+            quote! { <#option_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::Config }
         }
 
         // Fixed-size types don't need configuration
@@ -71,9 +71,9 @@ pub fn config_type(field_type: &FieldType) -> TokenStream {
         // Option integer types: use bool config to determine if enabled
         FieldType::OptionU64(_) | FieldType::OptionU32(_) | FieldType::OptionU16(_) => quote! { bool },
 
-        // NonCopy types: delegate to their Config type
+        // NonCopy types: delegate to their Config type (Config is typically 'static)
         FieldType::NonCopy(_, field_type) => {
-            quote! { <#field_type as light_zero_copy::ZeroCopyInitMut>::Config }
+            quote! { <#field_type as light_zero_copy::init_mut::ZeroCopyInitMut<'static>>::Config }
         }
     }
 }
@@ -148,7 +148,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::Option(field_name, option_type) => {
             quote! {
-                let (#field_name, bytes) = <#option_type as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(bytes, config.#field_name)?;
+                let (#field_name, bytes) = <#option_type as light_zero_copy::init_mut::ZeroCopyInitMut<'a>>::new_zero_copy(bytes, config.#field_name)?;
             }
         }
 
@@ -227,7 +227,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::OptionU64(field_name) => {
             quote! {
-                let (#field_name, bytes) = <Option<u64> as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(
+                let (#field_name, bytes) = <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -236,7 +236,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::OptionU32(field_name) => {
             quote! {
-                let (#field_name, bytes) = <Option<u32> as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(
+                let (#field_name, bytes) = <Option<u32> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -245,7 +245,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::OptionU16(field_name) => {
             quote! {
-                let (#field_name, bytes) = <Option<u16> as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(
+                let (#field_name, bytes) = <Option<u16> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -254,7 +254,7 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
 
         FieldType::NonCopy(field_name, field_type) => {
             quote! {
-                let (#field_name, bytes) = <#field_type as light_zero_copy::ZeroCopyInitMut>::new_zero_copy(
+                let (#field_name, bytes) = <#field_type as light_zero_copy::init_mut::ZeroCopyInitMut<'a>>::new_zero_copy(
                     bytes,
                     config.#field_name
                 )?;

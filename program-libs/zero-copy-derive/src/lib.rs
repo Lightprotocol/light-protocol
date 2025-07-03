@@ -421,6 +421,35 @@ fn generate_init_mut_impl(
         })
         .collect();
 
+    // Check if there are meta fields to determine whether to include __meta
+    let has_meta_fields = !_meta_fields.is_empty();
+    
+    let meta_initialization = if has_meta_fields {
+        quote! {
+            // Handle the meta struct (fixed-size fields at the beginning)
+            let (__meta, bytes) = Ref::<&mut [u8], #z_meta_name>::from_prefix(bytes)?;
+        }
+    } else {
+        quote! {
+            // No meta fields, skip meta struct initialization
+        }
+    };
+
+    let struct_construction = if has_meta_fields {
+        quote! {
+            let result = #z_struct_mut_name {
+                __meta,
+                #(#struct_field_names)*
+            };
+        }
+    } else {
+        quote! {
+            let result = #z_struct_mut_name {
+                #(#struct_field_names)*
+            };
+        }
+    };
+
     quote! {
         impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for #struct_name {
             type Config = #config_name;
@@ -432,16 +461,12 @@ fn generate_init_mut_impl(
             ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
                 use zerocopy::Ref;
                 
-                // Handle the meta struct (fixed-size fields at the beginning) - always present but may be empty
-                let (__meta, bytes) = Ref::<&mut [u8], #z_meta_name>::from_prefix(bytes)?;
+                #meta_initialization
 
                 #(#field_initializations)*
 
                 // Construct the final struct
-                let result = #z_struct_mut_name {
-                    __meta,
-                    #(#struct_field_names)*
-                };
+                #struct_construction
 
                 Ok((result, bytes))
             }
