@@ -370,25 +370,18 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
     // Process the input to extract struct information
     let (name, _z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input);
 
-    // Process the fields to separate meta fields and struct fields
+    // Use the same field processing logic as other derive macros for consistency
     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
-    // Analyze all fields to determine their types
-    let all_fields: Vec<&syn::Field> = meta_fields
-        .iter()
-        .chain(struct_fields.iter())
-        .cloned()
-        .collect();
+    // Process ALL fields uniformly by type (no position dependency for config generation)
+    let all_fields: Vec<&syn::Field> = meta_fields.iter().chain(struct_fields.iter()).cloned().collect();
     let all_field_types = z_struct::analyze_struct_fields(&all_fields);
 
-    // Analyze only struct fields (non-meta fields)
-    let struct_field_types = z_struct::analyze_struct_fields(&struct_fields);
-
-    // Generate configuration struct based on all fields
+    // Generate configuration struct based on all fields that need config (type-based)
     let config_struct = config::generate_config_struct(&name, &all_field_types);
 
-    // Generate ZeroCopyInitMut implementation using struct fields only
-    let init_mut_impl = generate_init_mut_impl(&name, &struct_field_types);
+    // Generate ZeroCopyInitMut implementation using the existing field separation
+    let init_mut_impl = generate_init_mut_impl(&name, &meta_fields, &struct_fields);
 
     let expanded = quote! {
         #config_struct
@@ -402,13 +395,17 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
 /// Generate ZeroCopyInitMut implementation with new_at method for a struct
 fn generate_init_mut_impl(
     struct_name: &syn::Ident,
-    struct_field_types: &[z_struct::FieldType],
+    _meta_fields: &[&syn::Field],
+    struct_fields: &[&syn::Field],
 ) -> proc_macro2::TokenStream {
     let config_name = quote::format_ident!("{}Config", struct_name);
     let z_meta_name = quote::format_ident!("Z{}MetaMut", struct_name);
     let z_struct_mut_name = quote::format_ident!("Z{}Mut", struct_name);
 
-    // Generate field initialization code for ALL struct fields (both configurable and non-configurable)
+    // Use the pre-separated fields from utils::process_fields (consistent with other derives)
+    let struct_field_types = z_struct::analyze_struct_fields(struct_fields);
+
+    // Generate field initialization code for struct fields only (meta fields are part of __meta)
     let field_initializations: Vec<proc_macro2::TokenStream> = struct_field_types
         .iter()
         .map(|field_type| config::generate_field_initialization(field_type))
