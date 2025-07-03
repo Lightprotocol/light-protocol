@@ -20,6 +20,7 @@ members = [
     "programs/registry",
     "anchor-programs/system",
     "sdk-libs/client",
+    "sdk-libs/light-compressible-client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
     "sdk-libs/sdk-pinocchio",
@@ -35,7 +36,6 @@ members = [
     "program-tests/system-cpi-v2-test",
     "program-tests/system-test",
     "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
-    "program-tests/sdk-test",
     "program-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
@@ -44,6 +44,9 @@ members = [
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
+    "sdk-tests/anchor-compressible",
+    "sdk-tests/anchor-compressible-derived",
+    "sdk-tests/native-compressible",
 ]
 
 resolver = "2"
@@ -86,6 +89,7 @@ solana-transaction = { version = "2.2" }
 solana-transaction-error = { version = "2.2" }
 solana-hash = { version = "2.2" }
 solana-clock = { version = "2.2" }
+solana-rent = { version = "2.2" }
 solana-signature = { version = "2.2" }
 solana-commitment-config = { version = "2.2" }
 solana-account = { version = "2.2" }
@@ -150,6 +154,7 @@ light-indexed-merkle-tree = { version = "2.1.0", path = "program-libs/indexed-me
 light-concurrent-merkle-tree = { version = "2.1.0", path = "program-libs/concurrent-merkle-tree" }
 light-sparse-merkle-tree = { version = "0.1.0", path = "sparse-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.13.1" }
+light-compressible-client = { path = "sdk-libs/light-compressible-client", version = "0.13.1" }
 light-hasher = { path = "program-libs/hasher", version = "3.1.0" }
 light-macros = { path = "program-libs/macros", version = "2.1.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "2.0.0" }

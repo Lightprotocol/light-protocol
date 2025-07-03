@@ -9,7 +9,15 @@ pub(crate) fn discriminator(input: ItemStruct) -> Result<TokenStream> {
     let (impl_gen, type_gen, where_clause) = input.generics.split_for_impl();
 
     let mut discriminator = [0u8; 8];
-    discriminator.copy_from_slice(&Sha256::hash(account_name.to_string().as_bytes()).unwrap()[..8]);
+
+    // When anchor-discriminator-compat feature is enabled, use "account:" prefix like Anchor does
+    #[cfg(feature = "anchor-discriminator-compat")]
+    let hash_input = format!("account:{}", account_name);
+
+    #[cfg(not(feature = "anchor-discriminator-compat"))]
+    let hash_input = account_name.to_string();
+
+    discriminator.copy_from_slice(&Sha256::hash(hash_input.as_bytes()).unwrap()[..8]);
     let discriminator: proc_macro2::TokenStream = format!("{discriminator:?}").parse().unwrap();
 
     Ok(quote! {
@@ -45,6 +53,12 @@ mod tests {
         let output = output.to_string();
 
         assert!(output.contains("impl LightDiscriminator for MyAccount"));
+
+        // The discriminator value will be different based on whether anchor-discriminator-compat is enabled
+        #[cfg(feature = "anchor-discriminator-compat")]
+        assert!(output.contains("account:MyAccount")); // This won't be visible in output, but logic uses it
+
+        #[cfg(not(feature = "anchor-discriminator-compat"))]
         assert!(output.contains("[181 , 255 , 112 , 42 , 17 , 188 , 66 , 199]"));
     }
 }

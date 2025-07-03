@@ -103,8 +103,11 @@
 
 /// Compressed account abstraction similar to anchor Account.
 pub mod account;
+pub use account::LightAccount;
 /// Functions to derive compressed account addresses.
 pub mod address;
+/// SDK helpers for compressing and decompressing PDAs.
+pub mod compressible;
 /// Utilities to invoke the light-system-program via cpi.
 pub mod cpi;
 pub mod error;
@@ -116,10 +119,11 @@ pub mod token;
 pub mod transfer;
 pub mod utils;
 
+pub use account::Size;
 #[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+pub use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 pub use light_hasher;
 pub use light_sdk_macros::{

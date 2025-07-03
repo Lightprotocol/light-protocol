@@ -1,34 +1,40 @@
 [package]
-name = "sdk-test"
-version = "1.0.0"
-description = "Test program using generalized account compression"
-repository = "https://github.com/Lightprotocol/light-protocol"
-license = "Apache-2.0"
+name = "anchor-compressible-derived"
+version = "0.1.0"
+description = "Anchor program template with user records and derived accounts"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "sdk_test"
+name = "anchor_compressible_derived"
 
 [features]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
+default = ["idl-build"]
+idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
+
 test-sbf = []
-default = []
+
 
 [dependencies]
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor", "idl-build", "anchor-discriminator-compat"] }
 light-sdk-types = { workspace = true }
+light-sdk-macros = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
+anchor-lang = { workspace = true, features = ["idl-build"] }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
+light-client = { workspace = true, features = ["devenv"] }
+light-compressible-client = { workspace = true, features = ["anchor"] }
+light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
 
