@@ -23,6 +23,36 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 #[repr(C)]
 pub struct Pubkey(pub(crate) [u8; 32]);
 
+impl Pubkey {
+    pub fn new_unique() -> Self {
+        // Generate a unique pubkey (for testing purposes)
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        
+        let mut hasher = DefaultHasher::new();
+        std::time::SystemTime::now().hash(&mut hasher);
+        std::thread::current().id().hash(&mut hasher);
+        
+        let hash = hasher.finish();
+        let mut bytes = [0u8; 32];
+        bytes[0..8].copy_from_slice(&hash.to_le_bytes());
+        // Fill rest with a pattern to make it unique
+        for i in 8..32 {
+            bytes[i] = ((hash >> (i % 8)) & 0xFF) as u8;
+        }
+        
+        Pubkey(bytes)
+    }
+
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+
+    pub fn default() -> Self {
+        Pubkey([0u8; 32])
+    }
+}
+
 impl<'a> Deserialize<'a> for Pubkey {
     type Output = Ref<&'a [u8], Pubkey>;
 
@@ -361,6 +391,7 @@ impl Default for CompressedProof {
 
 #[derive(
     ZeroCopy,
+    ZeroCopyMut,
     ZeroCopyEq,
     BorshDeserialize,
     BorshSerialize,
@@ -370,6 +401,7 @@ impl Default for CompressedProof {
     PartialEq,
     Eq,
     Default,
+    ZeroCopyConfig,
 )]
 pub struct CompressedCpiContext {
     /// Is set by the program that is invoking the CPI to signal that is should
@@ -380,6 +412,16 @@ pub struct CompressedCpiContext {
     pub first_set_context: bool,
     /// Index of cpi context account in remaining accounts.
     pub cpi_context_account_index: u8,
+}
+
+impl CompressedCpiContext {
+    pub fn set_context(&self) -> bool {
+        self.set_context
+    }
+
+    pub fn first_set_context(&self) -> bool {
+        self.first_set_context
+    }
 }
 
 #[derive(
@@ -1131,3 +1173,27 @@ fn readme() {
     // let borsh = MyStruct::try_from_slice(&bytes).unwrap();
     // assert_eq!(borsh.a, 42u8);
 }
+
+#[derive(
+    ZeroCopy,
+    ZeroCopyMut,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
+    ZeroCopyConfig,
+)]
+pub struct InstructionDataInvokeCpi {
+    pub proof: Option<CompressedProof>,
+    pub new_address_params: Vec<NewAddressParamsPacked>,
+    pub input_compressed_accounts_with_merkle_context:
+        Vec<PackedCompressedAccountWithMerkleContext>,
+    pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
+    pub relay_fee: Option<u64>,
+    pub compress_or_decompress_lamports: Option<u64>,
+    pub is_compress: bool,
+    pub cpi_context: Option<CompressedCpiContext>,
+}
+
