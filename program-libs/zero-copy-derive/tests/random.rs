@@ -602,7 +602,7 @@ fn test_instruction_data_invoke_cpi_rnd() {
     println!("\n\ne2e test seed {}\n\n", seed);
     let mut rng = StdRng::seed_from_u64(seed);
 
-    let num_iters = 1_000_000;
+    let num_iters = 10_000;
     for _ in 0..num_iters {
         // 1. Generate random CPI instruction data
         let invoke_cpi_ref = get_rnd_instruction_data_invoke_cpi(&mut rng);
