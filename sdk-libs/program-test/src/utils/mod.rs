@@ -3,4 +3,5 @@ pub mod create_account;
 pub mod find_light_bin;
 pub mod register_test_forester;
 pub mod setup_light_programs;
+pub mod simulation;
 pub mod tree_accounts;

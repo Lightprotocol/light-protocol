@@ -10,3 +10,4 @@ packages:
   - "examples/**"
   - "forester/**"
   - "program-tests/**"
+  - "sdk-tests/**"
