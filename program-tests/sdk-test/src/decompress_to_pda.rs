@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use light_hasher::{DataHasher, Hasher};
 use light_sdk::{
     account::LightAccount,
     cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
@@ -17,7 +18,7 @@ use solana_program::{
 pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 
 /// Account structure for the decompressed PDA
-#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct DecompressedPdaAccount {
     /// The compressed account address this PDA was derived from
     pub compressed_address: [u8; 32],
@@ -186,4 +187,29 @@ pub struct DecompressToPdaInstructionData {
 pub struct DecompressMyCompressedAccount {
     pub meta: CompressedAccountMeta,
     pub data: [u8; 31],
+}
+
+// Implement required traits for DecompressedPdaAccount
+impl DataHasher for DecompressedPdaAccount {
+    fn hash<H: Hasher>(&self) -> Result<[u8; 32], light_hasher::HasherError> {
+        let mut bytes = vec![];
+        self.serialize(&mut bytes).unwrap();
+        H::hashv(&[&bytes])
+    }
+}
+
+impl LightDiscriminator for DecompressedPdaAccount {
+    const LIGHT_DISCRIMINATOR: [u8; 8] = [0xDE, 0xC0, 0x11, 0x9D, 0xA0, 0x00, 0x00, 0x00];
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] =
+        &[0xDE, 0xC0, 0x11, 0x9D, 0xA0, 0x00, 0x00, 0x00];
+}
+
+impl crate::sdk::compress_pda::PdaTimingData for DecompressedPdaAccount {
+    fn last_touched_slot(&self) -> u64 {
+        self.last_written_slot
+    }
+
+    fn slots_buffer(&self) -> u64 {
+        self.slots_until_compression
+    }
 }

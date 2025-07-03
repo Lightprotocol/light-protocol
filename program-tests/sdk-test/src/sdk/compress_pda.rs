@@ -7,7 +7,51 @@ use light_sdk::{
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightDiscriminator,
 };
-use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::sysvar::Sysvar;
+use solana_program::{
+    account_info::AccountInfo, clock::Clock, msg, program_error::ProgramError, pubkey::Pubkey,
+};
+
+/// Trait for PDA accounts that can be compressed
+pub trait PdaTimingData {
+    fn last_touched_slot(&self) -> u64;
+    fn slots_buffer(&self) -> u64;
+}
+
+const DECOMP_SEED: &[u8] = b"decomp";
+
+/// Check that the PDA account is owned by the caller program and derived from the correct seeds.
+///
+/// # Arguments
+/// * `custom_seeds` - Custom seeds to check against
+/// * `c_pda_address` - The address of the compressed PDA
+/// * `pda_account` - The address of the PDA account
+/// * `caller_program` - The program that owns the PDA.
+pub fn check_pda(
+    custom_seeds: &[&[u8]],
+    c_pda_address: &[u8; 32],
+    pda_account: &Pubkey,
+    caller_program: &Pubkey,
+) -> Result<(), ProgramError> {
+    // Create seeds array: [custom_seeds..., c_pda_address, "decomp"]
+    let mut seeds: Vec<&[u8]> = custom_seeds.to_vec();
+    seeds.push(c_pda_address);
+    seeds.push(DECOMP_SEED);
+
+    let derived_pda =
+        Pubkey::create_program_address(&seeds, caller_program).expect("Invalid PDA seeds.");
+
+    if derived_pda != *pda_account {
+        msg!(
+            "Invalid PDA provided. Expected: {}. Found: {}.",
+            derived_pda,
+            pda_account
+        );
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
+}
 
 /// Helper function to compress a PDA and reclaim rent.
 ///
@@ -32,40 +76,58 @@ use solana_program::{account_info::AccountInfo, program_error::ProgramError, pub
 /// * `rent_recipient` - The account to receive the PDA's rent
 //
 // TODO:
-// - rent recipient check, eg hardcoded in caller program
 // - check if any explicit checks required for compressed account?
-// - check that the account is owned by the owner program, and derived from the correct seeds.
-// - consider adding check here that the cAccount belongs to Account via seeds.
-pub fn compress_pda<'a, A>(
-    pda_account: &AccountInfo<'a>,
+// - consider multiple accounts per ix.
+pub fn compress_pda<A>(
+    pda_account: &AccountInfo,
     compressed_account_meta: &CompressedAccountMeta,
     proof: Option<ValidityProof>,
-    cpi_accounts: &'a [AccountInfo<'a>],
-    system_accounts_offset: u8,
-    fee_payer: &AccountInfo<'a>,
-    cpi_signer: CpiSigner,
+    cpi_accounts: CpiAccounts,
     owner_program: &Pubkey,
-    rent_recipient: &AccountInfo<'a>,
+    rent_recipient: &AccountInfo,
+    custom_seeds: &[&[u8]],
 ) -> Result<(), LightSdkError>
 where
-    A: DataHasher + LightDiscriminator + BorshSerialize + BorshDeserialize + Default,
+    A: DataHasher
+        + LightDiscriminator
+        + BorshSerialize
+        + BorshDeserialize
+        + Default
+        + PdaTimingData,
 {
+    // Check that the PDA account is owned by the caller program and derived from the address of the compressed PDA.
+    check_pda(
+        custom_seeds,
+        &compressed_account_meta.address,
+        pda_account.key,
+        owner_program,
+    )?;
+
+    let current_slot = Clock::get()?.slot;
+
+    // Deserialize the PDA data to check timing fields
+    let pda_data = pda_account.try_borrow_data()?;
+    let pda_account_data = A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
+    drop(pda_data);
+
+    let last_touched_slot = pda_account_data.last_touched_slot();
+    let slots_buffer = pda_account_data.slots_buffer();
+
+    if current_slot < last_touched_slot + slots_buffer {
+        msg!(
+            "Cannot compress yet. {} slots remaining",
+            (last_touched_slot + slots_buffer).saturating_sub(current_slot)
+        );
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
     // Get the PDA lamports before we close it
     let pda_lamports = pda_account.lamports();
 
-    // Always use default/empty data since we're updating an existing compressed account
-    let compressed_account =
+    let mut compressed_account =
         LightAccount::<'_, A>::new_mut(owner_program, compressed_account_meta, A::default())?;
 
-    // Set up CPI configuration
-    let config = CpiAccountsConfig::new(cpi_signer);
-
-    // Create CPI accounts structure
-    let cpi_accounts_struct = CpiAccounts::new_with_config(
-        fee_payer,
-        &cpi_accounts[system_accounts_offset as usize..],
-        config,
-    );
+    compressed_account.account = pda_account_data;
 
     // Create CPI inputs
     let cpi_inputs = CpiInputs::new(
@@ -74,7 +136,7 @@ where
     );
 
     // Invoke light system program to create the compressed account
-    cpi_inputs.invoke_light_system_program(cpi_accounts_struct)?;
+    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
     // Close the PDA account
     // 1. Transfer all lamports to the rent recipient
