@@ -55,10 +55,10 @@ impl PartialEq<<Pubkey as Deserialize<'_>>::Output> for Pubkey {
 impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for Pubkey {
     type Config = ();
     type Output = <Self as DeserializeMut<'a>>::Output;
-    
+
     fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        _config: Self::Config
+        bytes: &'a mut [u8],
+        _config: Self::Config,
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         Self::zero_copy_at_mut(bytes)
     }
@@ -74,6 +74,7 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for Pubkey {
     PartialEq,
     Default,
     Clone,
+    ZeroCopyConfig,
 )]
 pub struct InstructionDataInvoke {
     pub proof: Option<CompressedProof>,
@@ -86,86 +87,92 @@ pub struct InstructionDataInvoke {
     pub is_compress: bool,
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for InstructionDataInvoke {
-    type Config = InstructionDataInvokeConfig;
-    type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
-    
-    fn new_zero_copy(
-        bytes: &'a mut [u8], 
-        config: Self::Config
-    ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        use zerocopy::Ref;
-        
-        // First handle the meta struct (empty for InstructionDataInvoke)
-        let (__meta, bytes) = Ref::<&mut [u8], ZInstructionDataInvokeMetaMut>::from_prefix(bytes)?;
-        
-        // Initialize each field using the corresponding config, following DeserializeMut order
-        let (proof, bytes) = <Option<CompressedProof> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes, 
-            (config.proof_config.is_some(), CompressedProofConfig {})
-        )?;
-        
-        let input_configs: Vec<PackedCompressedAccountWithMerkleContextConfig> = config.input_accounts_configs
-            .into_iter()
-            .map(|compressed_account_config| PackedCompressedAccountWithMerkleContextConfig {
-                compressed_account: compressed_account_config,
-                merkle_context: PackedMerkleContextConfig {},
-            })
-            .collect();
-        let (input_compressed_accounts_with_merkle_context, bytes) = <Vec<PackedCompressedAccountWithMerkleContext> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            input_configs
-        )?;
-        
-        let output_configs: Vec<OutputCompressedAccountWithPackedContextConfig> = config.output_accounts_configs
-            .into_iter()
-            .map(|compressed_account_config| OutputCompressedAccountWithPackedContextConfig {
-                compressed_account: compressed_account_config,
-            })
-            .collect();
-        let (output_compressed_accounts, bytes) = <Vec<OutputCompressedAccountWithPackedContext> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            output_configs
-        )?;
-        
-        let (relay_fee, bytes) = <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            (config.relay_fee_config.is_some(), ())
-        )?;
-        
-        let new_address_configs: Vec<NewAddressParamsPackedConfig> = config.new_address_configs
-            .into_iter()
-            .map(|_| NewAddressParamsPackedConfig {})
-            .collect();
-        let (new_address_params, bytes) = <Vec<NewAddressParamsPacked> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            new_address_configs
-        )?;
-        
-        let (compress_or_decompress_lamports, bytes) = <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            (config.decompress_lamports_config.is_some(), ())
-        )?;
-        
-        let (is_compress, bytes) = <bool as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-            bytes,
-            ()
-        )?;
-        
-        Ok((
-            ZInstructionDataInvokeMut {
-                proof,
-                input_compressed_accounts_with_merkle_context,
-                output_compressed_accounts,
-                relay_fee,
-                new_address_params,
-                compress_or_decompress_lamports,
-                is_compress,
-            },
-            bytes,
-        ))
-    }
-}
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for InstructionDataInvoke {
+//     type Config = InstructionDataInvokeConfig;
+//     type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
+//
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8],
+//         config: Self::Config
+//     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+//         use zerocopy::Ref;
+//
+//         // First handle the meta struct (empty for InstructionDataInvoke)
+//         let (__meta, bytes) = Ref::<&mut [u8], ZInstructionDataInvokeMetaMut>::from_prefix(bytes)?;
+//
+//         // Initialize each field using the corresponding config, following DeserializeMut order
+//         let (proof, bytes) = <Option<CompressedProof> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             (config.proof_config.is_some(), CompressedProofConfig {})
+//         )?;
+//
+//         let input_configs: Vec<PackedCompressedAccountWithMerkleContextConfig> = config.input_accounts_configs
+//             .into_iter()
+//             .map(|compressed_account_config| PackedCompressedAccountWithMerkleContextConfig {
+//                 compressed_account: CompressedAccountConfig {
+//                     address: (compressed_account_config.address_enabled, ()),
+//                     data: (compressed_account_config.data_enabled, CompressedAccountDataConfig { data: compressed_account_config.data_capacity }),
+//                 },
+//                 merkle_context: PackedMerkleContextConfig {},
+//             })
+//             .collect();
+//         let (input_compressed_accounts_with_merkle_context, bytes) = <Vec<PackedCompressedAccountWithMerkleContext> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             input_configs
+//         )?;
+//
+//         let output_configs: Vec<OutputCompressedAccountWithPackedContextConfig> = config.output_accounts_configs
+//             .into_iter()
+//             .map(|compressed_account_config| OutputCompressedAccountWithPackedContextConfig {
+//                 compressed_account: CompressedAccountConfig {
+//                     address: (compressed_account_config.address_enabled, ()),
+//                     data: (compressed_account_config.data_enabled, CompressedAccountDataConfig { data: compressed_account_config.data_capacity }),
+//                 },
+//             })
+//             .collect();
+//         let (output_compressed_accounts, bytes) = <Vec<OutputCompressedAccountWithPackedContext> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             output_configs
+//         )?;
+//
+//         let (relay_fee, bytes) = <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             (config.relay_fee_config.is_some(), ())
+//         )?;
+//
+//         let new_address_configs: Vec<NewAddressParamsPackedConfig> = config.new_address_configs
+//             .into_iter()
+//             .map(|_| NewAddressParamsPackedConfig {})
+//             .collect();
+//         let (new_address_params, bytes) = <Vec<NewAddressParamsPacked> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             new_address_configs
+//         )?;
+//
+//         let (compress_or_decompress_lamports, bytes) = <Option<u64> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             (config.decompress_lamports_config.is_some(), ())
+//         )?;
+//
+//         let (is_compress, bytes) = <bool as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
+//             bytes,
+//             ()
+//         )?;
+//
+//         Ok((
+//             ZInstructionDataInvokeMut {
+//                 proof,
+//                 input_compressed_accounts_with_merkle_context,
+//                 output_compressed_accounts,
+//                 relay_fee,
+//                 new_address_params,
+//                 compress_or_decompress_lamports,
+//                 is_compress,
+//             },
+//             bytes,
+//         ))
+//     }
+// }
 
 #[derive(
     ZeroCopy,
@@ -204,15 +211,15 @@ pub struct OutputCompressedAccountWithPackedContext {
 // impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for OutputCompressedAccountWithPackedContext {
 //     type Config = CompressedAccountZeroCopyConfig;
 //     type Output = <Self as DeserializeMut<'a>>::Output;
-//     
+//
 //     fn new_zero_copy(
-//         bytes: &'a mut [u8], 
+//         bytes: &'a mut [u8],
 //         config: Self::Config
 //     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZOutputCompressedAccountWithPackedContextMetaMut>::from_prefix(bytes)?;
 //         let (compressed_account, bytes) = <CompressedAccount as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, config)?;
 //         let (merkle_tree_index, bytes) = <u8 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
-//         
+//
 //         Ok((
 //             ZOutputCompressedAccountWithPackedContextMut {
 //                 compressed_account,
@@ -247,9 +254,9 @@ pub struct NewAddressParamsPacked {
 // impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for NewAddressParamsPacked {
 //     type Config = ();
 //     type Output = <Self as DeserializeMut<'a>>::Output;
-//     
+//
 //     fn new_zero_copy(
-//         bytes: &'a mut [u8], 
+//         bytes: &'a mut [u8],
 //         _config: Self::Config
 //     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZNewAddressParamsPackedMetaMut>::from_prefix(bytes)?;
@@ -342,9 +349,9 @@ impl Default for CompressedProof {
 // impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedProof {
 //     type Config = ();
 //     type Output = <Self as DeserializeMut<'a>>::Output;
-//     
+//
 //     fn new_zero_copy(
-//         bytes: &'a mut [u8], 
+//         bytes: &'a mut [u8],
 //         _config: Self::Config
 //     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedProofMetaMut>::from_prefix(bytes)?;
@@ -400,9 +407,9 @@ pub struct PackedCompressedAccountWithMerkleContext {
 // impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for PackedCompressedAccountWithMerkleContext {
 //     type Config = CompressedAccountZeroCopyConfig;
 //     type Output = <Self as DeserializeMut<'a>>::Output;
-//     
+//
 //     fn new_zero_copy(
-//         bytes: &'a mut [u8], 
+//         bytes: &'a mut [u8],
 //         config: Self::Config
 //     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZPackedCompressedAccountWithMerkleContextMetaMut>::from_prefix(bytes)?;
@@ -410,11 +417,11 @@ pub struct PackedCompressedAccountWithMerkleContext {
 //         let (merkle_context, bytes) = <PackedMerkleContext as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
 //         let (root_index, bytes) = <zerocopy::little_endian::U16 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
 //         let (read_only, bytes) = <bool as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(bytes, ())?;
-//         
+//
 //         Ok((
 //             ZPackedCompressedAccountWithMerkleContextMut {
 //                 compressed_account,
-//                 merkle_context, 
+//                 merkle_context,
 //                 root_index,
 //                 read_only,
 //             },
@@ -446,13 +453,13 @@ pub struct MerkleContext {
 // impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for MerkleContext {
 //     type Config = ();
 //     type Output = <Self as DeserializeMut<'a>>::Output;
-//     
+//
 //     fn new_zero_copy(
-//         bytes: &'a mut [u8], 
+//         bytes: &'a mut [u8],
 //         _config: Self::Config
 //     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZMerkleContextMetaMut>::from_prefix(bytes)?;
-//         
+//
 //         Ok((
 //             ZMerkleContextMut {
 //                 __meta,
@@ -536,9 +543,9 @@ pub struct PackedMerkleContext {
 // impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for PackedMerkleContext {
 //     type Config = ();
 //     type Output = <Self as DeserializeMut<'a>>::Output;
-//     
+//
 //     fn new_zero_copy(
-//         bytes: &'a mut [u8], 
+//         bytes: &'a mut [u8],
 //         _config: Self::Config
 //     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZPackedMerkleContextMetaMut>::from_prefix(bytes)?;
@@ -553,15 +560,7 @@ pub struct CompressedAccountZeroCopyConfig {
     pub data_capacity: u32,
 }
 
-#[derive(Debug, PartialEq, Default, Clone)]
-pub struct InstructionDataInvokeConfig {
-    pub proof_config: Option<()>, // None = no proof, Some(()) = include proof
-    pub input_accounts_configs: Vec<CompressedAccountZeroCopyConfig>,
-    pub output_accounts_configs: Vec<CompressedAccountZeroCopyConfig>, 
-    pub relay_fee_config: Option<()>,
-    pub new_address_configs: Vec<()>, // NewAddressParamsPacked needs no config
-    pub decompress_lamports_config: Option<()>,
-}
+// Manual InstructionDataInvokeConfig removed - now using generated config from ZeroCopyConfig derive
 
 #[derive(
     ZeroCopy,
@@ -585,25 +584,25 @@ pub struct CompressedAccount {
 // impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedAccount {
 //     type Config = CompressedAccountZeroCopyConfig;
 //     type Output = <Self as DeserializeMut<'a>>::Output;
-// 
+//
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         config: Self::Config,
 //     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountMetaMut>::from_prefix(bytes)?;
-// 
+//
 //         // Use generic Option implementation for address field
 //         let (address, bytes) = <Option<[u8; 32]> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
 //             bytes,
 //             (config.address_enabled, ())
 //         )?;
-// 
+//
 //         // Use generic Option implementation for data field
 //         let (data, bytes) = <Option<CompressedAccountData> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
 //             bytes,
 //             (config.data_enabled, CompressedAccountDataConfig { data: config.data_capacity })
 //         )?;
-// 
+//
 //         Ok((
 //             ZCompressedAccountMut {
 //                 __meta,
@@ -810,10 +809,9 @@ fn test_compressed_account_data_new_at() {
 fn test_compressed_account_new_at() {
     use light_zero_copy::init_mut::ZeroCopyInitMut;
     let mut bytes = vec![0u8; 200];
-    let config = CompressedAccountZeroCopyConfig {
-        address_enabled: true,
-        data_enabled: true,
-        data_capacity: 10,
+    let config = CompressedAccountConfig {
+        address: (true, ()),
+        data: (true, CompressedAccountDataConfig { data: 10 }),
     };
     let result = CompressedAccount::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
@@ -837,41 +835,92 @@ fn test_compressed_account_new_at() {
 fn test_instruction_data_invoke_new_at() {
     use light_zero_copy::init_mut::ZeroCopyInitMut;
     let mut bytes = vec![0u8; 5000]; // Large buffer for complex structure with alignment
-    
+
     // Create different configs to test various combinations
     let compressed_account_config1 = CompressedAccountZeroCopyConfig {
         address_enabled: true,
         data_enabled: true,
         data_capacity: 10,
     };
-    
+
     let compressed_account_config2 = CompressedAccountZeroCopyConfig {
         address_enabled: false,
         data_enabled: true,
         data_capacity: 5,
     };
-    
+
     let compressed_account_config3 = CompressedAccountZeroCopyConfig {
         address_enabled: true,
         data_enabled: false,
         data_capacity: 0,
     };
-    
+
     let compressed_account_config4 = CompressedAccountZeroCopyConfig {
         address_enabled: false,
         data_enabled: false,
         data_capacity: 0,
     };
-    
+
     let config = InstructionDataInvokeConfig {
-        proof_config: Some(()), // Enable proof 
-        input_accounts_configs: vec![compressed_account_config1, compressed_account_config2], // Length 2, different configs
-        output_accounts_configs: vec![compressed_account_config3, compressed_account_config4], // Length 2, different configs
-        relay_fee_config: Some(()), // Enable relay fee
-        new_address_configs: vec![(), ()], // Length 2
-        decompress_lamports_config: Some(()), // Enable decompress lamports
+        proof: (true, CompressedProofConfig {}), // Enable proof
+        input_compressed_accounts_with_merkle_context: vec![
+            PackedCompressedAccountWithMerkleContextConfig {
+                compressed_account: CompressedAccountConfig {
+                    address: (compressed_account_config1.address_enabled, ()),
+                    data: (
+                        compressed_account_config1.data_enabled,
+                        CompressedAccountDataConfig {
+                            data: compressed_account_config1.data_capacity,
+                        },
+                    ),
+                },
+                merkle_context: PackedMerkleContextConfig {},
+            },
+            PackedCompressedAccountWithMerkleContextConfig {
+                compressed_account: CompressedAccountConfig {
+                    address: (compressed_account_config2.address_enabled, ()),
+                    data: (
+                        compressed_account_config2.data_enabled,
+                        CompressedAccountDataConfig {
+                            data: compressed_account_config2.data_capacity,
+                        },
+                    ),
+                },
+                merkle_context: PackedMerkleContextConfig {},
+            },
+        ],
+        output_compressed_accounts: vec![
+            OutputCompressedAccountWithPackedContextConfig {
+                compressed_account: CompressedAccountConfig {
+                    address: (compressed_account_config3.address_enabled, ()),
+                    data: (
+                        compressed_account_config3.data_enabled,
+                        CompressedAccountDataConfig {
+                            data: compressed_account_config3.data_capacity,
+                        },
+                    ),
+                },
+            },
+            OutputCompressedAccountWithPackedContextConfig {
+                compressed_account: CompressedAccountConfig {
+                    address: (compressed_account_config4.address_enabled, ()),
+                    data: (
+                        compressed_account_config4.data_enabled,
+                        CompressedAccountDataConfig {
+                            data: compressed_account_config4.data_capacity,
+                        },
+                    ),
+                },
+            },
+        ],
+        relay_fee: true, // Enable relay fee
+        new_address_params: vec![
+            NewAddressParamsPackedConfig {},
+            NewAddressParamsPackedConfig {},
+        ], // Length 2
+        compress_or_decompress_lamports: true, // Enable decompress lamports
     };
-    
+
     let result = InstructionDataInvoke::new_zero_copy(&mut bytes, config);
     if let Err(ref e) = result {
         eprintln!("Error: {:?}", e);
@@ -879,29 +928,29 @@ fn test_instruction_data_invoke_new_at() {
     assert!(result.is_ok());
     let (mut instruction_data, _remaining) = result.unwrap();
 
-    // Test deserialization round-trip first 
+    // Test deserialization round-trip first
     let (mut deserialized, _) = InstructionDataInvoke::zero_copy_at_mut(&mut bytes).unwrap();
-    
+
     // Now set values and test again
     deserialized.is_compress = 1;
-    
+
     // Set proof values
     if let Some(proof) = &mut deserialized.proof {
         proof.a[0] = 42;
         proof.b[0] = 43;
         proof.c[0] = 44;
     }
-    
+
     // Set relay fee value
     if let Some(relay_fee) = &mut deserialized.relay_fee {
         **relay_fee = 12345u64.into();
     }
-    
+
     // Set decompress lamports value
     if let Some(decompress_lamports) = &mut deserialized.compress_or_decompress_lamports {
         **decompress_lamports = 67890u64.into();
     }
-    
+
     // Set first input account values
     let first_input = &mut deserialized.input_compressed_accounts_with_merkle_context[0];
     first_input.compressed_account.__meta.owner[0] = 11;
@@ -914,7 +963,7 @@ fn test_instruction_data_invoke_new_at() {
         data.data[0] = 99;
         data.data_hash[0] = 55;
     }
-    
+
     // Set first output account values
     let first_output = &mut deserialized.output_compressed_accounts[0];
     first_output.compressed_account.__meta.owner[0] = 77;
@@ -924,14 +973,19 @@ fn test_instruction_data_invoke_new_at() {
     }
 
     // Verify basic structure with vectors of length 2
-    assert_eq!(deserialized.input_compressed_accounts_with_merkle_context.len(), 2); // Length 2
+    assert_eq!(
+        deserialized
+            .input_compressed_accounts_with_merkle_context
+            .len(),
+        2
+    ); // Length 2
     assert_eq!(deserialized.output_compressed_accounts.len(), 2); // Length 2
     assert_eq!(deserialized.new_address_params.len(), 2); // Length 2
     assert!(deserialized.proof.is_some()); // Enabled
     assert!(deserialized.relay_fee.is_some()); // Enabled
     assert!(deserialized.compress_or_decompress_lamports.is_some()); // Enabled
     assert_eq!(deserialized.is_compress, 1);
-    
+
     // Test data access and modification
     if let Some(proof) = &deserialized.proof {
         // Verify we can access proof fields and our written values
@@ -939,20 +993,23 @@ fn test_instruction_data_invoke_new_at() {
         assert_eq!(proof.b[0], 43);
         assert_eq!(proof.c[0], 44);
     }
-    
+
     // Verify option integer values
     if let Some(relay_fee) = &deserialized.relay_fee {
         assert_eq!(u64::from(**relay_fee), 12345);
     }
-    
+
     if let Some(decompress_lamports) = &deserialized.compress_or_decompress_lamports {
         assert_eq!(u64::from(**decompress_lamports), 67890);
     }
-    
+
     // Test accessing first input account (config1: address=true, data=true, capacity=10)
     let first_input = &deserialized.input_compressed_accounts_with_merkle_context[0];
     assert_eq!(first_input.compressed_account.__meta.owner[0], 11); // Our written value
-    assert_eq!(u64::from(first_input.compressed_account.__meta.lamports), 1000); // Our written value
+    assert_eq!(
+        u64::from(first_input.compressed_account.__meta.lamports),
+        1000
+    ); // Our written value
     assert!(first_input.compressed_account.address.is_some()); // Should be enabled
     assert!(first_input.compressed_account.data.is_some()); // Should be enabled
     if let Some(address) = &first_input.compressed_account.address {
@@ -964,7 +1021,7 @@ fn test_instruction_data_invoke_new_at() {
         assert_eq!(data.data[0], 99); // Our written value
         assert_eq!(data.data_hash[0], 55); // Our written value
     }
-    
+
     // Test accessing second input account (config2: address=false, data=true, capacity=5)
     let second_input = &deserialized.input_compressed_accounts_with_merkle_context[1];
     assert_eq!(second_input.compressed_account.__meta.owner[0], 0); // Should be zero (not written)
@@ -973,17 +1030,20 @@ fn test_instruction_data_invoke_new_at() {
     if let Some(data) = &second_input.compressed_account.data {
         assert_eq!(data.data.len(), 5); // Should have capacity 5
     }
-    
+
     // Test accessing first output account (config3: address=true, data=false, capacity=0)
     let first_output = &deserialized.output_compressed_accounts[0];
     assert_eq!(first_output.compressed_account.__meta.owner[0], 77); // Our written value
-    assert_eq!(u64::from(first_output.compressed_account.__meta.lamports), 2000); // Our written value
+    assert_eq!(
+        u64::from(first_output.compressed_account.__meta.lamports),
+        2000
+    ); // Our written value
     assert!(first_output.compressed_account.address.is_some()); // Should be enabled
     assert!(first_output.compressed_account.data.is_none()); // Should be disabled
     if let Some(address) = &first_output.compressed_account.address {
         assert_eq!(address[0], 88); // Our written value
     }
-    
+
     // Test accessing second output account (config4: address=false, data=false, capacity=0)
     let second_output = &deserialized.output_compressed_accounts[1];
     assert_eq!(second_output.compressed_account.__meta.owner[0], 0); // Should be zero (not written)
@@ -1026,7 +1086,6 @@ fn readme() {
     }
 
     // Test the new ZeroCopyConfig functionality
-    use light_zero_copy_derive::ZeroCopyConfig;
 
     #[repr(C)]
     #[derive(

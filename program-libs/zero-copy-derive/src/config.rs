@@ -138,11 +138,12 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
             }
         }
 
-        FieldType::VecNonCopy(field_name, _) => {
+        FieldType::VecNonCopy(field_name, vec_type) => {
             quote! {
-                let (#field_name, bytes) = Vec::with_capacity(config.#field_name.len());
-                // TODO: Initialize each element with its config
-                // This requires more complex logic for per-element initialization
+                let (#field_name, bytes) = <#vec_type as light_zero_copy::init_mut::ZeroCopyInitMut<'a>>::new_zero_copy(
+                    bytes,
+                    config.#field_name
+                )?;
             }
         }
 
