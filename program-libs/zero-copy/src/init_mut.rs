@@ -27,47 +27,71 @@ where
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError>;
 }
 
-// Note: Generic implementations for Vec<T> and Option<T> are complex due to trait bounds
-// These will be handled by the derive macro for specific types that implement DeserializeMut
+// Generic implementation for Option<T>
+impl<'a, T> ZeroCopyInitMut<'a> for Option<T>
+where
+    T: ZeroCopyInitMut<'a>,
+{
+    type Config = (bool, T::Config); // (enabled, inner_config)
+    type Output = Option<T::Output>;
+    
+    fn new_zero_copy(
+        bytes: &'a mut [u8], 
+        config: Self::Config
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        let (enabled, inner_config) = config;
+        
+        if enabled {
+            bytes[0] = 1; // Some discriminant
+            let (_, bytes) = bytes.split_at_mut(1);
+            let (value, bytes) = T::new_zero_copy(bytes, inner_config)?;
+            Ok((Some(value), bytes))
+        } else {
+            bytes[0] = 0; // None discriminant
+            let (_, bytes) = bytes.split_at_mut(1);
+            Ok((None, bytes))
+        }
+    }
+}
 
 
 // Implementation for primitive types (no configuration needed)
 impl<'a> ZeroCopyInitMut<'a> for u64 {
     type Config = ();
-    type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U64>;
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Use the DeserializeMut trait to create the proper output
-        Self::zero_copy_at_mut(bytes)
+        // Return U64 little-endian type to match generated structs
+        Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U64>::from_prefix(bytes)?)
     }
 }
 
 impl<'a> ZeroCopyInitMut<'a> for u32 {
     type Config = ();
-    type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U32>;
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Use the DeserializeMut trait to create the proper output
-        Self::zero_copy_at_mut(bytes)
+        // Return U32 little-endian type to match generated structs
+        Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U32>::from_prefix(bytes)?)
     }
 }
 
 impl<'a> ZeroCopyInitMut<'a> for u16 {
     type Config = ();
-    type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U16>;
     
     fn new_zero_copy(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Use the DeserializeMut trait to create the proper output
-        Self::zero_copy_at_mut(bytes)
+        // Return U16 little-endian type to match generated structs
+        Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U16>::from_prefix(bytes)?)
     }
 }
 
@@ -84,7 +108,18 @@ impl<'a> ZeroCopyInitMut<'a> for u8 {
     }
 }
 
-// Note: bool doesn't implement DeserializeMut, so no ZeroCopyInitMut implementation
+impl<'a> ZeroCopyInitMut<'a> for bool {
+    type Config = ();
+    type Output = <u8 as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    
+    fn new_zero_copy(
+        bytes: &'a mut [u8], 
+        _config: Self::Config
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        // Treat bool as u8
+        u8::zero_copy_at_mut(bytes)
+    }
+}
 
 // Implementation for fixed-size arrays  
 impl<'a, T: Copy + Default + zerocopy::KnownLayout + zerocopy::Immutable + zerocopy::FromBytes, const N: usize> ZeroCopyInitMut<'a> for [T; N] {
@@ -97,5 +132,42 @@ impl<'a, T: Copy + Default + zerocopy::KnownLayout + zerocopy::Immutable + zeroc
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         // Use the DeserializeMut trait to create the proper output
         Self::zero_copy_at_mut(bytes)
+    }
+}
+
+// Implementation for zerocopy little-endian types
+impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U16 {
+    type Config = ();
+    type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U16>;
+    
+    fn new_zero_copy(
+        bytes: &'a mut [u8], 
+        _config: Self::Config
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U16>::from_prefix(bytes)?)
+    }
+}
+
+impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U32 {
+    type Config = ();
+    type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U32>;
+    
+    fn new_zero_copy(
+        bytes: &'a mut [u8], 
+        _config: Self::Config
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U32>::from_prefix(bytes)?)
+    }
+}
+
+impl<'a> ZeroCopyInitMut<'a> for zerocopy::little_endian::U64 {
+    type Config = ();
+    type Output = zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U64>;
+    
+    fn new_zero_copy(
+        bytes: &'a mut [u8], 
+        _config: Self::Config
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(zerocopy::Ref::<&mut [u8], zerocopy::little_endian::U64>::from_prefix(bytes)?)
     }
 }
