@@ -58,7 +58,7 @@ pub fn generate_meta_field_comparisons<'a>(
 }
 
 /// Generates struct field comparisons for PartialEq implementation
-pub fn generate_struct_field_comparisons<'a>(
+pub fn generate_struct_field_comparisons<'a, const MUT: bool>(
     struct_fields: &'a [&'a Field],
 ) -> impl Iterator<Item = TokenStream> + 'a {
     let field_types = analyze_struct_fields(struct_fields);
@@ -165,16 +165,32 @@ pub fn generate_struct_field_comparisons<'a>(
                 }
             }
             FieldType::IntegerU8(field_name) => {
-                quote! {
-                    if self.#field_name != other.#field_name {
-                        return false;
+                if MUT {
+                    quote! {
+                        if *self.#field_name != other.#field_name {
+                            return false;
+                        }
+                    }
+                } else {
+                    quote! {
+                        if self.#field_name != other.#field_name {
+                            return false;
+                        }
                     }
                 }
             }
             FieldType::Bool(field_name) => {
-                quote! {
-                    if self.#field_name() != other.#field_name {
-                        return false;
+                if MUT {
+                    quote! {
+                        if (*self.#field_name > 0) != other.#field_name {
+                            return false;
+                        }
+                    }
+                } else {
+                    quote! {
+                        if (self.#field_name > 0) != other.#field_name {
+                            return false;
+                        }
                     }
                 }
             }
@@ -201,14 +217,14 @@ pub fn generate_struct_field_comparisons<'a>(
 }
 
 /// Generates the PartialEq implementation as a TokenStream
-pub fn generate_partial_eq_impl(
+pub fn generate_partial_eq_impl<const MUT: bool>(
     name: &Ident,
     z_struct_name: &Ident,
     z_struct_meta_name: &Ident,
     meta_fields: &[&Field],
     struct_fields: &[&Field],
 ) -> TokenStream {
-    let struct_field_comparisons = generate_struct_field_comparisons(struct_fields);
+    let struct_field_comparisons = generate_struct_field_comparisons::<MUT>(struct_fields);
     if !meta_fields.is_empty() {
         let meta_field_comparisons = generate_meta_field_comparisons(meta_fields);
         quote! {

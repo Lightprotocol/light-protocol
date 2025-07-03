@@ -183,19 +183,13 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
         
         FieldType::IntegerU8(field_name) => {
             quote! {
-                let (#field_name, bytes) = <u8 as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-                    bytes,
-                    ()
-                )?;
+                let (#field_name, bytes) = light_zero_copy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
             }
         }
         
         FieldType::Bool(field_name) => {
             quote! {
-                let (#field_name, bytes) = <bool as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
-                    bytes,
-                    ()
-                )?;
+                let (#field_name, bytes) = light_zero_copy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
             }
         }
         

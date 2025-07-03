@@ -110,7 +110,11 @@ pub fn generate_from_impl<const MUT: bool>(
                     quote! { #field_name: *value.#field_name, }
                 }
                 FieldType::Bool(field_name) => {
-                    quote! { #field_name: value.#field_name(), }
+                    if MUT {
+                        quote! { #field_name: *value.#field_name > 0, }
+                    } else {
+                        quote! { #field_name: value.#field_name > 0, }
+                    }
                 }
                 FieldType::CopyU8Bool(field_name) => {
                     quote! { #field_name: value.#field_name > 0, }
@@ -125,10 +129,14 @@ pub fn generate_from_impl<const MUT: bool>(
                     quote! { #field_name: u16::from(*value.#field_name), }
                 }
                 FieldType::IntegerU8(field_name) => {
-                    quote! { #field_name: value.#field_name, }
+                    if MUT {
+                        quote! { #field_name: *value.#field_name, }
+                    } else {
+                        quote! { #field_name: value.#field_name, }
+                    }
                 }
                 FieldType::Copy(field_name, _) => {
-                    quote! { #field_name: *value.#field_name, }
+                    quote! { #field_name: value.#field_name, }
                 }
                 FieldType::OptionU64(field_name) => {
                     quote! { #field_name: value.#field_name.as_ref().map(|x| u64::from(**x)), }

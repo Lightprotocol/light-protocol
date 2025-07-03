@@ -43,7 +43,7 @@ fn populate_invoke_cpi_zero_copy(
     src: &InstructionDataInvokeCpi,
     dst: &mut ZInstructionDataInvokeCpiMut,
 ) {
-    dst.is_compress = src.is_compress as u8;
+    *dst.is_compress = if src.is_compress { 1 } else { 0 };
     
     // Copy proof if present
     if let (Some(src_proof), Some(dst_proof)) = (&src.proof, &mut dst.proof) {
@@ -86,10 +86,10 @@ fn populate_invoke_cpi_zero_copy(
         dst_input.merkle_context.merkle_tree_pubkey_index = src_input.merkle_context.merkle_tree_pubkey_index;
         dst_input.merkle_context.nullifier_queue_pubkey_index = src_input.merkle_context.nullifier_queue_pubkey_index;
         dst_input.merkle_context.leaf_index = src_input.merkle_context.leaf_index.into();
-        dst_input.merkle_context.prove_by_index = src_input.merkle_context.prove_by_index as u8;
+        dst_input.merkle_context.prove_by_index = if src_input.merkle_context.prove_by_index { 1 } else { 0 };
         
         *dst_input.root_index = src_input.root_index.into();
-        dst_input.read_only = src_input.read_only as u8;
+        *dst_input.read_only = if src_input.read_only { 1 } else { 0 };
     }
     
     // Copy output_compressed_accounts
@@ -113,7 +113,7 @@ fn populate_invoke_cpi_zero_copy(
             }
         }
         
-        dst_output.merkle_tree_index = src_output.merkle_tree_index;
+        *dst_output.merkle_tree_index = src_output.merkle_tree_index;
     }
     
     // Copy relay_fee if present
@@ -128,8 +128,8 @@ fn populate_invoke_cpi_zero_copy(
     
     // Copy cpi_context if present
     if let (Some(src_ctx), Some(dst_ctx)) = (&src.cpi_context, &mut dst.cpi_context) {
-        dst_ctx.set_context = src_ctx.set_context as u8;
-        dst_ctx.first_set_context = src_ctx.first_set_context as u8;
+        dst_ctx.set_context = if src_ctx.set_context { 1 } else { 0 };
+        dst_ctx.first_set_context = if src_ctx.first_set_context { 1 } else { 0 };
         dst_ctx.cpi_context_account_index = src_ctx.cpi_context_account_index;
     }
 }
@@ -139,7 +139,7 @@ fn populate_invoke_zero_copy(
     src: &InstructionDataInvoke,
     dst: &mut ZInstructionDataInvokeMut,
 ) {
-    dst.is_compress = src.is_compress as u8;
+    *dst.is_compress = if src.is_compress { 1 } else { 0 };
     
     // Copy proof if present
     if let (Some(src_proof), Some(dst_proof)) = (&src.proof, &mut dst.proof) {
@@ -182,10 +182,10 @@ fn populate_invoke_zero_copy(
         dst_input.merkle_context.merkle_tree_pubkey_index = src_input.merkle_context.merkle_tree_pubkey_index;
         dst_input.merkle_context.nullifier_queue_pubkey_index = src_input.merkle_context.nullifier_queue_pubkey_index;
         dst_input.merkle_context.leaf_index = src_input.merkle_context.leaf_index.into();
-        dst_input.merkle_context.prove_by_index = src_input.merkle_context.prove_by_index as u8;
+        dst_input.merkle_context.prove_by_index = if src_input.merkle_context.prove_by_index { 1 } else { 0 };
         
         *dst_input.root_index = src_input.root_index.into();
-        dst_input.read_only = src_input.read_only as u8;
+        *dst_input.read_only = if src_input.read_only { 1 } else { 0 };
     }
     
     // Copy output_compressed_accounts
@@ -209,7 +209,7 @@ fn populate_invoke_zero_copy(
             }
         }
         
-        dst_output.merkle_tree_index = src_output.merkle_tree_index;
+        *dst_output.merkle_tree_index = src_output.merkle_tree_index;
     }
     
     // Copy relay_fee if present

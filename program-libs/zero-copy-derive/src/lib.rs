@@ -173,7 +173,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
     // Generate the PartialEq implementation.
-    let partial_eq_impl = partial_eq_impl::generate_partial_eq_impl(
+    let partial_eq_impl = partial_eq_impl::generate_partial_eq_impl::<false>(
         name,
         &z_struct_name,
         &z_struct_meta_name,
@@ -295,11 +295,11 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
 }
 
 // ByteLen derivation macro has been merged into ZeroCopyInitMut trait
-// 
+//
 // The ByteLen functionality is now available as a static method on ZeroCopyInitMut:
 // ```rust
 // use light_zero_copy::init_mut::ZeroCopyInitMut;
-// 
+//
 // // Calculate buffer size needed for configuration
 // let config = MyStructConfig { /* ... */ };
 // let buffer_size = MyStruct::byte_len(&config);
@@ -366,14 +366,18 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
     // Process ALL fields uniformly by type (no position dependency for config generation)
-    let all_fields: Vec<&syn::Field> = meta_fields.iter().chain(struct_fields.iter()).cloned().collect();
+    let all_fields: Vec<&syn::Field> = meta_fields
+        .iter()
+        .chain(struct_fields.iter())
+        .cloned()
+        .collect();
     let all_field_types = z_struct::analyze_struct_fields(&all_fields);
 
     // Generate configuration struct based on all fields that need config (type-based)
-    let config_struct = config::generate_config_struct(&name, &all_field_types);
+    let config_struct = config::generate_config_struct(name, &all_field_types);
 
     // Generate ZeroCopyInitMut implementation using the existing field separation
-    let init_mut_impl = generate_init_mut_impl(&name, &meta_fields, &struct_fields);
+    let init_mut_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields);
 
     let expanded = quote! {
         #config_struct
@@ -415,7 +419,7 @@ fn generate_init_mut_impl(
 
     // Check if there are meta fields to determine whether to include __meta
     let has_meta_fields = !_meta_fields.is_empty();
-    
+
     let meta_initialization = if has_meta_fields {
         quote! {
             // Handle the meta struct (fixed-size fields at the beginning)
@@ -471,7 +475,7 @@ fn generate_init_mut_impl(
                 config: Self::Config,
             ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
                 use zerocopy::Ref;
-                
+
                 #meta_initialization
 
                 #(#field_initializations)*
@@ -484,7 +488,6 @@ fn generate_init_mut_impl(
         }
     }
 }
-
 
 // #[cfg(test)]
 // mod tests {

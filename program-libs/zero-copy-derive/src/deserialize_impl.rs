@@ -67,9 +67,15 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
                     let (#field_name, bytes) = <Pubkey #trait_path(bytes)?;
                 }
             },
-            FieldType::Bool(field_name) | FieldType::CopyU8Bool(field_name) => {
-                quote! {
-                    let (#field_name, bytes) = <u8 #trait_path(bytes)?;
+            FieldType::Bool(field_name) |FieldType::CopyU8Bool(field_name) => {
+                if MUT {
+                    quote! {
+                        let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, u8>::from_prefix(bytes)?;
+                    }
+                } else {
+                    quote! {
+                        let (#field_name, bytes) = <u8 #trait_path(bytes)?;
+                    }
                 }
             },
             FieldType::IntegerU64(field_name) => {
@@ -91,8 +97,14 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
                 }
             },
             FieldType::IntegerU8(field_name) => {
-                quote! {
-                    let (#field_name, bytes) = <u8 #trait_path(bytes)?;
+                if MUT {
+                    quote! {
+                        let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, u8>::from_prefix(bytes)?;
+                    }
+                } else {
+                    quote! {
+                        let (#field_name, bytes) = <u8 #trait_path(bytes)?;
+                    }
                 }
             },
             FieldType::Copy(field_name, field_type) => {

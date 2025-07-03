@@ -268,15 +268,29 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     }
                 }
                 FieldType::IntegerU8(field_name) => {
-                    quote! {
-                        #(#attributes)*
-                        pub #field_name: <u8 as #trait_name<'a>>::Output
+                    if MUT {
+                        quote! {
+                            #(#attributes)*
+                            pub #field_name: light_zero_copy::Ref<#mutability, u8>
+                        }
+                    } else {
+                        quote! {
+                            #(#attributes)*
+                            pub #field_name: <u8 as #trait_name<'a>>::Output
+                        }
                     }
                 }
                 FieldType::Bool(field_name) => {
-                    quote! {
-                        #(#attributes)*
-                        pub #field_name: <u8 as #trait_name<'a>>::Output
+                    if MUT {
+                        quote! {
+                            #(#attributes)*
+                            pub #field_name: light_zero_copy::Ref<#mutability, u8>
+                        }
+                    } else {
+                        quote! {
+                            #(#attributes)*
+                            pub #field_name: <u8 as #trait_name<'a>>::Output
+                        }
                     }
                 }
                 FieldType::CopyU8Bool(field_name) => {
@@ -304,7 +318,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
 
 /// Generate accessor methods for boolean fields in struct_fields.
 /// We need accessors because booleans are stored as u8.
-fn generate_bool_accessor_methods<'a>(
+fn generate_bool_accessor_methods<'a, const MUT: bool>(
     struct_fields: &'a [&'a Field],
 ) -> impl Iterator<Item = TokenStream> + 'a {
     struct_fields.iter().filter_map(|field| {
@@ -312,9 +326,15 @@ fn generate_bool_accessor_methods<'a>(
         let field_type = &field.ty;
 
         if utils::is_bool_type(field_type) {
+            let comparison = if MUT {
+                quote! { *self.#field_name > 0 }
+            } else {
+                quote! { self.#field_name > 0 }
+            };
+            
             Some(quote! {
                 pub fn #field_name(&self) -> bool {
-                    self.#field_name > 0
+                    #comparison
                 }
             })
         } else {
@@ -364,10 +384,12 @@ pub fn generate_z_struct<const MUT: bool>(
         quote! {}
     };
 
+    let partial_eq_derive = if MUT { quote!() } else { quote!(, PartialEq) };
+    
     let mut z_struct = if meta_fields.is_empty() {
         quote! {
             // ZStruct
-            #[derive(Debug, PartialEq #derive_clone #derive_hasher)]
+            #[derive(Debug #partial_eq_derive #derive_clone #derive_hasher)]
             pub struct #z_struct_name<'a> {
                 #(#struct_fields_with_zerocopy_types,)*
             }
@@ -375,7 +397,7 @@ pub fn generate_z_struct<const MUT: bool>(
     } else {
         let mut tokens = quote! {
             // ZStruct
-            #[derive(Debug, PartialEq #derive_clone #derive_hasher)]
+            #[derive(Debug #partial_eq_derive #derive_clone #derive_hasher)]
             pub struct #z_struct_name<'a> {
                 #hasher_flatten
                 __meta: light_zero_copy::Ref<#mutability, #z_struct_meta_name>,
@@ -403,7 +425,7 @@ pub fn generate_z_struct<const MUT: bool>(
     };
 
     if !meta_fields.is_empty() {
-        let meta_bool_accessor_methods = generate_bool_accessor_methods(meta_fields);
+        let meta_bool_accessor_methods = generate_bool_accessor_methods::<false>(meta_fields);
         z_struct.append_all(quote! {
             // Implement methods for ZStruct
             impl<'a> #z_struct_name<'a> {
@@ -413,7 +435,7 @@ pub fn generate_z_struct<const MUT: bool>(
     };
 
     if !struct_fields.is_empty() {
-        let bool_accessor_methods = generate_bool_accessor_methods(struct_fields);
+        let bool_accessor_methods = generate_bool_accessor_methods::<MUT>(struct_fields);
         z_struct.append_all(quote! {
             // Implement methods for ZStruct
             impl<'a> #z_struct_name<'a> {
