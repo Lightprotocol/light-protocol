@@ -28,11 +28,11 @@ impl Pubkey {
         // Generate a unique pubkey (for testing purposes)
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         std::time::SystemTime::now().hash(&mut hasher);
         std::thread::current().id().hash(&mut hasher);
-        
+
         let hash = hasher.finish();
         let mut bytes = [0u8; 32];
         bytes[0..8].copy_from_slice(&hash.to_le_bytes());
@@ -40,7 +40,7 @@ impl Pubkey {
         for i in 8..32 {
             bytes[i] = ((hash >> (i % 8)) & 0xFF) as u8;
         }
-        
+
         Pubkey(bytes)
     }
 
@@ -804,16 +804,21 @@ pub struct CompressedAccountData {
 fn test_compressed_account_data_new_at() {
     use light_zero_copy::init_mut::ZeroCopyInitMut;
     let config = CompressedAccountDataConfig { data: 10 };
-    
+
     // Calculate exact buffer size needed and allocate
     let buffer_size = CompressedAccountData::byte_len(&config);
     let mut bytes = vec![0u8; buffer_size];
     let result = CompressedAccountData::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
     let (mut mut_account, remaining) = result.unwrap();
-    
+
     // Verify we used exactly the calculated number of bytes
-    assert_eq!(remaining.len(), 0, "Should have used exactly {} bytes", buffer_size);
+    assert_eq!(
+        remaining.len(),
+        0,
+        "Should have used exactly {} bytes",
+        buffer_size
+    );
 
     // Test that we can set discriminator
     mut_account.__meta.discriminator = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -856,16 +861,21 @@ fn test_compressed_account_new_at() {
         address: (true, ()),
         data: (true, CompressedAccountDataConfig { data: 10 }),
     };
-    
+
     // Calculate exact buffer size needed and allocate
     let buffer_size = CompressedAccount::byte_len(&config);
     let mut bytes = vec![0u8; buffer_size];
     let result = CompressedAccount::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
     let (mut mut_account, remaining) = result.unwrap();
-    
+
     // Verify we used exactly the calculated number of bytes
-    assert_eq!(remaining.len(), 0, "Should have used exactly {} bytes", buffer_size);
+    assert_eq!(
+        remaining.len(),
+        0,
+        "Should have used exactly {} bytes",
+        buffer_size
+    );
 
     // Set values
     mut_account.__meta.owner = [1u8; 32];
@@ -979,9 +989,14 @@ fn test_instruction_data_invoke_new_at() {
     }
     assert!(result.is_ok());
     let (mut instruction_data, remaining) = result.unwrap();
-    
+
     // Verify we used exactly the calculated number of bytes
-    assert_eq!(remaining.len(), 0, "Should have used exactly {} bytes", buffer_size);
+    assert_eq!(
+        remaining.len(),
+        0,
+        "Should have used exactly {} bytes",
+        buffer_size
+    );
 
     // Test deserialization round-trip first
     let (mut deserialized, _) = InstructionDataInvoke::zero_copy_at_mut(&mut bytes).unwrap();
@@ -1112,9 +1127,7 @@ fn readme() {
     use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 
     #[repr(C)]
-    #[derive(
-        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut,
-    )]
+    #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]
     pub struct MyStructOption {
         pub a: u8,
         pub b: u16,
@@ -1124,14 +1137,8 @@ fn readme() {
 
     #[repr(C)]
     #[derive(
-        Debug,
-        PartialEq,
-        BorshSerialize,
-        BorshDeserialize,
-        ZeroCopy,
-        ZeroCopyMut,
-        ZeroCopyEq,
-        )]
+        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq,
+    )]
     pub struct MyStruct {
         pub a: u8,
         pub b: u16,
@@ -1142,9 +1149,7 @@ fn readme() {
     // Test the new ZeroCopyConfig functionality
 
     #[repr(C)]
-    #[derive(
-        Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut,
-    )]
+    #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]
     pub struct TestConfigStruct {
         pub a: u8,
         pub b: u16,
@@ -1197,3 +1202,201 @@ pub struct InstructionDataInvokeCpi {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
+impl PartialEq<ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
+    fn eq(&self, other: &ZInstructionDataInvokeCpi) -> bool {
+        // Compare proof
+        match (&self.proof, &other.proof) {
+            (Some(ref self_proof), Some(ref other_proof)) => {
+                if self_proof.a != other_proof.a || 
+                   self_proof.b != other_proof.b || 
+                   self_proof.c != other_proof.c {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        // Compare vectors lengths first
+        if self.new_address_params.len() != other.new_address_params.len() ||
+           self.input_compressed_accounts_with_merkle_context.len() != other.input_compressed_accounts_with_merkle_context.len() ||
+           self.output_compressed_accounts.len() != other.output_compressed_accounts.len() {
+            return false;
+        }
+
+        // Compare new_address_params
+        for (self_param, other_param) in self.new_address_params.iter().zip(other.new_address_params.iter()) {
+            if self_param.seed != other_param.seed ||
+               self_param.address_queue_account_index != other_param.address_queue_account_index ||
+               self_param.address_merkle_tree_account_index != other_param.address_merkle_tree_account_index ||
+               self_param.address_merkle_tree_root_index != u16::from(other_param.address_merkle_tree_root_index) {
+                return false;
+            }
+        }
+
+        // Compare input accounts
+        for (self_input, other_input) in self.input_compressed_accounts_with_merkle_context.iter().zip(other.input_compressed_accounts_with_merkle_context.iter()) {
+            if self_input != other_input {
+                return false;
+            }
+        }
+
+        // Compare output accounts  
+        for (self_output, other_output) in self.output_compressed_accounts.iter().zip(other.output_compressed_accounts.iter()) {
+            if self_output != other_output {
+                return false;
+            }
+        }
+
+        // Compare relay_fee
+        match (&self.relay_fee, &other.relay_fee) {
+            (Some(self_fee), Some(other_fee)) => {
+                if *self_fee != u64::from(**other_fee) {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        // Compare compress_or_decompress_lamports
+        match (&self.compress_or_decompress_lamports, &other.compress_or_decompress_lamports) {
+            (Some(self_lamports), Some(other_lamports)) => {
+                if *self_lamports != u64::from(**other_lamports) {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        // Compare is_compress (bool vs u8)
+        if self.is_compress != (other.is_compress != 0) {
+            return false;
+        }
+
+        // Compare cpi_context
+        match (&self.cpi_context, &other.cpi_context) {
+            (Some(self_ctx), Some(other_ctx)) => {
+                if self_ctx.set_context != (other_ctx.set_context != 0) ||
+                   self_ctx.first_set_context != (other_ctx.first_set_context != 0) ||
+                   self_ctx.cpi_context_account_index != other_ctx.cpi_context_account_index {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        true
+    }
+}
+
+impl PartialEq<InstructionDataInvokeCpi> for ZInstructionDataInvokeCpi<'_> {
+    fn eq(&self, other: &InstructionDataInvokeCpi) -> bool {
+        other.eq(self)
+    }
+}
+
+impl PartialEq<ZPackedCompressedAccountWithMerkleContext<'_>> for PackedCompressedAccountWithMerkleContext {
+    fn eq(&self, other: &ZPackedCompressedAccountWithMerkleContext) -> bool {
+        // Compare compressed_account
+        if self.compressed_account.owner != other.compressed_account.__meta.owner ||
+           self.compressed_account.lamports != u64::from(other.compressed_account.__meta.lamports) {
+            return false;
+        }
+
+        // Compare optional address
+        match (&self.compressed_account.address, &other.compressed_account.address) {
+            (Some(self_addr), Some(other_addr)) => {
+                if *self_addr != **other_addr {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        // Compare optional data
+        match (&self.compressed_account.data, &other.compressed_account.data) {
+            (Some(self_data), Some(other_data)) => {
+                if self_data.discriminator != other_data.__meta.discriminator ||
+                   self_data.data_hash != *other_data.data_hash ||
+                   self_data.data.len() != other_data.data.len() {
+                    return false;
+                }
+                // Compare data contents
+                for (self_byte, other_byte) in self_data.data.iter().zip(other_data.data.iter()) {
+                    if *self_byte != *other_byte {
+                        return false;
+                    }
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        // Compare merkle_context
+        if self.merkle_context.merkle_tree_pubkey_index != other.merkle_context.__meta.merkle_tree_pubkey_index ||
+           self.merkle_context.nullifier_queue_pubkey_index != other.merkle_context.__meta.nullifier_queue_pubkey_index ||
+           self.merkle_context.leaf_index != u32::from(other.merkle_context.__meta.leaf_index) ||
+           self.merkle_context.prove_by_index != other.merkle_context.prove_by_index() {
+            return false;
+        }
+
+        // Compare root_index and read_only
+        if self.root_index != u16::from(*other.root_index) ||
+           self.read_only != (other.read_only != 0) {
+            return false;
+        }
+
+        true
+    }
+}
+
+impl PartialEq<ZOutputCompressedAccountWithPackedContext<'_>> for OutputCompressedAccountWithPackedContext {
+    fn eq(&self, other: &ZOutputCompressedAccountWithPackedContext) -> bool {
+        // Compare compressed_account
+        if self.compressed_account.owner != other.compressed_account.__meta.owner ||
+           self.compressed_account.lamports != u64::from(other.compressed_account.__meta.lamports) {
+            return false;
+        }
+
+        // Compare optional address
+        match (&self.compressed_account.address, &other.compressed_account.address) {
+            (Some(self_addr), Some(other_addr)) => {
+                if *self_addr != **other_addr {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        // Compare optional data
+        match (&self.compressed_account.data, &other.compressed_account.data) {
+            (Some(self_data), Some(other_data)) => {
+                if self_data.discriminator != other_data.__meta.discriminator ||
+                   self_data.data_hash != *other_data.data_hash ||
+                   self_data.data.len() != other_data.data.len() {
+                    return false;
+                }
+                // Compare data contents
+                for (self_byte, other_byte) in self_data.data.iter().zip(other_data.data.iter()) {
+                    if *self_byte != *other_byte {
+                        return false;
+                    }
+                }
+            }
+            (None, None) => {}
+            _ => return false,
+        }
+
+        // Compare merkle_tree_index
+        if self.merkle_tree_index != other.merkle_tree_index {
+            return false;
+        }
+
+        true
+    }
+}
