@@ -455,6 +455,7 @@ impl PartialEq<ZCompressedAccount<'_>> for CompressedAccount {
         self.owner == other.owner && self.lamports == other.lamports.into()
     }
 }
+
 #[derive(
     ZeroCopy,
     ZeroCopyMut,
@@ -486,7 +487,6 @@ fn readme() {
         BorshDeserialize,
         ZeroCopy,
         ZeroCopyMut,
-        ZeroCopyEq,
         ByteLen,
     )]
     pub struct MyStructOption {
@@ -496,10 +496,6 @@ fn readme() {
         pub c: Option<u64>,
     }
 
-    pub struct MyStructConfig {
-        vec_len: Vec<bool>,
-        c_is_some: bool,
-    }
 
     #[repr(C)]
     #[derive(
@@ -530,7 +526,6 @@ fn readme() {
         BorshDeserialize,
         ZeroCopy,
         ZeroCopyMut,
-        ZeroCopyEq,
         ByteLen,
     )]
     pub struct TestConfigStruct {
@@ -540,9 +535,6 @@ fn readme() {
         pub option: Option<u64>,
     }
 
-    pub struct MyStructConfig {
-        vec_len: u32,
-    }
 
     let my_struct = MyStruct {
         a: 1,

@@ -382,12 +382,12 @@ pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
     let config_struct = config::generate_config_struct(&name, &field_types);
 
     // Generate ZeroCopyInitMut implementation
-    let init_mut_impl = generate_init_mut_impl(&name, &field_types);
+    // let init_mut_impl = generate_init_mut_impl(&name, &field_types);
 
     let expanded = quote! {
         #config_struct
 
-        #init_mut_impl
+        // #init_mut_impl
     };
 
     TokenStream::from(expanded)

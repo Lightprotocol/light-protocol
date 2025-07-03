@@ -7,7 +7,7 @@ use crate::errors::ZeroCopyError;
 /// 
 /// This trait provides a way to initialize structures in pre-allocated byte buffers
 /// with specific configuration parameters that determine Vec lengths, Option states, etc.
-pub trait ZeroCopyInitMut<'a>
+pub trait ZeroCopyInitMut
 where
     Self: Sized,
 {
@@ -17,17 +17,17 @@ where
     /// Initialize this type in a mutable byte slice with the given configuration
     /// 
     /// Returns the initialized instance and remaining bytes
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError>;
 }
 
 // Implementation for Vec<T> where T implements ZeroCopyInitMut
-impl<'a, T: ZeroCopyInitMut<'a>> ZeroCopyInitMut<'a> for Vec<T> {
+impl<T: ZeroCopyInitMut> ZeroCopyInitMut for Vec<T> {
     type Config = Vec<T::Config>;
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
@@ -55,10 +55,10 @@ impl<'a, T: ZeroCopyInitMut<'a>> ZeroCopyInitMut<'a> for Vec<T> {
 
 
 // Implementation for Option<T> where T implements ZeroCopyInitMut
-impl<'a, T: ZeroCopyInitMut<'a>> ZeroCopyInitMut<'a> for Option<T> {
+impl<T: ZeroCopyInitMut> ZeroCopyInitMut for Option<T> {
     type Config = Option<T::Config>;
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
@@ -84,10 +84,10 @@ impl<'a, T: ZeroCopyInitMut<'a>> ZeroCopyInitMut<'a> for Option<T> {
 
 
 // Implementation for primitive types (no configuration needed)
-impl<'a> ZeroCopyInitMut<'a> for u64 {
+impl ZeroCopyInitMut for u64 {
     type Config = ();
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
@@ -101,10 +101,10 @@ impl<'a> ZeroCopyInitMut<'a> for u64 {
     }
 }
 
-impl<'a> ZeroCopyInitMut<'a> for u32 {
+impl ZeroCopyInitMut for u32 {
     type Config = ();
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
@@ -118,10 +118,10 @@ impl<'a> ZeroCopyInitMut<'a> for u32 {
     }
 }
 
-impl<'a> ZeroCopyInitMut<'a> for u16 {
+impl ZeroCopyInitMut for u16 {
     type Config = ();
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
@@ -135,10 +135,10 @@ impl<'a> ZeroCopyInitMut<'a> for u16 {
     }
 }
 
-impl<'a> ZeroCopyInitMut<'a> for u8 {
+impl ZeroCopyInitMut for u8 {
     type Config = ();
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
@@ -152,10 +152,10 @@ impl<'a> ZeroCopyInitMut<'a> for u8 {
     }
 }
 
-impl<'a> ZeroCopyInitMut<'a> for bool {
+impl ZeroCopyInitMut for bool {
     type Config = ();
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
@@ -170,10 +170,10 @@ impl<'a> ZeroCopyInitMut<'a> for bool {
 }
 
 // Implementation for fixed-size arrays  
-impl<'a, T: Copy + Default, const N: usize> ZeroCopyInitMut<'a> for [T; N] {
+impl<T: Copy + Default, const N: usize> ZeroCopyInitMut for [T; N] {
     type Config = ();
     
-    fn new_zero_copy(
+    fn new_zero_copy<'a>(
         bytes: &'a mut [u8], 
         _config: Self::Config
     ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
