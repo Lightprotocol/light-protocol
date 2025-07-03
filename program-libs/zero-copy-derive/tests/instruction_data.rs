@@ -3,7 +3,7 @@ use std::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, errors::ZeroCopyError};
-use light_zero_copy_derive::{ByteLen, ZeroCopy, ZeroCopyEq, ZeroCopyMut};
+use light_zero_copy_derive::{ByteLen, ZeroCopy, ZeroCopyConfig, ZeroCopyEq, ZeroCopyMut};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 #[derive(
@@ -580,7 +580,7 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedAccount {
         // Use generic Option implementation for data field
         let (data, bytes) = <Option<CompressedAccountData> as light_zero_copy::init_mut::ZeroCopyInitMut>::new_zero_copy(
             bytes,
-            (config.data_enabled, config.data_capacity)
+            (config.data_enabled, CompressedAccountDataConfig { data: config.data_capacity })
         )?;
 
         Ok((
@@ -696,6 +696,7 @@ impl PartialEq<ZCompressedAccount<'_>> for CompressedAccount {
     ZeroCopyMut,
     ZeroCopyEq,
     ByteLen,
+    ZeroCopyConfig,
     BorshDeserialize,
     BorshSerialize,
     Debug,
@@ -709,42 +710,44 @@ pub struct CompressedAccountData {
     pub data_hash: [u8; 32],
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedAccountData {
-    type Config = u32; // data_capacity
-    type Output = <Self as DeserializeMut<'a>>::Output;
+// COMMENTED OUT: Now using ZeroCopyConfig derive macro instead
+// impl<'a> light_zero_copy::init_mut::ZeroCopyInitMut<'a> for CompressedAccountData {
+//     type Config = u32; // data_capacity
+//     type Output = <Self as DeserializeMut<'a>>::Output;
 
-    fn new_zero_copy(
-        bytes: &'a mut [u8],
-        data_capacity: Self::Config,
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountDataMetaMut>::from_prefix(bytes)?;
-        // For u8 slices we just use &mut [u8] so we init the len and the split mut separately.
-        {
-            light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<u8>::new_at(
-                data_capacity.into(),
-                bytes,
-            )?;
-        }
-        // Split off len for
-        let (_, bytes) = bytes.split_at_mut(4);
-        let (data, bytes) = bytes.split_at_mut(data_capacity as usize);
-        let (data_hash, bytes) = Ref::<&mut [u8], [u8; 32]>::from_prefix(bytes)?;
-        Ok((
-            ZCompressedAccountDataMut {
-                __meta,
-                data,
-                data_hash,
-            },
-            bytes,
-        ))
-    }
-}
+//     fn new_zero_copy(
+//         bytes: &'a mut [u8],
+//         data_capacity: Self::Config,
+//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountDataMetaMut>::from_prefix(bytes)?;
+//         // For u8 slices we just use &mut [u8] so we init the len and the split mut separately.
+//         {
+//             light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<u8>::new_at(
+//                 data_capacity.into(),
+//                 bytes,
+//             )?;
+//         }
+//         // Split off len for
+//         let (_, bytes) = bytes.split_at_mut(4);
+//         let (data, bytes) = bytes.split_at_mut(data_capacity as usize);
+//         let (data_hash, bytes) = Ref::<&mut [u8], [u8; 32]>::from_prefix(bytes)?;
+//         Ok((
+//             ZCompressedAccountDataMut {
+//                 __meta,
+//                 data,
+//                 data_hash,
+//             },
+//             bytes,
+//         ))
+//     }
+// }
 
 #[test]
 fn test_compressed_account_data_new_at() {
     use light_zero_copy::init_mut::ZeroCopyInitMut;
     let mut bytes = vec![0u8; 100];
-    let result = CompressedAccountData::new_zero_copy(&mut bytes, 10);
+    let config = CompressedAccountDataConfig { data: 10 };
+    let result = CompressedAccountData::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
     let (mut mut_account, _remaining) = result.unwrap();
 

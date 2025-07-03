@@ -198,10 +198,27 @@ pub fn generate_field_initialization(field_type: &FieldType) -> TokenStream {
             }
         }
         
+        // Array fields that are struct fields (come after Vec/Option)
+        FieldType::Array(field_name, array_type) => {
+            quote! {
+                let (#field_name, bytes) = light_zero_copy::Ref::<
+                    &'a mut [u8],
+                    #array_type
+                >::from_prefix(bytes)?;
+            }
+        }
+        
+        FieldType::Pubkey(field_name) => {
+            quote! {
+                let (#field_name, bytes) = light_zero_copy::Ref::<
+                    &'a mut [u8],
+                    Pubkey
+                >::from_prefix(bytes)?;
+            }
+        }
+        
         // Types that are truly meta fields (shouldn't reach here for struct fields)
-        FieldType::Array(_, _)
-        | FieldType::Pubkey(_)
-        | FieldType::CopyU8Bool(_)
+        FieldType::CopyU8Bool(_)
         | FieldType::Copy(_, _) => {
             quote! {
                 // Should not reach here for struct fields - these should be meta fields
