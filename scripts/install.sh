@@ -210,7 +210,6 @@ install_photon() {
     if [ "$photon_installed" = false ] || [ "$photon_correct_version" = false ]; then
         echo "Installing Photon indexer (version $expected_version)..."
         # Use git commit for now as specified in constants.ts
-    
         cargo install --git https://github.com/lightprotocol/photon.git --rev c938ee83ad1b34abc389943334627a899da72953 --locked --force
         log "photon"
     else
