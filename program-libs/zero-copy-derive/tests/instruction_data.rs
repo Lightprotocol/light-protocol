@@ -359,6 +359,51 @@ pub struct CompressedAccount {
     pub data: Option<CompressedAccountData>,
 }
 
+impl<'a> CompressedAccount {
+    pub fn new_at(
+        bytes: &'a mut [u8],
+        address_enabled: bool,
+        data_enabled: bool,
+        data_capacity: u32,
+    ) -> std::result::Result<(<Self as DeserializeMut<'a>>::Output, &'a mut [u8]), ZeroCopyError>
+    {
+        let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountMetaMut>::from_prefix(bytes)?;
+        
+        // Handle optional address field - write discriminant first
+        let (address, bytes) = if address_enabled {
+            bytes[0] = 1; // Some discriminant
+            let (_, bytes) = bytes.split_at_mut(1);
+            let (addr, bytes) = Ref::<&mut [u8], [u8; 32]>::from_prefix(bytes)?;
+            (Some(addr), bytes)
+        } else {
+            bytes[0] = 0; // None discriminant
+            let (_, bytes) = bytes.split_at_mut(1);
+            (None, bytes)
+        };
+        
+        // Handle optional data field - write discriminant first
+        let (data, bytes) = if data_enabled {
+            bytes[0] = 1; // Some discriminant
+            let (_, bytes) = bytes.split_at_mut(1);
+            let (data_struct, bytes) = CompressedAccountData::new_at(bytes, data_capacity)?;
+            (Some(data_struct), bytes)
+        } else {
+            bytes[0] = 0; // None discriminant
+            let (_, bytes) = bytes.split_at_mut(1);
+            (None, bytes)
+        };
+        
+        Ok((
+            ZCompressedAccountMut {
+                __meta,
+                address,
+                data,
+            },
+            bytes,
+        ))
+    }
+}
+
 impl<'a> From<ZCompressedAccount<'a>> for CompressedAccount {
     fn from(value: ZCompressedAccount<'a>) -> Self {
         Self {
@@ -542,6 +587,27 @@ fn test_compressed_account_data_new_at() {
     assert_eq!(deserialized_account.data[1], 43);
     assert_eq!(deserialized_account.data_hash[0], 99);
     assert_eq!(deserialized_account.data_hash[1], 100);
+}
+
+#[test]
+fn test_compressed_account_new_at() {
+    let mut bytes = vec![0u8; 200];
+    let result = CompressedAccount::new_at(&mut bytes, true, true, 10);
+    assert!(result.is_ok());
+    let (mut mut_account, _remaining) = result.unwrap();
+    
+    // Set values
+    mut_account.__meta.owner = [1u8; 32];
+    mut_account.__meta.lamports = 12345u64.into();
+    mut_account.address.as_mut().unwrap()[0] = 42;
+    mut_account.data.as_mut().unwrap().data[0] = 99;
+    
+    // Test deserialize
+    let (deserialized, _) = CompressedAccount::zero_copy_at_mut(&mut bytes).unwrap();
+    assert_eq!(deserialized.__meta.owner, [1u8; 32]);
+    assert_eq!(u64::from(deserialized.__meta.lamports), 12345u64);
+    assert_eq!(deserialized.address.as_ref().unwrap()[0], 42);
+    assert_eq!(deserialized.data.as_ref().unwrap().data[0], 99);
 }
 
 #[test]
