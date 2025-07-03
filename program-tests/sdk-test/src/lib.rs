@@ -7,6 +7,7 @@ use solana_program::{
 pub mod compress_from_pda;
 pub mod create_pda;
 pub mod decompress_to_pda;
+pub mod sdk;
 pub mod update_decompressed_pda;
 pub mod update_pda;
 
