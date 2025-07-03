@@ -74,7 +74,7 @@ use light_compressed_account::{
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
-use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
+use light_sdk_types::{instruction::account_meta::CompressedAccountMetaTrait, DEFAULT_DATA_HASH};
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -258,6 +258,20 @@ impl<
 
     pub fn out_account_info(&mut self) -> &Option<OutAccountInfo> {
         &self.account_info.output
+    }
+
+    /// Get the byte size of the account type.
+    pub fn size(&self) -> Result<usize, LightSdkError>
+    where
+        A: Size,
+    {
+        Ok(self.account.size())
+    }
+
+    /// Remove the data from this account by setting it to default.
+    /// This is used when decompressing to ensure the compressed account is properly zeroed.
+    pub fn remove_data(&mut self) {
+        self.should_remove_data = true;
     }
 
     /// 1. Serializes the account data and sets the output data hash.
