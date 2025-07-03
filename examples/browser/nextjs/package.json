@@ -18,7 +18,7 @@
         "@solana/wallet-adapter-react": "^0.15.39",
         "@solana/wallet-adapter-react-ui": "^0.9.39",
         "@solana/wallet-adapter-unsafe-burner": "^0.1.10",
-        "@solana/web3.js": "1.98.0",
+        "@solana/web3.js": "1.98.2",
         "bs58": "^6.0.0",
         "next": "15.1.6",
         "react": "^19.1.0",
