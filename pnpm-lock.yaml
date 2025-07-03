@@ -119,7 +119,7 @@ importers:
         version: 5.2.0
       '@types/chai':
         specifier: ^4.3.16
-        version: 4.3.16
+        version: 4.3.20
       '@types/cli-progress':
         specifier: ^3.11.5
         version: 3.11.5
@@ -535,8 +535,8 @@ importers:
         specifier: ^5.2.0
         version: 5.2.0
       '@types/chai':
-        specifier: ^5.0.1
-        version: 5.0.1
+        specifier: ^5.2.2
+        version: 5.2.2
       '@types/mocha':
         specifier: ^10.0.7
         version: 10.0.7
@@ -3033,11 +3033,11 @@ packages:
   '@types/bn.js@5.2.0':
     resolution: {integrity: sha512-DLbJ1BPqxvQhIGbeu8VbUC1DiAiahHtAYvA0ZEAa4P31F7IaArc8z3C3BRQdWX4mtLQuABG4yzp76ZrS02Ui1Q==}
 
-  '@types/chai@4.3.16':
-    resolution: {integrity: sha512-PatH4iOdyh3MyWtmHVFXLWCCIhUbopaltqddG9BzB+gMIzee2MJrvd+jouii9Z3wzQJruGWAm7WOMjgfG8hQlQ==}
+  '@types/chai@4.3.20':
+    resolution: {integrity: sha512-/pC9HAB5I/xMlc5FP77qjCnI16ChlJfW0tGa0IUcFn38VJrTV6DeZ60NU5KZBtaOZqjdpwTWohz5HU1RrhiYxQ==}
 
-  '@types/chai@5.0.1':
-    resolution: {integrity: sha512-5T8ajsg3M/FOncpLYW7sdOcD6yf4+722sze/tc4KQV0P8Z2rAr3SAuHCIkYmYpt8VbcQlnz8SxlOlPQYefe4cA==}
+  '@types/chai@5.2.2':
+    resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
 
   '@types/cli-progress@3.11.5':
     resolution: {integrity: sha512-D4PbNRbviKyppS5ivBGyFO29POlySLmA2HyUFE4p5QGazAMM3CwkKWcvTl8gvElSuxRh6FPKL8XmidX873ou4g==}
@@ -12082,9 +12082,9 @@ snapshots:
     dependencies:
       '@types/node': 20.17.57
 
-  '@types/chai@4.3.16': {}
+  '@types/chai@4.3.20': {}
 
-  '@types/chai@5.0.1':
+  '@types/chai@5.2.2':
     dependencies:
       '@types/deep-eql': 4.0.2
 
@@ -14781,7 +14781,7 @@ snapshots:
 
   fancy-test@2.0.42:
     dependencies:
-      '@types/chai': 5.0.1
+      '@types/chai': 4.3.20
       '@types/lodash': 4.14.199
       '@types/node': 22.15.31
       '@types/sinon': 10.0.16
