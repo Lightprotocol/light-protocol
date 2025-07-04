@@ -1,8 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::{DataHasher, Hasher};
+use light_hasher::DataHasher;
 use light_sdk::{
     account::LightAccount,
-    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs, CpiSigner},
+    cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightDiscriminator,
@@ -16,6 +16,7 @@ use solana_program::{
 pub trait PdaTimingData {
     fn last_touched_slot(&self) -> u64;
     fn slots_buffer(&self) -> u64;
+    fn set_last_written_slot(&mut self, slot: u64);
 }
 
 const DECOMP_SEED: &[u8] = b"decomp";
@@ -81,7 +82,7 @@ pub fn check_pda(
 pub fn compress_pda<A>(
     pda_account: &AccountInfo,
     compressed_account_meta: &CompressedAccountMeta,
-    proof: Option<ValidityProof>,
+    proof: ValidityProof,
     cpi_accounts: CpiAccounts,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo,
@@ -130,10 +131,7 @@ where
     compressed_account.account = pda_account_data;
 
     // Create CPI inputs
-    let cpi_inputs = CpiInputs::new(
-        proof.unwrap_or_default(),
-        vec![compressed_account.to_account_info()?],
-    );
+    let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
 
     // Invoke light system program to create the compressed account
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
