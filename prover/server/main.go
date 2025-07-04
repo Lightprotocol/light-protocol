@@ -970,6 +970,22 @@ func startCleanupRoutines(redisQueue *server.RedisQueue) {
 		logging.Logger().Info().Msg("Startup cleanup of old proof requests completed")
 	}
 
+	if err := redisQueue.CleanupStuckProcessingJobs(); err != nil {
+		logging.Logger().Error().
+			Err(err).
+			Msg("Failed to cleanup stuck processing jobs on startup")
+	} else {
+		logging.Logger().Info().Msg("Startup cleanup of stuck processing jobs completed")
+	}
+
+	if err := redisQueue.CleanupOldFailedJobs(); err != nil {
+		logging.Logger().Error().
+			Err(err).
+			Msg("Failed to cleanup old failed jobs on startup")
+	} else {
+		logging.Logger().Info().Msg("Startup cleanup of old failed jobs completed")
+	}
+
 	if err := redisQueue.CleanupOldResults(); err != nil {
 		logging.Logger().Error().
 			Err(err).
@@ -977,6 +993,31 @@ func startCleanupRoutines(redisQueue *server.RedisQueue) {
 	} else {
 		logging.Logger().Info().Msg("Startup cleanup of old results completed")
 	}
+
+	if err := redisQueue.CleanupOldResultKeys(); err != nil {
+		logging.Logger().Error().
+			Err(err).
+			Msg("Failed to cleanup old result keys on startup")
+	} else {
+		logging.Logger().Info().Msg("Startup cleanup of old result keys completed")
+	}
+
+	go func() {
+		processingTicker := time.NewTicker(10 * time.Second)
+		defer processingTicker.Stop()
+
+		logging.Logger().Info().Msg("Started stuck processing jobs cleanup routine (every 10 seconds)")
+
+		for range processingTicker.C {
+			if err := redisQueue.CleanupStuckProcessingJobs(); err != nil {
+				logging.Logger().Error().
+					Err(err).
+					Msg("Failed to cleanup stuck processing jobs")
+			} else {
+				logging.Logger().Debug().Msg("Stuck processing jobs cleanup completed")
+			}
+		}
+	}()
 
 	// Start cleanup for old proof requests (every 10 minutes)
 	go func() {
@@ -996,12 +1037,30 @@ func startCleanupRoutines(redisQueue *server.RedisQueue) {
 		}
 	}()
 
-	// Start less frequent cleanup for old results (every 1 hour)
+	// Start cleanup for old failed jobs (every 30 minutes)
 	go func() {
-		resultTicker := time.NewTicker(1 * time.Hour)
+		failedTicker := time.NewTicker(30 * time.Minute)
+		defer failedTicker.Stop()
+
+		logging.Logger().Info().Msg("Started old failed jobs cleanup routine (every 30 minutes)")
+
+		for range failedTicker.C {
+			if err := redisQueue.CleanupOldFailedJobs(); err != nil {
+				logging.Logger().Error().
+					Err(err).
+					Msg("Failed to cleanup old failed jobs")
+			} else {
+				logging.Logger().Debug().Msg("Old failed jobs cleanup completed")
+			}
+		}
+	}()
+
+	// Start cleanup for old results (every 30 minutes)
+	go func() {
+		resultTicker := time.NewTicker(30 * time.Minute)
 		defer resultTicker.Stop()
 
-		logging.Logger().Info().Msg("Started old results cleanup routine (every 1 hour)")
+		logging.Logger().Info().Msg("Started old results cleanup routine (every 30 minutes)")
 
 		for range resultTicker.C {
 			if err := redisQueue.CleanupOldResults(); err != nil {
@@ -1010,6 +1069,14 @@ func startCleanupRoutines(redisQueue *server.RedisQueue) {
 					Msg("Failed to cleanup old results")
 			} else {
 				logging.Logger().Debug().Msg("Old results cleanup completed")
+			}
+
+			if err := redisQueue.CleanupOldResultKeys(); err != nil {
+				logging.Logger().Error().
+					Err(err).
+					Msg("Failed to cleanup old result keys")
+			} else {
+				logging.Logger().Debug().Msg("Old result keys cleanup completed")
 			}
 		}
 	}()

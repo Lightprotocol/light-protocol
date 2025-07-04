@@ -360,6 +360,88 @@ func (handler queueStatsHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(response)
 }
 
+type queueHealthHandler struct {
+	redisQueue *RedisQueue
+}
+
+func (handler queueHealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	health, err := handler.redisQueue.GetQueueHealth()
+	if err != nil {
+		unexpectedError(err).send(w)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(health)
+}
+
+type queueCleanupHandler struct {
+	redisQueue *RedisQueue
+}
+
+func (handler queueCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	results := make(map[string]interface{})
+
+	if err := handler.redisQueue.CleanupOldRequests(); err != nil {
+		results["old_requests_cleanup"] = map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	} else {
+		results["old_requests_cleanup"] = map[string]interface{}{
+			"success": true,
+		}
+	}
+
+	if err := handler.redisQueue.CleanupStuckProcessingJobs(); err != nil {
+		results["stuck_jobs_cleanup"] = map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	} else {
+		results["stuck_jobs_cleanup"] = map[string]interface{}{
+			"success": true,
+		}
+	}
+
+	if err := handler.redisQueue.CleanupOldFailedJobs(); err != nil {
+		results["old_failed_cleanup"] = map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	} else {
+		results["old_failed_cleanup"] = map[string]interface{}{
+			"success": true,
+		}
+	}
+
+	if err := handler.redisQueue.CleanupOldResultKeys(); err != nil {
+		results["old_result_keys_cleanup"] = map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	} else {
+		results["old_result_keys_cleanup"] = map[string]interface{}{
+			"success": true,
+		}
+	}
+
+	results["timestamp"] = time.Now().Unix()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
 	return RunEnhanced(&EnhancedConfig{
 		ProverAddress:  config.ProverAddress,
@@ -392,6 +474,8 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 	if redisQueue != nil {
 		proverMux.Handle("/prove/status", proofStatusHandler{redisQueue: redisQueue})
 		proverMux.Handle("/queue/stats", queueStatsHandler{redisQueue: redisQueue})
+		proverMux.Handle("/queue/health", queueHealthHandler{redisQueue: redisQueue})
+		proverMux.Handle("/queue/cleanup", queueCleanupHandler{redisQueue: redisQueue})
 
 		proverMux.HandleFunc("/queue/add", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
