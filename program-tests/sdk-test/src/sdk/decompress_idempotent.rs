@@ -45,7 +45,6 @@ pub fn decompress_idempotent<'info, A>(
     rent_payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
     custom_seeds: &[&[u8]],
-    additional_seed: &[u8; 32],
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -71,7 +70,7 @@ where
     // CHECK: PDA is derived from compressed account address.
     let mut seeds: Vec<&[u8]> = custom_seeds.to_vec();
     seeds.push(&compressed_address);
-    seeds.push(additional_seed);
+
     let (pda_pubkey, pda_bump) = Pubkey::find_program_address(&seeds, owner_program); // TODO: consider passing the bump.
 
     // Verify PDA matches
@@ -200,7 +199,7 @@ mod tests {
             data: instruction_data.data,
         };
 
-        let mut compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
+        let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
             &crate::ID,
             &instruction_data.compressed_account_meta.unwrap(),
             account_data,
@@ -219,7 +218,6 @@ mod tests {
             rent_payer,
             system_program,
             &custom_seeds,
-            &instruction_data.additional_seed,
         )?;
 
         msg!("Idempotent decompression completed successfully");
