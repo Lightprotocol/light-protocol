@@ -23,9 +23,8 @@ pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 ///
 /// # Arguments
 /// * `pda_account` - The PDA account to decompress into
-/// * `compressed_account_meta` - Optional metadata for the compressed account (None if PDA already exists)
-/// * `compressed_account_data` - The data to write to the PDA
-/// * `proof` - Optional validity proof (None if PDA already exists)
+/// * `compressed_account` - The compressed account to decompress
+/// * `proof` - Validity proof
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the PDA
 /// * `rent_payer` - The account to pay for PDA rent
@@ -38,7 +37,7 @@ pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 /// * `Err(LightSdkError)` if there was an error
 pub fn decompress_idempotent<'info, A>(
     pda_account: &AccountInfo<'info>,
-    mut compressed_account: LightAccount<'_, A>,
+    compressed_account: LightAccount<'_, A>,
     proof: ValidityProof,
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
@@ -55,81 +54,147 @@ where
         + Clone
         + PdaTimingData,
 {
-    // Check if PDA is already initialized
-    if pda_account.data_len() > 0 {
-        msg!("PDA already initialized, skipping decompression");
-        return Ok(());
-    }
+    decompress_multiple_idempotent(
+        &[pda_account],
+        vec![compressed_account],
+        &[custom_seeds.to_vec()],
+        proof,
+        cpi_accounts,
+        owner_program,
+        rent_payer,
+        system_program,
+    )
+}
 
-    // Get compressed address
-    let compressed_address = compressed_account
-        .address()
-        .ok_or(LightSdkError::ConstraintViolation)?;
-
-    // Derive onchain PDA
-    // CHECK: PDA is derived from compressed account address.
-    let mut seeds: Vec<&[u8]> = custom_seeds.to_vec();
-    seeds.push(&compressed_address);
-
-    let (pda_pubkey, pda_bump) = Pubkey::find_program_address(&seeds, owner_program); // TODO: consider passing the bump.
-
-    // Verify PDA matches
-    if pda_pubkey != *pda_account.key {
-        msg!("Invalid PDA pubkey");
-        return Err(LightSdkError::ConstraintViolation);
-    }
-
-    // Get current slot
+/// Helper function to decompress multiple compressed accounts into PDAs idempotently.
+///
+/// This function is idempotent, meaning it can be called multiple times with the same compressed accounts
+/// and it will only decompress them once. If a PDA already exists and is initialized, it skips that account.
+///
+/// # Arguments
+/// * `decompress_inputs` - Vector of tuples containing (pda_account, compressed_account, custom_seeds, additional_seed)
+/// * `proof` - Single validity proof for all accounts
+/// * `cpi_accounts` - Accounts needed for CPI
+/// * `owner_program` - The program that will own the PDAs
+/// * `rent_payer` - The account to pay for PDA rent
+/// * `system_program` - The system program
+///
+/// # Returns
+/// * `Ok(())` if all compressed accounts were decompressed successfully or PDAs already exist
+/// * `Err(LightSdkError)` if there was an error
+pub fn decompress_multiple_idempotent<'info, A>(
+    pda_accounts: &[&AccountInfo<'info>],
+    compressed_accounts: Vec<LightAccount<'_, A>>,
+    custom_seeds_list: &[Vec<&[u8]>],
+    proof: ValidityProof,
+    cpi_accounts: CpiAccounts<'_, 'info>,
+    owner_program: &Pubkey,
+    rent_payer: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+) -> Result<(), LightSdkError>
+where
+    A: DataHasher
+        + LightDiscriminator
+        + BorshSerialize
+        + BorshDeserialize
+        + Default
+        + Clone
+        + PdaTimingData,
+{
+    // Get current slot and rent once for all accounts
     let clock = Clock::get().map_err(|_| LightSdkError::Borsh)?;
     let current_slot = clock.slot;
-
-    // Calculate space needed for PDA
-    let space = std::mem::size_of::<A>() + 8; // +8 for discriminator
-
-    // Get minimum rent
     let rent = Rent::get().map_err(|_| LightSdkError::Borsh)?;
+
+    // Calculate space needed for PDA (same for all accounts of type A)
+    let space = std::mem::size_of::<A>() + 8; // +8 for discriminator
     let minimum_balance = rent.minimum_balance(space);
 
-    // Create PDA account
-    let create_account_ix = system_instruction::create_account(
-        rent_payer.key,
-        pda_account.key,
-        minimum_balance,
-        space as u64,
-        owner_program,
-    );
+    // Collect compressed accounts for CPI
+    let mut compressed_accounts_for_cpi = Vec::new();
 
-    // Add bump to seeds for signing
-    let bump_seed = [pda_bump];
-    let mut signer_seeds = seeds.clone();
-    signer_seeds.push(&bump_seed);
-    let signer_seeds_refs: Vec<&[u8]> = signer_seeds.iter().map(|s| *s).collect();
+    for ((pda_account, mut compressed_account), custom_seeds) in pda_accounts
+        .iter()
+        .zip(compressed_accounts.into_iter())
+        .zip(custom_seeds_list.iter())
+        .map(|((pda, ca), seeds)| ((pda, ca), seeds.clone()))
+    {
+        // Check if PDA is already initialized
+        if pda_account.data_len() > 0 {
+            msg!(
+                "PDA {} already initialized, skipping decompression",
+                pda_account.key
+            );
+            continue;
+        }
 
-    invoke_signed(
-        &create_account_ix,
-        &[
-            rent_payer.clone(),
-            pda_account.clone(),
-            system_program.clone(),
-        ],
-        &[&signer_seeds_refs],
-    )?;
+        // Get compressed address
+        let compressed_address = compressed_account
+            .address()
+            .ok_or(LightSdkError::ConstraintViolation)?;
 
-    // Initialize PDA with decompressed data and update slot
-    let mut decompressed_pda = compressed_account.account.clone();
-    decompressed_pda.set_last_written_slot(current_slot);
-    // Write data to PDA
-    decompressed_pda
-        .serialize(&mut &mut pda_account.try_borrow_mut_data()?[8..])
-        .map_err(|_| LightSdkError::Borsh)?;
+        // Derive onchain PDA
+        let mut seeds: Vec<&[u8]> = custom_seeds;
+        seeds.push(&compressed_address);
 
-    // Zero the compressed account
-    compressed_account.account = A::default();
+        let (pda_pubkey, pda_bump) = Pubkey::find_program_address(&seeds, owner_program);
 
-    let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+        // Verify PDA matches
+        if pda_pubkey != *pda_account.key {
+            msg!("Invalid PDA pubkey for account {}", pda_account.key);
+            return Err(LightSdkError::ConstraintViolation);
+        }
 
-    drop(pda_account.try_borrow_mut_data()?); // todo: check if this is needed.
+        // Create PDA account
+        let create_account_ix = system_instruction::create_account(
+            rent_payer.key,
+            pda_account.key,
+            minimum_balance,
+            space as u64,
+            owner_program,
+        );
+
+        // Add bump to seeds for signing
+        let bump_seed = [pda_bump];
+        let mut signer_seeds = seeds.clone();
+        signer_seeds.push(&bump_seed);
+        let signer_seeds_refs: Vec<&[u8]> = signer_seeds.iter().map(|s| *s).collect();
+
+        invoke_signed(
+            &create_account_ix,
+            &[
+                rent_payer.clone(),
+                (*pda_account).clone(),
+                system_program.clone(),
+            ],
+            &[&signer_seeds_refs],
+        )?;
+
+        // Initialize PDA with decompressed data and update slot
+        let mut decompressed_pda = compressed_account.account.clone();
+        decompressed_pda.set_last_written_slot(current_slot);
+
+        // Write discriminator
+        let discriminator = A::LIGHT_DISCRIMINATOR;
+        pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&discriminator);
+
+        // Write data to PDA
+        decompressed_pda
+            .serialize(&mut &mut pda_account.try_borrow_mut_data()?[8..])
+            .map_err(|_| LightSdkError::Borsh)?;
+
+        // Zero the compressed account
+        compressed_account.account = A::default();
+
+        // Add to CPI batch
+        compressed_accounts_for_cpi.push(compressed_account.to_account_info()?);
+    }
+
+    // Make single CPI call with all compressed accounts
+    if !compressed_accounts_for_cpi.is_empty() {
+        let cpi_inputs = CpiInputs::new(proof, compressed_accounts_for_cpi);
+        cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    }
 
     Ok(())
 }

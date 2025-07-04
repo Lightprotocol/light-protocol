@@ -104,3 +104,76 @@ impl crate::sdk::compress_pda::PdaTimingData for MyPdaAccount {
         self.last_written_slot = slot;
     }
 }
+
+/// Example: Decompresses multiple compressed accounts into PDAs in a single transaction.
+pub fn decompress_multiple_to_pda(
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<(), LightSdkError> {
+    use crate::sdk::decompress_idempotent::decompress_multiple_idempotent;
+
+    #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
+    pub struct DecompressMultipleInstructionData {
+        pub proof: ValidityProof,
+        pub compressed_accounts: Vec<MyCompressedAccount>,
+        pub system_accounts_offset: u8,
+    }
+
+    let mut instruction_data = instruction_data;
+    let instruction_data = DecompressMultipleInstructionData::deserialize(&mut instruction_data)
+        .map_err(|_| LightSdkError::Borsh)?;
+
+    // Get fixed accounts
+    let fee_payer = &accounts[0];
+    let rent_payer = &accounts[1];
+    let system_program = &accounts[2];
+
+    // Calculate where PDA accounts start
+    let pda_accounts_start = 3;
+    let num_accounts = instruction_data.compressed_accounts.len();
+
+    // Get PDA accounts
+    let pda_accounts = &accounts[pda_accounts_start..pda_accounts_start + num_accounts];
+
+    // Cpi accounts
+    let cpi_accounts = CpiAccounts::new_with_config(
+        fee_payer,
+        &accounts[instruction_data.system_accounts_offset as usize..],
+        CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER),
+    );
+
+    // Custom seeds for PDA derivation (same for all accounts in this example)
+    let custom_seeds: Vec<&[u8]> = vec![b"decompressed_pda"];
+
+    // Build inputs for batch decompression
+    let mut compressed_accounts = Vec::new();
+    let mut seeds_list = Vec::new();
+    let mut pda_account_refs = Vec::new();
+
+    for (i, compressed_account_data) in instruction_data.compressed_accounts.into_iter().enumerate()
+    {
+        let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
+            &crate::ID,
+            &compressed_account_data.meta,
+            compressed_account_data.data,
+        )?;
+
+        compressed_accounts.push(compressed_account);
+        seeds_list.push(custom_seeds.clone());
+        pda_account_refs.push(&pda_accounts[i]);
+    }
+
+    // Decompress all accounts in one CPI call
+    decompress_multiple_idempotent::<MyPdaAccount>(
+        &pda_account_refs,
+        compressed_accounts,
+        &seeds_list,
+        instruction_data.proof,
+        cpi_accounts,
+        &crate::ID,
+        rent_payer,
+        system_program,
+    )?;
+
+    Ok(())
+}
