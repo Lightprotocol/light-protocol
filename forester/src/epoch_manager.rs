@@ -40,7 +40,6 @@ use crate::{
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
-    indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     processor::{
@@ -53,7 +52,9 @@ use crate::{
         v2::{process_batched_operations, BatchContext},
     },
     queue_helpers::QueueItemData,
-    rollover::is_tree_ready_for_rollover,
+    rollover::{
+        is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
+    },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
     tree_data_sync::fetch_trees,
     tree_finder::TreeFinder,
@@ -89,7 +90,7 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: Rpc, I: Indexer> {
+pub struct EpochManager<R: Rpc, I: Indexer + 'static> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -123,7 +124,7 @@ impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
+impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -315,33 +316,66 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 "last_epoch: {:?}, current_epoch: {:?}, slot: {:?}",
                 last_epoch, current_epoch, slot
             );
+
             if last_epoch.is_none_or(|last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
+                    debug!("Sending current epoch {} for processing", current_epoch);
                     tx.send(current_epoch).await?;
                     last_epoch = Some(current_epoch);
                 }
             }
 
             let next_epoch = current_epoch + 1;
-            let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
-            let mut rpc = self.rpc_pool.get_connection().await?;
-            let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
-            debug!(
-                "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
-                next_epoch, slot, next_phases.registration.start, slots_to_wait
-            );
+            if last_epoch.is_none_or(|last| next_epoch > last) {
+                let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
 
-            if let Err(e) = wait_until_slot_reached(
-                &mut *rpc,
-                &self.slot_tracker,
-                next_phases.registration.start,
-            )
-            .await
-            {
-                error!("Error waiting for next registration phase: {:?}", e);
-                continue;
+                // If the next epoch's registration phase has started, send it immediately
+                if slot >= next_phases.registration.start && slot < next_phases.registration.end {
+                    debug!(
+                        "Next epoch {} registration phase already started, sending for processing",
+                        next_epoch
+                    );
+                    tx.send(next_epoch).await?;
+                    last_epoch = Some(next_epoch);
+                    continue; // Check for further epochs immediately
+                }
+
+                // Otherwise, wait for the next epoch's registration phase to start
+                let mut rpc = self.rpc_pool.get_connection().await?;
+                let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
+                debug!(
+                    "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
+                    next_epoch, slot, next_phases.registration.start, slots_to_wait
+                );
+
+                if let Err(e) = wait_until_slot_reached(
+                    &mut *rpc,
+                    &self.slot_tracker,
+                    next_phases.registration.start,
+                )
+                .await
+                {
+                    error!("Error waiting for next registration phase: {:?}", e);
+                    continue;
+                }
+
+                debug!(
+                    "Next epoch {} registration phase started, sending for processing",
+                    next_epoch
+                );
+                if let Err(e) = tx.send(next_epoch).await {
+                    error!(
+                        "Failed to send next epoch {} for processing: {:?}",
+                        next_epoch, e
+                    );
+                    continue;
+                }
+                last_epoch = Some(next_epoch);
+            } else {
+                // we've already sent the next epoch, wait a bit before checking again
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
         }
     }
@@ -480,11 +514,11 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
+            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: None,
             fetch_active_tree: false,
         })
-        .await
-        .unwrap();
+        .await?;
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -509,7 +543,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                         e
                     );
                     if attempt < max_retries - 1 {
-                        tokio::task::yield_now().await;
                         sleep(retry_delay).await;
                     } else {
                         if let Err(alert_err) = send_pagerduty_alert(
@@ -548,12 +581,12 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         info!("Registering for epoch: {}", epoch);
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: None,
+            photon_url: self.config.external_services.indexer_url.clone(),
+            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: None,
             fetch_active_tree: false,
         })
-        .await
-        .unwrap();
+        .await?;
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -699,10 +732,23 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         &self,
         epoch_info: &ForesterEpochInfo,
     ) -> Result<ForesterEpochInfo> {
-        info!("Waiting for active phase");
-
         let mut rpc = self.rpc_pool.get_connection().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
+        let current_slot = self.slot_tracker.estimated_current_slot();
+
+        if current_slot >= active_phase_start_slot {
+            info!(
+                "Active phase has already started. Current slot: {}. Active phase start slot: {}",
+                current_slot, active_phase_start_slot
+            );
+        } else {
+            let waiting_slots = active_phase_start_slot - current_slot;
+            let waiting_secs = waiting_slots / 2;
+            info!("Waiting for active phase to start. Current slot: {}. Active phase start slot: {}. Waiting time: ~ {} seconds",
+                current_slot,
+                active_phase_start_slot,
+                waiting_secs);
+        }
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
@@ -902,7 +948,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 break 'outer_slot_loop;
             }
 
-            tokio::task::yield_now().await;
             current_slot = self.slot_tracker.estimated_current_slot();
         }
 
@@ -990,11 +1035,13 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                     break 'inner_processing_loop;
                 }
             };
+            if items_processed_this_iteration > 0 {
+                debug!(
+                    "Processed {} items in slot {:?}",
+                    items_processed_this_iteration, forester_slot_details.slot
+                );
+            }
 
-            debug!(
-                "Processed {} items in slot {:?}",
-                items_processed_this_iteration, forester_slot_details.slot
-            );
             self.update_metrics_and_counts(
                 epoch_info.epoch,
                 items_processed_this_iteration,
@@ -1004,6 +1051,9 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
 
             push_metrics(&self.config.external_services.pushgateway_url).await?;
             estimated_slot = self.slot_tracker.estimated_current_slot();
+
+            // Add polling interval to reduce RPC pressure and improve response time
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         }
         Ok(())
     }
@@ -1055,6 +1105,10 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV1 | TreeType::AddressV1 => {
+                info!(
+                    "Processing V1 tree: {} (type: {:?}, epoch: {})",
+                    tree_accounts.merkle_tree, tree_accounts.tree_type, epoch_info.epoch
+                );
                 self.process_v1(
                     epoch_info,
                     epoch_pda,
@@ -1213,12 +1267,12 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
         info!("Reporting work");
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: None,
+            photon_url: self.config.external_services.indexer_url.clone(),
+            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: None,
             fetch_active_tree: false,
         })
-        .await
-        .unwrap();
+        .await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
             &self.config.derivation_pubkey,
@@ -1305,7 +1359,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 rollover_address_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
-                    self.indexer.clone(),
                     tree_account,
                     current_epoch,
                 )
@@ -1315,7 +1368,6 @@ impl<R: Rpc, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
                 rollover_state_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
-                    self.indexer.clone(),
                     tree_account,
                     current_epoch,
                 )
@@ -1363,7 +1415,7 @@ fn calculate_remaining_time_or_default(
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
+pub async fn run_service<R: Rpc, I: Indexer + 'static>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -1444,7 +1496,6 @@ pub async fn run_service<R: Rpc, I: Indexer + IndexerType<R> + 'static>(
                         retry_count += 1;
                         if retry_count < config.retry_config.max_retries {
                             debug!("Retrying in {:?}", retry_delay);
-                            tokio::task::yield_now().await;
                             sleep(retry_delay).await;
                             retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
                         } else {

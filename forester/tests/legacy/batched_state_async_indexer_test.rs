@@ -72,9 +72,7 @@ const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 // ```
 // 2025-05-13T22:43:27.825147Z ERROR process_queue{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0 tree=HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu}:process_light_slot{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0 tree=HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu}:process_batched_operations{epoch=0 tree=HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu tree_type=StateV2}: forester::processor::v2::common: State append failed for tree HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu: InstructionData("prover error: \"Failed to send request: error sending request for url (http://localhost:3001/prove): error trying to connect: dns error: task 145 was cancelled\"")
 // ```
-#[ignore = "multiple flaky errors post light-client refactor"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
-#[serial]
 async fn test_state_indexer_async_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::test_default();
 
@@ -179,7 +177,7 @@ async fn test_state_indexer_async_batched() {
         &env.v2_state_trees[0].output_queue,
     )
     .await;
-    wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
+    wait_for_indexer(&rpc, &photon_indexer).await.unwrap();
 
     let input_compressed_accounts =
         get_token_accounts::<PhotonIndexer>(&photon_indexer, &batch_payer.pubkey(), &mint_pubkey)
