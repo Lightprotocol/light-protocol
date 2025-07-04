@@ -55,7 +55,6 @@ pub fn decompress_to_pda(
         rent_payer,
         system_program,
         &custom_seeds,
-        &instruction_data.additional_seed,
     )?;
 
     // do something with pda_account...
