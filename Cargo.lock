@@ -3383,6 +3383,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-compressed-token-program"
+version = "2.0.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "light-compressed-account",
+ "light-compressed-token",
+ "light-hasher",
+ "light-heap",
+ "light-system-program-anchor",
+ "light-zero-copy",
+ "num-bigint 0.4.6",
+ "rand 0.8.5",
+ "solana-security-txt",
+ "spl-token",
+ "spl-token-2022 7.0.0",
+ "zerocopy",
+]
+
+[[package]]
 name = "light-concurrent-merkle-tree"
 version = "2.1.0"
 dependencies = [

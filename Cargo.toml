@@ -16,7 +16,8 @@ members = [
     "program-libs/zero-copy-derive",
     "programs/account-compression",
     "programs/system",
-    "programs/compressed-token",
+    "programs/compressed-token/program",
+    "programs/compressed-token/anchor",
     "programs/registry",
     "anchor-programs/system",
     "sdk-libs/client",
@@ -174,7 +175,7 @@ forester-utils = { path = "forester-utils", version = "2.0.0" }
 account-compression = { path = "programs/account-compression", version = "2.0.0", features = [
     "cpi",
 ] }
-light-compressed-token = { path = "programs/compressed-token", version = "2.0.0", features = [
+light-compressed-token = { path = "programs/compressed-token/anchor", version = "2.0.0", features = [
     "cpi",
 ] }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
