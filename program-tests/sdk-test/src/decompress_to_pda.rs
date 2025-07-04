@@ -9,7 +9,7 @@ use solana_program::account_info::AccountInfo;
 
 use crate::sdk::decompress_idempotent::decompress_idempotent;
 
-pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
+pub const SLOTS_UNTIL_COMPRESSION: u64 = 10_000;
 
 /// Decompresses a compressed account into a PDA idempotently.
 pub fn decompress_to_pda(
@@ -23,7 +23,7 @@ pub fn decompress_to_pda(
     // Get accounts
     let fee_payer = &accounts[0];
     let pda_account = &accounts[1];
-    let rent_payer = &accounts[2]; // Account that pays for PDA rent
+    let rent_payer = &accounts[2]; // Anyone can pay.
     let system_program = &accounts[3];
 
     // Cpi accounts
@@ -34,6 +34,7 @@ pub fn decompress_to_pda(
     );
 
     // Custom seeds for PDA derivation
+    // Caller program should provide the seeds used for their onchain PDA.
     let custom_seeds: Vec<&[u8]> = vec![b"decompressed_pda"];
 
     // Call the SDK function to decompress idempotently
