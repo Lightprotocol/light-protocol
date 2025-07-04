@@ -38,8 +38,7 @@ pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 /// * `Err(LightSdkError)` if there was an error
 pub fn decompress_idempotent<'info, A>(
     pda_account: &AccountInfo<'info>,
-    compressed_account_meta: Option<&CompressedAccountMeta>,
-    compressed_account_data: &A,
+    mut compressed_account: LightAccount<'_, A>,
     proof: ValidityProof,
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
@@ -62,13 +61,6 @@ where
         msg!("PDA already initialized, skipping decompression");
         return Ok(());
     }
-
-    // we zero out the compressed account.
-    let mut compressed_account = LightAccount::<'_, A>::new_mut(
-        owner_program,
-        compressed_account_meta.ok_or(LightSdkError::ConstraintViolation)?,
-        compressed_account_data.clone(), // TODO: try avoid clone
-    )?;
 
     // Get compressed address
     let compressed_address = compressed_account
@@ -124,23 +116,17 @@ where
         &[&signer_seeds_refs],
     )?;
 
-    // Serialize the account data
-    let mut data_bytes = vec![];
-    compressed_account_data
-        .serialize(&mut data_bytes)
-        .map_err(|_| LightSdkError::Borsh)?;
-
-    // Initialize PDA with decompressed data
-    let mut decompressed_pda: A = compressed_account.account;
+    // Initialize PDA with decompressed data and update slot
+    let mut decompressed_pda = compressed_account.account.clone();
     decompressed_pda.set_last_written_slot(current_slot);
-
     // Write data to PDA
     decompressed_pda
         .serialize(&mut &mut pda_account.try_borrow_mut_data()?[8..])
         .map_err(|_| LightSdkError::Borsh)?;
 
-    // Zero the compressed account with CPI
+    // Zero the compressed account
     compressed_account.account = A::default();
+
     let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
@@ -214,14 +200,19 @@ mod tests {
             data: instruction_data.data,
         };
 
+        let mut compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
+            &crate::ID,
+            &instruction_data.compressed_account_meta.unwrap(),
+            account_data,
+        )?;
+
         // Custom seeds
         let custom_seeds: Vec<&[u8]> = vec![b"decompressed_pda"];
 
         // Call decompress_idempotent - this should work whether PDA exists or not
         decompress_idempotent::<MyPdaAccount>(
             pda_account,
-            instruction_data.compressed_account_meta.as_ref(),
-            &account_data,
+            compressed_account,
             instruction_data.proof,
             cpi_accounts,
             &crate::ID,

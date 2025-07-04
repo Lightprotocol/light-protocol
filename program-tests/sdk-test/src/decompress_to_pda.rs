@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
+    account::LightAccount,
     cpi::{CpiAccounts, CpiAccountsConfig},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -32,6 +33,12 @@ pub fn decompress_to_pda(
         &accounts[instruction_data.system_accounts_offset as usize..],
         CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER),
     );
+    // we zero out the compressed account.
+    let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
+        &crate::ID,
+        &instruction_data.compressed_account.meta,
+        instruction_data.compressed_account.data,
+    )?;
 
     // Custom seeds for PDA derivation
     // Caller program should provide the seeds used for their onchain PDA.
@@ -41,8 +48,7 @@ pub fn decompress_to_pda(
     // this inits pda_account if not already initialized
     decompress_idempotent::<MyPdaAccount>(
         pda_account,
-        Some(&instruction_data.compressed_account.meta),
-        &instruction_data.compressed_account.data,
+        compressed_account,
         instruction_data.proof,
         cpi_accounts,
         &crate::ID,
