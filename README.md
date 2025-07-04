@@ -7,8 +7,8 @@
 
 **The ZK Compression Protocol for Solana**
 
-Developers can use Light to create rent-free tokens and PDAs on Solana,
-without sacrificing performance, security and composability.
+Developers can use Light to create rent-free tokens and PDAs on Solana without
+sacrificing performance, security and composability.
 
 Documentation is available here: www.zkcompression.com.
 
