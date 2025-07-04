@@ -7,17 +7,19 @@
 
 **The ZK Compression Protocol for Solana**
 
-Developers can use Light to create rent-free token accounts and PDAs on Solana, without sacrificing performance, security and composability.
+Developers can use Light to create rent-free tokens and PDAs on Solana,
+without sacrificing performance, security and composability.
 
 Documentation is available here: www.zkcompression.com.
 
-Our friends at Helius maintain the official ZK Compression indexer here.
+Our friends at Helius maintain the official ZK Compression indexer [here](https://github.com/helius-labs/photon).
 
-## ZK apps
+## Custom Circuits
 
-ZK Compression works with any regular onchain program on Solana. You
-don't have to know how to use ZK. However, if you are building a custom ZK
-based app, you can also compose with compressed state inside your circuit.
+ZK Compression works with any regular onchain program on Solana. You don't have
+to know how to use ZK, the protocol just uses it under the hood. However, if you
+are building a custom ZK based app, you can also compose with compressed state
+inside your circuit.
 
 ## Verifiable Build
 
