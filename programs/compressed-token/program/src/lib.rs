@@ -1,6 +1,5 @@
-use anchor_lang::{
-    solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey},
-    Discriminator,
+use anchor_lang::solana_program::{
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey,
 };
 use spl_token::instruction::TokenInstruction;
 
