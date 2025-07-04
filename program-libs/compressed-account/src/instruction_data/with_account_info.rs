@@ -399,9 +399,13 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithAccountInfo {
         let (account_infos, bytes) = {
             let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
             let num_slices = u32::from(*num_slices) as usize;
-            // TODO: add check that remaining data is enough to read num_slices
-            // This prevents agains invalid data allocating a lot of heap memory
             let mut slices = Vec::with_capacity(num_slices);
+            if bytes.len() < num_slices {
+                return Err(ZeroCopyError::InsufficientMemoryAllocated(
+                    bytes.len(),
+                    num_slices,
+                ));
+            }
             for _ in 0..num_slices {
                 let (slice, _bytes) = CompressedAccountInfo::zero_copy_at_with_owner(
                     bytes,
