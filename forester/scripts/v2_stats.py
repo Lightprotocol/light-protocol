@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-V2 TPS Analyzer - Comprehensive forester TPS analysis for V2 operations.
-Focuses on understanding transaction throughput, instruction rates, and processing efficiency.
-"""
 
 import re
 import sys
@@ -18,15 +14,20 @@ class V2TpsAnalyzer:
         # ANSI color removal
         self.ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
         
-        # TPS metric patterns
-        self.operation_start_pattern = re.compile(
+        self.v1_operation_start_pattern = re.compile(
+            r'V1_TPS_METRIC: operation_start tree_type=(\w+) tree=(\S+) epoch=(\d+)'
+        )
+        self.v1_operation_complete_pattern = re.compile(
+            r'V1_TPS_METRIC: operation_complete tree_type=(\w+) tree=(\S+) epoch=(\d+) transactions=(\d+) duration_ms=(\d+) tps=([\d.]+)'
+        )
+        self.v2_operation_start_pattern = re.compile(
             r'V2_TPS_METRIC: operation_start tree_type=(\w+) (?:operation=(\w+) )?tree=(\S+) epoch=(\d+)'
         )
-        self.operation_complete_pattern = re.compile(
+        self.v2_operation_complete_pattern = re.compile(
             r'V2_TPS_METRIC: operation_complete tree_type=(\w+) (?:operation=(\w+) )?tree=(\S+) epoch=(\d+) zkp_batches=(\d+) transactions=(\d+) instructions=(\d+) duration_ms=(\d+) tps=([\d.]+) ips=([\d.]+)(?:\s+items_processed=(\d+))?'
         )
-        self.transaction_sent_pattern = re.compile(
-            r'V2_TPS_METRIC: transaction_sent tree_type=(\w+) (?:operation=(\w+) )?tree=(\S+) tx_num=(\d+)/(\d+) signature=(\S+) instructions=(\d+) tx_duration_ms=(\d+)'
+        self.v2_transaction_sent_pattern = re.compile(
+            r'V2_TPS_METRIC: transaction_sent tree_type=(\w+) (?:operation=(\w+) )?tree=(\S+) tx_num=(\d+) signature=(\S+) instructions=(\d+) tx_duration_ms=(\d+)'
         )
         
         # Data storage
@@ -46,73 +47,111 @@ class V2TpsAnalyzer:
         return None
     
     def parse_log_line(self, line: str) -> None:
-        """Parse a single log line for V2 TPS metrics."""
+        """Parse a single log line for V1/V2 TPS metrics."""
         clean_line = self.clean_line(line)
         timestamp = self.parse_timestamp(clean_line)
         
         if not timestamp:
             return
         
-        # Parse operation start
-        start_match = self.operation_start_pattern.search(clean_line)
-        if start_match:
+        # Parse V1 operation start
+        v1_start_match = self.v1_operation_start_pattern.search(clean_line)
+        if v1_start_match:
             self.operations.append({
                 'type': 'start',
+                'version': 'V1',
                 'timestamp': timestamp,
-                'tree_type': start_match.group(1),
-                'operation': start_match.group(2) or 'batch',
-                'tree': start_match.group(3),
-                'epoch': int(start_match.group(4))
+                'tree_type': v1_start_match.group(1),
+                'tree': v1_start_match.group(2),
+                'epoch': int(v1_start_match.group(3))
             })
             return
         
-        # Parse operation complete
-        complete_match = self.operation_complete_pattern.search(clean_line)
-        if complete_match:
+        # Parse V1 operation complete
+        v1_complete_match = self.v1_operation_complete_pattern.search(clean_line)
+        if v1_complete_match:
             self.operation_summaries.append({
+                'version': 'V1',
                 'timestamp': timestamp,
-                'tree_type': complete_match.group(1),
-                'operation': complete_match.group(2) or 'batch',
-                'tree': complete_match.group(3),
-                'epoch': int(complete_match.group(4)),
-                'zkp_batches': int(complete_match.group(5)),
-                'transactions': int(complete_match.group(6)),
-                'instructions': int(complete_match.group(7)),
-                'duration_ms': int(complete_match.group(8)),
-                'tps': float(complete_match.group(9)),
-                'ips': float(complete_match.group(10)),
-                'items_processed': int(complete_match.group(11)) if complete_match.group(11) else 0
+                'tree_type': v1_complete_match.group(1),
+                'tree': v1_complete_match.group(2),
+                'epoch': int(v1_complete_match.group(3)),
+                'transactions': int(v1_complete_match.group(4)),
+                'duration_ms': int(v1_complete_match.group(5)),
+                'tps': float(v1_complete_match.group(6)),
+                'zkp_batches': 0,  # V1 doesn't have zkp batches
+                'instructions': int(v1_complete_match.group(4)),  # For V1, instructions = transactions
+                'ips': float(v1_complete_match.group(6)),  # For V1, ips = tps
+                'items_processed': 0
             })
             return
         
-        # Parse transaction sent
-        tx_match = self.transaction_sent_pattern.search(clean_line)
-        if tx_match:
-            self.transactions.append({
+        # Parse V2 operation start
+        v2_start_match = self.v2_operation_start_pattern.search(clean_line)
+        if v2_start_match:
+            self.operations.append({
+                'type': 'start',
+                'version': 'V2',
                 'timestamp': timestamp,
-                'tree_type': tx_match.group(1),
-                'operation': tx_match.group(2) or 'batch',
-                'tree': tx_match.group(3),
-                'tx_num': int(tx_match.group(4)),
-                'total_txs': int(tx_match.group(5)),
-                'signature': tx_match.group(6),
-                'instructions': int(tx_match.group(7)),
-                'tx_duration_ms': int(tx_match.group(8))
+                'tree_type': v2_start_match.group(1),
+                'operation': v2_start_match.group(2) or 'batch',
+                'tree': v2_start_match.group(3),
+                'epoch': int(v2_start_match.group(4))
+            })
+            return
+        
+        # Parse V2 operation complete
+        v2_complete_match = self.v2_operation_complete_pattern.search(clean_line)
+        if v2_complete_match:
+            self.operation_summaries.append({
+                'version': 'V2',
+                'timestamp': timestamp,
+                'tree_type': v2_complete_match.group(1),
+                'operation': v2_complete_match.group(2) or 'batch',
+                'tree': v2_complete_match.group(3),
+                'epoch': int(v2_complete_match.group(4)),
+                'zkp_batches': int(v2_complete_match.group(5)),
+                'transactions': int(v2_complete_match.group(6)),
+                'instructions': int(v2_complete_match.group(7)),
+                'duration_ms': int(v2_complete_match.group(8)),
+                'tps': float(v2_complete_match.group(9)),
+                'ips': float(v2_complete_match.group(10)),
+                'items_processed': int(v2_complete_match.group(11)) if v2_complete_match.group(11) else 0
+            })
+            return
+        
+        # Parse V2 transaction sent
+        v2_tx_match = self.v2_transaction_sent_pattern.search(clean_line)
+        if v2_tx_match:
+            self.transactions.append({
+                'version': 'V2',
+                'timestamp': timestamp,
+                'tree_type': v2_tx_match.group(1),
+                'operation': v2_tx_match.group(2) or 'batch',
+                'tree': v2_tx_match.group(3),
+                'tx_num': int(v2_tx_match.group(4)),
+                'signature': v2_tx_match.group(5),
+                'instructions': int(v2_tx_match.group(6)),
+                'tx_duration_ms': int(v2_tx_match.group(7))
             })
     
     def print_summary_stats(self) -> None:
         """Print high-level summary statistics."""
         print("\n" + "="*80)
-        print("V2 FORESTER TPS ANALYSIS REPORT")
+        print("FORESTER PERFORMANCE ANALYSIS REPORT (V1 & V2)")
         print("="*80)
         
         if not self.operation_summaries:
-            print("No V2 TPS metrics found in logs")
+            print("No TPS metrics found in logs")
             return
         
         print(f"\nSUMMARY:")
         print(f"  Total operations analyzed: {len(self.operation_summaries)}")
-        print(f"  Total transactions sent: {len(self.transactions)}")
+        
+        # Count total transactions from operation summaries
+        total_txs_from_ops = sum(op.get('transactions', 0) for op in self.operation_summaries)
+        print(f"  Total transactions (from operations): {total_txs_from_ops}")
+        print(f"  Total transaction events logged: {len(self.transactions)}")
         
         # Time span
         if self.operation_summaries:
@@ -125,6 +164,14 @@ class V2TpsAnalyzer:
         """Analyze performance by tree type."""
         print("\n## PERFORMANCE BY TREE TYPE")
         print("-" * 60)
+        print("\nNOTE: V1 and V2 use different transaction models:")
+        print("  V1: 1 tree update = 1 transaction (~1 slot/400ms latency)")
+        print("  V2: 10+ tree updates = 1 transaction (multi-slot batching + ZKP generation)")
+        print("  ")
+        print("  TPS comparison is misleading - V2 optimizes for cost efficiency, not transaction count.")
+        print("  Focus on 'Items Processed Per Second' and 'Total items processed' for V2.")
+        print("  V2's higher latency is architectural (batching) not a performance issue.")
+        print()
         
         tree_type_stats = defaultdict(lambda: {
             'operations': [],
@@ -170,6 +217,17 @@ class V2TpsAnalyzer:
                 aggregate_ips = stats['total_instructions'] / (stats['total_duration_ms'] / 1000)
                 print(f"  Aggregate TPS: {aggregate_tps:.2f}")
                 print(f"  Aggregate IPS: {aggregate_ips:.2f}")
+                
+                # For V2 trees, show Items Processed Per Second (more meaningful than TPS)
+                if 'V2' in tree_type and stats['items_processed'] > 0:
+                    items_per_second = stats['items_processed'] / (stats['total_duration_ms'] / 1000)
+                    print(f"  *** Items Processed Per Second (IPPS): {items_per_second:.2f} ***")
+                    print(f"      ^ This is the meaningful throughput metric for V2 (actual tree updates/sec)")
+                    
+                    # Show batching efficiency
+                    if stats['total_zkp_batches'] > 0:
+                        avg_items_per_batch = stats['items_processed'] / stats['total_zkp_batches']
+                        print(f"  Avg items per ZKP batch: {avg_items_per_batch:.1f}")
     
     def generate_report(self) -> None:
         """Generate comprehensive TPS analysis report."""
@@ -178,7 +236,7 @@ class V2TpsAnalyzer:
         print("\n" + "="*80)
 
 def main():
-    parser = argparse.ArgumentParser(description='Analyze V2 forester TPS metrics')
+    parser = argparse.ArgumentParser(description='Analyze forester performance metrics (V1 & V2) - Focus on IPPS for V2')
     parser.add_argument('logfile', nargs='?', default='-', help='Log file to analyze')
     parser.add_argument('--tree-type', help='Filter to specific tree type')
     
@@ -194,7 +252,7 @@ def main():
     
     try:
         for line in log_file:
-            if 'V2_TPS_METRIC' not in line:
+            if 'TPS_METRIC' not in line:  # Match both V1 and V2
                 continue
                 
             analyzer.parse_log_line(line)

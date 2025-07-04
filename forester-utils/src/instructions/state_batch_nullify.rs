@@ -2,7 +2,10 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::{future, stream::Stream};
+use futures::{
+    stream::{FuturesOrdered, Stream},
+    StreamExt,
+};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT, merkle_tree::InstructionDataBatchNullifyInputs,
 };
@@ -17,7 +20,10 @@ use light_prover_client::{
 use tokio::sync::Mutex;
 use tracing::{debug, trace};
 
-use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
+use crate::{
+    error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
+    ParsedMerkleTreeData,
+};
 
 async fn generate_nullify_zkp_proof(
     inputs: BatchUpdateCircuitInputs,
@@ -37,6 +43,7 @@ async fn generate_nullify_zkp_proof(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_nullify_instruction_stream<'a, R, I>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     indexer: Arc<Mutex<I>>,
@@ -44,13 +51,15 @@ pub async fn get_nullify_instruction_stream<'a, R, I>(
     prover_url: String,
     polling_interval: Duration,
     max_wait_time: Duration,
-    merkle_tree_data: crate::ParsedMerkleTreeData,
+    merkle_tree_data: ParsedMerkleTreeData,
+    yield_batch_size: usize,
 ) -> Result<
     (
         Pin<
             Box<
-                dyn Stream<Item = Result<InstructionDataBatchNullifyInputs, ForesterUtilsError>>
-                    + Send
+                dyn Stream<
+                        Item = Result<Vec<InstructionDataBatchNullifyInputs>, ForesterUtilsError>,
+                    > + Send
                     + 'a,
             >,
         >,
@@ -126,7 +135,10 @@ where
 
         let mut all_changelogs = Vec::new();
         let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time));
-        let mut proof_futures = Vec::new();
+        let mut futures_ordered = FuturesOrdered::new();
+        let mut pending_count = 0;
+
+        let mut proof_buffer = Vec::new();
 
         for (batch_offset, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
             let start_idx = batch_offset * zkp_batch_size as usize;
@@ -161,35 +173,49 @@ where
             current_root = bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap();
 
             let client = Arc::clone(&proof_client);
-            proof_futures.push(generate_nullify_zkp_proof(circuit_inputs, client));
-        }
+            futures_ordered.push_back(generate_nullify_zkp_proof(circuit_inputs, client));
+            pending_count += 1;
 
-        let proof_results = future::join_all(proof_futures).await;
-
-       let mut successful_proofs = Vec::new();
-        let mut first_error = None;
-
-        for (index, proof_result) in proof_results.into_iter().enumerate() {
-            match proof_result {
-                Ok(data) => {
-                    if first_error.is_none() {
-                        successful_proofs.push(data);
+            while pending_count >= yield_batch_size {
+                for _ in 0..yield_batch_size.min(pending_count) {
+                    if let Some(result) = futures_ordered.next().await {
+                        match result {
+                            Ok(proof) => proof_buffer.push(proof),
+                            Err(e) => {
+                                yield Err(e);
+                                return;
+                            }
+                        }
+                        pending_count -= 1;
                     }
-                },
-                Err(e) => {
-                    if first_error.is_none() {
-                        first_error = Some((index, e));
-                    }
+                }
+
+                if !proof_buffer.is_empty() {
+                    yield Ok(proof_buffer.clone());
+                    proof_buffer.clear();
                 }
             }
         }
 
-        for proof in successful_proofs {
-            yield Ok(proof);
+        while let Some(result) = futures_ordered.next().await {
+            match result {
+                Ok(proof) => {
+                    proof_buffer.push(proof);
+
+                    if proof_buffer.len() >= yield_batch_size {
+                        yield Ok(proof_buffer.clone());
+                        proof_buffer.clear();
+                    }
+                },
+                Err(e) => {
+                    yield Err(e);
+                    return;
+                }
+            }
         }
 
-        if let Some((index, error)) = first_error {
-            yield Err(ForesterUtilsError::Prover(format!("Nullify proof generation failed at batch {}: {}", index, error)));
+        if !proof_buffer.is_empty() {
+            yield Ok(proof_buffer);
         }
     };
 

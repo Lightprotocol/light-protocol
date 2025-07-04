@@ -5,7 +5,7 @@ use anchor_lang::Discriminator;
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{
-    config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig},
+    config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig, TransactionConfig},
     epoch_manager::WorkReport,
     run_pipeline,
     utils::get_protocol_config,
@@ -200,7 +200,10 @@ async fn test_e2e_v2() {
         retry_config: Default::default(),
         queue_config: Default::default(),
         indexer_config: Default::default(),
-        transaction_config: Default::default(),
+        transaction_config: TransactionConfig {
+            batch_ixs_per_tx: 4,
+            ..Default::default()
+        },
         general_config: GeneralConfig {
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 5,
@@ -256,12 +259,6 @@ async fn test_e2e_v2() {
         )
         .await;
     }
-
-    let mut photon_indexer = create_photon_indexer();
-    let protocol_config = get_protocol_config(&mut rpc).await;
-
-    let active_phase_slot = get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
-    wait_for_slot(&mut rpc, active_phase_slot).await;
 
     // Get initial state for V1 state tree if enabled
     let pre_state_v1_root = if is_v1_state_test_enabled() {
@@ -365,14 +362,24 @@ async fn test_e2e_v2() {
     let mut address_v1_counter = 0;
     let mut address_v2_counter = 0;
 
-    wait_for_indexer(&rpc, &photon_indexer).await.unwrap();
-
     let rng_seed = rand::thread_rng().gen::<u64>();
     println!("seed {}", rng_seed);
     let rng = &mut StdRng::seed_from_u64(rng_seed);
 
+    let mut photon_indexer = create_photon_indexer();
+    let protocol_config = get_protocol_config(&mut rpc).await;
+
+    // spawn foresters on registration phase start slot
+    let registration_phase_slot =
+        get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
+    wait_for_slot(&mut rpc, registration_phase_slot).await;
+
     let (service_handle, shutdown_sender, mut work_report_receiver) =
         setup_forester_pipeline(&config).await;
+
+    // execute transactions after forester is ready
+    let active_phase_slot = get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
+    wait_for_slot(&mut rpc, active_phase_slot).await;
 
     execute_test_transactions(
         &mut rpc,
@@ -671,7 +678,12 @@ async fn wait_for_work_report(
     tree_params: &InitStateTreeAccountsInstructionData,
 ) {
     let batch_size = tree_params.output_queue_zkp_batch_size as usize;
-    let minimum_processed_items: usize = tree_params.output_queue_batch_size as usize;
+    // With increased test size, expect more processed items
+    let minimum_processed_items: usize = if is_v2_state_test_enabled() {
+        (tree_params.output_queue_batch_size as usize) * 4 // Expect at least 4 batches worth
+    } else {
+        tree_params.output_queue_batch_size as usize
+    };
     let mut total_processed_items: usize = 0;
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
 
@@ -731,14 +743,14 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
 ) {
     let mut iterations = 10;
     if is_v2_state_test_enabled() {
-        iterations =
+        let batch_size =
             get_state_v2_batch_size(rpc, &env.v2_state_trees[0].merkle_tree).await as usize;
+        iterations = batch_size * 2;
     }
 
     println!("Executing {} test transactions", iterations);
     println!("===========================================");
     for i in 0..iterations {
-        // V2 State operations
         if is_v2_state_test_enabled() {
             let batch_compress_sig = compress(
                 rpc,
@@ -775,7 +787,6 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
             }
         }
 
-        // V1 State operations
         if is_v1_state_test_enabled() {
             let compress_sig = compress(
                 rpc,
@@ -1234,10 +1245,6 @@ async fn create_v1_address<R: Rpc, I: Indexer>(
             .await
             .unwrap();
         println!("address merkle tree account: {:?}", account);
-        // let queue_account = rpc
-        //     .get_anchor_account::<QueueAccount>(&account.unwrap().metadata.associated_queue.into())
-        //     .await
-        //     .unwrap();
         let merkle_tree =
             get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                 rpc,

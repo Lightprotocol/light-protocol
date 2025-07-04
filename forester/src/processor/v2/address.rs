@@ -1,7 +1,7 @@
 use anyhow::Error;
 use borsh::BorshSerialize;
 use forester_utils::instructions::address_batch_update::{
-    get_address_update_stream, AddressUpdateConfig,
+    get_address_update_instruction_stream, AddressUpdateConfig,
 };
 use futures::stream::{Stream, StreamExt};
 use light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs;
@@ -18,7 +18,7 @@ async fn create_stream_future<R, I>(
     ctx: &BatchContext<R, I>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<(
-    impl Stream<Item = Result<InstructionDataAddressAppendInputs>> + Send,
+    impl Stream<Item = Result<Vec<InstructionDataAddressAppendInputs>>> + Send,
     u16,
 )>
 where
@@ -32,8 +32,9 @@ where
         prover_url: ctx.prover_url.clone(),
         polling_interval: ctx.prover_polling_interval,
         max_wait_time: ctx.prover_max_wait_time,
+        ixs_per_tx: ctx.ixs_per_tx,
     };
-    let (stream, size) = get_address_update_stream(config, merkle_tree_data)
+    let (stream, size) = get_address_update_instruction_stream(config, merkle_tree_data)
         .await
         .map_err(Error::from)?;
     let stream = stream.map(|item| item.map_err(Error::from));

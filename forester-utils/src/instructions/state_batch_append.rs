@@ -2,7 +2,10 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::{future, stream::Stream};
+use futures::{
+    stream::{FuturesOrdered, Stream},
+    StreamExt,
+};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT, merkle_tree::InstructionDataBatchAppendInputs,
 };
@@ -51,11 +54,12 @@ pub async fn get_append_instruction_stream<'a, R, I>(
     max_wait_time: Duration,
     merkle_tree_data: ParsedMerkleTreeData,
     output_queue_data: ParsedQueueData,
+    yield_batch_size: usize,
 ) -> Result<
     (
         Pin<
             Box<
-                dyn Stream<Item = Result<InstructionDataBatchAppendInputs, ForesterUtilsError>>
+                dyn Stream<Item = Result<Vec<InstructionDataBatchAppendInputs>, ForesterUtilsError>>
                     + Send
                     + 'a,
             >,
@@ -134,7 +138,10 @@ where
 
         let mut all_changelogs: Vec<ChangelogEntry<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>> = Vec::new();
         let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time));
-        let mut proof_futures = Vec::new();
+        let mut futures_ordered = FuturesOrdered::new();
+        let mut pending_count = 0;
+
+        let mut proof_buffer = Vec::new();
 
         for (batch_idx, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
             let start_idx = batch_idx * zkp_batch_size as usize;
@@ -160,35 +167,50 @@ where
             all_changelogs.extend(batch_changelogs);
 
             let client = Arc::clone(&proof_client);
-            proof_futures.push(generate_zkp_proof(circuit_inputs, client));
-        }
+            futures_ordered.push_back(generate_zkp_proof(circuit_inputs, client));
+            pending_count += 1;
 
-        let proof_results = future::join_all(proof_futures).await;
-
-        let mut successful_proofs = Vec::new();
-        let mut first_error = None;
-
-        for (index, proof_result) in proof_results.into_iter().enumerate() {
-            match proof_result {
-                Ok(data) => {
-                    if first_error.is_none() {
-                        successful_proofs.push(data);
+            while pending_count >= yield_batch_size {
+                for _ in 0..yield_batch_size.min(pending_count) {
+                    if let Some(result) = futures_ordered.next().await {
+                        match result {
+                            Ok(proof) => proof_buffer.push(proof),
+                            Err(e) => {
+                                yield Err(e);
+                                return;
+                            }
+                        }
+                        pending_count -= 1;
                     }
-                },
-                Err(e) => {
-                    if first_error.is_none() {
-                        first_error = Some((index, e));
-                    }
+                }
+
+                if !proof_buffer.is_empty() {
+                    yield Ok(proof_buffer.clone());
+                    proof_buffer.clear();
                 }
             }
         }
 
-        for proof in successful_proofs {
-            yield Ok(proof);
+        while let Some(result) = futures_ordered.next().await {
+            match result {
+                Ok(proof) => {
+                    proof_buffer.push(proof);
+
+                    if proof_buffer.len() >= yield_batch_size {
+                        yield Ok(proof_buffer.clone());
+                        proof_buffer.clear();
+                    }
+                },
+                Err(e) => {
+                    yield Err(e);
+                    return;
+                }
+            }
         }
 
-        if let Some((index, error)) = first_error {
-            yield Err(ForesterUtilsError::Prover(format!("Proof generation failed at batch {}: {}", index, error)));
+        // Yield any remaining proofs
+        if !proof_buffer.is_empty() {
+            yield Ok(proof_buffer);
         }
     };
 

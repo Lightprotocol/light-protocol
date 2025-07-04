@@ -63,6 +63,13 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
 ) -> Result<usize> {
     let function_start_time = Instant::now();
 
+    info!(
+        "V1_TPS_METRIC: operation_start tree_type={} tree={} epoch={}",
+        tree_accounts.tree_type,
+        tree_accounts.merkle_tree,
+        transaction_builder.epoch()
+    );
+
     let num_sent_transactions = Arc::new(AtomicUsize::new(0));
     let operation_cancel_signal = Arc::new(AtomicBool::new(false));
 
@@ -152,6 +159,16 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
 
     let total_sent_successfully = num_sent_transactions.load(Ordering::SeqCst);
     trace!(tree = %tree_accounts.merkle_tree, "Transaction sending loop finished. Total transactions sent successfully: {}", total_sent_successfully);
+
+    let total_duration = function_start_time.elapsed();
+    let tps = if total_duration.as_secs_f64() > 0.0 {
+        total_sent_successfully as f64 / total_duration.as_secs_f64()
+    } else {
+        0.0
+    };
+
+    info!("V1_TPS_METRIC: operation_complete tree_type={} tree={} epoch={} transactions={} duration_ms={} tps={:.2}", tree_accounts.tree_type, tree_accounts.merkle_tree, transaction_builder.epoch(), total_sent_successfully, total_duration.as_millis(), tps);
+
     Ok(total_sent_successfully)
 }
 

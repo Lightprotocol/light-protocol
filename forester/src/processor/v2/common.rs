@@ -2,6 +2,7 @@ use std::{future::Future, sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
 use forester_utils::rpc_pool::SolanaRpcPool;
+pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use futures::{pin_mut, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
     batch::BatchState, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -15,6 +16,21 @@ use tracing::{debug, error, info, trace};
 
 use super::{address, state};
 use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, Result};
+
+#[derive(Debug)]
+pub enum BatchReadyState {
+    NotReady,
+    AddressReadyForAppend {
+        merkle_tree_data: ParsedMerkleTreeData,
+    },
+    StateReadyForAppend {
+        merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: ParsedQueueData,
+    },
+    StateReadyForNullify {
+        merkle_tree_data: ParsedMerkleTreeData,
+    },
+}
 
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc, I: Indexer> {
@@ -32,24 +48,13 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
-/// Processes a stream of instruction data into batches and sends them as transactions.
-///
-/// # Type Parameters
-/// * `R` - RPC client type
-/// * `I` - Indexer type
-/// * `S` - Stream type yielding instruction data
-/// * `D` - Instruction data type (must be BorshSerializable)
-/// * `FutC` - Future that creates the stream and returns zkp batch size
-///
-/// # Arguments
-/// * `context` - Batch processing context containing RPC pool, authority, etc.
-/// * `stream_creator_future` - Future that creates the instruction stream
-/// * `instruction_builder` - Function to convert data to Solana instructions
-/// * `tree_type_str` - Tree type identifier for logging
-/// * `operation` - Optional operation name for logging
-///
-/// # Returns
-/// Total number of items processed (instructions * zkp_batch_size)
+#[derive(Debug)]
+pub struct BatchProcessor<R: Rpc, I: Indexer> {
+    context: BatchContext<R, I>,
+    tree_type: TreeType,
+}
+
+/// Processes a stream of batched instruction data into transactions.
 pub(crate) async fn process_stream<R, I, S, D, FutC>(
     context: &BatchContext<R, I>,
     stream_creator_future: FutC,
@@ -60,70 +65,46 @@ pub(crate) async fn process_stream<R, I, S, D, FutC>(
 where
     R: Rpc,
     I: Indexer,
-    S: Stream<Item = Result<D>> + Send,
+    S: Stream<Item = Result<Vec<D>>> + Send,
     D: BorshSerialize,
     FutC: Future<Output = Result<(S, u16)>> + Send,
 {
     let start_time = std::time::Instant::now();
-    trace!("Executing generic stream processor");
+    trace!("Executing batched stream processor (hybrid)");
 
-    let (instruction_stream, zkp_batch_size) = stream_creator_future.await?;
+    let (batch_stream, zkp_batch_size) = stream_creator_future.await?;
 
     if zkp_batch_size == 0 {
         trace!("ZKP batch size is 0, no work to do.");
         return Ok(0);
     }
 
-    pin_mut!(instruction_stream);
-    let mut instruction_buffer: Vec<D> = Vec::new();
+    pin_mut!(batch_stream);
     let mut total_instructions_processed = 0;
     let mut transactions_sent = 0;
 
-    while let Some(result) = instruction_stream.next().await {
-        let data = result?;
-        instruction_buffer.push(data);
-        total_instructions_processed += 1;
+    while let Some(batch_result) = batch_stream.next().await {
+        let instruction_batch = batch_result?;
 
-        if instruction_buffer.len() >= context.ixs_per_tx {
-            let instructions = instruction_buffer
-                .iter()
-                .map(&instruction_builder)
-                .collect();
-
-            let tx_start = std::time::Instant::now();
-            let signature = send_transaction_batch(context, instructions).await?;
-            transactions_sent += 1;
-            let tx_duration = tx_start.elapsed();
-
-            let operation_suffix = operation
-                .map(|op| format!(" operation={}", op))
-                .unwrap_or_default();
-            info!(
-                "V2_TPS_METRIC: transaction_sent tree_type={}{} tree={} tx_num={} signature={} instructions={} tx_duration_ms={}",
-                tree_type_str, operation_suffix, context.merkle_tree, transactions_sent, signature, instruction_buffer.len(), tx_duration.as_millis()
-            );
-
-            instruction_buffer.clear();
+        if instruction_batch.is_empty() {
+            continue;
         }
-    }
 
-    if !instruction_buffer.is_empty() {
-        let instructions = instruction_buffer
-            .iter()
-            .map(&instruction_builder)
-            .collect();
+        let instructions: Vec<Instruction> =
+            instruction_batch.iter().map(&instruction_builder).collect();
 
         let tx_start = std::time::Instant::now();
         let signature = send_transaction_batch(context, instructions).await?;
         transactions_sent += 1;
+        total_instructions_processed += instruction_batch.len();
         let tx_duration = tx_start.elapsed();
 
         let operation_suffix = operation
             .map(|op| format!(" operation={}", op))
             .unwrap_or_default();
         info!(
-            "V2_TPS_METRIC: transaction_sent tree_type={}{} tree={} tx_num={} signature={} instructions={} tx_duration_ms={}",
-            tree_type_str, operation_suffix, context.merkle_tree, transactions_sent, signature, instruction_buffer.len(), tx_duration.as_millis()
+            "V2_TPS_METRIC: transaction_sent tree_type={}{} tree={} tx_num={} signature={} instructions={} tx_duration_ms={} (hybrid)",
+            tree_type_str, operation_suffix, context.merkle_tree, transactions_sent, signature, instruction_batch.len(), tx_duration.as_millis()
         );
     }
 
@@ -149,19 +130,20 @@ where
         .map(|op| format!(" operation={}", op))
         .unwrap_or_default();
     info!(
-        "V2_TPS_METRIC: operation_complete tree_type={}{} tree={} epoch={} zkp_batches={} transactions={} instructions={} duration_ms={} tps={:.2} ips={:.2} items_processed={}", tree_type_str, operation_suffix, context.merkle_tree, context.epoch, total_instructions_processed, transactions_sent, total_instructions_processed,
+        "V2_TPS_METRIC: operation_complete tree_type={}{} tree={} epoch={} zkp_batches={} transactions={} instructions={} duration_ms={} tps={:.2} ips={:.2} items_processed={} (hybrid)", 
+        tree_type_str, operation_suffix, context.merkle_tree, context.epoch, total_instructions_processed, transactions_sent, total_instructions_processed,
         total_duration.as_millis(), tps, ips, total_items_processed
     );
 
     info!(
-        "Stream processing complete. Processed {} total items.",
+        "Batched stream processing complete. Processed {} total items.",
         total_items_processed
     );
 
     Ok(total_items_processed)
 }
 
-async fn send_transaction_batch<R: Rpc, I: Indexer>(
+pub(crate) async fn send_transaction_batch<R: Rpc, I: Indexer>(
     context: &BatchContext<R, I>,
     instructions: Vec<Instruction>,
 ) -> Result<String> {
@@ -178,29 +160,6 @@ async fn send_transaction_batch<R: Rpc, I: Indexer>(
         )
         .await?;
     Ok(signature.to_string())
-}
-
-pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
-
-#[derive(Debug)]
-pub enum BatchReadyState {
-    NotReady,
-    AddressReadyForAppend {
-        merkle_tree_data: ParsedMerkleTreeData,
-    },
-    StateReadyForAppend {
-        merkle_tree_data: ParsedMerkleTreeData,
-        output_queue_data: ParsedQueueData,
-    },
-    StateReadyForNullify {
-        merkle_tree_data: ParsedMerkleTreeData,
-    },
-}
-
-#[derive(Debug)]
-pub struct BatchProcessor<R: Rpc, I: Indexer> {
-    context: BatchContext<R, I>,
-    tree_type: TreeType,
 }
 
 impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
@@ -259,7 +218,7 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
                     self.context.merkle_tree
                 );
                 let result = self
-                    .process_state_append(merkle_tree_data, output_queue_data)
+                    .process_state_append_hybrid(merkle_tree_data, output_queue_data)
                     .await;
                 if let Err(ref e) = result {
                     error!(
@@ -274,7 +233,7 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
                     "Processing batch for nullify, tree: {}",
                     self.context.merkle_tree
                 );
-                let result = self.process_state_nullify(merkle_tree_data).await;
+                let result = self.process_state_nullify_hybrid(merkle_tree_data).await;
                 if let Err(ref e) = result {
                     error!(
                         "State nullify failed for tree {}: {:?}",
@@ -366,7 +325,7 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
             };
         }
 
-        // For State tree type, balance append and nullify operations
+        // For State tree type, balance appends and nullifies operations
         // based on the queue states
         match (input_ready, output_ready) {
             (true, true) => {
@@ -423,11 +382,14 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
         }
     }
 
-    async fn process_state_nullify(&self, merkle_tree_data: ParsedMerkleTreeData) -> Result<usize> {
+    async fn process_state_nullify_hybrid(
+        &self,
+        merkle_tree_data: ParsedMerkleTreeData,
+    ) -> Result<usize> {
         let zkp_batch_size = merkle_tree_data.zkp_batch_size as usize;
 
         let batch_hash = format!(
-            "state_nullify_{}_{}",
+            "state_nullify_hybrid_{}_{}",
             self.context.merkle_tree, self.context.epoch
         );
 
@@ -435,7 +397,7 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
             let mut cache = self.context.ops_cache.lock().await;
             if cache.contains(&batch_hash) {
                 trace!(
-                    "Skipping already processed state nullify batch: {}",
+                    "Skipping already processed state nullify batch (hybrid): {}",
                     batch_hash
                 );
                 return Ok(0);
@@ -446,7 +408,7 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
         state::perform_nullify(&self.context, merkle_tree_data).await?;
 
         trace!(
-            "State nullify operation completed for tree: {}",
+            "State nullify operation (hybrid) completed for tree: {}",
             self.context.merkle_tree
         );
         let mut cache = self.context.ops_cache.lock().await;
@@ -456,7 +418,7 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
         Ok(zkp_batch_size)
     }
 
-    async fn process_state_append(
+    async fn process_state_append_hybrid(
         &self,
         merkle_tree_data: ParsedMerkleTreeData,
         output_queue_data: ParsedQueueData,
@@ -464,14 +426,14 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
         let zkp_batch_size = output_queue_data.zkp_batch_size as usize;
 
         let batch_hash = format!(
-            "state_append_{}_{}",
+            "state_append_hybrid_{}_{}",
             self.context.merkle_tree, self.context.epoch
         );
         {
             let mut cache = self.context.ops_cache.lock().await;
             if cache.contains(&batch_hash) {
                 trace!(
-                    "Skipping already processed state append batch: {}",
+                    "Skipping already processed state append batch (hybrid): {}",
                     batch_hash
                 );
                 return Ok(0);
@@ -480,7 +442,7 @@ impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
         }
         state::perform_append(&self.context, merkle_tree_data, output_queue_data).await?;
         trace!(
-            "State append operation completed for tree: {}",
+            "State append operation (hybrid) completed for tree: {}",
             self.context.merkle_tree
         );
 

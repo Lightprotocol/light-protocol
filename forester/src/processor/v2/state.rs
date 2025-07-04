@@ -23,7 +23,7 @@ async fn create_nullify_stream_future<R, I>(
     ctx: &BatchContext<R, I>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<(
-    impl Stream<Item = Result<InstructionDataBatchNullifyInputs>> + Send,
+    impl Stream<Item = Result<Vec<InstructionDataBatchNullifyInputs>>> + Send,
     u16,
 )>
 where
@@ -38,6 +38,7 @@ where
         ctx.prover_polling_interval,
         ctx.prover_max_wait_time,
         merkle_tree_data,
+        ctx.ixs_per_tx,
     )
     .await
     .map_err(Error::from)?;
@@ -50,7 +51,7 @@ async fn create_append_stream_future<R, I>(
     merkle_tree_data: ParsedMerkleTreeData,
     output_queue_data: ParsedQueueData,
 ) -> Result<(
-    impl Stream<Item = Result<InstructionDataBatchAppendInputs>> + Send,
+    impl Stream<Item = Result<Vec<InstructionDataBatchAppendInputs>>> + Send,
     u16,
 )>
 where
@@ -66,6 +67,7 @@ where
         ctx.prover_max_wait_time,
         merkle_tree_data,
         output_queue_data,
+        ctx.ixs_per_tx,
     )
     .await
     .map_err(Error::from)?;
@@ -79,7 +81,7 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + 'static>(
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<()> {
     info!(
-        "V2_TPS_METRIC: operation_start tree_type=StateV2 operation=nullify tree={} epoch={}",
+        "V2_TPS_METRIC: operation_start tree_type=StateV2 operation=nullify tree={} epoch={} (hybrid)",
         context.merkle_tree, context.epoch
     );
 
@@ -113,7 +115,7 @@ pub(crate) async fn perform_append<R: Rpc, I: Indexer + 'static>(
     output_queue_data: ParsedQueueData,
 ) -> Result<()> {
     info!(
-        "V2_TPS_METRIC: operation_start tree_type=StateV2 operation=append tree={} epoch={}",
+        "V2_TPS_METRIC: operation_start tree_type=StateV2 operation=append tree={} epoch={} (hybrid)",
         context.merkle_tree, context.epoch
     );
     let instruction_builder = |data: &InstructionDataBatchAppendInputs| -> Instruction {

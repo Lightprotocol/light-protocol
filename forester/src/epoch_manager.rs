@@ -316,33 +316,66 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
                 "last_epoch: {:?}, current_epoch: {:?}, slot: {:?}",
                 last_epoch, current_epoch, slot
             );
+
             if last_epoch.is_none_or(|last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
+                    debug!("Sending current epoch {} for processing", current_epoch);
                     tx.send(current_epoch).await?;
                     last_epoch = Some(current_epoch);
                 }
             }
 
             let next_epoch = current_epoch + 1;
-            let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
-            let mut rpc = self.rpc_pool.get_connection().await?;
-            let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
-            debug!(
-                "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
-                next_epoch, slot, next_phases.registration.start, slots_to_wait
-            );
+            if last_epoch.is_none_or(|last| next_epoch > last) {
+                let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
 
-            if let Err(e) = wait_until_slot_reached(
-                &mut *rpc,
-                &self.slot_tracker,
-                next_phases.registration.start,
-            )
-            .await
-            {
-                error!("Error waiting for next registration phase: {:?}", e);
-                continue;
+                // If the next epoch's registration phase has started, send it immediately
+                if slot >= next_phases.registration.start && slot < next_phases.registration.end {
+                    debug!(
+                        "Next epoch {} registration phase already started, sending for processing",
+                        next_epoch
+                    );
+                    tx.send(next_epoch).await?;
+                    last_epoch = Some(next_epoch);
+                    continue; // Check for further epochs immediately
+                }
+
+                // Otherwise, wait for the next epoch's registration phase to start
+                let mut rpc = self.rpc_pool.get_connection().await?;
+                let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
+                debug!(
+                    "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
+                    next_epoch, slot, next_phases.registration.start, slots_to_wait
+                );
+
+                if let Err(e) = wait_until_slot_reached(
+                    &mut *rpc,
+                    &self.slot_tracker,
+                    next_phases.registration.start,
+                )
+                .await
+                {
+                    error!("Error waiting for next registration phase: {:?}", e);
+                    continue;
+                }
+
+                debug!(
+                    "Next epoch {} registration phase started, sending for processing",
+                    next_epoch
+                );
+                if let Err(e) = tx.send(next_epoch).await {
+                    error!(
+                        "Failed to send next epoch {} for processing: {:?}",
+                        next_epoch, e
+                    );
+                    continue;
+                }
+                last_epoch = Some(next_epoch);
+            } else {
+                // we've already sent the next epoch, wait a bit before checking again
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
         }
     }
@@ -1072,6 +1105,10 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV1 | TreeType::AddressV1 => {
+                info!(
+                    "Processing V1 tree: {} (type: {:?}, epoch: {})",
+                    tree_accounts.merkle_tree, tree_accounts.tree_type, epoch_info.epoch
+                );
                 self.process_v1(
                     epoch_info,
                     epoch_pda,
