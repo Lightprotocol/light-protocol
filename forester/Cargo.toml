@@ -32,6 +32,7 @@ serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 reqwest = { workspace = true, features = ["json", "rustls-tls", "blocking"] }
 futures = "0.3.31"
+async-stream = "0.3"
 thiserror = { workspace = true }
 borsh = { workspace = true }
 bs58 = "0.5.1"
@@ -52,7 +53,7 @@ num-bigint = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }
-light-prover-client = { workspace = true , features =[ "devenv"]}
+light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }

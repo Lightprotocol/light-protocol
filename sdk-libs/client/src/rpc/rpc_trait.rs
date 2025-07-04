@@ -28,14 +28,16 @@ pub struct LightClientConfig {
     pub url: String,
     pub commitment_config: Option<CommitmentConfig>,
     pub photon_url: Option<String>,
+    pub api_key: Option<String>,
     pub fetch_active_tree: bool,
 }
 
 impl LightClientConfig {
-    pub fn new(url: String, photon_url: Option<String>) -> Self {
+    pub fn new(url: String, photon_url: Option<String>, api_key: Option<String>) -> Self {
         Self {
             url,
             photon_url,
+            api_key,
             commitment_config: Some(CommitmentConfig::confirmed()),
             fetch_active_tree: true,
         }
@@ -45,6 +47,7 @@ impl LightClientConfig {
             url: RpcUrl::Localnet.to_string(),
             commitment_config: Some(CommitmentConfig::confirmed()),
             photon_url: None,
+            api_key: None,
             fetch_active_tree: false,
         }
     }
@@ -54,14 +57,16 @@ impl LightClientConfig {
             url: RpcUrl::Localnet.to_string(),
             commitment_config: Some(CommitmentConfig::confirmed()),
             photon_url: Some("http://127.0.0.1:8784".to_string()),
+            api_key: None,
             fetch_active_tree: false,
         }
     }
 
-    pub fn devnet(photon_url: Option<String>) -> Self {
+    pub fn devnet(photon_url: Option<String>, api_key: Option<String>) -> Self {
         Self {
             url: RpcUrl::Devnet.to_string(),
             photon_url,
+            api_key,
             commitment_config: Some(CommitmentConfig::confirmed()),
             fetch_active_tree: true,
         }

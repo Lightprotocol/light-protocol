@@ -153,7 +153,7 @@ impl Default for TransactionConfig {
     fn default() -> Self {
         Self {
             legacy_ixs_per_tx: 1,
-            batch_ixs_per_tx: 4,
+            batch_ixs_per_tx: 3,
             max_concurrent_batches: 20,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
