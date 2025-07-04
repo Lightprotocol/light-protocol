@@ -5,6 +5,7 @@ use solana_program::{
 };
 
 pub mod compress_from_pda;
+pub mod compress_from_pda_new;
 pub mod create_pda;
 pub mod decompress_to_pda;
 pub mod sdk;
@@ -23,6 +24,7 @@ pub enum InstructionType {
     UpdatePdaBorsh = 1,
     DecompressToPda = 2,
     CompressFromPda = 3,
+    CompressFromPdaNew = 4,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -34,6 +36,7 @@ impl TryFrom<u8> for InstructionType {
             1 => Ok(InstructionType::UpdatePdaBorsh),
             2 => Ok(InstructionType::DecompressToPda),
             3 => Ok(InstructionType::CompressFromPda),
+            4 => Ok(InstructionType::CompressFromPdaNew),
             _ => panic!("Invalid instruction discriminator."),
         }
     }
@@ -57,6 +60,9 @@ pub fn process_instruction(
         }
         InstructionType::CompressFromPda => {
             compress_from_pda::compress_from_pda(accounts, &instruction_data[1..])
+        }
+        InstructionType::CompressFromPdaNew => {
+            compress_from_pda_new::compress_from_pda_new(accounts, &instruction_data[1..])
         }
     }?;
     Ok(())
