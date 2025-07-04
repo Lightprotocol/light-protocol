@@ -7,17 +7,11 @@
 
 **The ZK Compression Protocol for Solana**
 
-Light is a ZK protocol enabling stateless program execution. Light is purpose-built for Solana.
+Developers can use Light to create rent-free token accounts and PDAs on Solana.
 
-Developers can use Light to...
+Documentation is available here: [www.zkcompression.com](https://www.zkcompression.com).
 
-- reduce the cost of state on the Solana L1 via ZK Compression.
-- build zk applications that compose with Light state such as
-  - offchain orderbooks
-  - zk-coprocessors
-  - zk-identity
-
-The documentation is available here: https://github.com/Lightprotocol/developer-content/tree/main/docs.
+Our friends at Helius maintain the official ZK Compression indexer [here](https://github.com/helius-labs/photon).
 
 ## Verifiable Build
 
