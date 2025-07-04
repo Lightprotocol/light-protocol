@@ -8,7 +8,7 @@ pub mod compress_from_pda;
 pub mod create_pda;
 pub mod decompress_to_pda;
 pub mod sdk;
-pub mod update_decompressed_pda;
+
 pub mod update_pda;
 
 pub const ID: Pubkey = pubkey!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
@@ -23,7 +23,6 @@ pub enum InstructionType {
     UpdatePdaBorsh = 1,
     DecompressToPda = 2,
     CompressFromPda = 3,
-    UpdateDecompressedPda = 4,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -35,7 +34,6 @@ impl TryFrom<u8> for InstructionType {
             1 => Ok(InstructionType::UpdatePdaBorsh),
             2 => Ok(InstructionType::DecompressToPda),
             3 => Ok(InstructionType::CompressFromPda),
-            4 => Ok(InstructionType::UpdateDecompressedPda),
             _ => panic!("Invalid instruction discriminator."),
         }
     }
@@ -59,9 +57,6 @@ pub fn process_instruction(
         }
         InstructionType::CompressFromPda => {
             compress_from_pda::compress_from_pda(accounts, &instruction_data[1..])
-        }
-        InstructionType::UpdateDecompressedPda => {
-            update_decompressed_pda::update_decompressed_pda(accounts, &instruction_data[1..])
         }
     }?;
     Ok(())

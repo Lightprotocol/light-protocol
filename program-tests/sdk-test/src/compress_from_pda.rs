@@ -7,11 +7,12 @@ use light_sdk::{
 use light_sdk_types::CpiAccountsConfig;
 use solana_program::account_info::AccountInfo;
 
-use crate::{decompress_to_pda::DecompressedPdaAccount, sdk::compress_pda::compress_pda};
+use crate::{decompress_to_pda::MyPdaAccount, sdk::compress_pda::compress_pda};
 
 /// Compresses a PDA back into a compressed account
 /// Anyone can call this after the timeout period has elapsed
 /// pda check missing yet.
+// TODO: add macro that create the full instruction. and takes: programid, account and seeds, rent_recipient (to hardcode). low code solution.
 pub fn compress_from_pda(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -20,7 +21,7 @@ pub fn compress_from_pda(
     let instruction_data = CompressFromPdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
 
-    // based on program...
+    // Custom seeds for PDA derivation (must match decompress_idempotent)
     let custom_seeds: Vec<&[u8]> = vec![b"decompressed_pda"];
 
     let pda_account = &accounts[1];
@@ -34,10 +35,10 @@ pub fn compress_from_pda(
         config,
     );
 
-    compress_pda::<DecompressedPdaAccount>(
+    compress_pda::<MyPdaAccount>(
         pda_account,
         &instruction_data.compressed_account_meta,
-        Some(instruction_data.proof),
+        instruction_data.proof,
         cpi_accounts_struct,
         &crate::ID,
         rent_recipient,
@@ -53,6 +54,5 @@ pub fn compress_from_pda(
 pub struct CompressFromPdaInstructionData {
     pub proof: ValidityProof,
     pub compressed_account_meta: CompressedAccountMeta,
-    pub additional_seed: [u8; 32], // Must match the seed used in decompression
     pub system_accounts_offset: u8,
 }
