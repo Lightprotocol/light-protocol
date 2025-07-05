@@ -32,9 +32,14 @@ light-hasher = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 spl-token-2022 = { workspace = true }
-light-zero-copy = { workspace = true }
+light-zero-copy = { workspace = true, features = ["mut", "std", "derive"] }
 zerocopy = { workspace = true }
 light-compressed-token = { workspace = true, features = ["cpi"] }
+light-account-checks = { workspace = true, features = ["solana"] }
+light-sdk = { workspace = true }
+borsh = { workspace = true }
+light-sdk-types = { workspace = true }
+solana-pubkey = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
