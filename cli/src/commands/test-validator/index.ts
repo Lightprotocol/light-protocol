@@ -259,7 +259,7 @@ export const SYSTEM_PROGRAMS = [
   },
   {
     id: "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
-    name: "light_compressed_token_program.so",
+    name: "light_compressed_token.so",
     tag: LIGHT_COMPRESSED_TOKEN_TAG,
   },
   {

@@ -17,10 +17,10 @@ pub mod burn;
 pub use burn::*;
 pub mod batch_compress;
 pub mod create_mint;
-pub mod process_create_compressed_mint;
+// pub mod process_create_compressed_mint;
 pub mod process_create_spl_mint;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-pub use process_create_compressed_mint::*;
+// pub use process_create_compressed_mint::*;
 pub use process_create_spl_mint::*;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
@@ -44,28 +44,28 @@ pub mod light_compressed_token {
 
     use super::*;
 
-    /// Creates a compressed mint stored as a compressed account.
-    /// Follows Token-2022 InitializeMint2 pattern with authorities as instruction data.
-    /// No SPL mint backing - creates a standalone compressed mint.
-    pub fn create_compressed_mint<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateCompressedMintInstruction<'info>>,
-        decimals: u8,
-        mint_authority: Pubkey,
-        freeze_authority: Option<Pubkey>,
-        proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof,
-        mint_bump: u8,
-        address_merkle_tree_root_index: u16,
-    ) -> Result<()> {
-        process_create_compressed_mint::process_create_compressed_mint(
-            ctx,
-            decimals,
-            mint_authority,
-            freeze_authority,
-            proof,
-            mint_bump,
-            address_merkle_tree_root_index,
-        )
-    }
+    // /// Creates a compressed mint stored as a compressed account.
+    // /// Follows Token-2022 InitializeMint2 pattern with authorities as instruction data.
+    // /// No SPL mint backing - creates a standalone compressed mint.
+    // pub fn create_compressed_mint<'info>(
+    //     ctx: Context<'_, '_, '_, 'info, CreateCompressedMintInstruction<'info>>,
+    //     decimals: u8,
+    //     mint_authority: Pubkey,
+    //     freeze_authority: Option<Pubkey>,
+    //     proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof,
+    //     mint_bump: u8,
+    //     address_merkle_tree_root_index: u16,
+    // ) -> Result<()> {
+    //     process_create_compressed_mint::process_create_compressed_mint(
+    //         ctx,
+    //         decimals,
+    //         mint_authority,
+    //         freeze_authority,
+    //         proof,
+    //         mint_bump,
+    //         address_merkle_tree_root_index,
+    //     )
+    // }
 
     /// Mints tokens from a compressed mint to compressed token accounts.
     /// If the compressed mint has is_decompressed=true, also mints to SPL token pool.

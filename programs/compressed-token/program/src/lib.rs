@@ -5,19 +5,21 @@ use anchor_lang::solana_program::{
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use spl_token::instruction::TokenInstruction;
 
-mod constants;
 mod mint;
 
-pub use light_compressed_token;
+// Reexport the wrapped anchor program.
+pub use ::anchor_compressed_token::*;
 use mint::processor::process_create_compressed_mint;
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
+// Start light token instructions at 100 to skip spl-token program instrutions.
+// When adding new instructions check anchor discriminators for collisions!
 #[repr(u8)]
 pub enum InstructionType {
     DecompressedTransfer = 3,
-    CreateCompressedMint = 4,
+    CreateCompressedMint = 100,
     Other,
 }
 
@@ -25,7 +27,7 @@ impl From<u8> for InstructionType {
     fn from(value: u8) -> Self {
         match value {
             3 => InstructionType::DecompressedTransfer,
-            4 => InstructionType::CreateCompressedMint,
+            100 => InstructionType::CreateCompressedMint,
             _ => InstructionType::Other,
         }
     }
@@ -56,7 +58,7 @@ pub fn process_instruction<'info>(
             process_create_compressed_mint(program_id.into(), accounts, instruction_data)?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
-        _ => light_compressed_token::entry(program_id, accounts, instruction_data)?,
+        _ => entry(program_id, accounts, instruction_data)?,
     }
 
     Ok(())

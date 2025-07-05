@@ -1,5 +1,5 @@
 [package]
-name = "light-compressed-token"
+name = "anchor-compressed-token"
 version = "2.0.0"
 description = "Generalized token compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -8,7 +8,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "light_compressed_token"
+name = "anchor_compressed_token"
 
 [features]
 no-entrypoint = []

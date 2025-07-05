@@ -56,7 +56,7 @@ pub fn setup_light_programs(
         .inspect_err(|_| {
             println!("Program account_compression bin not found in {}", path);
         })?;
-    let path = format!("{}/light_compressed_token_program.so", light_bin_path);
+    let path = format!("{}/light_compressed_token.so", light_bin_path);
     program_test
         .add_program_from_file(light_compressed_token::ID, path.clone())
         .inspect_err(|_| {

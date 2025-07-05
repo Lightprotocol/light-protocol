@@ -1,5 +1,5 @@
 [package]
-name = "light-compressed-token-program"
+name = "light-compressed-token"
 version = "2.0.0"
 description = "Generalized token compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -8,7 +8,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "light_compressed_token_program"
+name = "light_compressed_token"
 
 [features]
 no-entrypoint = []
@@ -34,7 +34,7 @@ light-compressed-account = { workspace = true, features = ["anchor"] }
 spl-token-2022 = { workspace = true }
 light-zero-copy = { workspace = true, features = ["mut", "std", "derive"] }
 zerocopy = { workspace = true }
-light-compressed-token = { workspace = true, features = ["cpi"] }
+anchor-compressed-token = { path = "../anchor", features = ["cpi"] }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-sdk = { workspace = true }
 borsh = { workspace = true }

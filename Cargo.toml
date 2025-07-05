@@ -175,7 +175,7 @@ forester-utils = { path = "forester-utils", version = "2.0.0" }
 account-compression = { path = "programs/account-compression", version = "2.0.0", features = [
     "cpi",
 ] }
-light-compressed-token = { path = "programs/compressed-token/anchor", version = "2.0.0", features = [
+light-compressed-token = { path = "programs/compressed-token/program", version = "2.0.0", features = [
     "cpi",
 ] }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [

@@ -251,6 +251,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor-compressed-token"
+version = "2.0.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-compressed-account",
+ "light-hasher",
+ "light-heap",
+ "light-system-program-anchor",
+ "light-zero-copy",
+ "num-bigint 0.4.6",
+ "rand 0.8.5",
+ "solana-sdk",
+ "solana-security-txt",
+ "spl-token",
+ "spl-token-2022 7.0.0",
+ "zerocopy",
+]
+
+[[package]]
 name = "anchor-derive-accounts"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3366,36 +3387,20 @@ name = "light-compressed-token"
 version = "2.0.0"
 dependencies = [
  "account-compression",
+ "anchor-compressed-token",
  "anchor-lang",
- "anchor-spl",
+ "borsh 0.10.4",
+ "light-account-checks",
  "light-compressed-account",
  "light-hasher",
  "light-heap",
+ "light-sdk",
+ "light-sdk-types",
  "light-system-program-anchor",
  "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
- "solana-sdk",
- "solana-security-txt",
- "spl-token",
- "spl-token-2022 7.0.0",
- "zerocopy",
-]
-
-[[package]]
-name = "light-compressed-token-program"
-version = "2.0.0"
-dependencies = [
- "account-compression",
- "anchor-lang",
- "light-compressed-account",
- "light-compressed-token",
- "light-hasher",
- "light-heap",
- "light-system-program-anchor",
- "light-zero-copy",
- "num-bigint 0.4.6",
- "rand 0.8.5",
+ "solana-pubkey",
  "solana-security-txt",
  "spl-token",
  "spl-token-2022 7.0.0",
