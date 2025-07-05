@@ -40,6 +40,7 @@ light-sdk = { workspace = true }
 borsh = { workspace = true }
 light-sdk-types = { workspace = true }
 solana-pubkey = { workspace = true }
+arrayvec = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
