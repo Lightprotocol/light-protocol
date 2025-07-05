@@ -18,7 +18,7 @@ new-unique = ["dep:solana-pubkey"]
 thiserror = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 light-hasher = { workspace = true }
-light-zero-copy = { workspace = true, features = ["std"] }
+light-zero-copy = { workspace = true, features = ["std", "mut", "derive"] }
 light-macros = { workspace = true }
 pinocchio = { workspace = true, optional = true }
 solana-program-error = { workspace = true, optional = true }

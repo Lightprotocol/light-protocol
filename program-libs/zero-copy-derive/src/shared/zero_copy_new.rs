@@ -86,16 +86,16 @@ pub fn generate_init_mut_impl(
 
     let result = quote! {
         impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for #struct_name {
-            type Config = #config_name;
+            type ZeroCopyConfig = #config_name;
             type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
 
-            fn byte_len(config: &Self::Config) -> usize {
+            fn byte_len(config: &Self::ZeroCopyConfig) -> usize {
                 #meta_size_calculation #(+ #byte_len_calculations)*
             }
 
             fn new_zero_copy(
                 bytes: &'a mut [u8],
-                config: Self::Config,
+                config: Self::ZeroCopyConfig,
             ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
                 use zerocopy::Ref;
 
@@ -145,7 +145,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
         // Complex Vec types: need config for each element
         FieldType::VecDynamicZeroCopy(_, vec_type) => {
             if let Some(inner_type) = utils::get_vec_inner_type(vec_type) {
-                quote! { Vec<<#inner_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::Config> }
+                quote! { Vec<<#inner_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::ZeroCopyConfig> }
             } else {
                 return Err(syn::Error::new_spanned(
                     vec_type,
@@ -156,7 +156,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
 
         // Option types: delegate to the Option's Config type
         FieldType::Option(_, option_type) => {
-            quote! { <#option_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::Config }
+            quote! { <#option_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::ZeroCopyConfig }
         }
 
         // Fixed-size types don't need configuration
@@ -173,7 +173,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
         // DynamicZeroCopy types: delegate to their Config type (Config is typically 'static)
         FieldType::DynamicZeroCopy(_, field_type) => {
             let field_type = utils::convert_to_zerocopy_type(field_type);
-            quote! { <#field_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::Config }
+            quote! { <#field_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::ZeroCopyConfig }
         }
     };
     Ok(result)

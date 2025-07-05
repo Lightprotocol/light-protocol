@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use light_zero_copy::ZeroCopyMut;
+
 use crate::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     instruction_data::compressed_proof::CompressedProof,
@@ -24,13 +26,15 @@ pub struct OutputCompressedAccountWithContext {
     pub merkle_tree: Pubkey,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,

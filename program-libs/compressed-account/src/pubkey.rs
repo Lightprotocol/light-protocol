@@ -1,6 +1,6 @@
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
+use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, ZeroCopyNew};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -45,6 +45,21 @@ pub struct Pubkey(pub(crate) [u8; 32]);
 )]
 #[repr(C)]
 pub struct Pubkey(pub(crate) [u8; 32]);
+
+impl<'a> ZeroCopyNew<'a> for Pubkey {
+    type ZeroCopyConfig = ();
+    type Output = zerocopy::Ref<&'a mut [u8], Pubkey>;
+    fn byte_len(_config: &Self::ZeroCopyConfig) -> usize {
+        32
+    }
+    fn new_zero_copy(
+        bytes: &'a mut [u8],
+        _config: Self::ZeroCopyConfig,
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        let (key, rest) = zerocopy::Ref::from_prefix(bytes)?;
+        Ok((key, rest))
+    }
+}
 
 impl Pubkey {
     pub fn new_from_array(array: [u8; 32]) -> Self {
