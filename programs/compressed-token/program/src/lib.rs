@@ -5,7 +5,7 @@ use anchor_lang::solana_program::{
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use spl_token::instruction::TokenInstruction;
 
-mod mint;
+pub mod mint;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
@@ -55,7 +55,7 @@ pub fn process_instruction<'info>(
             }
         }
         InstructionType::CreateCompressedMint => {
-            process_create_compressed_mint(program_id.into(), accounts, instruction_data)?;
+            process_create_compressed_mint(program_id.into(), accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => entry(program_id, accounts, instruction_data)?,

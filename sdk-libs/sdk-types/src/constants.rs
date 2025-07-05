@@ -31,3 +31,5 @@ pub const TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR: [u8; 8] = [2, 0, 0, 0, 0, 0, 0
 
 pub const ADDRESS_TREE_V1: [u8; 32] = pubkey_array!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2");
 pub const ADDRESS_QUEUE_V1: [u8; 32] = pubkey_array!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F");
+pub const ACCOUNT_COMPRESSION_AUTHORITY_PDA: [u8; 32] =
+    pubkey_array!("HwXnGK3tPkkVY6P439H2p68AxpeuWXd5PcrAxFpbmfbA");

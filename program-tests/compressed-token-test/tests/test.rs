@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use std::{assert_eq, str::FromStr};
 
@@ -6153,38 +6153,47 @@ async fn test_create_compressed_mint() {
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
     // Create instruction
-    let instruction_data = light_compressed_token::instruction::CreateCompressedMint {
-        decimals,
-        mint_authority,
-        freeze_authority: Some(freeze_authority),
-        proof,
-        mint_bump,
-        address_merkle_tree_root_index,
-    };
+    let instruction_data =
+        light_compressed_token::mint::instructions::CreateCompressedMintInstructionData {
+            decimals,
+            mint_authority: mint_authority.into(),
+            freeze_authority: Some(freeze_authority.into()),
+            proof,
+            mint_bump,
+            address_merkle_tree_root_index,
+        };
 
-    let accounts = light_compressed_token::accounts::CreateCompressedMintInstruction {
-        fee_payer: payer.pubkey(),
-        cpi_authority_pda: light_compressed_token::process_transfer::get_cpi_authority_pda().0,
-        light_system_program: light_system_program::ID,
-        account_compression_program: account_compression::ID,
-        registered_program_pda: light_system_program::utils::get_registered_program_pda(
-            &light_system_program::ID,
-        ),
-        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
-            &light_system_program::ID,
-        ),
-        self_program: light_compressed_token::ID,
-        system_program: system_program::ID,
-        address_merkle_tree: address_tree_pubkey,
-        output_queue,
-        mint_signer: mint_signer.pubkey(),
-    };
+    let accounts = vec![
+        AccountMeta::new(payer.pubkey(), true), // fee_payer (signer, mutable)
+        AccountMeta::new_readonly(
+            light_compressed_token::process_transfer::get_cpi_authority_pda().0,
+            false,
+        ), // cpi_authority_pda
+        AccountMeta::new_readonly(light_system_program::ID, false), // light_system_program
+        AccountMeta::new_readonly(account_compression::ID, false), // account_compression_program
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
+            false,
+        ), // registered_program_pda
+        AccountMeta::new_readonly(
+            Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+            false,
+        ), // noop_program
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
+            false,
+        ), // account_compression_authority
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // self_program
+        AccountMeta::new_readonly(system_program::ID, false), // system_program
+        AccountMeta::new(address_tree_pubkey, false), // address_merkle_tree (mutable)
+        AccountMeta::new(output_queue, false),  // output_queue (mutable)
+        AccountMeta::new_readonly(mint_signer.pubkey(), true), // mint_signer (signer)
+    ];
 
     let instruction = Instruction {
         program_id: light_compressed_token::ID,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: instruction_data.data(),
+        accounts,
+        data: [vec![100], instruction_data.try_to_vec().unwrap()].concat(),
     };
 
     // Send transaction
