@@ -47,18 +47,18 @@ pub fn process_mint_to_compressed<'info>(
 
     // Convert to the format expected by the existing mint logic
     let compressed_mint_inputs = Some(parsed_instruction_data.compressed_mint_inputs);
-
-    // Call the existing mint logic - this mirrors the anchor implementation
-    process_mint_to_or_compress_native(
-        &validated_accounts,
-        &parsed_instruction_data.public_keys.as_slice(),
-        parsed_instruction_data.amounts.as_slice(),
-        parsed_instruction_data.lamports.map(|x| *x),
-        None, // index - not used for mint_to_compressed
-        None, // bump - not used for mint_to_compressed
-        compressed_mint_inputs,
-        &program_id,
-    )
+    Ok(())
+    // // Call the existing mint logic - this mirrors the anchor implementation
+    // process_mint_to_or_compress_native(
+    //     &validated_accounts,
+    //     &parsed_instruction_data.public_keys.as_slice(),
+    //     parsed_instruction_data.amounts.as_slice(),
+    //     parsed_instruction_data.lamports,
+    //     None, // index - not used for mint_to_compressed
+    //     None, // bump - not used for mint_to_compressed
+    //     compressed_mint_inputs,
+    //     &program_id,
+    // )
 }
 
 // Native implementation of process_mint_to_or_compress adapted from anchor version

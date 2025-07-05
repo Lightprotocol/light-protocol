@@ -13,8 +13,11 @@ use light_compressed_account::{
 use light_compressed_token::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     shared::{
-        cpi_bytes_size::{allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput},
-        outputs::create_output_compressed_accounts,
+        context::TokenContext,
+        cpi_bytes_size::{
+            allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+        },
+        outputs::create_output_compressed_account,
     },
 };
 use light_zero_copy::ZeroCopyNew;
@@ -58,11 +61,6 @@ fn test_rnd_create_output_compressed_accounts() {
             None
         };
 
-        let is_delegate = if delegate.is_some() {
-            Some(delegate_flags.clone())
-        } else {
-            None
-        };
         let lamports = if lamports_vec.iter().any(|l| l.is_some()) {
             Some(lamports_vec.clone())
         } else {
@@ -85,36 +83,47 @@ fn test_rnd_create_output_compressed_accounts() {
 
         let config = cpi_bytes_config(config_input.clone());
         let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
-        let (cpi_instruction_struct, _) = InstructionDataInvokeCpiWithReadOnly::new_zero_copy(
+        let (mut cpi_instruction_struct, _) = InstructionDataInvokeCpiWithReadOnly::new_zero_copy(
             &mut cpi_bytes[8..],
             config.clone(),
         )
         .unwrap();
 
-        let sum_lamports = create_output_compressed_accounts(
-            cpi_instruction_struct,
-            mint_pubkey,
-            &owner_pubkeys,
-            delegate,
-            is_delegate,
-            &amounts,
-            lamports,
-            &hashed_mint,
-            &merkle_tree_indices,
-        )
-        .unwrap();
+        let mut context = TokenContext::new();
+        for (index, output_account) in cpi_instruction_struct
+            .output_compressed_accounts
+            .iter_mut()
+            .enumerate()
+        {
+            let output_delegate = if delegate_flags[index] {
+                delegate
+            } else {
+                None
+            };
+
+            create_output_compressed_account(
+                output_account,
+                &mut context,
+                owner_pubkeys[index],
+                output_delegate,
+                amounts[index],
+                lamports.as_ref().and_then(|l| l[index]),
+                mint_pubkey,
+                &hashed_mint,
+                merkle_tree_indices[index],
+            )
+            .unwrap();
+        }
 
         let cpi_borsh =
             InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &cpi_bytes[8..]).unwrap();
 
         // Build expected output
         let mut expected_accounts = Vec::new();
-        let mut expected_sum_lamports = 0u64;
 
         for i in 0..num_outputs {
             let token_delegate = if delegate_flags[i] { delegate } else { None };
             let account_lamports = lamports_vec[i].unwrap_or(0);
-            expected_sum_lamports += account_lamports;
 
             let token_data = AnchorTokenData {
                 mint: mint_pubkey.into(),
@@ -146,6 +155,5 @@ fn test_rnd_create_output_compressed_accounts() {
             ..Default::default()
         };
         assert_eq!(cpi_borsh, expected);
-        assert_eq!(sum_lamports, expected_sum_lamports);
     }
 }
