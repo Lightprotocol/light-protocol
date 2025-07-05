@@ -1,10 +1,8 @@
 use account_compression::utils::constants::NOOP_PUBKEY;
 use anchor_lang::{
-    prelude::{msg, AccountMeta},
+    prelude::AccountMeta,
     solana_program::{account_info::AccountInfo, program_error::ProgramError},
-    Discriminator,
 };
-use arrayvec::ArrayVec;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
@@ -15,12 +13,11 @@ use light_sdk_types::{
 };
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use spl_token::solana_program::log::sol_log_compute_units;
-use zerocopy::little_endian::U64;
 
 use crate::{
+    mint::output::create_output_compressed_mint_account,
     mint_to_compressed::{
-        accounts::MintToCompressedAccounts,
-        instructions::{MintToCompressedInstructionData, ZCompressedMintInputs},
+        accounts::MintToCompressedAccounts, instructions::MintToCompressedInstructionData,
     },
     shared::{
         context::TokenContext,
@@ -64,6 +61,7 @@ pub fn process_mint_to_compressed<'info>(
     );
 
     let config = cpi_bytes_config(config_input);
+    let mint_config = config.mint_config;
     let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
     sol_log_compute_units();
@@ -86,6 +84,14 @@ pub fn process_mint_to_compressed<'info>(
         mint,
         hashed_mint,
     )?;
+    create_output_compressed_mint_account(
+        cpi_struct,
+        mint_pda,
+        parsed_instruction_data,
+        &program_id,
+        mint_config,
+        compressed_account_address,
+    );
     Ok(())
 }
 

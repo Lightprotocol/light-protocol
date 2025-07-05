@@ -19,14 +19,14 @@ use light_sdk::cpi::invoke_light_system_program;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
 };
-use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopyNew};
+use light_zero_copy::borsh::Deserialize;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR,
     mint::{
         accounts::CreateCompressedMintAccounts,
-        instructions::{CreateCompressedMintInstructionData, ZCreateCompressedMintInstructionData},
+        instructions::CreateCompressedMintInstructionData,
+        output::create_output_compressed_mint_account,
         state::{CompressedMint, CompressedMintConfig},
     },
     LIGHT_CPI_SIGNER,
@@ -47,7 +47,7 @@ pub fn process_create_compressed_mint<'info>(
     let validated_accounts =
         CreateCompressedMintAccounts::validate_and_parse(accounts, &program_id.into())?;
     // 1. Create mint PDA using provided bump
-    let mint_pda = solana_pubkey::Pubkey::create_program_address(
+    let mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
         &[
             b"compressed_mint",
             validated_accounts.mint_signer.key.as_ref(),
@@ -97,94 +97,38 @@ pub fn process_create_compressed_mint<'info>(
         InstructionDataInvokeCpi::new_zero_copy(&mut cpi_bytes[12..], config)
             .map_err(ProgramError::from)?;
     sol_log_compute_units();
-    // 2. Create compressed mint account data
-    create_compressed_mint_account(
-        &mut cpi_instruction_struct,
-        mint_pda,
-        parsed_instruction_data,
-        validated_accounts.address_merkle_tree.key.into(),
-        &program_id,
-        mint_size_config,
-    )?;
-    sol_log_compute_units();
-    // // 3. Execute CPI to light-system-program
-    execute_cpi_invoke(accounts, cpi_bytes)
-}
 
-fn create_compressed_mint_account(
-    cpi_struct: &mut <InstructionDataInvokeCpi as DeserializeMut>::Output,
-    mint_pda: Pubkey,
-    parsed_instruction_data: ZCreateCompressedMintInstructionData,
-    address_merkle_tree_key: Pubkey,
-    program_id: &Pubkey,
-    mint_config: CompressedMintConfig,
-) -> Result<(), ProgramError> {
-    if let Some(proof) = cpi_struct.proof.as_deref_mut() {
-        proof.a = parsed_instruction_data.proof.a;
-        proof.b = parsed_instruction_data.proof.b;
-        proof.c = parsed_instruction_data.proof.c;
-    }
+    let proof = cpi_instruction_struct
+        .proof
+        .as_deref_mut()
+        .ok_or(ProgramError::InvalidInstructionData)?;
+    proof.a = parsed_instruction_data.proof.a;
+    proof.b = parsed_instruction_data.proof.b;
+    proof.c = parsed_instruction_data.proof.c;
     // 1. Create NewAddressParams
-    cpi_struct.new_address_params[0].seed = mint_pda.to_bytes();
-    cpi_struct.new_address_params[0].address_merkle_tree_root_index =
+    cpi_instruction_struct.new_address_params[0].seed = mint_pda.to_bytes();
+    cpi_instruction_struct.new_address_params[0].address_merkle_tree_root_index =
         *parsed_instruction_data.address_merkle_tree_root_index;
 
     // 2. Derive compressed account address
     let compressed_account_address = derive_address(
         &mint_pda.to_bytes(),
-        &address_merkle_tree_key.to_bytes(),
+        &validated_accounts.address_merkle_tree.key.to_bytes(),
         &program_id.to_bytes(),
     );
 
-    // 3. Create output compressed account
-    {
-        // TODO: create helper to assign output_compressed_account
-        cpi_struct.output_compressed_accounts[0]
-            .compressed_account
-            .owner = *program_id;
-
-        if let Some(address) = cpi_struct.output_compressed_accounts[0]
-            .compressed_account
-            .address
-            .as_deref_mut()
-        {
-            *address = compressed_account_address;
-        } else {
-            panic!("Compressed account address is required");
-        }
-        *cpi_struct.output_compressed_accounts[0].merkle_tree_index = 1;
-    }
-    // 4. Create CompressedMint account data & compute hash
-    {
-        // TODO: create helper to assign compressed account data
-        let compressed_account_data = cpi_struct.output_compressed_accounts[0]
-            .compressed_account
-            .data
-            .as_mut()
-            .ok_or(ProgramError::InvalidAccountData)?;
-
-        compressed_account_data.discriminator = COMPRESSED_MINT_DISCRIMINATOR;
-        let (mut compressed_mint, _) =
-            CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
-                .map_err(ProgramError::from)?;
-        compressed_mint.spl_mint = mint_pda;
-        compressed_mint.decimals = parsed_instruction_data.decimals;
-        if let Some(z_freeze_authority) = compressed_mint.freeze_authority.as_deref_mut() {
-            *z_freeze_authority = *(parsed_instruction_data
-                .freeze_authority
-                .as_deref()
-                .ok_or(ProgramError::InvalidAccountData)?);
-        }
-        if let Some(z_mint_authority) = compressed_mint.mint_authority.as_deref_mut() {
-            *z_mint_authority = parsed_instruction_data.mint_authority;
-        }
-
-        *compressed_account_data.data_hash = compressed_mint
-            .hash()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-    }
-
-    Ok(())
+    // 2. Create compressed mint account data
+    create_output_compressed_mint_account(
+        &mut cpi_instruction_struct.output_compressed_accounts[0],
+        mint_pda,
+        parsed_instruction_data,
+        &program_id,
+        mint_size_config,
+        compressed_account_address,
+    )?;
+    sol_log_compute_units();
+    // // 3. Execute CPI to light-system-program
+    execute_cpi_invoke(accounts, cpi_bytes)
 }
 
 fn execute_cpi_invoke<'info>(
