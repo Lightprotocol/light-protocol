@@ -33,8 +33,8 @@ pub struct Recipient {
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct MintToCompressedInstructionData {
-    pub lamports: u64,
     pub compressed_mint_inputs: CompressedMintInputs,
+    pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
     pub proof: Option<CompressedProof>,
 }

@@ -6,6 +6,7 @@ use anchor_lang::{
 };
 use arrayvec::ArrayVec;
 use light_compressed_account::{
+    hash_to_bn254_field_size_be,
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
 };
 use light_sdk::cpi::invoke_light_system_program;
@@ -21,8 +22,12 @@ use crate::{
         accounts::MintToCompressedAccounts,
         instructions::{MintToCompressedInstructionData, ZCompressedMintInputs},
     },
-    shared::cpi_bytes_size::{
-        allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+    shared::{
+        context::TokenContext,
+        cpi_bytes_size::{
+            allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+        },
+        outputs::create_output_compressed_account,
     },
     LIGHT_CPI_SIGNER,
 };
@@ -42,53 +47,19 @@ pub fn process_mint_to_compressed<'info>(
     sol_log_compute_units();
 
     // Validate and parse accounts
-    let validated_accounts =
+    let _validated_accounts =
         MintToCompressedAccounts::validate_and_parse(accounts, &program_id.into())?;
 
-    // Convert to the format expected by the existing mint logic
-    let compressed_mint_inputs = Some(parsed_instruction_data.compressed_mint_inputs);
-    Ok(())
-    // // Call the existing mint logic - this mirrors the anchor implementation
-    // process_mint_to_or_compress_native(
-    //     &validated_accounts,
-    //     &parsed_instruction_data.public_keys.as_slice(),
-    //     parsed_instruction_data.amounts.as_slice(),
-    //     parsed_instruction_data.lamports,
-    //     None, // index - not used for mint_to_compressed
-    //     None, // bump - not used for mint_to_compressed
-    //     compressed_mint_inputs,
-    //     &program_id,
-    // )
-}
-
-// Native implementation of process_mint_to_or_compress adapted from anchor version
-fn process_mint_to_or_compress_native<'a, 'info>(
-    accounts: &MintToCompressedAccounts<'info>,
-    recipient_pubkeys: &[Pubkey],
-    amounts: &[U64],
-    lamports: Option<U64>,
-    index: Option<u8>,
-    bump: Option<u8>,
-    compressed_mint_inputs: Option<ZCompressedMintInputs>,
-    program_id: &Pubkey,
-) -> Result<(), ProgramError> {
-    if recipient_pubkeys.len() != amounts.len() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    if recipient_pubkeys.is_empty() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
     // Build configuration for CPI instruction data using the generalized function
-    let compressed_mint_with_freeze_authority = compressed_mint_inputs
-        .as_ref()
-        .map(|mint_inputs| mint_inputs.compressed_mint_input.freeze_authority_is_set != 0)
-        .unwrap_or(false);
+    let compressed_mint_with_freeze_authority = parsed_instruction_data
+        .compressed_mint_inputs
+        .compressed_mint_input
+        .freeze_authority_is_set
+        != 0;
 
     let config_input = CpiConfigInput::mint_to_compressed(
-        amounts.len(),
-        compressed_mint_inputs.is_some(),
+        parsed_instruction_data.recipients.len(),
+        true,
         compressed_mint_with_freeze_authority,
     );
 
@@ -96,25 +67,58 @@ fn process_mint_to_or_compress_native<'a, 'info>(
     let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
     sol_log_compute_units();
-    let (mut cpi_instruction_struct, _) =
+    let (cpi_instruction_struct, _) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
-    sol_log_compute_units();
+    let mut context = TokenContext::new();
+    let mint = parsed_instruction_data
+        .compressed_mint_inputs
+        .compressed_mint_input
+        .spl_mint;
 
-    // Populate the CPI instruction data
-    // create_mint_to_compressed_cpi_data(
-    //     &mut cpi_instruction_struct,
-    //     recipient_pubkeys,
-    //     amounts,
-    //     lamports,
-    //     compressed_mint_inputs,
-    //     accounts,
-    // )?;
+    let hashed_mint = hash_to_bn254_field_size_be(mint.as_ref());
 
-    sol_log_compute_units();
+    // Create output token accounts
+    create_output_compressed_token_accounts(
+        parsed_instruction_data,
+        cpi_instruction_struct,
+        &mut context,
+        mint,
+        hashed_mint,
+    )?;
+    Ok(())
+}
 
-    // Execute CPI to light-system-program
-    execute_mint_to_compressed_cpi(accounts, cpi_bytes, program_id)
+fn create_output_compressed_token_accounts(
+    parsed_instruction_data: super::instructions::ZMintToCompressedInstructionData<'_>,
+    mut cpi_instruction_struct: light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
+    context: &mut TokenContext,
+    mint: Pubkey,
+    hashed_mint: [u8; 32],
+) -> Result<(), ProgramError> {
+    let lamports = parsed_instruction_data
+        .lamports
+        .map(|lamports| u64::from(*lamports));
+    for (recipient, output_account) in parsed_instruction_data
+        .recipients
+        .iter()
+        .zip(cpi_instruction_struct.output_compressed_accounts.iter_mut())
+    {
+        let output_delegate = None;
+
+        create_output_compressed_account(
+            output_account,
+            context,
+            recipient.recipient,
+            output_delegate,
+            recipient.amount,
+            lamports,
+            mint,
+            &hashed_mint,
+            0,
+        )?;
+    }
+    Ok(())
 }
 
 fn execute_mint_to_compressed_cpi<'info>(
