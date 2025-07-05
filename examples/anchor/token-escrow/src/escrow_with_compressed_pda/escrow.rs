@@ -133,11 +133,12 @@ fn cpi_compressed_pda_transfer<'info>(
             .clone(),
     ];
     system_accounts.extend_from_slice(ctx.remaining_accounts);
-    let light_accounts = CpiAccounts::new_with_config(
+    let light_accounts = CpiAccounts::try_new_with_config(
         ctx.accounts.signer.as_ref(),
         &system_accounts,
         CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
-    );
+    )
+    .unwrap();
 
     verify_borsh(light_accounts, &inputs_struct).map_err(ProgramError::from)?;
 

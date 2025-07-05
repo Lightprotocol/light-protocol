@@ -21,11 +21,12 @@ pub fn create_pda<const BATCHED: bool>(
     let instruction_data = CreatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
     let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    let cpi_accounts = CpiAccounts::new_with_config(
+    let cpi_accounts = CpiAccounts::try_new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
-    );
+    )
+    .unwrap();
 
     let address_tree_info = instruction_data.address_tree_info;
     let (address, address_seed) = if BATCHED {

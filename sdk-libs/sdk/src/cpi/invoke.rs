@@ -10,10 +10,10 @@ use light_compressed_account::{
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 
 use crate::{
-    cpi::{to_account_metas, CpiAccounts},
+    cpi::{get_account_metas_from_config, CpiAccounts, CpiInstructionConfig},
     error::{LightSdkError, Result},
     instruction::{account_info::CompressedAccountInfoTrait, ValidityProof},
-    invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
+    invoke_signed, AccountInfo, AnchorSerialize, Instruction,
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -50,7 +50,7 @@ impl CpiInputs {
         }
     }
 
-    pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts) -> Result<()> {
+    pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts<'_, '_>) -> Result<()> {
         let bump = cpi_accounts.bump();
         let account_info_refs = cpi_accounts.to_account_infos();
         let instruction = create_light_system_progam_instruction_invoke_cpi(self, cpi_accounts)?;
@@ -61,7 +61,7 @@ impl CpiInputs {
 
 pub fn create_light_system_progam_instruction_invoke_cpi(
     cpi_inputs: CpiInputs,
-    cpi_accounts: CpiAccounts,
+    cpi_accounts: CpiAccounts<'_, '_>,
 ) -> Result<Instruction> {
     let owner = *cpi_accounts.invoking_program()?.key;
     let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
@@ -114,7 +114,10 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
 
-    let account_metas: Vec<AccountMeta> = to_account_metas(cpi_accounts)?;
+    let config = CpiInstructionConfig::try_from(&cpi_accounts)?;
+
+    let account_metas = get_account_metas_from_config(config);
+
     Ok(Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,
@@ -125,7 +128,7 @@ pub fn create_light_system_progam_instruction_invoke_cpi(
 /// Invokes the light system program to verify and apply a zk-compressed state
 /// transition. Serializes CPI instruction data, configures necessary accounts,
 /// and executes the CPI.
-pub fn verify_borsh<T>(light_system_accounts: CpiAccounts, inputs: &T) -> Result<()>
+pub fn verify_borsh<T>(cpi_accounts: CpiAccounts, inputs: &T) -> Result<()>
 where
     T: AnchorSerialize,
 {
@@ -135,11 +138,13 @@ where
     data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
-    let account_info_refs = light_system_accounts.to_account_infos();
+    let account_info_refs = cpi_accounts.to_account_infos();
     let account_infos: Vec<AccountInfo> = account_info_refs.into_iter().cloned().collect();
 
-    let bump = light_system_accounts.bump();
-    let account_metas: Vec<AccountMeta> = to_account_metas(light_system_accounts)?;
+    let bump = cpi_accounts.bump();
+    let config = CpiInstructionConfig::try_from(&cpi_accounts)?;
+    let account_metas = get_account_metas_from_config(config);
+
     let instruction = Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,

@@ -17,7 +17,8 @@ use light_compressed_account::instruction_data::{
 use light_sdk::{
     constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
-        invoke_light_system_program, to_account_metas, to_account_metas_small, CpiAccountsConfig,
+        get_account_metas_from_config, invoke_light_system_program, to_account_metas_small,
+        CpiAccountsConfig, CpiInstructionConfig,
     },
 };
 
@@ -78,14 +79,16 @@ pub mod system_cpi_test {
             use light_sdk::cpi::CpiAccounts;
             let cpi_accounts =
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+
             let account_infos = cpi_accounts
                 .to_account_infos()
                 .into_iter()
                 .cloned()
                 .collect::<Vec<_>>();
 
-            let account_metas =
-                to_account_metas(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
+            let config = CpiInstructionConfig::try_from(&cpi_accounts)
+                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
+            let account_metas = get_account_metas_from_config(config);
             (account_infos, account_metas)
         };
         let instruction = Instruction {

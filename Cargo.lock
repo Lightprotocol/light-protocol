@@ -3677,6 +3677,7 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-zero-copy",
+ "solana-msg",
  "solana-pubkey",
  "thiserror 2.0.12",
 ]
