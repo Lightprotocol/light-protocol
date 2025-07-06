@@ -14,8 +14,8 @@ use solana_program::{
 
 /// Trait for PDA accounts that can be compressed
 pub trait PdaTimingData {
-    fn last_touched_slot(&self) -> u64;
-    fn slots_buffer(&self) -> u64;
+    fn last_written_slot(&self) -> u64;
+    fn slots_until_compression(&self) -> u64;
     fn set_last_written_slot(&mut self, slot: u64);
 }
 
@@ -73,13 +73,13 @@ where
     let pda_account_data = A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
     drop(pda_data);
 
-    let last_touched_slot = pda_account_data.last_touched_slot();
-    let slots_buffer = pda_account_data.slots_buffer();
+    let last_written_slot = pda_account_data.last_written_slot();
+    let slots_until_compression = pda_account_data.slots_until_compression();
 
-    if current_slot < last_touched_slot + slots_buffer {
+    if current_slot < last_written_slot + slots_until_compression {
         msg!(
             "Cannot compress yet. {} slots remaining",
-            (last_touched_slot + slots_buffer).saturating_sub(current_slot)
+            (last_written_slot + slots_until_compression).saturating_sub(current_slot)
         );
         return Err(LightSdkError::ConstraintViolation);
     }

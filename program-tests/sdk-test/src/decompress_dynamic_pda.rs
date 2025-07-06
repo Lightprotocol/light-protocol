@@ -61,7 +61,6 @@ pub fn decompress_dynamic_pda(
 pub struct DecompressToPdaInstructionData {
     pub proof: ValidityProof,
     pub compressed_account: MyCompressedAccount,
-    pub additional_seed: [u8; 32], // ... some seed
     pub system_accounts_offset: u8,
 }
 
@@ -79,7 +78,8 @@ pub struct MyCompressedAccount {
 pub struct MyPdaAccount {
     /// Slot when this account was last written
     pub last_written_slot: u64,
-    /// Number of slots after last_written_slot until this account can be compressed again
+    /// Number of slots after last_written_slot until this account can be
+    /// compressed again
     pub slots_until_compression: u64,
     /// The actual account data
     pub data: [u8; 31],
@@ -87,11 +87,11 @@ pub struct MyPdaAccount {
 
 // We require this trait to be implemented for the custom PDA account.
 impl crate::sdk::compress_pda::PdaTimingData for MyPdaAccount {
-    fn last_touched_slot(&self) -> u64 {
+    fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
 
-    fn slots_buffer(&self) -> u64 {
+    fn slots_until_compression(&self) -> u64 {
         self.slots_until_compression
     }
 
@@ -100,7 +100,7 @@ impl crate::sdk::compress_pda::PdaTimingData for MyPdaAccount {
     }
 }
 
-/// Example: Decompresses multiple compressed accounts into PDAs in a single transaction.
+// TODO: do this properly.
 pub fn decompress_multiple_dynamic_pdas(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -131,6 +131,9 @@ pub fn decompress_multiple_dynamic_pdas(
     let pda_accounts = &accounts[pda_accounts_start..pda_accounts_start + num_accounts];
 
     // Cpi accounts
+    // TODO: currently all cPDAs would have to have the same CPI_ACCOUNTS in the same order.
+    // - must support flexible CPI_ACCOUNTS eg for token accounts
+    // - must support flexible trees.
     let cpi_accounts = CpiAccounts::new_with_config(
         fee_payer,
         &accounts[instruction_data.system_accounts_offset as usize..],
