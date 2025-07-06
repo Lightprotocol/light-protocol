@@ -256,12 +256,34 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-client",
  "light-compressed-account",
  "light-hasher",
  "light-macros",
  "light-program-test",
  "light-sdk",
  "light-sdk-types",
+ "light-test-utils",
+ "solana-program",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
+name = "anchor-compressible-user-derived"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-client",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
  "solana-program",
  "solana-sdk",
  "tokio",
