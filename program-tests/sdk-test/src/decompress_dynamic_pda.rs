@@ -13,7 +13,7 @@ use crate::sdk::decompress_idempotent::decompress_idempotent;
 pub const SLOTS_UNTIL_COMPRESSION: u64 = 10_000;
 
 /// Decompresses a compressed account into a PDA idempotently.
-pub fn decompress_to_pda(
+pub fn decompress_dynamic_pda(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
@@ -106,7 +106,7 @@ impl crate::sdk::compress_pda::PdaTimingData for MyPdaAccount {
 }
 
 /// Example: Decompresses multiple compressed accounts into PDAs in a single transaction.
-pub fn decompress_multiple_to_pda(
+pub fn decompress_multiple_dynamic_pdas(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {

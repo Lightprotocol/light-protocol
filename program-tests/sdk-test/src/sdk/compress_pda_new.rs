@@ -6,6 +6,7 @@ use light_sdk::{
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::ValidityProof,
+    light_account_checks::AccountInfoTrait,
     LightDiscriminator,
 };
 use solana_program::{
@@ -29,6 +30,7 @@ use crate::sdk::compress_pda::PdaTimingData;
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
+/// * `expected_address_space` - Optional expected address space pubkey to validate against
 ///
 /// # Returns
 /// * `Ok(())` if the PDA was compressed successfully
@@ -42,6 +44,7 @@ pub fn compress_pda_new<'info, A>(
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo<'info>,
+    expected_address_space: &Pubkey,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -61,6 +64,7 @@ where
         cpi_accounts,
         owner_program,
         rent_recipient,
+        expected_address_space,
     )
 }
 
@@ -77,6 +81,7 @@ where
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed accounts
 /// * `rent_recipient` - The account to receive the PDAs' rent
+/// * `expected_address_space` - Optional expected address space pubkey to validate against
 ///
 /// # Returns
 /// * `Ok(())` if all PDAs were compressed successfully
@@ -90,6 +95,7 @@ pub fn compress_multiple_pdas_new<'info, A>(
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo<'info>,
+    expected_address_space: &Pubkey,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -105,6 +111,20 @@ where
         || pda_accounts.len() != output_state_tree_indices.len()
     {
         return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // CHECK: address space.
+    for params in &new_address_params {
+        let address_tree_account = cpi_accounts
+            .get_tree_account_info(params.address_merkle_tree_account_index as usize)?;
+        if address_tree_account.pubkey() != *expected_address_space {
+            msg!(
+                "Invalid address space. Expected: {}. Found: {}.",
+                expected_address_space,
+                address_tree_account.pubkey()
+            );
+            return Err(LightSdkError::ConstraintViolation);
+        }
     }
 
     let current_slot = Clock::get()?.slot;
@@ -186,7 +206,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decompress_to_pda::MyPdaAccount;
+    use crate::decompress_dynamic_pda::MyPdaAccount;
     use light_sdk::cpi::CpiAccountsConfig;
     use light_sdk::instruction::PackedAddressTreeInfo;
 
@@ -248,6 +268,7 @@ mod tests {
             cpi_accounts,
             &crate::ID,
             rent_recipient,
+            &crate::create_dynamic_pda::ADDRESS_SPACE,
         )?;
 
         msg!("PDA compressed successfully into new compressed account");

@@ -4,10 +4,10 @@ use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey,
 };
 
-pub mod compress_from_pda;
-pub mod compress_from_pda_new;
+pub mod compress_dynamic_pda;
+pub mod create_dynamic_pda;
 pub mod create_pda;
-pub mod decompress_to_pda;
+pub mod decompress_dynamic_pda;
 pub mod sdk;
 
 pub mod update_pda;
@@ -56,13 +56,13 @@ pub fn process_instruction(
             update_pda::update_pda::<false>(accounts, &instruction_data[1..])
         }
         InstructionType::DecompressToPda => {
-            decompress_to_pda::decompress_to_pda(accounts, &instruction_data[1..])
+            decompress_dynamic_pda::decompress_dynamic_pda(accounts, &instruction_data[1..])
         }
         InstructionType::CompressFromPda => {
-            compress_from_pda::compress_from_pda(accounts, &instruction_data[1..])
+            compress_dynamic_pda::compress_dynamic_pda(accounts, &instruction_data[1..])
         }
         InstructionType::CompressFromPdaNew => {
-            compress_from_pda_new::compress_from_pda_new(accounts, &instruction_data[1..])
+            create_dynamic_pda::create_dynamic_pda(accounts, &instruction_data[1..])
         }
     }?;
     Ok(())
