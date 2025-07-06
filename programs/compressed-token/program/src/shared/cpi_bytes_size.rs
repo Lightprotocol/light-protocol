@@ -102,7 +102,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
             if input.compressed_mint {
                 use crate::mint::state::{CompressedMint, CompressedMintConfig};
                 let mint_size_config = CompressedMintConfig {
-                    mint_authority: (true, ()),
+                    mint_authority: (input.compressed_mint, ()),
                     freeze_authority: (input.compressed_mint_with_freeze_authority, ()),
                 };
                 outputs.push(OutputCompressedAccountWithPackedContextConfig {

@@ -19,6 +19,7 @@ pub fn create_output_compressed_mint_account(
     program_id: &Pubkey,
     mint_config: CompressedMintConfig,
     compressed_account_address: [u8; 32],
+    merkle_tree_index: u8,
 ) -> Result<(), ProgramError> {
     // 3. Create output compressed account
     {
@@ -34,7 +35,7 @@ pub fn create_output_compressed_mint_account(
         } else {
             panic!("Compressed account address is required");
         }
-        *output_compressed_account.merkle_tree_index = 1;
+        *output_compressed_account.merkle_tree_index = merkle_tree_index;
     }
     // 4. Create CompressedMint account data & compute hash
     {
@@ -51,11 +52,15 @@ pub fn create_output_compressed_mint_account(
                 .map_err(ProgramError::from)?;
         compressed_mint.spl_mint = mint_pda;
         compressed_mint.decimals = decimals;
-        if let Some(z_freeze_authority) = compressed_mint.freeze_authority.as_deref_mut() {
-            *z_freeze_authority = freeze_authority.ok_or(ProgramError::InvalidAccountData)?;
+        if let Some(freeze_auth) = freeze_authority {
+            if let Some(z_freeze_authority) = compressed_mint.freeze_authority.as_deref_mut() {
+                *z_freeze_authority = freeze_auth;
+            }
         }
-        if let Some(z_mint_authority) = compressed_mint.mint_authority.as_deref_mut() {
-            *z_mint_authority = mint_authority.ok_or(ProgramError::InvalidAccountData)?;
+        if let Some(mint_auth) = mint_authority {
+            if let Some(z_mint_authority) = compressed_mint.mint_authority.as_deref_mut() {
+                *z_mint_authority = mint_auth;
+            }
         }
 
         *compressed_account_data.data_hash = compressed_mint

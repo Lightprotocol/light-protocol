@@ -80,7 +80,7 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
     }
 
     let token_data = TokenData {
-        mint,
+        mint: *mint,
         owner,
         amount: input_token_data.amount,
         delegate: input_token_data

@@ -127,6 +127,7 @@ pub fn process_create_compressed_mint<'info>(
         &program_id,
         mint_size_config,
         compressed_account_address,
+        1,
     )?;
     sol_log_compute_units();
     // 3. Execute CPI to light-system-program

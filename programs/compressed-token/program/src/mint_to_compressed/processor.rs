@@ -113,6 +113,9 @@ pub fn process_mint_to_compressed<'info>(
             &program_id,
             mint_config,
             compressed_account_address,
+            parsed_instruction_data
+                .compressed_mint_inputs
+                .output_merkle_tree_index,
         )?;
     }
     // Create output token accounts
@@ -159,8 +162,8 @@ fn create_output_compressed_token_accounts(
     Ok(())
 }
 
-fn execute_mint_to_compressed_cpi<'info>(
-    accounts: &MintToCompressedAccounts<'info>,
+fn execute_mint_to_compressed_cpi(
+    accounts: &MintToCompressedAccounts<'_>,
     cpi_bytes: Vec<u8>,
     program_id: &Pubkey,
 ) -> Result<(), ProgramError> {
