@@ -48,6 +48,7 @@ members = [
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
+    "program-tests/anchor-compressible-user",
 ]
 
 resolver = "2"

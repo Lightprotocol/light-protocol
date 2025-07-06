@@ -251,6 +251,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor-compressible-user"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-types",
+ "solana-program",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "anchor-derive-accounts"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
