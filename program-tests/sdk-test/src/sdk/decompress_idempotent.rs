@@ -29,8 +29,6 @@ pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 /// * `owner_program` - The program that will own the PDA
 /// * `rent_payer` - The account to pay for PDA rent
 /// * `system_program` - The system program
-/// * `custom_seeds` - Custom seeds for PDA derivation (without the compressed address)
-/// * `additional_seed` - Additional seed for PDA derivation
 ///
 /// # Returns
 /// * `Ok(())` if the compressed account was decompressed successfully or PDA already exists
@@ -43,7 +41,6 @@ pub fn decompress_idempotent<'info, A>(
     owner_program: &Pubkey,
     rent_payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
-    custom_seeds: &[&[u8]],
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -57,7 +54,6 @@ where
     decompress_multiple_idempotent(
         &[pda_account],
         vec![compressed_account],
-        &[custom_seeds.to_vec()],
         proof,
         cpi_accounts,
         owner_program,
@@ -72,7 +68,8 @@ where
 /// and it will only decompress them once. If a PDA already exists and is initialized, it skips that account.
 ///
 /// # Arguments
-/// * `decompress_inputs` - Vector of tuples containing (pda_account, compressed_account, custom_seeds, additional_seed)
+/// * `pda_accounts` - The PDA accounts to decompress into
+/// * `compressed_accounts` - The compressed accounts to decompress
 /// * `proof` - Single validity proof for all accounts
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the PDAs
@@ -85,7 +82,6 @@ where
 pub fn decompress_multiple_idempotent<'info, A>(
     pda_accounts: &[&AccountInfo<'info>],
     compressed_accounts: Vec<LightAccount<'_, A>>,
-    custom_seeds_list: &[Vec<&[u8]>],
     proof: ValidityProof,
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
@@ -113,11 +109,8 @@ where
     // Collect compressed accounts for CPI
     let mut compressed_accounts_for_cpi = Vec::new();
 
-    for ((pda_account, mut compressed_account), custom_seeds) in pda_accounts
-        .iter()
-        .zip(compressed_accounts.into_iter())
-        .zip(custom_seeds_list.iter())
-        .map(|((pda, ca), seeds)| ((pda, ca), seeds.clone()))
+    for (pda_account, mut compressed_account) in
+        pda_accounts.iter().zip(compressed_accounts.into_iter())
     {
         // Check if PDA is already initialized
         if pda_account.data_len() > 0 {
@@ -128,14 +121,13 @@ where
             continue;
         }
 
-        // Get compressed address
+        // Get the compressed account address
         let compressed_address = compressed_account
             .address()
             .ok_or(LightSdkError::ConstraintViolation)?;
 
-        // Derive onchain PDA
-        let mut seeds: Vec<&[u8]> = custom_seeds;
-        seeds.push(&compressed_address);
+        // Derive onchain PDA using the compressed address as seed
+        let seeds: Vec<&[u8]> = vec![&compressed_address];
 
         let (pda_pubkey, pda_bump) = Pubkey::find_program_address(&seeds, owner_program);
 
@@ -270,9 +262,6 @@ mod tests {
             account_data,
         )?;
 
-        // Custom seeds
-        let custom_seeds: Vec<&[u8]> = vec![b"decompressed_pda"];
-
         // Call decompress_idempotent - this should work whether PDA exists or not
         decompress_idempotent::<MyPdaAccount>(
             pda_account,
@@ -282,7 +271,6 @@ mod tests {
             &crate::ID,
             rent_payer,
             system_program,
-            &custom_seeds,
         )?;
 
         msg!("Idempotent decompression completed successfully");

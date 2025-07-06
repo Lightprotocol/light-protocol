@@ -40,10 +40,6 @@ pub fn decompress_dynamic_pda(
         instruction_data.compressed_account.data,
     )?;
 
-    // Custom seeds for PDA derivation
-    // Caller program should provide the seeds used for their onchain PDA.
-    let custom_seeds: Vec<&[u8]> = vec![b"decompressed_pda"];
-
     // Call the SDK function to decompress idempotently
     // this inits pda_account if not already initialized
     decompress_idempotent::<MyPdaAccount>(
@@ -54,7 +50,6 @@ pub fn decompress_dynamic_pda(
         &crate::ID,
         rent_payer,
         system_program,
-        &custom_seeds,
     )?;
 
     // do something with pda_account...
@@ -142,12 +137,8 @@ pub fn decompress_multiple_dynamic_pdas(
         CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER),
     );
 
-    // Custom seeds for PDA derivation (same for all accounts in this example)
-    let custom_seeds: Vec<&[u8]> = vec![b"decompressed_pda"];
-
     // Build inputs for batch decompression
     let mut compressed_accounts = Vec::new();
-    let mut seeds_list = Vec::new();
     let mut pda_account_refs = Vec::new();
 
     for (i, compressed_account_data) in instruction_data.compressed_accounts.into_iter().enumerate()
@@ -159,7 +150,6 @@ pub fn decompress_multiple_dynamic_pdas(
         )?;
 
         compressed_accounts.push(compressed_account);
-        seeds_list.push(custom_seeds.clone());
         pda_account_refs.push(&pda_accounts[i]);
     }
 
@@ -167,7 +157,6 @@ pub fn decompress_multiple_dynamic_pdas(
     decompress_multiple_idempotent::<MyPdaAccount>(
         &pda_account_refs,
         compressed_accounts,
-        &seeds_list,
         instruction_data.proof,
         cpi_accounts,
         &crate::ID,
