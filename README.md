@@ -2,6 +2,7 @@
 
 # Light Protocol
 
+[![Twitter](https://img.shields.io/twitter/follow/LightProtocol)](https://x.com/lightprotocol)
 [![Discord](https://img.shields.io/discord/892771619687268383?label=discord&logo=discord)](https://discord.gg/WDAAaX6je2)
 [![Workflow Status](https://github.com/Lightprotocol/light-protocol/actions/workflows/rust.yml/badge.svg)](https://github.com/Lightprotocol/light-protocol/actions?query=workflow)
 
