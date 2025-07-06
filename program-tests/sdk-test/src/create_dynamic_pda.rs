@@ -25,10 +25,8 @@ pub fn create_dynamic_pda(
         .map_err(|_| LightSdkError::Borsh)?;
 
     let fee_payer = &accounts[0];
-
     // UNCHECKED: ...caller program checks this.
     let pda_account = &accounts[1];
-
     // CHECK: hardcoded rent recipient.
     let rent_recipient = &accounts[2];
     if rent_recipient.key != &RENT_RECIPIENT {

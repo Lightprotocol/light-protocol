@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 
 declare_id!("CompUser11111111111111111111111111111111111");
+pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 // Simple anchor program retrofitted with compressible accounts.
 #[program]
@@ -8,7 +10,14 @@ pub mod anchor_compressible_user {
     use super::*;
 
     /// Creates a new user record
-    pub fn create_record(ctx: Context<CreateRecord>, name: String) -> Result<()> {
+    pub fn create_record(
+        ctx: Context<CreateRecord>,
+        name: String,
+        proof: ValidityProof,
+        compressed_address: [u8; 32],
+        address_tree_info: PackedAddressTreeInfo,
+        output_tree_index: u8,
+    ) -> Result<()> {
         let user_record = &mut ctx.accounts.user_record;
 
         user_record.owner = ctx.accounts.user.key();
@@ -42,6 +51,8 @@ pub struct CreateRecord<'info> {
     )]
     pub user_record: Account<'info, UserRecord>,
     pub system_program: Program<'info, System>,
+    // UNCHECKED.
+    pub rent_recipient: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
