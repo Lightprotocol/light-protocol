@@ -25,9 +25,9 @@ pub struct MultiInputTokenDataWithContext {
     // pub tlv: Option<Vec<u8>>, move into separate vector to opt zero copy
 }
 
-impl Amount for MultiInputTokenDataWithContext {
+impl Amount for ZMultiInputTokenDataWithContext<'_> {
     fn amount(&self) -> u64 {
-        self.amount
+        self.amount.into()
     }
 }
 
@@ -41,9 +41,9 @@ pub struct MultiTokenTransferOutputData {
     pub delegate: u8,
 }
 
-impl Amount for MultiTokenTransferOutputData {
+impl Amount for ZMultiTokenTransferOutputData<'_> {
     fn amount(&self) -> u64 {
-        self.amount
+        self.amount.into()
     }
 }
 
