@@ -82,12 +82,12 @@ pub fn create_output_compressed_account(
     }
     // Compute data hash using the anchor TokenData hash_with_hashed_values method
     {
-        let hashed_owner = context.get_or_hash_pubkey(&owner);
+        let hashed_owner = context.get_or_hash_pubkey(&owner.into());
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
 
         let hashed_delegate =
-            delegate.map(|delegate_pubkey| context.get_or_hash_pubkey(&delegate_pubkey));
+            delegate.map(|delegate_pubkey| context.get_or_hash_pubkey(&delegate_pubkey.into()));
 
         let hash_result = AnchorTokenData::hash_with_hashed_values(
             hashed_mint,

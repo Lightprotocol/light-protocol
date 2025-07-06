@@ -147,8 +147,7 @@ fn assign_output_compressed_accounts(
             return Err(ProgramError::InvalidInstructionData);
         };
         let mint_account = packed_accounts.get_u8(mint_index)?;
-        let mint_pubkey = (*mint_account.key).into();
-        let hashed_mint = context.get_or_hash_pubkey(&mint_pubkey);
+        let hashed_mint = context.get_or_hash_pubkey(mint_account.key);
 
         // Get owner account using owner index
         let owner_account = packed_accounts.get_u8(output_data.owner)?;
@@ -176,7 +175,7 @@ fn assign_output_compressed_accounts(
             } else {
                 None
             },
-            mint_pubkey,
+            mint_account.key.into(),
             &hashed_mint,
             output_data.merkle_tree,
         )?;
@@ -332,4 +331,3 @@ pub fn process_multi_transfer<'info>(
 
     Ok(())
 }
-// TODO: don't pass any tree accounts if we set the cpi context

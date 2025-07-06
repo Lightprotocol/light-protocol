@@ -124,7 +124,7 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Create token context and call input function
         let mut context = TokenContext::new();
-        let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.unwrap());
+        let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.unwrap().into());
         light_compressed_token::mint::input::create_input_compressed_mint_account(
             input_account,
             &mut context,

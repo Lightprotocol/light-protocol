@@ -3,9 +3,7 @@ use anchor_lang::{
     solana_program::account_info::AccountInfo, solana_program::program_error::ProgramError,
 };
 use light_account_checks::checks::check_signer;
-use light_compressed_account::{
-    instruction_data::with_readonly::ZInAccountMut, Pubkey as LightPubkey,
-};
+use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 
 use super::context::TokenContext;
 use crate::{
@@ -14,7 +12,7 @@ use crate::{
 };
 
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.
-/// 
+///
 /// Validates signer authorization (owner or delegate), populates the zero-copy account structure,
 /// and computes the appropriate token data hash based on frozen state.
 #[allow(clippy::too_many_arguments)]
@@ -34,7 +32,7 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
         // If delegate is used, delegate must be signer
         let delegate_account = &remaining_accounts[input_token_data.delegate as usize];
         check_signer(delegate_account).map_err(ProgramError::from)?;
-        Some(context.get_or_hash_pubkey(&LightPubkey::from(*delegate_account.key)))
+        Some(context.get_or_hash_pubkey(delegate_account.key))
     } else {
         // If no delegate, owner must be signer
         check_signer(owner_account).map_err(ProgramError::from)?;
@@ -63,11 +61,11 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
 
     // TLV handling is now done separately in the parent instruction data
     // Compute data hash using TokenContext for caching
-    let hashed_owner = context.get_or_hash_pubkey(&LightPubkey::from(owner));
+    let hashed_owner = context.get_or_hash_pubkey(&owner);
 
     // Get mint hash from context
     let mint_account = &remaining_accounts[input_token_data.mint as usize];
-    let hashed_mint = context.get_or_hash_mint(LightPubkey::from(*mint_account.key))?;
+    let hashed_mint = context.get_or_hash_mint(*mint_account.key)?;
 
     let mut amount_bytes = [0u8; 32];
     amount_bytes[24..].copy_from_slice(input_token_data.amount.get().to_be_bytes().as_slice());

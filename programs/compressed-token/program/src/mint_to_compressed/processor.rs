@@ -85,7 +85,7 @@ pub fn process_mint_to_compressed<'info>(
 
     let hashed_mint = hash_to_bn254_field_size_be(mint.as_ref());
     let hashed_mint_authority =
-        context.get_or_hash_pubkey(&(*validated_accounts.authority.key).into());
+        context.get_or_hash_pubkey(validated_accounts.authority.key);
 
     {
         // Process input compressed mint account

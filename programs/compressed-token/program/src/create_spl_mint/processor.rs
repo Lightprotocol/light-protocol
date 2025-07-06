@@ -113,7 +113,7 @@ fn update_compressed_mint_to_decompressed<'info>(
     cpi_instruction_struct.invoking_program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
 
     let mut context = TokenContext::new();
-    let hashed_mint_authority = context.get_or_hash_pubkey(&accounts.authority.key.into());
+    let hashed_mint_authority = context.get_or_hash_pubkey(accounts.authority.key);
 
     // Process input compressed mint account (before is_decompressed = true)
     create_input_compressed_mint_account(
