@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use anchor_compressed_token::process_transfer::Amount;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
@@ -24,6 +25,12 @@ pub struct MultiInputTokenDataWithContext {
     // pub tlv: Option<Vec<u8>>, move into separate vector to opt zero copy
 }
 
+impl Amount for MultiInputTokenDataWithContext {
+    fn amount(&self) -> u64 {
+        self.amount
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
@@ -31,17 +38,30 @@ pub struct MultiTokenTransferOutputData {
     pub owner: u8,
     pub amount: u64,
     pub merkle_tree: u8,
+    pub delegate: u8,
 }
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
-)]
-pub struct MultiTokenTransferDelegateOutputData {
-    pub delegate: u8,
-    pub owner: u8,
-    pub amount: u64,
-    pub merkle_tree: u8,
+impl Amount for MultiTokenTransferOutputData {
+    fn amount(&self) -> u64 {
+        self.amount
+    }
 }
+
+// #[derive(
+//     Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+// )]
+// pub struct MultiTokenTransferDelegateOutputData {
+//     pub delegate: u8,
+//     pub owner: u8,
+//     pub amount: u64,
+//     pub merkle_tree: u8,
+// }
+
+// impl Amount for MultiTokenTransferDelegateOutputData {
+//     fn amount(&self) -> u64 {
+//         self.amount
+//     }
+// }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
 pub struct CompressedTokenInstructionDataMultiTransfer {
@@ -53,7 +73,7 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
     pub proof: Option<CompressedProof>,
     pub in_token_data: Vec<MultiInputTokenDataWithContext>,
     pub out_token_data: Vec<MultiTokenTransferOutputData>,
-    pub delegate_out_token_data: Option<Vec<MultiTokenTransferDelegateOutputData>>,
+    // pub delegate_out_token_data: Option<Vec<MultiTokenTransferDelegateOutputData>>,
     // put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
     // TODO: add len check that < input_token_data_with_context.len()
     pub in_lamports: Option<Vec<u64>>,

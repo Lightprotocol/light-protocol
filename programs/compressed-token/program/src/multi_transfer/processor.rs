@@ -1,4 +1,17 @@
+use anchor_compressed_token::process_transfer::sum_check;
 use anchor_lang::prelude::{AccountInfo, ProgramError};
+use light_heap::{bench_sbf_end, bench_sbf_start};
+
+use crate::{
+    multi_transfer::{
+        accounts::MultiTransferValidatedAccounts,
+        instruction_data::CompressedTokenInstructionDataMultiTransfer,
+    },
+    shared::{inputs::create_input_compressed_account, outputs::create_output_compressed_account},
+};
+use light_zero_copy::borsh::{Deserialize, DeserializeMut};
+
+const NOT_FROZEN: bool = true;
 
 /// Process a token transfer instruction
 /// build inputs -> sum check -> build outputs -> add token data to inputs -> invoke cpi
@@ -12,12 +25,25 @@ use anchor_lang::prelude::{AccountInfo, ProgramError};
 /// 5.  Serialize and add token_data data to in compressed_accounts.
 /// 6.  Invoke light_system_program::execute_compressed_transaction.
 #[inline(always)]
-pub fn process_transfer<'a, 'b, 'c, 'info>(
+pub fn process_multi_transfer<'info>(
     accounts: &[AccountInfo<'info>],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let inputs = CompressedTokenInstructionDataMultiTransfer::zero_copy_at(instruction_data)
+    // Parse instruction data first to determine optional accounts
+    let (inputs, _) = CompressedTokenInstructionDataMultiTransfer::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
+    
+    // Determine optional account flags from instruction data
+    let with_sol_pool = inputs.compress_or_decompress_amount.is_some();
+    let with_cpi_context = inputs.cpi_context.is_some();
+    
+    // Validate and parse accounts
+    let (validated_accounts, packed_accounts) = MultiTransferValidatedAccounts::validate_and_parse(
+        accounts,
+        &light_compressed_token::ID,
+        with_sol_pool,
+        with_cpi_context,
+    )?;
     if inputs.in_lamports.len() > inputs.in_token_data.len() {
         unimplemented!("Tlv is unimplemented");
     }
@@ -37,17 +63,17 @@ pub fn process_transfer<'a, 'b, 'c, 'info>(
     {
         return Err(crate::ErrorCode::NoInputTokenAccountsProvided);
     }
-    let (mut compressed_input_accounts, input_token_data, input_lamports) =
-        create_input_compressed_account::<NOT_FROZEN>()?;
+
+    // TODO: create TokenContext
+    // TODO: create cpi bytes
+    // TODO: create cpi zero copy
+
+    create_input_compressed_account::<NOT_FROZEN>()?;
     bench_sbf_end!("t_context_and_check_sig");
     bench_sbf_start!("t_sum_check");
     sum_check(
-        &input_token_data,
-        &inputs
-            .output_compressed_accounts
-            .iter()
-            .map(|data| data.amount)
-            .collect::<Vec<u64>>(),
+        &inputs.in_token_data.as_slice(),
+        &inputs.out_token_data.as_slice(),
         inputs.compress_or_decompress_amount.as_ref(),
         inputs.is_compress,
     )?;
@@ -60,47 +86,15 @@ pub fn process_transfer<'a, 'b, 'c, 'info>(
     // bench_sbf_end!("t_process_compression");
     // bench_sbf_start!("t_create_output_compressed_accounts");
 
-    let output_lamports = create_output_compressed_accounts(
-        &mut output_compressed_accounts,
-        inputs.mint,
-        inputs
-            .output_compressed_accounts
-            .iter()
-            .map(|data| data.owner)
-            .collect::<Vec<Pubkey>>()
-            .as_slice(),
-        delegate,
-        is_delegate,
-        inputs
-            .output_compressed_accounts
-            .iter()
-            .map(|data: &PackedTokenTransferOutputData| data.amount)
-            .collect::<Vec<u64>>()
-            .as_slice(),
-        Some(
-            inputs
-                .output_compressed_accounts
-                .iter()
-                .map(|data: &PackedTokenTransferOutputData| data.lamports)
-                .collect::<Vec<Option<u64>>>(),
-        ),
-        &hashed_mint,
-        &inputs
-            .output_compressed_accounts
-            .iter()
-            .map(|data| data.merkle_tree_index)
-            .collect::<Vec<u8>>(),
-        ctx.remaining_accounts,
-    )?;
+    let output_lamports = create_output_compressed_account()?;
     bench_sbf_end!("t_create_output_compressed_accounts");
 
+    // TODO: calculate lamports
     // If input and output lamports are unbalanced create a change account
     // without token data.
     let change_lamports = input_lamports - output_lamports;
     if change_lamports > 0 {
-        let new_len = output_compressed_accounts.len() + 1;
-        // Resize vector to new_len so that no unnecessary memory is allocated.
-        // (Rust doubles the size of the vector when pushing to a full vector.)
+        // TODO: use zero copy
         output_compressed_accounts.resize(
             new_len,
             OutputCompressedAccountWithPackedContext {
