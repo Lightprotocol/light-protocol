@@ -13,9 +13,9 @@ use crate::{
     constants::{COMPRESSED_MINT_DISCRIMINATOR, POOL_SEED},
     create_mint::CompressedMint,
     instructions::create_spl_mint::CreateSplMintInstruction,
-    process_mint::CompressedMintInputs,
     process_transfer::get_cpi_signer_seeds,
 };
+use light_compressed_token::mint_to_compressed::instructions::CompressedMintInputs;
 
 /// Creates a Token-2022 mint account that corresponds to a compressed mint
 /// and updates the compressed mint to mark it as is_decompressed=true

@@ -1,6 +1,6 @@
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
-use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, errors::ZeroCopyError, ZeroCopyNew};
+use light_zero_copy::{borsh::{Deserialize, ZeroCopyStructInner}, borsh_mut::{DeserializeMut, ZeroCopyStructInnerMut}, errors::ZeroCopyError, ZeroCopyNew};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -116,6 +116,14 @@ impl<'a> DeserializeMut<'a> for Pubkey {
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         Ok(Ref::<&mut [u8], Pubkey>::from_prefix(bytes)?)
     }
+}
+
+impl ZeroCopyStructInner for Pubkey {
+    type ZeroCopyInner = Pubkey;
+}
+
+impl ZeroCopyStructInnerMut for Pubkey {
+    type ZeroCopyInnerMut = Pubkey;
 }
 impl From<Pubkey> for [u8; 32] {
     fn from(pubkey: Pubkey) -> Self {

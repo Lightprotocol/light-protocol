@@ -83,7 +83,8 @@ fn test_rnd_create_compressed_mint_account() {
         use light_zero_copy::borsh::Deserialize;
 
         // Generate random values for more comprehensive testing
-        let supply = rng.gen_range(0..=u64::MAX);
+        let input_supply = rng.gen_range(0..=u64::MAX);
+        let output_supply = rng.gen_range(0..=u64::MAX); // Random supply for output account
         let is_decompressed = rng.gen_bool(0.1); // 10% chance
         let num_extensions = rng.gen_range(0..=255u8);
         let merkle_tree_pubkey_index = rng.gen_range(0..=255u8);
@@ -98,7 +99,7 @@ fn test_rnd_create_compressed_mint_account() {
             compressed_mint_input:
                 light_compressed_token::mint_to_compressed::instructions::CompressedMintInput {
                     spl_mint: mint_pda,
-                    supply,
+                    supply: input_supply,
                     decimals,
                     is_decompressed,
                     freeze_authority_is_set: freeze_authority.is_some(),
@@ -123,10 +124,12 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Create token context and call input function
         let mut context = TokenContext::new();
+        let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.unwrap());
         light_compressed_token::mint::input::create_input_compressed_mint_account(
             input_account,
             &mut context,
             &z_compressed_mint_inputs,
+            &hashed_mint_authority,
         )
         .unwrap();
 
@@ -137,6 +140,7 @@ fn test_rnd_create_compressed_mint_account() {
             decimals,
             freeze_authority,
             mint_authority,
+            output_supply.into(), // supply parameter (U64 type)
             &program_id,
             mint_config,
             compressed_account_address,
@@ -151,7 +155,7 @@ fn test_rnd_create_compressed_mint_account() {
         // Build expected output
         let expected_compressed_mint = CompressedMint {
             spl_mint: mint_pda,
-            supply: 0,
+            supply: output_supply,
             decimals,
             is_decompressed: false,
             mint_authority,
@@ -178,10 +182,10 @@ fn test_rnd_create_compressed_mint_account() {
         // Create expected input account data that matches what the input function should produce
         let expected_input_compressed_mint = CompressedMint {
             spl_mint: mint_pda,
-            supply,
+            supply: input_supply,
             decimals,
             is_decompressed,
-            mint_authority: None, // Input validation typically doesn't set mint_authority
+            mint_authority: mint_authority, // Use the actual mint authority passed to the function
             freeze_authority,
             num_extensions,
         };

@@ -2,7 +2,7 @@ use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use light_compressed_account::{
-    compressed_account::{PackedCompressedAccountWithMerkleContext, PackedMerkleContext},
+    compressed_account::PackedCompressedAccountWithMerkleContext,
     instruction_data::{
         compressed_proof::CompressedProof, data::OutputCompressedAccountWithPackedContext,
     },
@@ -14,12 +14,9 @@ use light_zero_copy::num_trait::ZeroCopyNumTrait;
 use {
     crate::{
         check_spl_token_pool_derivation_with_index,
-        constants::COMPRESSED_MINT_DISCRIMINATOR,
-        create_mint::CompressedMint,
         process_transfer::{create_output_compressed_accounts, get_cpi_signer_seeds},
         spl_compression::spl_token_transfer,
     },
-    light_compressed_account::compressed_account::{CompressedAccount, CompressedAccountData},
     light_compressed_account::hash_to_bn254_field_size_be,
     light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
 };
@@ -28,33 +25,6 @@ use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
 
 pub const COMPRESS: bool = false;
 pub const MINT_TO: bool = true;
-
-/// Input data for compressed mint operations
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedMintInputs {
-    pub merkle_context: PackedMerkleContext,
-    pub root_index: u16,
-    pub address: [u8; 32],
-    pub compressed_mint_input: CompressedMintInput,
-    pub proof: Option<CompressedProof>,
-    pub output_merkle_tree_index: u8,
-}
-
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedMintInput {
-    /// Pda with seed address of compressed mint
-    pub spl_mint: Pubkey,
-    /// Total supply of tokens.
-    pub supply: u64,
-    /// Number of base 10 digits to the right of the decimal place.
-    pub decimals: u8,
-    /// Extension, necessary for mint to.
-    pub is_decompressed: bool,
-    /// Optional authority to freeze token accounts.
-    pub freeze_authority_is_set: bool,
-    pub freeze_authority: Pubkey,
-    pub num_extensions: u8, // TODO: check again how token22 does it
-}
 
 /// Mints tokens from an spl token mint to a list of compressed accounts and
 /// stores minted tokens in spl token pool account.
@@ -76,7 +46,6 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
     lamports: Option<u64>,
     index: Option<u8>,
     bump: Option<u8>,
-    compressed_mint_inputs: Option<CompressedMintInputs>,
 ) -> Result<()> {
     if recipient_pubkeys.len() != amounts.len() {
         msg!(
@@ -93,22 +62,9 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
     #[cfg(target_os = "solana")]
     {
         let option_compression_lamports = if lamports.unwrap_or(0) == 0 { 0 } else { 8 };
-        let option_compressed_mint_inputs = if compressed_mint_inputs.is_some() {
-            356
-        } else {
-            0
-        };
-        let inputs_len = 1
-            + 4
-            + 4
-            + 4
-            + amounts.len() * 162
-            + 1
-            + 1
-            + 1
-            + 1
-            + option_compression_lamports
-            + option_compressed_mint_inputs;
+
+        let inputs_len =
+            1 + 4 + 4 + 4 + amounts.len() * 162 + 1 + 1 + 1 + 1 + option_compression_lamports;
         // inputs_len =
         //   1                          Option<Proof>
         // + 4                          Vec::new()
@@ -118,21 +74,19 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
         // + 1 + 8                         Option<compression_lamports>
         // + 1                          is_compress
         // + 1                          Option<CpiContextAccount>
-        // + 500                        option_compressed_mint_inputs TODO: do exact measurement with freeze authority
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
         let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
         bench_sbf_start!("tm_mint_spl_to_pool_pda");
 
-        let (mint, compressed_mint_update_data) = if let Some(compressed_inputs) =
-            compressed_mint_inputs.as_ref()
-        {
-            mint_with_compressed_mint(&ctx, amounts, compressed_inputs)?
-        } else if IS_MINT_TO {
+        let (mint, compressed_mint_update_data) = if IS_MINT_TO {
             // EXISTING SPL MINT PATH
             mint_spl_to_pool_pda(&ctx, &amounts)?;
-            (ctx.accounts.mint.as_ref().unwrap().key(), None)
+            (
+                ctx.accounts.mint.as_ref().unwrap().key(),
+                None::<CompressedProof>,
+            )
         } else {
             // EXISTING BATCH COMPRESS PATH
             let mut amount = 0u64;
@@ -182,16 +136,7 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
         bench_sbf_end!("tm_output_compressed_accounts");
 
         // Create compressed mint update data if needed
-        let (input_compressed_accounts, proof) =
-            if let Some((input_account, output_account)) = compressed_mint_update_data {
-                // Add mint update to output accounts
-                output_compressed_accounts.push(output_account);
-
-                (vec![input_account], compressed_mint_inputs.unwrap().proof)
-            } else {
-                (Vec::new(), None)
-            };
-
+        let (input_compressed_accounts, proof) = (vec![], None);
         // Execute single CPI call with updated serialization
         cpi_execute_compressed_transaction_mint_to::<IS_MINT_TO>(
             &ctx,
@@ -216,114 +161,114 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
     Ok(())
 }
 
-#[cfg(target_os = "solana")]
-fn mint_with_compressed_mint<'info>(
-    ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    amounts: &[impl ZeroCopyNumTrait],
-    compressed_inputs: &CompressedMintInputs,
-) -> Result<(
-    Pubkey,
-    Option<(
-        PackedCompressedAccountWithMerkleContext,
-        OutputCompressedAccountWithPackedContext,
-    )>,
-)> {
-    let mint_pubkey = ctx
-        .accounts
-        .mint
-        .as_ref()
-        .ok_or(crate::ErrorCode::MintIsNone)?
-        .key();
-    let compressed_mint: CompressedMint = CompressedMint {
-        mint_authority: Some(ctx.accounts.authority.key()),
-        freeze_authority: if compressed_inputs
-            .compressed_mint_input
-            .freeze_authority_is_set
-        {
-            Some(compressed_inputs.compressed_mint_input.freeze_authority)
-        } else {
-            None
-        },
-        spl_mint: mint_pubkey,
-        supply: compressed_inputs.compressed_mint_input.supply,
-        decimals: compressed_inputs.compressed_mint_input.decimals,
-        is_decompressed: compressed_inputs.compressed_mint_input.is_decompressed,
-        num_extensions: compressed_inputs.compressed_mint_input.num_extensions,
-    };
-    // Create input compressed account for existing mint
-    let input_compressed_account = PackedCompressedAccountWithMerkleContext {
-        compressed_account: CompressedAccount {
-            owner: crate::ID.into(),
-            lamports: 0,
-            address: Some(compressed_inputs.address),
-            data: Some(CompressedAccountData {
-                discriminator: COMPRESSED_MINT_DISCRIMINATOR,
-                data: Vec::new(),
-                // TODO: hash with hashed inputs
-                data_hash: compressed_mint.hash().map_err(ProgramError::from)?,
-            }),
-        },
-        merkle_context: compressed_inputs.merkle_context,
-        root_index: compressed_inputs.root_index,
-        read_only: false,
-    };
-    let total_mint_amount: u64 = amounts.iter().map(|a| (*a).into()).sum();
-    let updated_compressed_mint = if compressed_mint.is_decompressed {
-        // SYNC WITH SPL MINT (SPL is source of truth)
+// #[cfg(target_os = "solana")]
+// fn mint_with_compressed_mint<'info>(
+//     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+//     amounts: &[impl ZeroCopyNumTrait],
+//     compressed_inputs: &CompressedMintInputs,
+// ) -> Result<(
+//     Pubkey,
+//     Option<(
+//         PackedCompressedAccountWithMerkleContext,
+//         OutputCompressedAccountWithPackedContext,
+//     )>,
+// )> {
+//     let mint_pubkey = ctx
+//         .accounts
+//         .mint
+//         .as_ref()
+//         .ok_or(crate::ErrorCode::MintIsNone)?
+//         .key();
+//     let compressed_mint: CompressedMint = CompressedMint {
+//         mint_authority: Some(ctx.accounts.authority.key()),
+//         freeze_authority: if compressed_inputs
+//             .compressed_mint_input
+//             .freeze_authority_is_set
+//         {
+//             Some(compressed_inputs.compressed_mint_input.freeze_authority)
+//         } else {
+//             None
+//         },
+//         spl_mint: mint_pubkey,
+//         supply: compressed_inputs.compressed_mint_input.supply,
+//         decimals: compressed_inputs.compressed_mint_input.decimals,
+//         is_decompressed: compressed_inputs.compressed_mint_input.is_decompressed,
+//         num_extensions: compressed_inputs.compressed_mint_input.num_extensions,
+//     };
+//     // Create input compressed account for existing mint
+//     let input_compressed_account = PackedCompressedAccountWithMerkleContext {
+//         compressed_account: CompressedAccount {
+//             owner: crate::ID.into(),
+//             lamports: 0,
+//             address: Some(compressed_inputs.address),
+//             data: Some(CompressedAccountData {
+//                 discriminator: COMPRESSED_MINT_DISCRIMINATOR,
+//                 data: Vec::new(),
+//                 // TODO: hash with hashed inputs
+//                 data_hash: compressed_mint.hash().map_err(ProgramError::from)?,
+//             }),
+//         },
+//         merkle_context: compressed_inputs.merkle_context,
+//         root_index: compressed_inputs.root_index,
+//         read_only: false,
+//     };
+//     let total_mint_amount: u64 = amounts.iter().map(|a| (*a).into()).sum();
+//     let updated_compressed_mint = if compressed_mint.is_decompressed {
+//         // SYNC WITH SPL MINT (SPL is source of truth)
 
-        // Mint to SPL token pool as normal
-        mint_spl_to_pool_pda(ctx, amounts)?;
+//         // Mint to SPL token pool as normal
+//         mint_spl_to_pool_pda(ctx, amounts)?;
 
-        // Read updated SPL mint state for sync
-        let spl_mint_info = ctx
-            .accounts
-            .mint
-            .as_ref()
-            .ok_or(crate::ErrorCode::MintIsNone)?;
-        let spl_mint_data = spl_mint_info.data.borrow();
-        let spl_mint = anchor_spl::token::Mint::try_deserialize(&mut &spl_mint_data[..])?;
+//         // Read updated SPL mint state for sync
+//         let spl_mint_info = ctx
+//             .accounts
+//             .mint
+//             .as_ref()
+//             .ok_or(crate::ErrorCode::MintIsNone)?;
+//         let spl_mint_data = spl_mint_info.data.borrow();
+//         let spl_mint = anchor_spl::token::Mint::try_deserialize(&mut &spl_mint_data[..])?;
 
-        // Create updated compressed mint with synced state
-        let mut updated_compressed_mint = compressed_mint;
-        updated_compressed_mint.supply = spl_mint.supply;
-        updated_compressed_mint
-    } else {
-        // PURE COMPRESSED MINT - no SPL backing
-        let mut updated_compressed_mint = compressed_mint;
-        updated_compressed_mint.supply = updated_compressed_mint
-            .supply
-            .checked_add(total_mint_amount)
-            .ok_or(crate::ErrorCode::MintTooLarge)?;
-        updated_compressed_mint
-    };
-    let updated_data_hash = updated_compressed_mint
-        .hash()
-        .map_err(|_| crate::ErrorCode::HashToFieldError)?;
+//         // Create updated compressed mint with synced state
+//         let mut updated_compressed_mint = compressed_mint;
+//         updated_compressed_mint.supply = spl_mint.supply;
+//         updated_compressed_mint
+//     } else {
+//         // PURE COMPRESSED MINT - no SPL backing
+//         let mut updated_compressed_mint = compressed_mint;
+//         updated_compressed_mint.supply = updated_compressed_mint
+//             .supply
+//             .checked_add(total_mint_amount)
+//             .ok_or(crate::ErrorCode::MintTooLarge)?;
+//         updated_compressed_mint
+//     };
+//     let updated_data_hash = updated_compressed_mint
+//         .hash()
+//         .map_err(|_| crate::ErrorCode::HashToFieldError)?;
 
-    let mut updated_mint_bytes = Vec::new();
-    updated_compressed_mint.serialize(&mut updated_mint_bytes)?;
+//     let mut updated_mint_bytes = Vec::new();
+//     updated_compressed_mint.serialize(&mut updated_mint_bytes)?;
 
-    let updated_compressed_account_data = CompressedAccountData {
-        discriminator: COMPRESSED_MINT_DISCRIMINATOR,
-        data: updated_mint_bytes,
-        data_hash: updated_data_hash,
-    };
+//     let updated_compressed_account_data = CompressedAccountData {
+//         discriminator: COMPRESSED_MINT_DISCRIMINATOR,
+//         data: updated_mint_bytes,
+//         data_hash: updated_data_hash,
+//     };
 
-    let output_compressed_mint_account = OutputCompressedAccountWithPackedContext {
-        compressed_account: CompressedAccount {
-            owner: crate::ID.into(),
-            lamports: 0,
-            address: Some(compressed_inputs.address),
-            data: Some(updated_compressed_account_data),
-        },
-        merkle_tree_index: compressed_inputs.output_merkle_tree_index,
-    };
+//     let output_compressed_mint_account = OutputCompressedAccountWithPackedContext {
+//         compressed_account: CompressedAccount {
+//             owner: crate::ID.into(),
+//             lamports: 0,
+//             address: Some(compressed_inputs.address),
+//             data: Some(updated_compressed_account_data),
+//         },
+//         merkle_tree_index: compressed_inputs.output_merkle_tree_index,
+//     };
 
-    Ok((
-        mint_pubkey,
-        Some((input_compressed_account, output_compressed_mint_account)),
-    ))
-}
+//     Ok((
+//         mint_pubkey,
+//         Some((input_compressed_account, output_compressed_mint_account)),
+//     ))
+// }
 
 #[cfg(target_os = "solana")]
 #[inline(never)]

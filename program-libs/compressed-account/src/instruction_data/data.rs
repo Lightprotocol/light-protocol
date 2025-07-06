@@ -42,7 +42,9 @@ pub struct NewAddressParamsPacked {
     pub address_merkle_tree_root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct NewAddressParamsAssignedPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -90,7 +92,9 @@ pub struct NewAddressParamsAssigned {
     pub assigned_account_index: Option<u8>,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct PackedReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_root_index: u16,

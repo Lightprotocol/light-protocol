@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use light_hasher::{Hasher, Poseidon};
-use light_zero_copy::ZeroCopyMut;
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
     address::pack_account,
@@ -134,7 +134,7 @@ pub struct ReadOnlyCompressedAccount {
     pub root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: PackedMerkleContext,
@@ -151,7 +151,15 @@ pub struct MerkleContext {
 }
 
 #[derive(
-    Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default, ZeroCopyMut,
+    Debug,
+    Clone,
+    Copy,
+    AnchorSerialize,
+    AnchorDeserialize,
+    PartialEq,
+    Default,
+    ZeroCopy,
+    ZeroCopyMut,
 )]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,

@@ -117,7 +117,8 @@ pub fn process_create_compressed_mint<'info>(
         mint_pda,
         parsed_instruction_data.decimals,
         parsed_instruction_data.freeze_authority.map(|fa| *fa),
-        Some((*validated_accounts.mint_signer.key).into()),
+        Some(parsed_instruction_data.mint_authority),
+        0.into(),
         &program_id,
         mint_size_config,
         compressed_account_address,
@@ -125,15 +126,14 @@ pub fn process_create_compressed_mint<'info>(
     )?;
     sol_log_compute_units();
     // 3. Execute CPI to light-system-program
-    // Extract tree accounts for the generalized CPI call  
+    // Extract tree accounts for the generalized CPI call
     let tree_accounts = [*accounts[9].key, *accounts[10].key]; // address_merkle_tree, output_queue
-    
+
     execute_cpi_invoke(
         accounts,
         cpi_bytes,
         &tree_accounts,
-        None, // no sol_pool_pda for create_compressed_mint
-        None, // no cpi_context_account for create_compressed_mint
+        false, // no sol_pool_pda for create_compressed_mint
+        None,  // no cpi_context_account for create_compressed_mint
     )
 }
-

@@ -32,7 +32,7 @@ impl CpiConfigInput {
     /// Helper to create config for mint_to_compressed with no delegates
     pub fn mint_to_compressed(
         num_recipients: usize,
-        has_compressed_mint: bool,
+        has_proof: bool,
         compressed_mint_with_freeze_authority: bool,
     ) -> Self {
         let mut output_delegates = ArrayVec::new();
@@ -43,7 +43,7 @@ impl CpiConfigInput {
         Self {
             input_accounts: ArrayVec::new(), // No input accounts for mint_to_compressed
             output_accounts: output_delegates,
-            has_proof: has_compressed_mint,
+            has_proof,
             compressed_mint: true,
             compressed_mint_with_freeze_authority,
         }

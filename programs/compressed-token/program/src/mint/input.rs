@@ -19,6 +19,7 @@ pub fn create_input_compressed_mint_account(
     input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
     compressed_mint_inputs: &ZCompressedMintInputs,
+    hashed_mint_authority: &[u8; 32],
 ) -> Result<(), ProgramError> {
     // 1. Set InAccount fields
     {
@@ -85,7 +86,7 @@ pub fn create_input_compressed_mint_account(
             &supply_bytes,
             compressed_mint_input.decimals,
             compressed_mint_input.is_decompressed(),
-            &None, // mint_authority - typically None for input validation
+            &Some(hashed_mint_authority), // pre-hashed mint_authority from signer
             &hashed_freeze_authority.as_ref(),
             compressed_mint_input.num_extensions,
         )

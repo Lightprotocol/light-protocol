@@ -4,12 +4,13 @@ use light_compressed_account::{
 };
 
 use light_zero_copy::ZeroCopyNew;
+use zerocopy::little_endian::U64;
 
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
     mint::state::{CompressedMint, CompressedMintConfig},
 };
-
+// TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_mint_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut,
@@ -17,6 +18,7 @@ pub fn create_output_compressed_mint_account(
     decimals: u8,
     freeze_authority: Option<Pubkey>,
     mint_authority: Option<Pubkey>,
+    supply: U64,
     program_id: &Pubkey,
     mint_config: CompressedMintConfig,
     compressed_account_address: [u8; 32],
@@ -53,6 +55,7 @@ pub fn create_output_compressed_mint_account(
                 .map_err(ProgramError::from)?;
         compressed_mint.spl_mint = mint_pda;
         compressed_mint.decimals = decimals;
+        compressed_mint.supply = supply;
         if let Some(freeze_auth) = freeze_authority {
             if let Some(z_freeze_authority) = compressed_mint.freeze_authority.as_deref_mut() {
                 *z_freeze_authority = freeze_auth;

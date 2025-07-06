@@ -39,6 +39,12 @@ pub fn cpi_signer_check(
 ) -> Result<()> {
     let derived_signer = if let Some(bump) = bump {
         let seeds = [CPI_AUTHORITY_PDA_SEED, &[bump][..]];
+        msg!(format!("bump {}", bump).as_str());
+        msg!(format!(
+            "solana_pubkey::Pubkey::new_from_array(*invoking_program) {:?}",
+            invoking_program
+        )
+        .as_str());
         solana_pubkey::Pubkey::create_program_address(
             &seeds,
             &solana_pubkey::Pubkey::new_from_array(*invoking_program),

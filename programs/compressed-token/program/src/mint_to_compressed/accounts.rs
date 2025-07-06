@@ -20,18 +20,22 @@ pub struct MintToCompressedAccounts<'info> {
     pub noop_program: &'info AccountInfo<'info>,
     pub account_compression_authority: &'info AccountInfo<'info>,
     pub account_compression_program: &'info AccountInfo<'info>,
-    pub merkle_tree: &'info AccountInfo<'info>,
     pub self_program: &'info AccountInfo<'info>,
     pub system_program: &'info AccountInfo<'info>,
     pub sol_pool_pda: Option<&'info AccountInfo<'info>>,
+    pub mint_in_merkle_tree: &'info AccountInfo<'info>,
+    pub mint_in_queue: &'info AccountInfo<'info>,
+    pub mint_out_queue: &'info AccountInfo<'info>,
+    pub tokens_out_queue: &'info AccountInfo<'info>,
 }
 
 impl<'info> MintToCompressedAccounts<'info> {
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo<'info>],
         program_id: &Pubkey,
+        with_lamports: bool,
     ) -> Result<Self, ProgramError> {
-        if accounts.len() < 14 {
+        if accounts.len() < 18 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
@@ -50,14 +54,19 @@ impl<'info> MintToCompressedAccounts<'info> {
         let noop_program = &accounts[8];
         let account_compression_authority = &accounts[9];
         let account_compression_program = &accounts[10];
-        let merkle_tree = &accounts[11];
-        let self_program = &accounts[12];
-        let system_program = &accounts[13];
-        let sol_pool_pda = if accounts.len() > 14 {
-            Some(&accounts[14])
+        let self_program = &accounts[11];
+        let system_program = &accounts[12];
+        let mut index = 13;
+        let sol_pool_pda = if with_lamports {
+            index += 1;
+            Some(&accounts[index])
         } else {
             None
         };
+        let mint_in_merkle_tree = &accounts[index];
+        let mint_in_queue = &accounts[index + 1];
+        let mint_out_queue = &accounts[index + 1];
+        let tokens_out_queue = &accounts[index + 1];
 
         // Validate fee_payer: must be signer and mutable
         check_signer(fee_payer).map_err(ProgramError::from)?;
@@ -97,9 +106,6 @@ impl<'info> MintToCompressedAccounts<'info> {
         check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
             .map_err(ProgramError::from)?;
 
-        // Validate merkle_tree: mutable
-        check_mut(merkle_tree).map_err(ProgramError::from)?;
-
         // Validate self_program: must be this program
         check_program(&program_id.to_bytes(), self_program).map_err(ProgramError::from)?;
 
@@ -111,6 +117,15 @@ impl<'info> MintToCompressedAccounts<'info> {
         if let Some(sol_pool_account) = sol_pool_pda {
             check_mut(sol_pool_account).map_err(ProgramError::from)?;
         }
+
+        // Validate merkle_tree: mutable
+        check_mut(mint_in_merkle_tree).map_err(ProgramError::from)?;
+        // Validate merkle_tree: mutable
+        check_mut(mint_in_queue).map_err(ProgramError::from)?;
+        // Validate merkle_tree: mutable
+        check_mut(mint_out_queue).map_err(ProgramError::from)?;
+        // Validate merkle_tree: mutable
+        check_mut(tokens_out_queue).map_err(ProgramError::from)?;
 
         Ok(MintToCompressedAccounts {
             fee_payer,
@@ -124,10 +139,13 @@ impl<'info> MintToCompressedAccounts<'info> {
             noop_program,
             account_compression_authority,
             account_compression_program,
-            merkle_tree,
             self_program,
             system_program,
             sol_pool_pda,
+            mint_in_merkle_tree,
+            mint_in_queue,
+            mint_out_queue,
+            tokens_out_queue,
         })
     }
 }
