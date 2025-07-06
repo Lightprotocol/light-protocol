@@ -157,19 +157,6 @@ where
             A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
         drop(pda_data);
 
-        let last_written_slot = pda_account_data.last_written_slot();
-        let slots_until_compression = pda_account_data.slots_until_compression();
-
-        let current_slot = Clock::get()?.slot;
-        if current_slot < last_written_slot + slots_until_compression {
-            msg!(
-                "Cannot compress {} yet. {} slots remaining",
-                pda_account.key,
-                (last_written_slot + slots_until_compression).saturating_sub(current_slot)
-            );
-            return Err(LightSdkError::ConstraintViolation);
-        }
-
         // Create the compressed account with the PDA data
         let mut compressed_account =
             LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
