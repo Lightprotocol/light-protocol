@@ -3653,6 +3653,7 @@ dependencies = [
  "solana-msg",
  "solana-program-error",
  "solana-pubkey",
+ "solana-rent",
  "solana-system-interface",
  "solana-sysvar",
  "thiserror 2.0.12",

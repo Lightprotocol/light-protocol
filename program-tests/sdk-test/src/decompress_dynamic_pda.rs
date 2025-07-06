@@ -1,13 +1,15 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    compressible::{decompress_idempotent, PdaTimingData, SLOTS_UNTIL_COMPRESSION},
+    compressible::{decompress_idempotent, PdaTimingData},
     cpi::{CpiAccounts, CpiAccountsConfig},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightDiscriminator, LightHasher,
 };
 use solana_program::account_info::AccountInfo;
+
+pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 
 /// Decompresses a compressed account into a PDA idempotently.
 pub fn decompress_dynamic_pda(
@@ -25,27 +27,17 @@ pub fn decompress_dynamic_pda(
     let system_program = &accounts[3];
 
     // Set up CPI accounts
-    let mut config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    config.sol_pool_pda = false;
-    config.sol_compression_recipient = false;
-
+    let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
     let cpi_accounts = CpiAccounts::new_with_config(
         fee_payer,
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
     );
 
-    // Prepare account data
-    let account_data = MyPdaAccount {
-        last_written_slot: 0,
-        slots_until_compression: SLOTS_UNTIL_COMPRESSION,
-        data: instruction_data.data,
-    };
-
     let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
         &crate::ID,
-        &instruction_data.compressed_account_meta,
-        account_data,
+        &instruction_data.compressed_account.meta,
+        instruction_data.compressed_account.data,
     )?;
 
     // Call decompress_idempotent - this should work whether PDA exists or not
@@ -134,8 +126,7 @@ pub fn decompress_multiple_dynamic_pdas(
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct DecompressToPdaInstructionData {
     pub proof: ValidityProof,
-    pub compressed_account_meta: CompressedAccountMeta,
-    pub data: [u8; 31],
+    pub compressed_account: MyCompressedAccount,
     pub system_accounts_offset: u8,
 }
 

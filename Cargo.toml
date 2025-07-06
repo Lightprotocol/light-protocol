@@ -90,6 +90,7 @@ solana-transaction = { version = "2.2" }
 solana-transaction-error = { version = "2.2" }
 solana-hash = { version = "2.2" }
 solana-clock = { version = "2.2" }
+solana-rent = { version = "2.2" }
 solana-signature = { version = "2.2" }
 solana-commitment-config = { version = "2.2" }
 solana-account = { version = "2.2" }
