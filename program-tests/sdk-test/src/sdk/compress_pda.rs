@@ -19,41 +19,6 @@ pub trait PdaTimingData {
     fn set_last_written_slot(&mut self, slot: u64);
 }
 
-const DECOMP_SEED: &[u8] = b"decomp";
-
-/// Check that the PDA account is owned by the caller program and derived from the correct seeds.
-///
-/// # Arguments
-/// * `custom_seeds` - Custom seeds to check against
-/// * `c_pda_address` - The address of the compressed PDA
-/// * `pda_account` - The address of the PDA account
-/// * `caller_program` - The program that owns the PDA.
-pub fn check_pda(
-    custom_seeds: &[&[u8]],
-    c_pda_address: &[u8; 32],
-    pda_account: &Pubkey,
-    caller_program: &Pubkey,
-) -> Result<(), ProgramError> {
-    // Create seeds array: [custom_seeds..., c_pda_address, "decomp"]
-    let mut seeds: Vec<&[u8]> = custom_seeds.to_vec();
-    seeds.push(c_pda_address);
-    seeds.push(DECOMP_SEED);
-
-    let derived_pda =
-        Pubkey::create_program_address(&seeds, caller_program).expect("Invalid PDA seeds.");
-
-    if derived_pda != *pda_account {
-        msg!(
-            "Invalid PDA provided. Expected: {}. Found: {}.",
-            derived_pda,
-            pda_account
-        );
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    Ok(())
-}
-
 /// Helper function to compress a PDA and reclaim rent.
 ///
 /// 1. closes onchain PDA
@@ -67,12 +32,8 @@ pub fn check_pda(
 /// * `pda_account` - The PDA account to compress (will be closed)
 /// * `compressed_account_meta` - Metadata for the compressed account (must be
 ///   empty but have an address)
-/// * `proof` - Optional validity proof
-/// * `cpi_accounts` - Accounts needed for CPI starting from
-///   system_accounts_offset
-/// * `system_accounts_offset` - Offset where CPI accounts start
-/// * `fee_payer` - The fee payer account
-/// * `cpi_signer` - The CPI signer for the calling program
+/// * `proof` - Validity proof
+/// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
 //
@@ -86,7 +47,6 @@ pub fn compress_pda<A>(
     cpi_accounts: CpiAccounts,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo,
-    custom_seeds: &[&[u8]],
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -96,13 +56,15 @@ where
         + Default
         + PdaTimingData,
 {
-    // Check that the PDA account is owned by the caller program and derived from the address of the compressed PDA.
-    check_pda(
-        custom_seeds,
-        &compressed_account_meta.address,
-        pda_account.key,
-        owner_program,
-    )?;
+    // Check that the PDA account is owned by the caller program
+    if pda_account.owner != owner_program {
+        msg!(
+            "Invalid PDA owner. Expected: {}. Found: {}.",
+            owner_program,
+            pda_account.owner
+        );
+        return Err(LightSdkError::ConstraintViolation);
+    }
 
     let current_slot = Clock::get()?.slot;
 
