@@ -1,7 +1,7 @@
 [package]
-name = "anchor-compressible-user"
+name = "anchor-compressible-user-derived"
 version = "0.1.0"
-description = "Simple Anchor program template with user records"
+description = "Anchor program template with user records and derived accounts"
 edition = "2021"
 
 [lib]
@@ -21,6 +21,7 @@ test-sbf = []
 [dependencies]
 light-sdk = { workspace = true, features = ["anchor", "idl-build"] }
 light-sdk-types = { workspace = true }
+light-sdk-macros = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }

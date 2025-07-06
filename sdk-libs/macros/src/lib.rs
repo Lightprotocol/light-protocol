@@ -7,6 +7,7 @@ use traits::process_light_traits;
 
 mod account;
 mod accounts;
+mod compressible;
 mod cpi_signer;
 mod discriminator;
 mod hasher;
@@ -277,6 +278,63 @@ pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemMod);
     program::program(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Makes account structs compressible by generating compress/decompress instructions.
+///
+/// This macro automatically:
+/// - Adds PDA timing fields (last_written_slot, slots_until_compression)
+/// - Implements PdaTimingData trait
+/// - Generates compress_<struct_name> instruction (native + Anchor wrapper)
+/// - Registers the type for unified decompress_accounts instruction
+///
+/// ## Usage
+///
+/// ```ignore
+/// #[compressible(slots_until_compression = 100)]
+/// #[derive(LightHasher, LightDiscriminator)]
+/// #[account]
+/// pub struct UserRecord {
+///     #[hash]
+///     pub owner: Pubkey,
+///     pub name: String,
+///     pub score: u64,
+/// }
+/// ```
+///
+/// This generates:
+/// - `compress_user_record` module with native and Anchor functions
+/// - Automatic inclusion in `CompressedAccountVariant` enum
+/// - Automatic inclusion in `decompress_accounts` instruction
+///
+/// ## Attributes
+///
+/// - `slots_until_compression`: Number of slots before the account can be compressed (default: 100)
+#[proc_macro_attribute]
+pub fn compressible(args: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(args as compressible::CompressibleArgs);
+    let input = parse_macro_input!(input as ItemStruct);
+
+    compressible::compressible(args, input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Generates the unified decompress module and CompressedAccountVariant enum.
+///
+/// Call this macro at the end of your lib.rs after all compressible types are defined.
+///
+/// ## Usage
+///
+/// ```ignore
+/// // At the end of lib.rs after all compressible structs
+/// generate_decompress_module!();
+/// ```
+#[proc_macro]
+pub fn generate_decompress_module(_: TokenStream) -> TokenStream {
+    compressible::generate_decompress_module()
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
