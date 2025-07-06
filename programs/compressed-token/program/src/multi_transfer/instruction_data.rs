@@ -64,6 +64,7 @@ pub struct Compression {
     pub amount: u64,
     pub is_compress: bool,
     pub mint: u8,
+    pub source_or_recipient: u8,
 }
 
 // #[derive(

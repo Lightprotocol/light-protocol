@@ -71,6 +71,7 @@ fn multi_sum_check_test(
             amount,
             is_compress,
             mint: 0, // Same mint
+            source_or_recipient: 0,
         }]
     });
 
@@ -101,8 +102,6 @@ fn test_simple_multi_mint_cases() {
 
 #[test]
 fn test_multi_mint_randomized() {
-    use std::collections::HashMap;
-
     // Test multiple scenarios with different mint combinations
     for scenario in 0..3 {
         println!("Testing scenario {}", scenario);
@@ -325,6 +324,7 @@ fn test_multi_mint_scenario(
             amount,
             is_compress,
             mint,
+            source_or_recipient: 0,
         })
         .collect();
 

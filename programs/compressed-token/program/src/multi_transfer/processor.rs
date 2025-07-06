@@ -13,6 +13,7 @@ use crate::{
         instruction_data::{
             validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
         },
+        native_compression::process_token_compression,
         sum_check::sum_check_multi_mint,
     },
     shared::{context::TokenContext, cpi::execute_cpi_invoke},
@@ -101,6 +102,9 @@ pub fn process_multi_transfer<'info>(
         total_input_lamports,
         total_output_lamports,
     )?;
+    // Process token compressions/decompressions
+    // TODO: support spl
+    process_token_compression(&inputs, &packed_accounts)?;
 
     // Extract tree accounts from merkle contexts for CPI call
     let tree_accounts = get_packed_cpi_accounts(&inputs, &packed_accounts);
