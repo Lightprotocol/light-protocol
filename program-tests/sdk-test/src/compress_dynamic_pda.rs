@@ -7,13 +7,13 @@ use light_sdk::{
 use light_sdk_types::CpiAccountsConfig;
 use solana_program::account_info::AccountInfo;
 
-use crate::{decompress_to_pda::MyPdaAccount, sdk::compress_pda::compress_pda};
+use crate::{decompress_dynamic_pda::MyPdaAccount, sdk::compress_pda::compress_pda};
 
 /// Compresses a PDA back into a compressed account
 /// Anyone can call this after the timeout period has elapsed
 /// pda check missing yet.
 // TODO: add macro that create the full instruction. and takes: programid, account and seeds, rent_recipient (to hardcode). low code solution.
-pub fn compress_from_pda(
+pub fn compress_dynamic_pda(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {

@@ -216,7 +216,7 @@ pub struct DecompressMyCompressedAccount {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decompress_to_pda::MyPdaAccount;
+    use crate::decompress_dynamic_pda::MyPdaAccount;
     use light_sdk::cpi::CpiAccountsConfig;
 
     /// Test instruction that demonstrates idempotent decompression
