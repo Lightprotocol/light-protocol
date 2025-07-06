@@ -121,13 +121,15 @@ pub fn process_create_compressed_mint<'info>(
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         mint_pda,
-        parsed_instruction_data,
+        parsed_instruction_data.decimals,
+        parsed_instruction_data.freeze_authority.map(|fa| *fa),
+        Some((*validated_accounts.mint_signer.key).into()),
         &program_id,
         mint_size_config,
         compressed_account_address,
     )?;
     sol_log_compute_units();
-    // // 3. Execute CPI to light-system-program
+    // 3. Execute CPI to light-system-program
     execute_cpi_invoke(accounts, cpi_bytes)
 }
 

@@ -1,15 +1,12 @@
-use anchor_lang::solana_program::program_error::ProgramError;
-use light_compressed_account::{
-    instruction_data::with_readonly::InAccount,
-    Pubkey as LightPubkey,
-};
 use account_compression::StateMerkleTreeAccount;
-use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
 use anchor_compressed_token::{
     process_transfer::{DelegatedTransfer, InputTokenDataWithContext},
     token_data::{AccountState, TokenData},
     ErrorCode,
 };
+use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
+use light_compressed_account::{instruction_data::with_readonly::InAccount, Pubkey as LightPubkey};
 use solana_pubkey::Pubkey;
 
 use super::context::TokenContext;
@@ -47,8 +44,7 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
     // Check signer permissions for delegate operations
     if signer_is_delegate.is_some()
         && input_token_data.delegate_index.is_some()
-        && *signer
-            != remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
+        && *signer != remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
     {
         msg!(
             "signer {:?} != delegate in remaining accounts {:?}",
@@ -59,7 +55,9 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
             "delegate index {:?}",
             input_token_data.delegate_index.unwrap() as usize
         );
-        return Err(ProgramError::Custom(ErrorCode::DelegateSignerCheckFailed as u32));
+        return Err(ProgramError::Custom(
+            ErrorCode::DelegateSignerCheckFailed as u32,
+        ));
     }
 
     // Create InAccount with proper fields
@@ -82,26 +80,25 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
     }
 
     let token_data = TokenData {
-        mint: (*mint).into(),
+        mint,
         owner,
         amount: input_token_data.amount,
-        delegate: input_token_data.delegate_index.map(|_| {
-            remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
-        }),
+        delegate: input_token_data
+            .delegate_index
+            .map(|_| remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()),
         state,
         tlv: None,
     };
 
     // Compute data hash using TokenContext for caching
     let hashed_owner = context.get_or_hash_pubkey(&LightPubkey::from(token_data.owner));
-    
+
     let mut amount_bytes = [0u8; 32];
     let discriminator_bytes = &remaining_accounts[input_compressed_account
         .merkle_context
-        .merkle_tree_pubkey_index
-        as usize]
+        .merkle_tree_pubkey_index as usize]
         .try_borrow_data()?[0..8];
-    
+
     // Handle different discriminator types for amount encoding
     match discriminator_bytes {
         StateMerkleTreeAccount::DISCRIMINATOR => {

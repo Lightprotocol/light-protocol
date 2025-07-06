@@ -15,7 +15,9 @@ use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
-    mint::output::create_output_compressed_mint_account,
+    mint::{
+        input::create_input_compressed_mint_account, output::create_output_compressed_mint_account,
+    },
     mint_to_compressed::{
         accounts::MintToCompressedAccounts, instructions::MintToCompressedInstructionData,
     },
@@ -44,7 +46,7 @@ pub fn process_mint_to_compressed<'info>(
     sol_log_compute_units();
 
     // Validate and parse accounts
-    let _validated_accounts =
+    let validated_accounts =
         MintToCompressedAccounts::validate_and_parse(accounts, &program_id.into())?;
 
     // Build configuration for CPI instruction data using the generalized function
@@ -61,11 +63,10 @@ pub fn process_mint_to_compressed<'info>(
     );
 
     let config = cpi_bytes_config(config_input);
-    let mint_config = config.mint_config;
     let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
     sol_log_compute_units();
-    let (cpi_instruction_struct, _) =
+    let (mut cpi_instruction_struct, _) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
     let mut context = TokenContext::new();
@@ -76,6 +77,44 @@ pub fn process_mint_to_compressed<'info>(
 
     let hashed_mint = hash_to_bn254_field_size_be(mint.as_ref());
 
+    {
+        // Process input compressed mint account
+        create_input_compressed_mint_account(
+            &mut cpi_instruction_struct.input_compressed_accounts[0],
+            &mut context,
+            &parsed_instruction_data.compressed_mint_inputs,
+        )?;
+        let mint_inputs = &parsed_instruction_data
+            .compressed_mint_inputs
+            .compressed_mint_input;
+        let mint_pda = mint_inputs.spl_mint;
+        let decimals = mint_inputs.decimals;
+        // TODO: make option in ix data.
+        let freeze_authority = if mint_inputs.freeze_authority_is_set() {
+            Some(mint_inputs.freeze_authority)
+        } else {
+            None
+        };
+        use crate::mint::state::CompressedMintConfig;
+        let mint_config = CompressedMintConfig {
+            mint_authority: (true, ()),
+            freeze_authority: (mint_inputs.freeze_authority_is_set(), ()),
+        };
+        let compressed_account_address = *parsed_instruction_data.compressed_mint_inputs.address;
+
+        // Compressed mint account is the last output
+        create_output_compressed_mint_account(
+            &mut cpi_instruction_struct.output_compressed_accounts
+                [parsed_instruction_data.recipients.len()],
+            mint_pda,
+            decimals,
+            freeze_authority,
+            Some((*validated_accounts.authority.key).into()),
+            &program_id,
+            mint_config,
+            compressed_account_address,
+        )?;
+    }
     // Create output token accounts
     create_output_compressed_token_accounts(
         parsed_instruction_data,
@@ -84,14 +123,7 @@ pub fn process_mint_to_compressed<'info>(
         mint,
         hashed_mint,
     )?;
-    create_output_compressed_mint_account(
-        cpi_struct,
-        mint_pda,
-        parsed_instruction_data,
-        &program_id,
-        mint_config,
-        compressed_account_address,
-    );
+    execute_mint_to_compressed_cpi(&validated_accounts, cpi_bytes, &program_id)?;
     Ok(())
 }
 

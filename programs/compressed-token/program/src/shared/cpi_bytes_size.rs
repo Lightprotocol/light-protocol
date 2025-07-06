@@ -60,7 +60,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
         let mut input_compressed_accounts = Vec::with_capacity(inputs_capacity);
 
         // Add regular input accounts (token accounts)
-        for has_delegate in input.input_accounts {
+        for _ in input.input_accounts {
             input_compressed_accounts.push(InAccountConfig {
                 merkle_context: PackedMerkleContextConfig {}, // Default merkle context
                 address: (false, ()),                         // Token accounts don't have addresses
@@ -69,11 +69,6 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 
         // Add compressed mint input account if needed
         if input.compressed_mint {
-            use crate::mint::state::CompressedMintConfig;
-            let mint_size_config = CompressedMintConfig {
-                mint_authority: (true, ()),
-                freeze_authority: (input.compressed_mint_with_freeze_authority, ()),
-            };
             input_compressed_accounts.push(InAccountConfig {
                 merkle_context: PackedMerkleContextConfig {}, // Default merkle context
                 address: (true, ()),
@@ -143,6 +138,6 @@ pub fn allocate_invoke_with_read_only_cpi_bytes(
     let vec_len = InstructionDataInvokeCpiWithReadOnly::byte_len(config);
     let mut cpi_bytes = vec![0u8; vec_len + 8];
     cpi_bytes[0..8]
-        .copy_from_slice(&light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR);
+        .copy_from_slice(light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR);
     cpi_bytes
 }

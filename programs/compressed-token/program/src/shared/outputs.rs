@@ -2,11 +2,7 @@ use anchor_lang::{
     prelude::borsh, solana_program::program_error::ProgramError, AnchorDeserialize, AnchorSerialize,
 };
 use light_compressed_account::{
-    instruction_data::{
-        data::ZOutputCompressedAccountWithPackedContextMut,
-        zero_copy::ZOutputCompressedAccountWithPackedContext,
-    },
-    Pubkey,
+    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
 
@@ -77,7 +73,7 @@ pub fn create_output_compressed_account(
         };
 
         let (mut token_data, _) =
-            TokenData::new_zero_copy(compressed_account_data.data.as_mut(), token_config)
+            TokenData::new_zero_copy(compressed_account_data.data, token_config)
                 .map_err(ProgramError::from)?;
 
         // Set token data fields directly on zero-copy struct
@@ -96,11 +92,8 @@ pub fn create_output_compressed_account(
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
 
-        let hashed_delegate = if let Some(delegate_pubkey) = delegate {
-            Some(context.get_or_hash_pubkey(&delegate_pubkey))
-        } else {
-            None
-        };
+        let hashed_delegate =
+            delegate.map(|delegate_pubkey| context.get_or_hash_pubkey(&delegate_pubkey));
 
         let hash_result = AnchorTokenData::hash_with_hashed_values(
             hashed_mint,
