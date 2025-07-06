@@ -28,6 +28,7 @@ solana-msg = { workspace = true }
 solana-cpi = { workspace = true }
 solana-program-error = { workspace = true }
 solana-instruction = { workspace = true }
+solana-system-interface = { workspace = true }
 
 anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }

@@ -111,6 +111,8 @@ pub mod error;
 /// Utilities to build instructions for programs with compressed accounts.
 pub mod instruction;
 pub mod legacy;
+/// SDK helpers for compressing and decompressing PDAs.
+pub mod compressible;
 pub mod token;
 /// Transfer compressed sol between compressed accounts.
 pub mod transfer;
