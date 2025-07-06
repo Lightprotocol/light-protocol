@@ -13,9 +13,11 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
+use solana_clock::Clock;
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
+use solana_sysvar::Sysvar;
 
 use crate::compressible::compress_pda::PdaTimingData;
 
@@ -34,7 +36,6 @@ use crate::compressible::compress_pda::PdaTimingData;
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
 /// * `expected_address_space` - Optional expected address space pubkey to validate against
-/// * `current_slot` - The current slot for timing checks
 ///
 /// # Returns
 /// * `Ok(())` if the PDA was compressed successfully
@@ -49,7 +50,6 @@ pub fn compress_pda_new<'info, A>(
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo<'info>,
     expected_address_space: &Pubkey,
-    current_slot: u64,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -70,7 +70,6 @@ where
         owner_program,
         rent_recipient,
         expected_address_space,
-        current_slot,
     )
 }
 
@@ -88,7 +87,6 @@ where
 /// * `owner_program` - The program that will own the compressed accounts
 /// * `rent_recipient` - The account to receive the PDAs' rent
 /// * `expected_address_space` - Optional expected address space pubkey to validate against
-/// * `current_slot` - The current slot for timing checks
 ///
 /// # Returns
 /// * `Ok(())` if all PDAs were compressed successfully
@@ -103,7 +101,6 @@ pub fn compress_multiple_pdas_new<'info, A>(
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo<'info>,
     expected_address_space: &Pubkey,
-    current_slot: u64,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -163,6 +160,7 @@ where
         let last_written_slot = pda_account_data.last_written_slot();
         let slots_until_compression = pda_account_data.slots_until_compression();
 
+        let current_slot = Clock::get()?.slot;
         if current_slot < last_written_slot + slots_until_compression {
             msg!(
                 "Cannot compress {} yet. {} slots remaining",

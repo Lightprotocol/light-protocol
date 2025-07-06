@@ -1,6 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_macros::pubkey;
 use light_sdk::{
+    compressible::compress_pda_new,
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
@@ -9,7 +10,7 @@ use light_sdk_types::CpiAccountsConfig;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 
-use crate::{decompress_dynamic_pda::MyPdaAccount, sdk::compress_pda_new::compress_pda_new};
+use crate::decompress_dynamic_pda::MyPdaAccount;
 
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");

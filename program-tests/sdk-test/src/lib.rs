@@ -8,8 +8,6 @@ pub mod compress_dynamic_pda;
 pub mod create_dynamic_pda;
 pub mod create_pda;
 pub mod decompress_dynamic_pda;
-pub mod sdk;
-
 pub mod update_pda;
 
 pub const ID: Pubkey = pubkey!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");

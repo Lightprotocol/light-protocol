@@ -3624,12 +3624,14 @@ dependencies = [
  "light-zero-copy",
  "num-bigint 0.4.6",
  "solana-account-info",
+ "solana-clock",
  "solana-cpi",
  "solana-instruction",
  "solana-msg",
  "solana-program-error",
  "solana-pubkey",
  "solana-system-interface",
+ "solana-sysvar",
  "thiserror 2.0.12",
 ]
 

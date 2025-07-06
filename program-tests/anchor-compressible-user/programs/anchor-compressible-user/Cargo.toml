@@ -1,7 +1,7 @@
 [package]
 name = "anchor-compressible-user"
 version = "0.1.0"
-description = "Simple Anchor program demonstrating compressible accounts with user records"
+description = "Simple Anchor program template with user records"
 edition = "2021"
 
 [lib]
@@ -18,13 +18,7 @@ default = []
 [dependencies]
 anchor-lang = { workspace = true }
 light-sdk = { workspace = true }
-light-sdk-types = { workspace = true }
-light-hasher = { workspace = true }
-solana-program = { workspace = true }
-light-macros = { workspace = true, features = ["solana"] }
-borsh = { workspace = true }
 
 [dev-dependencies]
-light-program-test = { workspace = true, features = ["devenv"] }
-tokio = { workspace = true }
+solana-program-test = { workspace = true }
 solana-sdk = { workspace = true } 
