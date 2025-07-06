@@ -10,6 +10,7 @@ use crate::{
     mint::state::{CompressedMint, CompressedMintConfig},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_mint_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut,
     mint_pda: Pubkey,

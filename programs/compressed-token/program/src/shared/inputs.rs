@@ -122,11 +122,9 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
         }
     }
 
-    let hashed_delegate = if let Some(delegate) = token_data.delegate {
-        Some(context.get_or_hash_pubkey(&LightPubkey::from(delegate)))
-    } else {
-        None
-    };
+    let hashed_delegate = token_data
+        .delegate
+        .map(|delegate| context.get_or_hash_pubkey(&LightPubkey::from(delegate)));
 
     // Use appropriate hash function based on frozen state
     input_compressed_account.data_hash = if !IS_FROZEN {

@@ -1,15 +1,7 @@
-use account_compression::utils::constants::NOOP_PUBKEY;
-use anchor_lang::{
-    prelude::AccountMeta,
-    solana_program::{account_info::AccountInfo, program_error::ProgramError},
-};
+use anchor_lang::solana_program::{account_info::AccountInfo, program_error::ProgramError};
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
-};
-use light_sdk::cpi::invoke_light_system_program;
-use light_sdk_types::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
 };
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use spl_token::solana_program::log::sol_log_compute_units;
@@ -23,12 +15,12 @@ use crate::{
     },
     shared::{
         context::TokenContext,
+        cpi::execute_cpi_invoke,
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
         outputs::create_output_compressed_account,
     },
-    LIGHT_CPI_SIGNER,
 };
 
 pub fn process_mint_to_compressed<'info>(
@@ -126,7 +118,16 @@ pub fn process_mint_to_compressed<'info>(
         mint,
         hashed_mint,
     )?;
-    execute_mint_to_compressed_cpi(&validated_accounts, cpi_bytes, &program_id)?;
+    // Extract tree accounts for the generalized CPI call
+    let tree_accounts = [*validated_accounts.merkle_tree.key];
+    
+    execute_cpi_invoke(
+        accounts,
+        cpi_bytes,
+        &tree_accounts,
+        validated_accounts.sol_pool_pda.map(|acc| *acc.key),
+        None, // no cpi_context_account for mint_to_compressed
+    )?;
     Ok(())
 }
 
@@ -162,65 +163,3 @@ fn create_output_compressed_token_accounts(
     Ok(())
 }
 
-fn execute_mint_to_compressed_cpi(
-    accounts: &MintToCompressedAccounts<'_>,
-    cpi_bytes: Vec<u8>,
-    program_id: &Pubkey,
-) -> Result<(), ProgramError> {
-    // Build account metas in the correct order for light-system-program
-    let account_metas = vec![
-        AccountMeta::new(*accounts.fee_payer.key, true), // fee_payer (signer, mutable)
-        AccountMeta::new_readonly(LIGHT_CPI_SIGNER.cpi_signer.into(), true), // authority (cpi_authority_pda)
-        AccountMeta::new_readonly(REGISTERED_PROGRAM_PDA.into(), false), // registered_program_pda
-        AccountMeta::new_readonly(NOOP_PUBKEY.into(), false),            // noop_program
-        AccountMeta::new_readonly(ACCOUNT_COMPRESSION_AUTHORITY_PDA.into(), false), // account_compression_authority
-        AccountMeta::new_readonly(account_compression::ID, false), // account_compression_program
-        AccountMeta::new_readonly((*program_id).into(), false), // invoking_program (self_program)
-        AccountMeta::new_readonly(
-            if let Some(sol_pool) = accounts.sol_pool_pda {
-                *sol_pool.key
-            } else {
-                LIGHT_SYSTEM_PROGRAM_ID.into()
-            },
-            false,
-        ), // sol_pool_pda
-        AccountMeta::new_readonly(LIGHT_SYSTEM_PROGRAM_ID.into(), false), // decompression_recipient (None, using default)
-        AccountMeta::new_readonly(anchor_lang::solana_program::system_program::ID, false), // system_program
-        AccountMeta::new_readonly(LIGHT_SYSTEM_PROGRAM_ID.into(), false), // cpi_context_account (None, using default)
-        AccountMeta::new(*accounts.merkle_tree.key, false),               // merkle_tree (mutable)
-    ];
-
-    let instruction = anchor_lang::solana_program::instruction::Instruction {
-        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
-        accounts: account_metas,
-        data: cpi_bytes,
-    };
-
-    // Collect all account infos for the CPI call
-    let mut account_infos = vec![
-        accounts.fee_payer.clone(),
-        accounts.cpi_authority_pda.clone(),
-        accounts.registered_program_pda.clone(),
-        accounts.noop_program.clone(),
-        accounts.account_compression_authority.clone(),
-        accounts.account_compression_program.clone(),
-        accounts.self_program.clone(),
-    ];
-
-    if let Some(sol_pool) = accounts.sol_pool_pda {
-        account_infos.push(sol_pool.clone());
-    } else {
-        account_infos.push(accounts.light_system_program.clone());
-    }
-
-    account_infos.extend_from_slice(&[
-        accounts.light_system_program.clone(), // decompression_recipient placeholder
-        accounts.system_program.clone(),
-        accounts.light_system_program.clone(), // cpi_context_account placeholder
-        accounts.merkle_tree.clone(),
-    ]);
-
-    invoke_light_system_program(&account_infos, instruction, LIGHT_CPI_SIGNER.bump)?;
-
-    Ok(())
-}

@@ -1,8 +1,6 @@
-use account_compression::utils::constants::NOOP_PUBKEY;
 use anchor_lang::{
-    prelude::{msg, AccountMeta},
+    prelude::msg,
     solana_program::{account_info::AccountInfo, program_error::ProgramError},
-    Key,
 };
 use light_compressed_account::{
     address::derive_address,
@@ -15,10 +13,6 @@ use light_compressed_account::{
     },
     Pubkey,
 };
-use light_sdk::cpi::invoke_light_system_program;
-use light_sdk_types::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
-};
 use light_zero_copy::borsh::Deserialize;
 use spl_token::solana_program::log::sol_log_compute_units;
 
@@ -29,7 +23,7 @@ use crate::{
         output::create_output_compressed_mint_account,
         state::{CompressedMint, CompressedMintConfig},
     },
-    LIGHT_CPI_SIGNER,
+    shared::cpi::execute_cpi_invoke,
 };
 
 pub fn process_create_compressed_mint<'info>(
@@ -131,39 +125,15 @@ pub fn process_create_compressed_mint<'info>(
     )?;
     sol_log_compute_units();
     // 3. Execute CPI to light-system-program
-    execute_cpi_invoke(accounts, cpi_bytes)
+    // Extract tree accounts for the generalized CPI call  
+    let tree_accounts = [*accounts[9].key, *accounts[10].key]; // address_merkle_tree, output_queue
+    
+    execute_cpi_invoke(
+        accounts,
+        cpi_bytes,
+        &tree_accounts,
+        None, // no sol_pool_pda for create_compressed_mint
+        None, // no cpi_context_account for create_compressed_mint
+    )
 }
 
-fn execute_cpi_invoke<'info>(
-    accounts: &'info [AccountInfo<'info>],
-    cpi_bytes: Vec<u8>,
-) -> Result<(), ProgramError> {
-    // Account order must match light-system program's InvokeCpiInstruction expectation:
-    // 0: fee_payer, 1: authority, 2: registered_program_pda, 3: noop_program,
-    // 4: account_compression_authority, 5: account_compression_program, 6: invoking_program,
-    // 7: sol_pool_pda (optional), 8: decompression_recipient (optional), 9: system_program,
-    // 10: cpi_context_account (optional), then remaining accounts (merkle trees, etc.)
-    let account_metas = vec![
-        AccountMeta::new(accounts[0].key(), true), // fee_payer (signer, mutable)
-        AccountMeta::new_readonly(LIGHT_CPI_SIGNER.cpi_signer.into(), true), // authority (cpi_authority_pda)
-        AccountMeta::new_readonly(REGISTERED_PROGRAM_PDA.into(), false), // registered_program_pda
-        AccountMeta::new_readonly(NOOP_PUBKEY.into(), false),            // noop_program
-        AccountMeta::new_readonly(ACCOUNT_COMPRESSION_AUTHORITY_PDA.into(), false), // account_compression_authority
-        AccountMeta::new_readonly(account_compression::ID, false), // account_compression_program
-        AccountMeta::new_readonly(crate::ID, false), // invoking_program (self_program)
-        AccountMeta::new_readonly(LIGHT_SYSTEM_PROGRAM_ID.into(), false), // sol_pool_pda (None, using default)
-        AccountMeta::new_readonly(LIGHT_SYSTEM_PROGRAM_ID.into(), false), // decompression_recipient (None, using default)
-        AccountMeta::new_readonly(Pubkey::default().into(), false),       // system_program
-        AccountMeta::new_readonly(LIGHT_SYSTEM_PROGRAM_ID.into(), false), // cpi_context_account (None, using default)
-        AccountMeta::new(accounts[9].key(), false), // address_merkle_tree (mutable)
-        AccountMeta::new(accounts[10].key(), false), // output_queue (mutable)
-    ];
-    let instruction = anchor_lang::solana_program::instruction::Instruction {
-        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
-        accounts: account_metas,
-        data: cpi_bytes,
-    };
-    invoke_light_system_program(accounts, instruction, LIGHT_CPI_SIGNER.bump)?;
-
-    Ok(())
-}
