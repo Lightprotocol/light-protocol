@@ -8,7 +8,7 @@ use light_compressed_account::instruction_data::{
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
+#[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
 pub struct MultiInputTokenDataWithContext {
     pub amount: u64,
     pub merkle_context: PackedMerkleContext,
@@ -32,7 +32,16 @@ impl Amount for ZMultiInputTokenDataWithContext<'_> {
 }
 
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    AnchorSerialize,
+    AnchorDeserialize,
+    ZeroCopy,
+    ZeroCopyMut,
 )]
 pub struct MultiTokenTransferOutputData {
     pub owner: u8,
@@ -85,13 +94,10 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
     pub out_token_data: Vec<MultiTokenTransferOutputData>,
     // pub delegate_out_token_data: Option<Vec<MultiTokenTransferDelegateOutputData>>,
     // put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
-    // TODO: add len check that < input_token_data_with_context.len()
     pub in_lamports: Option<Vec<u64>>,
-    // put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
-    // TODO: add len check that < output_token_data_with_context.len()
+    // TODO: put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
     pub out_lamports: Option<Vec<u64>>,
-    // put accounts with tlv first, stop adding values after TODO: only access by get to prevent oob errors
-    // TODO: add len check that < input_token_data_with_context.len()
+    // TODO:  put accounts with tlv first, stop adding values after TODO: only access by get to prevent oob errors
     pub in_tlv: Option<Vec<Vec<u8>>>,
     pub out_tlv: Option<Vec<Vec<u8>>>,
     pub compressions: Option<Vec<Compression>>,
