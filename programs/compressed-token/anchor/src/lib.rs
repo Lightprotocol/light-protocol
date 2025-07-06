@@ -17,11 +17,7 @@ pub mod burn;
 pub use burn::*;
 pub mod batch_compress;
 pub mod create_mint;
-// pub mod process_create_compressed_mint;
-// pub mod process_create_spl_mint;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-// pub use process_create_compressed_mint::*;
-// pub use process_create_spl_mint::*;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -43,51 +39,6 @@ pub mod light_compressed_token {
     use spl_compression::check_spl_token_pool_derivation_with_index;
 
     use super::*;
-
-    // /// Creates a compressed mint stored as a compressed account.
-    // /// Follows Token-2022 InitializeMint2 pattern with authorities as instruction data.
-    // /// No SPL mint backing - creates a standalone compressed mint.
-    // pub fn create_compressed_mint<'info>(
-    //     ctx: Context<'_, '_, '_, 'info, CreateCompressedMintInstruction<'info>>,
-    //     decimals: u8,
-    //     mint_authority: Pubkey,
-    //     freeze_authority: Option<Pubkey>,
-    //     proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof,
-    //     mint_bump: u8,
-    //     address_merkle_tree_root_index: u16,
-    // ) -> Result<()> {
-    //     process_create_compressed_mint::process_create_compressed_mint(
-    //         ctx,
-    //         decimals,
-    //         mint_authority,
-    //         freeze_authority,
-    //         proof,
-    //         mint_bump,
-    //         address_merkle_tree_root_index,
-    //     )
-    // }
-
-    // /// Creates a Token-2022 mint account that corresponds to a compressed mint
-    // /// and updates the compressed mint to mark it as is_decompressed=true.
-    // /// The mint PDA must match the spl_mint field stored in the compressed mint.
-    // /// This enables syncing between compressed and SPL representations.
-    // pub fn create_spl_mint<'info>(
-    //     ctx: Context<'_, '_, '_, 'info, CreateSplMintInstruction<'info>>,
-    //     token_pool_bump: u8,
-    //     decimals: u8,
-    //     mint_authority: Pubkey,
-    //     freeze_authority: Option<Pubkey>,
-    //     compressed_mint_inputs: process_mint::CompressedMintInputs,
-    // ) -> Result<()> {
-    //     process_create_spl_mint::process_create_spl_mint(
-    //         ctx,
-    //         token_pool_bump,
-    //         decimals,
-    //         mint_authority,
-    //         freeze_authority,
-    //         compressed_mint_inputs,
-    //     )
-    // }
 
     /// This instruction creates a token pool for a given mint. Every spl mint
     /// can have one token pool. When a token is compressed the tokens are

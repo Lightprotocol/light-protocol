@@ -185,7 +185,7 @@ fn test_rnd_create_compressed_mint_account() {
             supply: input_supply,
             decimals,
             is_decompressed,
-            mint_authority: mint_authority, // Use the actual mint authority passed to the function
+            mint_authority, // Use the actual mint authority passed to the function
             freeze_authority,
             num_extensions,
         };

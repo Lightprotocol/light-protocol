@@ -135,7 +135,6 @@ pub fn process_mint_to_compressed<'info>(
             2,
         )?;
     }
-    msg!("cpi_instruction_struct  {:?}", cpi_instruction_struct);
 
     // Create output token accounts
     create_output_compressed_token_accounts(
@@ -153,7 +152,6 @@ pub fn process_mint_to_compressed<'info>(
         *validated_accounts.mint_out_queue.key,
         *validated_accounts.tokens_out_queue.key,
     ];
-    msg!("tree_accounts {:?}", tree_accounts);
 
     execute_cpi_invoke(
         accounts,
