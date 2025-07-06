@@ -37,12 +37,6 @@ pub struct TokenData {
     pub tlv: Option<Vec<u8>>,
 }
 
-/// Creates output compressed accounts.
-/// Steps:
-/// 1. Allocate memory for token data.
-/// 2. Create, hash and serialize token data.
-/// 3. Create compressed account data.
-/// 4. Repeat for every pubkey.
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,

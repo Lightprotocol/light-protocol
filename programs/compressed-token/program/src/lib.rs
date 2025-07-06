@@ -8,6 +8,7 @@ use spl_token::instruction::TokenInstruction;
 pub mod create_spl_mint;
 pub mod mint;
 pub mod mint_to_compressed;
+pub mod multi_transfer;
 pub mod shared;
 
 // Reexport the wrapped anchor program.

@@ -1,135 +1,81 @@
-use account_compression::StateMerkleTreeAccount;
-use anchor_compressed_token::{
-    process_transfer::{DelegatedTransfer, InputTokenDataWithContext},
-    token_data::{AccountState, TokenData},
-    ErrorCode,
+use anchor_compressed_token::token_data::TokenData;
+use anchor_lang::{
+    solana_program::account_info::AccountInfo, solana_program::program_error::ProgramError,
 };
-use anchor_lang::solana_program::program_error::ProgramError;
-use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
-use light_compressed_account::{instruction_data::with_readonly::InAccount, Pubkey as LightPubkey};
-use solana_pubkey::Pubkey;
+use light_account_checks::checks::check_signer;
+use light_compressed_account::{
+    instruction_data::with_readonly::ZInAccountMut, Pubkey as LightPubkey,
+};
 
 use super::context::TokenContext;
-use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+use crate::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+    multi_transfer::instruction_data::ZMultiInputTokenDataWithContext,
+};
 
-/// Creates a single input compressed account and returns TokenData.
-/// Combines the logic from legacy functions into a single composable function.
-/// Steps:
-/// 1. Determine owner/delegate based on signer and delegate context
-/// 2. Check signer permissions for delegate operations
-/// 3. Create InAccount with proper discriminator and merkle context
-/// 4. Create TokenData with proper state (frozen vs initialized)
-/// 5. Compute data hash using TokenContext for caching
-/// 6. Return TokenData and lamports for caller use
+/// Creates an input compressed account using zero-copy patterns and index-based account lookup.
+/// 
+/// Validates signer authorization (owner or delegate), populates the zero-copy account structure,
+/// and computes the appropriate token data hash based on frozen state.
 #[allow(clippy::too_many_arguments)]
 pub fn create_input_compressed_account<const IS_FROZEN: bool>(
-    input_compressed_account: &mut InAccount,
+    input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
-    input_token_data: &InputTokenDataWithContext,
-    signer: &Pubkey,
-    signer_is_delegate: &Option<DelegatedTransfer>,
+    input_token_data: &ZMultiInputTokenDataWithContext,
     remaining_accounts: &[AccountInfo<'_>],
-    mint: &Pubkey,
-    hashed_mint: &[u8; 32],
-) -> std::result::Result<(TokenData, u64), ProgramError> {
-    // Determine the owner based on delegate context
-    let owner = if input_token_data.delegate_index.is_none() {
-        *signer
-    } else if let Some(signer_is_delegate) = signer_is_delegate {
-        signer_is_delegate.owner
+    lamports: u64,
+) -> std::result::Result<(), ProgramError> {
+    // Get owner from remaining accounts using the owner index
+    let owner_account = &remaining_accounts[input_token_data.owner as usize];
+    let owner = *owner_account.key;
+
+    // Verify signer authorization using light-account-checks
+    let hashed_delegate = if input_token_data.with_delegate() {
+        // If delegate is used, delegate must be signer
+        let delegate_account = &remaining_accounts[input_token_data.delegate as usize];
+        check_signer(delegate_account).map_err(ProgramError::from)?;
+        Some(context.get_or_hash_pubkey(&LightPubkey::from(*delegate_account.key)))
     } else {
-        *signer
+        // If no delegate, owner must be signer
+        check_signer(owner_account).map_err(ProgramError::from)?;
+        None
     };
 
-    // Check signer permissions for delegate operations
-    if signer_is_delegate.is_some()
-        && input_token_data.delegate_index.is_some()
-        && *signer != remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
-    {
-        msg!(
-            "signer {:?} != delegate in remaining accounts {:?}",
-            signer,
-            remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
-        );
-        msg!(
-            "delegate index {:?}",
-            input_token_data.delegate_index.unwrap() as usize
-        );
-        return Err(ProgramError::Custom(
-            ErrorCode::DelegateSignerCheckFailed as u32,
-        ));
-    }
-
-    // Create InAccount with proper fields
-    let lamports = input_token_data.lamports.unwrap_or_default();
-    input_compressed_account.lamports = lamports;
+    // Create ZInAccountMut with proper fields
+    input_compressed_account.lamports.set(lamports);
     input_compressed_account.discriminator = TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-    input_compressed_account.merkle_context = input_token_data.merkle_context;
-    input_compressed_account.root_index = input_token_data.root_index;
+    // Set merkle context fields manually due to mutability constraints
+    input_compressed_account
+        .merkle_context
+        .merkle_tree_pubkey_index = input_token_data.merkle_context.merkle_tree_pubkey_index;
+    input_compressed_account.merkle_context.queue_pubkey_index =
+        input_token_data.merkle_context.queue_pubkey_index;
+    input_compressed_account
+        .merkle_context
+        .leaf_index
+        .set(input_token_data.merkle_context.leaf_index.into());
+    input_compressed_account.merkle_context.prove_by_index =
+        input_token_data.merkle_context.prove_by_index;
+    input_compressed_account
+        .root_index
+        .set(input_token_data.root_index.get());
     input_compressed_account.address = None;
 
-    // Create TokenData with proper state
-    let state = if IS_FROZEN {
-        AccountState::Frozen
-    } else {
-        AccountState::Initialized
-    };
-
-    if input_token_data.tlv.is_some() {
-        unimplemented!("Tlv is unimplemented.");
-    }
-
-    let token_data = TokenData {
-        mint: *mint,
-        owner,
-        amount: input_token_data.amount,
-        delegate: input_token_data
-            .delegate_index
-            .map(|_| remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()),
-        state,
-        tlv: None,
-    };
-
+    // TLV handling is now done separately in the parent instruction data
     // Compute data hash using TokenContext for caching
-    let hashed_owner = context.get_or_hash_pubkey(&LightPubkey::from(token_data.owner));
+    let hashed_owner = context.get_or_hash_pubkey(&LightPubkey::from(owner));
+
+    // Get mint hash from context
+    let mint_account = &remaining_accounts[input_token_data.mint as usize];
+    let hashed_mint = context.get_or_hash_mint(LightPubkey::from(*mint_account.key))?;
 
     let mut amount_bytes = [0u8; 32];
-    let discriminator_bytes = &remaining_accounts[input_compressed_account
-        .merkle_context
-        .merkle_tree_pubkey_index as usize]
-        .try_borrow_data()?[0..8];
-
-    // Handle different discriminator types for amount encoding
-    match discriminator_bytes {
-        StateMerkleTreeAccount::DISCRIMINATOR => {
-            amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
-        }
-        b"BatchMta" => {
-            amount_bytes[24..].copy_from_slice(token_data.amount.to_be_bytes().as_slice());
-        }
-        b"queueacc" => {
-            amount_bytes[24..].copy_from_slice(token_data.amount.to_be_bytes().as_slice());
-        }
-        _ => {
-            msg!(
-                "{} is no Merkle tree or output queue account. ",
-                remaining_accounts[input_compressed_account
-                    .merkle_context
-                    .merkle_tree_pubkey_index as usize]
-                    .key()
-            );
-            return Err(ProgramError::InvalidAccountData);
-        }
-    }
-
-    let hashed_delegate = token_data
-        .delegate
-        .map(|delegate| context.get_or_hash_pubkey(&LightPubkey::from(delegate)));
+    amount_bytes[24..].copy_from_slice(input_token_data.amount.get().to_be_bytes().as_slice());
 
     // Use appropriate hash function based on frozen state
     input_compressed_account.data_hash = if !IS_FROZEN {
         TokenData::hash_with_hashed_values(
-            hashed_mint,
+            &hashed_mint,
             &hashed_owner,
             &amount_bytes,
             &hashed_delegate.as_ref(),
@@ -137,7 +83,7 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
         .map_err(ProgramError::from)?
     } else {
         TokenData::hash_frozen_with_hashed_values(
-            hashed_mint,
+            &hashed_mint,
             &hashed_owner,
             &amount_bytes,
             &hashed_delegate.as_ref(),
@@ -145,5 +91,5 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
         .map_err(ProgramError::from)?
     };
 
-    Ok((token_data, lamports))
+    Ok(())
 }
