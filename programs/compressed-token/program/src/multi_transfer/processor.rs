@@ -1,4 +1,3 @@
-use anchor_compressed_token::process_transfer::sum_check;
 use anchor_lang::prelude::{AccountInfo, ProgramError};
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_heap::{bench_sbf_end, bench_sbf_start};
@@ -14,6 +13,7 @@ use crate::{
         instruction_data::{
             validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
         },
+        sum_check::sum_check_multi_mint,
     },
     shared::{context::TokenContext, cpi::execute_cpi_invoke},
     LIGHT_CPI_SIGNER,
@@ -40,7 +40,7 @@ pub fn process_multi_transfer<'info>(
         .map_err(ProgramError::from)?;
 
     // Determine optional account flags from instruction data
-    let with_sol_pool = inputs.compress_or_decompress_amount.is_some();
+    let with_sol_pool = inputs.compressions.is_some();
     let with_cpi_context = inputs.cpi_context.is_some();
 
     // Validate and parse accounts
@@ -53,9 +53,6 @@ pub fn process_multi_transfer<'info>(
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
     bench_sbf_start!("t_context_and_check_sig");
-    if inputs.in_token_data.is_empty() && inputs.compress_or_decompress_amount.is_none() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
 
     // Create TokenContext for hash caching
     let mut context = TokenContext::new();
@@ -80,12 +77,12 @@ pub fn process_multi_transfer<'info>(
     )?;
     bench_sbf_end!("t_context_and_check_sig");
     bench_sbf_start!("t_sum_check");
-    sum_check(
+    sum_check_multi_mint(
         &inputs.in_token_data,
         &inputs.out_token_data,
-        inputs.compress_or_decompress_amount.as_ref().map(|x| **x),
-        inputs.is_compress(),
-    )?;
+        inputs.compressions.as_deref(),
+    )
+    .map_err(|e| ProgramError::Custom(e as u32))?;
     bench_sbf_end!("t_sum_check");
 
     // Process output compressed accounts
@@ -96,7 +93,7 @@ pub fn process_multi_transfer<'info>(
         &packed_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
-
+    let with_sol_pool = total_input_lamports != total_output_lamports;
     process_change_lamports(
         &inputs,
         &packed_accounts,

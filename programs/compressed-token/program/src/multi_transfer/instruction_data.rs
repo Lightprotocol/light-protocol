@@ -39,12 +39,22 @@ pub struct MultiTokenTransferOutputData {
     pub amount: u64,
     pub merkle_tree: u8,
     pub delegate: u8,
+    pub mint: u8,
 }
 
 impl Amount for ZMultiTokenTransferOutputData<'_> {
     fn amount(&self) -> u64 {
         self.amount.into()
     }
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+)]
+pub struct Compression {
+    pub amount: u64,
+    pub is_compress: bool,
+    pub mint: u8,
 }
 
 // #[derive(
@@ -65,7 +75,6 @@ impl Amount for ZMultiTokenTransferOutputData<'_> {
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
 pub struct CompressedTokenInstructionDataMultiTransfer {
-    pub is_compress: bool,
     pub with_transaction_hash: bool,
     pub with_lamports_change_account_merkle_tree_index: bool,
     // Set zero if unused
@@ -85,7 +94,7 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
     // TODO: add len check that < input_token_data_with_context.len()
     pub in_tlv: Option<Vec<Vec<u8>>>,
     pub out_tlv: Option<Vec<Vec<u8>>>,
-    pub compress_or_decompress_amount: Option<u64>,
+    pub compressions: Option<Vec<Compression>>,
     pub cpi_context: Option<CompressedCpiContext>,
 }
 

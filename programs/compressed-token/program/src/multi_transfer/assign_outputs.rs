@@ -31,12 +31,7 @@ pub fn assign_output_compressed_accounts(
 
         total_output_lamports += output_lamports;
 
-        // Get mint account using mint index from input data (all transfers should use same mint)
-        let mint_index = if let Some(first_input) = inputs.in_token_data.first() {
-            first_input.mint
-        } else {
-            return Err(ProgramError::InvalidInstructionData);
-        };
+        let mint_index = output_data.mint;
         let mint_account = packed_accounts.get_u8(mint_index)?;
         let hashed_mint = context.get_or_hash_pubkey(mint_account.key);
 
