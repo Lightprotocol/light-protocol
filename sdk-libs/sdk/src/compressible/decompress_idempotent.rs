@@ -11,10 +11,13 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
+use solana_clock::Clock;
 use solana_cpi::invoke_signed;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
+use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
+use solana_sysvar::Sysvar;
 
 use crate::compressible::compress_pda::PdaTimingData;
 
@@ -33,8 +36,6 @@ pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 /// * `owner_program` - The program that will own the PDA
 /// * `rent_payer` - The account to pay for PDA rent
 /// * `system_program` - The system program
-/// * `current_slot` - The current slot for timing
-/// * `rent_minimum_balance` - The minimum balance required for rent exemption
 ///
 /// # Returns
 /// * `Ok(())` if the compressed account was decompressed successfully or PDA already exists
@@ -47,8 +48,6 @@ pub fn decompress_idempotent<'info, A>(
     owner_program: &Pubkey,
     rent_payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
-    current_slot: u64,
-    rent_minimum_balance: u64,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -67,8 +66,6 @@ where
         owner_program,
         rent_payer,
         system_program,
-        current_slot,
-        rent_minimum_balance,
     )
 }
 
@@ -97,8 +94,6 @@ pub fn decompress_multiple_idempotent<'info, A>(
     owner_program: &Pubkey,
     rent_payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
-    current_slot: u64,
-    rent_minimum_balance: u64,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -109,8 +104,14 @@ where
         + Clone
         + PdaTimingData,
 {
+    // Get current slot and rent once for all accounts
+    let clock = Clock::get().map_err(|_| LightSdkError::Borsh)?;
+    let current_slot = clock.slot;
+    let rent = Rent::get().map_err(|_| LightSdkError::Borsh)?;
+
     // Calculate space needed for PDA (same for all accounts of type A)
     let space = std::mem::size_of::<A>() + 8; // +8 for discriminator
+    let rent_minimum_balance = rent.minimum_balance(space);
 
     // Collect compressed accounts for CPI
     let mut compressed_accounts_for_cpi = Vec::new();

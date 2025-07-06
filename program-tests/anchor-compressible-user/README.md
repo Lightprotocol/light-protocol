@@ -1,114 +1,59 @@
-# Anchor Compressible User Records
+# Simple Anchor User Records Template
 
-A comprehensive example demonstrating how to use Light Protocol's compressible SDK with Anchor framework, including the SDK helper functions for compressing and decompressing PDAs.
+A basic Anchor program template demonstrating a simple user record system with create and update functionality.
 
 ## Overview
 
-This program demonstrates:
+This is a minimal template showing:
 
-- Creating compressed user records based on the signer's public key
-- Using Anchor's account constraints with compressed accounts
-- Updating compressed records
-- Decompressing records to regular PDAs using SDK helpers
-- Compressing PDAs back to compressed accounts using SDK helpers
-- Using the `PdaTimingData` trait for time-based compression controls
+- Creating user records as PDAs (Program Derived Addresses)
+- Updating existing user records
+- Basic ownership validation
 
-## Key Features
-
-### 1. **Deterministic Addressing**
-
-User records are created at deterministic addresses derived from:
+## Account Structure
 
 ```rust
-seeds = [b"user_record", user_pubkey]
-```
-
-This ensures each user can only have one record and it can be found without scanning.
-
-### 2. **Compressed Account Structure with Timing**
-
-```rust
-#[event]
-#[derive(Clone, Debug, Default, LightHasher, LightDiscriminator)]
+#[account]
 pub struct UserRecord {
-    #[hash]
-    pub owner: Pubkey,      // The user who owns this record
-    pub name: String,       // User's display name
-    pub bio: String,        // User's bio
-    pub score: i64,         // Some score/reputation
-    pub created_at: i64,    // Creation timestamp
-    pub updated_at: i64,    // Last update timestamp
-    // PDA timing data for compression/decompression
-    pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub owner: Pubkey,    // The user who owns this record
+    pub name: String,     // User's name
+    pub score: u64,       // User's score
 }
 ```
 
-### 3. **Five Main Instructions**
+## Instructions
 
-#### Create User Record
+### Create Record
 
-- Creates a new compressed account for the user
-- Uses the user's pubkey as a seed for deterministic addressing
-- Initializes with name, bio, timestamps, and timing data
+- Creates a new user record PDA
+- Seeds: `[b"user_record", user_pubkey]`
+- Initializes with name and score of 0
 
-#### Update User Record
+### Update Record
 
-- Updates an existing compressed user record
-- Verifies ownership before allowing updates
-- Can update name, bio, or increment/decrement score
-- Updates the last_written_slot for timing controls
+- Updates an existing user record
+- Validates ownership before allowing updates
+- Can update both name and score
 
-#### Decompress User Record
-
-- Uses `decompress_idempotent` SDK helper
-- Converts a compressed account to a regular on-chain PDA
-- Idempotent - can be called multiple times safely
-- Preserves all data during decompression
-
-#### Compress User Record PDA
-
-- Uses `compress_pda` SDK helper
-- Compresses an existing PDA back to a compressed account
-- Requires the compressed account to already exist
-- Enforces timing constraints (slots_until_compression)
-
-#### Compress User Record PDA New
-
-- Uses `compress_pda_new` SDK helper
-- Compresses a PDA into a new compressed account with a specific address
-- Creates the compressed account and closes the PDA in one operation
-- Also enforces timing constraints
-
-## Integration with Light SDK Helpers
-
-The program uses Light SDK's PDA helper functions:
-
-1. **`decompress_idempotent`**: Safely decompresses accounts, handling the case where the PDA might already exist
-2. **`compress_pda`**: Compresses an existing PDA into an existing compressed account
-3. **`compress_pda_new`**: Compresses a PDA into a new compressed account with a derived address
-4. **`PdaTimingData` trait**: Implements timing controls for when PDAs can be compressed
-
-## PDA Timing Controls
-
-The program implements the `PdaTimingData` trait to control when PDAs can be compressed:
-
-- `last_written_slot`: Tracks when the PDA was last modified
-- `slots_until_compression`: Number of slots that must pass before compression is allowed
-- This prevents immediate compression after decompression, allowing for transaction finality
-
-## Testing
-
-The test file demonstrates:
-
-- Creating a user record
-- Updating the record
-- Decompressing to a regular PDA
-- Compressing back to a compressed account
-
-Run tests with:
+## Usage
 
 ```bash
-cd program-tests/anchor-compressible-user
-cargo test-sbf
+# Build
+anchor build
+
+# Test
+anchor test
 ```
+
+## PDA Derivation
+
+User records are stored at deterministic addresses:
+
+```rust
+let (user_record_pda, bump) = Pubkey::find_program_address(
+    &[b"user_record", user.key().as_ref()],
+    &program_id,
+);
+```
+
+This ensures each user can only have one record.

@@ -11,9 +11,11 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
+use solana_clock::Clock;
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
+use solana_sysvar::Sysvar;
 
 /// Trait for PDA accounts that can be compressed
 pub trait PdaTimingData {
@@ -39,7 +41,6 @@ pub trait PdaTimingData {
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
-/// * `current_slot` - The current slot for timing checks
 //
 // TODO:
 // - check if any explicit checks required for compressed account?
@@ -51,7 +52,6 @@ pub fn compress_pda<A>(
     cpi_accounts: CpiAccounts,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo,
-    current_slot: u64,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -70,6 +70,8 @@ where
         );
         return Err(LightSdkError::ConstraintViolation);
     }
+
+    let current_slot = Clock::get()?.slot;
 
     // Deserialize the PDA data to check timing fields
     let pda_data = pda_account.try_borrow_data()?;

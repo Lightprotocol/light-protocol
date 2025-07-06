@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
+    compressible::compress_pda,
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -7,10 +8,7 @@ use light_sdk::{
 use light_sdk_types::CpiAccountsConfig;
 use solana_program::account_info::AccountInfo;
 
-use crate::{
-    create_dynamic_pda::RENT_RECIPIENT, decompress_dynamic_pda::MyPdaAccount,
-    sdk::compress_pda::compress_pda,
-};
+use crate::decompress_dynamic_pda::MyPdaAccount;
 
 /// Compresses a PDA back into a compressed account
 /// Anyone can call this after the timeout period has elapsed
@@ -27,7 +25,7 @@ pub fn compress_dynamic_pda(
 
     // CHECK: hardcoded rent recipient.
     let rent_recipient = &accounts[2];
-    if rent_recipient.key != &RENT_RECIPIENT {
+    if rent_recipient.key != &crate::create_dynamic_pda::RENT_RECIPIENT {
         return Err(LightSdkError::ConstraintViolation);
     }
 

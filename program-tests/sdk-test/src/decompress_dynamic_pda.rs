@@ -1,16 +1,13 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
+    compressible::{decompress_idempotent, PdaTimingData, SLOTS_UNTIL_COMPRESSION},
     cpi::{CpiAccounts, CpiAccountsConfig},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightDiscriminator, LightHasher,
 };
 use solana_program::account_info::AccountInfo;
-
-use crate::sdk::decompress_idempotent::decompress_idempotent;
-
-pub const SLOTS_UNTIL_COMPRESSION: u64 = 10_000;
 
 /// Decompresses a compressed account into a PDA idempotently.
 pub fn decompress_dynamic_pda(
@@ -24,24 +21,34 @@ pub fn decompress_dynamic_pda(
     // Get accounts
     let fee_payer = &accounts[0];
     let pda_account = &accounts[1];
-    let rent_payer = &accounts[2]; // Anyone can pay.
+    let rent_payer = &accounts[2];
     let system_program = &accounts[3];
 
-    // Cpi accounts
+    // Set up CPI accounts
+    let mut config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
+    config.sol_pool_pda = false;
+    config.sol_compression_recipient = false;
+
     let cpi_accounts = CpiAccounts::new_with_config(
         fee_payer,
         &accounts[instruction_data.system_accounts_offset as usize..],
-        CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER),
+        config,
     );
-    // we zero out the compressed account.
+
+    // Prepare account data
+    let account_data = MyPdaAccount {
+        last_written_slot: 0,
+        slots_until_compression: SLOTS_UNTIL_COMPRESSION,
+        data: instruction_data.data,
+    };
+
     let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
         &crate::ID,
-        &instruction_data.compressed_account.meta,
-        instruction_data.compressed_account.data,
+        &instruction_data.compressed_account_meta,
+        account_data,
     )?;
 
-    // Call the SDK function to decompress idempotently
-    // this inits pda_account if not already initialized
+    // Call decompress_idempotent - this should work whether PDA exists or not
     decompress_idempotent::<MyPdaAccount>(
         pda_account,
         compressed_account,
@@ -52,60 +59,15 @@ pub fn decompress_dynamic_pda(
         system_program,
     )?;
 
-    // do something with pda_account...
-
     Ok(())
 }
 
-#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
-pub struct DecompressToPdaInstructionData {
-    pub proof: ValidityProof,
-    pub compressed_account: MyCompressedAccount,
-    pub system_accounts_offset: u8,
-}
-
-// just a wrapper
-#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
-pub struct MyCompressedAccount {
-    pub meta: CompressedAccountMeta,
-    pub data: MyPdaAccount,
-}
-
-/// Account structure for the PDA
-#[derive(
-    Clone, Debug, LightHasher, LightDiscriminator, Default, BorshDeserialize, BorshSerialize,
-)]
-pub struct MyPdaAccount {
-    /// Slot when this account was last written
-    pub last_written_slot: u64,
-    /// Number of slots after last_written_slot until this account can be
-    /// compressed again
-    pub slots_until_compression: u64,
-    /// The actual account data
-    pub data: [u8; 31],
-}
-
-// We require this trait to be implemented for the custom PDA account.
-impl crate::sdk::compress_pda::PdaTimingData for MyPdaAccount {
-    fn last_written_slot(&self) -> u64 {
-        self.last_written_slot
-    }
-
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
-    }
-
-    fn set_last_written_slot(&mut self, slot: u64) {
-        self.last_written_slot = slot;
-    }
-}
-
-// TODO: do this properly.
+/// Example: Decompresses multiple compressed accounts into PDAs in a single transaction.
 pub fn decompress_multiple_dynamic_pdas(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
-    use crate::sdk::decompress_idempotent::decompress_multiple_idempotent;
+    use light_sdk::compressible::decompress_multiple_idempotent;
 
     #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
     pub struct DecompressMultipleInstructionData {
@@ -123,21 +85,20 @@ pub fn decompress_multiple_dynamic_pdas(
     let rent_payer = &accounts[1];
     let system_program = &accounts[2];
 
-    // Calculate where PDA accounts start
+    // Get PDA accounts (after fixed accounts, before system accounts)
     let pda_accounts_start = 3;
-    let num_accounts = instruction_data.compressed_accounts.len();
+    let pda_accounts_end = instruction_data.system_accounts_offset as usize;
+    let pda_accounts = &accounts[pda_accounts_start..pda_accounts_end];
 
-    // Get PDA accounts
-    let pda_accounts = &accounts[pda_accounts_start..pda_accounts_start + num_accounts];
+    // Set up CPI accounts
+    let mut config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
+    config.sol_pool_pda = false;
+    config.sol_compression_recipient = false;
 
-    // Cpi accounts
-    // TODO: currently all cPDAs would have to have the same CPI_ACCOUNTS in the same order.
-    // - must support flexible CPI_ACCOUNTS eg for token accounts
-    // - must support flexible trees.
     let cpi_accounts = CpiAccounts::new_with_config(
         fee_payer,
         &accounts[instruction_data.system_accounts_offset as usize..],
-        CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER),
+        config,
     );
 
     // Build inputs for batch decompression
@@ -168,4 +129,42 @@ pub fn decompress_multiple_dynamic_pdas(
     )?;
 
     Ok(())
+}
+
+#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
+pub struct DecompressToPdaInstructionData {
+    pub proof: ValidityProof,
+    pub compressed_account_meta: CompressedAccountMeta,
+    pub data: [u8; 31],
+    pub system_accounts_offset: u8,
+}
+
+#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
+pub struct MyCompressedAccount {
+    pub meta: CompressedAccountMeta,
+    pub data: MyPdaAccount,
+}
+
+#[derive(
+    Clone, Debug, Default, LightHasher, LightDiscriminator, BorshDeserialize, BorshSerialize,
+)]
+pub struct MyPdaAccount {
+    pub last_written_slot: u64,
+    pub slots_until_compression: u64,
+    pub data: [u8; 31],
+}
+
+// Implement the PdaTimingData trait
+impl PdaTimingData for MyPdaAccount {
+    fn last_written_slot(&self) -> u64 {
+        self.last_written_slot
+    }
+
+    fn slots_until_compression(&self) -> u64 {
+        self.slots_until_compression
+    }
+
+    fn set_last_written_slot(&mut self, slot: u64) {
+        self.last_written_slot = slot;
+    }
 }
