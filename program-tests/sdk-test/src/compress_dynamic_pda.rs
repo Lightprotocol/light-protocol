@@ -33,7 +33,7 @@ pub fn compress_dynamic_pda(
 
     // Cpi accounts
     let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    let cpi_accounts_struct = CpiAccounts::new_with_config(
+    let cpi_accounts = CpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
@@ -43,7 +43,7 @@ pub fn compress_dynamic_pda(
         pda_account,
         &instruction_data.compressed_account_meta,
         instruction_data.proof,
-        cpi_accounts_struct,
+        cpi_accounts,
         &crate::ID,
         rent_recipient,
     )?;

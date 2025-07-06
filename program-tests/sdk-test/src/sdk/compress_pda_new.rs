@@ -153,14 +153,14 @@ where
             A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
         drop(pda_data);
 
-        let last_touched_slot = pda_account_data.last_touched_slot();
-        let slots_buffer = pda_account_data.slots_buffer();
+        let last_written_slot = pda_account_data.last_written_slot();
+        let slots_until_compression = pda_account_data.slots_until_compression();
 
-        if current_slot < last_touched_slot + slots_buffer {
+        if current_slot < last_written_slot + slots_until_compression {
             msg!(
                 "Cannot compress {} yet. {} slots remaining",
                 pda_account.key,
-                (last_touched_slot + slots_buffer).saturating_sub(current_slot)
+                (last_written_slot + slots_until_compression).saturating_sub(current_slot)
             );
             return Err(LightSdkError::ConstraintViolation);
         }
