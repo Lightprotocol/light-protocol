@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use anchor_compressed_token::process_transfer::Amount;
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use anchor_lang::{prelude::ProgramError, AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
 };
@@ -70,6 +70,7 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
     pub with_lamports_change_account_merkle_tree_index: bool,
     // Set zero if unused
     pub lamports_change_account_merkle_tree_index: u8,
+    pub lamports_change_account_owner_index: u8,
     pub proof: Option<CompressedProof>,
     pub in_token_data: Vec<MultiInputTokenDataWithContext>,
     pub out_token_data: Vec<MultiTokenTransferOutputData>,
@@ -86,4 +87,27 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
     pub out_tlv: Option<Vec<Vec<u8>>>,
     pub compress_or_decompress_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
+}
+
+/// Validate instruction data consistency (lamports and TLV checks)
+pub fn validate_instruction_data(
+    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
+) -> Result<(), ProgramError> {
+    if let Some(ref in_lamports) = inputs.in_lamports {
+        if in_lamports.len() > inputs.in_token_data.len() {
+            unimplemented!("Tlv is unimplemented");
+        }
+    }
+    if let Some(ref out_lamports) = inputs.out_lamports {
+        if out_lamports.len() > inputs.out_token_data.len() {
+            unimplemented!("Tlv is unimplemented");
+        }
+    }
+    if inputs.in_tlv.is_some() {
+        unimplemented!("Tlv is unimplemented");
+    }
+    if inputs.out_tlv.is_some() {
+        unimplemented!("Tlv is unimplemented");
+    }
+    Ok(())
 }

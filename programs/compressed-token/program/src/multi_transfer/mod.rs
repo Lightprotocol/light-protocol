@@ -1,3 +1,7 @@
 pub mod accounts;
+pub mod assign_inputs;
+pub mod assign_outputs;
+pub mod change_account;
+pub mod cpi;
 pub mod instruction_data;
 pub mod processor;
