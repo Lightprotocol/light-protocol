@@ -18,7 +18,7 @@ warning: unused import: `account_meta::CompressedAccountMeta`
 5 |     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     Checking anchor-compressible-user-derived v0.1.0 (/Users/swen-code/Developer/light-protocol/program-tests/anchor-compressible-user-derived)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.35s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
 
 #![feature(prelude_import)]
 #[prelude_import]
@@ -184,7 +184,7 @@ pub const RENT_RECIPIENT: Pubkey = anchor_lang::solana_program::pubkey::Pubkey::
     195u8,
     247u8,
 ]);
-pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
+pub const COMPRESSION_DELAY: u64 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner = {
     ::light_sdk_types::CpiSigner {
         program_id: [
@@ -365,6 +365,13 @@ fn dispatch<'info>(
             program_id,
             accounts,
             &data[instruction::UpdateRecord::DISCRIMINATOR.len()..],
+        );
+    }
+    if data.starts_with(instruction::DecompressMultiplePdas::DISCRIMINATOR) {
+        return __private::__global::decompress_multiple_pdas(
+            program_id,
+            accounts,
+            &data[instruction::DecompressMultiplePdas::DISCRIMINATOR.len()..],
         );
     }
     if data.starts_with(instruction::CompressUserRecord::DISCRIMINATOR) {
@@ -657,7 +664,7 @@ mod __private {
                                 error_origin: Some(
                                     anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
                                         filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                        line: 21u32,
+                                        line: 20u32,
                                     }),
                                 ),
                                 compared_values: None,
@@ -3352,7 +3359,7 @@ mod __private {
                             error_origin: Some(
                                 anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
                                     filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                    line: 21u32,
+                                    line: 20u32,
                                 }),
                             ),
                             compared_values: None,
@@ -3399,7 +3406,7 @@ mod __private {
                             error_origin: Some(
                                 anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
                                     filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                    line: 21u32,
+                                    line: 20u32,
                                 }),
                             ),
                             compared_values: None,
@@ -3492,6 +3499,47 @@ mod __private {
             __accounts.exit(__program_id)
         }
         #[inline(never)]
+        pub fn decompress_multiple_pdas<'info>(
+            __program_id: &Pubkey,
+            __accounts: &'info [AccountInfo<'info>],
+            __ix_data: &[u8],
+        ) -> anchor_lang::Result<()> {
+            ::solana_msg::sol_log("Instruction: DecompressMultiplePdas");
+            let ix = instruction::DecompressMultiplePdas::deserialize(
+                    &mut &__ix_data[..],
+                )
+                .map_err(|_| {
+                    anchor_lang::error::ErrorCode::InstructionDidNotDeserialize
+                })?;
+            let instruction::DecompressMultiplePdas {
+                proof,
+                compressed_accounts,
+                system_accounts_offset,
+            } = ix;
+            let mut __bumps = <DecompressMultiplePdas as anchor_lang::Bumps>::Bumps::default();
+            let mut __reallocs = std::collections::BTreeSet::new();
+            let mut __remaining_accounts: &[AccountInfo] = __accounts;
+            let mut __accounts = DecompressMultiplePdas::try_accounts(
+                __program_id,
+                &mut __remaining_accounts,
+                __ix_data,
+                &mut __bumps,
+                &mut __reallocs,
+            )?;
+            let result = anchor_compressible_user_derived::decompress_multiple_pdas(
+                anchor_lang::context::Context::new(
+                    __program_id,
+                    &mut __accounts,
+                    __remaining_accounts,
+                    __bumps,
+                ),
+                proof,
+                compressed_accounts,
+                system_accounts_offset,
+            )?;
+            __accounts.exit(__program_id)
+        }
+        #[inline(never)]
         pub fn compress_user_record<'info>(
             __program_id: &Pubkey,
             __accounts: &'info [AccountInfo<'info>],
@@ -3576,7 +3624,7 @@ pub mod anchor_compressible_user_derived {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
-        user_record.slots_until_compression = SLOTS_UNTIL_COMPRESSION;
+        user_record.compression_delay = COMPRESSION_DELAY;
         let cpi_accounts = CpiAccounts::new_with_config(
             &ctx.accounts.user,
             &ctx.remaining_accounts[..],
@@ -3610,6 +3658,880 @@ pub mod anchor_compressible_user_derived {
         user_record.name = name;
         user_record.score = score;
         Ok(())
+    }
+    /// Unified enum that can hold any account type
+    pub enum CompressedAccountVariant {
+        UserRecord(UserRecord),
+        GameSession(GameSession),
+    }
+    #[automatically_derived]
+    impl ::core::clone::Clone for CompressedAccountVariant {
+        #[inline]
+        fn clone(&self) -> CompressedAccountVariant {
+            match self {
+                CompressedAccountVariant::UserRecord(__self_0) => {
+                    CompressedAccountVariant::UserRecord(
+                        ::core::clone::Clone::clone(__self_0),
+                    )
+                }
+                CompressedAccountVariant::GameSession(__self_0) => {
+                    CompressedAccountVariant::GameSession(
+                        ::core::clone::Clone::clone(__self_0),
+                    )
+                }
+            }
+        }
+    }
+    #[automatically_derived]
+    impl ::core::fmt::Debug for CompressedAccountVariant {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            match self {
+                CompressedAccountVariant::UserRecord(__self_0) => {
+                    ::core::fmt::Formatter::debug_tuple_field1_finish(
+                        f,
+                        "UserRecord",
+                        &__self_0,
+                    )
+                }
+                CompressedAccountVariant::GameSession(__self_0) => {
+                    ::core::fmt::Formatter::debug_tuple_field1_finish(
+                        f,
+                        "GameSession",
+                        &__self_0,
+                    )
+                }
+            }
+        }
+    }
+    impl borsh::ser::BorshSerialize for CompressedAccountVariant
+    where
+        UserRecord: borsh::ser::BorshSerialize,
+        GameSession: borsh::ser::BorshSerialize,
+    {
+        fn serialize<W: borsh::maybestd::io::Write>(
+            &self,
+            writer: &mut W,
+        ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+            let variant_idx: u8 = match self {
+                CompressedAccountVariant::UserRecord(..) => 0u8,
+                CompressedAccountVariant::GameSession(..) => 1u8,
+            };
+            writer.write_all(&variant_idx.to_le_bytes())?;
+            match self {
+                CompressedAccountVariant::UserRecord(id0) => {
+                    borsh::BorshSerialize::serialize(id0, writer)?;
+                }
+                CompressedAccountVariant::GameSession(id0) => {
+                    borsh::BorshSerialize::serialize(id0, writer)?;
+                }
+            }
+            Ok(())
+        }
+    }
+    impl anchor_lang::idl::build::IdlBuild for CompressedAccountVariant {
+        fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
+            Some(anchor_lang::idl::types::IdlTypeDef {
+                name: Self::get_full_path(),
+                docs: <[_]>::into_vec(
+                    ::alloc::boxed::box_new([
+                        "Unified enum that can hold any account type".into(),
+                    ]),
+                ),
+                serialization: anchor_lang::idl::types::IdlSerialization::default(),
+                repr: None,
+                generics: ::alloc::vec::Vec::new(),
+                ty: anchor_lang::idl::types::IdlTypeDefTy::Enum {
+                    variants: <[_]>::into_vec(
+                        ::alloc::boxed::box_new([
+                            anchor_lang::idl::types::IdlEnumVariant {
+                                name: "UserRecord".into(),
+                                fields: Some(
+                                    anchor_lang::idl::types::IdlDefinedFields::Tuple(
+                                        <[_]>::into_vec(
+                                            ::alloc::boxed::box_new([
+                                                anchor_lang::idl::types::IdlType::Defined {
+                                                    name: <UserRecord>::get_full_path(),
+                                                    generics: ::alloc::vec::Vec::new(),
+                                                },
+                                            ]),
+                                        ),
+                                    ),
+                                ),
+                            },
+                            anchor_lang::idl::types::IdlEnumVariant {
+                                name: "GameSession".into(),
+                                fields: Some(
+                                    anchor_lang::idl::types::IdlDefinedFields::Tuple(
+                                        <[_]>::into_vec(
+                                            ::alloc::boxed::box_new([
+                                                anchor_lang::idl::types::IdlType::Defined {
+                                                    name: <GameSession>::get_full_path(),
+                                                    generics: ::alloc::vec::Vec::new(),
+                                                },
+                                            ]),
+                                        ),
+                                    ),
+                                ),
+                            },
+                        ]),
+                    ),
+                },
+            })
+        }
+        fn insert_types(
+            types: &mut std::collections::BTreeMap<
+                String,
+                anchor_lang::idl::types::IdlTypeDef,
+            >,
+        ) {
+            if let Some(ty) = <UserRecord>::create_type() {
+                types.insert(<UserRecord>::get_full_path(), ty);
+                <UserRecord>::insert_types(types);
+            }
+            if let Some(ty) = <GameSession>::create_type() {
+                types.insert(<GameSession>::get_full_path(), ty);
+                <GameSession>::insert_types(types);
+            }
+        }
+        fn get_full_path() -> String {
+            ::alloc::__export::must_use({
+                let res = ::alloc::fmt::format(
+                    format_args!(
+                        "{0}::{1}",
+                        "anchor_compressible_user_derived::anchor_compressible_user_derived",
+                        "CompressedAccountVariant",
+                    ),
+                );
+                res
+            })
+        }
+    }
+    impl borsh::de::BorshDeserialize for CompressedAccountVariant
+    where
+        UserRecord: borsh::BorshDeserialize,
+        GameSession: borsh::BorshDeserialize,
+    {
+        fn deserialize_reader<R: borsh::maybestd::io::Read>(
+            reader: &mut R,
+        ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
+            let tag = <u8 as borsh::de::BorshDeserialize>::deserialize_reader(reader)?;
+            <Self as borsh::de::EnumExt>::deserialize_variant(reader, tag)
+        }
+    }
+    impl borsh::de::EnumExt for CompressedAccountVariant
+    where
+        UserRecord: borsh::BorshDeserialize,
+        GameSession: borsh::BorshDeserialize,
+    {
+        fn deserialize_variant<R: borsh::maybestd::io::Read>(
+            reader: &mut R,
+            variant_idx: u8,
+        ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
+            let mut return_value = match variant_idx {
+                0u8 => {
+                    CompressedAccountVariant::UserRecord(
+                        borsh::BorshDeserialize::deserialize_reader(reader)?,
+                    )
+                }
+                1u8 => {
+                    CompressedAccountVariant::GameSession(
+                        borsh::BorshDeserialize::deserialize_reader(reader)?,
+                    )
+                }
+                _ => {
+                    return Err(
+                        borsh::maybestd::io::Error::new(
+                            borsh::maybestd::io::ErrorKind::InvalidInput,
+                            ::alloc::__export::must_use({
+                                let res = ::alloc::fmt::format(
+                                    format_args!("Unexpected variant index: {0:?}", variant_idx),
+                                );
+                                res
+                            }),
+                        ),
+                    );
+                }
+            };
+            Ok(return_value)
+        }
+    }
+    impl Default for CompressedAccountVariant {
+        fn default() -> Self {
+            Self::UserRecord(UserRecord::default())
+        }
+    }
+    impl light_sdk::light_hasher::DataHasher for CompressedAccountVariant {
+        fn hash<H: light_sdk::light_hasher::Hasher>(
+            &self,
+        ) -> std::result::Result<[u8; 32], light_sdk::light_hasher::HasherError> {
+            match self {
+                Self::UserRecord(data) => data.hash::<H>(),
+                Self::GameSession(data) => data.hash::<H>(),
+            }
+        }
+    }
+    impl light_sdk::LightDiscriminator for CompressedAccountVariant {
+        const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8];
+        const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
+    }
+    impl light_sdk::compressible::CompressionTiming for CompressedAccountVariant {
+        fn last_written_slot(&self) -> u64 {
+            match self {
+                Self::UserRecord(data) => data.last_written_slot(),
+                Self::GameSession(data) => data.last_written_slot(),
+            }
+        }
+        fn compression_delay(&self) -> u64 {
+            match self {
+                Self::UserRecord(data) => data.compression_delay(),
+                Self::GameSession(data) => data.compression_delay(),
+            }
+        }
+        fn set_last_written_slot(&mut self, slot: u64) {
+            match self {
+                Self::UserRecord(data) => data.set_last_written_slot(slot),
+                Self::GameSession(data) => data.set_last_written_slot(slot),
+            }
+        }
+    }
+    /// Client-side data structure for passing compressed accounts
+    pub struct CompressedAccountData {
+        pub meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
+        pub data: CompressedAccountVariant,
+    }
+    #[automatically_derived]
+    impl ::core::clone::Clone for CompressedAccountData {
+        #[inline]
+        fn clone(&self) -> CompressedAccountData {
+            CompressedAccountData {
+                meta: ::core::clone::Clone::clone(&self.meta),
+                data: ::core::clone::Clone::clone(&self.data),
+            }
+        }
+    }
+    #[automatically_derived]
+    impl ::core::fmt::Debug for CompressedAccountData {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field2_finish(
+                f,
+                "CompressedAccountData",
+                "meta",
+                &self.meta,
+                "data",
+                &&self.data,
+            )
+        }
+    }
+    impl borsh::de::BorshDeserialize for CompressedAccountData
+    where
+        light_sdk_types::instruction::account_meta::CompressedAccountMeta: borsh::BorshDeserialize,
+        CompressedAccountVariant: borsh::BorshDeserialize,
+    {
+        fn deserialize_reader<R: borsh::maybestd::io::Read>(
+            reader: &mut R,
+        ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
+            Ok(Self {
+                meta: borsh::BorshDeserialize::deserialize_reader(reader)?,
+                data: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            })
+        }
+    }
+    impl borsh::ser::BorshSerialize for CompressedAccountData
+    where
+        light_sdk_types::instruction::account_meta::CompressedAccountMeta: borsh::ser::BorshSerialize,
+        CompressedAccountVariant: borsh::ser::BorshSerialize,
+    {
+        fn serialize<W: borsh::maybestd::io::Write>(
+            &self,
+            writer: &mut W,
+        ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+            borsh::BorshSerialize::serialize(&self.meta, writer)?;
+            borsh::BorshSerialize::serialize(&self.data, writer)?;
+            Ok(())
+        }
+    }
+    impl anchor_lang::idl::build::IdlBuild for CompressedAccountData {
+        fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
+            Some(anchor_lang::idl::types::IdlTypeDef {
+                name: Self::get_full_path(),
+                docs: <[_]>::into_vec(
+                    ::alloc::boxed::box_new([
+                        "Client-side data structure for passing compressed accounts"
+                            .into(),
+                    ]),
+                ),
+                serialization: anchor_lang::idl::types::IdlSerialization::default(),
+                repr: None,
+                generics: ::alloc::vec::Vec::new(),
+                ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
+                    fields: Some(
+                        anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(
+                                ::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "meta".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Defined {
+                                            name: <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::get_full_path(),
+                                            generics: ::alloc::vec::Vec::new(),
+                                        },
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "data".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Defined {
+                                            name: <CompressedAccountVariant>::get_full_path(),
+                                            generics: ::alloc::vec::Vec::new(),
+                                        },
+                                    },
+                                ]),
+                            ),
+                        ),
+                    ),
+                },
+            })
+        }
+        fn insert_types(
+            types: &mut std::collections::BTreeMap<
+                String,
+                anchor_lang::idl::types::IdlTypeDef,
+            >,
+        ) {
+            if let Some(ty) = <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::create_type() {
+                types
+                    .insert(
+                        <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::get_full_path(),
+                        ty,
+                    );
+                <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::insert_types(
+                    types,
+                );
+            }
+            if let Some(ty) = <CompressedAccountVariant>::create_type() {
+                types.insert(<CompressedAccountVariant>::get_full_path(), ty);
+                <CompressedAccountVariant>::insert_types(types);
+            }
+        }
+        fn get_full_path() -> String {
+            ::alloc::__export::must_use({
+                let res = ::alloc::fmt::format(
+                    format_args!(
+                        "{0}::{1}",
+                        "anchor_compressible_user_derived::anchor_compressible_user_derived",
+                        "CompressedAccountData",
+                    ),
+                );
+                res
+            })
+        }
+    }
+    pub struct DecompressMultiplePdas<'info> {
+        #[account(mut)]
+        pub fee_payer: Signer<'info>,
+        #[account(mut)]
+        pub rent_payer: Signer<'info>,
+        pub system_program: Program<'info, System>,
+    }
+    #[automatically_derived]
+    impl<'info> anchor_lang::Accounts<'info, DecompressMultiplePdasBumps>
+    for DecompressMultiplePdas<'info>
+    where
+        'info: 'info,
+    {
+        #[inline(never)]
+        fn try_accounts(
+            __program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+            __accounts: &mut &'info [anchor_lang::solana_program::account_info::AccountInfo<
+                'info,
+            >],
+            __ix_data: &[u8],
+            __bumps: &mut DecompressMultiplePdasBumps,
+            __reallocs: &mut std::collections::BTreeSet<
+                anchor_lang::solana_program::pubkey::Pubkey,
+            >,
+        ) -> anchor_lang::Result<Self> {
+            let fee_payer: Signer = anchor_lang::Accounts::try_accounts(
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("fee_payer"))?;
+            let rent_payer: Signer = anchor_lang::Accounts::try_accounts(
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("rent_payer"))?;
+            let system_program: anchor_lang::accounts::program::Program<System> = anchor_lang::Accounts::try_accounts(
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("system_program"))?;
+            if !AsRef::<AccountInfo>::as_ref(&fee_payer).is_writable {
+                return Err(
+                    anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintMut,
+                        )
+                        .with_account_name("fee_payer"),
+                );
+            }
+            if !AsRef::<AccountInfo>::as_ref(&rent_payer).is_writable {
+                return Err(
+                    anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintMut,
+                        )
+                        .with_account_name("rent_payer"),
+                );
+            }
+            Ok(DecompressMultiplePdas {
+                fee_payer,
+                rent_payer,
+                system_program,
+            })
+        }
+    }
+    #[automatically_derived]
+    impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressMultiplePdas<'info>
+    where
+        'info: 'info,
+    {
+        fn to_account_infos(
+            &self,
+        ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+            let mut account_infos = ::alloc::vec::Vec::new();
+            account_infos.extend(self.fee_payer.to_account_infos());
+            account_infos.extend(self.rent_payer.to_account_infos());
+            account_infos.extend(self.system_program.to_account_infos());
+            account_infos
+        }
+    }
+    #[automatically_derived]
+    impl<'info> anchor_lang::ToAccountMetas for DecompressMultiplePdas<'info> {
+        fn to_account_metas(
+            &self,
+            is_signer: Option<bool>,
+        ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+            let mut account_metas = ::alloc::vec::Vec::new();
+            account_metas.extend(self.fee_payer.to_account_metas(None));
+            account_metas.extend(self.rent_payer.to_account_metas(None));
+            account_metas.extend(self.system_program.to_account_metas(None));
+            account_metas
+        }
+    }
+    #[automatically_derived]
+    impl<'info> anchor_lang::AccountsExit<'info> for DecompressMultiplePdas<'info>
+    where
+        'info: 'info,
+    {
+        fn exit(
+            &self,
+            program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+        ) -> anchor_lang::Result<()> {
+            anchor_lang::AccountsExit::exit(&self.fee_payer, program_id)
+                .map_err(|e| e.with_account_name("fee_payer"))?;
+            anchor_lang::AccountsExit::exit(&self.rent_payer, program_id)
+                .map_err(|e| e.with_account_name("rent_payer"))?;
+            Ok(())
+        }
+    }
+    pub struct DecompressMultiplePdasBumps {}
+    #[automatically_derived]
+    impl ::core::fmt::Debug for DecompressMultiplePdasBumps {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::write_str(f, "DecompressMultiplePdasBumps")
+        }
+    }
+    impl Default for DecompressMultiplePdasBumps {
+        fn default() -> Self {
+            DecompressMultiplePdasBumps {}
+        }
+    }
+    impl<'info> anchor_lang::Bumps for DecompressMultiplePdas<'info>
+    where
+        'info: 'info,
+    {
+        type Bumps = DecompressMultiplePdasBumps;
+    }
+    /// An internal, Anchor generated module. This is used (as an
+    /// implementation detail), to generate a struct for a given
+    /// `#[derive(Accounts)]` implementation, where each field is a Pubkey,
+    /// instead of an `AccountInfo`. This is useful for clients that want
+    /// to generate a list of accounts, without explicitly knowing the
+    /// order all the fields should be in.
+    ///
+    /// To access the struct in this module, one should use the sibling
+    /// `accounts` module (also generated), which re-exports this.
+    pub(crate) mod __client_accounts_decompress_multiple_pdas {
+        use super::*;
+        use anchor_lang::prelude::borsh;
+        /// Generated client accounts for [`DecompressMultiplePdas`].
+        pub struct DecompressMultiplePdas {
+            pub fee_payer: Pubkey,
+            pub rent_payer: Pubkey,
+            pub system_program: Pubkey,
+        }
+        impl borsh::ser::BorshSerialize for DecompressMultiplePdas
+        where
+            Pubkey: borsh::ser::BorshSerialize,
+            Pubkey: borsh::ser::BorshSerialize,
+            Pubkey: borsh::ser::BorshSerialize,
+        {
+            fn serialize<W: borsh::maybestd::io::Write>(
+                &self,
+                writer: &mut W,
+            ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+                borsh::BorshSerialize::serialize(&self.fee_payer, writer)?;
+                borsh::BorshSerialize::serialize(&self.rent_payer, writer)?;
+                borsh::BorshSerialize::serialize(&self.system_program, writer)?;
+                Ok(())
+            }
+        }
+        impl anchor_lang::idl::build::IdlBuild for DecompressMultiplePdas {
+            fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
+                Some(anchor_lang::idl::types::IdlTypeDef {
+                    name: Self::get_full_path(),
+                    docs: <[_]>::into_vec(
+                        ::alloc::boxed::box_new([
+                            "Generated client accounts for [`DecompressMultiplePdas`]."
+                                .into(),
+                        ]),
+                    ),
+                    serialization: anchor_lang::idl::types::IdlSerialization::default(),
+                    repr: None,
+                    generics: ::alloc::vec::Vec::new(),
+                    ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
+                        fields: Some(
+                            anchor_lang::idl::types::IdlDefinedFields::Named(
+                                <[_]>::into_vec(
+                                    ::alloc::boxed::box_new([
+                                        anchor_lang::idl::types::IdlField {
+                                            name: "fee_payer".into(),
+                                            docs: ::alloc::vec::Vec::new(),
+                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                        },
+                                        anchor_lang::idl::types::IdlField {
+                                            name: "rent_payer".into(),
+                                            docs: ::alloc::vec::Vec::new(),
+                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                        },
+                                        anchor_lang::idl::types::IdlField {
+                                            name: "system_program".into(),
+                                            docs: ::alloc::vec::Vec::new(),
+                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                        },
+                                    ]),
+                                ),
+                            ),
+                        ),
+                    },
+                })
+            }
+            fn insert_types(
+                types: &mut std::collections::BTreeMap<
+                    String,
+                    anchor_lang::idl::types::IdlTypeDef,
+                >,
+            ) {}
+            fn get_full_path() -> String {
+                ::alloc::__export::must_use({
+                    let res = ::alloc::fmt::format(
+                        format_args!(
+                            "{0}::{1}",
+                            "anchor_compressible_user_derived::anchor_compressible_user_derived::__client_accounts_decompress_multiple_pdas",
+                            "DecompressMultiplePdas",
+                        ),
+                    );
+                    res
+                })
+            }
+        }
+        #[automatically_derived]
+        impl anchor_lang::ToAccountMetas for DecompressMultiplePdas {
+            fn to_account_metas(
+                &self,
+                is_signer: Option<bool>,
+            ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                let mut account_metas = ::alloc::vec::Vec::new();
+                account_metas
+                    .push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new(
+                            self.fee_payer,
+                            true,
+                        ),
+                    );
+                account_metas
+                    .push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new(
+                            self.rent_payer,
+                            true,
+                        ),
+                    );
+                account_metas
+                    .push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.system_program,
+                            false,
+                        ),
+                    );
+                account_metas
+            }
+        }
+    }
+    /// An internal, Anchor generated module. This is used (as an
+    /// implementation detail), to generate a CPI struct for a given
+    /// `#[derive(Accounts)]` implementation, where each field is an
+    /// AccountInfo.
+    ///
+    /// To access the struct in this module, one should use the sibling
+    /// [`cpi::accounts`] module (also generated), which re-exports this.
+    pub(crate) mod __cpi_client_accounts_decompress_multiple_pdas {
+        use super::*;
+        /// Generated CPI struct of the accounts for [`DecompressMultiplePdas`].
+        pub struct DecompressMultiplePdas<'info> {
+            pub fee_payer: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+            pub rent_payer: anchor_lang::solana_program::account_info::AccountInfo<
+                'info,
+            >,
+            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<
+                'info,
+            >,
+        }
+        #[automatically_derived]
+        impl<'info> anchor_lang::ToAccountMetas for DecompressMultiplePdas<'info> {
+            fn to_account_metas(
+                &self,
+                is_signer: Option<bool>,
+            ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                let mut account_metas = ::alloc::vec::Vec::new();
+                account_metas
+                    .push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new(
+                            anchor_lang::Key::key(&self.fee_payer),
+                            true,
+                        ),
+                    );
+                account_metas
+                    .push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new(
+                            anchor_lang::Key::key(&self.rent_payer),
+                            true,
+                        ),
+                    );
+                account_metas
+                    .push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.system_program),
+                            false,
+                        ),
+                    );
+                account_metas
+            }
+        }
+        #[automatically_derived]
+        impl<'info> anchor_lang::ToAccountInfos<'info>
+        for DecompressMultiplePdas<'info> {
+            fn to_account_infos(
+                &self,
+            ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                let mut account_infos = ::alloc::vec::Vec::new();
+                account_infos
+                    .extend(
+                        anchor_lang::ToAccountInfos::to_account_infos(&self.fee_payer),
+                    );
+                account_infos
+                    .extend(
+                        anchor_lang::ToAccountInfos::to_account_infos(&self.rent_payer),
+                    );
+                account_infos
+                    .extend(
+                        anchor_lang::ToAccountInfos::to_account_infos(
+                            &self.system_program,
+                        ),
+                    );
+                account_infos
+            }
+        }
+    }
+    impl<'info> DecompressMultiplePdas<'info> {
+        pub fn __anchor_private_gen_idl_accounts(
+            accounts: &mut std::collections::BTreeMap<
+                String,
+                anchor_lang::idl::types::IdlAccount,
+            >,
+            types: &mut std::collections::BTreeMap<
+                String,
+                anchor_lang::idl::types::IdlTypeDef,
+            >,
+        ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+            <[_]>::into_vec(
+                ::alloc::boxed::box_new([
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        name: "fee_payer".into(),
+                        docs: ::alloc::vec::Vec::new(),
+                        writable: true,
+                        signer: true,
+                        optional: false,
+                        address: None,
+                        pda: None,
+                        relations: ::alloc::vec::Vec::new(),
+                    }),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        name: "rent_payer".into(),
+                        docs: ::alloc::vec::Vec::new(),
+                        writable: true,
+                        signer: true,
+                        optional: false,
+                        address: None,
+                        pda: None,
+                        relations: ::alloc::vec::Vec::new(),
+                    }),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        name: "system_program".into(),
+                        docs: ::alloc::vec::Vec::new(),
+                        writable: false,
+                        signer: false,
+                        optional: false,
+                        address: None,
+                        pda: None,
+                        relations: ::alloc::vec::Vec::new(),
+                    }),
+                ]),
+            )
+        }
+    }
+    /// Decompresses multiple compressed PDAs of any supported account type in a single transaction
+    pub fn decompress_multiple_pdas<'info>(
+        ctx: Context<'_, '_, '_, 'info, DecompressMultiplePdas<'info>>,
+        proof: ValidityProof,
+        compressed_accounts: Vec<CompressedAccountData>,
+        system_accounts_offset: u8,
+    ) -> Result<()> {
+        let pda_accounts_end = system_accounts_offset as usize;
+        let pda_accounts = &ctx.remaining_accounts[..pda_accounts_end];
+        if pda_accounts.len() != compressed_accounts.len() {
+            return Err(
+                anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
+                    error_name: ErrorCode::InvalidAccountCount.name(),
+                    error_code_number: ErrorCode::InvalidAccountCount.into(),
+                    error_msg: ErrorCode::InvalidAccountCount.to_string(),
+                    error_origin: Some(
+                        anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
+                            filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
+                            line: 19u32,
+                        }),
+                    ),
+                    compared_values: None,
+                }),
+            );
+        }
+        let config = CpiAccountsConfig::new(LIGHT_CPI_SIGNER);
+        let cpi_accounts = CpiAccounts::new_with_config(
+            &ctx.accounts.fee_payer,
+            &ctx.remaining_accounts[system_accounts_offset as usize..],
+            config,
+        );
+        let mut light_accounts = Vec::new();
+        let mut pda_account_refs = Vec::new();
+        for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
+            let unified_account = match compressed_data.data {
+                CompressedAccountVariant::UserRecord(data) => {
+                    CompressedAccountVariant::UserRecord(data)
+                }
+                CompressedAccountVariant::GameSession(data) => {
+                    CompressedAccountVariant::GameSession(data)
+                }
+            };
+            let light_account = light_sdk::account::LightAccount::<
+                '_,
+                CompressedAccountVariant,
+            >::new_mut(&crate::ID, &compressed_data.meta, unified_account)
+                .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+            light_accounts.push(light_account);
+            pda_account_refs.push(&pda_accounts[i]);
+        }
+        light_sdk::compressible::decompress_multiple_idempotent::<
+            CompressedAccountVariant,
+        >(
+                &pda_account_refs,
+                light_accounts,
+                proof,
+                cpi_accounts,
+                &crate::ID,
+                &ctx.accounts.rent_payer,
+                &ctx.accounts.system_program.to_account_info(),
+            )
+            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        Ok(())
+    }
+    #[repr(u32)]
+    pub enum ErrorCode {
+        InvalidAccountCount,
+    }
+    #[automatically_derived]
+    impl ::core::fmt::Debug for ErrorCode {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::write_str(f, "InvalidAccountCount")
+        }
+    }
+    #[automatically_derived]
+    impl ::core::clone::Clone for ErrorCode {
+        #[inline]
+        fn clone(&self) -> ErrorCode {
+            *self
+        }
+    }
+    #[automatically_derived]
+    impl ::core::marker::Copy for ErrorCode {}
+    impl ErrorCode {
+        /// Gets the name of this [#enum_name].
+        pub fn name(&self) -> String {
+            match self {
+                ErrorCode::InvalidAccountCount => "InvalidAccountCount".to_string(),
+            }
+        }
+    }
+    impl From<ErrorCode> for u32 {
+        fn from(e: ErrorCode) -> u32 {
+            e as u32 + anchor_lang::error::ERROR_CODE_OFFSET
+        }
+    }
+    impl From<ErrorCode> for anchor_lang::error::Error {
+        fn from(error_code: ErrorCode) -> anchor_lang::error::Error {
+            anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
+                error_name: error_code.name(),
+                error_code_number: error_code.into(),
+                error_msg: error_code.to_string(),
+                error_origin: None,
+                compared_values: None,
+            })
+        }
+    }
+    impl std::fmt::Display for ErrorCode {
+        fn fmt(
+            &self,
+            fmt: &mut std::fmt::Formatter<'_>,
+        ) -> std::result::Result<(), std::fmt::Error> {
+            match self {
+                ErrorCode::InvalidAccountCount => {
+                    fmt.write_fmt(
+                        format_args!(
+                            "Invalid account count: PDAs and compressed accounts must match",
+                        ),
+                    )
+                }
+            }
+        }
     }
     pub struct CompressUserRecord<'info> {
         /// CHECK: The PDA to compress (unchecked)
@@ -4675,6 +5597,128 @@ pub mod instruction {
         }
     }
     /// Instruction.
+    pub struct DecompressMultiplePdas {
+        pub proof: ValidityProof,
+        pub compressed_accounts: Vec<CompressedAccountData>,
+        pub system_accounts_offset: u8,
+    }
+    impl borsh::ser::BorshSerialize for DecompressMultiplePdas
+    where
+        ValidityProof: borsh::ser::BorshSerialize,
+        Vec<CompressedAccountData>: borsh::ser::BorshSerialize,
+        u8: borsh::ser::BorshSerialize,
+    {
+        fn serialize<W: borsh::maybestd::io::Write>(
+            &self,
+            writer: &mut W,
+        ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+            borsh::BorshSerialize::serialize(&self.proof, writer)?;
+            borsh::BorshSerialize::serialize(&self.compressed_accounts, writer)?;
+            borsh::BorshSerialize::serialize(&self.system_accounts_offset, writer)?;
+            Ok(())
+        }
+    }
+    impl anchor_lang::idl::build::IdlBuild for DecompressMultiplePdas {
+        fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
+            Some(anchor_lang::idl::types::IdlTypeDef {
+                name: Self::get_full_path(),
+                docs: <[_]>::into_vec(::alloc::boxed::box_new(["Instruction.".into()])),
+                serialization: anchor_lang::idl::types::IdlSerialization::default(),
+                repr: None,
+                generics: ::alloc::vec::Vec::new(),
+                ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
+                    fields: Some(
+                        anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(
+                                ::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "proof".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Defined {
+                                            name: <ValidityProof>::get_full_path(),
+                                            generics: ::alloc::vec::Vec::new(),
+                                        },
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "compressed_accounts".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Vec(
+                                            Box::new(anchor_lang::idl::types::IdlType::Defined {
+                                                name: <CompressedAccountData>::get_full_path(),
+                                                generics: ::alloc::vec::Vec::new(),
+                                            }),
+                                        ),
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "system_accounts_offset".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::U8,
+                                    },
+                                ]),
+                            ),
+                        ),
+                    ),
+                },
+            })
+        }
+        fn insert_types(
+            types: &mut std::collections::BTreeMap<
+                String,
+                anchor_lang::idl::types::IdlTypeDef,
+            >,
+        ) {
+            if let Some(ty) = <ValidityProof>::create_type() {
+                types.insert(<ValidityProof>::get_full_path(), ty);
+                <ValidityProof>::insert_types(types);
+            }
+            if let Some(ty) = <CompressedAccountData>::create_type() {
+                types.insert(<CompressedAccountData>::get_full_path(), ty);
+                <CompressedAccountData>::insert_types(types);
+            }
+        }
+        fn get_full_path() -> String {
+            ::alloc::__export::must_use({
+                let res = ::alloc::fmt::format(
+                    format_args!(
+                        "{0}::{1}",
+                        "anchor_compressible_user_derived::instruction",
+                        "DecompressMultiplePdas",
+                    ),
+                );
+                res
+            })
+        }
+    }
+    impl borsh::de::BorshDeserialize for DecompressMultiplePdas
+    where
+        ValidityProof: borsh::BorshDeserialize,
+        Vec<CompressedAccountData>: borsh::BorshDeserialize,
+        u8: borsh::BorshDeserialize,
+    {
+        fn deserialize_reader<R: borsh::maybestd::io::Read>(
+            reader: &mut R,
+        ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
+            Ok(Self {
+                proof: borsh::BorshDeserialize::deserialize_reader(reader)?,
+                compressed_accounts: borsh::BorshDeserialize::deserialize_reader(
+                    reader,
+                )?,
+                system_accounts_offset: borsh::BorshDeserialize::deserialize_reader(
+                    reader,
+                )?,
+            })
+        }
+    }
+    impl anchor_lang::Discriminator for DecompressMultiplePdas {
+        const DISCRIMINATOR: &'static [u8] = &[94, 169, 150, 235, 138, 51, 254, 223];
+    }
+    impl anchor_lang::InstructionData for DecompressMultiplePdas {}
+    impl anchor_lang::Owner for DecompressMultiplePdas {
+        fn owner() -> Pubkey {
+            ID
+        }
+    }
+    /// Instruction.
     pub struct CompressUserRecord {
         pub proof: ValidityProof,
         pub compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
@@ -4907,10 +5951,11 @@ pub mod instruction {
 /// mirroring the structs deriving `Accounts`, where each field is
 /// a `Pubkey`. This is useful for specifying accounts for a client.
 pub mod accounts {
-    pub use crate::__client_accounts_compress_user_record::*;
-    pub use crate::__client_accounts_create_record::*;
     pub use crate::__client_accounts_update_record::*;
+    pub use crate::__client_accounts_compress_user_record::*;
     pub use crate::__client_accounts_compress_game_session::*;
+    pub use crate::__client_accounts_create_record::*;
+    pub use crate::__client_accounts_decompress_multiple_pdas::*;
 }
 pub struct CreateRecord<'info> {
     #[account(mut)]
@@ -5033,7 +6078,7 @@ where
                                         error_origin: Some(
                                             anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
                                                 filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                                line: 76u32,
+                                                line: 75u32,
                                             }),
                                         ),
                                         compared_values: None,
@@ -5918,7 +6963,7 @@ pub struct UserRecord {
     pub name: String,
     pub score: u64,
     pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub compression_delay: u64,
 }
 impl borsh::ser::BorshSerialize for UserRecord
 where
@@ -5936,7 +6981,7 @@ where
         borsh::BorshSerialize::serialize(&self.name, writer)?;
         borsh::BorshSerialize::serialize(&self.score, writer)?;
         borsh::BorshSerialize::serialize(&self.last_written_slot, writer)?;
-        borsh::BorshSerialize::serialize(&self.slots_until_compression, writer)?;
+        borsh::BorshSerialize::serialize(&self.compression_delay, writer)?;
         Ok(())
     }
 }
@@ -5974,7 +7019,7 @@ impl anchor_lang::idl::build::IdlBuild for UserRecord {
                                     ty: anchor_lang::idl::types::IdlType::U64,
                                 },
                                 anchor_lang::idl::types::IdlField {
-                                    name: "slots_until_compression".into(),
+                                    name: "compression_delay".into(),
                                     docs: ::alloc::vec::Vec::new(),
                                     ty: anchor_lang::idl::types::IdlType::U64,
                                 },
@@ -6020,7 +7065,7 @@ where
             name: borsh::BorshDeserialize::deserialize_reader(reader)?,
             score: borsh::BorshDeserialize::deserialize_reader(reader)?,
             last_written_slot: borsh::BorshDeserialize::deserialize_reader(reader)?,
-            slots_until_compression: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            compression_delay: borsh::BorshDeserialize::deserialize_reader(reader)?,
         })
     }
 }
@@ -6033,8 +7078,8 @@ impl ::core::clone::Clone for UserRecord {
             name: ::core::clone::Clone::clone(&self.name),
             score: ::core::clone::Clone::clone(&self.score),
             last_written_slot: ::core::clone::Clone::clone(&self.last_written_slot),
-            slots_until_compression: ::core::clone::Clone::clone(
-                &self.slots_until_compression,
+            compression_delay: ::core::clone::Clone::clone(
+                &self.compression_delay,
             ),
         }
     }
@@ -6075,7 +7120,7 @@ impl anchor_lang::AccountDeserialize for UserRecord {
                         error_origin: Some(
                             anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
                                 filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                line: 109u32,
+                                line: 107u32,
                             }),
                         ),
                         compared_values: None,
@@ -6116,8 +7161,8 @@ impl ::core::fmt::Debug for UserRecord {
             &self.score,
             "last_written_slot",
             &self.last_written_slot,
-            "slots_until_compression",
-            &&self.slots_until_compression,
+            "compression_delay",
+            &&self.compression_delay,
         )
     }
 }
@@ -6149,7 +7194,7 @@ impl ::light_hasher::DataHasher for UserRecord {
                         self.name.to_byte_array()?,
                         self.score.to_byte_array()?,
                         self.last_written_slot.to_byte_array()?,
-                        self.slots_until_compression.to_byte_array()?,
+                        self.compression_delay.to_byte_array()?,
                     ]),
                 );
                 {
@@ -6168,7 +7213,7 @@ impl ::light_hasher::DataHasher for UserRecord {
                 self.name.to_byte_array()?.as_slice(),
                 self.score.to_byte_array()?.as_slice(),
                 self.last_written_slot.to_byte_array()?.as_slice(),
-                self.slots_until_compression.to_byte_array()?.as_slice(),
+                self.compression_delay.to_byte_array()?.as_slice(),
             ],
         )
     }
@@ -6189,16 +7234,16 @@ impl ::core::default::Default for UserRecord {
             name: ::core::default::Default::default(),
             score: ::core::default::Default::default(),
             last_written_slot: ::core::default::Default::default(),
-            slots_until_compression: ::core::default::Default::default(),
+            compression_delay: ::core::default::Default::default(),
         }
     }
 }
-impl light_sdk::compressible::PdaTimingData for UserRecord {
+impl light_sdk::compressible::CompressionTiming for UserRecord {
     fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
+    fn compression_delay(&self) -> u64 {
+        self.compression_delay
     }
     fn set_last_written_slot(&mut self, slot: u64) {
         self.last_written_slot = slot;
@@ -6213,7 +7258,7 @@ pub struct GameSession {
     pub end_time: Option<u64>,
     pub score: u64,
     pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub compression_delay: u64,
 }
 impl borsh::ser::BorshSerialize for GameSession
 where
@@ -6237,7 +7282,7 @@ where
         borsh::BorshSerialize::serialize(&self.end_time, writer)?;
         borsh::BorshSerialize::serialize(&self.score, writer)?;
         borsh::BorshSerialize::serialize(&self.last_written_slot, writer)?;
-        borsh::BorshSerialize::serialize(&self.slots_until_compression, writer)?;
+        borsh::BorshSerialize::serialize(&self.compression_delay, writer)?;
         Ok(())
     }
 }
@@ -6292,7 +7337,7 @@ impl anchor_lang::idl::build::IdlBuild for GameSession {
                                     ty: anchor_lang::idl::types::IdlType::U64,
                                 },
                                 anchor_lang::idl::types::IdlField {
-                                    name: "slots_until_compression".into(),
+                                    name: "compression_delay".into(),
                                     docs: ::alloc::vec::Vec::new(),
                                     ty: anchor_lang::idl::types::IdlType::U64,
                                 },
@@ -6344,7 +7389,7 @@ where
             end_time: borsh::BorshDeserialize::deserialize_reader(reader)?,
             score: borsh::BorshDeserialize::deserialize_reader(reader)?,
             last_written_slot: borsh::BorshDeserialize::deserialize_reader(reader)?,
-            slots_until_compression: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            compression_delay: borsh::BorshDeserialize::deserialize_reader(reader)?,
         })
     }
 }
@@ -6360,8 +7405,8 @@ impl ::core::clone::Clone for GameSession {
             end_time: ::core::clone::Clone::clone(&self.end_time),
             score: ::core::clone::Clone::clone(&self.score),
             last_written_slot: ::core::clone::Clone::clone(&self.last_written_slot),
-            slots_until_compression: ::core::clone::Clone::clone(
-                &self.slots_until_compression,
+            compression_delay: ::core::clone::Clone::clone(
+                &self.compression_delay,
             ),
         }
     }
@@ -6402,7 +7447,7 @@ impl anchor_lang::AccountDeserialize for GameSession {
                         error_origin: Some(
                             anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
                                 filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                line: 134u32,
+                                line: 132u32,
                             }),
                         ),
                         compared_values: None,
@@ -6440,7 +7485,7 @@ impl ::core::fmt::Debug for GameSession {
             "end_time",
             "score",
             "last_written_slot",
-            "slots_until_compression",
+            "compression_delay",
         ];
         let values: &[&dyn ::core::fmt::Debug] = &[
             &self.session_id,
@@ -6450,7 +7495,7 @@ impl ::core::fmt::Debug for GameSession {
             &self.end_time,
             &self.score,
             &self.last_written_slot,
-            &&self.slots_until_compression,
+            &&self.compression_delay,
         ];
         ::core::fmt::Formatter::debug_struct_fields_finish(
             f,
@@ -6491,7 +7536,7 @@ impl ::light_hasher::DataHasher for GameSession {
                         self.end_time.to_byte_array()?,
                         self.score.to_byte_array()?,
                         self.last_written_slot.to_byte_array()?,
-                        self.slots_until_compression.to_byte_array()?,
+                        self.compression_delay.to_byte_array()?,
                     ]),
                 );
                 {
@@ -6513,7 +7558,7 @@ impl ::light_hasher::DataHasher for GameSession {
                 self.end_time.to_byte_array()?.as_slice(),
                 self.score.to_byte_array()?.as_slice(),
                 self.last_written_slot.to_byte_array()?.as_slice(),
-                self.slots_until_compression.to_byte_array()?.as_slice(),
+                self.compression_delay.to_byte_array()?.as_slice(),
             ],
         )
     }
@@ -6537,16 +7582,16 @@ impl ::core::default::Default for GameSession {
             end_time: ::core::default::Default::default(),
             score: ::core::default::Default::default(),
             last_written_slot: ::core::default::Default::default(),
-            slots_until_compression: ::core::default::Default::default(),
+            compression_delay: ::core::default::Default::default(),
         }
     }
 }
-impl light_sdk::compressible::PdaTimingData for GameSession {
+impl light_sdk::compressible::CompressionTiming for GameSession {
     fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
+    fn compression_delay(&self) -> u64 {
+        self.compression_delay
     }
     fn set_last_written_slot(&mut self, slot: u64) {
         self.last_written_slot = slot;

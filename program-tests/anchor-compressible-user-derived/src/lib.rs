@@ -12,7 +12,7 @@ use light_sdk_types::CpiSigner;
 declare_id!("CompUser11111111111111111111111111111111111");
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
+pub const COMPRESSION_DELAY: u64 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
@@ -35,7 +35,7 @@ pub mod anchor_compressible_user_derived {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
-        user_record.slots_until_compression = SLOTS_UNTIL_COMPRESSION;
+        user_record.compression_delay = COMPRESSION_DELAY;
 
         let cpi_accounts = CpiAccounts::new_with_config(
             &ctx.accounts.user,
@@ -79,7 +79,7 @@ pub struct CreateRecord<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 32 + 4 + 32 + 8 + 8 + 8, // discriminator + owner + string len + name + score + last_written_slot + slots_until_compression
+        space = 8 + 32 + 4 + 32 + 8 + 8 + 8, // discriminator + owner + string len + name + score + last_written_slot + compression_delay
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -103,25 +103,25 @@ pub struct UpdateRecord<'info> {
     pub user_record: Account<'info, UserRecord>,
 }
 
-// Define compressible accounts - no longer need the #[compressible] attribute
 #[derive(Debug, LightHasher, LightDiscriminator, Default)]
 #[account]
 pub struct UserRecord {
     #[hash]
     pub owner: Pubkey,
+    #[hash]
     pub name: String,
     pub score: u64,
     pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub compression_delay: u64,
 }
 
-impl light_sdk::compressible::PdaTimingData for UserRecord {
+impl light_sdk::compressible::CompressionTiming for UserRecord {
     fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
 
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
+    fn compression_delay(&self) -> u64 {
+        self.compression_delay
     }
 
     fn set_last_written_slot(&mut self, slot: u64) {
@@ -140,16 +140,16 @@ pub struct GameSession {
     pub end_time: Option<u64>,
     pub score: u64,
     pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub compression_delay: u64,
 }
 
-impl light_sdk::compressible::PdaTimingData for GameSession {
+impl light_sdk::compressible::CompressionTiming for GameSession {
     fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
 
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
+    fn compression_delay(&self) -> u64 {
+        self.compression_delay
     }
 
     fn set_last_written_slot(&mut self, slot: u64) {

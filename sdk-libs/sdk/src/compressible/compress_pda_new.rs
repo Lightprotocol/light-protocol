@@ -19,7 +19,7 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-use crate::compressible::compress_pda::PdaTimingData;
+use crate::compressible::compress_pda::CompressionTiming;
 
 /// Helper function to compress an onchain PDA into a new compressed account.
 ///
@@ -57,7 +57,7 @@ where
         + BorshSerialize
         + BorshDeserialize
         + Default
-        + PdaTimingData
+        + CompressionTiming
         + Clone,
 {
     compress_multiple_pdas_new::<A>(
@@ -108,7 +108,7 @@ where
         + BorshSerialize
         + BorshDeserialize
         + Default
-        + PdaTimingData
+        + CompressionTiming
         + Clone,
 {
     if pda_accounts.len() != addresses.len()

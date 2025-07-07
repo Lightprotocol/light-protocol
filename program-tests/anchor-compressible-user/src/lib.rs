@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
-    compressible::PdaTimingData,
+    compressible::CompressionTiming,
     cpi::CpiAccounts,
     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
     light_hasher::{DataHasher, Hasher},
@@ -12,7 +12,7 @@ use light_sdk_types::CpiSigner;
 declare_id!("CompUser11111111111111111111111111111111111");
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
+pub const COMPRESSION_DELAY: u64 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
@@ -39,7 +39,7 @@ pub mod anchor_compressible_user {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
-        user_record.slots_until_compression = SLOTS_UNTIL_COMPRESSION;
+        user_record.compression_delay = COMPRESSION_DELAY;
 
         let cpi_accounts = CpiAccounts::new_with_config(
             &ctx.accounts.user,
@@ -250,7 +250,7 @@ impl LightDiscriminator for CompressedAccountVariant {
     const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 }
 
-impl PdaTimingData for CompressedAccountVariant {
+impl CompressionTiming for CompressedAccountVariant {
     fn last_written_slot(&self) -> u64 {
         match self {
             Self::UserRecord(data) => data.last_written_slot(),
@@ -258,10 +258,10 @@ impl PdaTimingData for CompressedAccountVariant {
         }
     }
 
-    fn slots_until_compression(&self) -> u64 {
+    fn compression_delay(&self) -> u64 {
         match self {
-            Self::UserRecord(data) => data.slots_until_compression(),
-            Self::GameSession(data) => data.slots_until_compression(),
+            Self::UserRecord(data) => data.compression_delay(),
+            Self::GameSession(data) => data.compression_delay(),
         }
     }
 
@@ -288,16 +288,16 @@ pub struct UserRecord {
     pub name: String,
     pub score: u64,
     pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub compression_delay: u64,
 }
 
-impl PdaTimingData for UserRecord {
+impl CompressionTiming for UserRecord {
     fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
 
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
+    fn compression_delay(&self) -> u64 {
+        self.compression_delay
     }
 
     fn set_last_written_slot(&mut self, slot: u64) {
@@ -316,16 +316,16 @@ pub struct GameSession {
     pub end_time: Option<u64>,
     pub score: u64,
     pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub compression_delay: u64,
 }
 
-impl PdaTimingData for GameSession {
+impl CompressionTiming for GameSession {
     fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
 
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
+    fn compression_delay(&self) -> u64 {
+        self.compression_delay
     }
 
     fn set_last_written_slot(&mut self, slot: u64) {
