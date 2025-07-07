@@ -6611,3 +6611,270 @@ async fn test_create_compressed_mint() {
         final_compressed_mint.is_decompressed
     );
 }
+
+/// Creates a `InitializeAccount3` instruction.
+pub fn initialize_account3(
+    token_program_id: &Pubkey,
+    account_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
+    owner_pubkey: &Pubkey,
+) -> Result<solana_sdk::instruction::Instruction, anchor_lang::prelude::ProgramError> {
+    let data = spl_token_2022::instruction::TokenInstruction::InitializeAccount3 {
+        owner: *owner_pubkey,
+    }
+    .pack();
+
+    let accounts = vec![
+        AccountMeta::new(*account_pubkey, false),
+        AccountMeta::new_readonly(*mint_pubkey, false),
+    ];
+
+    Ok(solana_sdk::instruction::Instruction {
+        program_id: *token_program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a `CloseAccount` instruction.
+pub fn close_account(
+    token_program_id: &Pubkey,
+    account_pubkey: &Pubkey,
+    destination_pubkey: &Pubkey,
+    owner_pubkey: &Pubkey,
+) -> Result<solana_sdk::instruction::Instruction, anchor_lang::prelude::ProgramError> {
+    let data = spl_token_2022::instruction::TokenInstruction::CloseAccount.pack();
+
+    let accounts = vec![
+        AccountMeta::new(*account_pubkey, false),
+        AccountMeta::new(*destination_pubkey, false),
+        AccountMeta::new_readonly(*owner_pubkey, true), // signer
+    ];
+
+    Ok(solana_sdk::instruction::Instruction {
+        program_id: *token_program_id,
+        accounts,
+        data,
+    })
+}
+
+#[tokio::test]
+async fn test_create_and_close_token_account() {
+    use spl_pod::bytemuck::pod_from_bytes;
+    use spl_token_2022::pod::PodAccount;
+    use spl_token_2022::state::AccountState;
+
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let payer_pubkey = payer.pubkey();
+
+    // Create a mock mint pubkey (we don't need actual mint for this test)
+    let mint_pubkey = Pubkey::new_unique();
+
+    // Create owner for the token account
+    let owner_keypair = Keypair::new();
+    let owner_pubkey = owner_keypair.pubkey();
+
+    // Create a new keypair for the token account
+    let token_account_keypair = Keypair::new();
+    let token_account_pubkey = token_account_keypair.pubkey();
+
+    // First create the account using system program
+    let create_account_system_ix = solana_sdk::system_instruction::create_account(
+        &payer_pubkey,
+        &token_account_pubkey,
+        rpc.get_minimum_balance_for_rent_exemption(165).await.unwrap(), // SPL token account size
+        165,
+        &light_compressed_token::ID, // Our program owns the account
+    );
+
+    // Then use SPL token SDK format but with our compressed token program ID
+    // This tests that our create_token_account instruction is compatible with SPL SDKs
+    let initialize_account_ix = initialize_account3(
+        &light_compressed_token::ID, // Use our program ID instead of spl_token_2022::ID
+        &token_account_pubkey,
+        &mint_pubkey,
+        &owner_pubkey,
+    ).unwrap();
+
+    // Execute both instructions in one transaction
+    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
+    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[create_account_system_ix, initialize_account_ix],
+        Some(&payer_pubkey),
+        &[&payer, &token_account_keypair],
+        blockhash,
+    );
+
+    rpc.process_transaction(transaction.clone())
+        .await
+        .expect("Failed to create token account using SPL SDK");
+
+    // Verify the token account was created correctly
+    let account_info = rpc.get_account(token_account_pubkey).await.unwrap().unwrap();
+    
+    // Verify account exists and has correct owner
+    assert_eq!(account_info.owner, light_compressed_token::ID);
+    assert_eq!(account_info.data.len(), 165); // SPL token account size
+
+    let pod_account = pod_from_bytes::<PodAccount>(&account_info.data)
+        .expect("Failed to parse token account data");
+
+    // Verify the token account fields
+    assert_eq!(Pubkey::from(pod_account.mint), mint_pubkey);
+    assert_eq!(Pubkey::from(pod_account.owner), owner_pubkey);
+    assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
+    assert_eq!(pod_account.state, AccountState::Initialized as u8);
+
+
+    // Now test closing the account using SPL SDK format
+    let destination_keypair = Keypair::new();
+    let destination_pubkey = destination_keypair.pubkey();
+
+    // Airdrop some lamports to destination account so it exists
+    rpc.context.airdrop(&destination_pubkey, 1_000_000).unwrap();
+
+    // Get initial lamports before closing
+    let initial_token_account_lamports = rpc.get_account(token_account_pubkey).await.unwrap().unwrap().lamports;
+    let initial_destination_lamports = rpc.get_account(destination_pubkey).await.unwrap().unwrap().lamports;
+
+    // Create close account instruction using SPL SDK format
+    let close_account_ix = close_account(
+        &light_compressed_token::ID,
+        &token_account_pubkey,
+        &destination_pubkey,
+        &owner_pubkey,
+    ).unwrap();
+
+    // Execute the close instruction
+    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
+    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[close_account_ix],
+        Some(&payer_pubkey),
+        &[&payer, &owner_keypair], // Need owner to sign
+        blockhash,
+    );
+
+    rpc.process_transaction(close_transaction)
+        .await
+        .expect("Failed to close token account using SPL SDK");
+
+    // Verify the account was closed (data should be cleared, lamports should be 0)
+    let closed_account = rpc.get_account(token_account_pubkey).await.unwrap();
+    if let Some(account) = closed_account {
+        // Account still exists, but should have 0 lamports and cleared data
+        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
+        assert!(account.data.iter().all(|&b| b == 0), "Closed account data should be cleared");
+    }
+
+    // Verify lamports were transferred to destination
+    let final_destination_lamports = rpc.get_account(destination_pubkey).await.unwrap().unwrap().lamports;
+    assert_eq!(
+        final_destination_lamports,
+        initial_destination_lamports + initial_token_account_lamports,
+        "Destination should receive all lamports from closed account"
+    );
+
+}
+
+#[tokio::test]
+async fn test_create_associated_token_account() {
+    use spl_pod::bytemuck::pod_from_bytes;
+    use spl_token_2022::pod::PodAccount;
+    use spl_token_2022::state::AccountState;
+
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let payer_pubkey = payer.pubkey();
+
+    // Create a mock mint pubkey
+    let mint_pubkey = Pubkey::new_unique();
+
+    // Create owner for the associated token account
+    let owner_keypair = Keypair::new();
+    let owner_pubkey = owner_keypair.pubkey();
+
+    // Calculate the expected associated token account address
+    let (expected_ata_pubkey, bump) = Pubkey::find_program_address(
+        &[
+            owner_pubkey.as_ref(),
+            light_compressed_token::ID.as_ref(),
+            mint_pubkey.as_ref(),
+        ],
+        &light_compressed_token::ID,
+    );
+
+    // Build the create_associated_token_account instruction
+    use light_compressed_token::create_associated_token_account::instruction_data::CreateAssociatedTokenAccountInstructionData;
+    use light_compressed_account::Pubkey as LightPubkey;
+
+    let instruction_data = CreateAssociatedTokenAccountInstructionData {
+        owner: LightPubkey::from(owner_pubkey.to_bytes()),
+        mint: LightPubkey::from(mint_pubkey.to_bytes()),
+        bump,
+    };
+
+    let mut instruction_data_bytes = vec![103u8]; // CreateAssociatedTokenAccount discriminator
+    instruction_data_bytes.extend_from_slice(&instruction_data.try_to_vec().unwrap());
+
+    // Create the accounts for the instruction
+    let accounts = vec![
+        AccountMeta::new(payer_pubkey, true), // fee_payer (signer)
+        AccountMeta::new(expected_ata_pubkey, false), // associated_token_account
+        AccountMeta::new_readonly(mint_pubkey, false), // mint
+        AccountMeta::new_readonly(owner_pubkey, false), // owner
+        AccountMeta::new_readonly(system_program::ID, false), // system_program
+    ];
+
+    let instruction = solana_sdk::instruction::Instruction {
+        program_id: light_compressed_token::ID,
+        accounts,
+        data: instruction_data_bytes,
+    };
+
+    // Execute the instruction
+    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
+    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        blockhash,
+    );
+
+    rpc.process_transaction(transaction.clone())
+        .await
+        .expect("Failed to create associated token account");
+
+    // Verify the associated token account was created correctly
+    let account_info = rpc.get_account(expected_ata_pubkey).await.unwrap().unwrap();
+    
+    // Verify account exists and has correct owner
+    assert_eq!(account_info.owner, light_compressed_token::ID);
+    assert_eq!(account_info.data.len(), 165); // SPL token account size
+
+    let pod_account = pod_from_bytes::<PodAccount>(&account_info.data)
+        .expect("Failed to parse token account data");
+
+    // Verify the token account fields
+    assert_eq!(Pubkey::from(pod_account.mint), mint_pubkey);
+    assert_eq!(Pubkey::from(pod_account.owner), owner_pubkey);
+    assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
+    assert_eq!(pod_account.state, AccountState::Initialized as u8);
+
+    // Verify the PDA derivation is correct
+    let (derived_ata_pubkey, derived_bump) = Pubkey::find_program_address(
+        &[
+            owner_pubkey.as_ref(),
+            light_compressed_token::ID.as_ref(),
+            mint_pubkey.as_ref(),
+        ],
+        &light_compressed_token::ID,
+    );
+    assert_eq!(expected_ata_pubkey, derived_ata_pubkey);
+    assert_eq!(bump, derived_bump);
+
+}

@@ -107,6 +107,7 @@ solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7", features = ["no-entrypoint"] }
+spl-pod = "0.5.1"
 pinocchio = { version = "0.8.4" }
 bs58 = "^0.5.1"
 litesvm = "0.6.1"

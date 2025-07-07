@@ -1344,6 +1344,7 @@ dependencies = [
  "rand 0.8.5",
  "serial_test",
  "solana-sdk",
+ "spl-pod",
  "spl-token",
  "tokio",
 ]
@@ -3403,6 +3404,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-pubkey",
  "solana-security-txt",
+ "spl-pod",
  "spl-token",
  "spl-token-2022 7.0.0",
  "zerocopy",

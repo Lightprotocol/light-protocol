@@ -39,6 +39,7 @@ light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }
 spl-token = { workspace = true }
+spl-pod = { workspace = true }
 anchor-spl = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
