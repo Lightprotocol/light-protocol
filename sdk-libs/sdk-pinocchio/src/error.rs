@@ -1,3 +1,4 @@
+use light_account_checks::error::AccountError;
 use light_hasher::HasherError;
 pub use light_sdk_types::error::LightSdkTypesError;
 use light_zero_copy::errors::ZeroCopyError;
@@ -68,12 +69,20 @@ pub enum LightSdkError {
     MetaCloseInputIsNone,
     #[error("CPI accounts index out of bounds: {0}")]
     CpiAccountsIndexOutOfBounds(usize),
+    #[error("Invalid CPI context account")]
+    InvalidCpiContextAccount,
+    #[error("Invalid sol pool pda account")]
+    InvalidSolPoolPdaAccount,
+    #[error("CpiAccounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
+    InvalidCpiAccountsOffset,
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
     ZeroCopy(#[from] ZeroCopyError),
     #[error("Program error: {0:?}")]
     ProgramError(ProgramError),
+    #[error(transparent)]
+    AccountError(#[from] AccountError),
 }
 
 impl From<ProgramError> for LightSdkError {
@@ -111,6 +120,10 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::CpiAccountsIndexOutOfBounds(index) => {
                 LightSdkError::CpiAccountsIndexOutOfBounds(index)
             }
+            LightSdkTypesError::InvalidCpiContextAccount => LightSdkError::InvalidCpiContextAccount,
+            LightSdkTypesError::InvalidSolPoolPdaAccount => LightSdkError::InvalidSolPoolPdaAccount,
+            LightSdkTypesError::AccountError(e) => LightSdkError::AccountError(e),
+            LightSdkTypesError::InvalidCpiAccountsOffset => LightSdkError::InvalidCpiAccountsOffset,
         }
     }
 }
@@ -148,9 +161,13 @@ impl From<LightSdkError> for u32 {
             LightSdkError::MetaCloseAddressIsNone => 16028,
             LightSdkError::MetaCloseInputIsNone => 16029,
             LightSdkError::CpiAccountsIndexOutOfBounds(_) => 16031,
+            LightSdkError::InvalidCpiContextAccount => 16032,
+            LightSdkError::InvalidSolPoolPdaAccount => 16033,
+            LightSdkError::InvalidCpiAccountsOffset => 16034,
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
+            LightSdkError::AccountError(e) => e.into(),
         }
     }
 }

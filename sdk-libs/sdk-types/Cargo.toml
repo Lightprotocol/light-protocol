@@ -19,6 +19,7 @@ light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 light-macros = { workspace = true }
 light-zero-copy = { workspace = true }
+solana-msg = { workspace = true }
 
 # External dependencies
 borsh = { workspace = true }
