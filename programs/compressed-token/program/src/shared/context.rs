@@ -1,7 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
 use light_compressed_account::hash_to_bn254_field_size_be;
-use solana_pubkey::Pubkey;
+use pinocchio::pubkey::Pubkey;
 
 /// Context for caching hashed values to avoid recomputation
 pub struct TokenContext {
@@ -21,14 +21,14 @@ impl TokenContext {
     }
 
     /// Get or compute hash for a mint pubkey
-    pub fn get_or_hash_mint(&mut self, mint: Pubkey) -> Result<[u8; 32], ProgramError> {
-        let hashed_mint = self.hashed_mints.iter().find(|a| a.0 == mint).map(|a| a.1);
+    pub fn get_or_hash_mint(&mut self, mint: &Pubkey) -> Result<[u8; 32], ProgramError> {
+        let hashed_mint = self.hashed_mints.iter().find(|a| &a.0 == mint).map(|a| a.1);
         match hashed_mint {
             Some(hashed_mint) => Ok(hashed_mint),
             None => {
-                let hashed_mint = hash_to_bn254_field_size_be(mint.to_bytes().as_slice());
+                let hashed_mint = hash_to_bn254_field_size_be(mint);
                 self.hashed_mints
-                    .try_push((mint, hashed_mint))
+                    .try_push((*mint, hashed_mint))
                     .map_err(|_| ProgramError::InvalidAccountData)?;
                 Ok(hashed_mint)
             }
@@ -40,12 +40,12 @@ impl TokenContext {
         let hashed_pubkey = self
             .hashed_pubkeys
             .iter()
-            .find(|a| a.0 == *pubkey)
+            .find(|a| &a.0 == pubkey)
             .map(|a| a.1);
         match hashed_pubkey {
             Some(hashed_pubkey) => hashed_pubkey,
             None => {
-                let hashed_pubkey = hash_to_bn254_field_size_be(pubkey.to_bytes().as_slice());
+                let hashed_pubkey = hash_to_bn254_field_size_be(pubkey);
                 self.hashed_pubkeys.push((*pubkey, hashed_pubkey));
                 hashed_pubkey
             }

@@ -1,53 +1,52 @@
-use anchor_lang::solana_program::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey,
-};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_non_mut, check_program, check_signer};
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
+use pinocchio::account_info::AccountInfo;
 
 /// Validated system accounts for multi-transfer instruction
 /// Accounts are ordered to match light-system-program CPI expectation
 pub struct MultiTransferValidatedAccounts<'info> {
     /// Fee payer account (index 0) - signer, mutable
-    pub fee_payer: &'info AccountInfo<'info>,
+    pub fee_payer: &'info AccountInfo,
     /// CPI authority PDA (index 1) - signer (via CPI)
-    pub authority: &'info AccountInfo<'info>,
+    pub authority: &'info AccountInfo,
     /// Registered program PDA (index 2) - non-mutable
-    pub registered_program_pda: &'info AccountInfo<'info>,
+    pub registered_program_pda: &'info AccountInfo,
     /// Noop program (index 3) - non-mutable
-    pub noop_program: &'info AccountInfo<'info>,
+    pub noop_program: &'info AccountInfo,
     /// Account compression authority (index 4) - non-mutable
-    pub account_compression_authority: &'info AccountInfo<'info>,
+    pub account_compression_authority: &'info AccountInfo,
     /// Account compression program (index 5) - non-mutable
-    pub account_compression_program: &'info AccountInfo<'info>,
+    pub account_compression_program: &'info AccountInfo,
     /// Invoking program (index 6) - self program, non-mutable
-    pub invoking_program: &'info AccountInfo<'info>,
+    pub invoking_program: &'info AccountInfo,
     /// Sol pool PDA (index 7) - optional, mutable if present
-    pub sol_pool_pda: Option<&'info AccountInfo<'info>>,
+    pub sol_pool_pda: Option<&'info AccountInfo>,
     /// Decompression recipient (index 8) - non-mutable
-    pub decompression_recipient: &'info AccountInfo<'info>,
+    pub decompression_recipient: &'info AccountInfo,
     /// System program (index 9) - non-mutable
-    pub system_program: &'info AccountInfo<'info>,
+    pub system_program: &'info AccountInfo,
     /// CPI context account (index 10) - optional, non-mutable
-    pub cpi_context_account: Option<&'info AccountInfo<'info>>,
+    pub cpi_context_account: Option<&'info AccountInfo>,
 }
 
 /// Dynamic accounts slice for index-based access
 /// Contains mint, owner, delegate, merkle tree, and queue accounts
 pub struct MultiTransferPackedAccounts<'info> {
     /// Remaining accounts slice starting at index 11
-    pub accounts: &'info [AccountInfo<'info>],
+    pub accounts: &'info [AccountInfo],
 }
 
 impl<'info> MultiTransferPackedAccounts<'info> {
     /// Get account by index with bounds checking
-    pub fn get(&self, index: usize) -> Result<&AccountInfo<'info>, ProgramError> {
+    pub fn get(&self, index: usize) -> Result<&AccountInfo, ProgramError> {
         self.accounts
             .get(index)
             .ok_or(ProgramError::NotEnoughAccountKeys)
     }
 
     /// Get account by u8 index with bounds checking
-    pub fn get_u8(&self, index: u8) -> Result<&AccountInfo<'info>, ProgramError> {
+    pub fn get_u8(&self, index: u8) -> Result<&AccountInfo, ProgramError> {
         self.get(index as usize)
     }
 }
@@ -55,8 +54,8 @@ impl<'info> MultiTransferPackedAccounts<'info> {
 impl<'info> MultiTransferValidatedAccounts<'info> {
     /// Validate and parse accounts from the instruction accounts slice
     pub fn validate_and_parse(
-        accounts: &'info [AccountInfo<'info>],
-        program_id: &Pubkey,
+        accounts: &'info [AccountInfo],
+        program_id: &pinocchio::pubkey::Pubkey,
         with_sol_pool: bool,
         with_cpi_context: bool,
     ) -> Result<(Self, MultiTransferPackedAccounts<'info>), ProgramError> {
@@ -120,7 +119,7 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
 
         // Validate invoking_program: must be this program
         check_non_mut(invoking_program).map_err(ProgramError::from)?;
-        check_program(&program_id.to_bytes(), invoking_program).map_err(ProgramError::from)?;
+        check_program(&program_id, invoking_program).map_err(ProgramError::from)?;
 
         // Validate sol_pool_pda: mutable if present
         if let Some(sol_pool_account) = sol_pool_pda {

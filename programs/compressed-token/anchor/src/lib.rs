@@ -279,4 +279,6 @@ pub enum ErrorCode {
     AmountsAndAmountProvided,
     MintIsNone,
     InvalidMintPda,
+    InputsOutOfOrder,
+    TooManyMints,
 }

@@ -1,20 +1,21 @@
-use anchor_lang::prelude::{AccountInfo, ProgramError};
+use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::{check_mut, check_non_mut};
+use pinocchio::account_info::AccountInfo;
 
-pub struct CreateTokenAccountAccounts<'a, 'info> {
-    pub token_account: &'a AccountInfo<'info>,
-    pub mint: &'a AccountInfo<'info>,
+pub struct CreateTokenAccountAccounts<'a> {
+    pub token_account: &'a AccountInfo,
+    pub mint: &'a AccountInfo,
 }
 
-impl<'a, 'info> CreateTokenAccountAccounts<'a, 'info> {
-    pub fn new(accounts: &'a [AccountInfo<'info>]) -> Result<Self, ProgramError> {
+impl<'a> CreateTokenAccountAccounts<'a> {
+    pub fn new(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
         Ok(Self {
             token_account: &accounts[0],
             mint: &accounts[1],
         })
     }
 
-    pub fn get_checked(accounts: &'a [AccountInfo<'info>]) -> Result<Self, ProgramError> {
+    pub fn get_checked(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
         let accounts_struct = Self::new(accounts)?;
 
         // Basic validations using light_account_checks

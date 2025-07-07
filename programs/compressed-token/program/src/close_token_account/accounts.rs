@@ -1,14 +1,15 @@
-use anchor_lang::prelude::{AccountInfo, ProgramError};
+use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
+use pinocchio::account_info::AccountInfo;
 
-pub struct CloseTokenAccountAccounts<'a, 'info> {
-    pub token_account: &'a AccountInfo<'info>,
-    pub destination: &'a AccountInfo<'info>,
-    pub authority: &'a AccountInfo<'info>,
+pub struct CloseTokenAccountAccounts<'a> {
+    pub token_account: &'a AccountInfo,
+    pub destination: &'a AccountInfo,
+    pub authority: &'a AccountInfo,
 }
 
-impl<'a, 'info> CloseTokenAccountAccounts<'a, 'info> {
-    pub fn new(accounts: &'a [AccountInfo<'info>]) -> Result<Self, ProgramError> {
+impl<'a> CloseTokenAccountAccounts<'a> {
+    pub fn new(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
         Ok(Self {
             token_account: &accounts[0],
             destination: &accounts[1],
@@ -16,7 +17,7 @@ impl<'a, 'info> CloseTokenAccountAccounts<'a, 'info> {
         })
     }
 
-    pub fn get_checked(accounts: &'a [AccountInfo<'info>]) -> Result<Self, ProgramError> {
+    pub fn get_checked(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
         let accounts_struct = Self::new(accounts)?;
 
         // Basic validations using light_account_checks

@@ -1,9 +1,8 @@
 use anchor_compressed_token::token_data::TokenData;
-use anchor_lang::{
-    solana_program::account_info::AccountInfo, solana_program::program_error::ProgramError,
-};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
+use pinocchio::account_info::AccountInfo;
 
 use super::context::TokenContext;
 use crate::{
@@ -20,19 +19,19 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
     input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
     input_token_data: &ZMultiInputTokenDataWithContext,
-    remaining_accounts: &[AccountInfo<'_>],
+    remaining_accounts: &[AccountInfo],
     lamports: u64,
 ) -> std::result::Result<(), ProgramError> {
     // Get owner from remaining accounts using the owner index
     let owner_account = &remaining_accounts[input_token_data.owner as usize];
-    let owner = *owner_account.key;
+    let owner = *owner_account.key();
 
     // Verify signer authorization using light-account-checks
     let hashed_delegate = if input_token_data.with_delegate() {
         // If delegate is used, delegate must be signer
         let delegate_account = &remaining_accounts[input_token_data.delegate as usize];
         check_signer(delegate_account).map_err(ProgramError::from)?;
-        Some(context.get_or_hash_pubkey(delegate_account.key))
+        Some(context.get_or_hash_pubkey(delegate_account.key()))
     } else {
         // If no delegate, owner must be signer
         check_signer(owner_account).map_err(ProgramError::from)?;
@@ -65,7 +64,7 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
 
     // Get mint hash from context
     let mint_account = &remaining_accounts[input_token_data.mint as usize];
-    let hashed_mint = context.get_or_hash_mint(*mint_account.key)?;
+    let hashed_mint = context.get_or_hash_mint(mint_account.key())?;
 
     let mut amount_bytes = [0u8; 32];
     amount_bytes[24..].copy_from_slice(input_token_data.amount.get().to_be_bytes().as_slice());

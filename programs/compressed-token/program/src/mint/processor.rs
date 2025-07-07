@@ -1,7 +1,4 @@
-use anchor_lang::{
-    prelude::msg,
-    solana_program::{account_info::AccountInfo, program_error::ProgramError},
-};
+use anchor_lang::{prelude::msg, solana_program::program_error::ProgramError};
 use light_compressed_account::{
     address::derive_address,
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
@@ -14,6 +11,7 @@ use light_compressed_account::{
     Pubkey,
 };
 use light_zero_copy::borsh::Deserialize;
+use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
@@ -27,8 +25,8 @@ use crate::{
 };
 
 pub fn process_create_compressed_mint<'info>(
-    program_id: Pubkey,
-    accounts: &'info [AccountInfo<'info>],
+    program_id: pinocchio::pubkey::Pubkey,
+    accounts: &'info [AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     sol_log_compute_units();
@@ -44,7 +42,7 @@ pub fn process_create_compressed_mint<'info>(
     let mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
         &[
             b"compressed_mint",
-            validated_accounts.mint_signer.key.as_ref(),
+            validated_accounts.mint_signer.key().as_slice(),
             &[parsed_instruction_data.mint_bump],
         ],
         &program_id.into(),
@@ -107,8 +105,8 @@ pub fn process_create_compressed_mint<'info>(
     // 2. Derive compressed account address
     let compressed_account_address = derive_address(
         &mint_pda.to_bytes(),
-        &validated_accounts.address_merkle_tree.key.to_bytes(),
-        &program_id.to_bytes(),
+        validated_accounts.address_merkle_tree.key(),
+        &program_id,
     );
 
     // 2. Create compressed mint account data
@@ -119,7 +117,7 @@ pub fn process_create_compressed_mint<'info>(
         parsed_instruction_data.freeze_authority.map(|fa| *fa),
         Some(parsed_instruction_data.mint_authority),
         0.into(),
-        &program_id,
+        &program_id.into(),
         mint_size_config,
         compressed_account_address,
         1,
@@ -127,12 +125,12 @@ pub fn process_create_compressed_mint<'info>(
     sol_log_compute_units();
     // 3. Execute CPI to light-system-program
     // Extract tree accounts for the generalized CPI call
-    let tree_accounts = [*accounts[9].key, *accounts[10].key]; // address_merkle_tree, output_queue
+    let tree_accounts = [accounts[9].key(), accounts[10].key()]; // address_merkle_tree, output_queue
 
     execute_cpi_invoke(
         accounts,
         cpi_bytes,
-        &tree_accounts,
+        tree_accounts.as_slice(),
         false, // no sol_pool_pda for create_compressed_mint
         None,  // no cpi_context_account for create_compressed_mint
     )

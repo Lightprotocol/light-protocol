@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
-use solana_pubkey::Pubkey;
+use pinocchio::pubkey::Pubkey;
 
 use crate::{
     multi_transfer::{
@@ -45,10 +45,10 @@ pub fn allocate_cpi_bytes(
 }
 
 /// Extract tree accounts from merkle contexts for CPI call
-pub fn get_packed_cpi_accounts(
-    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
-    packed_accounts: &MultiTransferPackedAccounts,
-) -> Vec<Pubkey> {
+pub fn get_packed_cpi_accounts<'a>(
+    inputs: &ZCompressedTokenInstructionDataMultiTransfer<'a>,
+    packed_accounts: &MultiTransferPackedAccounts<'a>,
+) -> Vec<&'a Pubkey> {
     //  don't pass any tree accounts if we write into the cpi context
     if inputs.cpi_context.is_some()
         && (inputs.cpi_context.unwrap().first_set_context
@@ -66,10 +66,10 @@ pub fn get_packed_cpi_accounts(
         // Only add accounts that are actually trees/queues (typically higher indices)
         if let Some(merkle_tree_account) = packed_accounts.accounts.get(merkle_tree_index as usize)
         {
-            tree_accounts.push(*merkle_tree_account.key);
+            tree_accounts.push(merkle_tree_account.key());
         }
         if let Some(queue_account) = packed_accounts.accounts.get(queue_index as usize) {
-            tree_accounts.push(*queue_account.key);
+            tree_accounts.push(queue_account.key());
         }
     }
 
@@ -79,7 +79,7 @@ pub fn get_packed_cpi_accounts(
             .accounts
             .get(output_data.merkle_tree as usize)
         {
-            tree_accounts.push(*tree_account.key);
+            tree_accounts.push(tree_account.key());
         }
     }
 

@@ -1,5 +1,6 @@
-use anchor_lang::prelude::{AccountInfo, ProgramError};
-use anchor_lang::solana_program::pubkey::Pubkey;
+use anchor_lang::prelude::ProgramError;
+use light_account_checks::AccountInfoTrait;
+use pinocchio::account_info::AccountInfo;
 use spl_pod::bytemuck::pod_from_bytes;
 use spl_token_2022::pod::PodAccount;
 use spl_token_2022::state::AccountState;
@@ -8,7 +9,7 @@ use super::accounts::CloseTokenAccountAccounts;
 
 /// Process the close token account instruction
 pub fn process_close_token_account<'info>(
-    account_infos: &'info [AccountInfo<'info>],
+    account_infos: &'info [AccountInfo],
     _instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Validate and get accounts
@@ -16,7 +17,8 @@ pub fn process_close_token_account<'info>(
 
     // Validate token account state and balance
     {
-        let token_account_data = accounts.token_account.try_borrow_data()?;
+        let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
         let pod_account = pod_from_bytes::<PodAccount>(&token_account_data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -32,23 +34,34 @@ pub fn process_close_token_account<'info>(
         }
 
         // Verify the authority matches the account owner
-        let account_owner = Pubkey::from(pod_account.owner);
-        if account_owner != *accounts.authority.key {
+        let account_owner = solana_pubkey::Pubkey::from(pod_account.owner);
+        let authority_key = solana_pubkey::Pubkey::new_from_array(*accounts.authority.key());
+        if account_owner != authority_key {
             return Err(ProgramError::InvalidAccountOwner);
         }
     }
 
     // Transfer all lamports from token account to destination
-    let token_account_lamports = accounts.token_account.lamports();
-    **accounts.token_account.try_borrow_mut_lamports()? = 0;
-    **accounts.destination.try_borrow_mut_lamports()? = accounts
-        .destination
-        .lamports()
+    let token_account_lamports = AccountInfoTrait::lamports(accounts.token_account);
+
+    // Set token account lamports to 0
+    unsafe {
+        *accounts.token_account.borrow_mut_lamports_unchecked() = 0;
+    }
+
+    // Add lamports to destination
+    let destination_lamports = AccountInfoTrait::lamports(accounts.destination);
+    let new_destination_lamports = destination_lamports
         .checked_add(token_account_lamports)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
+    unsafe {
+        *accounts.destination.borrow_mut_lamports_unchecked() = new_destination_lamports;
+    }
+
     // Clear the token account data
-    let mut token_account_data = accounts.token_account.try_borrow_mut_data()?;
+    let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(accounts.token_account)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
     token_account_data.fill(0);
 
     Ok(())

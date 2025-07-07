@@ -33,16 +33,16 @@ pub fn assign_output_compressed_accounts(
 
         let mint_index = output_data.mint;
         let mint_account = packed_accounts.get_u8(mint_index)?;
-        let hashed_mint = context.get_or_hash_pubkey(mint_account.key);
+        let hashed_mint = context.get_or_hash_pubkey(mint_account.key());
 
         // Get owner account using owner index
         let owner_account = packed_accounts.get_u8(output_data.owner)?;
-        let owner_pubkey = *owner_account.key;
+        let owner_pubkey = *owner_account.key();
 
         // Get delegate if present
         let delegate_pubkey = if output_data.delegate != 0 {
             let delegate_account = packed_accounts.get_u8(output_data.delegate)?;
-            Some(*delegate_account.key)
+            Some(*delegate_account.key())
         } else {
             None
         };
@@ -61,7 +61,7 @@ pub fn assign_output_compressed_accounts(
             } else {
                 None
             },
-            mint_account.key.into(),
+            mint_account.key().into(),
             &hashed_mint,
             output_data.merkle_tree,
         )?;

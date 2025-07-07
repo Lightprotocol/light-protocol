@@ -1,37 +1,36 @@
 use crate::constants::BUMP_CPI_AUTHORITY;
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::solana_program::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey,
-};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{
     check_mut, check_non_mut, check_pda_seeds_with_bump, check_program, check_signer,
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 pub struct MintToCompressedAccounts<'info> {
-    pub fee_payer: &'info AccountInfo<'info>,
-    pub authority: &'info AccountInfo<'info>,
-    pub cpi_authority_pda: &'info AccountInfo<'info>,
-    pub mint: Option<&'info AccountInfo<'info>>,
-    pub token_pool_pda: &'info AccountInfo<'info>,
-    pub token_program: &'info AccountInfo<'info>,
-    pub light_system_program: &'info AccountInfo<'info>,
-    pub registered_program_pda: &'info AccountInfo<'info>,
-    pub noop_program: &'info AccountInfo<'info>,
-    pub account_compression_authority: &'info AccountInfo<'info>,
-    pub account_compression_program: &'info AccountInfo<'info>,
-    pub self_program: &'info AccountInfo<'info>,
-    pub system_program: &'info AccountInfo<'info>,
-    pub sol_pool_pda: Option<&'info AccountInfo<'info>>,
-    pub mint_in_merkle_tree: &'info AccountInfo<'info>,
-    pub mint_in_queue: &'info AccountInfo<'info>,
-    pub mint_out_queue: &'info AccountInfo<'info>,
-    pub tokens_out_queue: &'info AccountInfo<'info>,
+    pub fee_payer: &'info AccountInfo,
+    pub authority: &'info AccountInfo,
+    pub cpi_authority_pda: &'info AccountInfo,
+    pub mint: Option<&'info AccountInfo>,
+    pub token_pool_pda: &'info AccountInfo,
+    pub token_program: &'info AccountInfo,
+    pub light_system_program: &'info AccountInfo,
+    pub registered_program_pda: &'info AccountInfo,
+    pub noop_program: &'info AccountInfo,
+    pub account_compression_authority: &'info AccountInfo,
+    pub account_compression_program: &'info AccountInfo,
+    pub self_program: &'info AccountInfo,
+    pub system_program: &'info AccountInfo,
+    pub sol_pool_pda: Option<&'info AccountInfo>,
+    pub mint_in_merkle_tree: &'info AccountInfo,
+    pub mint_in_queue: &'info AccountInfo,
+    pub mint_out_queue: &'info AccountInfo,
+    pub tokens_out_queue: &'info AccountInfo,
 }
 
 impl<'info> MintToCompressedAccounts<'info> {
     pub fn validate_and_parse(
-        accounts: &'info [AccountInfo<'info>],
+        accounts: &'info [AccountInfo],
         program_id: &Pubkey,
         with_lamports: bool,
     ) -> Result<Self, ProgramError> {
@@ -77,7 +76,7 @@ impl<'info> MintToCompressedAccounts<'info> {
 
         // Validate cpi_authority_pda: must be the correct PDA
         let expected_seeds = &[CPI_AUTHORITY_PDA_SEED, &[BUMP_CPI_AUTHORITY]];
-        check_pda_seeds_with_bump(expected_seeds, &program_id.to_bytes(), cpi_authority_pda)
+        check_pda_seeds_with_bump(expected_seeds, &program_id, cpi_authority_pda)
             .map_err(ProgramError::from)?;
 
         // Validate mint: mutable if present
@@ -107,7 +106,7 @@ impl<'info> MintToCompressedAccounts<'info> {
             .map_err(ProgramError::from)?;
 
         // Validate self_program: must be this program
-        check_program(&program_id.to_bytes(), self_program).map_err(ProgramError::from)?;
+        check_program(&program_id, self_program).map_err(ProgramError::from)?;
 
         // Validate system_program: must be the system program
         let system_program_id = anchor_lang::solana_program::system_program::ID;

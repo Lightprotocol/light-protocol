@@ -69,7 +69,7 @@ pub fn create_input_compressed_mint_account(
 
     // 3. Compute data hash using TokenContext for caching
     {
-        let hashed_spl_mint = context.get_or_hash_mint(compressed_mint_input.spl_mint.into())?;
+        let hashed_spl_mint = context.get_or_hash_mint(&compressed_mint_input.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
         supply_bytes[24..]
             .copy_from_slice(compressed_mint_input.supply.get().to_be_bytes().as_slice());

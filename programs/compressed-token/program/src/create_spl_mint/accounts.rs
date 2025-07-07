@@ -1,37 +1,36 @@
 use crate::constants::BUMP_CPI_AUTHORITY;
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::solana_program::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey,
-};
+use anchor_lang::solana_program::program_error::ProgramError;
+use pinocchio::account_info::AccountInfo;
 use light_account_checks::checks::{
     check_mut, check_non_mut, check_pda_seeds_with_bump, check_program, check_signer,
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 
 pub struct CreateSplMintAccounts<'info> {
-    pub fee_payer: &'info AccountInfo<'info>,
-    pub authority: &'info AccountInfo<'info>,
-    pub mint: &'info AccountInfo<'info>,
-    pub mint_signer: &'info AccountInfo<'info>,
-    pub token_pool_pda: &'info AccountInfo<'info>,
-    pub token_program: &'info AccountInfo<'info>,
-    pub cpi_authority_pda: &'info AccountInfo<'info>,
-    pub light_system_program: &'info AccountInfo<'info>,
-    pub registered_program_pda: &'info AccountInfo<'info>,
-    pub noop_program: &'info AccountInfo<'info>,
-    pub account_compression_authority: &'info AccountInfo<'info>,
-    pub account_compression_program: &'info AccountInfo<'info>,
-    pub system_program: &'info AccountInfo<'info>,
-    pub self_program: &'info AccountInfo<'info>,
-    pub in_merkle_tree: &'info AccountInfo<'info>,
-    pub in_output_queue: &'info AccountInfo<'info>,
-    pub out_output_queue: &'info AccountInfo<'info>,
+    pub fee_payer: &'info AccountInfo,
+    pub authority: &'info AccountInfo,
+    pub mint: &'info AccountInfo,
+    pub mint_signer: &'info AccountInfo,
+    pub token_pool_pda: &'info AccountInfo,
+    pub token_program: &'info AccountInfo,
+    pub cpi_authority_pda: &'info AccountInfo,
+    pub light_system_program: &'info AccountInfo,
+    pub registered_program_pda: &'info AccountInfo,
+    pub noop_program: &'info AccountInfo,
+    pub account_compression_authority: &'info AccountInfo,
+    pub account_compression_program: &'info AccountInfo,
+    pub system_program: &'info AccountInfo,
+    pub self_program: &'info AccountInfo,
+    pub in_merkle_tree: &'info AccountInfo,
+    pub in_output_queue: &'info AccountInfo,
+    pub out_output_queue: &'info AccountInfo,
 }
 
 impl<'info> CreateSplMintAccounts<'info> {
     pub fn validate_and_parse(
-        accounts: &'info [AccountInfo<'info>],
-        program_id: &Pubkey,
+        accounts: &'info [AccountInfo],
+        program_id: &pinocchio::pubkey::Pubkey,
     ) -> Result<Self, ProgramError> {
         if accounts.len() < 17 {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -77,7 +76,7 @@ impl<'info> CreateSplMintAccounts<'info> {
 
         // Validate cpi_authority_pda: must be the correct PDA
         let expected_seeds = &[CPI_AUTHORITY_PDA_SEED, &[BUMP_CPI_AUTHORITY]];
-        check_pda_seeds_with_bump(expected_seeds, &program_id.to_bytes(), cpi_authority_pda)
+        check_pda_seeds_with_bump(expected_seeds, program_id, cpi_authority_pda)
             .map_err(ProgramError::from)?;
 
         // Validate light_system_program: must be the correct program
@@ -104,7 +103,7 @@ impl<'info> CreateSplMintAccounts<'info> {
             .map_err(ProgramError::from)?;
 
         // Validate self_program: must be this program
-        check_program(&program_id.to_bytes(), self_program).map_err(ProgramError::from)?;
+        check_program(program_id, self_program).map_err(ProgramError::from)?;
 
         // Validate in_merkle_tree: mutable
         check_mut(in_merkle_tree).map_err(ProgramError::from)?;

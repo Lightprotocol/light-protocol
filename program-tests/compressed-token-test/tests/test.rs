@@ -6685,7 +6685,9 @@ async fn test_create_and_close_token_account() {
     let create_account_system_ix = solana_sdk::system_instruction::create_account(
         &payer_pubkey,
         &token_account_pubkey,
-        rpc.get_minimum_balance_for_rent_exemption(165).await.unwrap(), // SPL token account size
+        rpc.get_minimum_balance_for_rent_exemption(165)
+            .await
+            .unwrap(), // SPL token account size
         165,
         &light_compressed_token::ID, // Our program owns the account
     );
@@ -6697,7 +6699,8 @@ async fn test_create_and_close_token_account() {
         &token_account_pubkey,
         &mint_pubkey,
         &owner_pubkey,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Execute both instructions in one transaction
     let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
@@ -6713,8 +6716,12 @@ async fn test_create_and_close_token_account() {
         .expect("Failed to create token account using SPL SDK");
 
     // Verify the token account was created correctly
-    let account_info = rpc.get_account(token_account_pubkey).await.unwrap().unwrap();
-    
+    let account_info = rpc
+        .get_account(token_account_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+
     // Verify account exists and has correct owner
     assert_eq!(account_info.owner, light_compressed_token::ID);
     assert_eq!(account_info.data.len(), 165); // SPL token account size
@@ -6728,7 +6735,6 @@ async fn test_create_and_close_token_account() {
     assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
     assert_eq!(pod_account.state, AccountState::Initialized as u8);
 
-
     // Now test closing the account using SPL SDK format
     let destination_keypair = Keypair::new();
     let destination_pubkey = destination_keypair.pubkey();
@@ -6737,8 +6743,18 @@ async fn test_create_and_close_token_account() {
     rpc.context.airdrop(&destination_pubkey, 1_000_000).unwrap();
 
     // Get initial lamports before closing
-    let initial_token_account_lamports = rpc.get_account(token_account_pubkey).await.unwrap().unwrap().lamports;
-    let initial_destination_lamports = rpc.get_account(destination_pubkey).await.unwrap().unwrap().lamports;
+    let initial_token_account_lamports = rpc
+        .get_account(token_account_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    let initial_destination_lamports = rpc
+        .get_account(destination_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     // Create close account instruction using SPL SDK format
     let close_account_ix = close_account(
@@ -6746,7 +6762,8 @@ async fn test_create_and_close_token_account() {
         &token_account_pubkey,
         &destination_pubkey,
         &owner_pubkey,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Execute the close instruction
     let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
@@ -6766,17 +6783,24 @@ async fn test_create_and_close_token_account() {
     if let Some(account) = closed_account {
         // Account still exists, but should have 0 lamports and cleared data
         assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
-        assert!(account.data.iter().all(|&b| b == 0), "Closed account data should be cleared");
+        assert!(
+            account.data.iter().all(|&b| b == 0),
+            "Closed account data should be cleared"
+        );
     }
 
     // Verify lamports were transferred to destination
-    let final_destination_lamports = rpc.get_account(destination_pubkey).await.unwrap().unwrap().lamports;
+    let final_destination_lamports = rpc
+        .get_account(destination_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
     assert_eq!(
         final_destination_lamports,
         initial_destination_lamports + initial_token_account_lamports,
         "Destination should receive all lamports from closed account"
     );
-
 }
 
 #[tokio::test]
@@ -6809,8 +6833,8 @@ async fn test_create_associated_token_account() {
     );
 
     // Build the create_associated_token_account instruction
-    use light_compressed_token::create_associated_token_account::instruction_data::CreateAssociatedTokenAccountInstructionData;
     use light_compressed_account::Pubkey as LightPubkey;
+    use light_compressed_token::create_associated_token_account::instruction_data::CreateAssociatedTokenAccountInstructionData;
 
     let instruction_data = CreateAssociatedTokenAccountInstructionData {
         owner: LightPubkey::from(owner_pubkey.to_bytes()),
@@ -6851,7 +6875,7 @@ async fn test_create_associated_token_account() {
 
     // Verify the associated token account was created correctly
     let account_info = rpc.get_account(expected_ata_pubkey).await.unwrap().unwrap();
-    
+
     // Verify account exists and has correct owner
     assert_eq!(account_info.owner, light_compressed_token::ID);
     assert_eq!(account_info.data.len(), 165); // SPL token account size
@@ -6876,5 +6900,4 @@ async fn test_create_associated_token_account() {
     );
     assert_eq!(expected_ata_pubkey, derived_ata_pubkey);
     assert_eq!(bump, derived_bump);
-
 }

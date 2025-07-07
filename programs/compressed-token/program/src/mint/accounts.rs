@@ -1,21 +1,20 @@
 use crate::constants::BUMP_CPI_AUTHORITY;
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::solana_program::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey,
-};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{
     check_mut, check_non_mut, check_pda_seeds_with_bump, check_program, check_signer,
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 pub struct CreateCompressedMintAccounts<'info> {
-    pub address_merkle_tree: &'info AccountInfo<'info>,
-    pub mint_signer: &'info AccountInfo<'info>,
+    pub address_merkle_tree: &'info AccountInfo,
+    pub mint_signer: &'info AccountInfo,
 }
 
 impl<'info> CreateCompressedMintAccounts<'info> {
     pub fn validate_and_parse(
-        accounts: &'info [AccountInfo<'info>],
+        accounts: &'info [AccountInfo],
         program_id: &Pubkey,
     ) -> Result<Self, ProgramError> {
         if accounts.len() < 12 {
@@ -41,7 +40,7 @@ impl<'info> CreateCompressedMintAccounts<'info> {
 
         // Validate cpi_authority_pda: must be the correct PDA
         let expected_seeds = &[CPI_AUTHORITY_PDA_SEED, &[BUMP_CPI_AUTHORITY]];
-        check_pda_seeds_with_bump(expected_seeds, &program_id.to_bytes(), cpi_authority_pda)
+        check_pda_seeds_with_bump(expected_seeds, &program_id, cpi_authority_pda)
             .map_err(ProgramError::from)?;
 
         // Validate light_system_program: must be the correct program
@@ -63,7 +62,7 @@ impl<'info> CreateCompressedMintAccounts<'info> {
         check_non_mut(account_compression_authority).map_err(ProgramError::from)?;
 
         // Validate self_program: must be this program
-        check_program(&program_id.to_bytes(), self_program).map_err(ProgramError::from)?;
+        check_program(&program_id, self_program).map_err(ProgramError::from)?;
 
         // Validate system_program: must be the system program
         let system_program_id = anchor_lang::solana_program::system_program::ID;

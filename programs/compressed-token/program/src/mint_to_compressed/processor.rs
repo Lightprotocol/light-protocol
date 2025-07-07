@@ -1,12 +1,10 @@
-use anchor_lang::{
-    prelude::msg,
-    solana_program::{account_info::AccountInfo, program_error::ProgramError},
-};
+use anchor_lang::{prelude::msg, solana_program::program_error::ProgramError};
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
 };
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
+use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 use zerocopy::little_endian::U64;
 
@@ -29,8 +27,8 @@ use crate::{
 };
 
 pub fn process_mint_to_compressed<'info>(
-    program_id: Pubkey,
-    accounts: &'info [AccountInfo<'info>],
+    program_id: pinocchio::pubkey::Pubkey,
+    accounts: &'info [AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     sol_log_compute_units();
@@ -84,8 +82,7 @@ pub fn process_mint_to_compressed<'info>(
         .spl_mint;
 
     let hashed_mint = hash_to_bn254_field_size_be(mint.as_ref());
-    let hashed_mint_authority =
-        context.get_or_hash_pubkey(validated_accounts.authority.key);
+    let hashed_mint_authority = context.get_or_hash_pubkey(validated_accounts.authority.key());
 
     {
         // Process input compressed mint account
@@ -127,9 +124,9 @@ pub fn process_mint_to_compressed<'info>(
             mint_pda,
             decimals,
             freeze_authority,
-            Some((*validated_accounts.authority.key).into()),
+            Some(Pubkey::from(*validated_accounts.authority.key())),
             supply,
-            &program_id,
+            &program_id.into(),
             mint_config,
             compressed_account_address,
             2,
@@ -147,16 +144,16 @@ pub fn process_mint_to_compressed<'info>(
 
     // Extract tree accounts for the generalized CPI call
     let tree_accounts = [
-        *validated_accounts.mint_in_merkle_tree.key,
-        *validated_accounts.mint_in_queue.key,
-        *validated_accounts.mint_out_queue.key,
-        *validated_accounts.tokens_out_queue.key,
+        validated_accounts.mint_in_merkle_tree.key(),
+        validated_accounts.mint_in_queue.key(),
+        validated_accounts.mint_out_queue.key(),
+        validated_accounts.tokens_out_queue.key(),
     ];
 
     execute_cpi_invoke(
         accounts,
         cpi_bytes,
-        &tree_accounts,
+        tree_accounts.as_slice(),
         validated_accounts.sol_pool_pda.is_some(),
         None, // no cpi_context_account for mint_to_compressed
     )?;

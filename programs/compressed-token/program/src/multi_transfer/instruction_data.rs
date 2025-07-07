@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use anchor_compressed_token::process_transfer::Amount;
 use anchor_lang::{prelude::ProgramError, AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
@@ -25,12 +24,6 @@ pub struct MultiInputTokenDataWithContext {
     // pub tlv: Option<Vec<u8>>, move into separate vector to opt zero copy
 }
 
-impl Amount for ZMultiInputTokenDataWithContext<'_> {
-    fn amount(&self) -> u64 {
-        self.amount.into()
-    }
-}
-
 #[derive(
     Clone,
     Copy,
@@ -51,12 +44,6 @@ pub struct MultiTokenTransferOutputData {
     pub mint: u8,
 }
 
-impl Amount for ZMultiTokenTransferOutputData<'_> {
-    fn amount(&self) -> u64 {
-        self.amount.into()
-    }
-}
-
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
@@ -75,12 +62,6 @@ pub struct Compression {
 //     pub owner: u8,
 //     pub amount: u64,
 //     pub merkle_tree: u8,
-// }
-
-// impl Amount for MultiTokenTransferDelegateOutputData {
-//     fn amount(&self) -> u64 {
-//         self.amount
-//     }
 // }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]

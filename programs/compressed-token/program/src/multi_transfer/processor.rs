@@ -1,7 +1,8 @@
-use anchor_lang::prelude::{AccountInfo, ProgramError};
+use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
+use pinocchio::account_info::AccountInfo;
 
 use crate::{
     multi_transfer::{
@@ -33,7 +34,7 @@ use crate::{
 /// 6.  Invoke light_system_program::execute_compressed_transaction.
 #[inline(always)]
 pub fn process_multi_transfer<'info>(
-    accounts: &'info [AccountInfo<'info>],
+    accounts: &'info [AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Parse instruction data first to determine optional accounts
@@ -47,7 +48,7 @@ pub fn process_multi_transfer<'info>(
     // Validate and parse accounts
     let (validated_accounts, packed_accounts) = MultiTransferValidatedAccounts::validate_and_parse(
         accounts,
-        &crate::ID,
+        &crate::LIGHT_CPI_SIGNER.program_id,
         with_sol_pool,
         with_cpi_context,
     )?;
@@ -113,9 +114,9 @@ pub fn process_multi_transfer<'info>(
     execute_cpi_invoke(
         accounts,
         cpi_bytes,
-        &tree_accounts,
+        tree_accounts.as_slice(),
         with_sol_pool,
-        validated_accounts.cpi_context_account.map(|x| *x.key),
+        validated_accounts.cpi_context_account.map(|x| *x.key()),
     )?;
 
     Ok(())

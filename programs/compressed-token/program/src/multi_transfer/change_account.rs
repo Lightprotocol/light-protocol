@@ -31,7 +31,7 @@ pub fn assign_change_account(
 
     // Get the owner account using the specified index
     let owner_account = packed_accounts.get_u8(inputs.lamports_change_account_owner_index)?;
-    let owner_pubkey = *owner_account.key;
+    let owner_pubkey = *owner_account.key();
 
     // Set up the change account as a lamports-only account (no token data)
     let compressed_account = &mut change_account.compressed_account;
