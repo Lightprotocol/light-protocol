@@ -86,3 +86,5 @@ output1.txt
 .zed
 
 **/.claude/**/*
+
+expand.rs

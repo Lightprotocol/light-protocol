@@ -10,8 +10,24 @@ pub mod vec;
 use core::mem::{align_of, size_of};
 #[cfg(feature = "std")]
 pub mod borsh;
-
-use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
+#[cfg(feature = "std")]
+pub mod borsh_mut;
+#[cfg(feature = "std")]
+pub mod init_mut;
+#[cfg(feature = "std")]
+pub use borsh::ZeroCopyStructInner;
+#[cfg(feature = "std")]
+pub use init_mut::ZeroCopyNew;
+#[cfg(all(feature = "derive", feature = "mut"))]
+pub use light_zero_copy_derive::ZeroCopyMut;
+#[cfg(feature = "derive")]
+pub use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
+#[cfg(feature = "derive")]
+pub use zerocopy::{
+    little_endian::{self, U16, U32, U64},
+    Ref, Unaligned,
+};
+pub use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[cfg(feature = "std")]
 extern crate std;
