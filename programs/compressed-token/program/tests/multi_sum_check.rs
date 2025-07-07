@@ -103,18 +103,19 @@ fn test_simple_multi_mint_cases() {
 #[test]
 fn test_multi_mint_randomized() {
     // Test multiple scenarios with different mint combinations
-    for scenario in 0..3 {
+    for scenario in 0..3000 {
         println!("Testing scenario {}", scenario);
 
         // Create test case with multiple mints
         let seed = scenario as u64;
         test_randomized_scenario(seed).unwrap();
     }
-
+}
+#[test]
+fn test_failing_multi_mint_cases() {
     // Test specific failure cases
     test_failing_cases().unwrap();
 }
-
 fn test_simple_multi_mint() -> Result<()> {
     // Simple test: mint 0: input 100, output 100; mint 1: input 200, output 200
     let inputs = vec![(0, 100), (1, 200)];
@@ -180,7 +181,15 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
         if is_compress {
             *mint_balances.entry(mint).or_insert(0) += amount as i128;
         } else {
-            *mint_balances.entry(mint).or_insert(0) -= amount as i128;
+            // Only allow decompress if the mint has sufficient balance
+            let current_balance = *mint_balances.entry(mint).or_insert(0);
+            if current_balance >= amount as i128 {
+                *mint_balances.entry(mint).or_insert(0) -= amount as i128;
+            } else {
+                // Convert to compress instead to avoid negative balance
+                compressions.last_mut().unwrap().2 = true;
+                *mint_balances.entry(mint).or_insert(0) += amount as i128;
+            }
         }
     }
 
@@ -232,7 +241,7 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
         }
     }
 
-    // Debug print for first scenario
+    // Debug print for first scenario only
     if seed == 0 {
         println!(
             "Debug scenario {}: inputs={:?}, compressions={:?}, outputs={:?}",
@@ -243,6 +252,8 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
 
     // Sort inputs by mint for order validation
     inputs.sort_by_key(|(mint, _)| *mint);
+    // Sort outputs by mint for order validation
+    outputs.sort_by_key(|(mint, _)| *mint);
 
     // Test the sum check
     test_multi_mint_scenario(&inputs, &outputs, &compressions)
@@ -255,8 +266,9 @@ fn test_failing_cases() -> Result<()> {
     let compressions = vec![];
 
     match test_multi_mint_scenario(&inputs, &outputs, &compressions) {
-        Err(ErrorCode::SumCheckFailed) => {} // Expected
-        _ => panic!("Should have failed with SumCheckFailed"),
+        Err(ErrorCode::ComputeOutputSumFailed) => {} // Expected
+        Err(e) => panic!("Expected ComputeOutputSumFailed, got: {:?}", e),
+        Ok(_) => panic!("Expected ComputeOutputSumFailed, but transaction succeeded"),
     }
 
     // Test case 2: Output for non-existent mint
@@ -265,7 +277,7 @@ fn test_failing_cases() -> Result<()> {
     let compressions = vec![];
 
     match test_multi_mint_scenario(&inputs, &outputs, &compressions) {
-        Err(ErrorCode::SumCheckFailed) => {} // Expected
+        Err(ErrorCode::ComputeOutputSumFailed) => {} // Expected
         _ => panic!("Should have failed with SumCheckFailed"),
     }
 

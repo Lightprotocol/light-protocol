@@ -95,7 +95,7 @@ fn sum_outputs(
                 .ok_or(ErrorCode::ComputeOutputSumFailed)?;
         } else {
             // Output mint not in inputs or compressions - invalid
-            return Err(ErrorCode::SumCheckFailed);
+            return Err(ErrorCode::ComputeOutputSumFailed);
         }
     }
     Ok(())
