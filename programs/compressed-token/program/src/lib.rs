@@ -5,6 +5,7 @@ use anchor_lang::solana_program::{
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use spl_token::instruction::TokenInstruction;
 
+pub mod close_token_account;
 pub mod create_associated_token_account;
 pub mod create_spl_mint;
 pub mod create_token_account;
@@ -15,6 +16,7 @@ pub mod shared;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
+use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::processor::process_create_associated_token_account;
 use create_spl_mint::processor::process_create_spl_mint;
 use create_token_account::processor::process_create_token_account;
@@ -29,6 +31,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 #[repr(u8)]
 pub enum InstructionType {
     DecompressedTransfer = 3,
+    CloseTokenAccount = 9, // SPL Token CloseAccount
     CreateCompressedMint = 100,
     MintToCompressed = 101,
     CreateSplMint = 102,
@@ -41,6 +44,7 @@ impl From<u8> for InstructionType {
     fn from(value: u8) -> Self {
         match value {
             3 => InstructionType::DecompressedTransfer,
+            9 => InstructionType::CloseTokenAccount,
             100 => InstructionType::CreateCompressedMint,
             101 => InstructionType::MintToCompressed,
             102 => InstructionType::CreateSplMint,
@@ -86,6 +90,9 @@ pub fn process_instruction<'info>(
         }
         InstructionType::CreateTokenAccount => {
             process_create_token_account(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CloseTokenAccount => {
+            process_close_token_account(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => entry(program_id, accounts, instruction_data)?,
