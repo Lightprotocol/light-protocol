@@ -7,6 +7,7 @@ use spl_token::instruction::TokenInstruction;
 
 pub mod create_associated_token_account;
 pub mod create_spl_mint;
+pub mod create_token_account;
 pub mod mint;
 pub mod mint_to_compressed;
 pub mod multi_transfer;
@@ -16,6 +17,7 @@ pub mod shared;
 pub use ::anchor_compressed_token::*;
 use create_associated_token_account::processor::process_create_associated_token_account;
 use create_spl_mint::processor::process_create_spl_mint;
+use create_token_account::processor::process_create_token_account;
 use mint::processor::process_create_compressed_mint;
 use mint_to_compressed::processor::process_mint_to_compressed;
 
@@ -31,6 +33,7 @@ pub enum InstructionType {
     MintToCompressed = 101,
     CreateSplMint = 102,
     CreateAssociatedTokenAccount = 103,
+    CreateTokenAccount = 18, // SPL Token InitializeAccount3
     Other,
 }
 
@@ -42,6 +45,7 @@ impl From<u8> for InstructionType {
             101 => InstructionType::MintToCompressed,
             102 => InstructionType::CreateSplMint,
             103 => InstructionType::CreateAssociatedTokenAccount,
+            18 => InstructionType::CreateTokenAccount,
             _ => InstructionType::Other,
         }
     }
@@ -79,6 +83,9 @@ pub fn process_instruction<'info>(
         }
         InstructionType::CreateAssociatedTokenAccount => {
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CreateTokenAccount => {
+            process_create_token_account(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => entry(program_id, accounts, instruction_data)?,
