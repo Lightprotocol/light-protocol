@@ -3349,6 +3349,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "pinocchio",
  "rand 0.8.5",
+ "solana-msg",
  "solana-program-error",
  "solana-pubkey",
  "thiserror 2.0.12",
@@ -3374,6 +3375,42 @@ dependencies = [
  "spl-token",
  "spl-token-2022 7.0.0",
  "zerocopy",
+]
+
+[[package]]
+name = "light-compressed-token-sdk"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "arrayvec",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-compressed-token",
+ "light-compressed-token-types",
+ "light-macros",
+ "light-sdk",
+ "solana-account-info",
+ "solana-cpi",
+ "solana-instruction",
+ "solana-msg",
+ "solana-program-error",
+ "solana-pubkey",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "light-compressed-token-types"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-macros",
+ "light-sdk-types",
+ "solana-msg",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3677,6 +3714,7 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-zero-copy",
+ "solana-msg",
  "solana-pubkey",
  "thiserror 2.0.12",
 ]
@@ -5402,6 +5440,27 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "solana-program",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
+name = "sdk-token-test"
+version = "1.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "arrayvec",
+ "light-batched-merkle-tree",
+ "light-client",
+ "light-compressed-account",
+ "light-compressed-token-sdk",
+ "light-hasher",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-types",
+ "light-test-utils",
+ "serial_test",
  "solana-sdk",
  "tokio",
 ]

@@ -707,14 +707,14 @@ pub struct AddressMerkleTreeAccounts {
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct TokenAccount {
+pub struct CompressedTokenAccount {
     /// Token-specific data (mint, owner, amount, delegate, state, tlv)
     pub token: TokenData,
     /// General account information (address, hash, lamports, merkle context, etc.)
     pub account: CompressedAccount,
 }
 
-impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
+impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
@@ -747,11 +747,11 @@ impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
                 .map_err(|_| IndexerError::InvalidResponseData)?,
         };
 
-        Ok(TokenAccount { token, account })
+        Ok(CompressedTokenAccount { token, account })
     }
 }
 
-impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
+impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
@@ -784,12 +784,12 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
                 .map_err(|_| IndexerError::InvalidResponseData)?,
         };
 
-        Ok(TokenAccount { token, account })
+        Ok(CompressedTokenAccount { token, account })
     }
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
+impl Into<light_sdk::token::TokenDataWithMerkleContext> for CompressedTokenAccount {
     fn into(self) -> light_sdk::token::TokenDataWithMerkleContext {
         let compressed_account = CompressedAccountWithMerkleContext::from(self.account);
 
@@ -802,7 +802,7 @@ impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
 
 #[allow(clippy::from_over_into)]
 impl Into<Vec<light_sdk::token::TokenDataWithMerkleContext>>
-    for super::response::Response<super::response::ItemsWithCursor<TokenAccount>>
+    for super::response::Response<super::response::ItemsWithCursor<CompressedTokenAccount>>
 {
     fn into(self) -> Vec<light_sdk::token::TokenDataWithMerkleContext> {
         self.value
@@ -820,7 +820,7 @@ impl Into<Vec<light_sdk::token::TokenDataWithMerkleContext>>
     }
 }
 
-impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
+impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(
@@ -828,7 +828,7 @@ impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     ) -> Result<Self, Self::Error> {
         let account = CompressedAccount::try_from(token_data_with_context.compressed_account)?;
 
-        Ok(TokenAccount {
+        Ok(CompressedTokenAccount {
             token: token_data_with_context.token_data,
             account,
         })
