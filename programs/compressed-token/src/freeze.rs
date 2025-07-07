@@ -45,6 +45,9 @@ pub fn process_freeze_or_thaw<
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataFreeze =
         CompressedTokenInstructionDataFreeze::deserialize(&mut inputs.as_slice())?;
+    if inputs.cpi_context.is_some() {
+        unimplemented!("Cpi context feature is not enabled.");
+    }
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_freeze_or_thaw::<FROZEN_INPUTS, FROZEN_OUTPUTS>(
             &inputs,

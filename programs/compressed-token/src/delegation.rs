@@ -48,6 +48,9 @@ pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataApprove =
         CompressedTokenInstructionDataApprove::deserialize(&mut inputs.as_slice())?;
+    if inputs.cpi_context.is_some() {
+        unimplemented!("Cpi context feature is not enabled.");
+    }
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_approve(
             &inputs,
@@ -182,6 +185,9 @@ pub fn process_revoke<'a, 'b, 'c, 'info: 'b + 'c>(
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataRevoke =
         CompressedTokenInstructionDataRevoke::deserialize(&mut inputs.as_slice())?;
+    if inputs.cpi_context.is_some() {
+        unimplemented!("Cpi context feature is not enabled.");
+    }
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_revoke(
             &inputs,

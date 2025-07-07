@@ -108,6 +108,9 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         let inputs: CompressedTokenInstructionDataTransfer =
             CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
+        if inputs.cpi_context.is_some() {
+            unimplemented!("Cpi context feature is not enabled.");
+        }
         process_transfer::process_transfer(ctx, inputs)
     }
 
