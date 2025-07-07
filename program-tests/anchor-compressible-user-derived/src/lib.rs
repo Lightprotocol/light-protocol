@@ -12,7 +12,7 @@ use light_sdk_types::CpiSigner;
 declare_id!("CompUser11111111111111111111111111111111111");
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-
+pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
@@ -35,6 +35,7 @@ pub mod anchor_compressible_user {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
+        user_record.slots_until_compression = SLOTS_UNTIL_COMPRESSION;
 
         let cpi_accounts = CpiAccounts::new_with_config(
             &ctx.accounts.user,
@@ -69,10 +70,6 @@ pub mod anchor_compressible_user {
 
         Ok(())
     }
-
-    // Use the generated compress instructions from the macro
-    // pub use crate::compress_game_session::*;
-    // pub use crate::compress_user_record::*;
 }
 
 #[derive(Accounts)]
@@ -88,6 +85,7 @@ pub struct CreateRecord<'info> {
     )]
     pub user_record: Account<'info, UserRecord>,
     pub system_program: Program<'info, System>,
+    /// CHECK: hardcoded RENT_RECIPIENT
     #[account(address = RENT_RECIPIENT)]
     pub rent_recipient: AccountInfo<'info>,
 }
@@ -106,7 +104,7 @@ pub struct UpdateRecord<'info> {
 }
 
 // Define compressible accounts using the macro
-#[compressible(slots_until_compression = 100)]
+#[compressible]
 #[derive(Debug, LightHasher, LightDiscriminator, Default)]
 #[account]
 pub struct UserRecord {
@@ -132,7 +130,7 @@ impl light_sdk::compressible::PdaTimingData for UserRecord {
     }
 }
 
-#[compressible(slots_until_compression = 50)]
+#[compressible]
 #[derive(Debug, LightHasher, LightDiscriminator, Default)]
 #[account]
 pub struct GameSession {

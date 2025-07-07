@@ -12,7 +12,7 @@ use light_sdk_types::CpiSigner;
 declare_id!("CompUser11111111111111111111111111111111111");
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-
+pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
@@ -39,6 +39,7 @@ pub mod anchor_compressible_user {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
+        user_record.slots_until_compression = SLOTS_UNTIL_COMPRESSION;
 
         let cpi_accounts = CpiAccounts::new_with_config(
             &ctx.accounts.user,
@@ -142,15 +143,10 @@ pub mod anchor_compressible_user {
 
     pub fn compress_record<'info>(
         ctx: Context<'_, '_, '_, 'info, CompressRecord<'info>>,
-        name: String,
-        score: u64,
         proof: ValidityProof,
         compressed_account_meta: CompressedAccountMeta,
     ) -> Result<()> {
         let user_record = &mut ctx.accounts.user_record;
-
-        user_record.name = name;
-        user_record.score = score;
 
         let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
         let cpi_accounts =

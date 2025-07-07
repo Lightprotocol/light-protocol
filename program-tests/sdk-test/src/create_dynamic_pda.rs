@@ -7,10 +7,12 @@ use light_sdk::{
     instruction::{PackedAddressTreeInfo, ValidityProof},
 };
 use light_sdk_types::CpiAccountsConfig;
+use solana_clock::Clock;
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
+use solana_sysvar::Sysvar;
 
-use crate::decompress_dynamic_pda::MyPdaAccount;
+use crate::decompress_dynamic_pda::{MyPdaAccount, SLOTS_UNTIL_COMPRESSION};
 
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
@@ -46,6 +48,13 @@ pub fn create_dynamic_pda(
         .address_tree_info
         .into_new_address_params_packed(pda_account.key.to_bytes());
 
+    // We do not have to serialize into the PDA account, it's closed at the end
+    // of this invocation.
+    let mut pda_account_data = MyPdaAccount::try_from_slice(&pda_account.data.borrow())
+        .map_err(|_| LightSdkError::Borsh)?;
+    pda_account_data.last_written_slot = Clock::get()?.slot;
+    pda_account_data.slots_until_compression = SLOTS_UNTIL_COMPRESSION;
+
     compress_pda_new::<MyPdaAccount>(
         pda_account,
         instruction_data.compressed_address,
@@ -55,7 +64,7 @@ pub fn create_dynamic_pda(
         cpi_accounts_struct,
         &crate::ID,
         rent_recipient,
-        &ADDRESS_SPACE, // TODO: consider passing a slice of pubkeys, and extend to read_only_address_proofs.
+        &ADDRESS_SPACE,
     )?;
 
     Ok(())

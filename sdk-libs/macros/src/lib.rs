@@ -285,15 +285,13 @@ pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
 /// Makes account structs compressible by generating compress/decompress instructions.
 ///
 /// This macro automatically:
-/// - Adds PDA timing fields (last_written_slot, slots_until_compression)
-/// - Implements PdaTimingData trait
 /// - Generates compress_<struct_name> instruction (native + Anchor wrapper)
-/// - Registers the type for unified decompress_accounts instruction
+/// - Creates the necessary Accounts struct for compression
 ///
 /// ## Usage
 ///
 /// ```ignore
-/// #[compressible(slots_until_compression = 100)]
+/// #[compressible]
 /// #[derive(LightHasher, LightDiscriminator)]
 /// #[account]
 /// pub struct UserRecord {
@@ -301,40 +299,23 @@ pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
 ///     pub owner: Pubkey,
 ///     pub name: String,
 ///     pub score: u64,
+///     pub last_written_slot: u64,
+///     pub slots_until_compression: u64,
 /// }
 /// ```
 ///
 /// This generates:
-/// - `compress_user_record` module with native and Anchor functions
-/// - Automatic inclusion in `CompressedAccountVariant` enum
-/// - Automatic inclusion in `decompress_accounts` instruction
+/// - `compress_user_record` function that can be used in your Anchor program
+/// - `CompressUserRecord` Accounts struct for the compress instruction
 ///
-/// ## Attributes
-///
-/// - `slots_until_compression`: Number of slots before the account can be compressed (default: 100)
+/// Note: The struct must have `last_written_slot` and `slots_until_compression` fields,
+/// which should be set by the user in their create instruction.
 #[proc_macro_attribute]
 pub fn compressible(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as compressible::CompressibleArgs);
     let input = parse_macro_input!(input as ItemStruct);
 
     compressible::compressible(args, input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// Generates the unified decompress module and CompressedAccountVariant enum.
-///
-/// Call this macro at the end of your lib.rs after all compressible types are defined.
-///
-/// ## Usage
-///
-/// ```ignore
-/// // At the end of lib.rs after all compressible structs
-/// generate_decompress_module!();
-/// ```
-#[proc_macro]
-pub fn generate_decompress_module(_: TokenStream) -> TokenStream {
-    compressible::generate_decompress_module()
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

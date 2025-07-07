@@ -162,6 +162,9 @@ where
             LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
         compressed_account.account = pda_account_data;
 
+        // we force the last written slot to the current slot.
+        compressed_account.set_last_written_slot(Clock::get()?.slot);
+
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Accumulate lamports

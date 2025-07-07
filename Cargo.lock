@@ -2598,6 +2598,12 @@ dependencies = [
 
 [[package]]
 name = "heck"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
+
+[[package]]
+name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
@@ -3703,6 +3709,7 @@ name = "light-sdk-macros"
 version = "0.13.0"
 dependencies = [
  "borsh 0.10.4",
+ "heck 0.4.1",
  "light-compressed-account",
  "light-hasher",
  "light-macros",
@@ -5468,8 +5475,10 @@ dependencies = [
  "light-program-test",
  "light-sdk",
  "light-sdk-types",
+ "solana-clock",
  "solana-program",
  "solana-sdk",
+ "solana-sysvar",
  "tokio",
 ]
 
