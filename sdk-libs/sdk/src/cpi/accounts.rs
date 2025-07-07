@@ -75,8 +75,8 @@ pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_, '_>) -> Ve
         is_writable: false,
     });
 
-    // 8. Light System Program (readonly)
-    let light_system_program_meta = AccountMeta {
+    // 8. Light System Program (readonly) - reused for optional accounts
+    let create_light_system_meta = || AccountMeta {
         pubkey: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
         is_signer: false,
         is_writable: false,
@@ -90,7 +90,7 @@ pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_, '_>) -> Ve
             is_writable: true,
         });
     } else {
-        account_metas.push(light_system_program_meta.clone());
+        account_metas.push(create_light_system_meta());
     }
 
     // 10. Sol Compression Recipient (writable) OR Light System Program (readonly)
@@ -101,7 +101,7 @@ pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_, '_>) -> Ve
             is_writable: true,
         });
     } else {
-        account_metas.push(light_system_program_meta.clone());
+        account_metas.push(create_light_system_meta());
     }
 
     // 11. System Program (readonly) - always default pubkey
@@ -119,7 +119,7 @@ pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_, '_>) -> Ve
             is_writable: true,
         });
     } else {
-        account_metas.push(light_system_program_meta);
+        account_metas.push(create_light_system_meta());
     }
 
     for acc in config.packed_accounts {
