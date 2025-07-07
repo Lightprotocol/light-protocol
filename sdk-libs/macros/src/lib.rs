@@ -276,44 +276,18 @@ pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemMod);
+    let input = syn::parse_macro_input!(input as syn::ItemMod);
+
     program::program(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 
-/// Makes account structs compressible by generating compress/decompress instructions.
-///
-/// This macro automatically:
-/// - Generates compress_<struct_name> instruction (native + Anchor wrapper)
-/// - Creates the necessary Accounts struct for compression
-///
-/// ## Usage
-///
-/// ```ignore
-/// #[compressible]
-/// #[derive(LightHasher, LightDiscriminator)]
-/// #[account]
-/// pub struct UserRecord {
-///     #[hash]
-///     pub owner: Pubkey,
-///     pub name: String,
-///     pub score: u64,
-///     pub last_written_slot: u64,
-///     pub slots_until_compression: u64,
-/// }
-/// ```
-///
-/// This generates:
-/// - `compress_user_record` function that can be used in your Anchor program
-/// - `CompressUserRecord` Accounts struct for the compress instruction
-///
-/// Note: The struct must have `last_written_slot` and `slots_until_compression` fields,
-/// which should be set by the user in their create instruction.
+/// Marks a struct as compressible, enabling automatic compression functionality
 #[proc_macro_attribute]
 pub fn compressible(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as compressible::CompressibleArgs);
-    let input = parse_macro_input!(input as ItemStruct);
+    let args = syn::parse_macro_input!(args as compressible::CompressibleArgs);
+    let input = syn::parse_macro_input!(input as syn::ItemStruct);
 
     compressible::compressible(args, input)
         .unwrap_or_else(|err| err.to_compile_error())
@@ -365,4 +339,26 @@ pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
     cpi_signer::derive_light_cpi_signer(input)
+}
+
+/// Adds compress instructions for the specified account types
+///
+/// This macro must be placed BEFORE the #[program] attribute to ensure
+/// the generated instructions are visible to Anchor's macro processing.
+///
+/// ## Usage
+/// ```
+/// #[add_compressible_instructions(UserRecord, GameSession)]
+/// #[program]
+/// pub mod my_program {
+///     // Your regular instructions here
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::ItemMod);
+
+    compressible::add_compressible_instructions(args.into(), input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
 }
