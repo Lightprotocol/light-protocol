@@ -73,7 +73,7 @@ pub enum LightSdkError {
     InvalidCpiContextAccount,
     #[error("Invalid sol pool pda account")]
     InvalidSolPoolPdaAccount,
-    #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
+    #[error("CpiAccounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
     #[error(transparent)]
     Hasher(#[from] HasherError),
