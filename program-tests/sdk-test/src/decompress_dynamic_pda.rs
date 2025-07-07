@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    compressible::{decompress_idempotent, PdaTimingData},
+    compressible::{decompress_idempotent, CompressionTiming},
     cpi::{CpiAccounts, CpiAccountsConfig},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -9,7 +9,7 @@ use light_sdk::{
 };
 use solana_program::account_info::AccountInfo;
 
-pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
+pub const COMPRESSION_DELAY: u64 = 100;
 
 /// Decompresses a compressed account into a PDA idempotently.
 pub fn decompress_dynamic_pda(
@@ -141,18 +141,18 @@ pub struct MyCompressedAccount {
 )]
 pub struct MyPdaAccount {
     pub last_written_slot: u64,
-    pub slots_until_compression: u64,
+    pub compression_delay: u64,
     pub data: [u8; 31],
 }
 
-// Implement the PdaTimingData trait
-impl PdaTimingData for MyPdaAccount {
+// Implement the CompressionTiming trait
+impl CompressionTiming for MyPdaAccount {
     fn last_written_slot(&self) -> u64 {
         self.last_written_slot
     }
 
-    fn slots_until_compression(&self) -> u64 {
-        self.slots_until_compression
+    fn compression_delay(&self) -> u64 {
+        self.compression_delay
     }
 
     fn set_last_written_slot(&mut self, slot: u64) {

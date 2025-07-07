@@ -18,9 +18,9 @@ use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
 /// Trait for PDA accounts that can be compressed
-pub trait PdaTimingData {
+pub trait CompressionTiming {
     fn last_written_slot(&self) -> u64;
-    fn slots_until_compression(&self) -> u64;
+    fn compression_delay(&self) -> u64;
     fn set_last_written_slot(&mut self, slot: u64);
 }
 
@@ -59,7 +59,7 @@ where
         + BorshSerialize
         + BorshDeserialize
         + Default
-        + PdaTimingData,
+        + CompressionTiming,
 {
     // Check that the PDA account is owned by the caller program
     if pda_account.owner != owner_program {
@@ -79,12 +79,12 @@ where
     drop(pda_data);
 
     let last_written_slot = pda_account_data.last_written_slot();
-    let slots_until_compression = pda_account_data.slots_until_compression();
+    let compression_delay = pda_account_data.compression_delay();
 
-    if current_slot < last_written_slot + slots_until_compression {
+    if current_slot < last_written_slot + compression_delay {
         msg!(
             "Cannot compress yet. {} slots remaining",
-            (last_written_slot + slots_until_compression).saturating_sub(current_slot)
+            (last_written_slot + compression_delay).saturating_sub(current_slot)
         );
         return Err(LightSdkError::ConstraintViolation);
     }

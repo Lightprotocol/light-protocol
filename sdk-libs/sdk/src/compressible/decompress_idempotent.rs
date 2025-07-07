@@ -19,9 +19,9 @@ use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::Sysvar;
 
-use crate::compressible::compress_pda::PdaTimingData;
+use crate::compressible::compress_pda::CompressionTiming;
 
-pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
+pub const COMPRESSION_DELAY: u64 = 100;
 
 /// Helper function to decompress a compressed account into a PDA idempotently.
 ///
@@ -56,7 +56,7 @@ where
         + BorshDeserialize
         + Default
         + Clone
-        + PdaTimingData,
+        + CompressionTiming,
 {
     decompress_multiple_idempotent(
         &[pda_account],
@@ -102,7 +102,7 @@ where
         + BorshDeserialize
         + Default
         + Clone
-        + PdaTimingData,
+        + CompressionTiming,
 {
     // Get current slot and rent once for all accounts
     let clock = Clock::get().map_err(|_| LightSdkError::Borsh)?;

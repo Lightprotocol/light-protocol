@@ -12,7 +12,7 @@ use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-use crate::decompress_dynamic_pda::{MyPdaAccount, SLOTS_UNTIL_COMPRESSION};
+use crate::decompress_dynamic_pda::{MyPdaAccount, COMPRESSION_DELAY};
 
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
@@ -53,7 +53,7 @@ pub fn create_dynamic_pda(
     let mut pda_account_data = MyPdaAccount::try_from_slice(&pda_account.data.borrow())
         .map_err(|_| LightSdkError::Borsh)?;
     pda_account_data.last_written_slot = Clock::get()?.slot;
-    pda_account_data.slots_until_compression = SLOTS_UNTIL_COMPRESSION;
+    pda_account_data.compression_delay = COMPRESSION_DELAY;
 
     compress_pda_new::<MyPdaAccount>(
         pda_account,
