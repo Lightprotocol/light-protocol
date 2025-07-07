@@ -5,7 +5,7 @@ use light_sdk::{
     instruction::{PackedAddressTreeInfo, ValidityProof},
 };
 use light_sdk::{derive_light_cpi_signer, LightDiscriminator, LightHasher};
-use light_sdk_macros::compressible;
+use light_sdk_macros::add_compressible_instructions;
 use light_sdk_types::CpiAccountsConfig;
 use light_sdk_types::CpiSigner;
 
@@ -16,9 +16,9 @@ pub const SLOTS_UNTIL_COMPRESSION: u64 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
-// Simple anchor program retrofitted with compressible accounts.
+#[add_compressible_instructions(UserRecord, GameSession)]
 #[program]
-pub mod anchor_compressible_user {
+pub mod anchor_compressible_user_derived {
     use super::*;
 
     /// Creates a new compressed user record.
@@ -103,8 +103,7 @@ pub struct UpdateRecord<'info> {
     pub user_record: Account<'info, UserRecord>,
 }
 
-// Define compressible accounts using the macro
-#[compressible]
+// Define compressible accounts - no longer need the #[compressible] attribute
 #[derive(Debug, LightHasher, LightDiscriminator, Default)]
 #[account]
 pub struct UserRecord {
@@ -130,7 +129,6 @@ impl light_sdk::compressible::PdaTimingData for UserRecord {
     }
 }
 
-#[compressible]
 #[derive(Debug, LightHasher, LightDiscriminator, Default)]
 #[account]
 pub struct GameSession {
