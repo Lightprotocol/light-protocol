@@ -1,6 +1,7 @@
+use std::mem::ManuallyDrop;
+
 use anchor_lang::solana_program::program_error::ProgramError;
 
-use light_account_checks::AccountInfoTrait;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::account_info::AccountInfo;
 use spl_token::{instruction::TokenInstruction, solana_program::log::sol_log_compute_units};
@@ -25,6 +26,8 @@ use mint_to_compressed::processor::process_mint_to_compressed;
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+
+pub const MAX_ACCOUNTS: usize = 30;
 
 // Start light token instructions at 100 to skip spl-token program instrutions.
 // When adding new instructions check anchor discriminators for collisions!
@@ -72,7 +75,7 @@ pub fn process_instruction(
             let instruction = TokenInstruction::unpack(instruction_data)?;
             match instruction {
                 TokenInstruction::Transfer { amount } => {
-                    let account_infos = convert_pinocchio_to_solana_raw(accounts)?;
+                    let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
                     let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
                     spl_token::processor::Processor::process_transfer(
                         &program_id_pubkey,
@@ -104,34 +107,35 @@ pub fn process_instruction(
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => {
-            // let pubkey_store = create_pubkey_store(accounts);
-            // let account_infos = convert_pinocchio_to_solana(accounts, &pubkey_store);
-            // let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-            let account_infos = convert_pinocchio_to_solana_raw(accounts)?;
+            let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
+            let account_infos = ManuallyDrop::new(account_infos);
             let solana_program_id = solana_pubkey::Pubkey::new_from_array(*program_id);
 
             entry(
                 &solana_program_id,
                 account_infos.as_slice(),
                 instruction_data,
-            )?
+            )?;
         }
     }
-
     Ok(())
 }
 
 /// Convert Pinocchio AccountInfo to Solana AccountInfo with minimal safety overhead
 ///
-/// SAFETY REQUIREMENTS:
+/// # SAFETY
 /// - `pinocchio_accounts` must remain valid for lifetime 'a
 /// - No other code may mutably borrow these accounts during 'a
 /// - Pinocchio runtime must have properly deserialized the accounts
 /// - Caller must ensure no concurrent access to returned AccountInfo
 #[inline(always)]
-pub fn convert_pinocchio_to_solana_raw<'a>(
+pub unsafe fn convert_account_infos<'a, const N: usize>(
     pinocchio_accounts: &'a [AccountInfo],
-) -> Result<Vec<anchor_lang::prelude::AccountInfo<'a>>, ProgramError> {
+) -> Result<arrayvec::ArrayVec<anchor_lang::prelude::AccountInfo<'a>, N>, ProgramError> {
+    if pinocchio_accounts.len() > N {
+        return Err(ProgramError::MaxAccountsDataAllocationsExceeded);
+    }
+
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -147,88 +151,33 @@ pub fn convert_pinocchio_to_solana_raw<'a>(
         );
     };
 
-    let mut solana_accounts = Vec::with_capacity(pinocchio_accounts.len());
-    unsafe {
-        for pinocchio_account in pinocchio_accounts {
-            sol_log_compute_units();
-            // Safe pointer casting instead of transmute (fails to compile if types change)
-            let key: &'a solana_pubkey::Pubkey =
-                &*(pinocchio_account.key() as *const _ as *const solana_pubkey::Pubkey);
+    let mut solana_accounts = arrayvec::ArrayVec::<anchor_lang::prelude::AccountInfo<'a>, N>::new();
+    for pinocchio_account in pinocchio_accounts {
+        let key: &'a solana_pubkey::Pubkey =
+            &*(pinocchio_account.key() as *const _ as *const solana_pubkey::Pubkey);
 
-            sol_log_compute_units();
-            let owner: &'a solana_pubkey::Pubkey =
-                &*(pinocchio_account.owner() as *const _ as *const solana_pubkey::Pubkey);
+        let owner: &'a solana_pubkey::Pubkey =
+            &*(pinocchio_account.owner() as *const _ as *const solana_pubkey::Pubkey);
 
-            sol_log_compute_units();
-            // Direct reference to lamports and data - no std::mem::forget neededneeded
-            let lamports = pinocchio_account.borrow_mut_lamports_unchecked();
-            let lamports = Rc::new(RefCell::new(lamports));
+        let lamports = Rc::new(RefCell::new(
+            pinocchio_account.borrow_mut_lamports_unchecked(),
+        ));
 
-            sol_log_compute_units();
-            let data = pinocchio_account.borrow_mut_data_unchecked();
-            let data = Rc::new(RefCell::new(data));
+        let data = Rc::new(RefCell::new(pinocchio_account.borrow_mut_data_unchecked()));
 
-            sol_log_compute_units();
-            let account_info = anchor_lang::prelude::AccountInfo {
-                key,
-                is_signer: AccountInfoTrait::is_signer(pinocchio_account),
-                is_writable: AccountInfoTrait::is_writable(pinocchio_account),
-                lamports,
-                data,
-                owner,
-                executable: AccountInfoTrait::executable(pinocchio_account),
-                rent_epoch: 0, // Pinocchio doesn't track rent epoch
-            };
+        let account_info = anchor_lang::prelude::AccountInfo {
+            key,
+            lamports,
+            data,
+            owner,
+            rent_epoch: 0, // Pinocchio doesn't track rent epoch
+            is_signer: pinocchio_account.is_signer(),
+            is_writable: pinocchio_account.is_writable(),
+            executable: pinocchio_account.executable(),
+        };
 
-            sol_log_compute_units();
-            solana_accounts.push(account_info);
-        }
+        solana_accounts.push(account_info);
     }
+
     Ok(solana_accounts)
 }
-
-// /// Convert to solana AccountInfo by re-deserializing from the original input buffer
-// /// This preserves the original pointer relationships that the Solana runtime expects
-// pub fn convert_to_solana_accounts<'a>(
-//     program_id: &pinocchio::pubkey::Pubkey,
-//     accounts: &'a [AccountInfo],
-//     instruction_data: &[u8],
-// ) -> (
-//     solana_pubkey::Pubkey,
-//     Vec<anchor_lang::prelude::AccountInfo<'a>>,
-//     Vec<u8>,
-// ) {
-//     // We need to re-serialize and then deserialize to get proper Solana AccountInfo
-//     // This is a workaround because Pinocchio uses zero-copy but Solana AccountInfo
-//     // expects specific memory layout and pointer relationships
-
-//     // For now, create a simple conversion that should work for basic cases
-//     let program_id_solana = solana_pubkey::Pubkey::new_from_array(*program_id);
-//     let mut solana_accounts = Vec::with_capacity(accounts.len());
-
-//     for account in accounts {
-//         // Create owned copies of the data to avoid pointer issues
-//         let key = solana_pubkey::Pubkey::new_from_array(*account.key());
-//         let owner = solana_pubkey::Pubkey::new_from_array( *account.owner() });
-
-//         // Create the AccountInfo with owned data
-//         let account_info = anchor_lang::prelude::AccountInfo {
-//             key: Box::leak(Box::new(key)),
-//             lamports: unsafe { account.borrow_mut_lamports_unchecked() },
-//             data: unsafe { account.borrow_mut_data_unchecked() },
-//             owner: Box::leak(Box::new(owner)),
-//             rent_epoch: 0,
-//             is_signer: AccountInfoTrait::is_signer(account),
-//             is_writable: AccountInfoTrait::is_writable(account),
-//             executable: AccountInfoTrait::executable(account),
-//         };
-
-//         solana_accounts.push(account_info);
-//     }
-
-//     (
-//         program_id_solana,
-//         solana_accounts,
-//         instruction_data.to_vec(),
-//     )
-// }
