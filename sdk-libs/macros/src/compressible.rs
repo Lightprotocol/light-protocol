@@ -1,54 +1,24 @@
+use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    Error, Ident, ItemStruct, Result, Token,
+    Error, Ident, ItemStruct, Result,
 };
 
-/// Arguments for the compressible macro
-pub(crate) struct CompressibleArgs {
-    slots_until_compression: u64,
-}
+/// Arguments for the compressible macro (currently empty, but kept for future extensibility)
+pub(crate) struct CompressibleArgs {}
 
 impl Parse for CompressibleArgs {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let mut slots_until_compression = 100u64; // default
-
-        if input.is_empty() {
-            return Ok(CompressibleArgs {
-                slots_until_compression,
-            });
-        }
-
-        let args = Punctuated::<syn::MetaNameValue, Token![,]>::parse_terminated(input)?;
-        for arg in args {
-            if arg.path.is_ident("slots_until_compression") {
-                if let syn::Expr::Lit(syn::ExprLit {
-                    lit: syn::Lit::Int(lit_int),
-                    ..
-                }) = &arg.value
-                {
-                    slots_until_compression = lit_int.base10_parse()?;
-                } else {
-                    return Err(Error::new_spanned(
-                        arg.value,
-                        "slots_until_compression must be an integer",
-                    ));
-                }
-            }
-        }
-
-        Ok(CompressibleArgs {
-            slots_until_compression,
-        })
+    fn parse(_input: ParseStream) -> Result<Self> {
+        // No arguments to parse for now
+        Ok(CompressibleArgs {})
     }
 }
 
 /// Main function to process the compressible attribute
-pub(crate) fn compressible(args: CompressibleArgs, input: ItemStruct) -> Result<TokenStream> {
+pub(crate) fn compressible(_args: CompressibleArgs, input: ItemStruct) -> Result<TokenStream> {
     let struct_name = &input.ident;
-    let slots_until_compression = args.slots_until_compression;
 
     // Verify that the struct has the required fields
     let has_required_fields = if let syn::Fields::Named(ref fields) = input.fields {
@@ -76,111 +46,71 @@ pub(crate) fn compressible(args: CompressibleArgs, input: ItemStruct) -> Result<
         ));
     }
 
-    // Generate only the implementations, not the struct modification
-    let default_constant = generate_default_constant(struct_name, slots_until_compression);
+    // Generate only the compress module
     let compress_module = generate_compress_module(struct_name);
 
     Ok(quote! {
         #input
 
-        #default_constant
         #compress_module
     })
 }
 
-/// Generate only the default constant
-fn generate_default_constant(struct_name: &Ident, slots_until_compression: u64) -> TokenStream {
-    quote! {
-        impl #struct_name {
-            pub const DEFAULT_SLOTS_UNTIL_COMPRESSION: u64 = #slots_until_compression;
-        }
-    }
-}
-
 /// Generate the compress module with native and Anchor functions
 fn generate_compress_module(struct_name: &Ident) -> TokenStream {
-    let module_name = format_ident!("compress_{}", to_snake_case(&struct_name.to_string()));
-    let anchor_fn_name = module_name.clone();
+    let module_name = format_ident!("__compress_{}", struct_name.to_string().to_snake_case());
+    let compress_fn_name = format_ident!("compress_{}", struct_name.to_string().to_snake_case());
     let compress_accounts_name = format_ident!("Compress{}", struct_name);
 
     quote! {
+        // Generate the module at the crate level
+        #[doc(hidden)]
         pub mod #module_name {
             use super::*;
+            use light_sdk::compressible::compress_pda;
+            use light_sdk::cpi::CpiAccounts;
+            use light_sdk::instruction::{account_meta::CompressedAccountMeta, ValidityProof};
+            use light_sdk_types::CpiAccountsConfig;
+            use anchor_lang::prelude::*;
 
-            // Native compress function
-            pub fn compress_native(
-                // Parameters would go here
-            ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-                // Implementation would go here
+            /// Anchor function for compressing a #struct_name
+            pub fn #compress_fn_name<'info>(
+                ctx: Context<'_, '_, '_, 'info, #compress_accounts_name<'info>>,
+                proof: ValidityProof,
+                compressed_account_meta: CompressedAccountMeta,
+            ) -> Result<()> {
+                let config = CpiAccountsConfig::new(super::LIGHT_CPI_SIGNER);
+                let cpi_accounts = CpiAccounts::new_with_config(
+                    &ctx.accounts.fee_payer,
+                    &ctx.remaining_accounts[..],
+                    config,
+                );
+
+                compress_pda::<super::#struct_name>(
+                    &ctx.accounts.pda_account,
+                    &compressed_account_meta,
+                    proof,
+                    cpi_accounts,
+                    &super::ID,
+                    &ctx.accounts.rent_recipient,
+                )
+                .map_err(|e| ProgramError::from(e))?;
                 Ok(())
             }
 
-            // Anchor-specific code only when anchor feature is enabled
-            #[cfg(feature = "anchor")]
-            pub mod anchor {
-                use super::*;
-                use ::light_sdk::{
-                    compressible::compress_pda,
-                    cpi::CpiAccounts,
-                    instruction::{account_meta::CompressedAccountMeta, ValidityProof},
-                };
-                use ::light_sdk_types::CpiAccountsConfig;
-
-                /// Anchor function for compressing a #struct_name
-                pub fn #anchor_fn_name<'info>(
-                    ctx: ::anchor_lang::prelude::Context<'_, '_, '_, 'info, #compress_accounts_name<'info>>,
-                    proof: ValidityProof,
-                    compressed_account_meta: CompressedAccountMeta,
-                ) -> ::anchor_lang::prelude::Result<()> {
-                    let config = CpiAccountsConfig::new(super::super::LIGHT_CPI_SIGNER);
-                    let cpi_accounts = CpiAccounts::new_with_config(
-                        &ctx.accounts.fee_payer,
-                        &ctx.remaining_accounts[..],
-                        config,
-                    );
-
-                    compress_pda::<super::#struct_name>(
-                        &ctx.accounts.pda_account,
-                        &compressed_account_meta,
-                        proof,
-                        cpi_accounts,
-                        &super::super::ID,
-                        &ctx.accounts.rent_recipient,
-                    )
-                    .map_err(|e| ::anchor_lang::prelude::ProgramError::from(e))?;
-                    Ok(())
-                }
-
-                #[derive(::anchor_lang::prelude::Accounts)]
-                pub struct #compress_accounts_name<'info> {
-                    /// CHECK: The PDA to compress (unchecked)
-                    pub pda_account: ::anchor_lang::prelude::UncheckedAccount<'info>,
-                    pub authority: ::anchor_lang::prelude::Signer<'info>,
-                    #[account(mut)]
-                    pub fee_payer: ::anchor_lang::prelude::Signer<'info>,
-                    /// CHECK: Validated against hardcoded RENT_RECIPIENT
-                    pub rent_recipient: ::anchor_lang::prelude::UncheckedAccount<'info>,
-                }
+            #[derive(Accounts)]
+            pub struct #compress_accounts_name<'info> {
+                /// CHECK: The PDA to compress (unchecked)
+                pub pda_account: UncheckedAccount<'info>,
+                #[account(mut)]
+                pub fee_payer: Signer<'info>,
+                #[account(address = super::RENT_RECIPIENT)]
+                /// CHECK: Validated against hardcoded RENT_RECIPIENT
+                pub rent_recipient: UncheckedAccount<'info>,
             }
         }
-    }
-}
 
-/// Generate the decompress accounts macro (simpler version)
-pub(crate) fn generate_decompress_module() -> Result<TokenStream> {
-    // For now, return an empty token stream since we can't use global state
-    // Users will need to manually implement the unified enum and decompress function
-    Ok(TokenStream::new())
-}
-
-/// Convert PascalCase to snake_case
-fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, ch) in s.chars().enumerate() {
-        if ch.is_uppercase() && i > 0 {
-            result.push('_');
-        }
-        result.push(ch.to_ascii_lowercase());
+        // Re-export for use inside the program module
+        pub use #module_name::{#compress_fn_name, #compress_accounts_name};
     }
-    result
 }
