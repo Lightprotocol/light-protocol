@@ -75,6 +75,7 @@ use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
 
 use crate::{
+    cpi::CpiAccounts,
     error::LightSdkError,
     light_hasher::{DataHasher, Poseidon},
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
@@ -228,6 +229,38 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
 
     pub fn out_account_info(&mut self) -> &Option<OutAccountInfo> {
         &self.account_info.output
+    }
+
+    /// Get the tree pubkey for this compressed account using the CpiAccounts
+    pub fn get_tree_pubkey<'info>(
+        &self,
+        cpi_accounts: &CpiAccounts<'_, 'info>,
+    ) -> Result<&'info solana_pubkey::Pubkey, LightSdkError> {
+        let merkle_tree_index = self
+            .in_account_info()
+            .as_ref()
+            .ok_or(LightSdkError::ConstraintViolation)?
+            .merkle_context
+            .merkle_tree_pubkey_index as usize;
+
+        Ok(cpi_accounts.get_tree_account_info(merkle_tree_index)?.key)
+    }
+
+    /// Calculate the size required for this account when stored on-chain.
+    /// This includes the 8-byte discriminator plus the serialized data size.
+    pub fn size(&self) -> Result<usize, LightSdkError> {
+        let data_size = self
+            .account
+            .try_to_vec()
+            .map_err(|_| LightSdkError::Borsh)?
+            .len();
+        Ok(8 + data_size) // 8 bytes for discriminator + data size
+    }
+
+    /// Remove the data from this account by setting it to default.
+    /// This is used when decompressing to ensure the compressed account is properly zeroed.
+    pub fn remove_data(&mut self) {
+        self.account = A::default();
     }
 
     /// 1. Serializes the account data and sets the output data hash.

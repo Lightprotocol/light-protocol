@@ -12,7 +12,6 @@ use crate::decompress_dynamic_pda::MyPdaAccount;
 
 /// Compresses a PDA back into a compressed account
 /// Anyone can call this after the timeout period has elapsed
-// TODO: add macro that create the full instruction. and takes: programid, account and seeds, rent_recipient (to hardcode). low code solution.
 pub fn compress_dynamic_pda(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
