@@ -15,9 +15,9 @@ use crate::{
     shared::cpi::execute_cpi_invoke,
 };
 
-pub fn process_create_spl_mint<'info>(
+pub fn process_create_spl_mint(
     program_id: Pubkey,
-    accounts: &'info [AccountInfo],
+    accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     sol_log_compute_units();
@@ -29,7 +29,7 @@ pub fn process_create_spl_mint<'info>(
     sol_log_compute_units();
 
     // Validate and parse accounts
-    let validated_accounts = CreateSplMintAccounts::validate_and_parse(accounts, &program_id)?;
+    let validated_accounts = CreateSplMintAccounts::validate_and_parse(accounts)?;
 
     // Verify mint PDA matches the spl_mint field in compressed mint inputs
     let expected_mint: [u8; 32] = parsed_instruction_data
@@ -38,7 +38,6 @@ pub fn process_create_spl_mint<'info>(
         .spl_mint
         .into();
     if validated_accounts.mint.key() != &expected_mint {
-        anchor_lang::solana_program::msg!("mint PDA does not match spl_mint field");
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -48,19 +47,15 @@ pub fn process_create_spl_mint<'info>(
         &program_id,
         parsed_instruction_data.mint_bump,
     )?;
-    anchor_lang::solana_program::msg!("create_mint_account ",);
 
     // Initialize the mint account using Token-2022's initialize_mint2 instruction
     initialize_mint_account(&validated_accounts, &parsed_instruction_data)?;
-    anchor_lang::solana_program::msg!("initialize_mint_account ",);
 
     // Create the token pool account manually (PDA derived from our program, owned by token program)
     create_token_pool_account_manual(&validated_accounts, &program_id)?;
-    anchor_lang::solana_program::msg!("create_token_pool_account_manual ",);
 
     // Initialize the token pool account
     initialize_token_pool_account(&validated_accounts)?;
-    anchor_lang::solana_program::msg!("initialize_token_pool_account ",);
 
     // Mint the existing supply to the token pool if there's any supply
     if parsed_instruction_data
@@ -71,7 +66,6 @@ pub fn process_create_spl_mint<'info>(
     {
         mint_existing_supply_to_pool(&validated_accounts, &parsed_instruction_data)?;
     }
-    anchor_lang::solana_program::msg!("update_compressed_mint_to_decompressed ",);
     // Update the compressed mint to mark it as is_decompressed = true
     update_compressed_mint_to_decompressed(
         accounts,
@@ -149,11 +143,6 @@ fn update_compressed_mint_to_decompressed<'info>(
     };
     let compressed_account_address = *instruction_data.compressed_mint_inputs.address;
     let supply = mint_inputs.supply; // Keep same supply, just mark as decompressed
-    anchor_lang::solana_program::msg!(
-        "compressed_account_address {:?}, supply: {}",
-        compressed_account_address,
-        supply
-    );
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         mint_pda,
@@ -201,13 +190,6 @@ fn update_compressed_mint_to_decompressed<'info>(
         accounts.in_output_queue.key(),
         accounts.out_output_queue.key(),
     ];
-    let _accounts = all_accounts[6..]
-        .iter()
-        .map(|account| solana_pubkey::Pubkey::new_from_array(*account.key()))
-        .collect::<Vec<_>>();
-    use anchor_lang::solana_program::msg;
-    msg!("tree_accounts {:?}", tree_accounts);
-    msg!("accounts {:?}", _accounts);
     // Execute CPI to light system program to update the compressed mint
     execute_cpi_invoke(
         &all_accounts[6..], // Skip first 6 non-CPI accounts
@@ -286,7 +268,6 @@ fn create_mint_account(
     ) {
         Ok(()) => {}
         Err(e) => {
-            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
             return Err(ProgramError::Custom(u64::from(e) as u32));
         }
     }
@@ -320,26 +301,10 @@ fn initialize_mint_account(
         )],
         data: &spl_ix.data,
     };
-    anchor_lang::solana_program::msg!("initialize_mint_ix: {:?}", initialize_mint_ix);
-    anchor_lang::solana_program::msg!(
-        "initialize_mint accounts: mint={:?}, token_program={:?}",
-        solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
-        solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key())
-    );
-    anchor_lang::solana_program::msg!(
-        "mint_authority={:?}, freeze_authority={:?}, decimals={}",
-        solana_pubkey::Pubkey::new_from_array(instruction_data.mint_authority.into()),
-        instruction_data
-            .freeze_authority
-            .as_ref()
-            .map(|f| solana_pubkey::Pubkey::new_from_array((**f).into())),
-        instruction_data.decimals
-    );
 
     match pinocchio::program::invoke(&initialize_mint_ix, &[accounts.mint]) {
         Ok(()) => {}
         Err(e) => {
-            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
             return Err(ProgramError::Custom(u64::from(e) as u32));
         }
     }
@@ -400,13 +365,6 @@ fn create_token_pool_account_manual(
         data: &create_account_ix.data,
     };
 
-    anchor_lang::solana_program::msg!(
-        "Creating token pool account: token_pool={:?}, mint={:?}, expected_token_pool={:?}",
-        solana_pubkey::Pubkey::new_from_array(*accounts.token_pool_pda.key()),
-        solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
-        expected_token_pool
-    );
-
     match pinocchio::program::invoke_signed(
         &pinocchio_instruction,
         &[
@@ -418,7 +376,6 @@ fn create_token_pool_account_manual(
     ) {
         Ok(()) => {}
         Err(e) => {
-            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
             return Err(ProgramError::Custom(u64::from(e) as u32));
         }
     }
@@ -449,7 +406,6 @@ fn initialize_token_pool_account(accounts: &CreateSplMintAccounts<'_>) -> Result
     ) {
         Ok(()) => {}
         Err(e) => {
-            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
             return Err(ProgramError::Custom(u64::from(e) as u32));
         }
     }
@@ -499,7 +455,6 @@ fn mint_existing_supply_to_pool(
     ) {
         Ok(()) => {}
         Err(e) => {
-            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
             return Err(ProgramError::Custom(u64::from(e) as u32));
         }
     }

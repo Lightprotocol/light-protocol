@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::msg, solana_program::program_error::ProgramError};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
@@ -43,14 +43,12 @@ pub fn process_mint_to_compressed<'info>(
     // Validate and parse accounts
     let validated_accounts = MintToCompressedAccounts::validate_and_parse(
         accounts,
-        &program_id,
         parsed_instruction_data.lamports.is_some(),
         parsed_instruction_data
             .compressed_mint_inputs
             .compressed_mint_input
             .is_decompressed(),
     )?;
-    anchor_lang::solana_program::msg!("validated_accounts");
     // Build configuration for CPI instruction data using the generalized function
     let compressed_mint_with_freeze_authority = parsed_instruction_data
         .compressed_mint_inputs
@@ -141,7 +139,6 @@ pub fn process_mint_to_compressed<'info>(
         .compressed_mint_inputs
         .compressed_mint_input
         .is_decompressed();
-    let with_lamports = parsed_instruction_data.lamports.is_some();
     // Create output token accounts
     create_output_compressed_token_accounts(
         parsed_instruction_data,
@@ -160,12 +157,6 @@ pub fn process_mint_to_compressed<'info>(
     ];
     let start_index = if is_decompressed { 5 } else { 2 };
 
-    let _accounts = accounts[start_index..]
-        .iter()
-        .map(|account| solana_pubkey::Pubkey::new_from_array(*account.key()))
-        .collect::<Vec<_>>();
-    msg!("tree_accounts {:?}", tree_accounts);
-    msg!("accounts {:?}", _accounts);
     execute_cpi_invoke(
         &accounts[start_index..], // Skip first 5 non-CPI accounts (authority, mint, token_pool_pda, token_program, light_system_program)
         cpi_bytes,
@@ -192,7 +183,6 @@ fn create_output_compressed_token_accounts(
         .zip(cpi_instruction_struct.output_compressed_accounts.iter_mut())
     {
         let output_delegate = None;
-        msg!("lamports: {:?}", lamports);
         create_output_compressed_account(
             output_account,
             context,
