@@ -9,11 +9,8 @@ use light_compressed_token::mint_to_compressed::instructions::{
 };
 
 use anchor_lang::{prelude::AccountMeta, solana_program::program_pack::Pack, system_program};
-
 use light_client::indexer::Indexer;
-
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-
 use light_sdk::instruction::ValidityProof;
 use light_test_utils::Rpc;
 use light_verifier::CompressedProof;

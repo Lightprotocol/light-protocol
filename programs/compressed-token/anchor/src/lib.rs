@@ -281,4 +281,5 @@ pub enum ErrorCode {
     InvalidMintPda,
     InputsOutOfOrder,
     TooManyMints,
+    InvalidExtensionType,
 }

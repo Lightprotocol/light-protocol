@@ -7,14 +7,22 @@ use light_compressed_account::{
         cpi_context::CompressedCpiContextConfig,
         data::{NewAddressParamsPackedConfig, OutputCompressedAccountWithPackedContextConfig},
         invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiConfig},
+        with_readonly::{
+            InstructionDataInvokeCpiWithReadOnly, InstructionDataInvokeCpiWithReadOnlyConfig,
+        },
     },
     Pubkey,
 };
+use light_sdk_pinocchio::NewAddressParamsAssignedPackedConfig;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
+    extensions::{
+        metadata_pointer::InitializeMetadataPointerInstructionData,
+        processor::process_create_extensions, ExtensionType,
+    },
     mint::{
         accounts::CreateCompressedMintAccounts,
         instructions::CreateCompressedMintInstructionData,
@@ -54,29 +62,74 @@ pub fn process_create_compressed_mint(
         mint_authority: (true, ()),
         freeze_authority: (parsed_instruction_data.freeze_authority.is_some(), ()),
     };
-
-    let config = InstructionDataInvokeCpiConfig {
-        compress_or_decompress_lamports: false,
-        cpi_context: (false, CompressedCpiContextConfig {}),
-        input_compressed_accounts_with_merkle_context: vec![],
+    let compressed_mint_len = CompressedMint::byte_len(&mint_size_config) as u32;
+    let mut output_compressed_accounts = vec![OutputCompressedAccountWithPackedContextConfig {
+        compressed_account: CompressedAccountConfig {
+            address: (true, ()),
+            data: (
+                true,
+                CompressedAccountDataConfig {
+                    data: compressed_mint_len,
+                },
+            ),
+        },
+    }];
+    let mut new_address_params = vec![NewAddressParamsAssignedPackedConfig {}];
+    if parsed_instruction_data.extensions.is_some() {
+        for extension in parsed_instruction_data.extensions.as_ref().unwrap().iter() {
+            match ExtensionType::try_from(extension.extension_type).unwrap() {
+                ExtensionType::MetadataPointer => {
+                    let (extension, token_metadata) =
+                        InitializeMetadataPointerInstructionData::zero_copy_at(extension.data)
+                            .map_err(|_| ProgramError::InvalidInstructionData)?;
+                    let mut data_len = 0;
+                    if extension.authority.is_some() {
+                        data_len += 33;
+                    } else {
+                        data_len += 1;
+                    };
+                    if extension.metadata_address_params.is_some() {
+                        data_len += 33;
+                    } else {
+                        data_len += 1;
+                    };
+                    // increased mint account data len
+                    output_compressed_accounts[0].compressed_account.data.1.data += data_len;
+                    // set token metadata account data len
+                    if !token_metadata.is_empty() {
+                        new_address_params.push(NewAddressParamsAssignedPackedConfig {});
+                        output_compressed_accounts.push(
+                            OutputCompressedAccountWithPackedContextConfig {
+                                compressed_account: CompressedAccountConfig {
+                                    address: (true, ()),
+                                    data: (
+                                        true,
+                                        CompressedAccountDataConfig {
+                                            data: token_metadata.len() as u32,
+                                        },
+                                    ),
+                                },
+                            },
+                        );
+                    }
+                }
+                _ => return Err(ProgramError::InvalidInstructionData),
+            }
+        }
+    }
+    let final_compressed_mint_len = output_compressed_accounts[0].compressed_account.data.1.data;
+    let config = InstructionDataInvokeCpiWithReadOnlyConfig {
+        cpi_context: CompressedCpiContextConfig {},
+        input_compressed_accounts: vec![],
         proof: (true, CompressedProofConfig {}),
-        relay_fee: false,
-        new_address_params: vec![NewAddressParamsPackedConfig {}],
-        output_compressed_accounts: vec![OutputCompressedAccountWithPackedContextConfig {
-            compressed_account: CompressedAccountConfig {
-                address: (true, ()),
-                data: (
-                    true,
-                    CompressedAccountDataConfig {
-                        data: CompressedMint::byte_len(&mint_size_config) as u32,
-                    },
-                ),
-            },
-        }],
+        read_only_accounts: vec![],
+        read_only_addresses: vec![],
+        new_address_params,
+        output_compressed_accounts,
     };
     // TODO: InstructionDataInvokeCpi::Output -> InstructionDataInvokeCpi::ZeroCopyMut and InstructionDataInvokeCpi::ZeroCopy
     // TODO: hardcode since len is constant
-    let vec_len = InstructionDataInvokeCpi::byte_len(&config);
+    let vec_len = InstructionDataInvokeCpiWithReadOnly::byte_len(&config);
     msg!("vec len {}", vec_len);
     // + discriminator len + vector len
     let mut cpi_bytes = vec![0u8; vec_len + 8 + 4];
@@ -86,7 +139,7 @@ pub fn process_create_compressed_mint(
 
     sol_log_compute_units();
     let (mut cpi_instruction_struct, _) =
-        InstructionDataInvokeCpi::new_zero_copy(&mut cpi_bytes[12..], config)
+        InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[12..], config)
             .map_err(ProgramError::from)?;
     sol_log_compute_units();
 
@@ -101,14 +154,17 @@ pub fn process_create_compressed_mint(
     cpi_instruction_struct.new_address_params[0].seed = mint_pda.to_bytes();
     cpi_instruction_struct.new_address_params[0].address_merkle_tree_root_index =
         *parsed_instruction_data.address_merkle_tree_root_index;
-
-    // 2. Derive compressed account address
-    let compressed_account_address = derive_address(
-        &mint_pda.to_bytes(),
-        validated_accounts.address_merkle_tree.key(),
-        &program_id,
-    );
-
+    cpi_instruction_struct.new_address_params[0].assigned_account_index = 0;
+    // Note we can skip address derivation since we are assigning it to the account in index 0.
+    cpi_instruction_struct.new_address_params[0].assigned_to_account = 1;
+    // 2. process token extensions.
+    if let Some(extensions) = parsed_instruction_data.extensions.as_ref() {
+        process_create_extensions(
+            extensions,
+            &mut cpi_instruction_struct,
+            final_compressed_mint_len as usize,
+        )?;
+    }
     // 2. Create compressed mint account data
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
@@ -119,7 +175,7 @@ pub fn process_create_compressed_mint(
         0.into(),
         &program_id.into(),
         mint_size_config,
-        compressed_account_address,
+        *parsed_instruction_data.mint_address,
         1,
     )?;
     sol_log_compute_units();

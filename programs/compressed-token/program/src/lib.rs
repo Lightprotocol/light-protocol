@@ -10,6 +10,7 @@ pub mod close_token_account;
 pub mod create_associated_token_account;
 pub mod create_spl_mint;
 pub mod create_token_account;
+pub mod extensions;
 pub mod mint;
 pub mod mint_to_compressed;
 pub mod multi_transfer;

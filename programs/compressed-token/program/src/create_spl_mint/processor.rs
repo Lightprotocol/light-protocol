@@ -14,7 +14,7 @@ use crate::{
     },
     shared::cpi::execute_cpi_invoke,
 };
-
+// TODO: check and handle extensions
 pub fn process_create_spl_mint(
     program_id: Pubkey,
     accounts: &[AccountInfo],
