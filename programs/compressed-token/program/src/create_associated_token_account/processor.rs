@@ -87,7 +87,7 @@ pub fn process_create_associated_token_account<'info>(
             data: &instruction_data,
         };
 
-        pinocchio::program::invoke_signed(
+        match pinocchio::program::invoke_signed(
             &pinocchio_instruction,
             &[
                 accounts.fee_payer,
@@ -95,8 +95,13 @@ pub fn process_create_associated_token_account<'info>(
                 accounts.system_program,
             ],
             &[signer],
-        )
-        .map_err(|_| ProgramError::Custom(1))?;
+        ) {
+            Ok(()) => {}
+            Err(e) => {
+                anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
+                return Err(ProgramError::Custom(u64::from(e) as u32));
+            }
+        }
     }
 
     // Initialize the token account using shared utility

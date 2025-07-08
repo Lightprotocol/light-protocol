@@ -6452,6 +6452,7 @@ async fn test_create_compressed_mint() {
     // Create create_spl_mint instruction data using the non-anchor pattern
     let create_spl_mint_instruction_data =
         light_compressed_token::create_spl_mint::instructions::CreateSplMintInstructionData {
+            mint_bump,
             token_pool_bump,
             decimals,
             mint_authority: mint_authority.into(),
@@ -6468,6 +6469,7 @@ async fn test_create_compressed_mint() {
         AccountMeta::new_readonly(mint_signer.pubkey(), false), // 2: mint_signer
         AccountMeta::new(token_pool_pda, false),         // 3: token_pool_pda
         AccountMeta::new_readonly(spl_token_2022::ID, false), // 4: token_program
+        AccountMeta::new_readonly(light_system_program::ID, false), // 5: light_system_program
         // CPI accounts in exact order expected by light-system-program
         AccountMeta::new(payer.pubkey(), true), // 5: fee_payer
         AccountMeta::new_readonly(
@@ -6488,7 +6490,6 @@ async fn test_create_compressed_mint() {
         ), // 9: account_compression_authority
         AccountMeta::new_readonly(account_compression::ID, false), // 10: account_compression_program
         AccountMeta::new_readonly(light_compressed_token::ID, false), // 11: self_program
-        AccountMeta::new_readonly(light_system_program::ID, false), // 12: light_system_program
         AccountMeta::new_readonly(system_program::ID, false),      // 13: system_program
         AccountMeta::new(state_merkle_tree, false),                // 14: in_merkle_tree
         AccountMeta::new(output_queue, false),                     // 15: in_output_queue

@@ -38,20 +38,29 @@ pub fn process_create_spl_mint<'info>(
         .spl_mint
         .into();
     if validated_accounts.mint.key() != &expected_mint {
+        anchor_lang::solana_program::msg!("mint PDA does not match spl_mint field");
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Create the mint account manually (PDA derived from our program, owned by token program)
-    create_mint_account(&validated_accounts, &program_id)?;
+    create_mint_account(
+        &validated_accounts,
+        &program_id,
+        parsed_instruction_data.mint_bump,
+    )?;
+    anchor_lang::solana_program::msg!("create_mint_account ",);
 
     // Initialize the mint account using Token-2022's initialize_mint2 instruction
     initialize_mint_account(&validated_accounts, &parsed_instruction_data)?;
+    anchor_lang::solana_program::msg!("initialize_mint_account ",);
 
     // Create the token pool account manually (PDA derived from our program, owned by token program)
     create_token_pool_account_manual(&validated_accounts, &program_id)?;
+    anchor_lang::solana_program::msg!("create_token_pool_account_manual ",);
 
     // Initialize the token pool account
     initialize_token_pool_account(&validated_accounts)?;
+    anchor_lang::solana_program::msg!("initialize_token_pool_account ",);
 
     // Mint the existing supply to the token pool if there's any supply
     if parsed_instruction_data
@@ -62,7 +71,7 @@ pub fn process_create_spl_mint<'info>(
     {
         mint_existing_supply_to_pool(&validated_accounts, &parsed_instruction_data)?;
     }
-
+    anchor_lang::solana_program::msg!("update_compressed_mint_to_decompressed ",);
     // Update the compressed mint to mark it as is_decompressed = true
     update_compressed_mint_to_decompressed(
         accounts,
@@ -140,7 +149,11 @@ fn update_compressed_mint_to_decompressed<'info>(
     };
     let compressed_account_address = *instruction_data.compressed_mint_inputs.address;
     let supply = mint_inputs.supply; // Keep same supply, just mark as decompressed
-
+    anchor_lang::solana_program::msg!(
+        "compressed_account_address {:?}, supply: {}",
+        compressed_account_address,
+        supply
+    );
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         mint_pda,
@@ -188,7 +201,7 @@ fn update_compressed_mint_to_decompressed<'info>(
         accounts.in_output_queue.key(),
         accounts.out_output_queue.key(),
     ];
-    let _accounts = all_accounts[5..]
+    let _accounts = all_accounts[6..]
         .iter()
         .map(|account| solana_pubkey::Pubkey::new_from_array(*account.key()))
         .collect::<Vec<_>>();
@@ -197,7 +210,7 @@ fn update_compressed_mint_to_decompressed<'info>(
     msg!("accounts {:?}", _accounts);
     // Execute CPI to light system program to update the compressed mint
     execute_cpi_invoke(
-        &all_accounts[5..], // Skip first 5 non-CPI accounts
+        &all_accounts[6..], // Skip first 6 non-CPI accounts
         cpi_bytes,
         &tree_accounts,
         false, // no sol_pool_pda
@@ -211,17 +224,23 @@ fn update_compressed_mint_to_decompressed<'info>(
 fn create_mint_account(
     accounts: &CreateSplMintAccounts<'_>,
     program_id: &pinocchio::pubkey::Pubkey,
+    mint_bump: u8,
 ) -> Result<(), ProgramError> {
     let mint_account_size = 82; // Size of Token-2022 Mint account
     let rent = Rent::get()?;
     let lamports = rent.minimum_balance(mint_account_size);
 
-    // Derive the mint PDA seeds and bump
+    // Derive the mint PDA seeds using provided bump
     let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-    let (expected_mint, bump) = solana_pubkey::Pubkey::find_program_address(
-        &[b"compressed_mint", accounts.mint_signer.key().as_ref()],
+    let expected_mint = solana_pubkey::Pubkey::create_program_address(
+        &[
+            b"compressed_mint",
+            accounts.mint_signer.key().as_ref(),
+            &[mint_bump],
+        ],
         &program_id_pubkey,
-    );
+    )
+    .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Verify the provided mint account matches the expected PDA
     if accounts.mint.key() != &expected_mint.to_bytes() {
@@ -230,7 +249,7 @@ fn create_mint_account(
 
     use pinocchio::instruction::{Seed, Signer};
     let mint_signer_key = accounts.mint_signer.key();
-    let bump_bytes = [bump];
+    let bump_bytes = [mint_bump];
     let seed_array = [
         Seed::from(b"compressed_mint"),
         Seed::from(mint_signer_key.as_ref()),
@@ -260,12 +279,17 @@ fn create_mint_account(
         data: &create_account_ix.data,
     };
 
-    pinocchio::program::invoke_signed(
+    match pinocchio::program::invoke_signed(
         &pinocchio_instruction,
         &[accounts.fee_payer, accounts.mint, accounts.system_program],
         &[signer], // Signed with our program's PDA seeds
-    )
-    .map_err(|_| ProgramError::Custom(1))?;
+    ) {
+        Ok(()) => {}
+        Err(e) => {
+            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
+            return Err(ProgramError::Custom(u64::from(e) as u32));
+        }
+    }
 
     Ok(())
 }
@@ -275,32 +299,50 @@ fn initialize_mint_account(
     accounts: &CreateSplMintAccounts<'_>,
     instruction_data: &ZCreateSplMintInstructionData,
 ) -> Result<(), ProgramError> {
+    let spl_ix = spl_token_2022::instruction::initialize_mint2(
+        &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
+        &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
+        &solana_pubkey::Pubkey::new_from_array(instruction_data.mint_authority.into()),
+        instruction_data
+            .freeze_authority
+            .as_ref()
+            .map(|f| solana_pubkey::Pubkey::new_from_array((**f).into()))
+            .as_ref(),
+        instruction_data.decimals,
+    )?;
+
     let initialize_mint_ix = pinocchio::instruction::Instruction {
         program_id: accounts.token_program.key(),
         accounts: &[pinocchio::instruction::AccountMeta::new(
             accounts.mint.key(),
-            false,
+            true, // is_writable: true (we're initializing the mint)
             false,
         )],
-        data: &spl_token_2022::instruction::initialize_mint2(
-            &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
-            &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
-            &solana_pubkey::Pubkey::new_from_array(instruction_data.mint_authority.into()),
-            instruction_data
-                .freeze_authority
-                .as_ref()
-                .map(|f| solana_pubkey::Pubkey::new_from_array((**f).into()))
-                .as_ref(),
-            instruction_data.decimals,
-        )?
-        .data,
+        data: &spl_ix.data,
     };
+    anchor_lang::solana_program::msg!("initialize_mint_ix: {:?}", initialize_mint_ix);
+    anchor_lang::solana_program::msg!(
+        "initialize_mint accounts: mint={:?}, token_program={:?}",
+        solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
+        solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key())
+    );
+    anchor_lang::solana_program::msg!(
+        "mint_authority={:?}, freeze_authority={:?}, decimals={}",
+        solana_pubkey::Pubkey::new_from_array(instruction_data.mint_authority.into()),
+        instruction_data
+            .freeze_authority
+            .as_ref()
+            .map(|f| solana_pubkey::Pubkey::new_from_array((**f).into())),
+        instruction_data.decimals
+    );
 
-    pinocchio::program::invoke(
-        &initialize_mint_ix,
-        &[accounts.mint, accounts.token_program],
-    )
-    .map_err(|_| ProgramError::Custom(1))?;
+    match pinocchio::program::invoke(&initialize_mint_ix, &[accounts.mint]) {
+        Ok(()) => {}
+        Err(e) => {
+            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
+            return Err(ProgramError::Custom(u64::from(e) as u32));
+        }
+    }
 
     Ok(())
 }
@@ -358,7 +400,14 @@ fn create_token_pool_account_manual(
         data: &create_account_ix.data,
     };
 
-    pinocchio::program::invoke_signed(
+    anchor_lang::solana_program::msg!(
+        "Creating token pool account: token_pool={:?}, mint={:?}, expected_token_pool={:?}",
+        solana_pubkey::Pubkey::new_from_array(*accounts.token_pool_pda.key()),
+        solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
+        expected_token_pool
+    );
+
+    match pinocchio::program::invoke_signed(
         &pinocchio_instruction,
         &[
             accounts.fee_payer,
@@ -366,8 +415,13 @@ fn create_token_pool_account_manual(
             accounts.system_program,
         ],
         &[signer], // Signed with our program's PDA seeds
-    )
-    .map_err(|_| ProgramError::Custom(1))?;
+    ) {
+        Ok(()) => {}
+        Err(e) => {
+            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
+            return Err(ProgramError::Custom(u64::from(e) as u32));
+        }
+    }
 
     Ok(())
 }
@@ -377,7 +431,7 @@ fn initialize_token_pool_account(accounts: &CreateSplMintAccounts<'_>) -> Result
     let initialize_account_ix = pinocchio::instruction::Instruction {
         program_id: accounts.token_program.key(),
         accounts: &[
-            pinocchio::instruction::AccountMeta::new(accounts.token_pool_pda.key(), false, false),
+            pinocchio::instruction::AccountMeta::new(accounts.token_pool_pda.key(), true, false), // writable=true for initialization
             pinocchio::instruction::AccountMeta::readonly(accounts.mint.key()),
         ],
         data: &spl_token_2022::instruction::initialize_account3(
@@ -389,16 +443,16 @@ fn initialize_token_pool_account(accounts: &CreateSplMintAccounts<'_>) -> Result
         .data,
     };
 
-    pinocchio::program::invoke(
+    match pinocchio::program::invoke(
         &initialize_account_ix,
-        &[
-            accounts.token_pool_pda,
-            accounts.mint,
-            accounts.token_program,
-        ],
-    )
-    .map_err(|_| ProgramError::Custom(1))?;
-
+        &[accounts.token_pool_pda, accounts.mint],
+    ) {
+        Ok(()) => {}
+        Err(e) => {
+            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
+            return Err(ProgramError::Custom(u64::from(e) as u32));
+        }
+    }
     Ok(())
 }
 
@@ -418,35 +472,37 @@ fn mint_existing_supply_to_pool(
         .supply
         .into();
 
+    // Create SPL mint_to instruction and use its account structure
+    let spl_mint_to_ix = spl_token_2022::instruction::mint_to(
+        &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
+        &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
+        &solana_pubkey::Pubkey::new_from_array(*accounts.token_pool_pda.key()),
+        &solana_pubkey::Pubkey::new_from_array(*accounts.authority.key()),
+        &[],
+        supply,
+    )?;
+
     // Mint tokens to the pool
     let mint_to_ix = pinocchio::instruction::Instruction {
         program_id: accounts.token_program.key(),
         accounts: &[
-            pinocchio::instruction::AccountMeta::new(accounts.mint.key(), false, false),
-            pinocchio::instruction::AccountMeta::new(accounts.token_pool_pda.key(), false, false),
-            pinocchio::instruction::AccountMeta::readonly(accounts.authority.key()),
+            pinocchio::instruction::AccountMeta::new(accounts.mint.key(), true, false), // writable
+            pinocchio::instruction::AccountMeta::new(accounts.token_pool_pda.key(), true, false), // writable
+            pinocchio::instruction::AccountMeta::new(accounts.authority.key(), false, true), // signer
         ],
-        data: &spl_token_2022::instruction::mint_to(
-            &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
-            &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
-            &solana_pubkey::Pubkey::new_from_array(*accounts.token_pool_pda.key()),
-            &solana_pubkey::Pubkey::new_from_array(*accounts.authority.key()),
-            &[],
-            supply,
-        )?
-        .data,
+        data: &spl_mint_to_ix.data,
     };
 
-    pinocchio::program::invoke(
+    match pinocchio::program::invoke(
         &mint_to_ix,
-        &[
-            accounts.mint,
-            accounts.token_pool_pda,
-            accounts.authority,
-            accounts.token_program,
-        ],
-    )
-    .map_err(|_| ProgramError::Custom(1))?;
+        &[accounts.mint, accounts.token_pool_pda, accounts.authority],
+    ) {
+        Ok(()) => {}
+        Err(e) => {
+            anchor_lang::solana_program::msg!("invoke_signed failed: {:?}", e);
+            return Err(ProgramError::Custom(u64::from(e) as u32));
+        }
+    }
 
     Ok(())
 }

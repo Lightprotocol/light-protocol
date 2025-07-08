@@ -5,6 +5,7 @@ use light_zero_copy::ZeroCopy;
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct CreateSplMintInstructionData {
+    pub mint_bump: u8,
     pub token_pool_bump: u8,
     // TODO: remove decimals, duplicate input
     pub decimals: u8,
