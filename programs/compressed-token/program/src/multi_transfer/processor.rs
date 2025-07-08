@@ -6,13 +6,13 @@ use pinocchio::account_info::AccountInfo;
 
 use crate::{
     multi_transfer::{
-        accounts::MultiTransferValidatedAccounts,
+        accounts::{MultiTransferValidatedAccounts, MultiTransferPackedAccounts},
         assign_inputs::assign_input_compressed_accounts,
         assign_outputs::assign_output_compressed_accounts,
         change_account::process_change_lamports,
-        cpi::{allocate_cpi_bytes, get_packed_cpi_accounts},
+        cpi::allocate_cpi_bytes,
         instruction_data::{
-            validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
+            validate_instruction_data, CompressedTokenInstructionDataMultiTransfer, ZCompressedTokenInstructionDataMultiTransfer,
         },
         native_compression::process_token_compression,
         sum_check::sum_check_multi_mint,
@@ -112,15 +112,15 @@ pub fn process_multi_transfer(
     // TODO: support spl
     process_token_compression(&inputs, &packed_accounts)?;
 
-    // Extract tree accounts from merkle contexts for CPI call
-    let tree_accounts = get_packed_cpi_accounts(&inputs, &packed_accounts);
+    // Extract tree accounts using highest index approach
+    let (tree_accounts, tree_accounts_count) = extract_tree_accounts(&inputs, &packed_accounts);
 
     // Calculate static accounts count after skipping index 0 (system accounts only)
     let static_accounts_count =
         8 + if with_sol_pool { 2 } else { 0 } + if with_cpi_context { 1 } else { 0 };
 
-    // Include static CPI accounts + all tree accounts (including duplicates) to match account_metas
-    let cpi_accounts_end = 1 + static_accounts_count + tree_accounts.len();
+    // Include static CPI accounts + tree accounts based on highest index
+    let cpi_accounts_end = 1 + static_accounts_count + tree_accounts_count;
     let cpi_accounts = &accounts[1..cpi_accounts_end];
     let solana_tree_accounts = tree_accounts
         .iter()
@@ -142,4 +142,33 @@ pub fn process_multi_transfer(
     )?;
 
     Ok(())
+}
+
+/// Extract tree accounts by finding the highest tree index and using it as closing offset
+fn extract_tree_accounts<'a>(
+    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
+    packed_accounts: &'a MultiTransferPackedAccounts<'a>,
+) -> (Vec<&'a pinocchio::pubkey::Pubkey>, usize) {
+    // Find highest tree index from input and output data to determine tree accounts range
+    let mut highest_tree_index = 0u8;
+    for input_data in inputs.in_token_data.iter() {
+        highest_tree_index = highest_tree_index.max(input_data.merkle_context.merkle_tree_pubkey_index);
+        highest_tree_index = highest_tree_index.max(input_data.merkle_context.queue_pubkey_index);
+    }
+    for output_data in inputs.out_token_data.iter() {
+        highest_tree_index = highest_tree_index.max(output_data.merkle_tree);
+    }
+    
+    // Tree accounts span from index 0 to highest_tree_index in remaining accounts
+    let tree_accounts_count = (highest_tree_index + 1) as usize;
+    
+    // Extract tree account pubkeys from the determined range
+    let mut tree_accounts = Vec::new();
+    for i in 0..tree_accounts_count {
+        if let Some(account) = packed_accounts.accounts.get(i) {
+            tree_accounts.push(account.key());
+        }
+    }
+    
+    (tree_accounts, tree_accounts_count)
 }
