@@ -12,8 +12,8 @@ pub struct MintToCompressedAccounts<'info> {
     pub authority: &'info AccountInfo,
     pub cpi_authority_pda: &'info AccountInfo,
     pub mint: Option<&'info AccountInfo>,
-    pub token_pool_pda: &'info AccountInfo,
-    pub token_program: &'info AccountInfo,
+    pub token_pool_pda: Option<&'info AccountInfo>,
+    pub token_program: Option<&'info AccountInfo>,
     pub light_system_program: &'info AccountInfo,
     pub registered_program_pda: &'info AccountInfo,
     pub noop_program: &'info AccountInfo,
@@ -33,32 +33,62 @@ impl<'info> MintToCompressedAccounts<'info> {
         accounts: &'info [AccountInfo],
         program_id: &Pubkey,
         with_lamports: bool,
+        is_decompressed: bool,
     ) -> Result<Self, ProgramError> {
-        if accounts.len() < 18 {
+        // Calculate minimum accounts needed
+        let mut base_accounts = 13;
+
+        if with_lamports {
+            base_accounts += 1;
+        };
+        if is_decompressed {
+            base_accounts += 3; // Add mint, token_pool_pda, token_program
+        };
+        anchor_lang::solana_program::msg!(
+            "account len {} is less than required {}",
+            accounts.len(),
+            base_accounts
+        );
+        if accounts.len() < base_accounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
         // Static non-CPI accounts first
         let authority = &accounts[0];
-        let mint = if accounts.len() > 14 && accounts[1].data_is_empty() {
-            None
+        let mut index = 1;
+        let (mint, token_pool_pda, token_program) = if is_decompressed {
+            let mint = Some(&accounts[index]);
+            index += 1;
+            let token_pool_pda = Some(&accounts[index]);
+            index += 1;
+            let token_program = Some(&accounts[index]);
+            index += 1;
+            (mint, token_pool_pda, token_program)
         } else {
-            Some(&accounts[1])
+            (None, None, None)
         };
-        let token_pool_pda = &accounts[2];
-        let token_program = &accounts[3];
-        
-        // CPI accounts in exact order expected by light-system-program
-        let fee_payer = &accounts[4];
-        let cpi_authority_pda = &accounts[5];
-        let registered_program_pda = &accounts[6];
-        let noop_program = &accounts[7];
-        let account_compression_authority = &accounts[8];
-        let account_compression_program = &accounts[9];
-        let self_program = &accounts[10];
-        let light_system_program = &accounts[11];
-        let system_program = &accounts[12];
-        let mut index = 13;
+
+        let light_system_program = &accounts[index];
+        index += 1;
+        // CPI accounts in exact order expected by InvokeCpiWithReadOnly
+        let fee_payer = &accounts[index];
+        index += 1;
+        let cpi_authority_pda = &accounts[index];
+        index += 1;
+        let registered_program_pda = &accounts[index];
+        index += 1;
+        let noop_program = &accounts[index];
+        index += 1;
+        anchor_lang::solana_program::msg!("noop_program");
+        let account_compression_authority = &accounts[index];
+        index += 1;
+        let account_compression_program = &accounts[index];
+        index += 1;
+        let self_program = &accounts[index];
+        index += 1;
+        let system_program = &accounts[index];
+        index += 1;
+        anchor_lang::solana_program::msg!("pre sol_pool_pda");
         let sol_pool_pda = if with_lamports {
             Some(&accounts[index])
         } else {
@@ -67,9 +97,13 @@ impl<'info> MintToCompressedAccounts<'info> {
         if with_lamports {
             index += 1;
         }
+        anchor_lang::solana_program::msg!("prost sol_pool_pda");
         let mint_in_merkle_tree = &accounts[index];
+        anchor_lang::solana_program::msg!("prost sol_pool_pda");
         let mint_in_queue = &accounts[index + 1];
+        anchor_lang::solana_program::msg!("prost sol_pool_pda");
         let mint_out_queue = &accounts[index + 2];
+        anchor_lang::solana_program::msg!("prost sol_pool_pda");
         let tokens_out_queue = &accounts[index + 3];
 
         // Validate fee_payer: must be signer and mutable
@@ -78,58 +112,6 @@ impl<'info> MintToCompressedAccounts<'info> {
 
         // Validate authority: must be signer
         check_signer(authority).map_err(ProgramError::from)?;
-
-        // Validate cpi_authority_pda: must be the correct PDA
-        let expected_seeds = &[CPI_AUTHORITY_PDA_SEED, &[BUMP_CPI_AUTHORITY]];
-        check_pda_seeds_with_bump(expected_seeds, &program_id, cpi_authority_pda)
-            .map_err(ProgramError::from)?;
-
-        // Validate mint: mutable if present
-        if let Some(mint_account) = mint {
-            check_mut(mint_account).map_err(ProgramError::from)?;
-        }
-
-        // Validate token_pool_pda: mutable
-        check_mut(token_pool_pda).map_err(ProgramError::from)?;
-
-        // Validate light_system_program: must be the correct program
-        let light_system_program_id = light_system_program::id();
-        check_program(&light_system_program_id.to_bytes(), light_system_program)
-            .map_err(ProgramError::from)?;
-
-        // Validate registered_program_pda: non-mutable
-        check_non_mut(registered_program_pda).map_err(ProgramError::from)?;
-
-        // Validate noop_program: non-mutable
-        check_non_mut(noop_program).map_err(ProgramError::from)?;
-
-        // Validate account_compression_authority: non-mutable
-        check_non_mut(account_compression_authority).map_err(ProgramError::from)?;
-
-        // Validate account_compression_program: must be the correct program
-        check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
-            .map_err(ProgramError::from)?;
-
-        // Validate self_program: must be this program
-        check_program(&program_id, self_program).map_err(ProgramError::from)?;
-
-        // Validate system_program: must be the system program
-        let system_program_id = anchor_lang::solana_program::system_program::ID;
-        check_program(&system_program_id.to_bytes(), system_program).map_err(ProgramError::from)?;
-
-        // Validate sol_pool_pda: mutable if present
-        if let Some(sol_pool_account) = sol_pool_pda {
-            check_mut(sol_pool_account).map_err(ProgramError::from)?;
-        }
-
-        // Validate merkle_tree: mutable
-        check_mut(mint_in_merkle_tree).map_err(ProgramError::from)?;
-        // Validate merkle_tree: mutable
-        check_mut(mint_in_queue).map_err(ProgramError::from)?;
-        // Validate merkle_tree: mutable
-        check_mut(mint_out_queue).map_err(ProgramError::from)?;
-        // Validate merkle_tree: mutable
-        check_mut(tokens_out_queue).map_err(ProgramError::from)?;
 
         Ok(MintToCompressedAccounts {
             fee_payer,
@@ -143,9 +125,9 @@ impl<'info> MintToCompressedAccounts<'info> {
             noop_program,
             account_compression_authority,
             account_compression_program,
-            self_program,
             system_program,
             sol_pool_pda,
+            self_program,
             mint_in_merkle_tree,
             mint_in_queue,
             mint_out_queue,

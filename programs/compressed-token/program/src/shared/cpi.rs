@@ -50,7 +50,7 @@ pub fn execute_cpi_invoke(
     let inner_pool =
         solana_pubkey::pubkey!("CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1").to_bytes();
     let sol_pool_pda = if with_sol_pool {
-        AccountMeta::new(&inner_pool, false, false)
+        AccountMeta::new(&inner_pool, true, false)
     } else {
         AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)
     };

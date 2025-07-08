@@ -188,7 +188,13 @@ fn update_compressed_mint_to_decompressed<'info>(
         accounts.in_output_queue.key(),
         accounts.out_output_queue.key(),
     ];
-
+    let _accounts = all_accounts[5..]
+        .iter()
+        .map(|account| solana_pubkey::Pubkey::new_from_array(*account.key()))
+        .collect::<Vec<_>>();
+    use anchor_lang::solana_program::msg;
+    msg!("tree_accounts {:?}", tree_accounts);
+    msg!("accounts {:?}", _accounts);
     // Execute CPI to light system program to update the compressed mint
     execute_cpi_invoke(
         &all_accounts[5..], // Skip first 5 non-CPI accounts

@@ -88,21 +88,27 @@ pub fn process_instruction(
             }
         }
         InstructionType::CreateCompressedMint => {
+            anchor_lang::solana_program::msg!("CreateCompressedMint");
             process_create_compressed_mint(*program_id, accounts, &instruction_data[1..])?;
         }
         InstructionType::MintToCompressed => {
+            anchor_lang::solana_program::msg!("MintToCompressed");
             process_mint_to_compressed(*program_id, accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateSplMint => {
+            anchor_lang::solana_program::msg!("CreateSplMint");
             process_create_spl_mint(*program_id, accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
+            anchor_lang::solana_program::msg!("CreateAssociatedTokenAccount");
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateTokenAccount => {
+            anchor_lang::solana_program::msg!("CreateTokenAccount");
             process_create_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::CloseTokenAccount => {
+            anchor_lang::solana_program::msg!("CloseTokenAccount");
             process_close_token_account(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType

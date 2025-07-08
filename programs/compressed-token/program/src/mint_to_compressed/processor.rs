@@ -43,10 +43,14 @@ pub fn process_mint_to_compressed<'info>(
     // Validate and parse accounts
     let validated_accounts = MintToCompressedAccounts::validate_and_parse(
         accounts,
-        &program_id.into(),
+        &program_id,
         parsed_instruction_data.lamports.is_some(),
+        parsed_instruction_data
+            .compressed_mint_inputs
+            .compressed_mint_input
+            .is_decompressed(),
     )?;
-
+    anchor_lang::solana_program::msg!("validated_accounts");
     // Build configuration for CPI instruction data using the generalized function
     let compressed_mint_with_freeze_authority = parsed_instruction_data
         .compressed_mint_inputs
@@ -133,6 +137,11 @@ pub fn process_mint_to_compressed<'info>(
         )?;
     }
 
+    let is_decompressed = parsed_instruction_data
+        .compressed_mint_inputs
+        .compressed_mint_input
+        .is_decompressed();
+    let with_lamports = parsed_instruction_data.lamports.is_some();
     // Create output token accounts
     create_output_compressed_token_accounts(
         parsed_instruction_data,
@@ -149,9 +158,16 @@ pub fn process_mint_to_compressed<'info>(
         validated_accounts.mint_out_queue.key(),
         validated_accounts.tokens_out_queue.key(),
     ];
+    let start_index = if is_decompressed { 5 } else { 2 };
 
+    let _accounts = accounts[start_index..]
+        .iter()
+        .map(|account| solana_pubkey::Pubkey::new_from_array(*account.key()))
+        .collect::<Vec<_>>();
+    msg!("tree_accounts {:?}", tree_accounts);
+    msg!("accounts {:?}", _accounts);
     execute_cpi_invoke(
-        &accounts[4..], // Skip first 4 non-CPI accounts
+        &accounts[start_index..], // Skip first 5 non-CPI accounts (authority, mint, token_pool_pda, token_program, light_system_program)
         cpi_bytes,
         tree_accounts.as_slice(),
         validated_accounts.sol_pool_pda.is_some(),

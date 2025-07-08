@@ -6305,38 +6305,38 @@ async fn test_create_compressed_mint() {
     let mint_to_accounts = vec![
         // Static non-CPI accounts first
         AccountMeta::new_readonly(mint_authority, true), // 0: authority (signer)
-        AccountMeta::new(mint_pda, false),               // 1: mint (mutable)
-        AccountMeta::new(Pubkey::new_unique(), false),   // 2: token_pool_pda (mutable)
-        AccountMeta::new_readonly(spl_token::ID, false), // 3: token_program
-        // CPI accounts in exact order expected by light-system-program
-        AccountMeta::new(payer.pubkey(), true), // 4: fee_payer (signer, mutable)
+        // AccountMeta::new(mint_pda, false),               // 1: mint (mutable)
+        // AccountMeta::new(Pubkey::new_unique(), false), // 2: token_pool_pda (mutable)
+        // AccountMeta::new_readonly(spl_token::ID, false), // 3: token_program
+        AccountMeta::new_readonly(light_system_program::ID, false), // 4: light_system_program
+        // CPI accounts in exact order expected by InvokeCpiWithReadOnly
+        AccountMeta::new(payer.pubkey(), true), // 5: fee_payer (signer, mutable)
         AccountMeta::new_readonly(
             light_compressed_token::process_transfer::get_cpi_authority_pda().0,
             false,
-        ), // 5: cpi_authority_pda
+        ), // 6: cpi_authority_pda
         AccountMeta::new_readonly(
             light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
             false,
-        ), // 6: registered_program_pda
+        ), // 7: registered_program_pda
         AccountMeta::new_readonly(
             Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
             false,
-        ), // 7: noop_program
+        ), // 8: noop_program
         AccountMeta::new_readonly(
             light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
             false,
-        ), // 8: account_compression_authority
-        AccountMeta::new_readonly(account_compression::ID, false), // 9: account_compression_program
-        AccountMeta::new_readonly(light_compressed_token::ID, false), // 10: self_program
-        AccountMeta::new_readonly(light_system_program::ID, false), // 11: light_system_program
-        AccountMeta::new_readonly(system_program::ID, false), // 12: system_program
-        AccountMeta::new(light_system_program::utils::get_sol_pool_pda(), false), // 13: sol_pool_pda (mutable)
-        AccountMeta::new(state_merkle_tree, false), // 14: mint_merkle_tree (mutable)
-        AccountMeta::new(output_queue, false),      // 15: mint_in_queue (mutable)
-        AccountMeta::new(output_queue, false),      // 16: mint_out_queue (mutable)
-        AccountMeta::new(output_queue, false),      // 17: tokens_out_queue (mutable)
+        ), // 9: account_compression_authority
+        AccountMeta::new_readonly(account_compression::ID, false), // 10: account_compression_program
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // 11: self_program
+        AccountMeta::new(light_system_program::utils::get_sol_pool_pda(), false), // 12: sol_pool_pda (mutable)
+        AccountMeta::new_readonly(Pubkey::default(), false), // 13: system_program
+        AccountMeta::new(state_merkle_tree, false),          // 14: mint_merkle_tree (mutable)
+        AccountMeta::new(output_queue, false),               // 15: mint_in_queue (mutable)
+        AccountMeta::new(output_queue, false),               // 16: mint_out_queue (mutable)
+        AccountMeta::new(output_queue, false),               // 17: tokens_out_queue (mutable)
     ];
-    println!("state_merkle_tree {:?}", state_merkle_tree);
+    println!("mint_to_accounts {:?}", mint_to_accounts);
     println!("output_queue {:?}", output_queue);
     println!("output_queue {:?}", output_queue);
     println!(
@@ -6494,6 +6494,7 @@ async fn test_create_compressed_mint() {
         AccountMeta::new(output_queue, false),                     // 15: in_output_queue
         AccountMeta::new(output_queue, false),                     // 16: out_output_queue
     ];
+    println!("create_spl_mint_accounts {:?}", create_spl_mint_accounts);
 
     let mut create_spl_mint_instruction = Instruction {
         program_id: light_compressed_token::ID,
