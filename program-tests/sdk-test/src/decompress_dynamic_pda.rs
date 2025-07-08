@@ -40,10 +40,27 @@ pub fn decompress_dynamic_pda(
         instruction_data.compressed_account.data,
     )?;
 
-    // Call decompress_idempotent - this should work whether PDA exists or not
+    // Extract the data field for use in seeds
+    let account_data = compressed_account.data;
+
+    // Derive the PDA seeds and bump
+    // In a real implementation, you would pass these as part of the instruction data
+    // For this example, we'll use the account data as part of the seed
+    let seeds: &[&[u8]] = &[b"test_pda", &account_data];
+    let (derived_pda, bump) =
+        solana_program::pubkey::Pubkey::find_program_address(seeds, &crate::ID);
+
+    // Verify the PDA matches
+    if derived_pda != *pda_account.key {
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Call decompress_idempotent with seeds - this should work whether PDA exists or not
     decompress_idempotent::<MyPdaAccount>(
         pda_account,
         compressed_account,
+        seeds,
+        bump,
         instruction_data.proof,
         cpi_accounts,
         &crate::ID,
@@ -96,23 +113,56 @@ pub fn decompress_multiple_dynamic_pdas(
     // Build inputs for batch decompression
     let mut compressed_accounts = Vec::new();
     let mut pda_account_refs = Vec::new();
+    let mut all_seeds = Vec::new();
+    let mut bumps = Vec::new();
 
     for (i, compressed_account_data) in instruction_data.compressed_accounts.into_iter().enumerate()
     {
         let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
             &crate::ID,
             &compressed_account_data.meta,
-            compressed_account_data.data,
+            compressed_account_data.data.clone(),
         )?;
+
+        // Store seeds in a vector to ensure they live long enough
+        all_seeds.push(vec![
+            b"test_pda".to_vec(),
+            compressed_account_data.data.data.to_vec(),
+        ]);
+
+        // Create references to the seeds
+        let seeds: Vec<&[u8]> = all_seeds
+            .last()
+            .unwrap()
+            .iter()
+            .map(|s| s.as_slice())
+            .collect();
+        let (derived_pda, bump) =
+            solana_program::pubkey::Pubkey::find_program_address(&seeds, &crate::ID);
+
+        // Verify the PDA matches
+        if derived_pda != *pda_accounts[i].key {
+            return Err(LightSdkError::ConstraintViolation);
+        }
 
         compressed_accounts.push(compressed_account);
         pda_account_refs.push(&pda_accounts[i]);
+        bumps.push(bump);
     }
+
+    // Create seeds references for the function call
+    let seeds_refs: Vec<Vec<&[u8]>> = all_seeds
+        .iter()
+        .map(|seeds| seeds.iter().map(|s| s.as_slice()).collect())
+        .collect();
+    let seeds_list: Vec<&[&[u8]]> = seeds_refs.iter().map(|seeds| seeds.as_slice()).collect();
 
     // Decompress all accounts in one CPI call
     decompress_multiple_idempotent::<MyPdaAccount>(
         &pda_account_refs,
         compressed_accounts,
+        &seeds_list,
+        &bumps,
         instruction_data.proof,
         cpi_accounts,
         &crate::ID,

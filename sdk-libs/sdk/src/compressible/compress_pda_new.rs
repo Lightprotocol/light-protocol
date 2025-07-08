@@ -1,6 +1,6 @@
 use crate::{
     account::LightAccount,
-    address::{v1::derive_address, PackedNewAddressParams},
+    address::PackedNewAddressParams,
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::ValidityProof,
@@ -118,6 +118,7 @@ where
         return Err(LightSdkError::ConstraintViolation);
     }
 
+    // TODO: consider leaving the check to the caller.
     // CHECK: address space.
     for params in &new_address_params {
         let address_tree_account = cpi_accounts
@@ -140,17 +141,6 @@ where
         .zip(addresses.iter())
         .zip(output_state_tree_indices.iter())
     {
-        // Check that the PDA account is owned by the caller program
-        if pda_account.owner != owner_program {
-            msg!(
-                "Invalid PDA owner for {}. Expected: {}. Found: {}.",
-                pda_account.key,
-                owner_program,
-                pda_account.owner
-            );
-            return Err(LightSdkError::ConstraintViolation);
-        }
-
         // Deserialize the PDA data to check timing fields
         let pda_data = pda_account.try_borrow_data()?;
         let pda_account_data =
@@ -189,8 +179,6 @@ where
     for pda_account in pda_accounts {
         // Decrement source account lamports
         **pda_account.try_borrow_mut_lamports()? = 0;
-        // Clear all account data
-        pda_account.try_borrow_mut_data()?.fill(0);
         // Assign ownership back to the system program
         pda_account.assign(&Pubkey::default());
     }

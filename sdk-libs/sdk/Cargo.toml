@@ -39,6 +39,7 @@ num-bigint = { workspace = true }
 # only needed with solana-program
 borsh = { workspace = true, optional = true }
 thiserror = { workspace = true }
+arrayvec = { workspace = true }
 
 light-sdk-macros = { workspace = true }
 light-sdk-types = { workspace = true }
