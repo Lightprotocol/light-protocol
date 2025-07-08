@@ -8,8 +8,8 @@ use spl_token_2022::state::AccountState;
 use super::accounts::CloseTokenAccountAccounts;
 
 /// Process the close token account instruction
-pub fn process_close_token_account<'info>(
-    account_infos: &'info [AccountInfo],
+pub fn process_close_token_account(
+    account_infos: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Validate and get accounts
@@ -40,7 +40,7 @@ pub fn process_close_token_account<'info>(
             return Err(ProgramError::InvalidAccountOwner);
         }
     }
-
+    // TODO: double check that it is safely closed.
     // Transfer all lamports from token account to destination
     let token_account_lamports = AccountInfoTrait::lamports(accounts.token_account);
 
@@ -58,7 +58,6 @@ pub fn process_close_token_account<'info>(
     unsafe {
         *accounts.destination.borrow_mut_lamports_unchecked() = new_destination_lamports;
     }
-
     // Clear the token account data
     let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(accounts.token_account)
         .map_err(|_| ProgramError::InvalidAccountData)?;

@@ -26,9 +26,9 @@ use crate::{
     LIGHT_CPI_SIGNER,
 };
 
-pub fn process_mint_to_compressed<'info>(
+pub fn process_mint_to_compressed(
     program_id: pinocchio::pubkey::Pubkey,
-    accounts: &'info [AccountInfo],
+    accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     sol_log_compute_units();

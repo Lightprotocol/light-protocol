@@ -24,9 +24,9 @@ use crate::{
     shared::cpi::execute_cpi_invoke,
 };
 
-pub fn process_create_compressed_mint<'info>(
+pub fn process_create_compressed_mint(
     program_id: pinocchio::pubkey::Pubkey,
-    accounts: &'info [AccountInfo],
+    accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     sol_log_compute_units();

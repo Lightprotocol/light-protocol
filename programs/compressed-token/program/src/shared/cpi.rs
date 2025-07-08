@@ -100,9 +100,8 @@ pub fn execute_cpi_invoke(
         Seed::from(bump_seed.as_slice()),
     ];
     let signer = Signer::from(&seed_array);
-    let mut account_vec = Vec::with_capacity(accounts.len());
-    accounts.iter().for_each(|a| account_vec.push(a));
-    match slice_invoke_signed(&instruction, account_vec.as_slice(), &[signer]) {
+
+    match slice_invoke_signed(&instruction, accounts, &[signer]) {
         Ok(()) => {}
         Err(e) => {
             msg!(format!("slice_invoke_signed failed: {:?}", e).as_str());
@@ -116,7 +115,7 @@ pub fn execute_cpi_invoke(
 #[inline]
 pub fn slice_invoke_signed(
     instruction: &Instruction,
-    account_infos: &[&AccountInfo],
+    account_infos: &[AccountInfo],
     signers_seeds: &[Signer],
 ) -> pinocchio::ProgramResult {
     use pinocchio::program_error::ProgramError;
@@ -138,10 +137,6 @@ pub fn slice_invoke_signed(
             .iter()
             .filter(|x| x.pubkey != instruction.program_id),
     ) {
-        // if account_info.key() == instruction.program_id {
-        //     // skip anchor None account infos
-        //     continue;
-        // }
         if account_info.key() != account_meta.pubkey {
             use std::format;
             msg!(format!(
@@ -173,7 +168,7 @@ pub fn slice_invoke_signed(
         unsafe {
             accounts
                 .get_unchecked_mut(len)
-                .write(Account::from(*account_info));
+                .write(Account::from(account_info));
         }
 
         len += 1;

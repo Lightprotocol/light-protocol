@@ -22,12 +22,8 @@ pub fn initialize_token_account(
     // Initialize the token account fields
     pod_account.mint = solana_pubkey::Pubkey::from(*mint_pubkey);
     pod_account.owner = solana_pubkey::Pubkey::from(*owner_pubkey);
-    pod_account.amount = 0u64.into(); // Start with 0 balance
     pod_account.delegate = spl_token_2022::pod::PodCOption::none(); // No delegate
     pod_account.state = AccountState::Initialized as u8; // Set to Initialized state
-    pod_account.is_native = spl_token_2022::pod::PodCOption::none(); // Not a native token
-    pod_account.delegated_amount = 0u64.into(); // No delegated amount
-    pod_account.close_authority = spl_token_2022::pod::PodCOption::none(); // No close authority
 
     Ok(())
 }
