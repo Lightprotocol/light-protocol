@@ -41,10 +41,10 @@ pub mod anchor_compressible_user {
         user_record.score = 0;
         user_record.compression_delay = COMPRESSION_DELAY;
 
-        let cpi_accounts = CpiAccounts::new_with_config(
+        let cpi_accounts = CpiAccounts::new(
             &ctx.accounts.user,
             &ctx.remaining_accounts[..],
-            CpiAccountsConfig::new(LIGHT_CPI_SIGNER),
+            LIGHT_CPI_SIGNER,
         );
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
@@ -92,12 +92,10 @@ pub mod anchor_compressible_user {
             return err!(ErrorCode::InvalidAccountCount);
         }
 
-        // Set up CPI accounts
-        let config = CpiAccountsConfig::new(LIGHT_CPI_SIGNER);
-        let cpi_accounts = CpiAccounts::new_with_config(
+        let cpi_accounts = CpiAccounts::new(
             &ctx.accounts.fee_payer,
             &ctx.remaining_accounts[system_accounts_offset as usize..],
-            config,
+            LIGHT_CPI_SIGNER,
         );
 
         // Convert to unified enum accounts
@@ -148,9 +146,11 @@ pub mod anchor_compressible_user {
     ) -> Result<()> {
         let user_record = &mut ctx.accounts.user_record;
 
-        let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-        let cpi_accounts =
-            CpiAccounts::new_with_config(&ctx.accounts.user, &ctx.remaining_accounts[..], config);
+        let cpi_accounts = CpiAccounts::new(
+            &ctx.accounts.user,
+            &ctx.remaining_accounts[..],
+            LIGHT_CPI_SIGNER,
+        );
 
         compress_pda::<UserRecord>(
             &user_record.to_account_info(),

@@ -198,11 +198,10 @@ pub(crate) fn add_compressible_instructions(
             }
 
             // Set up CPI accounts
-            let config = CpiAccountsConfig::new(LIGHT_CPI_SIGNER);
-            let cpi_accounts = CpiAccounts::new_with_config(
+            let cpi_accounts = CpiAccounts::new(
                 &ctx.accounts.fee_payer,
                 &ctx.remaining_accounts[system_accounts_offset as usize..],
-                config,
+                LIGHT_CPI_SIGNER,
             );
 
             // Convert to unified enum accounts

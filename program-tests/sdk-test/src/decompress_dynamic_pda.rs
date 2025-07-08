@@ -99,15 +99,10 @@ pub fn decompress_multiple_dynamic_pdas(
     let pda_accounts_end = instruction_data.system_accounts_offset as usize;
     let pda_accounts = &accounts[pda_accounts_start..pda_accounts_end];
 
-    // Set up CPI accounts
-    let mut config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    config.sol_pool_pda = false;
-    config.sol_compression_recipient = false;
-
-    let cpi_accounts = CpiAccounts::new_with_config(
+    let cpi_accounts = CpiAccounts::new(
         fee_payer,
         &accounts[instruction_data.system_accounts_offset as usize..],
-        config,
+        crate::LIGHT_CPI_SIGNER,
     );
 
     // Build inputs for batch decompression

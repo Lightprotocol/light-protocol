@@ -37,10 +37,10 @@ pub mod anchor_compressible_user_derived {
         user_record.score = 0;
         user_record.compression_delay = COMPRESSION_DELAY;
 
-        let cpi_accounts = CpiAccounts::new_with_config(
+        let cpi_accounts = CpiAccounts::new(
             &ctx.accounts.user,
             &ctx.remaining_accounts[..],
-            CpiAccountsConfig::new(LIGHT_CPI_SIGNER),
+            LIGHT_CPI_SIGNER,
         );
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
