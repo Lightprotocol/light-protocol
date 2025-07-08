@@ -184,10 +184,8 @@ where
             owner_program,
         );
 
-        // Add bump to seeds for signing
+        // cpi for each pda
         let bump_seed = [bump];
-
-        // Use ArrayVec to avoid heap allocation - Solana supports max 16 seeds
         let mut signer_seeds = ArrayVec::<&[u8], 16>::new();
         for seed in seeds.iter() {
             signer_seeds.push(*seed);
@@ -211,8 +209,7 @@ where
         // Write discriminator
         // TODO: we don't mind the onchain account being different?
         // TODO: consider passing onchain account discriminator? (can be auto-derived)
-        let discriminator = A::LIGHT_DISCRIMINATOR;
-        pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&discriminator);
+        pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&A::LIGHT_DISCRIMINATOR);
 
         // Write data to PDA
         decompressed_pda
@@ -226,7 +223,7 @@ where
         compressed_accounts_for_cpi.push(compressed_account.to_account_info()?);
     }
 
-    // Make single CPI call with all compressed accounts
+    // apply compressed account changes via cpi
     if !compressed_accounts_for_cpi.is_empty() {
         let cpi_inputs = CpiInputs::new(proof, compressed_accounts_for_cpi);
         cpi_inputs.invoke_light_system_program(cpi_accounts)?;

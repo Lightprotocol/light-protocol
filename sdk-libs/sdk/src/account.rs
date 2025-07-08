@@ -89,6 +89,7 @@ pub struct LightAccount<
     owner: &'a Pubkey,
     pub account: A,
     account_info: CompressedAccountInfo,
+    empty_data: bool,
 }
 
 impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default>
@@ -112,6 +113,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: None,
                 output: Some(output_account_info),
             },
+            empty_data: false,
         }
     }
 
@@ -156,6 +158,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: Some(input_account_info),
                 output: Some(output_account_info),
             },
+            empty_data: false,
         })
     }
 
@@ -188,6 +191,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: Some(input_account_info),
                 output: None,
             },
+            empty_data: false,
         })
     }
 
@@ -260,7 +264,8 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     /// Remove the data from this account by setting it to default.
     /// This is used when decompressing to ensure the compressed account is properly zeroed.
     pub fn remove_data(&mut self) {
-        self.account = A::default();
+        self.account = A::default(); // TODO: remove
+        self.empty_data = true;
     }
 
     /// 1. Serializes the account data and sets the output data hash.
@@ -270,11 +275,17 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     /// that should only be called once per instruction.
     pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, LightSdkError> {
         if let Some(output) = self.account_info.output.as_mut() {
-            output.data_hash = self.account.hash::<Poseidon>()?;
-            output.data = self
-                .account
-                .try_to_vec()
-                .map_err(|_| LightSdkError::Borsh)?;
+            if self.empty_data {
+                // TODO: check if this is right
+                output.data_hash = [0; 32];
+                output.data = Vec::new();
+            } else {
+                output.data_hash = self.account.hash::<Poseidon>()?;
+                output.data = self
+                    .account
+                    .try_to_vec()
+                    .map_err(|_| LightSdkError::Borsh)?;
+            }
         }
         Ok(self.account_info)
     }
