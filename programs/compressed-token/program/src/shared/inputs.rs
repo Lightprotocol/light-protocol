@@ -14,7 +14,6 @@ use crate::{
 ///
 /// Validates signer authorization (owner or delegate), populates the zero-copy account structure,
 /// and computes the appropriate token data hash based on frozen state.
-#[allow(clippy::too_many_arguments)]
 pub fn create_input_compressed_account<const IS_FROZEN: bool>(
     input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
@@ -22,9 +21,12 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
     remaining_accounts: &[AccountInfo],
     lamports: u64,
 ) -> std::result::Result<(), ProgramError> {
+    anchor_lang::solana_program::msg!("create_input_compressed_account");
+    anchor_lang::solana_program::msg!("remaining_accounts len {}", remaining_accounts.len());
     // Get owner from remaining accounts using the owner index
     let owner_account = &remaining_accounts[input_token_data.owner as usize];
     let owner = *owner_account.key();
+    anchor_lang::solana_program::msg!("owner_account");
 
     // Verify signer authorization using light-account-checks
     let hashed_delegate = if input_token_data.with_delegate() {

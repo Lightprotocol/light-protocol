@@ -21,6 +21,7 @@ pub fn assign_change_account(
         .output_compressed_accounts
         .get_mut(current_output_count)
         .ok_or(ProgramError::InvalidAccountData)?;
+    anchor_lang::solana_program::log::msg!("inputs {:?}", inputs);
 
     // Get merkle tree index - use specified index
     let merkle_tree_index = if inputs.with_lamports_change_account_merkle_tree_index != 0 {

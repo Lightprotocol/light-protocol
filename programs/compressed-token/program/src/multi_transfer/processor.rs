@@ -6,13 +6,14 @@ use pinocchio::account_info::AccountInfo;
 
 use crate::{
     multi_transfer::{
-        accounts::{MultiTransferValidatedAccounts, MultiTransferPackedAccounts},
+        accounts::{MultiTransferPackedAccounts, MultiTransferValidatedAccounts},
         assign_inputs::assign_input_compressed_accounts,
         assign_outputs::assign_output_compressed_accounts,
         change_account::process_change_lamports,
         cpi::allocate_cpi_bytes,
         instruction_data::{
-            validate_instruction_data, CompressedTokenInstructionDataMultiTransfer, ZCompressedTokenInstructionDataMultiTransfer,
+            validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
+            ZCompressedTokenInstructionDataMultiTransfer,
         },
         native_compression::process_token_compression,
         sum_check::sum_check_multi_mint,
@@ -41,8 +42,18 @@ pub fn process_multi_transfer(
     let (inputs, _) = CompressedTokenInstructionDataMultiTransfer::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 
+    let total_input_lamports = if let Some(inputs) = inputs.in_lamports.as_ref() {
+        inputs.iter().map(|input| u64::from(**input)).sum()
+    } else {
+        0
+    };
+    let total_output_lamports = if let Some(inputs) = inputs.out_lamports.as_ref() {
+        inputs.iter().map(|input| u64::from(**input)).sum()
+    } else {
+        0
+    };
     // Determine optional account flags from instruction data
-    let with_sol_pool = inputs.compressions.is_some();
+    let with_sol_pool = total_input_lamports != total_output_lamports;
     let with_cpi_context = inputs.cpi_context.is_some();
 
     // Skip first account (light-system-program) and validate remaining accounts
@@ -56,6 +67,7 @@ pub fn process_multi_transfer(
     validate_instruction_data(&inputs)?;
     msg!("validate_instruction_data");
     bench_sbf_start!("t_context_and_check_sig");
+    anchor_lang::solana_program::log::msg!("inputs {:?}", inputs);
 
     // Create TokenContext for hash caching
     let mut context = TokenContext::new();
@@ -73,7 +85,7 @@ pub fn process_multi_transfer(
     msg!("pre assign_input_compressed_accounts");
 
     // Process input compressed accounts
-    let total_input_lamports = assign_input_compressed_accounts(
+    assign_input_compressed_accounts(
         &mut cpi_instruction_struct,
         &mut context,
         &inputs,
@@ -92,14 +104,14 @@ pub fn process_multi_transfer(
     msg!("pre assign_output_compressed_accounts");
 
     // Process output compressed accounts
-    let total_output_lamports = assign_output_compressed_accounts(
+    assign_output_compressed_accounts(
         &mut cpi_instruction_struct,
         &mut context,
         &inputs,
         &packed_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
-    let with_sol_pool = total_input_lamports != total_output_lamports;
+
     msg!("pre process_change_lamports");
     process_change_lamports(
         &inputs,
@@ -152,16 +164,17 @@ fn extract_tree_accounts<'a>(
     // Find highest tree index from input and output data to determine tree accounts range
     let mut highest_tree_index = 0u8;
     for input_data in inputs.in_token_data.iter() {
-        highest_tree_index = highest_tree_index.max(input_data.merkle_context.merkle_tree_pubkey_index);
+        highest_tree_index =
+            highest_tree_index.max(input_data.merkle_context.merkle_tree_pubkey_index);
         highest_tree_index = highest_tree_index.max(input_data.merkle_context.queue_pubkey_index);
     }
     for output_data in inputs.out_token_data.iter() {
         highest_tree_index = highest_tree_index.max(output_data.merkle_tree);
     }
-    
+
     // Tree accounts span from index 0 to highest_tree_index in remaining accounts
     let tree_accounts_count = (highest_tree_index + 1) as usize;
-    
+
     // Extract tree account pubkeys from the determined range
     let mut tree_accounts = Vec::new();
     for i in 0..tree_accounts_count {
@@ -169,6 +182,6 @@ fn extract_tree_accounts<'a>(
             tree_accounts.push(account.key());
         }
     }
-    
+
     (tree_accounts, tree_accounts_count)
 }
