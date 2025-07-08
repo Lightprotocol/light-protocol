@@ -1,8 +1,7 @@
-use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::{check_mut, check_non_mut, check_program, check_signer};
-use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use pinocchio::account_info::AccountInfo;
 use crate::shared::AccountIterator;
+use anchor_lang::solana_program::program_error::ProgramError;
+use light_account_checks::checks::{check_mut, check_signer};
+use pinocchio::account_info::AccountInfo;
 
 /// Validated system accounts for multi-transfer instruction
 /// Accounts are ordered to match light-system-program CPI expectation
@@ -23,8 +22,8 @@ pub struct MultiTransferValidatedAccounts<'info> {
     pub invoking_program: &'info AccountInfo,
     /// Sol pool PDA (index 7) - optional, mutable if present
     pub sol_pool_pda: Option<&'info AccountInfo>,
-    /// Decompression recipient (index 8) - non-mutable
-    pub decompression_recipient: &'info AccountInfo,
+    /// SOL decompression recipient (index 8) - optional, mutable, for SOL decompression
+    pub sol_decompression_recipient: Option<&'info AccountInfo>,
     /// System program (index 9) - non-mutable
     pub system_program: &'info AccountInfo,
     /// CPI context account (index 10) - optional, non-mutable
@@ -38,7 +37,7 @@ pub struct MultiTransferPackedAccounts<'info> {
     pub accounts: &'info [AccountInfo],
 }
 
-impl<'info> MultiTransferPackedAccounts<'info> {
+impl MultiTransferPackedAccounts<'_> {
     /// Get account by index with bounds checking
     pub fn get(&self, index: usize) -> Result<&AccountInfo, ProgramError> {
         self.accounts
@@ -56,7 +55,6 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
     /// Validate and parse accounts from the instruction accounts slice
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
-        program_id: &pinocchio::pubkey::Pubkey,
         with_sol_pool: bool,
         with_cpi_context: bool,
     ) -> Result<(Self, MultiTransferPackedAccounts<'info>), ProgramError> {
@@ -84,7 +82,12 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
             None
         };
 
-        let decompression_recipient = iter.next()?;
+        let sol_decompression_recipient = if with_sol_pool {
+            Some(iter.next()?)
+        } else {
+            None
+        };
+
         let system_program = iter.next()?;
 
         let cpi_context_account = if with_cpi_context {
@@ -96,43 +99,6 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
         // Validate fee_payer: must be signer and mutable
         check_signer(fee_payer).map_err(ProgramError::from)?;
         check_mut(fee_payer).map_err(ProgramError::from)?;
-
-        // Validate registered_program_pda: must be correct PDA
-        check_non_mut(registered_program_pda).map_err(ProgramError::from)?;
-
-        // Validate noop_program: must be correct program
-        check_non_mut(noop_program).map_err(ProgramError::from)?;
-
-        // Validate account_compression_authority: must be correct PDA
-        check_non_mut(account_compression_authority).map_err(ProgramError::from)?;
-
-        // Validate account_compression_program: must be correct program
-        check_non_mut(account_compression_program).map_err(ProgramError::from)?;
-        check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
-            .map_err(ProgramError::from)?;
-
-        // Validate invoking_program: must be this program
-        check_non_mut(invoking_program).map_err(ProgramError::from)?;
-        check_program(&program_id, invoking_program).map_err(ProgramError::from)?;
-
-        // Validate sol_pool_pda: mutable if present
-        if let Some(sol_pool_account) = sol_pool_pda {
-            check_mut(sol_pool_account).map_err(ProgramError::from)?;
-        }
-
-        // Validate decompression_recipient: non-mutable
-        check_non_mut(decompression_recipient).map_err(ProgramError::from)?;
-
-        // Validate system_program: must be system program
-        check_non_mut(system_program).map_err(ProgramError::from)?;
-        let system_program_id = anchor_lang::solana_program::system_program::ID;
-        check_program(&system_program_id.to_bytes(), system_program).map_err(ProgramError::from)?;
-
-        // Validate cpi_context_account: non-mutable if present
-        if let Some(cpi_context) = cpi_context_account {
-            check_non_mut(cpi_context).map_err(ProgramError::from)?;
-        }
-
         // Extract remaining accounts slice for dynamic indexing
         let remaining_accounts = iter.remaining();
 
@@ -145,7 +111,7 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
             account_compression_program,
             invoking_program,
             sol_pool_pda,
-            decompression_recipient,
+            sol_decompression_recipient,
             system_program,
             cpi_context_account,
         };

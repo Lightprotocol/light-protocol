@@ -6105,8 +6105,111 @@ pub fn create_batch_compress_instruction(
     }
 }
 
-#[serial]
+struct MultiTransferInput {
+    payer: Pubkey,
+    current_owner: Pubkey,
+    new_recipient: Pubkey,
+    mint: Pubkey,
+    input_amount: u64,
+    transfer_amount: u64,
+    input_lamports: u64,
+    transfer_lamports: u64,
+    change_lamports: u64,
+    leaf_index: u32,
+    merkle_tree: Pubkey,
+    output_queue: Pubkey,
+}
+
+fn create_multi_transfer_instruction(input: &MultiTransferInput) -> Instruction {
+    // Create input token data
+    let input_token_data =
+        light_compressed_token::multi_transfer::instruction_data::MultiInputTokenDataWithContext {
+            amount: input.input_amount,
+            merkle_context: light_sdk::instruction::PackedMerkleContext {
+                merkle_tree_pubkey_index: 0, // Index for merkle tree in remaining accounts
+                queue_pubkey_index: 1,       // Index for output queue in remaining accounts
+                leaf_index: input.leaf_index,
+                prove_by_index: true,
+            },
+            root_index: 0,
+            mint: 2,  // Index in remaining accounts
+            owner: 3, // Index in remaining accounts
+            with_delegate: false,
+            delegate: 0, // Unused
+        };
+
+    // Create output token data
+    let output_token_data =
+        light_compressed_token::multi_transfer::instruction_data::MultiTokenTransferOutputData {
+            owner: 4, // Index for new recipient in remaining accounts
+            amount: input.transfer_amount,
+            merkle_tree: 1, // Index for output queue in remaining accounts
+            delegate: 0,    // No delegate
+            mint: 2,        // Same mint index
+        };
+
+    // Create multi-transfer instruction data
+    let multi_transfer_data = light_compressed_token::multi_transfer::instruction_data::CompressedTokenInstructionDataMultiTransfer {
+        with_transaction_hash: false,
+        with_lamports_change_account_merkle_tree_index: false,
+        lamports_change_account_merkle_tree_index: 0,
+        lamports_change_account_owner_index: 0,
+        proof: None,
+        in_token_data: vec![input_token_data],
+        out_token_data: vec![output_token_data],
+        in_lamports: Some(vec![input.input_lamports]), // Include input lamports
+        out_lamports: Some(vec![input.transfer_lamports]), // Include output lamports
+        in_tlv: None,
+        out_tlv: None,
+        compressions: None,
+        cpi_context: None,
+    };
+
+    // Create multi-transfer accounts in the correct order expected by processor
+    let multi_transfer_accounts = vec![
+        // Light system program account (index 0) - skipped in processor
+        AccountMeta::new_readonly(light_system_program::ID, false), // 0: light_system_program (skipped)
+        // System accounts for multi-transfer (exact order from processor)
+        AccountMeta::new(input.payer, true), // 1: fee_payer (signer, mutable)
+        AccountMeta::new_readonly(
+            light_compressed_token::process_transfer::get_cpi_authority_pda().0,
+            false,
+        ), // 2: authority (CPI authority PDA, signer via CPI)
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
+            false,
+        ), // 3: registered_program_pda
+        AccountMeta::new_readonly(
+            Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+            false,
+        ), // 4: noop_program
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
+            false,
+        ), // 5: account_compression_authority
+        AccountMeta::new_readonly(account_compression::ID, false), // 6: account_compression_program
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // 7: invoking_program (self_program)
+        // No sol_pool_pda since we don't have SOL decompression
+        // No sol_decompression_recipient since we don't have SOL decompression
+        AccountMeta::new_readonly(system_program::ID, false), // 8: system_program
+        // No cpi_context_account since we don't use CPI context
+        // Remaining accounts for token transfer - trees and queues FIRST for CPI
+        AccountMeta::new(input.merkle_tree, false), // 9: merkle tree (index 0 in remaining)
+        AccountMeta::new(input.output_queue, false), // 10: output queue (index 1 in remaining)
+        AccountMeta::new_readonly(input.mint, false), // 11: mint (index 2 in remaining)
+        AccountMeta::new_readonly(input.current_owner, true), // 12: current owner (index 3 in remaining) - must be signer
+        AccountMeta::new_readonly(input.new_recipient, false), // 13: new recipient (index 4 in remaining)
+    ];
+
+    Instruction {
+        program_id: light_compressed_token::ID,
+        accounts: multi_transfer_accounts,
+        data: [vec![104], multi_transfer_data.try_to_vec().unwrap()].concat(), // 104 is MultiTransfer discriminator
+    }
+}
+
 #[tokio::test]
+#[serial]
 async fn test_create_compressed_mint() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -6254,7 +6357,8 @@ async fn test_create_compressed_mint() {
     assert_eq!(actual_compressed_mint, expected_compressed_mint);
 
     // Test mint_to_compressed functionality
-    let recipient = Pubkey::new_unique();
+    let recipient_keypair = Keypair::new();
+    let recipient = recipient_keypair.pubkey();
     let mint_amount = 1000u64;
     let lamports = Some(10000u64);
 
@@ -6620,6 +6724,75 @@ async fn test_create_compressed_mint() {
     println!(
         "   - Compressed mint marked as decompressed: {}",
         final_compressed_mint.is_decompressed
+    );
+
+    // Add a simple multi-transfer test: 1 input -> 1 output
+    println!("🔄 Testing multi-transfer...");
+
+    let new_recipient = Pubkey::new_unique();
+    let transfer_amount = mint_amount; // Transfer all tokens (1000)
+
+    let input_lamports = token_accounts[0].account.lamports; // Get the lamports from the token account
+    let transfer_lamports = (input_lamports * transfer_amount) / mint_amount; // Proportional lamports transfer
+    let change_lamports = 0; // No change in lamports since we're transferring proportionally
+    println!("owner {:?}", recipient);
+    let multi_transfer_input = MultiTransferInput {
+        payer: payer.pubkey(),
+        current_owner: recipient,
+        new_recipient,
+        mint: mint_pda,
+        input_amount: mint_amount,
+        transfer_amount,
+        input_lamports,
+        transfer_lamports,
+        change_lamports,
+        leaf_index: token_accounts[0].account.leaf_index,
+        merkle_tree: state_tree_pubkey,
+        output_queue: state_output_queue,
+    };
+
+    let multi_transfer_instruction = create_multi_transfer_instruction(&multi_transfer_input);
+    println!(
+        "Multi-transfer instruction: {:?}",
+        multi_transfer_instruction.accounts
+    );
+    // Execute the multi-transfer instruction
+    rpc.create_and_send_transaction(
+        &[multi_transfer_instruction],
+        &payer.pubkey(),
+        &[&payer, &recipient_keypair], // Both payer and recipient need to sign
+    )
+    .await
+    .unwrap();
+
+    // Verify the transfer was successful
+    let new_token_accounts = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_token_accounts_by_owner(&new_recipient, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    assert_eq!(
+        new_token_accounts.len(),
+        1,
+        "New recipient should have exactly one token account"
+    );
+    assert_eq!(
+        new_token_accounts[0].token.amount, transfer_amount,
+        "New recipient should have the transferred amount"
+    );
+    assert_eq!(
+        new_token_accounts[0].token.mint, mint_pda,
+        "New recipient token should have correct mint"
+    );
+
+    println!("✅ Multi-transfer executed successfully!");
+    println!(
+        "   - Transferred {} tokens from {} to {}",
+        transfer_amount, recipient, new_recipient
     );
 }
 

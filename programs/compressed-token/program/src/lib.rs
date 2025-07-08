@@ -39,6 +39,7 @@ pub enum InstructionType {
     MintToCompressed = 101,
     CreateSplMint = 102,
     CreateAssociatedTokenAccount = 103,
+    MultiTransfer = 104,
     CreateTokenAccount = 18, // SPL Token InitializeAccount3
     Other,
 }
@@ -52,6 +53,7 @@ impl From<u8> for InstructionType {
             101 => InstructionType::MintToCompressed,
             102 => InstructionType::CreateSplMint,
             103 => InstructionType::CreateAssociatedTokenAccount,
+            104 => InstructionType::MultiTransfer,
             18 => InstructionType::CreateTokenAccount,
             _ => InstructionType::Other,
         }
@@ -60,6 +62,8 @@ impl From<u8> for InstructionType {
 
 #[cfg(not(feature = "cpi"))]
 use pinocchio::program_entrypoint;
+
+use crate::multi_transfer::processor::process_multi_transfer;
 
 #[cfg(not(feature = "cpi"))]
 program_entrypoint!(process_instruction);
@@ -110,6 +114,10 @@ pub fn process_instruction(
         InstructionType::CloseTokenAccount => {
             anchor_lang::solana_program::msg!("CloseTokenAccount");
             process_close_token_account(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::MultiTransfer => {
+            anchor_lang::solana_program::msg!("MultiTransfer");
+            process_multi_transfer(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => {

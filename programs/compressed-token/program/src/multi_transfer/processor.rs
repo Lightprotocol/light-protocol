@@ -33,8 +33,8 @@ use crate::{
 /// 5.  Serialize and add token_data data to in compressed_accounts.
 /// 6.  Invoke light_system_program::execute_compressed_transaction.
 #[inline(always)]
-pub fn process_multi_transfer<'info>(
-    accounts: &'info [AccountInfo],
+pub fn process_multi_transfer(
+    accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Parse instruction data first to determine optional accounts
@@ -45,15 +45,16 @@ pub fn process_multi_transfer<'info>(
     let with_sol_pool = inputs.compressions.is_some();
     let with_cpi_context = inputs.cpi_context.is_some();
 
-    // Validate and parse accounts
+    // Skip first account (light-system-program) and validate remaining accounts
     let (validated_accounts, packed_accounts) = MultiTransferValidatedAccounts::validate_and_parse(
-        accounts,
-        &crate::LIGHT_CPI_SIGNER.program_id,
+        &accounts[1..],
         with_sol_pool,
         with_cpi_context,
     )?;
+    use anchor_lang::solana_program::msg;
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
+    msg!("validate_instruction_data");
     bench_sbf_start!("t_context_and_check_sig");
 
     // Create TokenContext for hash caching
@@ -69,6 +70,7 @@ pub fn process_multi_transfer<'info>(
     // Set CPI signer information
     cpi_instruction_struct.bump = LIGHT_CPI_SIGNER.bump;
     cpi_instruction_struct.invoking_program_id = LIGHT_CPI_SIGNER.program_id.into();
+    msg!("pre assign_input_compressed_accounts");
 
     // Process input compressed accounts
     let total_input_lamports = assign_input_compressed_accounts(
@@ -77,6 +79,7 @@ pub fn process_multi_transfer<'info>(
         &inputs,
         &packed_accounts,
     )?;
+    msg!("pre sum_check_multi_mint");
     bench_sbf_end!("t_context_and_check_sig");
     bench_sbf_start!("t_sum_check");
     sum_check_multi_mint(
@@ -86,6 +89,7 @@ pub fn process_multi_transfer<'info>(
     )
     .map_err(|e| ProgramError::Custom(e as u32))?;
     bench_sbf_end!("t_sum_check");
+    msg!("pre assign_output_compressed_accounts");
 
     // Process output compressed accounts
     let total_output_lamports = assign_output_compressed_accounts(
@@ -96,6 +100,7 @@ pub fn process_multi_transfer<'info>(
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
     let with_sol_pool = total_input_lamports != total_output_lamports;
+    msg!("pre process_change_lamports");
     process_change_lamports(
         &inputs,
         &packed_accounts,
@@ -110,9 +115,26 @@ pub fn process_multi_transfer<'info>(
     // Extract tree accounts from merkle contexts for CPI call
     let tree_accounts = get_packed_cpi_accounts(&inputs, &packed_accounts);
 
+    // Calculate static accounts count after skipping index 0 (system accounts only)
+    let static_accounts_count =
+        8 + if with_sol_pool { 2 } else { 0 } + if with_cpi_context { 1 } else { 0 };
+
+    // Include static CPI accounts + all tree accounts (including duplicates) to match account_metas
+    let cpi_accounts_end = 1 + static_accounts_count + tree_accounts.len();
+    let cpi_accounts = &accounts[1..cpi_accounts_end];
+    let solana_tree_accounts = tree_accounts
+        .iter()
+        .map(|&x| solana_pubkey::Pubkey::new_from_array(*x))
+        .collect::<Vec<_>>();
+    msg!("solana_tree_accounts {:?}", solana_tree_accounts);
+    let _cpi_accounts = cpi_accounts
+        .iter()
+        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
+        .collect::<Vec<_>>();
+    msg!("cpi_accounts {:?}", _cpi_accounts);
     // Execute CPI call to light-system-program
     execute_cpi_invoke(
-        accounts,
+        cpi_accounts,
         cpi_bytes,
         tree_accounts.as_slice(),
         with_sol_pool,

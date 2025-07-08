@@ -43,12 +43,13 @@ pub fn allocate_cpi_bytes(
     let config = cpi_bytes_config(config_input);
     (allocate_invoke_with_read_only_cpi_bytes(&config), config)
 }
-
+// TODO: get the highest tree index from the input and output data and use it as closing offset
 /// Extract tree accounts from merkle contexts for CPI call
 pub fn get_packed_cpi_accounts<'a>(
     inputs: &ZCompressedTokenInstructionDataMultiTransfer<'a>,
     packed_accounts: &MultiTransferPackedAccounts<'a>,
 ) -> Vec<&'a Pubkey> {
+    let mut added_indices = Vec::new();
     //  don't pass any tree accounts if we write into the cpi context
     if inputs.cpi_context.is_some()
         && (inputs.cpi_context.unwrap().first_set_context
@@ -63,25 +64,41 @@ pub fn get_packed_cpi_accounts<'a>(
         let merkle_tree_index = input_data.merkle_context.merkle_tree_pubkey_index;
         let queue_index = input_data.merkle_context.queue_pubkey_index;
 
-        // Only add accounts that are actually trees/queues (typically higher indices)
-        if let Some(merkle_tree_account) = packed_accounts.accounts.get(merkle_tree_index as usize)
-        {
-            tree_accounts.push(merkle_tree_account.key());
+        if add_if_unique(&mut added_indices, merkle_tree_index) {
+            // Only add accounts that are actually trees/queues (typically higher indices)
+            if let Some(merkle_tree_account) =
+                packed_accounts.accounts.get(merkle_tree_index as usize)
+            {
+                tree_accounts.push(merkle_tree_account.key());
+            }
         }
-        if let Some(queue_account) = packed_accounts.accounts.get(queue_index as usize) {
-            tree_accounts.push(queue_account.key());
+        if add_if_unique(&mut added_indices, queue_index) {
+            if let Some(queue_account) = packed_accounts.accounts.get(queue_index as usize) {
+                tree_accounts.push(queue_account.key());
+            }
         }
     }
 
     // Add output merkle trees (skip non-tree accounts)
     for output_data in inputs.out_token_data.iter() {
-        if let Some(tree_account) = packed_accounts
-            .accounts
-            .get(output_data.merkle_tree as usize)
-        {
-            tree_accounts.push(tree_account.key());
+        if add_if_unique(&mut added_indices, output_data.merkle_tree) {
+            if let Some(tree_account) = packed_accounts
+                .accounts
+                .get(output_data.merkle_tree as usize)
+            {
+                tree_accounts.push(tree_account.key());
+            }
         }
     }
 
     tree_accounts
+}
+
+fn add_if_unique(indices: &mut Vec<u8>, index: u8) -> bool {
+    if !indices.contains(&index) {
+        indices.push(index);
+        true
+    } else {
+        false
+    }
 }

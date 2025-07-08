@@ -30,11 +30,27 @@ pub fn create_input_compressed_account<const IS_FROZEN: bool>(
     let hashed_delegate = if input_token_data.with_delegate() {
         // If delegate is used, delegate must be signer
         let delegate_account = &remaining_accounts[input_token_data.delegate as usize];
-        check_signer(delegate_account).map_err(ProgramError::from)?;
+
+        check_signer(delegate_account).map_err(|e| {
+            anchor_lang::solana_program::msg!(
+                "Delegate signer: {:?}",
+                solana_pubkey::Pubkey::new_from_array(*delegate_account.key())
+            );
+            anchor_lang::solana_program::msg!("Delegate signer check failed: {:?}", e);
+            ProgramError::from(e)
+        })?;
         Some(context.get_or_hash_pubkey(delegate_account.key()))
     } else {
         // If no delegate, owner must be signer
-        check_signer(owner_account).map_err(ProgramError::from)?;
+
+        check_signer(owner_account).map_err(|e| {
+            anchor_lang::solana_program::msg!(
+                "Checking owner signer: {:?}",
+                solana_pubkey::Pubkey::new_from_array(*owner_account.key())
+            );
+            anchor_lang::solana_program::msg!("Owner signer check failed: {:?}", e);
+            ProgramError::from(e)
+        })?;
         None
     };
 
