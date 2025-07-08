@@ -2,6 +2,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_non_mut, check_program, check_signer};
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::account_info::AccountInfo;
+use crate::shared::AccountIterator;
 
 /// Validated system accounts for multi-transfer instruction
 /// Accounts are ordered to match light-system-program CPI expectation
@@ -68,33 +69,26 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
         }
 
         // Parse system accounts from fixed positions
-        let fee_payer = &accounts[0];
-        let authority = &accounts[1];
-        let registered_program_pda = &accounts[2];
-        let noop_program = &accounts[3];
-        let account_compression_authority = &accounts[4];
-        let account_compression_program = &accounts[5];
-        let invoking_program = &accounts[6];
+        let mut iter = AccountIterator::new(accounts);
+        let fee_payer = iter.next()?;
+        let authority = iter.next()?;
+        let registered_program_pda = iter.next()?;
+        let noop_program = iter.next()?;
+        let account_compression_authority = iter.next()?;
+        let account_compression_program = iter.next()?;
+        let invoking_program = iter.next()?;
 
-        let mut index = 7;
         let sol_pool_pda = if with_sol_pool {
-            let account = Some(&accounts[index]);
-            index += 1;
-            account
+            Some(iter.next()?)
         } else {
             None
         };
 
-        let decompression_recipient = &accounts[index];
-        index += 1;
-
-        let system_program = &accounts[index];
-        index += 1;
+        let decompression_recipient = iter.next()?;
+        let system_program = iter.next()?;
 
         let cpi_context_account = if with_cpi_context {
-            let account = Some(&accounts[index]);
-            index += 1;
-            account
+            Some(iter.next()?)
         } else {
             None
         };
@@ -140,7 +134,7 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
         }
 
         // Extract remaining accounts slice for dynamic indexing
-        let remaining_accounts = &accounts[index..];
+        let remaining_accounts = iter.remaining();
 
         let validated_accounts = MultiTransferValidatedAccounts {
             fee_payer,

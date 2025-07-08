@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
 use pinocchio::account_info::AccountInfo;
+use crate::shared::AccountIterator;
 
 pub struct CreateSplMintAccounts<'info> {
     pub fee_payer: &'info AccountInfo,
@@ -23,6 +24,7 @@ pub struct CreateSplMintAccounts<'info> {
 }
 
 impl<'info> CreateSplMintAccounts<'info> {
+
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
     ) -> Result<Self, ProgramError> {
@@ -30,27 +32,29 @@ impl<'info> CreateSplMintAccounts<'info> {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
+        let mut iter = AccountIterator::new(accounts);
+
         // Static non-CPI accounts first
-        let authority = &accounts[0];
-        let mint = &accounts[1];
-        let mint_signer = &accounts[2];
-        let token_pool_pda = &accounts[3];
-        let token_program = &accounts[4];
-        let light_system_program = &accounts[5];
+        let authority = iter.next()?;
+        let mint = iter.next()?;
+        let mint_signer = iter.next()?;
+        let token_pool_pda = iter.next()?;
+        let token_program = iter.next()?;
+        let light_system_program = iter.next()?;
 
         // CPI accounts in exact order expected by light-system-program
-        let fee_payer = &accounts[6];
-        let cpi_authority_pda = &accounts[7];
-        let registered_program_pda = &accounts[8];
-        let noop_program = &accounts[9];
-        let account_compression_authority = &accounts[10];
-        let account_compression_program = &accounts[11];
-        let self_program = &accounts[12];
+        let fee_payer = iter.next()?;
+        let cpi_authority_pda = iter.next()?;
+        let registered_program_pda = iter.next()?;
+        let noop_program = iter.next()?;
+        let account_compression_authority = iter.next()?;
+        let account_compression_program = iter.next()?;
+        let self_program = iter.next()?;
 
-        let system_program = &accounts[13];
-        let in_merkle_tree = &accounts[14];
-        let in_output_queue = &accounts[15];
-        let out_output_queue = &accounts[16];
+        let system_program = iter.next()?;
+        let in_merkle_tree = iter.next()?;
+        let in_output_queue = iter.next()?;
+        let out_output_queue = iter.next()?;
 
         // Validate fee_payer: must be signer and mutable
         check_signer(fee_payer).map_err(ProgramError::from)?;
