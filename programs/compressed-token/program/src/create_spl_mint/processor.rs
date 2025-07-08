@@ -191,7 +191,7 @@ fn update_compressed_mint_to_decompressed<'info>(
 
     // Execute CPI to light system program to update the compressed mint
     execute_cpi_invoke(
-        all_accounts,
+        &all_accounts[5..], // Skip first 5 non-CPI accounts
         cpi_bytes,
         &tree_accounts,
         false, // no sol_pool_pda

@@ -151,7 +151,7 @@ pub fn process_mint_to_compressed<'info>(
     ];
 
     execute_cpi_invoke(
-        accounts,
+        &accounts[4..], // Skip first 4 non-CPI accounts
         cpi_bytes,
         tree_accounts.as_slice(),
         validated_accounts.sol_pool_pda.is_some(),

@@ -4,7 +4,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::account_info::AccountInfo;
-use spl_token::{instruction::TokenInstruction, solana_program::log::sol_log_compute_units};
+use spl_token::instruction::TokenInstruction;
 
 pub mod close_token_account;
 pub mod create_associated_token_account;

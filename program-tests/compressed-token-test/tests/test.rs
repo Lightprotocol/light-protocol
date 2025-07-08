@@ -6169,32 +6169,37 @@ async fn test_create_compressed_mint() {
         };
 
     let accounts = vec![
-        AccountMeta::new(payer.pubkey(), true), // fee_payer (signer, mutable)
+        // Static non-CPI accounts first
+        AccountMeta::new_readonly(mint_signer.pubkey(), true), // 0: mint_signer (signer)
+        AccountMeta::new_readonly(light_system_program::ID, false), // light system program
+        // CPI accounts in exact order expected by execute_cpi_invoke
+        AccountMeta::new(payer.pubkey(), true), // 1: fee_payer (signer, mutable)
         AccountMeta::new_readonly(
             light_compressed_token::process_transfer::get_cpi_authority_pda().0,
             false,
-        ), // cpi_authority_pda
-        AccountMeta::new_readonly(light_system_program::ID, false), // light_system_program
-        AccountMeta::new_readonly(account_compression::ID, false), // account_compression_program
+        ), // 2: cpi_authority_pda
         AccountMeta::new_readonly(
             light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
             false,
-        ), // registered_program_pda
+        ), // 3: registered_program_pda
         AccountMeta::new_readonly(
             Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
             false,
-        ), // noop_program
+        ), // 4: noop_program
         AccountMeta::new_readonly(
             light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
             false,
-        ), // account_compression_authority
-        AccountMeta::new_readonly(light_compressed_token::ID, false), // self_program
-        AccountMeta::new_readonly(system_program::ID, false), // system_program
-        AccountMeta::new(address_tree_pubkey, false), // address_merkle_tree (mutable)
-        AccountMeta::new(output_queue, false),  // output_queue (mutable)
-        AccountMeta::new_readonly(mint_signer.pubkey(), true), // mint_signer (signer)
+        ), // 5: account_compression_authority
+        AccountMeta::new_readonly(account_compression::ID, false), // 6: account_compression_program
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // 7: invoking_program (self_program)
+        // AccountMeta::new_readonly(light_system_program::ID, false),   // 8: sol_pool_pda placeholder
+        // AccountMeta::new_readonly(light_system_program::ID, false),   // 9: decompression_recipient
+        AccountMeta::new_readonly(system_program::ID, false), // 10: system_program
+        // AccountMeta::new_readonly(light_system_program::ID, false), // 11: cpi_context_account placeholder
+        AccountMeta::new(address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
+        AccountMeta::new(output_queue, false),        // 13: output_queue (mutable)
     ];
-
+    print!("Account Meta: {:?}", accounts);
     let instruction = Instruction {
         program_id: light_compressed_token::ID,
         accounts,
@@ -6298,36 +6303,38 @@ async fn test_create_compressed_mint() {
 
     // Create accounts in the correct order for manual parsing
     let mint_to_accounts = vec![
-        AccountMeta::new(payer.pubkey(), true), // 0: fee_payer (signer, mutable)
-        AccountMeta::new_readonly(mint_authority, true), // 1: authority (signer)
+        // Static non-CPI accounts first
+        AccountMeta::new_readonly(mint_authority, true), // 0: authority (signer)
+        AccountMeta::new(mint_pda, false),               // 1: mint (mutable)
+        AccountMeta::new(Pubkey::new_unique(), false),   // 2: token_pool_pda (mutable)
+        AccountMeta::new_readonly(spl_token::ID, false), // 3: token_program
+        // CPI accounts in exact order expected by light-system-program
+        AccountMeta::new(payer.pubkey(), true), // 4: fee_payer (signer, mutable)
         AccountMeta::new_readonly(
             light_compressed_token::process_transfer::get_cpi_authority_pda().0,
             false,
-        ), // 2: cpi_authority_pda
-        AccountMeta::new(mint_pda, false),      // 3: mint (mutable)
-        AccountMeta::new(Pubkey::new_unique(), false), // 4: token_pool_pda (mutable)
-        AccountMeta::new_readonly(spl_token::ID, false), // 5: token_program
-        AccountMeta::new_readonly(light_system_program::ID, false), // 6: light_system_program
+        ), // 5: cpi_authority_pda
         AccountMeta::new_readonly(
             light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
             false,
-        ), // 7: registered_program_pda
+        ), // 6: registered_program_pda
         AccountMeta::new_readonly(
             Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
             false,
-        ), // 8: noop_program
+        ), // 7: noop_program
         AccountMeta::new_readonly(
             light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
             false,
-        ), // 9: account_compression_authority
-        AccountMeta::new_readonly(account_compression::ID, false), // 10: account_compression_program
-        AccountMeta::new_readonly(light_compressed_token::ID, false), // 12: self_program
-        AccountMeta::new_readonly(system_program::ID, false),      // 13: system_program
-        AccountMeta::new(light_system_program::utils::get_sol_pool_pda(), false), // 14: sol_pool_pda (mutable)
-        AccountMeta::new(state_merkle_tree, false), // 15: mint_merkle_tree (mutable)
-        AccountMeta::new(output_queue, false),      // 16: mint_in_queue (mutable)
-        AccountMeta::new(output_queue, false),      // 17: mint_out_queue (mutable)
-        AccountMeta::new(output_queue, false),      // 18: tokens_out_queue (mutable)
+        ), // 8: account_compression_authority
+        AccountMeta::new_readonly(account_compression::ID, false), // 9: account_compression_program
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // 10: self_program
+        AccountMeta::new_readonly(light_system_program::ID, false), // 11: light_system_program
+        AccountMeta::new_readonly(system_program::ID, false), // 12: system_program
+        AccountMeta::new(light_system_program::utils::get_sol_pool_pda(), false), // 13: sol_pool_pda (mutable)
+        AccountMeta::new(state_merkle_tree, false), // 14: mint_merkle_tree (mutable)
+        AccountMeta::new(output_queue, false),      // 15: mint_in_queue (mutable)
+        AccountMeta::new(output_queue, false),      // 16: mint_out_queue (mutable)
+        AccountMeta::new(output_queue, false),      // 17: tokens_out_queue (mutable)
     ];
     println!("state_merkle_tree {:?}", state_merkle_tree);
     println!("output_queue {:?}", output_queue);
@@ -6455,32 +6462,34 @@ async fn test_create_compressed_mint() {
 
     // Build accounts manually for non-anchor instruction (following account order from accounts.rs)
     let create_spl_mint_accounts = vec![
-        AccountMeta::new(payer.pubkey(), true), // 0: fee_payer
-        AccountMeta::new_readonly(mint_authority, true), // 1: authority
-        AccountMeta::new(mint_pda, false),      // 2: mint
-        AccountMeta::new_readonly(mint_signer.pubkey(), false), // 3: mint_signer
-        AccountMeta::new(token_pool_pda, false), // 4: token_pool_pda
-        AccountMeta::new_readonly(spl_token_2022::ID, false), // 5: token_program
+        // Static non-CPI accounts first
+        AccountMeta::new_readonly(mint_authority, true), // 0: authority
+        AccountMeta::new(mint_pda, false),               // 1: mint
+        AccountMeta::new_readonly(mint_signer.pubkey(), false), // 2: mint_signer
+        AccountMeta::new(token_pool_pda, false),         // 3: token_pool_pda
+        AccountMeta::new_readonly(spl_token_2022::ID, false), // 4: token_program
+        // CPI accounts in exact order expected by light-system-program
+        AccountMeta::new(payer.pubkey(), true), // 5: fee_payer
         AccountMeta::new_readonly(
             light_compressed_token::process_transfer::get_cpi_authority_pda().0,
             false,
         ), // 6: cpi_authority_pda
-        AccountMeta::new_readonly(light_system_program::ID, false), // 7: light_system_program
         AccountMeta::new_readonly(
             light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
             false,
-        ), // 8: registered_program_pda
+        ), // 7: registered_program_pda
         AccountMeta::new_readonly(
             Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
             false,
-        ), // 9: noop_program
+        ), // 8: noop_program
         AccountMeta::new_readonly(
             light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
             false,
-        ), // 10: account_compression_authority
-        AccountMeta::new_readonly(account_compression::ID, false), // 11: account_compression_program
-        AccountMeta::new_readonly(system_program::ID, false),      // 12: system_program
-        AccountMeta::new_readonly(light_compressed_token::ID, false), // 13: self_program
+        ), // 9: account_compression_authority
+        AccountMeta::new_readonly(account_compression::ID, false), // 10: account_compression_program
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // 11: self_program
+        AccountMeta::new_readonly(light_system_program::ID, false), // 12: light_system_program
+        AccountMeta::new_readonly(system_program::ID, false),      // 13: system_program
         AccountMeta::new(state_merkle_tree, false),                // 14: in_merkle_tree
         AccountMeta::new(output_queue, false),                     // 15: in_output_queue
         AccountMeta::new(output_queue, false),                     // 16: out_output_queue

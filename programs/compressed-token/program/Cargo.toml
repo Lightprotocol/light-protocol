@@ -42,7 +42,7 @@ borsh = { workspace = true }
 light-sdk-types = { workspace = true }
 solana-pubkey = { workspace = true }
 arrayvec = { workspace = true }
-pinocchio = { workspace = true }
+pinocchio = { workspace = true, features = ["std"] }
 light-sdk-pinocchio = { workspace = true }
 
 [dev-dependencies]

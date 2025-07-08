@@ -36,20 +36,23 @@ impl<'info> CreateSplMintAccounts<'info> {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        let fee_payer = &accounts[0];
-        let authority = &accounts[1];
-        let mint = &accounts[2];
-        let mint_signer = &accounts[3];
-        let token_pool_pda = &accounts[4];
-        let token_program = &accounts[5];
+        // Static non-CPI accounts first
+        let authority = &accounts[0];
+        let mint = &accounts[1];
+        let mint_signer = &accounts[2];
+        let token_pool_pda = &accounts[3];
+        let token_program = &accounts[4];
+        
+        // CPI accounts in exact order expected by light-system-program
+        let fee_payer = &accounts[5];
         let cpi_authority_pda = &accounts[6];
-        let light_system_program = &accounts[7];
-        let registered_program_pda = &accounts[8];
-        let noop_program = &accounts[9];
-        let account_compression_authority = &accounts[10];
-        let account_compression_program = &accounts[11];
-        let system_program = &accounts[12];
-        let self_program = &accounts[13];
+        let registered_program_pda = &accounts[7];
+        let noop_program = &accounts[8];
+        let account_compression_authority = &accounts[9];
+        let account_compression_program = &accounts[10];
+        let self_program = &accounts[11];
+        let light_system_program = &accounts[12];
+        let system_program = &accounts[13];
         let in_merkle_tree = &accounts[14];
         let in_output_queue = &accounts[15];
         let out_output_queue = &accounts[16];

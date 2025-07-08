@@ -17,22 +17,28 @@ impl<'info> CreateCompressedMintAccounts<'info> {
         accounts: &'info [AccountInfo],
         program_id: &Pubkey,
     ) -> Result<Self, ProgramError> {
-        if accounts.len() < 12 {
+        if accounts.len() != 12 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        let fee_payer = &accounts[0];
-        let cpi_authority_pda = &accounts[1];
-        let light_system_program = &accounts[2];
-        let account_compression_program = &accounts[3];
+        // Static non-CPI accounts first
+        let mint_signer = &accounts[0];
+        let light_system_program = &accounts[1];
+
+        // CPI accounts in exact order expected by InvokeCpiWithReadOnly
+        let fee_payer = &accounts[2];
+        let cpi_authority_pda = &accounts[3];
         let registered_program_pda = &accounts[4];
         let noop_program = &accounts[5];
         let account_compression_authority = &accounts[6];
-        let self_program = &accounts[7];
-        let system_program = &accounts[8];
-        let address_merkle_tree = &accounts[9];
-        let output_queue = &accounts[10];
-        let mint_signer = &accounts[11];
+        let account_compression_program = &accounts[7];
+        let self_program = &accounts[8];
+        // let sol_pool_pda_placeholder = &accounts[9]; // light_system_program placeholder
+        // let _decompression_recipient_placeholder = &accounts[10]; // light_system_program placeholder
+        let system_program = &accounts[9];
+        // let _cpi_context_placeholder = &accounts[12]; // light_system_program placeholder
+        let address_merkle_tree = &accounts[10];
+        let output_queue = &accounts[11];
 
         // Validate fee_payer: must be signer and mutable
         check_signer(fee_payer).map_err(ProgramError::from)?;
@@ -40,10 +46,11 @@ impl<'info> CreateCompressedMintAccounts<'info> {
 
         // Validate cpi_authority_pda: must be the correct PDA
         let expected_seeds = &[CPI_AUTHORITY_PDA_SEED, &[BUMP_CPI_AUTHORITY]];
-        check_pda_seeds_with_bump(expected_seeds, &program_id, cpi_authority_pda)
+        check_pda_seeds_with_bump(expected_seeds, program_id, cpi_authority_pda)
             .map_err(ProgramError::from)?;
 
         // Validate light_system_program: must be the correct program
+        // The placeholders are always None -> no need for an extra light system program account info.
         let light_system_program_id = light_system_program::id();
         check_program(&light_system_program_id.to_bytes(), light_system_program)
             .map_err(ProgramError::from)?;
@@ -62,7 +69,7 @@ impl<'info> CreateCompressedMintAccounts<'info> {
         check_non_mut(account_compression_authority).map_err(ProgramError::from)?;
 
         // Validate self_program: must be this program
-        check_program(&program_id, self_program).map_err(ProgramError::from)?;
+        check_program(program_id, self_program).map_err(ProgramError::from)?;
 
         // Validate system_program: must be the system program
         let system_program_id = anchor_lang::solana_program::system_program::ID;

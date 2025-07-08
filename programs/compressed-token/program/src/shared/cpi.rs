@@ -1,3 +1,5 @@
+use std::mem::MaybeUninit;
+
 use account_compression::utils::constants::NOOP_PUBKEY;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_sdk_types::{
@@ -5,9 +7,9 @@ use light_sdk_types::{
     LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
 };
 use pinocchio::{
-    account_info::AccountInfo,
-    cpi::slice_invoke_signed,
-    instruction::{AccountMeta, Instruction, Seed, Signer},
+    account_info::{AccountInfo, BorrowState},
+    cpi::{invoke_signed_unchecked, MAX_CPI_ACCOUNTS},
+    instruction::{Account, AccountMeta, Instruction, Seed, Signer},
     msg,
     pubkey::Pubkey,
 };
@@ -53,16 +55,16 @@ pub fn execute_cpi_invoke(
         AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)
     };
     account_metas.extend_from_slice(&[
-        AccountMeta::new(accounts[0].key(), true, true), // fee_payer (signer, mutable)
-        AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true), // authority (cpi_authority_pda)
-        AccountMeta::new(&REGISTERED_PROGRAM_PDA, false, false),     // registered_program_pda
-        AccountMeta::new(&NOOP_PUBKEY, false, false),                // noop_program
-        AccountMeta::new(&ACCOUNT_COMPRESSION_AUTHORITY_PDA, false, false), // account_compression_authority
-        AccountMeta::new(&ACCOUNT_COMPRESSION_PROGRAM_ID, false, false), // account_compression_program
-        AccountMeta::new(&LIGHT_CPI_SIGNER.program_id, false, false), // invoking_program (self_program)
-        sol_pool_pda,                                                 // sol_pool_pda
-        AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false), // decompression_recipient (None, using default)
-        AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false), // system_program
+        AccountMeta::new(accounts[0].key(), true, true), // 0 fee_payer (signer, mutable)
+        AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true), // 1 authority (cpi_authority_pda)
+        AccountMeta::new(&REGISTERED_PROGRAM_PDA, false, false),     // 2 registered_program_pda
+        AccountMeta::new(&NOOP_PUBKEY, false, false),                // 3 noop_program
+        AccountMeta::new(&ACCOUNT_COMPRESSION_AUTHORITY_PDA, false, false), // 4 account_compression_authority
+        AccountMeta::new(&ACCOUNT_COMPRESSION_PROGRAM_ID, false, false), // 5 account_compression_program
+        AccountMeta::new(&LIGHT_CPI_SIGNER.program_id, false, false), // 6 invoking_program (self_program)
+        sol_pool_pda,                                                 // 7 sol_pool_pda
+        AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false), // 8 decompression_recipient (None, using default)
+        AccountMeta::new(&[0u8; 32], false, false),               // system_program
         AccountMeta::new(
             if let Some(cpi_context) = cpi_context_account.as_ref() {
                 cpi_context
@@ -76,7 +78,7 @@ pub fn execute_cpi_invoke(
 
     // Append dynamic tree accounts (merkle trees, queues, etc.) as mutable accounts
     for tree_account in tree_accounts {
-        account_metas.push(AccountMeta::new(*tree_account, true, false));
+        account_metas.push(AccountMeta::new(tree_account, true, false));
     }
 
     let instruction = Instruction {
@@ -100,6 +102,83 @@ pub fn execute_cpi_invoke(
             msg!(format!("slice_invoke_signed failed: {:?}", e).as_str());
             return Err(ProgramError::InvalidArgument);
         }
+    }
+
+    Ok(())
+}
+
+#[inline]
+pub fn slice_invoke_signed(
+    instruction: &Instruction,
+    account_infos: &[&AccountInfo],
+    signers_seeds: &[Signer],
+) -> pinocchio::ProgramResult {
+    use pinocchio::program_error::ProgramError;
+    if instruction.accounts.len() < account_infos.len() {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    if account_infos.len() > MAX_CPI_ACCOUNTS {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    const UNINIT: MaybeUninit<Account> = MaybeUninit::<Account>::uninit();
+    let mut accounts = [UNINIT; MAX_CPI_ACCOUNTS];
+    let mut len = 0;
+
+    for (account_info, account_meta) in account_infos.iter().zip(
+        instruction
+            .accounts
+            .iter()
+            .filter(|x| x.pubkey != instruction.program_id),
+    ) {
+        // if account_info.key() == instruction.program_id {
+        //     // skip anchor None account infos
+        //     continue;
+        // }
+        if account_info.key() != account_meta.pubkey {
+            use std::format;
+            msg!(format!(
+                "Received account key: {:?}",
+                solana_pubkey::Pubkey::new_from_array(*account_info.key())
+            )
+            .as_str());
+            msg!(format!(
+                "Expected account key: {:?}",
+                solana_pubkey::Pubkey::new_from_array(*account_meta.pubkey)
+            )
+            .as_str());
+
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let state = if account_meta.is_writable {
+            BorrowState::Borrowed
+        } else {
+            BorrowState::MutablyBorrowed
+        };
+
+        if account_info.is_borrowed(state) {
+            return Err(ProgramError::AccountBorrowFailed);
+        }
+
+        // SAFETY: The number of accounts has been validated to be less than
+        // `MAX_CPI_ACCOUNTS`.
+        unsafe {
+            accounts
+                .get_unchecked_mut(len)
+                .write(Account::from(*account_info));
+        }
+
+        len += 1;
+    }
+    // SAFETY: The accounts have been validated.
+    unsafe {
+        invoke_signed_unchecked(
+            instruction,
+            core::slice::from_raw_parts(accounts.as_ptr() as _, len),
+            signers_seeds,
+        );
     }
 
     Ok(())

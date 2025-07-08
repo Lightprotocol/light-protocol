@@ -125,10 +125,15 @@ pub fn process_create_compressed_mint<'info>(
     sol_log_compute_units();
     // 3. Execute CPI to light-system-program
     // Extract tree accounts for the generalized CPI call
-    let tree_accounts = [accounts[9].key(), accounts[10].key()]; // address_merkle_tree, output_queue
-
+    let tree_accounts = [accounts[10].key(), accounts[11].key()]; // address_merkle_tree, output_queue
+    let _accounts = accounts[1..]
+        .iter()
+        .map(|account| account.key())
+        .collect::<Vec<_>>();
+    msg!("tree_accounts {:?}", tree_accounts);
+    msg!("accounts {:?}", _accounts);
     execute_cpi_invoke(
-        accounts,
+        &accounts[2..], // Skip first non-CPI account (mint_signer)
         cpi_bytes,
         tree_accounts.as_slice(),
         false, // no sol_pool_pda for create_compressed_mint

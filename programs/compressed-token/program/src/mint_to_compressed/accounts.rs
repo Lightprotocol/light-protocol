@@ -38,34 +38,39 @@ impl<'info> MintToCompressedAccounts<'info> {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        let fee_payer = &accounts[0];
-        let authority = &accounts[1];
-        let cpi_authority_pda = &accounts[2];
-        let mint = if accounts.len() > 14 && accounts[3].data_is_empty() {
+        // Static non-CPI accounts first
+        let authority = &accounts[0];
+        let mint = if accounts.len() > 14 && accounts[1].data_is_empty() {
             None
         } else {
-            Some(&accounts[3])
+            Some(&accounts[1])
         };
-        let token_pool_pda = &accounts[4];
-        let token_program = &accounts[5];
-        let light_system_program = &accounts[6];
-        let registered_program_pda = &accounts[7];
-        let noop_program = &accounts[8];
-        let account_compression_authority = &accounts[9];
-        let account_compression_program = &accounts[10];
-        let self_program = &accounts[11];
+        let token_pool_pda = &accounts[2];
+        let token_program = &accounts[3];
+        
+        // CPI accounts in exact order expected by light-system-program
+        let fee_payer = &accounts[4];
+        let cpi_authority_pda = &accounts[5];
+        let registered_program_pda = &accounts[6];
+        let noop_program = &accounts[7];
+        let account_compression_authority = &accounts[8];
+        let account_compression_program = &accounts[9];
+        let self_program = &accounts[10];
+        let light_system_program = &accounts[11];
         let system_program = &accounts[12];
         let mut index = 13;
         let sol_pool_pda = if with_lamports {
-            index += 1;
             Some(&accounts[index])
         } else {
             None
         };
+        if with_lamports {
+            index += 1;
+        }
         let mint_in_merkle_tree = &accounts[index];
         let mint_in_queue = &accounts[index + 1];
-        let mint_out_queue = &accounts[index + 1];
-        let tokens_out_queue = &accounts[index + 1];
+        let mint_out_queue = &accounts[index + 2];
+        let tokens_out_queue = &accounts[index + 3];
 
         // Validate fee_payer: must be signer and mutable
         check_signer(fee_payer).map_err(ProgramError::from)?;
