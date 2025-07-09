@@ -23,12 +23,10 @@ pub fn process_create_extensions<'a>(
     for extension in extensions {
         match ExtensionType::try_from(extension.extension_type).unwrap() {
             ExtensionType::MetadataPointer => {
-                // TODO: add a second new address params for the other address.
-
                 // deserialize metadata pointer ix data
                 let has_address = create_metadata_pointer(extension.data, cpi_data, mint_data_len)?;
                 // only go ahed if has address, probably duplicate
-                if has_address {
+                if has_address.1 {
                     create_token_metadata_account(
                         extension.data,
                         cpi_data.output_compressed_accounts[0]
@@ -45,15 +43,13 @@ pub fn process_create_extensions<'a>(
     Ok(())
 }
 
-// We need to return the hash to add it to the overall output hash.
-// TODO: remove the hash value and possibly the len of the instruction data
 // TODO: do compatibility token 22 deserialization for all accounts.
 // TODO: fix
 fn create_metadata_pointer<'a>(
     instruction_data: &[u8],
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'a>,
     mint_data_len: usize,
-) -> Result<bool, ProgramError> {
+) -> Result<([u8; 32], bool), ProgramError> {
     use light_zero_copy::borsh::Deserialize;
     // 1. Deserialize the metadata pointer instruction data
     let (metadata_pointer_data, _) =
@@ -104,7 +100,7 @@ fn create_metadata_pointer<'a>(
     // The layout is also Option<[u8;32]>, Option<[u8;32], ..> but we cut off after 32 bytes.
     cpi_data.data[start_offset..end_offset].copy_from_slice(&instruction_data);
 
-    Ok(hash_address)
+    Ok(([0u8; 32], hash_address))
 }
 
 // Could be ok

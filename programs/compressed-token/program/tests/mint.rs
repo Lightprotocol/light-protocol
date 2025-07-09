@@ -86,7 +86,7 @@ fn test_rnd_create_compressed_mint_account() {
         let input_supply = rng.gen_range(0..=u64::MAX);
         let output_supply = rng.gen_range(0..=u64::MAX); // Random supply for output account
         let is_decompressed = rng.gen_bool(0.1); // 10% chance
-        let num_extensions = rng.gen_range(0..=255u8);
+        let version = rng.gen_range(0..=255u8);
         let merkle_tree_pubkey_index = rng.gen_range(0..=255u8);
         let queue_pubkey_index = rng.gen_range(0..=255u8);
         let leaf_index = rng.gen::<u32>();
@@ -104,7 +104,8 @@ fn test_rnd_create_compressed_mint_account() {
                     is_decompressed,
                     freeze_authority_is_set: freeze_authority.is_some(),
                     freeze_authority: freeze_authority.unwrap_or_default(),
-                    num_extensions,
+                    version,
+                    extension_hash: [0; 32],
                 },
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index,
@@ -160,7 +161,8 @@ fn test_rnd_create_compressed_mint_account() {
             is_decompressed: false,
             mint_authority,
             freeze_authority,
-            num_extensions: 0,
+            version: 0,
+            extension_hash: [0; 32],
         };
 
         let expected_data_hash = expected_compressed_mint.hash().unwrap();
@@ -187,7 +189,8 @@ fn test_rnd_create_compressed_mint_account() {
             is_decompressed,
             mint_authority, // Use the actual mint authority passed to the function
             freeze_authority,
-            num_extensions,
+            version: 0,
+            extension_hash: [0; 32],
         };
         let expected_input_data_hash = expected_input_compressed_mint.hash().unwrap();
 

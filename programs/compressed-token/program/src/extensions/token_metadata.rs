@@ -14,7 +14,7 @@ pub enum Version {
     Keccak256,
     Sha256Flat,
 }
-// Same as extesion type enum TODO: check token 2022 equivalent.
+// Compressed account discriminator for TokenMetadata (value 19 matches Token 2022 ExtensionType::TokenMetadata)
 pub const TOKEN_METADATA_DISCRIMINATOR: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 19];
 
 impl TryFrom<u8> for Version {

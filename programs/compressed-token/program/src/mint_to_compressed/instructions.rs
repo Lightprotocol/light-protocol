@@ -22,7 +22,8 @@ pub struct CompressedMintInput {
     pub is_decompressed: bool,
     pub freeze_authority_is_set: bool,
     pub freeze_authority: Pubkey,
-    pub num_extensions: u8,
+    pub version: u8,
+    pub extension_hash: [u8; 32],
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]

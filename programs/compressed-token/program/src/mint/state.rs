@@ -23,8 +23,8 @@ pub struct CompressedMint {
     pub mint_authority: Option<Pubkey>,
     /// Optional authority to freeze token accounts.
     pub freeze_authority: Option<Pubkey>,
-    // TODO: add extension hash to hash
-    pub num_extensions: u8,
+    /// Version for upgradability
+    pub version: u8,
     // use nested token metadata layout for data extension
     pub extension_hash: [u8; 32],
 }
@@ -61,7 +61,7 @@ impl CompressedMint {
             self.is_decompressed,
             &hashed_mint_authority_option,
             &hashed_freeze_authority_option,
-            self.num_extensions,
+            self.version,
         )
     }
 
@@ -158,7 +158,7 @@ impl ZCompressedMintMut<'_> {
             self.is_decompressed(),
             &hashed_mint_authority_option,
             &hashed_freeze_authority_option,
-            *self.num_extensions,
+            *self.version,
         )
     }
 }

@@ -88,7 +88,7 @@ pub fn create_input_compressed_mint_account(
             compressed_mint_input.is_decompressed(),
             &Some(hashed_mint_authority), // pre-hashed mint_authority from signer
             &hashed_freeze_authority.as_ref(),
-            compressed_mint_input.num_extensions,
+            compressed_mint_input.version,
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
