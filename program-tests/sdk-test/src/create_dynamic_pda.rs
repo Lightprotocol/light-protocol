@@ -36,11 +36,7 @@ pub fn create_dynamic_pda(
     }
 
     // Cpi accounts
-    let cpi_accounts_struct = CpiAccounts::new_with_config(
-        fee_payer,
-        &accounts[4..],
-        CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER),
-    );
+    let cpi_accounts_struct = CpiAccounts::new(fee_payer, &accounts[4..], crate::LIGHT_CPI_SIGNER);
 
     // the onchain PDA is the seed for the cPDA. this way devs don't have to
     // change their onchain PDA checks.
