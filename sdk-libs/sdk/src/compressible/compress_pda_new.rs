@@ -13,11 +13,9 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
-use solana_clock::Clock;
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
-use solana_sysvar::Sysvar;
 
 use crate::compressible::compress_pda::CompressionTiming;
 
@@ -63,7 +61,7 @@ where
     compress_multiple_pdas_new::<A>(
         &[pda_account],
         &[address],
-        vec![new_address_params],
+        &[new_address_params],
         &[output_state_tree_index],
         proof,
         cpi_accounts,
@@ -94,7 +92,7 @@ where
 pub fn compress_multiple_pdas_new<'info, A>(
     pda_accounts: &[&AccountInfo<'info>],
     addresses: &[[u8; 32]],
-    new_address_params: Vec<PackedNewAddressParams>,
+    new_address_params: &[PackedNewAddressParams],
     output_state_tree_indices: &[u8],
     proof: ValidityProof,
     cpi_accounts: CpiAccounts<'_, 'info>,
@@ -103,13 +101,7 @@ pub fn compress_multiple_pdas_new<'info, A>(
     expected_address_space: &Pubkey,
 ) -> Result<(), LightSdkError>
 where
-    A: DataHasher
-        + LightDiscriminator
-        + BorshSerialize
-        + BorshDeserialize
-        + Default
-        + CompressionTiming
-        + Clone,
+    A: DataHasher + LightDiscriminator + BorshSerialize + BorshDeserialize + Default + Clone,
 {
     if pda_accounts.len() != addresses.len()
         || pda_accounts.len() != new_address_params.len()
@@ -120,7 +112,7 @@ where
 
     // TODO: consider leaving the check to the caller.
     // CHECK: address space.
-    for params in &new_address_params {
+    for params in new_address_params {
         let address_tree_account = cpi_accounts
             .get_tree_account_info(params.address_merkle_tree_account_index as usize)?;
         if address_tree_account.pubkey() != *expected_address_space {
@@ -152,9 +144,6 @@ where
             LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
         compressed_account.account = pda_account_data;
 
-        // we force the last written slot to the current slot.
-        compressed_account.set_last_written_slot(Clock::get()?.slot);
-
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Accumulate lamports
@@ -165,7 +154,7 @@ where
 
     // Create CPI inputs with all compressed accounts and new addresses
     let cpi_inputs =
-        CpiInputs::new_with_address(proof, compressed_account_infos, new_address_params);
+        CpiInputs::new_with_address(proof, compressed_account_infos, new_address_params.to_vec());
 
     // Invoke light system program to create all compressed accounts
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
@@ -179,8 +168,6 @@ where
     for pda_account in pda_accounts {
         // Decrement source account lamports
         **pda_account.try_borrow_mut_lamports()? = 0;
-        // Assign ownership back to the system program
-        pda_account.assign(&Pubkey::default());
     }
 
     Ok(())

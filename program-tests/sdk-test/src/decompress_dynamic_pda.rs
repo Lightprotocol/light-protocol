@@ -1,4 +1,3 @@
-use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
@@ -102,23 +101,19 @@ pub fn decompress_multiple_dynamic_pdas(
         crate::LIGHT_CPI_SIGNER,
     );
 
-    // Can be passed in; the custom program does not have to check the seeds.
+    // Store data and bumps to maintain ownership
     let mut compressed_accounts = Vec::new();
     let mut pda_account_refs = Vec::new();
+    let mut stored_bumps = Vec::new();
     let mut all_signer_seeds = Vec::new();
 
-    for (i, compressed_account_data) in instruction_data.compressed_accounts.into_iter().enumerate()
-    {
+    // First pass: collect all the data we need
+    for (i, compressed_account_data) in instruction_data.compressed_accounts.iter().enumerate() {
         let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
             &crate::ID,
             &compressed_account_data.meta,
             compressed_account_data.data.clone(),
         )?;
-
-        // Create signer seeds with ArrayVec
-        let mut signer_seeds = ArrayVec::<&[u8], 3>::new();
-        signer_seeds.push(b"test_pda");
-        signer_seeds.push(&compressed_account_data.data.data);
 
         // Derive bump for verification
         let seeds: Vec<&[u8]> = vec![b"test_pda", &compressed_account_data.data.data];
@@ -130,15 +125,21 @@ pub fn decompress_multiple_dynamic_pdas(
             return Err(LightSdkError::ConstraintViolation);
         }
 
-        // Add bump to signer seeds
-        signer_seeds.push(&[bump]);
-
         compressed_accounts.push(compressed_account);
         pda_account_refs.push(&pda_accounts[i]);
+        stored_bumps.push(bump);
+    }
+
+    // Second pass: build signer seeds with stable references
+    for (i, compressed_account_data) in instruction_data.compressed_accounts.iter().enumerate() {
+        let mut signer_seeds = Vec::new();
+        signer_seeds.push(b"test_pda" as &[u8]);
+        signer_seeds.push(&compressed_account_data.data.data as &[u8]);
+        signer_seeds.push(&stored_bumps[i..i + 1] as &[u8]);
         all_signer_seeds.push(signer_seeds);
     }
 
-    // Convert ArrayVecs to the format needed by the SDK
+    // Convert to the format needed by the SDK
     let signer_seeds_refs: Vec<&[&[u8]]> = all_signer_seeds
         .iter()
         .map(|seeds| seeds.as_slice())
