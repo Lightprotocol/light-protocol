@@ -6,7 +6,6 @@ use light_sdk::{
     light_hasher::{DataHasher, Hasher},
 };
 use light_sdk::{derive_light_cpi_signer, LightDiscriminator, LightHasher};
-use light_sdk_types::CpiAccountsConfig;
 use light_sdk_types::CpiSigner;
 
 declare_id!("CompUser11111111111111111111111111111111111");
@@ -81,14 +80,15 @@ pub mod anchor_compressible_user {
         ctx: Context<'_, '_, '_, 'info, DecompressMultiplePdas<'info>>,
         proof: ValidityProof,
         compressed_accounts: Vec<CompressedAccountData>,
+        bumps: Vec<u8>,
         system_accounts_offset: u8,
     ) -> Result<()> {
         // Get PDA accounts from remaining accounts
         let pda_accounts_end = system_accounts_offset as usize;
         let pda_accounts = &ctx.remaining_accounts[..pda_accounts_end];
 
-        // Validate we have matching number of PDAs and compressed accounts
-        if pda_accounts.len() != compressed_accounts.len() {
+        // Validate we have matching number of PDAs, compressed accounts, and bumps
+        if pda_accounts.len() != compressed_accounts.len() || pda_accounts.len() != bumps.len() {
             return err!(ErrorCode::InvalidAccountCount);
         }
 
@@ -101,8 +101,13 @@ pub mod anchor_compressible_user {
         // Convert to unified enum accounts
         let mut light_accounts = Vec::new();
         let mut pda_account_refs = Vec::new();
+        let mut signer_seeds_storage = Vec::new();
 
-        for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
+        for (i, (compressed_data, bump)) in compressed_accounts
+            .into_iter()
+            .zip(bumps.iter())
+            .enumerate()
+        {
             // Convert to unified enum type
             let unified_account = match compressed_data.data {
                 CompressedAccountVariant::UserRecord(data) => {
@@ -116,23 +121,52 @@ pub mod anchor_compressible_user {
             let light_account = LightAccount::<'_, CompressedAccountVariant>::new_mut(
                 &crate::ID,
                 &compressed_data.meta,
-                unified_account,
+                unified_account.clone(),
             )
             .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
+            // Build signer seeds based on account type
+            let seeds = match &unified_account {
+                CompressedAccountVariant::UserRecord(data) => {
+                    vec![
+                        b"user_record".to_vec(),
+                        data.owner.to_bytes().to_vec(),
+                        vec![*bump],
+                    ]
+                }
+                CompressedAccountVariant::GameSession(data) => {
+                    vec![
+                        b"game_session".to_vec(),
+                        data.session_id.to_le_bytes().to_vec(),
+                        vec![*bump],
+                    ]
+                }
+            };
+
+            signer_seeds_storage.push(seeds);
             light_accounts.push(light_account);
             pda_account_refs.push(&pda_accounts[i]);
         }
+
+        // Convert to the format needed by the SDK
+        let signer_seeds_refs: Vec<Vec<&[u8]>> = signer_seeds_storage
+            .iter()
+            .map(|seeds| seeds.iter().map(|s| s.as_slice()).collect())
+            .collect();
+        let signer_seeds_slices: Vec<&[&[u8]]> = signer_seeds_refs
+            .iter()
+            .map(|seeds| seeds.as_slice())
+            .collect();
 
         // Single CPI call with unified enum type
         decompress_multiple_idempotent::<CompressedAccountVariant>(
             &pda_account_refs,
             light_accounts,
+            &signer_seeds_slices,
             proof,
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_payer,
-            &ctx.accounts.system_program.to_account_info(),
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 

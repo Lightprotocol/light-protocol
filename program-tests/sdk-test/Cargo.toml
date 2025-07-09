@@ -28,6 +28,7 @@ borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 solana-clock = { workspace = true }
 solana-sysvar = { workspace = true }
+arrayvec = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }

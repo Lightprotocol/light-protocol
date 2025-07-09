@@ -1,8 +1,9 @@
+use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
     compressible::{decompress_idempotent, CompressionTiming},
-    cpi::{CpiAccounts, CpiAccountsConfig},
+    cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightDiscriminator, LightHasher,
@@ -24,14 +25,12 @@ pub fn decompress_dynamic_pda(
     let fee_payer = &accounts[0];
     let pda_account = &accounts[1];
     let rent_payer = &accounts[2];
-    let system_program = &accounts[3];
 
     // Set up CPI accounts
-    let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    let cpi_accounts = CpiAccounts::new_with_config(
+    let cpi_accounts = CpiAccounts::new(
         fee_payer,
         &accounts[instruction_data.system_accounts_offset as usize..],
-        config,
+        crate::LIGHT_CPI_SIGNER,
     );
 
     let compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
@@ -56,16 +55,15 @@ pub fn decompress_dynamic_pda(
     }
 
     // Call decompress_idempotent with seeds - this should work whether PDA exists or not
+    let signer_seeds: &[&[u8]] = &[b"test_pda", &account_data, &[bump]];
     decompress_idempotent::<MyPdaAccount>(
         pda_account,
         compressed_account,
-        seeds,
-        bump,
+        signer_seeds,
         instruction_data.proof,
         cpi_accounts,
         &crate::ID,
         rent_payer,
-        system_program,
     )?;
 
     Ok(())
@@ -92,10 +90,9 @@ pub fn decompress_multiple_dynamic_pdas(
     // Get fixed accounts
     let fee_payer = &accounts[0];
     let rent_payer = &accounts[1];
-    let system_program = &accounts[2];
 
     // Get PDA accounts (after fixed accounts, before system accounts)
-    let pda_accounts_start = 3;
+    let pda_accounts_start = 2;
     let pda_accounts_end = instruction_data.system_accounts_offset as usize;
     let pda_accounts = &accounts[pda_accounts_start..pda_accounts_end];
 
@@ -105,11 +102,10 @@ pub fn decompress_multiple_dynamic_pdas(
         crate::LIGHT_CPI_SIGNER,
     );
 
-    // Build inputs for batch decompression
+    // Can be passed in; the custom program does not have to check the seeds.
     let mut compressed_accounts = Vec::new();
     let mut pda_account_refs = Vec::new();
-    let mut all_seeds = Vec::new();
-    let mut bumps = Vec::new();
+    let mut all_signer_seeds = Vec::new();
 
     for (i, compressed_account_data) in instruction_data.compressed_accounts.into_iter().enumerate()
     {
@@ -119,19 +115,13 @@ pub fn decompress_multiple_dynamic_pdas(
             compressed_account_data.data.clone(),
         )?;
 
-        // Store seeds in a vector to ensure they live long enough
-        all_seeds.push(vec![
-            b"test_pda".to_vec(),
-            compressed_account_data.data.data.to_vec(),
-        ]);
+        // Create signer seeds with ArrayVec
+        let mut signer_seeds = ArrayVec::<&[u8], 3>::new();
+        signer_seeds.push(b"test_pda");
+        signer_seeds.push(&compressed_account_data.data.data);
 
-        // Create references to the seeds
-        let seeds: Vec<&[u8]> = all_seeds
-            .last()
-            .unwrap()
-            .iter()
-            .map(|s| s.as_slice())
-            .collect();
+        // Derive bump for verification
+        let seeds: Vec<&[u8]> = vec![b"test_pda", &compressed_account_data.data.data];
         let (derived_pda, bump) =
             solana_program::pubkey::Pubkey::find_program_address(&seeds, &crate::ID);
 
@@ -140,29 +130,29 @@ pub fn decompress_multiple_dynamic_pdas(
             return Err(LightSdkError::ConstraintViolation);
         }
 
+        // Add bump to signer seeds
+        signer_seeds.push(&[bump]);
+
         compressed_accounts.push(compressed_account);
         pda_account_refs.push(&pda_accounts[i]);
-        bumps.push(bump);
+        all_signer_seeds.push(signer_seeds);
     }
 
-    // Create seeds references for the function call
-    let seeds_refs: Vec<Vec<&[u8]>> = all_seeds
+    // Convert ArrayVecs to the format needed by the SDK
+    let signer_seeds_refs: Vec<&[&[u8]]> = all_signer_seeds
         .iter()
-        .map(|seeds| seeds.iter().map(|s| s.as_slice()).collect())
+        .map(|seeds| seeds.as_slice())
         .collect();
-    let seeds_list: Vec<&[&[u8]]> = seeds_refs.iter().map(|seeds| seeds.as_slice()).collect();
 
     // Decompress all accounts in one CPI call
     decompress_multiple_idempotent::<MyPdaAccount>(
         &pda_account_refs,
         compressed_accounts,
-        &seeds_list,
-        &bumps,
+        &signer_seeds_refs,
         instruction_data.proof,
         cpi_accounts,
         &crate::ID,
         rent_payer,
-        system_program,
     )?;
 
     Ok(())

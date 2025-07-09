@@ -7,7 +7,6 @@ use crate::{
 };
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
-use arrayvec::ArrayVec;
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::address::derive_address;
@@ -33,13 +32,11 @@ pub const COMPRESSION_DELAY: u64 = 100;
 /// # Arguments
 /// * `pda_account` - The PDA account to decompress into
 /// * `compressed_account` - The compressed account to decompress
-/// * `seeds` - The seeds used to derive the PDA
-/// * `bump` - The bump seed for the PDA
+/// * `signer_seeds` - The signer seeds including bump (standard Solana format)
 /// * `proof` - Validity proof
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the PDA
 /// * `rent_payer` - The account to pay for PDA rent
-/// * `system_program` - The system program
 ///
 /// # Returns
 /// * `Ok(())` if the compressed account was decompressed successfully or PDA already exists
@@ -47,13 +44,11 @@ pub const COMPRESSION_DELAY: u64 = 100;
 pub fn decompress_idempotent<'info, A>(
     pda_account: &AccountInfo<'info>,
     compressed_account: LightAccount<'_, A>,
-    seeds: &[&[u8]],
-    bump: u8,
+    signer_seeds: &[&[u8]],
     proof: ValidityProof,
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
     rent_payer: &AccountInfo<'info>,
-    system_program: &AccountInfo<'info>,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -67,13 +62,11 @@ where
     decompress_multiple_idempotent(
         &[pda_account],
         vec![compressed_account],
-        &[seeds],
-        &[bump],
+        &[signer_seeds],
         proof,
         cpi_accounts,
         owner_program,
         rent_payer,
-        system_program,
     )
 }
 
@@ -85,13 +78,11 @@ where
 /// # Arguments
 /// * `pda_accounts` - The PDA accounts to decompress into
 /// * `compressed_accounts` - The compressed accounts to decompress
-/// * `seeds_list` - List of seeds for each PDA (one per account)
-/// * `bumps` - List of bump seeds for each PDA (one per account)
+/// * `signer_seeds` - Signer seeds for each PDA including bump (standard Solana format)
 /// * `proof` - Single validity proof for all accounts
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the PDAs
 /// * `rent_payer` - The account to pay for PDA rent
-/// * `system_program` - The system program
 ///
 /// # Returns
 /// * `Ok(())` if all compressed accounts were decompressed successfully or PDAs already exist
@@ -99,13 +90,11 @@ where
 pub fn decompress_multiple_idempotent<'info, A>(
     pda_accounts: &[&AccountInfo<'info>],
     compressed_accounts: Vec<LightAccount<'_, A>>,
-    seeds_list: &[&[&[u8]]],
-    bumps: &[u8],
+    signer_seeds: &[&[&[u8]]],
     proof: ValidityProof,
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
     rent_payer: &AccountInfo<'info>,
-    system_program: &AccountInfo<'info>,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -117,10 +106,7 @@ where
         + CompressionTiming,
 {
     // Validate input lengths
-    if pda_accounts.len() != compressed_accounts.len()
-        || pda_accounts.len() != seeds_list.len()
-        || pda_accounts.len() != bumps.len()
-    {
+    if pda_accounts.len() != compressed_accounts.len() || pda_accounts.len() != signer_seeds.len() {
         return Err(LightSdkError::ConstraintViolation);
     }
 
@@ -131,11 +117,10 @@ where
 
     let mut compressed_accounts_for_cpi = Vec::new();
 
-    for (((pda_account, mut compressed_account), seeds), &bump) in pda_accounts
+    for ((pda_account, mut compressed_account), seeds) in pda_accounts
         .iter()
         .zip(compressed_accounts.into_iter())
-        .zip(seeds_list.iter())
-        .zip(bumps.iter())
+        .zip(signer_seeds.iter())
     {
         // TODO: consider a COMPRESSED_DISCIMINATOR.
         // compress -> set compressed
@@ -184,22 +169,14 @@ where
             owner_program,
         );
 
-        // cpi for each pda
-        let bump_seed = [bump];
-        let mut signer_seeds = ArrayVec::<&[u8], 16>::new();
-        for seed in seeds.iter() {
-            signer_seeds.push(*seed);
-        }
-        signer_seeds.push(&bump_seed);
-
         invoke_signed(
             &create_account_ix,
             &[
                 rent_payer.clone(),
                 (*pda_account).clone(),
-                system_program.clone(),
+                cpi_accounts.system_program()?.clone(),
             ],
-            &[&signer_seeds],
+            &[seeds],
         )?;
 
         // Initialize PDA with decompressed data and update slot
