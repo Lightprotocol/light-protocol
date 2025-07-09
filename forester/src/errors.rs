@@ -9,8 +9,6 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use thiserror::Error;
 use tracing::{info, warn};
 
-use crate::processor::v2::BatchProcessError;
-
 #[derive(Error, Debug)]
 pub enum ForesterError {
     #[error("Element is not eligible for foresting")]
@@ -30,9 +28,6 @@ pub enum ForesterError {
 
     #[error("Failed to register epoch {epoch}: {error}")]
     RegistrationFailed { epoch: u64, error: String },
-
-    #[error("Batch processing error: {0}")]
-    BatchProcessing(#[from] BatchProcessError),
 
     #[error("RPC error: {0}")]
     Rpc(#[from] RpcError),

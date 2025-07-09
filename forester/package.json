@@ -5,13 +5,11 @@
   "scripts": {
     "build": "cargo build",
     "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --nocapture",
-    "test-state-batched-local": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_batched -- --nocapture",
-    "test-state-batched-indexer": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_batched -- --nocapture",
-    "test-state-batched-indexer-async": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_async_batched -- --nocapture",
-    "test-fetch-root": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_fetch_root -- --nocapture",
+    "e2e-test": "source .env && RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_e2e_v2 -- --nocapture",
     "test-address-batched-local": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_address_batched -- --nocapture",
-    "test-e2e-legacy-local": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_epoch_monitor_with_2_foresters -- --nocapture",
+    "e2e-v1": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_e2e_v1 -- --nocapture",
     "test-address-v2": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_create_v2_address -- --nocapture",
+    "test-state-batched-indexer-async": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_async_batched -- --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
   },
   "devDependencies": {

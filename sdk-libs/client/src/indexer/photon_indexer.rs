@@ -1139,15 +1139,12 @@ impl Indexer for PhotonIndexer {
                     ..Default::default()
                 };
 
-            debug!("API request: {:?}", request);
-
             let result =
                 photon_api::apis::default_api::get_multiple_compressed_account_proofs_post(
                     &self.configuration,
                     request,
                 )
                 .await?;
-            debug!("Raw API response: {:?}", result);
 
             if let Some(error) = &result.error {
                 let error_msg = error.message.as_deref().unwrap_or("Unknown error");
@@ -1401,6 +1398,7 @@ impl Indexer for PhotonIndexer {
                     request,
                 )
                 .await?;
+
                 let api_response = Self::extract_result_with_error_check(
                     "get_validity_proof_v2",
                     result.error,

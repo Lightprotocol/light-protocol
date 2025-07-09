@@ -14,6 +14,7 @@ pub async fn setup_accounts(keypairs: TestKeypairs, url: RpcUrl) -> Result<TestA
         commitment_config: Some(CommitmentConfig::confirmed()),
         url: url.to_string(),
         photon_url: None,
+        api_key: None,
         fetch_active_tree: false,
     })
     .await
