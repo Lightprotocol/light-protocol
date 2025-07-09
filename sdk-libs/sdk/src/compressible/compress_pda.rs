@@ -1,5 +1,6 @@
 use crate::{
     account::LightAccount,
+    compressible::{metadata::CompressionMetadata, CompressibleConfig},
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -17,11 +18,10 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-/// Trait for PDA accounts that can be compressed
-pub trait CompressionTiming {
-    fn last_written_slot(&self) -> u64;
-    fn compression_delay(&self) -> u64;
-    fn set_last_written_slot(&mut self, slot: u64);
+/// Trait for accounts that contain CompressionMetadata
+pub trait HasCompressionMetadata {
+    fn compression_metadata(&self) -> &CompressionMetadata;
+    fn compression_metadata_mut(&mut self) -> &mut CompressionMetadata;
 }
 
 /// Helper function to compress a PDA and reclaim rent.
@@ -41,6 +41,7 @@ pub trait CompressionTiming {
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
+/// * `config` - The compression config containing delay settings
 //
 // TODO:
 // - check if any explicit checks required for compressed account?
@@ -52,7 +53,7 @@ pub fn compress_pda<A>(
     cpi_accounts: CpiAccounts,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo,
-    expected_compression_delay: u64,
+    config: &CompressibleConfig,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -60,7 +61,7 @@ where
         + BorshSerialize
         + BorshDeserialize
         + Default
-        + CompressionTiming,
+        + HasCompressionMetadata,
 {
     // Check that the PDA account is owned by the caller program
     if pda_account.owner != owner_program {
@@ -79,12 +80,12 @@ where
     let pda_account_data = A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
     drop(pda_data);
 
-    let last_written_slot = pda_account_data.last_written_slot();
+    let last_written_slot = pda_account_data.compression_metadata().last_written_slot();
 
-    if current_slot < last_written_slot + expected_compression_delay {
+    if current_slot < last_written_slot + config.compression_delay as u64 {
         msg!(
             "Cannot compress yet. {} slots remaining",
-            (last_written_slot + expected_compression_delay).saturating_sub(current_slot)
+            (last_written_slot + config.compression_delay as u64).saturating_sub(current_slot)
         );
         return Err(LightSdkError::ConstraintViolation);
     }

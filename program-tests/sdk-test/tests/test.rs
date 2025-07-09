@@ -246,8 +246,7 @@ pub async fn decompress_pda(
         compressed_account: MyCompressedAccount {
             meta,
             data: MyPdaAccount {
-                last_written_slot: compressed_account.compressed_account.lamports, // Use lamports field to store slot
-                compression_delay: COMPRESSION_DELAY,
+                compression_metadata: light_sdk::compressible::CompressionMetadata::default(),
                 data: compressed_account
                     .compressed_account
                     .data

@@ -1,5 +1,6 @@
 use crate::{
     account::LightAccount,
+    compressible::compress_pda::HasCompressionMetadata,
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::ValidityProof,
@@ -19,8 +20,6 @@ use solana_pubkey::Pubkey;
 use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::Sysvar;
-
-use crate::compressible::compress_pda::CompressionTiming;
 
 pub const COMPRESSION_DELAY: u64 = 100;
 
@@ -57,7 +56,7 @@ where
         + BorshDeserialize
         + Default
         + Clone
-        + CompressionTiming,
+        + HasCompressionMetadata,
 {
     decompress_multiple_idempotent(
         &[pda_account],
@@ -103,7 +102,7 @@ where
         + BorshDeserialize
         + Default
         + Clone
-        + CompressionTiming,
+        + HasCompressionMetadata,
 {
     // Validate input lengths
     if pda_accounts.len() != compressed_accounts.len() || pda_accounts.len() != signer_seeds.len() {
@@ -181,7 +180,9 @@ where
 
         // Initialize PDA with decompressed data and update slot
         let mut decompressed_pda = compressed_account.account.clone();
-        decompressed_pda.set_last_written_slot(current_slot);
+        decompressed_pda
+            .compression_metadata_mut()
+            .set_last_written_slot_value(current_slot);
 
         // Write discriminator
         // TODO: we don't mind the onchain account being different?
