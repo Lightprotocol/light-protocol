@@ -68,9 +68,10 @@ pub fn process_instruction(
         InstructionType::CompressFromPdaNew => {
             create_dynamic_pda::create_dynamic_pda(accounts, &instruction_data[1..])
         }
-        InstructionType::CreateConfig => {
-            create_config::process_create_config(accounts, &instruction_data[1..])
-        }
+        InstructionType::CreateConfig => create_config::process_create_compression_config_checked(
+            accounts,
+            &instruction_data[1..],
+        ),
         InstructionType::UpdateConfig => {
             update_config::process_update_config(accounts, &instruction_data[1..])
         }

@@ -13,6 +13,13 @@ use solana_sysvar::Sysvar;
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
 
+/// BPF Loader Upgradeable Program ID
+/// BPFLoaderUpgradeab1e11111111111111111111111
+const BPF_LOADER_UPGRADEABLE_ID: Pubkey = Pubkey::new_from_array([
+    2, 168, 246, 145, 78, 136, 161, 110, 57, 90, 225, 40, 148, 143, 250, 105, 86, 147, 55, 104, 24,
+    221, 71, 67, 82, 33, 243, 198, 0, 0, 0, 0,
+]);
+
 /// Global configuration for compressible accounts
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize, LightDiscriminator)]
 pub struct CompressibleConfig {
@@ -78,21 +85,32 @@ impl CompressibleConfig {
 
 /// Creates a new compressible config PDA
 ///
+/// # Security - Solana Best Practice
+/// This function follows the standard Solana pattern where only the program's
+/// upgrade authority can create the initial config. This prevents unauthorized
+/// parties from hijacking the config system.
+///
 /// # Arguments
 /// * `config_account` - The config PDA account to initialize
-/// * `update_authority` - Authority that can update the config
+/// * `update_authority` - Authority that can update the config after creation
 /// * `rent_recipient` - Account that receives rent from compressed PDAs
 /// * `address_space` - Address space for compressed accounts
 /// * `compression_delay` - Number of slots to wait before compression
 /// * `payer` - Account paying for the PDA creation
+/// * `system_program` - System program
 /// * `program_id` - The program that owns the config
+///
+/// # Required Validation (must be done by caller)
+/// The caller MUST validate that the signer is the program's upgrade authority
+/// by checking against the program data account. This cannot be done in the SDK
+/// due to dependency constraints.
 ///
 /// # Returns
 /// * `Ok(())` if config was created successfully
 /// * `Err(LightSdkError)` if there was an error
-pub fn create_config<'info>(
+pub fn create_compression_config_unchecked<'info>(
     config_account: &AccountInfo<'info>,
-    update_authority: &Pubkey,
+    update_authority: &AccountInfo<'info>,
     rent_recipient: &Pubkey,
     address_space: &Pubkey,
     compression_delay: u32,
@@ -103,6 +121,12 @@ pub fn create_config<'info>(
     // Check if already initialized
     if config_account.data_len() > 0 {
         msg!("Config account already initialized");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Verify update authority is signer
+    if !update_authority.is_signer {
+        msg!("Update authority must be signer for initial config creation");
         return Err(LightSdkError::ConstraintViolation);
     }
 
@@ -142,7 +166,7 @@ pub fn create_config<'info>(
         version: 1,
         discriminator: CompressibleConfig::LIGHT_DISCRIMINATOR,
         compression_delay,
-        update_authority: *update_authority,
+        update_authority: *update_authority.key,
         rent_recipient: *rent_recipient,
         address_space: *address_space,
         bump,
@@ -212,4 +236,118 @@ pub fn update_config<'info>(
         .map_err(|_| LightSdkError::Borsh)?;
 
     Ok(())
+}
+
+/// Verifies that the signer is the program's upgrade authority
+///
+/// # Arguments
+/// * `program_id` - The program to check
+/// * `program_data_account` - The program's data account (ProgramData)
+/// * `authority` - The authority to verify
+///
+/// # Returns
+/// * `Ok(())` if authority is valid
+/// * `Err(LightSdkError)` if authority is invalid or verification fails
+pub fn verify_program_upgrade_authority(
+    program_id: &Pubkey,
+    program_data_account: &AccountInfo,
+    authority: &AccountInfo,
+) -> Result<(), LightSdkError> {
+    // Verify program data account PDA
+    let (expected_program_data, _) =
+        Pubkey::find_program_address(&[program_id.as_ref()], &BPF_LOADER_UPGRADEABLE_ID);
+    if program_data_account.key != &expected_program_data {
+        msg!("Invalid program data account");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Verify that the signer is the program's upgrade authority
+    let data = program_data_account.try_borrow_data()?;
+
+    // The UpgradeableLoaderState::ProgramData format:
+    // 4 bytes discriminator + 8 bytes slot + 1 byte option + 32 bytes authority
+    if data.len() < 45 {
+        msg!("Program data account too small");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Check discriminator (should be 3 for ProgramData)
+    let discriminator = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+    if discriminator != 3 {
+        msg!("Invalid program data discriminator");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Skip slot (8 bytes) and check if authority exists (1 byte flag)
+    let has_authority = data[12] == 1;
+    if !has_authority {
+        msg!("Program has no upgrade authority");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Read the upgrade authority pubkey (32 bytes)
+    let mut authority_bytes = [0u8; 32];
+    authority_bytes.copy_from_slice(&data[13..45]);
+    let upgrade_authority = Pubkey::new_from_array(authority_bytes);
+
+    // Verify the signer matches the upgrade authority
+    if !authority.is_signer {
+        msg!("Authority must be signer");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    if *authority.key != upgrade_authority {
+        msg!("Signer is not the program's upgrade authority");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    Ok(())
+}
+
+/// Creates a new compressible config PDA with program upgrade authority validation
+///
+/// # Security
+/// This function verifies that the signer is the program's upgrade authority
+/// before creating the config. This ensures only the program deployer can
+/// initialize the configuration.
+///
+/// # Arguments
+/// * `config_account` - The config PDA account to initialize
+/// * `update_authority` - Must be the program's upgrade authority
+/// * `program_data_account` - The program's data account for validation
+/// * `rent_recipient` - Account that receives rent from compressed PDAs
+/// * `address_space` - Address space for compressed accounts
+/// * `compression_delay` - Number of slots to wait before compression
+/// * `payer` - Account paying for the PDA creation
+/// * `system_program` - System program
+/// * `program_id` - The program that owns the config
+///
+/// # Returns
+/// * `Ok(())` if config was created successfully
+/// * `Err(LightSdkError)` if there was an error or authority validation fails
+pub fn create_compression_config_checked<'info>(
+    config_account: &AccountInfo<'info>,
+    update_authority: &AccountInfo<'info>,
+    program_data_account: &AccountInfo<'info>,
+    rent_recipient: &Pubkey,
+    address_space: &Pubkey,
+    compression_delay: u32,
+    payer: &AccountInfo<'info>,
+    system_program: &AccountInfo<'info>,
+    program_id: &Pubkey,
+) -> Result<(), LightSdkError> {
+    // Verify the signer is the program's upgrade authority
+    verify_program_upgrade_authority(program_id, program_data_account, update_authority)?;
+
+    // Create the config with validated authority
+    create_compression_config_unchecked(
+        config_account,
+        update_authority,
+        rent_recipient,
+        address_space,
+        compression_delay,
+        payer,
+        system_program,
+        program_id,
+    )
 }
