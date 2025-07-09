@@ -28,16 +28,10 @@ pub async fn airdrop_lamports<R: Rpc>(
     Ok(())
 }
 
-pub async fn wait_for_indexer<R: Rpc, I: Indexer>(
-    rpc: &R,
-    indexer: &I,
-) -> Result<(), ForesterUtilsError> {
-    let rpc_slot = rpc
-        .get_slot()
-        .await
-        .map_err(|_| ForesterUtilsError::Rpc("Failed to get rpc slot".into()))?;
+pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError> {
+    let rpc_slot = rpc.get_slot().await?;
 
-    let indexer_slot = indexer.get_indexer_slot(None).await;
+    let indexer_slot = rpc.indexer()?.get_indexer_slot(None).await;
 
     let mut indexer_slot = match indexer_slot {
         Ok(slot) => slot,
@@ -66,7 +60,7 @@ pub async fn wait_for_indexer<R: Rpc, I: Indexer>(
 
         tokio::task::yield_now().await;
         sleep(std::time::Duration::from_millis(500)).await;
-        indexer_slot = indexer.get_indexer_slot(None).await.map_err(|e| {
+        indexer_slot = rpc.indexer()?.get_indexer_slot(None).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get indexer slot".into())
         })?;

@@ -278,7 +278,7 @@ bind 127.0.0.1
 save 900 1
 save 300 10
 save 60 10000
-stop-writes-on-bgsave-error yes
+stop-writes-on-bgsave-error no
 rdbcompression yes
 rdbchecksum yes
 dbfilename dump.rdb

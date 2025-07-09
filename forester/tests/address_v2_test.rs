@@ -33,13 +33,12 @@ use rand::{prelude::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::{signature::Keypair, signer::Signer};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot};
 
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
 
-const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 const DEFAULT_TIMEOUT_SECONDS: u64 = 120;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
@@ -176,13 +175,10 @@ async fn setup_forester_pipeline(
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
-    let forester_photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None);
-
-    let service_handle = tokio::spawn(run_pipeline::<LightClient, PhotonIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient>(
         Arc::from(config.clone()),
         None,
         None,
-        Arc::new(Mutex::new(forester_photon_indexer)),
         shutdown_receiver,
         work_report_sender,
     ));

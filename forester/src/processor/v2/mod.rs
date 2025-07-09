@@ -17,8 +17,8 @@ use crate::Result;
     ),
     skip(context)
 )]
-pub async fn process_batched_operations<R: Rpc, I: Indexer + 'static>(
-    context: BatchContext<R, I>,
+pub async fn process_batched_operations<R: Rpc>(
+    context: BatchContext<R>,
     tree_type: TreeType,
 ) -> Result<usize> {
     trace!("process_batched_operations");
@@ -27,5 +27,4 @@ pub async fn process_batched_operations<R: Rpc, I: Indexer + 'static>(
 }
 
 pub use common::BatchContext;
-use light_client::indexer::Indexer;
 use light_compressed_account::TreeType;

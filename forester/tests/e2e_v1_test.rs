@@ -215,21 +215,17 @@ async fn test_e2e_v1() {
     let (work_report_sender1, mut work_report_receiver1) = mpsc::channel(100);
     let (work_report_sender2, mut work_report_receiver2) = mpsc::channel(100);
 
-    let indexer = Arc::new(Mutex::new(env.indexer));
-
-    let service_handle1 = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
+    let service_handle1 = tokio::spawn(run_pipeline::<LightClient>(
         config1.clone(),
         None,
         None,
-        indexer.clone(),
         shutdown_receiver1,
         work_report_sender1,
     ));
-    let service_handle2 = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
+    let service_handle2 = tokio::spawn(run_pipeline::<LightClient>(
         config2.clone(),
         None,
         None,
-        indexer,
         shutdown_receiver2,
         work_report_sender2,
     ));
@@ -457,18 +453,17 @@ async fn test_epoch_double_registration() {
     let mut indexer: TestIndexer =
         TestIndexer::init_from_acounts(&config.payer_keypair, &test_accounts, 0).await;
     indexer.state_merkle_trees.remove(1);
-    let indexer = Arc::new(Mutex::new(indexer));
+    let _indexer = Arc::new(Mutex::new(indexer));
 
     for _ in 0..10 {
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
         let (work_report_sender, _work_report_receiver) = mpsc::channel(100);
 
         // Run the forester pipeline
-        let service_handle = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
+        let service_handle = tokio::spawn(run_pipeline::<LightClient>(
             config.clone(),
             None,
             None,
-            indexer.clone(),
             shutdown_receiver,
             work_report_sender.clone(),
         ));

@@ -17,10 +17,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::{
-        photon_indexer::PhotonIndexer, AddressWithTree,
-        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
-    },
+    indexer::{AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
     local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{merkle_tree::MerkleTreeExt, LightClient, LightClientConfig, Rpc},
 };
@@ -55,11 +52,13 @@ use solana_sdk::{
     signer::Signer,
 };
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot},
     time::{sleep, timeout},
 };
 
-use crate::test_utils::{get_registration_phase_start_slot, init, wait_for_slot};
+use crate::test_utils::{
+    get_active_phase_start_slot, get_registration_phase_start_slot, init, wait_for_slot,
+};
 
 mod test_utils;
 
@@ -366,10 +365,8 @@ async fn test_e2e_v2() {
     println!("seed {}", rng_seed);
     let rng = &mut StdRng::seed_from_u64(rng_seed);
 
-    let mut photon_indexer = create_photon_indexer();
     let protocol_config = get_protocol_config(&mut rpc).await;
 
-    // spawn foresters on registration phase start slot
     let registration_phase_slot =
         get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, registration_phase_slot).await;
@@ -377,13 +374,11 @@ async fn test_e2e_v2() {
     let (service_handle, shutdown_sender, mut work_report_receiver) =
         setup_forester_pipeline(&config).await;
 
-    // execute transactions after forester is ready
-    let active_phase_slot = get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
+    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, active_phase_slot).await;
 
     execute_test_transactions(
         &mut rpc,
-        &mut photon_indexer,
         rng,
         &env,
         &payer,
@@ -470,10 +465,6 @@ async fn ensure_sufficient_balance(rpc: &mut LightClient, pubkey: &Pubkey, targe
     if rpc.get_balance(pubkey).await.unwrap() < target_balance {
         rpc.airdrop_lamports(pubkey, target_balance).await.unwrap();
     }
-}
-
-fn create_photon_indexer() -> PhotonIndexer {
-    PhotonIndexer::new(get_indexer_url(), get_api_key())
 }
 
 async fn get_initial_merkle_tree_state(
@@ -660,12 +651,10 @@ async fn setup_forester_pipeline(
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
-    let forester_photon_indexer = create_photon_indexer();
-    let service_handle = tokio::spawn(run_pipeline::<LightClient, PhotonIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient>(
         Arc::from(config.clone()),
         None,
         None,
-        Arc::new(Mutex::new(forester_photon_indexer)),
         shutdown_receiver,
         work_report_sender,
     ));
@@ -727,9 +716,8 @@ async fn wait_for_work_report(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>(
+async fn execute_test_transactions<R: Rpc>(
     rpc: &mut R,
-    indexer: &mut I,
     rng: &mut StdRng,
     env: &TestAccounts,
     payer: &Keypair,
@@ -762,9 +750,8 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
             .await;
             println!("{} v2 compress: {:?}", i, batch_compress_sig);
 
-            let batch_transfer_sig = transfer::<true, R, I>(
+            let batch_transfer_sig = transfer::<true, R>(
                 rpc,
-                indexer,
                 &env.v2_state_trees[0].output_queue,
                 payer,
                 sender_batched_accs_counter,
@@ -776,7 +763,6 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
             if let Some(mint_pubkey) = v2_mint_pubkey {
                 let batch_transfer_token_sig = compressed_token_transfer(
                     rpc,
-                    indexer,
                     &env.v2_state_trees[0].output_queue,
                     payer,
                     mint_pubkey,
@@ -798,9 +784,8 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
             .await;
             println!("{} v1 compress: {:?}", i, compress_sig);
 
-            let legacy_transfer_sig = transfer::<false, R, I>(
+            let legacy_transfer_sig = transfer::<false, R>(
                 rpc,
-                indexer,
                 &env.v1_state_trees[0].merkle_tree,
                 payer,
                 sender_legacy_accs_counter,
@@ -812,7 +797,6 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
             if let Some(mint_pubkey) = v1_mint_pubkey {
                 let legacy_transfer_token_sig = compressed_token_transfer(
                     rpc,
-                    indexer,
                     &env.v1_state_trees[0].merkle_tree,
                     payer,
                     mint_pubkey,
@@ -827,7 +811,6 @@ async fn execute_test_transactions<R: Rpc + Indexer + MerkleTreeExt, I: Indexer>
         if is_v1_address_test_enabled() {
             let sig_v1_addr = create_v1_address(
                 rpc,
-                indexer,
                 rng,
                 &env.v1_address_trees[0].merkle_tree,
                 &env.v1_address_trees[0].queue,
@@ -887,16 +870,17 @@ async fn mint_to<R: Rpc>(
         .unwrap()
 }
 
-async fn compressed_token_transfer<R: Rpc, I: Indexer>(
+async fn compressed_token_transfer<R: Rpc>(
     rpc: &mut R,
-    indexer: &I,
     merkle_tree_pubkey: &Pubkey,
     payer: &Keypair,
     mint: &Pubkey,
     counter: &mut u64,
 ) -> Signature {
-    wait_for_indexer(rpc, indexer).await.unwrap();
-    let mut input_compressed_accounts: Vec<TokenDataWithMerkleContext> = indexer
+    wait_for_indexer(rpc).await.unwrap();
+    let mut input_compressed_accounts: Vec<TokenDataWithMerkleContext> = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_token_accounts_by_owner(
             &payer.pubkey(),
             Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions {
@@ -923,7 +907,9 @@ async fn compressed_token_transfer<R: Rpc, I: Indexer>(
         .hash()
         .unwrap()];
 
-    let proof_for_compressed_accounts = indexer
+    let proof_for_compressed_accounts = rpc
+        .indexer()
+        .unwrap()
         .get_validity_proof(compressed_account_hashes, vec![], None)
         .await
         .unwrap();
@@ -998,17 +984,18 @@ async fn compressed_token_transfer<R: Rpc, I: Indexer>(
     sig
 }
 
-async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
+async fn transfer<const V2: bool, R: Rpc>(
     rpc: &mut R,
-    indexer: &I,
     merkle_tree_pubkey: &Pubkey,
     payer: &Keypair,
     counter: &mut u64,
     test_accounts: &TestAccounts,
 ) -> Signature {
     println!("transfer V2: {} merkle_tree: {}", V2, merkle_tree_pubkey);
-    wait_for_indexer(rpc, indexer).await.unwrap();
-    let mut input_compressed_accounts = indexer
+    wait_for_indexer(rpc).await.unwrap();
+    let mut input_compressed_accounts = rpc
+        .indexer()
+        .unwrap()
         .get_compressed_accounts_by_owner(&payer.pubkey(), None, None)
         .await
         .map(|response| response.value.items)
@@ -1047,8 +1034,10 @@ async fn transfer<const V2: bool, R: Rpc + Indexer, I: Indexer>(
     let lamports = input_compressed_accounts[0].lamports;
     let compressed_account_hashes = vec![input_compressed_accounts[0].hash];
 
-    wait_for_indexer(rpc, indexer).await.unwrap();
-    let proof_for_compressed_accounts = indexer
+    wait_for_indexer(rpc).await.unwrap();
+    let proof_for_compressed_accounts = rpc
+        .indexer()
+        .unwrap()
         .get_validity_proof(compressed_account_hashes, vec![], None)
         .await
         .unwrap();
@@ -1196,9 +1185,8 @@ async fn compress<R: Rpc>(
     }
 }
 
-async fn create_v1_address<R: Rpc, I: Indexer>(
+async fn create_v1_address<R: Rpc>(
     rpc: &mut R,
-    indexer: &mut I,
     rng: &mut StdRng,
     merkle_tree_pubkey: &Pubkey,
     queue: &Pubkey,
@@ -1216,8 +1204,10 @@ async fn create_v1_address<R: Rpc, I: Indexer>(
         tree: *merkle_tree_pubkey,
     }];
 
-    wait_for_indexer(rpc, indexer).await.unwrap();
-    let proof_for_addresses = indexer
+    wait_for_indexer(rpc).await.unwrap();
+    let proof_for_addresses = rpc
+        .indexer()
+        .unwrap()
         .get_validity_proof(vec![], address_proof_inputs, None)
         .await
         .unwrap();
@@ -1288,7 +1278,7 @@ async fn create_v1_address<R: Rpc, I: Indexer>(
     sig
 }
 
-async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
+async fn create_v2_addresses<R: Rpc>(
     rpc: &mut R,
     batch_address_merkle_tree: &Pubkey,
     _registered_program_pda: &Pubkey,
@@ -1321,6 +1311,8 @@ async fn create_v2_addresses<R: Rpc + MerkleTreeExt + Indexer>(
         .collect::<Vec<_>>();
 
     let proof_result = rpc
+        .indexer()
+        .unwrap()
         .get_validity_proof(Vec::new(), address_with_trees, None)
         .await
         .unwrap();

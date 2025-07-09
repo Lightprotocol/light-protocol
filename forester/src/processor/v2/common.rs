@@ -9,7 +9,6 @@ use light_batched_merkle_tree::{
 };
 use light_client::rpc::Rpc;
 use light_compressed_account::TreeType;
-use light_program_test::Indexer;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
@@ -33,9 +32,8 @@ pub enum BatchReadyState {
 }
 
 #[derive(Debug)]
-pub struct BatchContext<R: Rpc, I: Indexer> {
+pub struct BatchContext<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
-    pub indexer: Arc<Mutex<I>>,
     pub authority: Keypair,
     pub derivation: Pubkey,
     pub epoch: u64,
@@ -49,14 +47,14 @@ pub struct BatchContext<R: Rpc, I: Indexer> {
 }
 
 #[derive(Debug)]
-pub struct BatchProcessor<R: Rpc, I: Indexer> {
-    context: BatchContext<R, I>,
+pub struct BatchProcessor<R: Rpc> {
+    context: BatchContext<R>,
     tree_type: TreeType,
 }
 
 /// Processes a stream of batched instruction data into transactions.
-pub(crate) async fn process_stream<R, I, S, D, FutC>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn process_stream<R, S, D, FutC>(
+    context: &BatchContext<R>,
     stream_creator_future: FutC,
     instruction_builder: impl Fn(&D) -> Instruction,
     tree_type_str: &str,
@@ -64,7 +62,6 @@ pub(crate) async fn process_stream<R, I, S, D, FutC>(
 ) -> Result<usize>
 where
     R: Rpc,
-    I: Indexer,
     S: Stream<Item = Result<Vec<D>>> + Send,
     D: BorshSerialize,
     FutC: Future<Output = Result<(S, u16)>> + Send,
@@ -143,8 +140,8 @@ where
     Ok(total_items_processed)
 }
 
-pub(crate) async fn send_transaction_batch<R: Rpc, I: Indexer>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn send_transaction_batch<R: Rpc>(
+    context: &BatchContext<R>,
     instructions: Vec<Instruction>,
 ) -> Result<String> {
     info!(
@@ -162,8 +159,8 @@ pub(crate) async fn send_transaction_batch<R: Rpc, I: Indexer>(
     Ok(signature.to_string())
 }
 
-impl<R: Rpc, I: Indexer + 'static> BatchProcessor<R, I> {
-    pub fn new(context: BatchContext<R, I>, tree_type: TreeType) -> Self {
+impl<R: Rpc> BatchProcessor<R> {
+    pub fn new(context: BatchContext<R>, tree_type: TreeType) -> Self {
         Self { context, tree_type }
     }
 

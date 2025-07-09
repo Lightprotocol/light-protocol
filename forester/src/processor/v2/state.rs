@@ -8,7 +8,7 @@ use futures::stream::{Stream, StreamExt};
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
 };
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
@@ -19,8 +19,8 @@ use tracing::{info, instrument};
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData, ParsedQueueData};
 use crate::Result;
 
-async fn create_nullify_stream_future<R, I>(
-    ctx: &BatchContext<R, I>,
+async fn create_nullify_stream_future<R>(
+    ctx: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<(
     impl Stream<Item = Result<Vec<InstructionDataBatchNullifyInputs>>> + Send,
@@ -28,11 +28,9 @@ async fn create_nullify_stream_future<R, I>(
 )>
 where
     R: Rpc,
-    I: Indexer + 'static,
 {
     let (stream, size) = get_nullify_instruction_stream(
         ctx.rpc_pool.clone(),
-        ctx.indexer.clone(),
         ctx.merkle_tree,
         ctx.prover_url.clone(),
         ctx.prover_polling_interval,
@@ -46,8 +44,8 @@ where
     Ok((stream, size))
 }
 
-async fn create_append_stream_future<R, I>(
-    ctx: &BatchContext<R, I>,
+async fn create_append_stream_future<R>(
+    ctx: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
     output_queue_data: ParsedQueueData,
 ) -> Result<(
@@ -56,11 +54,9 @@ async fn create_append_stream_future<R, I>(
 )>
 where
     R: Rpc,
-    I: Indexer + 'static,
 {
     let (stream, size) = get_append_instruction_stream(
         ctx.rpc_pool.clone(),
-        ctx.indexer.clone(),
         ctx.merkle_tree,
         ctx.prover_url.clone(),
         ctx.prover_polling_interval,
@@ -76,8 +72,8 @@ where
 }
 
 #[instrument(level = "debug", skip(context))]
-pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + 'static>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn perform_nullify<R: Rpc>(
+    context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<()> {
     info!(
@@ -109,8 +105,8 @@ pub(crate) async fn perform_nullify<R: Rpc, I: Indexer + 'static>(
 }
 
 #[instrument(level = "debug", skip(context))]
-pub(crate) async fn perform_append<R: Rpc, I: Indexer + 'static>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn perform_append<R: Rpc>(
+    context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
     output_queue_data: ParsedQueueData,
 ) -> Result<()> {

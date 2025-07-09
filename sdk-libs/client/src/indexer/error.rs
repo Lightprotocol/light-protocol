@@ -96,6 +96,12 @@ impl<T> From<photon_api::apis::Error<T>> for IndexerError {
     }
 }
 
+impl From<crate::rpc::RpcError> for IndexerError {
+    fn from(error: crate::rpc::RpcError) -> Self {
+        IndexerError::RpcError(error.to_string())
+    }
+}
+
 impl Clone for IndexerError {
     fn clone(&self) -> Self {
         match self {
