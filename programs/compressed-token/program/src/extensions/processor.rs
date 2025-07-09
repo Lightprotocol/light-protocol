@@ -21,24 +21,24 @@ pub fn process_create_extensions<'a>(
     mint_data_len: usize,
 ) -> Result<(), ProgramError> {
     for extension in extensions {
-        match ExtensionType::try_from(extension.extension_type).unwrap() {
-            ExtensionType::MetadataPointer => {
-                // deserialize metadata pointer ix data
-                let has_address = create_metadata_pointer(extension.data, cpi_data, mint_data_len)?;
-                // only go ahed if has address, probably duplicate
-                if has_address.1 {
-                    create_token_metadata_account(
-                        extension.data,
-                        cpi_data.output_compressed_accounts[0]
-                            .compressed_account
-                            .data
-                            .as_mut()
-                            .unwrap(),
-                    )?;
-                }
-            }
-            _ => return Err(ProgramError::InvalidInstructionData),
-        }
+        // match ExtensionType::try_from(extension.extension_type).unwrap() {
+        //     ExtensionType::MetadataPointer => {
+        //         // deserialize metadata pointer ix data
+        //         let has_address = create_metadata_pointer(extension.data, cpi_data, mint_data_len)?;
+        //         // only go ahed if has address, probably duplicate
+        //         if has_address.1 {
+        //             create_token_metadata_account(
+        //                 extension.data,
+        //                 cpi_data.output_compressed_accounts[0]
+        //                     .compressed_account
+        //                     .data
+        //                     .as_mut()
+        //                     .unwrap(),
+        //             )?;
+        //         }
+        //     }
+        //     _ => return Err(ProgramError::InvalidInstructionData),
+        // }
     }
     Ok(())
 }

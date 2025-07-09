@@ -104,6 +104,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
                 let mint_size_config = CompressedMintConfig {
                     mint_authority: (input.compressed_mint, ()),
                     freeze_authority: (input.compressed_mint_with_freeze_authority, ()),
+                    extensions: (false, vec![]), // ExtensionStructConfig::MetadataPointer(())
                 };
                 outputs.push(OutputCompressedAccountWithPackedContextConfig {
                     compressed_account: CompressedAccountConfig {

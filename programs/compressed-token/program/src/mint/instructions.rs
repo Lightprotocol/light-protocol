@@ -17,6 +17,6 @@ pub struct CreateCompressedMintInstructionData {
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct ExtensionInstructionData {
-    pub extension_type: u8,
+    pub extension_type: u16,
     pub data: Vec<u8>,
 }

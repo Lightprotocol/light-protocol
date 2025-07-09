@@ -109,6 +109,7 @@ pub fn process_mint_to_compressed(
         let mint_config = CompressedMintConfig {
             mint_authority: (true, ()),
             freeze_authority: (mint_inputs.freeze_authority_is_set(), ()),
+            extensions: (false, vec![]),
         };
         let compressed_account_address = *parsed_instruction_data.compressed_mint_inputs.address;
         let sum_amounts: U64 = parsed_instruction_data

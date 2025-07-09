@@ -1,13 +1,17 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
-use light_zero_copy::ZeroCopyMut;
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::IntoBytes;
+
+use crate::extensions::ExtensionStruct;
 
 // Order is optimized for hashing.
 // freeze_authority option is skipped if None.
-#[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopyMut)]
+#[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy)]
 pub struct CompressedMint {
+    /// Version for upgradability
+    pub version: u8,
     /// Pda with seed address of compressed mint
     pub spl_mint: Pubkey,
     /// Total supply of tokens.
@@ -23,12 +27,17 @@ pub struct CompressedMint {
     pub mint_authority: Option<Pubkey>,
     /// Optional authority to freeze token accounts.
     pub freeze_authority: Option<Pubkey>,
-    /// Version for upgradability
-    pub version: u8,
-    // use nested token metadata layout for data extension
-    pub extension_hash: [u8; 32],
+    pub extensions: Option<Vec<ExtensionStruct>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy)]
+pub struct Extension {
+    pub extension_type: u16,
+    pub data: Vec<u8>,
+}
+
+// use nested token metadata layout for data extension
+// pub extension_hash: [u8; 32],
 impl CompressedMint {
     #[allow(dead_code)]
     pub fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
@@ -158,7 +167,7 @@ impl ZCompressedMintMut<'_> {
             self.is_decompressed(),
             &hashed_mint_authority_option,
             &hashed_freeze_authority_option,
-            *self.version,
+            self.version,
         )
     }
 }

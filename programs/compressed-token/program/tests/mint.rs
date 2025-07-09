@@ -46,6 +46,7 @@ fn test_rnd_create_compressed_mint_account() {
         let mint_config = CompressedMintConfig {
             mint_authority: (true, ()), // Always true like in cpi_bytes_config and mint_to_compressed
             freeze_authority: (freeze_authority.is_some(), ()),
+            extensions: (false, vec![]),
         };
         // Derive compressed account address
         let compressed_account_address = derive_address(
@@ -162,7 +163,7 @@ fn test_rnd_create_compressed_mint_account() {
             mint_authority,
             freeze_authority,
             version: 0,
-            extension_hash: [0; 32],
+            extensions: None,
         };
 
         let expected_data_hash = expected_compressed_mint.hash().unwrap();
@@ -190,7 +191,7 @@ fn test_rnd_create_compressed_mint_account() {
             mint_authority, // Use the actual mint authority passed to the function
             freeze_authority,
             version: 0,
-            extension_hash: [0; 32],
+            extensions: None,
         };
         let expected_input_data_hash = expected_input_compressed_mint.hash().unwrap();
 

@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_sdk::LightHasher;
-use light_zero_copy::ZeroCopy;
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 /// Metadata pointer extension data for compressed mints.
-#[derive(Debug, Clone, PartialEq, BorshSerialize, ZeroCopy, BorshDeserialize, LightHasher)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, ZeroCopy, BorshDeserialize, LightHasher, ZeroCopyMut)]
 pub struct MetadataPointer {
     /// Authority that can set the metadata address
     #[hash]

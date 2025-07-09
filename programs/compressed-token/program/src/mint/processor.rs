@@ -61,6 +61,7 @@ pub fn process_create_compressed_mint(
     let mint_size_config: <CompressedMint as ZeroCopyNew>::ZeroCopyConfig = CompressedMintConfig {
         mint_authority: (true, ()),
         freeze_authority: (parsed_instruction_data.freeze_authority.is_some(), ()),
+        extensions: (false, vec![]), // ExtensionStructConfig::MetadataPointer(())
     };
     let compressed_mint_len = CompressedMint::byte_len(&mint_size_config) as u32;
     let mut output_compressed_accounts = vec![OutputCompressedAccountWithPackedContextConfig {
@@ -76,46 +77,46 @@ pub fn process_create_compressed_mint(
     }];
     let mut new_address_params = vec![NewAddressParamsAssignedPackedConfig {}];
     if parsed_instruction_data.extensions.is_some() {
-        for extension in parsed_instruction_data.extensions.as_ref().unwrap().iter() {
-            match ExtensionType::try_from(extension.extension_type).unwrap() {
-                ExtensionType::MetadataPointer => {
-                    let (extension, token_metadata) =
-                        InitializeMetadataPointerInstructionData::zero_copy_at(extension.data)
-                            .map_err(|_| ProgramError::InvalidInstructionData)?;
-                    let mut data_len = 0;
-                    if extension.authority.is_some() {
-                        data_len += 33;
-                    } else {
-                        data_len += 1;
-                    };
-                    if extension.metadata_address_params.is_some() {
-                        data_len += 33;
-                    } else {
-                        data_len += 1;
-                    };
-                    // increased mint account data len
-                    output_compressed_accounts[0].compressed_account.data.1.data += data_len;
-                    // set token metadata account data len
-                    if !token_metadata.is_empty() {
-                        new_address_params.push(NewAddressParamsAssignedPackedConfig {});
-                        output_compressed_accounts.push(
-                            OutputCompressedAccountWithPackedContextConfig {
-                                compressed_account: CompressedAccountConfig {
-                                    address: (true, ()),
-                                    data: (
-                                        true,
-                                        CompressedAccountDataConfig {
-                                            data: token_metadata.len() as u32,
-                                        },
-                                    ),
-                                },
-                            },
-                        );
-                    }
-                }
-                _ => return Err(ProgramError::InvalidInstructionData),
-            }
-        }
+        // for extension in parsed_instruction_data.extensions.as_ref().unwrap().iter() {
+        //     match ExtensionType::try_from(extension).unwrap() {
+        //         ExtensionType::MetadataPointer => {
+        //             let (extension, token_metadata) =
+        //                 InitializeMetadataPointerInstructionData::zero_copy_at(extension.data)
+        //                     .map_err(|_| ProgramError::InvalidInstructionData)?;
+        //             let mut data_len = 0;
+        //             if extension.authority.is_some() {
+        //                 data_len += 33;
+        //             } else {
+        //                 data_len += 1;
+        //             };
+        //             if extension.metadata_address_params.is_some() {
+        //                 data_len += 33;
+        //             } else {
+        //                 data_len += 1;
+        //             };
+        //             // increased mint account data len
+        //             output_compressed_accounts[0].compressed_account.data.1.data += data_len;
+        //             // set token metadata account data len
+        //             if !token_metadata.is_empty() {
+        //                 new_address_params.push(NewAddressParamsAssignedPackedConfig {});
+        //                 output_compressed_accounts.push(
+        //                     OutputCompressedAccountWithPackedContextConfig {
+        //                         compressed_account: CompressedAccountConfig {
+        //                             address: (true, ()),
+        //                             data: (
+        //                                 true,
+        //                                 CompressedAccountDataConfig {
+        //                                     data: token_metadata.len() as u32,
+        //                                 },
+        //                             ),
+        //                         },
+        //                     },
+        //                 );
+        //             }
+        //         }
+        //         _ => return Err(ProgramError::InvalidInstructionData),
+        //     }
+        // }
     }
     let final_compressed_mint_len = output_compressed_accounts[0].compressed_account.data.1.data;
     let config = InstructionDataInvokeCpiWithReadOnlyConfig {
