@@ -52,6 +52,7 @@ pub fn compress_pda<A>(
     cpi_accounts: CpiAccounts,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo,
+    expected_compression_delay: u64,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -79,12 +80,11 @@ where
     drop(pda_data);
 
     let last_written_slot = pda_account_data.last_written_slot();
-    let compression_delay = pda_account_data.compression_delay();
 
-    if current_slot < last_written_slot + compression_delay {
+    if current_slot < last_written_slot + expected_compression_delay {
         msg!(
             "Cannot compress yet. {} slots remaining",
-            (last_written_slot + compression_delay).saturating_sub(current_slot)
+            (last_written_slot + expected_compression_delay).saturating_sub(current_slot)
         );
         return Err(LightSdkError::ConstraintViolation);
     }
@@ -111,10 +111,6 @@ where
         .ok_or(ProgramError::ArithmeticOverflow)?;
     // 2. Decrement source account lamports
     **pda_account.try_borrow_mut_lamports()? = 0;
-    // 3. Clear all account data
-    pda_account.try_borrow_mut_data()?.fill(0);
-    // 4. Assign ownership back to the system program
-    pda_account.assign(&Pubkey::default());
 
     Ok(())
 }

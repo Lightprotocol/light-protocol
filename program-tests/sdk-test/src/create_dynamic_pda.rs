@@ -1,7 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_macros::pubkey;
 use light_sdk::{
-    compressible::compress_pda_new,
+    compressible::{compress_pda_new, CompressibleConfig},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
@@ -9,13 +8,9 @@ use light_sdk::{
 use light_sdk_types::CpiAccountsConfig;
 use solana_clock::Clock;
 use solana_program::account_info::AccountInfo;
-use solana_program::pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-use crate::decompress_dynamic_pda::{MyPdaAccount, COMPRESSION_DELAY};
-
-pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+use crate::decompress_dynamic_pda::MyPdaAccount;
 
 /// INITS a PDA and compresses it into a new compressed account.
 pub fn create_dynamic_pda(
@@ -29,16 +24,21 @@ pub fn create_dynamic_pda(
     let fee_payer = &accounts[0];
     // UNCHECKED: ...caller program checks this.
     let pda_account = &accounts[1];
-    // CHECK: hardcoded rent recipient.
     let rent_recipient = &accounts[2];
-    if rent_recipient.key != &RENT_RECIPIENT {
+    let config_account = &accounts[3];
+
+    // Load config
+    let config = CompressibleConfig::load(config_account)?;
+
+    // CHECK: rent recipient from config
+    if rent_recipient.key != &config.rent_recipient {
         return Err(LightSdkError::ConstraintViolation);
     }
 
     // Cpi accounts
     let cpi_accounts_struct = CpiAccounts::new_with_config(
         fee_payer,
-        &accounts[3..],
+        &accounts[4..],
         CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER),
     );
 
@@ -53,7 +53,7 @@ pub fn create_dynamic_pda(
     let mut pda_account_data = MyPdaAccount::try_from_slice(&pda_account.data.borrow())
         .map_err(|_| LightSdkError::Borsh)?;
     pda_account_data.last_written_slot = Clock::get()?.slot;
-    pda_account_data.compression_delay = COMPRESSION_DELAY;
+    pda_account_data.compression_delay = config.compression_delay as u64;
 
     compress_pda_new::<MyPdaAccount>(
         pda_account,
@@ -64,7 +64,7 @@ pub fn create_dynamic_pda(
         cpi_accounts_struct,
         &crate::ID,
         rent_recipient,
-        &ADDRESS_SPACE,
+        &config.address_space,
     )?;
 
     Ok(())

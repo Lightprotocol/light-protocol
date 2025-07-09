@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
-    compressible::CompressionTiming,
+    compressible::{CompressibleConfig, CompressionTiming},
     cpi::CpiAccounts,
     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
     light_hasher::{DataHasher, Hasher},
@@ -24,7 +24,57 @@ pub mod anchor_compressible_user {
 
     use super::*;
 
-    /// Creates a new compressed user record.
+    /// Creates a new compressed user record using global config.
+    pub fn create_record_with_config<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateRecordWithConfig<'info>>,
+        name: String,
+        proof: ValidityProof,
+        compressed_address: [u8; 32],
+        address_tree_info: PackedAddressTreeInfo,
+        output_state_tree_index: u8,
+    ) -> Result<()> {
+        let user_record = &mut ctx.accounts.user_record;
+
+        // Load config from the config account
+        let config = CompressibleConfig::load(&ctx.accounts.config)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+        user_record.owner = ctx.accounts.user.key();
+        user_record.name = name;
+        user_record.score = 0;
+        user_record.last_written_slot = Clock::get()?.slot;
+        user_record.compression_delay = config.compression_delay as u64;
+
+        // Verify rent recipient matches config
+        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+            return err!(ErrorCode::InvalidRentRecipient);
+        }
+
+        let cpi_accounts = CpiAccounts::new(
+            &ctx.accounts.user,
+            &ctx.remaining_accounts[..],
+            LIGHT_CPI_SIGNER,
+        );
+        let new_address_params =
+            address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
+
+        compress_pda_new::<UserRecord>(
+            &user_record.to_account_info(),
+            compressed_address,
+            new_address_params,
+            output_state_tree_index,
+            proof,
+            cpi_accounts,
+            &crate::ID,
+            &ctx.accounts.rent_recipient,
+            &config.address_space,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        Ok(())
+    }
+
+    /// Creates a new compressed user record (legacy - uses hardcoded values).
     pub fn create_record<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateRecord<'info>>,
         name: String,
@@ -193,10 +243,65 @@ pub mod anchor_compressible_user {
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_recipient,
+            COMPRESSION_DELAY, // Use the hardcoded value for legacy function
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
     }
+
+    pub fn compress_record_with_config<'info>(
+        ctx: Context<'_, '_, '_, 'info, CompressRecordWithConfig<'info>>,
+        proof: ValidityProof,
+        compressed_account_meta: CompressedAccountMeta,
+    ) -> Result<()> {
+        let user_record = &mut ctx.accounts.user_record;
+
+        // Load config from the config account
+        let config = CompressibleConfig::load(&ctx.accounts.config)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+        // Verify rent recipient matches config
+        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+            return err!(ErrorCode::InvalidRentRecipient);
+        }
+
+        let cpi_accounts = CpiAccounts::new(
+            &ctx.accounts.user,
+            &ctx.remaining_accounts[..],
+            LIGHT_CPI_SIGNER,
+        );
+
+        compress_pda::<UserRecord>(
+            &user_record.to_account_info(),
+            &compressed_account_meta,
+            proof,
+            cpi_accounts,
+            &crate::ID,
+            &ctx.accounts.rent_recipient,
+            config.compression_delay as u64,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CreateRecordWithConfig<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        init,
+        payer = user,
+        space = 8 + 32 + 4 + 32 + 8 + 8 + 8, // discriminator + owner + string len + name + score + last_written_slot + compression_delay
+        seeds = [b"user_record", user.key().as_ref()],
+        bump,
+    )]
+    pub user_record: Account<'info, UserRecord>,
+    pub system_program: Program<'info, System>,
+    /// The global config account
+    pub config: AccountInfo<'info>,
+    /// Rent recipient - must match config
+    pub rent_recipient: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -227,6 +332,24 @@ pub struct UpdateRecord<'info> {
         constraint = user_record.owner == user.key()
     )]
     pub user_record: Account<'info, UserRecord>,
+}
+
+#[derive(Accounts)]
+pub struct CompressRecordWithConfig<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"user_record", user.key().as_ref()],
+        bump,
+        constraint = user_record.owner == user.key()
+    )]
+    pub user_record: Account<'info, UserRecord>,
+    pub system_program: Program<'info, System>,
+    /// The global config account
+    pub config: AccountInfo<'info>,
+    /// Rent recipient - must match config
+    pub rent_recipient: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -371,4 +494,6 @@ impl CompressionTiming for GameSession {
 pub enum ErrorCode {
     #[msg("Invalid account count: PDAs and compressed accounts must match")]
     InvalidAccountCount,
+    #[msg("Rent recipient does not match config")]
+    InvalidRentRecipient,
 }

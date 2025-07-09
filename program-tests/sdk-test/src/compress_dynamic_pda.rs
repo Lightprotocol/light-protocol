@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
-    compressible::compress_pda,
+    compressible::{compress_pda, CompressibleConfig},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -21,19 +21,23 @@ pub fn compress_dynamic_pda(
         .map_err(|_| LightSdkError::Borsh)?;
 
     let pda_account = &accounts[1];
-
-    // CHECK: hardcoded rent recipient.
     let rent_recipient = &accounts[2];
-    if rent_recipient.key != &crate::create_dynamic_pda::RENT_RECIPIENT {
+    let config_account = &accounts[3];
+
+    // Load config
+    let config = CompressibleConfig::load(config_account)?;
+
+    // CHECK: rent recipient from config
+    if rent_recipient.key != &config.rent_recipient {
         return Err(LightSdkError::ConstraintViolation);
     }
 
     // Cpi accounts
-    let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
+    let cpi_config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
     let cpi_accounts = CpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
-        config,
+        cpi_config,
     );
 
     compress_pda::<MyPdaAccount>(
@@ -43,6 +47,7 @@ pub fn compress_dynamic_pda(
         cpi_accounts,
         &crate::ID,
         rent_recipient,
+        config.compression_delay as u64,
     )?;
 
     // any other program logic here...
