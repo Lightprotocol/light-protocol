@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    compressible::{decompress_idempotent, CompressionTiming},
+    compressible::{decompress_idempotent, CompressionMetadata, HasCompressionMetadata},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -176,22 +176,17 @@ pub struct MyCompressedAccount {
     Clone, Debug, Default, LightHasher, LightDiscriminator, BorshDeserialize, BorshSerialize,
 )]
 pub struct MyPdaAccount {
-    pub last_written_slot: u64,
-    pub compression_delay: u64,
+    pub compression_metadata: CompressionMetadata,
     pub data: [u8; 31],
 }
 
-// Implement the CompressionTiming trait
-impl CompressionTiming for MyPdaAccount {
-    fn last_written_slot(&self) -> u64 {
-        self.last_written_slot
+// Implement the HasCompressionMetadata trait
+impl HasCompressionMetadata for MyPdaAccount {
+    fn compression_metadata(&self) -> &CompressionMetadata {
+        &self.compression_metadata
     }
 
-    fn compression_delay(&self) -> u64 {
-        self.compression_delay
-    }
-
-    fn set_last_written_slot(&mut self, slot: u64) {
-        self.last_written_slot = slot;
+    fn compression_metadata_mut(&mut self) -> &mut CompressionMetadata {
+        &mut self.compression_metadata
     }
 }

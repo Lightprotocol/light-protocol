@@ -1,14 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
-    compressible::{compress_pda_new, CompressibleConfig},
+    compressible::{compress_pda_new, CompressibleConfig, CompressionMetadata},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
 };
-use light_sdk_types::CpiAccountsConfig;
-use solana_clock::Clock;
 use solana_program::account_info::AccountInfo;
-use solana_sysvar::Sysvar;
 
 use crate::decompress_dynamic_pda::MyPdaAccount;
 
@@ -48,8 +45,9 @@ pub fn create_dynamic_pda(
     // of this invocation.
     let mut pda_account_data = MyPdaAccount::try_from_slice(&pda_account.data.borrow())
         .map_err(|_| LightSdkError::Borsh)?;
-    pda_account_data.last_written_slot = Clock::get()?.slot;
-    pda_account_data.compression_delay = config.compression_delay as u64;
+
+    // Initialize compression metadata with current slot
+    pda_account_data.compression_metadata = CompressionMetadata::new()?;
 
     compress_pda_new::<MyPdaAccount>(
         pda_account,

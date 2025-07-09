@@ -17,8 +17,6 @@ use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::compressible::compress_pda::CompressionTiming;
-
 /// Helper function to compress an onchain PDA into a new compressed account.
 ///
 /// This function handles the entire compression operation: creates a compressed account,
@@ -50,13 +48,7 @@ pub fn compress_pda_new<'info, A>(
     expected_address_space: &Pubkey,
 ) -> Result<(), LightSdkError>
 where
-    A: DataHasher
-        + LightDiscriminator
-        + BorshSerialize
-        + BorshDeserialize
-        + Default
-        + CompressionTiming
-        + Clone,
+    A: DataHasher + LightDiscriminator + BorshSerialize + BorshDeserialize + Default + Clone,
 {
     compress_multiple_pdas_new::<A>(
         &[pda_account],

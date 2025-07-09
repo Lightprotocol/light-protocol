@@ -1,8 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_sdk::{
-    compressible::{create_config, CompressibleConfig},
-    error::LightSdkError,
-};
+use light_sdk::{compressible::create_compression_config_checked, error::LightSdkError};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 
