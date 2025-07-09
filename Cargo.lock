@@ -5469,6 +5469,7 @@ dependencies = [
 name = "sdk-test"
 version = "1.0.0"
 dependencies = [
+ "arrayvec",
  "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
