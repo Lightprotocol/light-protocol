@@ -1,6 +1,7 @@
 use crate::{
     account::LightAccount,
     address::PackedNewAddressParams,
+    compressible::CompressibleConfig,
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::ValidityProof,
@@ -11,6 +12,7 @@ use crate::{
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
+use light_compressed_account::instruction_data::data::ReadOnlyAddress;
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
 use solana_msg::msg;
@@ -31,7 +33,8 @@ use solana_pubkey::Pubkey;
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
-/// * `expected_address_space` - Optional expected address space pubkey to validate against
+/// * `config` - The compression config to validate address spaces
+/// * `read_only_addresses` - Optional read-only addresses for exclusion proofs
 ///
 /// # Returns
 /// * `Ok(())` if the PDA was compressed successfully
@@ -45,7 +48,8 @@ pub fn compress_pda_new<'info, A>(
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo<'info>,
-    expected_address_space: &Pubkey,
+    address_space: &[Pubkey],
+    read_only_addresses: Option<Vec<ReadOnlyAddress>>,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher + LightDiscriminator + BorshSerialize + BorshDeserialize + Default + Clone,
@@ -59,11 +63,13 @@ where
         cpi_accounts,
         owner_program,
         rent_recipient,
-        expected_address_space,
+        address_space,
+        read_only_addresses,
     )
 }
 
-/// Helper function to compress multiple onchain PDAs into new compressed accounts.
+/// Helper function to compress multiple onchain PDAs into new compressed
+/// accounts.
 ///
 /// This function handles the entire compression operation for multiple PDAs.
 ///
@@ -71,12 +77,15 @@ where
 /// * `pda_accounts` - The PDA accounts to compress (will be closed)
 /// * `addresses` - The addresses for the compressed accounts
 /// * `new_address_params` - Address parameters for the compressed accounts
-/// * `output_state_tree_indices` - Output state tree indices for the compressed accounts
+/// * `output_state_tree_indices` - Output state tree indices for the compressed
+///   accounts
 /// * `proof` - Single validity proof for all accounts
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed accounts
 /// * `rent_recipient` - The account to receive the PDAs' rent
-/// * `expected_address_space` - Optional expected address space pubkey to validate against
+/// * `address_space` - The address space (1-4 address_trees) to validate
+///   uniqueness of addresses against.
+/// * `read_only_addresses` - Optional read-only addresses for exclusion proofs
 ///
 /// # Returns
 /// * `Ok(())` if all PDAs were compressed successfully
@@ -90,7 +99,8 @@ pub fn compress_multiple_pdas_new<'info, A>(
     cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo<'info>,
-    expected_address_space: &Pubkey,
+    address_space: &[Pubkey],
+    read_only_addresses: Option<Vec<ReadOnlyAddress>>,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher + LightDiscriminator + BorshSerialize + BorshDeserialize + Default + Clone,
@@ -102,30 +112,38 @@ where
         return Err(LightSdkError::ConstraintViolation);
     }
 
-    // TODO: consider leaving the check to the caller.
-    // CHECK: address space.
+    // TODO: consider hardcoding instead of checking manually.
+    // TODO: consider more efficient way to check.
+    // CHECK: primary address space matches config
     for params in new_address_params {
-        let address_tree_account = cpi_accounts
-            .get_tree_account_info(params.address_merkle_tree_account_index as usize)?;
-        if address_tree_account.pubkey() != *expected_address_space {
-            msg!(
-                "Invalid address space. Expected: {}. Found: {}.",
-                expected_address_space,
-                address_tree_account.pubkey()
-            );
+        let tree = cpi_accounts
+            .get_tree_account_info(params.address_merkle_tree_account_index as usize)?
+            .pubkey();
+        if !address_space.iter().any(|a| a == &tree) {
             return Err(LightSdkError::ConstraintViolation);
+        }
+    }
+
+    if let Some(ref addrs) = read_only_addresses {
+        for ro in addrs {
+            let ro_pubkey = Pubkey::new_from_array(ro.address_merkle_tree_pubkey.to_bytes());
+            if !address_space.iter().any(|a| a == &ro_pubkey) {
+                return Err(LightSdkError::ConstraintViolation);
+            }
         }
     }
 
     let mut total_lamports = 0u64;
     let mut compressed_account_infos = Vec::new();
 
-    for ((pda_account, &address), &output_state_tree_index) in pda_accounts
+    // TODO: add support for Multiple PDA addresses!
+    for (((pda_account, &address), &new_address_param), &output_state_tree_index) in pda_accounts
         .iter()
         .zip(addresses.iter())
+        .zip(new_address_params.iter())
         .zip(output_state_tree_indices.iter())
     {
-        // Deserialize the PDA data to check timing fields
+        // Deserialize the PDA data
         let pda_data = pda_account.try_borrow_data()?;
         let pda_account_data =
             A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
@@ -144,9 +162,12 @@ where
             .ok_or(ProgramError::ArithmeticOverflow)?;
     }
 
-    // Create CPI inputs with all compressed accounts and new addresses
-    let cpi_inputs =
+    // Create CPI inputs with compressed accounts and new addresses
+    let mut cpi_inputs =
         CpiInputs::new_with_address(proof, compressed_account_infos, new_address_params.to_vec());
+
+    // Add read-only addresses if provided
+    cpi_inputs.read_only_address = read_only_addresses;
 
     // Invoke light system program to create all compressed accounts
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;

@@ -12,6 +12,7 @@ use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::Sysvar;
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
+pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 4;
 
 /// BPF Loader Upgradeable Program ID
 /// BPFLoaderUpgradeab1e11111111111111111111111
@@ -33,8 +34,8 @@ pub struct CompressibleConfig {
     pub update_authority: Pubkey,
     /// Account that receives rent from compressed PDAs
     pub rent_recipient: Pubkey,
-    /// Address space for compressed accounts
-    pub address_space: Pubkey,
+    /// Address space for compressed accounts (1-4 address_treess allowed)
+    pub address_space: Vec<Pubkey>,
     /// PDA bump seed
     pub bump: u8,
 }
@@ -47,18 +48,23 @@ impl Default for CompressibleConfig {
             compression_delay: 100,
             update_authority: Pubkey::default(),
             rent_recipient: Pubkey::default(),
-            address_space: Pubkey::default(),
+            address_space: vec![Pubkey::default()],
             bump: 0,
         }
     }
 }
 
 impl CompressibleConfig {
-    pub const LEN: usize = 1 + 8 + 4 + 32 + 32 + 32 + 1; // 110 bytes
+    pub const LEN: usize = 1 + 8 + 4 + 32 + 32 + 4 + (32 * MAX_ADDRESS_TREES_PER_SPACE) + 1; // 241 bytes max
 
     /// Derives the config PDA address
     pub fn derive_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Pubkey::find_program_address(&[COMPRESSIBLE_CONFIG_SEED], program_id)
+    }
+
+    /// Returns the primary address space (first in the list)
+    pub fn primary_address_space(&self) -> &Pubkey {
+        &self.address_space[0]
     }
 
     /// Validates the config account
@@ -71,8 +77,16 @@ impl CompressibleConfig {
             msg!("Unsupported config version: {}", self.version);
             return Err(LightSdkError::ConstraintViolation);
         }
+        if self.address_space.is_empty() || self.address_space.len() > MAX_ADDRESS_TREES_PER_SPACE {
+            msg!(
+                "Invalid number of address spaces: {}",
+                self.address_space.len()
+            );
+            return Err(LightSdkError::ConstraintViolation);
+        }
         Ok(())
     }
+
     /// Loads and validates config from account, checking owner
     pub fn load_checked(account: &AccountInfo, program_id: &Pubkey) -> Result<Self, LightSdkError> {
         if account.owner != program_id {
@@ -101,7 +115,7 @@ impl CompressibleConfig {
 /// * `config_account` - The config PDA account to initialize
 /// * `update_authority` - Authority that can update the config after creation
 /// * `rent_recipient` - Account that receives rent from compressed PDAs
-/// * `address_space` - Address space for compressed accounts
+/// * `address_space` - Address spaces for compressed accounts (1-4 allowed)
 /// * `compression_delay` - Number of slots to wait before compression
 /// * `payer` - Account paying for the PDA creation
 /// * `system_program` - System program
@@ -119,7 +133,7 @@ pub fn create_compression_config_unchecked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     rent_recipient: &Pubkey,
-    address_space: &Pubkey,
+    address_space: Vec<Pubkey>,
     compression_delay: u32,
     payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
@@ -128,6 +142,12 @@ pub fn create_compression_config_unchecked<'info>(
     // Check if already initialized
     if config_account.data_len() > 0 {
         msg!("Config account already initialized");
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Validate address spaces
+    if address_space.is_empty() || address_space.len() > MAX_ADDRESS_TREES_PER_SPACE {
+        msg!("Invalid number of address spaces: {}", address_space.len());
         return Err(LightSdkError::ConstraintViolation);
     }
 
@@ -175,7 +195,7 @@ pub fn create_compression_config_unchecked<'info>(
         compression_delay,
         update_authority: *update_authority.key,
         rent_recipient: *rent_recipient,
-        address_space: *address_space,
+        address_space,
         bump,
     };
 
@@ -195,19 +215,19 @@ pub fn create_compression_config_unchecked<'info>(
 /// * `authority` - Current update authority (must match config)
 /// * `new_update_authority` - Optional new update authority
 /// * `new_rent_recipient` - Optional new rent recipient
-/// * `new_address_space` - Optional new address space
+/// * `new_address_space` - Optional new address spaces (1-4 allowed)
 /// * `new_compression_delay` - Optional new compression delay
 /// * `owner_program_id` - The program that owns the config
 ///
 /// # Returns
 /// * `Ok(())` if config was updated successfully
 /// * `Err(LightSdkError)` if there was an error
-pub fn update_config<'info>(
+pub fn update_compression_config<'info>(
     config_account: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     new_update_authority: Option<&Pubkey>,
     new_rent_recipient: Option<&Pubkey>,
-    new_address_space: Option<&Pubkey>,
+    new_address_space: Option<Vec<Pubkey>>,
     new_compression_delay: Option<u32>,
     owner_program_id: &Pubkey,
 ) -> Result<(), LightSdkError> {
@@ -231,8 +251,12 @@ pub fn update_config<'info>(
     if let Some(new_recipient) = new_rent_recipient {
         config.rent_recipient = *new_recipient;
     }
-    if let Some(new_space) = new_address_space {
-        config.address_space = *new_space;
+    if let Some(new_spaces) = new_address_space {
+        if new_spaces.is_empty() || new_spaces.len() > MAX_ADDRESS_TREES_PER_SPACE {
+            msg!("Invalid number of address spaces: {}", new_spaces.len());
+            return Err(LightSdkError::ConstraintViolation);
+        }
+        config.address_space = new_spaces;
     }
     if let Some(new_delay) = new_compression_delay {
         config.compression_delay = new_delay;
@@ -325,7 +349,7 @@ pub fn verify_program_upgrade_authority(
 /// * `update_authority` - Must be the program's upgrade authority
 /// * `program_data_account` - The program's data account for validation
 /// * `rent_recipient` - Account that receives rent from compressed PDAs
-/// * `address_space` - Address space for compressed accounts
+/// * `address_space` - Address spaces for compressed accounts (1-4 allowed)
 /// * `compression_delay` - Number of slots to wait before compression
 /// * `payer` - Account paying for the PDA creation
 /// * `system_program` - System program
@@ -339,7 +363,7 @@ pub fn create_compression_config_checked<'info>(
     update_authority: &AccountInfo<'info>,
     program_data_account: &AccountInfo<'info>,
     rent_recipient: &Pubkey,
-    address_space: &Pubkey,
+    address_space: Vec<Pubkey>,
     compression_delay: u32,
     payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,

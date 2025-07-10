@@ -19,23 +19,25 @@ pub fn process_create_compression_config_checked(
     let system_program = &accounts[3];
     let program_data_account = &accounts[4];
 
-    // Use the SDK's safe create_config function which validates upgrade authority
     create_compression_config_checked(
         config_account,
         update_authority,
         program_data_account,
         &instruction_data.rent_recipient,
-        &instruction_data.address_space,
+        instruction_data.address_space,
         instruction_data.compression_delay,
         payer,
         system_program,
         &crate::ID,
-    )
+    )?;
+
+    Ok(())
 }
 
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct CreateConfigInstructionData {
     pub rent_recipient: Pubkey,
-    pub address_space: Pubkey,
+    /// Address spaces (1-4 allowed, first is primary for writing)
+    pub address_space: Vec<Pubkey>,
     pub compression_delay: u32,
 }
