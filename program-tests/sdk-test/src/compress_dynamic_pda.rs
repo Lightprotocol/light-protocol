@@ -47,7 +47,7 @@ pub fn compress_dynamic_pda(
         cpi_accounts,
         &crate::ID,
         rent_recipient,
-        &config,
+        &config.compression_delay,
     )?;
 
     // any other program logic here...

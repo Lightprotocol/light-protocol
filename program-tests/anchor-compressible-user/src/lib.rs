@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
-    compressible::{CompressibleConfig, CompressionTiming},
+    compressible::{CompressibleConfig, CompressionInfo, HasCompressionInfo},
     cpi::CpiAccounts,
     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
     light_hasher::{DataHasher, Hasher},
@@ -42,8 +42,9 @@ pub mod anchor_compressible_user {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
-        user_record.last_written_slot = Clock::get()?.slot;
-        user_record.compression_delay = config.compression_delay as u64;
+        // Initialize compression info with current slot
+        user_record.compression_info = CompressionInfo::new()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
         // Verify rent recipient matches config
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
@@ -88,7 +89,9 @@ pub mod anchor_compressible_user {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
-        user_record.compression_delay = COMPRESSION_DELAY;
+        // Initialize compression info with current slot
+        user_record.compression_info = CompressionInfo::new()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
         let cpi_accounts = CpiAccounts::new(
             &ctx.accounts.user,
@@ -243,7 +246,7 @@ pub mod anchor_compressible_user {
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_recipient,
-            COMPRESSION_DELAY, // Use the hardcoded value for legacy function
+            &COMPRESSION_DELAY as u32, // Use the hardcoded value for legacy function
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
@@ -278,7 +281,7 @@ pub mod anchor_compressible_user {
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_recipient,
-            config.compression_delay as u64,
+            &config.compression_delay,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
@@ -292,7 +295,7 @@ pub struct CreateRecordWithConfig<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 32 + 4 + 32 + 8 + 8 + 8, // discriminator + owner + string len + name + score + last_written_slot + compression_delay
+        space = 8 + 32 + 4 + 32 + 8 + 9, // discriminator + owner + string len + name + score + compression_info
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -311,7 +314,7 @@ pub struct CreateRecord<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 32 + 4 + 32 + 8, // discriminator + owner + string len + name + score
+        space = 8 + 32 + 4 + 32 + 8 + 9, // discriminator + owner + string len + name + score + compression_info
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -407,25 +410,18 @@ impl LightDiscriminator for CompressedAccountVariant {
     const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 }
 
-impl CompressionTiming for CompressedAccountVariant {
-    fn last_written_slot(&self) -> u64 {
+impl HasCompressionInfo for CompressedAccountVariant {
+    fn compression_info(&self) -> &CompressionInfo {
         match self {
-            Self::UserRecord(data) => data.last_written_slot(),
-            Self::GameSession(data) => data.last_written_slot(),
+            Self::UserRecord(data) => data.compression_info(),
+            Self::GameSession(data) => data.compression_info(),
         }
     }
 
-    fn compression_delay(&self) -> u64 {
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
         match self {
-            Self::UserRecord(data) => data.compression_delay(),
-            Self::GameSession(data) => data.compression_delay(),
-        }
-    }
-
-    fn set_last_written_slot(&mut self, slot: u64) {
-        match self {
-            Self::UserRecord(data) => data.set_last_written_slot(slot),
-            Self::GameSession(data) => data.set_last_written_slot(slot),
+            Self::UserRecord(data) => data.compression_info_mut(),
+            Self::GameSession(data) => data.compression_info_mut(),
         }
     }
 }
@@ -440,31 +436,29 @@ pub struct CompressedAccountData {
 #[derive(Default, Debug, LightHasher, LightDiscriminator)]
 #[account]
 pub struct UserRecord {
+    #[skip]
+    pub compression_info: CompressionInfo,
     #[hash]
     pub owner: Pubkey,
     pub name: String,
     pub score: u64,
-    pub last_written_slot: u64,
-    pub compression_delay: u64,
 }
 
-impl CompressionTiming for UserRecord {
-    fn last_written_slot(&self) -> u64 {
-        self.last_written_slot
+impl HasCompressionInfo for UserRecord {
+    fn compression_info(&self) -> &CompressionInfo {
+        &self.compression_info
     }
 
-    fn compression_delay(&self) -> u64 {
-        self.compression_delay
-    }
-
-    fn set_last_written_slot(&mut self, slot: u64) {
-        self.last_written_slot = slot;
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        &mut self.compression_info
     }
 }
 
 #[derive(Default, Debug, LightHasher, LightDiscriminator)]
 #[account]
 pub struct GameSession {
+    #[skip]
+    pub compression_info: CompressionInfo,
     pub session_id: u64,
     #[hash]
     pub player: Pubkey,
@@ -472,21 +466,15 @@ pub struct GameSession {
     pub start_time: u64,
     pub end_time: Option<u64>,
     pub score: u64,
-    pub last_written_slot: u64,
-    pub compression_delay: u64,
 }
 
-impl CompressionTiming for GameSession {
-    fn last_written_slot(&self) -> u64 {
-        self.last_written_slot
+impl HasCompressionInfo for GameSession {
+    fn compression_info(&self) -> &CompressionInfo {
+        &self.compression_info
     }
 
-    fn compression_delay(&self) -> u64 {
-        self.compression_delay
-    }
-
-    fn set_last_written_slot(&mut self, slot: u64) {
-        self.last_written_slot = slot;
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        &mut self.compression_info
     }
 }
 

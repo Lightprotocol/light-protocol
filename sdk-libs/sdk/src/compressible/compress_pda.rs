@@ -1,6 +1,9 @@
 use crate::{
     account::LightAccount,
-    compressible::{metadata::CompressionMetadata, CompressibleConfig},
+    compressible::{
+        compression_info::{CompressionInfo, HasCompressionInfo},
+        CompressibleConfig,
+    },
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -17,12 +20,6 @@ use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
-
-/// Trait for accounts that contain CompressionMetadata
-pub trait HasCompressionMetadata {
-    fn compression_metadata(&self) -> &CompressionMetadata;
-    fn compression_metadata_mut(&mut self) -> &mut CompressionMetadata;
-}
 
 /// Helper function to compress a PDA and reclaim rent.
 ///
@@ -41,11 +38,7 @@ pub trait HasCompressionMetadata {
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
-/// * `config` - The compression config containing delay settings
-//
-// TODO:
-// - check if any explicit checks required for compressed account?
-// - consider multiple accounts per ix.
+/// * `compression_delay` - The number of slots to wait before compression is allowed
 pub fn compress_pda<A>(
     pda_account: &AccountInfo,
     compressed_account_meta: &CompressedAccountMeta,
@@ -53,7 +46,7 @@ pub fn compress_pda<A>(
     cpi_accounts: CpiAccounts,
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo,
-    config: &CompressibleConfig,
+    compression_delay: &u32,
 ) -> Result<(), LightSdkError>
 where
     A: DataHasher
@@ -61,7 +54,7 @@ where
         + BorshSerialize
         + BorshDeserialize
         + Default
-        + HasCompressionMetadata,
+        + HasCompressionInfo,
 {
     // Check that the PDA account is owned by the caller program
     if pda_account.owner != owner_program {
@@ -75,17 +68,24 @@ where
 
     let current_slot = Clock::get()?.slot;
 
-    // Deserialize the PDA data to check timing fields
-    let pda_data = pda_account.try_borrow_data()?;
-    let pda_account_data = A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
+    let mut pda_data = pda_account.try_borrow_mut_data()?;
+    let mut pda_account_data =
+        A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
+
+    let last_written_slot = pda_account_data.compression_info().last_written_slot();
+
+    // ensure re-init attack is not possible
+    pda_account_data.compression_info_mut().set_compressed();
+
+    pda_account_data
+        .serialize(&mut &mut pda_data[8..])
+        .map_err(|_| LightSdkError::Borsh)?;
     drop(pda_data);
 
-    let last_written_slot = pda_account_data.compression_metadata().last_written_slot();
-
-    if current_slot < last_written_slot + config.compression_delay as u64 {
+    if current_slot < last_written_slot + *compression_delay as u64 {
         msg!(
             "Cannot compress yet. {} slots remaining",
-            (last_written_slot + config.compression_delay as u64).saturating_sub(current_slot)
+            (last_written_slot + *compression_delay as u64).saturating_sub(current_slot)
         );
         return Err(LightSdkError::ConstraintViolation);
     }

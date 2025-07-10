@@ -246,7 +246,7 @@ pub async fn decompress_pda(
         compressed_account: MyCompressedAccount {
             meta,
             data: MyPdaAccount {
-                compression_metadata: light_sdk::compressible::CompressionMetadata::default(),
+                compression_info: light_sdk::compressible::CompressionInfo::default(),
                 data: compressed_account
                     .compressed_account
                     .data
