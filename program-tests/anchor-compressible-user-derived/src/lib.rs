@@ -7,9 +7,7 @@ use light_sdk_macros::add_compressible_instructions;
 use light_sdk_types::CpiSigner;
 
 declare_id!("CompUser11111111111111111111111111111111111");
-// pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-// pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-pub const COMPRESSION_DELAY: u32 = 100;
+
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
@@ -26,8 +24,6 @@ pub mod anchor_compressible_user_derived {
     // - decompress_multiple_pdas (decompress compressed accounts)
     // Plus all the necessary structs and enums
     //
-    // NOTE: create_user_record and create_game_session are NOT generated
-    // because they typically need custom initialization logic
 }
 
 #[derive(Debug, LightHasher, LightDiscriminator, Default, InitSpace)]
@@ -56,8 +52,6 @@ impl HasCompressionInfo for UserRecord {
 #[derive(Debug, LightHasher, LightDiscriminator, Default, InitSpace)]
 #[account]
 pub struct GameSession {
-    #[skip]
-    pub compression_info: CompressionInfo,
     pub session_id: u64,
     #[hash]
     pub player: Pubkey,
@@ -65,6 +59,8 @@ pub struct GameSession {
     #[max_len(32)]
     pub game_type: String,
     pub start_time: u64,
+    #[skip]
+    pub compression_info: CompressionInfo,
     pub end_time: Option<u64>,
     pub score: u64,
 }
