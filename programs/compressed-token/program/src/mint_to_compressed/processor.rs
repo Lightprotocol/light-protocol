@@ -107,10 +107,17 @@ pub fn process_mint_to_compressed(
             None
         };
         use crate::mint::state::CompressedMintConfig;
+        
+        // Process extensions from input mint
+        let (has_extensions, extensions_config, _) = 
+            crate::extensions::process_extensions_config(
+                mint_inputs.extensions.as_ref()
+            );
+        
         let mint_config = CompressedMintConfig {
             mint_authority: (true, ()),
             freeze_authority: (mint_inputs.freeze_authority_is_set(), ()),
-            extensions: (false, vec![]),
+            extensions: (has_extensions, extensions_config),
         };
         let compressed_account_address = *parsed_instruction_data.compressed_mint_inputs.address;
         let sum_amounts: U64 = parsed_instruction_data
@@ -121,6 +128,9 @@ pub fn process_mint_to_compressed(
             .into();
         let supply = mint_inputs.supply + sum_amounts;
         let base_mint_len = CompressedMint::byte_len(&mint_config);
+
+        // Extensions are already in zero-copy format, so we can pass them directly
+        let z_extensions = mint_inputs.extensions.as_deref();
 
         // Compressed mint account is the last output
         create_output_compressed_mint_account(
@@ -136,7 +146,7 @@ pub fn process_mint_to_compressed(
             compressed_account_address,
             2,
             parsed_instruction_data.compressed_mint_inputs.compressed_mint_input.version,
-            None, // TODO: add extensions support for mint_to_compressed
+            z_extensions,
             base_mint_len,
         )?;
     }

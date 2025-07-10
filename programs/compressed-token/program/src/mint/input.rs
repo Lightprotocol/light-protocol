@@ -87,7 +87,7 @@ pub fn create_input_compressed_mint_account(
             for extension in extensions {
                 let extension_hash = extension.hash::<Poseidon>(&hashed_spl_mint, context)?;
                 extension_hashchain =
-                    Poseidon::hashv(&[extension_hashchain.as_slice(), &extension_hash.as_slice()])?;
+                    Poseidon::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
             }
             Some(extension_hashchain)
         } else {

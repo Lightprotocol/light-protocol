@@ -18,14 +18,6 @@ use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
-    extensions::{
-        metadata_pointer::{MetadataPointer, MetadataPointerConfig},
-        state::ExtensionStructConfig,
-        token_metadata::{
-            AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig,
-        },
-        ZExtensionInstructionData,
-    },
     mint::{
         accounts::CreateCompressedMintAccounts,
         instructions::CreateCompressedMintInstructionData,
@@ -61,64 +53,13 @@ pub fn process_create_compressed_mint(
     .into();
 
     let (compressed_mint_len, mint_size_config) = {
-        let mut additional_mint_data_len = 0;
-        let extensions_config = if let Some(extensions) =
-            parsed_instruction_data.extensions.as_ref()
-        {
-            let mut vec = Vec::new();
-            for extension in extensions.iter() {
-                match extension {
-                    ZExtensionInstructionData::MetadataPointer(extension) => {
-                        let config = MetadataPointerConfig {
-                            authority: (extension.authority.is_some(), ()),
-                            metadata_address: (extension.metadata_address.is_some(), ()),
-                        };
-                        let byte_len = MetadataPointer::byte_len(&config);
-                        additional_mint_data_len += byte_len;
-
-                        vec.push(ExtensionStructConfig::MetadataPointer(config));
-                    }
-                    ZExtensionInstructionData::TokenMetadata(token_metadata_data) => {
-                        // TODO: consider validating utf8 encoding.
-                        let additional_metadata_configs = if let Some(ref additional_metadata) =
-                            token_metadata_data.additional_metadata
-                        {
-                            additional_metadata
-                                .iter()
-                                .map(|item| AdditionalMetadataConfig {
-                                    key: item.key.len() as u32,
-                                    value: item.value.len() as u32,
-                                })
-                                .collect()
-                        } else {
-                            vec![]
-                        };
-
-                        let config = TokenMetadataConfig {
-                            update_authority: (token_metadata_data.update_authority.is_some(), ()),
-                            metadata: MetadataConfig {
-                                name: token_metadata_data.metadata.name.len() as u32,
-                                symbol: token_metadata_data.metadata.symbol.len() as u32,
-                                uri: token_metadata_data.metadata.uri.len() as u32,
-                            },
-                            additional_metadata: additional_metadata_configs,
-                        };
-                        let byte_len = TokenMetadata::byte_len(&config);
-                        // increased mint account data len
-                        additional_mint_data_len += byte_len;
-                        vec.push(ExtensionStructConfig::TokenMetadata(config));
-                    }
-                }
-            }
-            (true, vec)
-        } else {
-            (false, Vec::new())
-        };
+        let (has_extensions, extensions_config, additional_mint_data_len) = 
+            crate::extensions::process_extensions_config(parsed_instruction_data.extensions.as_ref());
         let mint_size_config: <CompressedMint as ZeroCopyNew>::ZeroCopyConfig =
             CompressedMintConfig {
                 mint_authority: (true, ()),
                 freeze_authority: (parsed_instruction_data.freeze_authority.is_some(), ()),
-                extensions: extensions_config,
+                extensions: (has_extensions, extensions_config),
             };
         (
             (CompressedMint::byte_len(&mint_size_config) + additional_mint_data_len) as u32,
