@@ -132,15 +132,15 @@ where
                     for _ in 0..yield_batch_size.min(pending_count) {
                         if let Some((idx, result)) = futures_ordered.next().await {
                             match result {
-                    Ok((compressed_proof, new_root)) => {
-                            let instruction_data = InstructionDataAddressAppendInputs {
-                                new_root,
-                                compressed_proof: CompressedProof {
-                                    a: compressed_proof.a,
-                                    b: compressed_proof.b,
-                                    c: compressed_proof.c,
-                                },
-                            };
+                                Ok((compressed_proof, new_root)) => {
+                                    let instruction_data = InstructionDataAddressAppendInputs {
+                                        new_root,
+                                        compressed_proof: CompressedProof {
+                                            a: compressed_proof.a,
+                                            b: compressed_proof.b,
+                                            c: compressed_proof.c,
+                                        },
+                                    };
                                     proof_buffer.push(instruction_data);
                                 },
                                 Err(e) => {
@@ -150,11 +150,11 @@ where
                                         idx, chunk_idx, e
                                     )));
                                     return;
-                        }
-                    }
+                                }
+                            }
                             pending_count -= 1;
                         }
-                        }
+                    }
 
                     if !proof_buffer.is_empty() {
                         yield Ok(proof_buffer.clone());
