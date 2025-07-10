@@ -4283,7 +4283,7 @@ pub mod anchor_compressible_user_derived {
         new_address_space: Option<Pubkey>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
-        light_sdk::compressible::update_config(
+        light_sdk::compressible::update_compression_config(
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             new_update_authority.as_ref(),
