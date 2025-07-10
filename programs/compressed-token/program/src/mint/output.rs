@@ -14,8 +14,8 @@ use crate::{
 };
 // TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
-pub fn create_output_compressed_mint_account<'a>(
-    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'a>,
+pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
+    output_compressed_account: &'a mut ZOutputCompressedAccountWithPackedContextMut<'b>,
     mint_pda: Pubkey,
     decimals: u8,
     freeze_authority: Option<Pubkey>,
@@ -26,7 +26,7 @@ pub fn create_output_compressed_mint_account<'a>(
     compressed_account_address: [u8; 32],
     merkle_tree_index: u8,
     version: u8,
-    extensions: Option<&'a [ZExtensionInstructionData<'a>]>,
+    extensions: Option<&[ZExtensionInstructionData<'b>]>,
     base_mint_len: usize,
 ) -> Result<(), ProgramError> {
     // 3. Create output compressed account
@@ -47,17 +47,6 @@ pub fn create_output_compressed_mint_account<'a>(
     }
     // 4. Create CompressedMint account data & compute hash
 
-    // 5. Process extensions if provided first
-    let extension_hash = if let Some(extensions) = extensions {
-        Some(process_create_extensions::<Poseidon>(
-            extensions,
-            output_compressed_account,
-            base_mint_len,
-        )?)
-    } else {
-        None
-    };
-
     // TODO: create helper to assign compressed account data
     let compressed_account_data = output_compressed_account
         .compressed_account
@@ -66,8 +55,18 @@ pub fn create_output_compressed_mint_account<'a>(
         .ok_or(ProgramError::InvalidAccountData)?;
 
     compressed_account_data.discriminator = COMPRESSED_MINT_DISCRIMINATOR;
+
+    println!(
+        "CompressedMint::new_zero_copy - total_data_len: {}, mint_config: {:?}",
+        compressed_account_data.data.len(),
+        mint_config
+    );
+    println!(
+        "Data start: {:?}",
+        &compressed_account_data.data[0..std::cmp::min(32, compressed_account_data.data.len())]
+    );
     let (mut compressed_mint, _) =
-        CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
+        CompressedMint::new_zero_copy(&mut compressed_account_data.data, mint_config)
             .map_err(ProgramError::from)?;
     compressed_mint.spl_mint = mint_pda;
     compressed_mint.decimals = decimals;
@@ -84,10 +83,34 @@ pub fn create_output_compressed_mint_account<'a>(
     }
     compressed_mint.version = version;
 
-    // Compute final hash with extensions
-    *compressed_account_data.data_hash = compressed_mint
-        .hash(extension_hash.as_ref().map(|h| h.as_slice()))
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    // Process extensions if provided and populate the zero-copy extension data
+    if let Some(extensions) = extensions.as_ref() {
+        // Process extensions in a separate scope to avoid borrowing conflicts
+        let hash = {
+            if let Some(z_extensions) = compressed_mint.extensions.as_mut() {
+                // Now we can directly populate the extension data using the updated process_create_extensions
+                use crate::extensions::processor::process_create_extensions;
+                use light_hasher::Poseidon;
+                let extension_hash = process_create_extensions::<Poseidon>(
+                    extensions,
+                    z_extensions.as_mut_slice(),
+                    0, // start_offset not used anymore
+                    mint_pda,
+                )?;
+                // Compute final hash with extensions
+                *compressed_account_data.data_hash = compressed_mint
+                    .hash(Some(extension_hash.as_slice()))
+                    .map_err(|_| ProgramError::InvalidAccountData)?;
+                extension_hash
+            } else {
+                [0u8; 32]
+            }
+        };
+    } else {
+        *compressed_account_data.data_hash = compressed_mint
+            .hash(None)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+    };
 
     Ok(())
 }

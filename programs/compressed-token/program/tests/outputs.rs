@@ -79,6 +79,7 @@ fn test_rnd_create_output_compressed_accounts() {
             has_proof: false,
             compressed_mint: false,
             compressed_mint_with_freeze_authority: false,
+            extensions_config: vec![], // TODO: Add extensions support for outputs test
         };
 
         let config = cpi_bytes_config(config_input.clone());

@@ -413,44 +413,48 @@ use light_zero_copy::ZeroCopyNew;
 
 use crate::shared::context::TokenContext;
 
-pub fn create_output_token_metadata<'a>(
+pub fn create_output_token_metadata<'a, 'b>(
     token_metadata_data: &ZTokenMetadataInstructionData<'a>,
-    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'a>,
-    start_offset: usize,
+    token_metadata: &mut ZTokenMetadataMut<'_>,
+    _start_offset: usize,
+    mint: Pubkey,
 ) -> Result<([u8; 32], usize), ProgramError> {
-    let cpi_data = output_compressed_account
-        .compressed_account
-        .data
-        .as_mut()
-        .ok_or(ProgramError::InvalidInstructionData)?;
+    // let cpi_data = output_compressed_account
+    //     .compressed_account
+    //     .data
+    //     .as_mut()
+    //     .ok_or(ProgramError::InvalidInstructionData)?;
 
-    let additional_metadata_configs =
-        if let Some(ref additional_metadata) = token_metadata_data.additional_metadata {
-            additional_metadata
-                .iter()
-                .map(|item| AdditionalMetadataConfig {
-                    key: item.key.len() as u32,
-                    value: item.value.len() as u32,
-                })
-                .collect()
-        } else {
-            vec![]
-        };
+    // let additional_metadata_configs =
+    //     if let Some(ref additional_metadata) = token_metadata_data.additional_metadata {
+    //         additional_metadata
+    //             .iter()
+    //             .map(|item| AdditionalMetadataConfig {
+    //                 key: item.key.len() as u32,
+    //                 value: item.value.len() as u32,
+    //             })
+    //             .collect()
+    //     } else {
+    //         vec![]
+    //     };
 
-    let config = TokenMetadataConfig {
-        update_authority: (token_metadata_data.update_authority.is_some(), ()),
-        metadata: MetadataConfig {
-            name: token_metadata_data.metadata.name.len() as u32,
-            symbol: token_metadata_data.metadata.symbol.len() as u32,
-            uri: token_metadata_data.metadata.uri.len() as u32,
-        },
-        additional_metadata: additional_metadata_configs,
-    };
-    let byte_len = TokenMetadata::byte_len(&config);
-    let end_offset = start_offset + byte_len;
+    // let config = TokenMetadataConfig {
+    //     update_authority: (token_metadata_data.update_authority.is_some(), ()),
+    //     metadata: MetadataConfig {
+    //         name: token_metadata_data.metadata.name.len() as u32,
+    //         symbol: token_metadata_data.metadata.symbol.len() as u32,
+    //         uri: token_metadata_data.metadata.uri.len() as u32,
+    //     },
+    //     additional_metadata: additional_metadata_configs,
+    // };
+    // let byte_len = TokenMetadata::byte_len(&config);
+    // let end_offset = start_offset + byte_len;
 
-    let (mut token_metadata, _) =
-        TokenMetadata::new_zero_copy(&mut cpi_data.data[start_offset..end_offset], config)?;
+    println!(
+        "TokenMetadata::new_zero_copy - start_offset: {:?}",
+        token_metadata
+    );
+
     if let Some(ref mut authority) = token_metadata.update_authority {
         **authority = *token_metadata_data
             .update_authority
@@ -468,6 +472,9 @@ pub fn create_output_token_metadata<'a>(
         .metadata
         .uri
         .copy_from_slice(token_metadata_data.metadata.uri);
+
+    // Set mint
+    *token_metadata.mint = mint;
 
     // Set version
     *token_metadata.version = token_metadata_data.version;
@@ -488,7 +495,7 @@ pub fn create_output_token_metadata<'a>(
     let hash = token_metadata
         .hash::<light_hasher::Poseidon>()
         .map_err(|_| ProgramError::InvalidAccountData)?;
-
+    let end_offset = 0;
     Ok((hash, end_offset))
 }
 

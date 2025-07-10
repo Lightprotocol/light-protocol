@@ -26,6 +26,7 @@ pub struct CpiConfigInput {
     pub has_proof: bool,
     pub compressed_mint: bool,
     pub compressed_mint_with_freeze_authority: bool,
+    pub extensions_config: Vec<crate::extensions::state::ExtensionStructConfig>,
 }
 
 impl CpiConfigInput {
@@ -46,6 +47,7 @@ impl CpiConfigInput {
             has_proof,
             compressed_mint: true,
             compressed_mint_with_freeze_authority,
+            extensions_config: vec![],
         }
     }
 }
@@ -104,7 +106,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
                 let mint_size_config = CompressedMintConfig {
                     mint_authority: (input.compressed_mint, ()),
                     freeze_authority: (input.compressed_mint_with_freeze_authority, ()),
-                    extensions: (false, vec![]), // ExtensionStructConfig::MetadataPointer(())
+                    extensions: (!input.extensions_config.is_empty(), input.extensions_config),
                 };
                 outputs.push(OutputCompressedAccountWithPackedContextConfig {
                     compressed_account: CompressedAccountConfig {

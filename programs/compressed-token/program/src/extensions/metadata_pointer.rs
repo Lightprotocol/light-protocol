@@ -132,6 +132,9 @@ pub fn create_output_metadata_pointer<'a>(
     let byte_len = MetadataPointer::byte_len(&config);
     let end_offset = start_offset + byte_len;
 
+    println!("MetadataPointer::new_zero_copy - start_offset: {}, end_offset: {}, total_data_len: {}, slice_len: {}", 
+             start_offset, end_offset, cpi_data.data.len(), end_offset - start_offset);
+    println!("Data slice at offset: {:?}", &cpi_data.data[start_offset..std::cmp::min(start_offset + 32, cpi_data.data.len())]);
     let (metadata_pointer, _) =
         MetadataPointer::new_zero_copy(&mut cpi_data.data[start_offset..end_offset], config)?;
     if let Some(mut authority) = metadata_pointer.authority {

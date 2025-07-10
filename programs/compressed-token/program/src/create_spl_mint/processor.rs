@@ -103,6 +103,7 @@ fn update_compressed_mint_to_decompressed<'info>(
         has_proof: instruction_data.proof.is_some(),
         compressed_mint: true,
         compressed_mint_with_freeze_authority: instruction_data.freeze_authority.is_some(),
+        extensions_config: vec![], // TODO: Add extensions support for create_spl_mint
     };
 
     let config = cpi_bytes_config(config_input);
