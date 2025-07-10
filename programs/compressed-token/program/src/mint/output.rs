@@ -28,7 +28,7 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
     is_decompressed: bool,
     extensions: Option<&[ZExtensionInstructionData<'b>]>,
 ) -> Result<(), ProgramError> {
-    // 3. Create output compressed account
+    // 1. Create output compressed account
     {
         // TODO: create helper to assign output_compressed_account
         output_compressed_account.compressed_account.owner = *program_id;
@@ -44,7 +44,7 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
         }
         *output_compressed_account.merkle_tree_index = merkle_tree_index;
     }
-    // 4. Create CompressedMint account data & compute hash
+    // 2. Create CompressedMint account data & compute hash
 
     // TODO: create helper to assign compressed account data
     let compressed_account_data = output_compressed_account
@@ -55,15 +55,6 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
 
     compressed_account_data.discriminator = COMPRESSED_MINT_DISCRIMINATOR;
 
-    println!(
-        "CompressedMint::new_zero_copy - total_data_len: {}, mint_config: {:?}",
-        compressed_account_data.data.len(),
-        mint_config
-    );
-    println!(
-        "Data start: {:?}",
-        &compressed_account_data.data[0..std::cmp::min(32, compressed_account_data.data.len())]
-    );
     let (mut compressed_mint, _) =
         CompressedMint::new_zero_copy(&mut compressed_account_data.data, mint_config)
             .map_err(ProgramError::from)?;

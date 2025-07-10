@@ -395,11 +395,6 @@ pub fn create_output_token_metadata<'a>(
     token_metadata: &mut ZTokenMetadataMut<'_>,
     mint: Pubkey,
 ) -> Result<[u8; 32], ProgramError> {
-    println!(
-        "TokenMetadata::new_zero_copy - start_offset: {:?}",
-        token_metadata
-    );
-
     if let Some(ref mut authority) = token_metadata.update_authority {
         **authority = *token_metadata_data
             .update_authority

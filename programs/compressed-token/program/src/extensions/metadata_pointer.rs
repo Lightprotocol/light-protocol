@@ -60,24 +60,25 @@ impl InitMetadataPointer {
     ) -> Result<[u8; 32], ProgramError> {
         let mut discriminator = [0u8; 32];
         discriminator[31] = ExtensionType::MetadataPointer as u8;
-        
+
         let hashed_metadata_address = if let Some(metadata_address) = self.metadata_address {
             context.get_or_hash_pubkey(&metadata_address.into())
         } else {
             [0u8; 32]
         };
-        
+
         let hashed_authority = if let Some(authority) = self.authority {
             context.get_or_hash_pubkey(&authority.into())
         } else {
             [0u8; 32]
         };
-        
+
         H::hashv(&[
             discriminator.as_slice(),
             hashed_metadata_address.as_slice(),
             hashed_authority.as_slice(),
-        ]).map_err(|_| ProgramError::InvalidAccountData)
+        ])
+        .map_err(|_| ProgramError::InvalidAccountData)
     }
 }
 
@@ -88,24 +89,25 @@ impl<'a> ZInitMetadataPointer<'a> {
     ) -> Result<[u8; 32], ProgramError> {
         let mut discriminator = [0u8; 32];
         discriminator[31] = ExtensionType::MetadataPointer as u8;
-        
+
         let hashed_metadata_address = if let Some(metadata_address) = self.metadata_address {
             context.get_or_hash_pubkey(&(*metadata_address).into())
         } else {
             [0u8; 32]
         };
-        
+
         let hashed_authority = if let Some(authority) = self.authority {
             context.get_or_hash_pubkey(&(*authority).into())
         } else {
             [0u8; 32]
         };
-        
+
         H::hashv(&[
             discriminator.as_slice(),
             hashed_metadata_address.as_slice(),
             hashed_authority.as_slice(),
-        ]).map_err(|_| ProgramError::InvalidAccountData)
+        ])
+        .map_err(|_| ProgramError::InvalidAccountData)
     }
 }
 
@@ -132,9 +134,12 @@ pub fn create_output_metadata_pointer<'a>(
     let byte_len = MetadataPointer::byte_len(&config);
     let end_offset = start_offset + byte_len;
 
-    println!("MetadataPointer::new_zero_copy - start_offset: {}, end_offset: {}, total_data_len: {}, slice_len: {}", 
+    println!("MetadataPointer::new_zero_copy - start_offset: {}, end_offset: {}, total_data_len: {}, slice_len: {}",
              start_offset, end_offset, cpi_data.data.len(), end_offset - start_offset);
-    println!("Data slice at offset: {:?}", &cpi_data.data[start_offset..std::cmp::min(start_offset + 32, cpi_data.data.len())]);
+    println!(
+        "Data slice at offset: {:?}",
+        &cpi_data.data[start_offset..std::cmp::min(start_offset + 32, cpi_data.data.len())]
+    );
     let (metadata_pointer, _) =
         MetadataPointer::new_zero_copy(&mut cpi_data.data[start_offset..end_offset], config)?;
     if let Some(mut authority) = metadata_pointer.authority {

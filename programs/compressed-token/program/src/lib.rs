@@ -41,7 +41,7 @@ pub enum InstructionType {
     CreateSplMint = 102,
     CreateAssociatedTokenAccount = 103,
     MultiTransfer = 104,
-    CreateTokenAccount = 18, // SPL Token InitializeAccount3
+    CreateTokenAccount = 18, // equivalen to SPL Token InitializeAccount3
     Other,
 }
 
@@ -53,7 +53,7 @@ impl From<u8> for InstructionType {
             100 => InstructionType::CreateCompressedMint,
             101 => InstructionType::MintToCompressed,
             102 => InstructionType::CreateSplMint,
-            103 => InstructionType::CreateAssociatedTokenAccount,
+            103 => InstructionType::CreateAssociatedTokenAccount, // TODO: double check compatibility
             104 => InstructionType::MultiTransfer,
             18 => InstructionType::CreateTokenAccount,
             _ => InstructionType::Other,

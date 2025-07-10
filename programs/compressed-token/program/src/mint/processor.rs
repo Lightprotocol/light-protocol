@@ -41,6 +41,7 @@ pub fn process_create_compressed_mint(
     // Validate and parse accounts
     let validated_accounts =
         CreateCompressedMintAccounts::validate_and_parse(accounts, &program_id)?;
+
     // 1. Create mint PDA using provided bump
     let mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
         &[
@@ -145,13 +146,9 @@ pub fn process_create_compressed_mint(
     // 4. Execute CPI to light-system-program
     // Extract tree accounts for the generalized CPI call
     let tree_accounts = [accounts[10].key(), accounts[11].key()]; // address_merkle_tree, output_queue
-    let _accounts = accounts[1..]
-        .iter()
-        .map(|account| account.key())
-        .collect::<Vec<_>>();
 
     execute_cpi_invoke(
-        &accounts[2..], // Skip first non-CPI account (mint_signer)
+        &accounts[2..], // Skip two non-CPI account (light system program mint_signer)
         cpi_bytes,
         tree_accounts.as_slice(),
         false, // no sol_pool_pda for create_compressed_mint

@@ -27,7 +27,7 @@ impl<'info> CreateCompressedMintAccounts<'info> {
 
         // CPI accounts in exact order expected by InvokeCpiWithReadOnly
         let fee_payer = &accounts[2];
-        let cpi_authority_pda = &accounts[3];
+        let _cpi_authority_pda = &accounts[3];
         let registered_program_pda = &accounts[4];
         let noop_program = &accounts[5];
         let account_compression_authority = &accounts[6];
@@ -40,14 +40,12 @@ impl<'info> CreateCompressedMintAccounts<'info> {
         let address_merkle_tree = &accounts[10];
         let output_queue = &accounts[11];
 
+        // Validate mint_signer: must be signer
+        check_signer(mint_signer).map_err(ProgramError::from)?;
+
         // Validate fee_payer: must be signer and mutable
         check_signer(fee_payer).map_err(ProgramError::from)?;
         check_mut(fee_payer).map_err(ProgramError::from)?;
-
-        // Validate cpi_authority_pda: must be the correct PDA
-        let expected_seeds = &[CPI_AUTHORITY_PDA_SEED, &[BUMP_CPI_AUTHORITY]];
-        check_pda_seeds_with_bump(expected_seeds, program_id, cpi_authority_pda)
-            .map_err(ProgramError::from)?;
 
         // Validate light_system_program: must be the correct program
         // The placeholders are always None -> no need for an extra light system program account info.
@@ -80,9 +78,6 @@ impl<'info> CreateCompressedMintAccounts<'info> {
 
         // Validate output_queue: mutable
         check_mut(output_queue).map_err(ProgramError::from)?;
-
-        // Validate mint_signer: must be signer
-        check_signer(mint_signer).map_err(ProgramError::from)?;
 
         Ok(CreateCompressedMintAccounts {
             address_merkle_tree,

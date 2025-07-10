@@ -3,7 +3,7 @@ use light_compressed_account::{instruction_data::compressed_proof::CompressedPro
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::ZeroCopy;
 
-use crate::extensions::{ExtensionInstructionData, state::ExtensionStruct};
+use crate::extensions::{state::ExtensionStruct, ExtensionInstructionData};
 use crate::mint::state::CompressedMint;
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
@@ -61,7 +61,7 @@ impl From<CompressedMint> for CompressedMintInstructionData {
                             crate::extensions::metadata_pointer::InitMetadataPointer {
                                 authority: metadata_pointer.authority,
                                 metadata_address: metadata_pointer.metadata_address,
-                            }
+                            },
                         )
                     }
                     ExtensionStruct::TokenMetadata(token_metadata) => {
@@ -71,7 +71,7 @@ impl From<CompressedMint> for CompressedMintInstructionData {
                                 metadata: token_metadata.metadata,
                                 additional_metadata: Some(token_metadata.additional_metadata),
                                 version: token_metadata.version,
-                            }
+                            },
                         )
                     }
                 })
