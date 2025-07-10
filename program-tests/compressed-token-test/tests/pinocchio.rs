@@ -4,7 +4,6 @@ use std::assert_eq;
 
 use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use anchor_spl::token_2022::spl_token_2022;
-use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_compressed_token::create_spl_mint::instructions::CreateSplMintInstructionData;
 use light_compressed_token::mint::instructions::UpdateCompressedMintInstructionData;
 use light_compressed_token::mint_to_compressed::instructions::{
@@ -29,7 +28,6 @@ struct MultiTransferInput {
     transfer_amount: u64,
     input_lamports: u64,
     transfer_lamports: u64,
-    change_lamports: u64,
     leaf_index: u32,
     merkle_tree: Pubkey,
     output_queue: Pubkey,
@@ -171,7 +169,7 @@ fn create_ctoken_ata_instruction(
 }
 
 fn create_decompress_instruction(
-    proof: ValidityProof,
+    _proof: ValidityProof,
     compressed_token_account: &[light_client::indexer::TokenAccount],
     decompress_amount: u64,
     spl_token_account: Pubkey,
@@ -650,7 +648,7 @@ async fn test_create_compressed_mint() {
     println!("Creating SPL mint for the compressed mint...");
 
     // Find token pool PDA and bump
-    let (token_pool_pda, token_pool_bump) =
+    let (token_pool_pda, _token_pool_bump) =
         light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
             &mint_pda, 0,
         );
@@ -863,7 +861,6 @@ async fn test_create_compressed_mint() {
 
     let input_lamports = token_accounts[0].account.lamports; // Get the lamports from the token account
     let transfer_lamports = (input_lamports * transfer_amount) / mint_amount; // Proportional lamports transfer
-    let change_lamports = 0; // No change in lamports since we're transferring proportionally
     println!("owner {:?}", recipient);
     let multi_transfer_input = MultiTransferInput {
         payer: payer.pubkey(),
@@ -874,7 +871,6 @@ async fn test_create_compressed_mint() {
         transfer_amount,
         input_lamports,
         transfer_lamports,
-        change_lamports,
         leaf_index: token_accounts[0].account.leaf_index,
         merkle_tree: state_tree_pubkey,
         output_queue: state_output_queue,
@@ -1685,7 +1681,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     let expected_supply = 0u64; // Should be 0 since compressed mint has no tokens minted
 
     // Find token pool PDA
-    let (token_pool_pda, token_pool_bump) = Pubkey::find_program_address(
+    let (token_pool_pda, _token_pool_bump) = Pubkey::find_program_address(
         &[
             light_compressed_token::constants::POOL_SEED,
             &mint_pda.to_bytes(),
