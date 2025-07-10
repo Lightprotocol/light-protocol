@@ -32,6 +32,7 @@ use test_utils::*;
 
 #[serial]
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[ignore = "photon doesn't support custom trees yet"]
 async fn test_e2e_v1() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,

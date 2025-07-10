@@ -44,6 +44,7 @@ const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 #[serial]
+#[ignore = "legacy, left for for photon e2e test snapshot"]
 async fn test_create_v2_address() {
     let seed = 0;
     println!("\n\ne2e test seed {}\n\n", seed);

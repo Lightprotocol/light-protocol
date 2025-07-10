@@ -180,7 +180,7 @@ fn is_v2_address_test_enabled() -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
-async fn test_e2e_v2() {
+async fn e2e_test() {
     let state_tree_params = InitStateTreeAccountsInstructionData::test_default();
     let env = TestAccounts::get_local_test_validator_accounts();
     let config = ForesterConfig {
