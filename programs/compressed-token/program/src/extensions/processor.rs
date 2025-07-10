@@ -1,13 +1,9 @@
 use anchor_lang::prelude::ProgramError;
-use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
 use light_hasher::Hasher;
 
-use crate::{
-    extensions::{
-        metadata_pointer::create_output_metadata_pointer, state::ZExtensionStructMut,
-        token_metadata::create_output_token_metadata, ZExtensionInstructionData,
-    },
-    mint::state::ZCompressedMintMut,
+use crate::extensions::{
+    state::ZExtensionStructMut, token_metadata::create_output_token_metadata,
+    ZExtensionInstructionData,
 };
 
 // Applying extension(s) to compressed accounts.
@@ -23,15 +19,13 @@ pub fn process_create_extensions<'b, H: Hasher>(
     for (extension, output_extension) in extensions.iter().zip(output_compressed_account.iter_mut())
     {
         let hash = match (extension, output_extension) {
-            // (
-            //     ZExtensionInstructionData::MetadataPointer(extension),
-            //     ZExtensionStructMut::MetadataPointer(output_extension),
-            // ) => {
-            //     let (hash, new_start_offset) =
-            //         create_output_metadata_pointer(extension, output_extension, start_offset)?;
-            //     start_offset = new_start_offset;
-            //     hash
-            // }
+            (
+                ZExtensionInstructionData::MetadataPointer(_extension),
+                ZExtensionStructMut::MetadataPointer(_output_extension),
+            ) => {
+                //create_output_metadata_pointer(extension, output_extension, start_offset)?;
+                unimplemented!()
+            }
             (
                 ZExtensionInstructionData::TokenMetadata(extension),
                 ZExtensionStructMut::TokenMetadata(output_extension),

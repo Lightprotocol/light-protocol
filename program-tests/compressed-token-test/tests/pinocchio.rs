@@ -4,9 +4,12 @@ use std::assert_eq;
 
 use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use anchor_spl::token_2022::spl_token_2022;
+use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_compressed_token::mint_to_compressed::instructions::{
-    CompressedMintInput, CompressedMintInputs, MintToCompressedInstructionData, Recipient,
+    CompressedMintInputs, MintToCompressedInstructionData, Recipient,
 };
+use light_compressed_token::create_spl_mint::instructions::CreateSplMintInstructionData;
+use light_compressed_token::mint::instructions::UpdateCompressedMintInstructionData;
 
 use anchor_lang::{prelude::AccountMeta, solana_program::program_pack::Pack, system_program};
 use light_client::indexer::Indexer;
@@ -482,6 +485,7 @@ async fn test_create_compressed_mint() {
     let recipient_keypair = Keypair::new();
     let recipient = recipient_keypair.pubkey();
     let mint_amount = 1000u64;
+    let expected_supply = mint_amount; // After minting tokens, SPL mint should have this supply
     let lamports = Some(10000u64);
 
     // Get state tree for output token accounts
@@ -501,25 +505,22 @@ async fn test_create_compressed_mint() {
         },
         root_index: 0,
         address: compressed_mint_address,
-        compressed_mint_input: CompressedMintInput {
-            spl_mint: expected_compressed_mint.spl_mint.into(),
-            supply: expected_compressed_mint.supply, // Current supply
-            decimals: expected_compressed_mint.decimals,
-            is_decompressed: expected_compressed_mint.is_decompressed, // Pure compressed mint
-            freeze_authority_is_set: expected_compressed_mint.freeze_authority.is_some(),
-            freeze_authority: expected_compressed_mint
-                .freeze_authority
-                .unwrap_or_default()
-                .into(),
-            version: 0,
-            extensions: None,
-        },
+        compressed_mint_input: expected_compressed_mint,
         output_merkle_tree_index: 3,
+    };
+
+    // Create UpdateCompressedMintInstructionData from CompressedMintInputs
+    let update_mint_data = UpdateCompressedMintInstructionData {
+        merkle_context: compressed_mint_inputs.merkle_context,
+        root_index: compressed_mint_inputs.root_index,
+        address: compressed_mint_inputs.address,
+        proof: None, // No proof needed for this test
+        mint: compressed_mint_inputs.compressed_mint_input.into(),
     };
 
     // Create mint_to_compressed instruction
     let mint_to_instruction_data = MintToCompressedInstructionData {
-        compressed_mint_inputs,
+        compressed_mint_inputs: update_mint_data,
         lamports,
         recipients: vec![Recipient {
             recipient: recipient.into(),
@@ -664,30 +665,33 @@ async fn test_create_compressed_mint() {
         },
         root_index: address_merkle_tree_root_index,
         address: compressed_mint_address,
-        compressed_mint_input: CompressedMintInput {
-            spl_mint: mint_pda.into(),
-            supply: mint_amount, // Current supply after minting
-            decimals,
-            is_decompressed: false, // Not yet decompressed
-            freeze_authority_is_set: true,
-            freeze_authority: freeze_authority.into(),
+        compressed_mint_input: light_compressed_token::mint::state::CompressedMint {
             version: 0,
+            spl_mint: mint_pda.into(),
+            supply: mint_amount,
+            decimals,
+            is_decompressed: false,
+            mint_authority: Some(mint_authority.into()),
+            freeze_authority: Some(freeze_authority.into()),
             extensions: None,
         },
         output_merkle_tree_index: 2,
     };
 
-    // Create create_spl_mint instruction data using the non-anchor pattern
-    let create_spl_mint_instruction_data =
-        light_compressed_token::create_spl_mint::instructions::CreateSplMintInstructionData {
-            mint_bump,
-            token_pool_bump,
-            decimals,
-            mint_authority: mint_authority.into(),
-            freeze_authority: Some(freeze_authority.into()),
-            compressed_mint_inputs: compressed_mint_inputs_for_spl,
-            proof: None, // No proof needed for this test
-        };
+    // Create UpdateCompressedMintInstructionData from the compressed mint inputs
+    let update_mint_data_for_spl = UpdateCompressedMintInstructionData {
+        merkle_context: compressed_mint_inputs_for_spl.merkle_context,
+        root_index: compressed_mint_inputs_for_spl.root_index,
+        address: compressed_mint_inputs_for_spl.address,
+        proof: None, // No proof needed for this test
+        mint: compressed_mint_inputs_for_spl.compressed_mint_input.into(),
+    };
+
+    // Create create_spl_mint instruction data using the new refactored structure
+    let create_spl_mint_instruction_data = CreateSplMintInstructionData {
+        mint_bump,
+        mint: update_mint_data_for_spl,
+    };
 
     // Build accounts manually for non-anchor instruction (following account order from accounts.rs)
     let create_spl_mint_accounts = vec![
@@ -757,7 +761,7 @@ async fn test_create_compressed_mint() {
         "SPL mint should have correct decimals"
     );
     assert_eq!(
-        spl_mint.supply, mint_amount,
+        spl_mint.supply, expected_supply,
         "SPL mint should have minted supply"
     );
     assert_eq!(
@@ -774,7 +778,7 @@ async fn test_create_compressed_mint() {
         "Token pool should have correct mint"
     );
     assert_eq!(
-        token_pool.amount, mint_amount,
+        token_pool.amount, expected_supply,
         "Token pool should have the minted supply"
     );
 
@@ -1297,6 +1301,92 @@ async fn test_create_associated_token_account() {
     assert_eq!(bump, derived_bump);
 }
 
+fn create_spl_mint_instruction(
+    mint_signer: Pubkey,
+    mint_bump: u8,
+    compressed_mint_inputs: CompressedMintInputs,
+    proof: Option<light_verifier::CompressedProof>,
+    payer: Pubkey,
+    input_merkle_tree: Pubkey,
+    input_output_queue: Pubkey,
+    output_queue: Pubkey,
+) -> Instruction {
+    // Extract values from compressed_mint_inputs
+    let mint_pda: Pubkey = compressed_mint_inputs.compressed_mint_input.spl_mint.into();
+    let mint_authority: Pubkey = compressed_mint_inputs.compressed_mint_input.mint_authority
+        .expect("mint_authority should be present")
+        .into();
+
+    // Create UpdateCompressedMintInstructionData from the compressed mint inputs
+    let update_mint_data = UpdateCompressedMintInstructionData {
+        merkle_context: compressed_mint_inputs.merkle_context,
+        root_index: compressed_mint_inputs.root_index,
+        address: compressed_mint_inputs.address,
+        proof,
+        mint: compressed_mint_inputs.compressed_mint_input.into(),
+    };
+
+    // Create the create_spl_mint instruction data
+    let create_spl_mint_instruction_data = CreateSplMintInstructionData {
+        mint_bump,
+        mint: update_mint_data,
+    };
+
+    // Find token pool PDA
+    let (token_pool_pda, _token_pool_bump) = Pubkey::find_program_address(
+        &[
+            light_compressed_token::constants::POOL_SEED,
+            &mint_pda.to_bytes(),
+        ],
+        &light_compressed_token::ID,
+    );
+
+    // Create create_spl_mint accounts in the exact order expected by accounts.rs
+    let create_spl_mint_accounts = vec![
+        // Static non-CPI accounts first (in order from accounts.rs)
+        AccountMeta::new(mint_authority, true),  // authority (signer)
+        AccountMeta::new(mint_pda, false),       // mint
+        AccountMeta::new_readonly(mint_signer, false), // mint_signer
+        AccountMeta::new(token_pool_pda, false), // token_pool_pda
+        AccountMeta::new_readonly(spl_token_2022::ID, false), // token_program
+        AccountMeta::new_readonly(light_system_program::ID, false), // light_system_program
+        // CPI accounts in exact order expected by light-system-program
+        AccountMeta::new(payer, true), // fee_payer (signer, mutable)
+        AccountMeta::new_readonly(
+            light_compressed_token::process_transfer::get_cpi_authority_pda().0,
+            false,
+        ), // cpi_authority_pda
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
+            false,
+        ), // registered_program_pda
+        AccountMeta::new_readonly(
+            Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+            false,
+        ), // noop_program
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
+            false,
+        ), // account_compression_authority
+        AccountMeta::new_readonly(account_compression::ID, false),  // account_compression_program
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // self_program
+        AccountMeta::new_readonly(system_program::ID, false),       // system_program
+        AccountMeta::new(input_merkle_tree, false),                 // in_merkle_tree
+        AccountMeta::new(input_output_queue, false),                // in_output_queue
+        AccountMeta::new(output_queue, false),                      // out_output_queue
+    ];
+
+    Instruction {
+        program_id: light_compressed_token::ID,
+        accounts: create_spl_mint_accounts,
+        data: [
+            vec![102], // CreateSplMint discriminator
+            create_spl_mint_instruction_data.try_to_vec().unwrap(),
+        ]
+        .concat(),
+    }
+}
+
 fn create_compressed_mint_with_extensions(
     decimals: u8,
     mint_authority: Pubkey,
@@ -1535,14 +1625,14 @@ async fn test_create_compressed_mint_with_token_metadata() {
             );
             // Verify additional metadata
             assert_eq!(metadata.additional_metadata.len(), 3);
-            
+
             // Sort both expected and actual for comparison
             let mut expected_additional = additional_metadata.clone();
             expected_additional.sort_by(|a, b| a.key.cmp(&b.key));
-            
+
             let mut actual_additional = metadata.additional_metadata.clone();
             actual_additional.sort_by(|a, b| a.key.cmp(&b.key));
-            
+
             for (expected, actual) in expected_additional.iter().zip(actual_additional.iter()) {
                 assert_eq!(actual.key, expected.key);
                 assert_eq!(actual.value, expected.value);
@@ -1585,4 +1675,156 @@ async fn test_create_compressed_mint_with_token_metadata() {
             }
         }
     }
+
+    // Test create_spl_mint with the compressed mint containing metadata extensions
+    println!("🧪 Testing create_spl_mint with compressed mint containing metadata extensions...");
+
+    // Note: We're creating SPL mint from a compressed mint with 0 supply
+    let expected_supply = 0u64; // Should be 0 since compressed mint has no tokens minted
+
+    // Find token pool PDA
+    let (token_pool_pda, token_pool_bump) = Pubkey::find_program_address(
+        &[
+            light_compressed_token::constants::POOL_SEED,
+            &mint_pda.to_bytes(),
+        ],
+        &light_compressed_token::ID,
+    );
+
+    // Get the tree and queue info from the compressed mint account
+    let input_tree = compressed_mint_account.tree_info.tree;
+    let input_queue = compressed_mint_account.tree_info.queue;
+    
+    println!("Tree type: {:?}", compressed_mint_account.tree_info.tree_type);
+    println!("Input tree: {}", input_tree);
+    println!("Input queue: {}", input_queue);
+    
+    // Get a separate output queue for the new compressed mint state
+    let output_tree_info = rpc.get_random_state_tree_info().unwrap();
+    let output_queue = output_tree_info.queue;
+
+    // Get validity proof for compressed mint input - pass the hash
+    let proof_result = rpc
+        .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    // Prepare compressed mint inputs
+    let compressed_mint_inputs = CompressedMintInputs {
+        merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
+            merkle_tree_pubkey_index: 0, // Index 0 in tree_accounts: in_merkle_tree
+            queue_pubkey_index: 1, // Index 1 in tree_accounts: in_output_queue  
+            leaf_index: compressed_mint_account.leaf_index,
+            prove_by_index: true,
+        },
+        root_index: proof_result.accounts[0].root_index.root_index().unwrap_or_default(),
+        address: compressed_mint_address,
+        compressed_mint_input: actual_compressed_mint.clone(),
+        output_merkle_tree_index: 2, // Index 2 in tree_accounts: out_output_queue
+    };
+
+    // Create the create_spl_mint instruction using the helper function
+    let create_spl_mint_instruction = create_spl_mint_instruction(
+        mint_signer.pubkey(),
+        mint_bump,
+        compressed_mint_inputs,
+        proof_result.proof.0,
+        payer.pubkey(),
+        input_tree,
+        input_queue,
+        output_queue,
+    );
+
+    // Execute create_spl_mint
+    rpc.create_and_send_transaction(
+        &[create_spl_mint_instruction],
+        &payer.pubkey(),
+        &[&payer, &mint_authority_keypair],
+    )
+    .await
+    .unwrap();
+
+    // Verify SPL mint was created
+    let mint_account_data = rpc.get_account(mint_pda).await.unwrap().unwrap();
+    let spl_mint = spl_token_2022::state::Mint::unpack(&mint_account_data.data).unwrap();
+    assert_eq!(
+        spl_mint.decimals, decimals,
+        "SPL mint should have correct decimals"
+    );
+    assert_eq!(
+        spl_mint.supply, expected_supply,
+        "SPL mint should have expected supply"
+    );
+    assert_eq!(
+        spl_mint.mint_authority.unwrap(),
+        mint_authority,
+        "SPL mint should have correct authority"
+    );
+
+    // Verify token pool was created and has the supply
+    let token_pool_account_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+    let token_pool = spl_token_2022::state::Account::unpack(&token_pool_account_data.data).unwrap();
+    assert_eq!(
+        token_pool.mint,
+        mint_pda,
+        "Token pool should have correct mint"
+    );
+    assert_eq!(
+        token_pool.amount, expected_supply,
+        "Token pool should have the expected supply"
+    );
+
+    // Verify compressed mint is now marked as decompressed but retains extensions
+    let final_compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    let final_compressed_mint: light_compressed_token::mint::state::CompressedMint =
+        BorshDeserialize::deserialize(
+            &mut final_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+    assert!(
+        final_compressed_mint.is_decompressed,
+        "Compressed mint should now be marked as decompressed"
+    );
+
+    // Verify extensions are preserved
+    assert!(final_compressed_mint.extensions.is_some());
+    let final_extensions = final_compressed_mint.extensions.as_ref().unwrap();
+    assert_eq!(final_extensions.len(), 1);
+    match &final_extensions[0] {
+        light_compressed_token::extensions::state::ExtensionStruct::TokenMetadata(metadata) => {
+            assert_eq!(metadata.mint.to_bytes(), mint_pda.to_bytes());
+            assert_eq!(metadata.update_authority, Some(mint_authority.into()));
+            assert_eq!(metadata.metadata.name, b"Test Token".to_vec());
+            assert_eq!(metadata.metadata.symbol, b"TEST".to_vec());
+            assert_eq!(
+                metadata.metadata.uri,
+                b"https://example.com/token.json".to_vec()
+            );
+            assert_eq!(metadata.additional_metadata.len(), 3);
+            assert_eq!(metadata.version, 0);
+        }
+        _ => panic!("Expected TokenMetadata extension"),
+    }
+
+    println!("✅ create_spl_mint with metadata extensions completed successfully!");
+    println!("   - SPL mint PDA: {}", mint_pda);
+    println!("   - Token pool PDA: {}", token_pool_pda);
+    println!("   - Minted supply: {}", expected_supply);
+    println!(
+        "   - Compressed mint is_decompressed: {}",
+        final_compressed_mint.is_decompressed
+    );
+    println!(
+        "   - Extensions preserved: {}",
+        final_compressed_mint.extensions.is_some()
+    );
 }

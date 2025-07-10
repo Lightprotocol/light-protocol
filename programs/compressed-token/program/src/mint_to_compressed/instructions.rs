@@ -5,27 +5,15 @@ use light_compressed_account::{
 };
 use light_zero_copy::ZeroCopy;
 
-use crate::extensions::{state::ExtensionStruct, ExtensionInstructionData};
+use crate::mint::{instructions::UpdateCompressedMintInstructionData, state::CompressedMint};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct CompressedMintInputs {
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
     pub address: [u8; 32],
-    pub compressed_mint_input: CompressedMintInput,
+    pub compressed_mint_input: CompressedMint,
     pub output_merkle_tree_index: u8,
-}
-
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
-pub struct CompressedMintInput {
-    pub spl_mint: Pubkey,
-    pub supply: u64,
-    pub decimals: u8,
-    pub is_decompressed: bool,
-    pub freeze_authority_is_set: bool,
-    pub freeze_authority: Pubkey,
-    pub version: u8,
-    pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
@@ -36,7 +24,7 @@ pub struct Recipient {
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct MintToCompressedInstructionData {
-    pub compressed_mint_inputs: CompressedMintInputs,
+    pub compressed_mint_inputs: UpdateCompressedMintInstructionData,
     pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
     pub proof: Option<CompressedProof>,

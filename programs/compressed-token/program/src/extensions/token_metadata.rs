@@ -1,13 +1,10 @@
 use anchor_lang::prelude::ProgramError;
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::{
-    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
-};
+use light_compressed_account::Pubkey;
 use light_hasher::{
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, Hasher, HasherError,
-    Keccak, Poseidon, Sha256,
+    Poseidon, Sha256,
 };
-use light_sdk::LightHasher;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 // TODO: decide whether to keep Shaflat
@@ -199,43 +196,6 @@ impl DataHasher for ZTokenMetadata<'_> {
         )
     }
 }
-// TODO: add borsh compat test TokenMetadataUi TokenMetadata
-/// Ui Token metadata with Strings instead of bytes.
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
-pub struct TokenMetadataUi {
-    // TODO: decide whether to move down for more efficient zero copy. Or impl manual zero copy.
-    /// The authority that can sign to update the metadata
-    pub update_authority: Option<Pubkey>,
-    // TODO: decide whether to keep this.
-    /// The associated mint, used to counter spoofing to be sure that metadata
-    /// belongs to a particular mint
-    pub mint: Pubkey,
-    pub metadata: MetadataUi,
-    /// Any additional metadata about the token as key-value pairs. The program
-    /// must avoid storing the same key twice.
-    pub additional_metadata: Vec<AdditionalMetadataUi>,
-    // TODO: decide whether to do this on this or MintAccount level
-    /// 0: Poseidon, 1: Sha256, 2: Keccak256, 3: Sha256Flat
-    pub version: u8,
-}
-
-#[derive(Debug, LightHasher, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
-pub struct MetadataUi {
-    /// The longer name of the token
-    pub name: String,
-    /// The shortened symbol for the token
-    pub symbol: String,
-    /// The URI pointing to richer metadata
-    pub uri: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
-pub struct AdditionalMetadataUi {
-    /// The key of the metadata
-    pub key: String,
-    /// The value of the metadata
-    pub value: String,
-}
 
 // TODO: if version 0 we check all string len for less than 31 bytes
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]
@@ -340,22 +300,6 @@ pub struct AdditionalMetadata {
     pub key: Vec<u8>,
     /// The value of the metadata
     pub value: Vec<u8>,
-}
-
-// Small instruction data input.
-// TODO: impl hash fn that is consistent with full hash fn, then we can add it to the instruction data enum
-pub struct SmallTokenMetadata {
-    /// The authority that can sign to update the metadata
-    pub update_authority: Option<Pubkey>,
-    /// The associated mint, used to counter spoofing to be sure that metadata
-    /// belongs to a particular mint
-    pub mint: Pubkey,
-    pub metadata_hash: [u8; 32],
-    /// Any additional metadata about the token as key-value pairs. The program
-    /// must avoid storing the same key twice.
-    pub additional_metadata: Option<Vec<AdditionalMetadata>>,
-    /// 0: Poseidon, 1: Sha256, 2: Keccak256, 3: Sha256Flat
-    pub version: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopy)]
@@ -499,38 +443,3 @@ pub fn create_output_token_metadata<'a>(
 
     Ok(hash)
 }
-
-// #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]
-// pub struct EfficientTokenMetadata {
-//     // TODO: decide whether to keep this.
-//     /// The associated mint, used to counter spoofing to be sure that metadata
-//     /// belongs to a particular mint
-//     pub mint: Pubkey,
-//     pub metadata: EfficientMetadata,
-//     /// The authority that can sign to update the metadata
-//     pub update_authority: Option<Pubkey>,
-//     /// Any additional metadata about the token as key-value pairs. The program
-//     /// must avoid storing the same key twice.
-//     pub additional_metadata: Vec<EfficientAdditionalMetadata>,
-//     // TODO: decide whether to do this on this or MintAccount level
-//     /// 0: Poseidon, 1: Sha256, 2: Keccak256, 3: Sha256Flat
-//     pub version: u8,
-// }
-
-// #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]
-// pub struct EfficientMetadata {
-//     /// The longer name of the token
-//     pub name: [u8; 32],
-//     /// The shortened symbol for the token
-//     pub symbol: [u8; 32],
-//     /// The URI pointing to richer metadata
-//     pub uri: [u8; 32],
-// }
-
-// #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]
-// pub struct EfficientAdditionalMetadata {
-//     /// The key of the metadata
-//     pub key: [u8; 32],
-//     /// The value of the metadata
-//     pub value: [u8; 32],
-// }

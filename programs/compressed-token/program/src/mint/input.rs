@@ -3,8 +3,9 @@ use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_hasher::{Hasher, Poseidon};
 
 use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR, mint::state::CompressedMint,
-    mint_to_compressed::instructions::ZCompressedMintInputs, shared::context::TokenContext,
+    constants::COMPRESSED_MINT_DISCRIMINATOR,
+    mint::{instructions::ZUpdateCompressedMintInstructionData, state::CompressedMint},
+    shared::context::TokenContext,
 };
 
 /// Creates and validates an input compressed mint account.
@@ -19,7 +20,7 @@ use crate::{
 pub fn create_input_compressed_mint_account(
     input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
-    compressed_mint_inputs: &ZCompressedMintInputs,
+    compressed_mint_inputs: &ZUpdateCompressedMintInstructionData,
     hashed_mint_authority: &[u8; 32],
 ) -> Result<(), ProgramError> {
     // 1. Set InAccount fields
@@ -51,7 +52,7 @@ pub fn create_input_compressed_mint_account(
     }
 
     // 2. Extract and validate compressed mint data
-    let compressed_mint_input = &compressed_mint_inputs.compressed_mint_input;
+    let compressed_mint_input = &compressed_mint_inputs.mint;
 
     // 3. Compute data hash using TokenContext for caching
     {
@@ -60,11 +61,12 @@ pub fn create_input_compressed_mint_account(
         supply_bytes[24..]
             .copy_from_slice(compressed_mint_input.supply.get().to_be_bytes().as_slice());
 
-        let hashed_freeze_authority = if compressed_mint_input.freeze_authority_is_set() {
-            Some(context.get_or_hash_pubkey(&compressed_mint_input.freeze_authority.into()))
-        } else {
-            None
-        };
+        let hashed_freeze_authority =
+            if let Some(freeze_authority) = compressed_mint_input.freeze_authority.as_ref() {
+                Some(context.get_or_hash_pubkey(&(**freeze_authority).to_bytes()))
+            } else {
+                None
+            };
 
         // Compute the data hash using the CompressedMint hash function
         let data_hash = CompressedMint::hash_with_hashed_values(
@@ -78,10 +80,8 @@ pub fn create_input_compressed_mint_account(
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let extension_hashchain = if let Some(extensions) = compressed_mint_inputs
-            .compressed_mint_input
-            .extensions
-            .as_ref()
+        let extension_hashchain = if let Some(extensions) =
+            compressed_mint_inputs.mint.extensions.as_ref()
         {
             let mut extension_hashchain = [0u8; 32];
             for extension in extensions {

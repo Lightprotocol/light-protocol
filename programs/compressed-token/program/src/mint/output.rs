@@ -3,13 +3,12 @@ use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
 
-use light_hasher::Poseidon;
 use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
 
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
-    extensions::{processor::process_create_extensions, ZExtensionInstructionData},
+    extensions::ZExtensionInstructionData,
     mint::state::{CompressedMint, CompressedMintConfig},
 };
 // TODO: pass in struct

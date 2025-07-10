@@ -4,7 +4,7 @@ use std::{assert_eq, str::FromStr};
 
 use anchor_lang::prelude::borsh::BorshSerialize;
 use light_compressed_token::mint_to_compressed::instructions::{
-    CompressedMintInput, CompressedMintInputs, MintToCompressedInstructionData, Recipient,
+    CompressedMintInputs, MintToCompressedInstructionData, Recipient,
 };
 
 use account_compression::errors::AccountCompressionErrorCode;

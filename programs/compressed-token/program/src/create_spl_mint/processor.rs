@@ -4,7 +4,7 @@ use crate::{
         accounts::CreateSplMintAccounts,
         instructions::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
     },
-    mint::state::{CompressedMint, CompressedMintConfig},
+    mint::state::CompressedMintConfig,
     shared::cpi::execute_cpi_invoke,
 };
 use anchor_lang::solana_program::{
@@ -33,11 +33,7 @@ pub fn process_create_spl_mint(
     let validated_accounts = CreateSplMintAccounts::validate_and_parse(accounts)?;
 
     // Verify mint PDA matches the spl_mint field in compressed mint inputs
-    let expected_mint: [u8; 32] = parsed_instruction_data
-        .compressed_mint_inputs
-        .compressed_mint_input
-        .spl_mint
-        .into();
+    let expected_mint: [u8; 32] = parsed_instruction_data.mint.mint.spl_mint.to_bytes();
     if validated_accounts.mint.key() != &expected_mint {
         return Err(ProgramError::InvalidAccountData);
     }
@@ -59,12 +55,7 @@ pub fn process_create_spl_mint(
     initialize_token_pool_account(&validated_accounts)?;
 
     // Mint the existing supply to the token pool if there's any supply
-    if parsed_instruction_data
-        .compressed_mint_inputs
-        .compressed_mint_input
-        .supply
-        > 0
-    {
+    if parsed_instruction_data.mint.mint.supply > 0 {
         mint_existing_supply_to_pool(&validated_accounts, &parsed_instruction_data)?;
     }
     // Update the compressed mint to mark it as is_decompressed = true
@@ -78,6 +69,12 @@ pub fn process_create_spl_mint(
     sol_log_compute_units();
     Ok(())
 }
+
+// TODO: remove tree indices from instructiond data we hardcode the order.
+//const IN_TREE: u8 = 0;
+//const IN_OUTPUT_QUEUE: u8 = 1;
+
+const OUT_OUTPUT_QUEUE: u8 = 2;
 
 fn update_compressed_mint_to_decompressed<'info>(
     all_accounts: &'info [AccountInfo],
@@ -97,19 +94,17 @@ fn update_compressed_mint_to_decompressed<'info>(
     use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 
     // Process extensions from input mint
-    let mint_inputs = &instruction_data
-        .compressed_mint_inputs
-        .compressed_mint_input;
-    let (_has_extensions, extensions_config, _) =
+    let mint_inputs = &instruction_data.mint.mint;
+    let (_, extensions_config, _) =
         crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref());
 
     // Build configuration for CPI instruction data - 1 input, 1 output, with optional proof
     let config_input = CpiConfigInput {
         input_accounts: ArrayVec::new(),
         output_accounts: ArrayVec::new(),
-        has_proof: instruction_data.proof.is_some(),
+        has_proof: instruction_data.mint.proof.is_some(),
         compressed_mint: true,
-        compressed_mint_with_freeze_authority: instruction_data.freeze_authority.is_some(),
+        compressed_mint_with_freeze_authority: mint_inputs.freeze_authority.is_some(),
         extensions_config,
     };
 
@@ -131,21 +126,18 @@ fn update_compressed_mint_to_decompressed<'info>(
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
             &mut context,
-            &instruction_data.compressed_mint_inputs,
+            &instruction_data.mint,
             &hashed_mint_authority,
         )?;
 
         // Process output compressed mint account (with is_decompressed = true)
-        let mint_inputs = &instruction_data
-            .compressed_mint_inputs
-            .compressed_mint_input;
+        let mint_inputs = &instruction_data.mint.mint;
         let mint_pda = mint_inputs.spl_mint;
-        let decimals = instruction_data.decimals;
-        let freeze_authority = if mint_inputs.freeze_authority_is_set() {
-            Some(mint_inputs.freeze_authority)
-        } else {
-            None
-        };
+        let decimals = mint_inputs.decimals;
+        let freeze_authority = mint_inputs
+            .freeze_authority
+            .as_ref()
+            .map(|fa| fa.to_bytes().into());
 
         // Reuse the extensions config we already processed
         let (has_extensions_output, extensions_config_output, _) =
@@ -153,34 +145,31 @@ fn update_compressed_mint_to_decompressed<'info>(
 
         let mint_config = CompressedMintConfig {
             mint_authority: (true, ()),
-            freeze_authority: (mint_inputs.freeze_authority_is_set(), ()),
+            freeze_authority: (mint_inputs.freeze_authority.is_some(), ()),
             extensions: (has_extensions_output, extensions_config_output),
         };
-        let compressed_account_address = *instruction_data.compressed_mint_inputs.address;
+        let compressed_account_address = *instruction_data.mint.address;
         let supply = mint_inputs.supply; // Keep same supply, just mark as decompressed
-
         create_output_compressed_mint_account(
             &mut cpi_instruction_struct.output_compressed_accounts[0],
             mint_pda,
             decimals,
             freeze_authority,
-            Some(instruction_data.mint_authority),
-            supply,
+            mint_inputs
+                .mint_authority
+                .as_ref()
+                .map(|ma| ma.to_bytes().into()),
+            supply.into(),
             &program_id.into(),
             mint_config,
             compressed_account_address,
-            instruction_data
-                .compressed_mint_inputs
-                .output_merkle_tree_index,
-            instruction_data
-                .compressed_mint_inputs
-                .compressed_mint_input
-                .version,
+            OUT_OUTPUT_QUEUE,
+            instruction_data.mint.mint.version,
             mint_inputs.extensions.as_deref(),
         )?;
 
         // Set proof data if provided
-        if let Some(instruction_proof) = &instruction_data.proof {
+        if let Some(instruction_proof) = &instruction_data.mint.proof {
             if let Some(proof) = cpi_instruction_struct.proof.as_deref_mut() {
                 proof.a = instruction_proof.a;
                 proof.b = instruction_proof.b;
@@ -299,13 +288,22 @@ fn initialize_mint_account(
     let spl_ix = spl_token_2022::instruction::initialize_mint2(
         &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
         &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
-        &solana_pubkey::Pubkey::new_from_array(instruction_data.mint_authority.into()),
+        &solana_pubkey::Pubkey::new_from_array(
+            instruction_data
+                .mint
+                .mint
+                .mint_authority
+                .unwrap()
+                .to_bytes(),
+        ),
         instruction_data
+            .mint
+            .mint
             .freeze_authority
             .as_ref()
-            .map(|f| solana_pubkey::Pubkey::new_from_array((**f).into()))
+            .map(|f| solana_pubkey::Pubkey::new_from_array(f.to_bytes()))
             .as_ref(),
-        instruction_data.decimals,
+        instruction_data.mint.mint.decimals,
     )?;
 
     let initialize_mint_ix = pinocchio::instruction::Instruction {
@@ -434,15 +432,18 @@ fn mint_existing_supply_to_pool(
     instruction_data: &ZCreateSplMintInstructionData,
 ) -> Result<(), ProgramError> {
     // Only mint if the authority matches
-    if accounts.authority.key() != &instruction_data.mint_authority.to_bytes() {
+    if accounts.authority.key()
+        != &instruction_data
+            .mint
+            .mint
+            .mint_authority
+            .unwrap()
+            .to_bytes()
+    {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let supply = instruction_data
-        .compressed_mint_inputs
-        .compressed_mint_input
-        .supply
-        .into();
+    let supply = instruction_data.mint.mint.supply;
 
     // Create SPL mint_to instruction and use its account structure
     let spl_mint_to_ix = spl_token_2022::instruction::mint_to(
@@ -451,7 +452,7 @@ fn mint_existing_supply_to_pool(
         &solana_pubkey::Pubkey::new_from_array(*accounts.token_pool_pda.key()),
         &solana_pubkey::Pubkey::new_from_array(*accounts.authority.key()),
         &[],
-        supply,
+        supply.into(),
     )?;
 
     // Mint tokens to the pool

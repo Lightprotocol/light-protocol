@@ -53,8 +53,10 @@ pub fn process_create_compressed_mint(
     .into();
 
     let (compressed_mint_len, mint_size_config) = {
-        let (has_extensions, extensions_config, additional_mint_data_len) = 
-            crate::extensions::process_extensions_config(parsed_instruction_data.extensions.as_ref());
+        let (has_extensions, extensions_config, additional_mint_data_len) =
+            crate::extensions::process_extensions_config(
+                parsed_instruction_data.extensions.as_ref(),
+            );
         let mint_size_config: <CompressedMint as ZeroCopyNew>::ZeroCopyConfig =
             CompressedMintConfig {
                 mint_authority: (true, ()),
@@ -123,6 +125,7 @@ pub fn process_create_compressed_mint(
     cpi_instruction_struct.new_address_params[0].assigned_to_account = 1;
 
     // 2. Create compressed mint account data
+    // TODO: add input struct, try to use CompressedMintInput
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         mint_pda,
@@ -145,8 +148,7 @@ pub fn process_create_compressed_mint(
         .iter()
         .map(|account| account.key())
         .collect::<Vec<_>>();
-    msg!("tree_accounts {:?}", tree_accounts);
-    msg!("accounts {:?}", _accounts);
+
     execute_cpi_invoke(
         &accounts[2..], // Skip first non-CPI account (mint_signer)
         cpi_bytes,

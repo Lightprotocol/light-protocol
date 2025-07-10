@@ -8,10 +8,13 @@ pub mod metadata_pointer;
 pub mod processor;
 pub mod state;
 pub mod token_metadata;
+pub mod token_metadata_ui;
 
 use metadata_pointer::{MetadataPointer, MetadataPointerConfig};
 use state::ExtensionStructConfig;
-use token_metadata::{AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig};
+use token_metadata::{
+    AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 #[repr(u16)]
@@ -104,7 +107,7 @@ pub fn process_extensions_config(
     if let Some(extensions) = extensions {
         let mut additional_mint_data_len = 0;
         let mut config_vec = Vec::new();
-        
+
         for extension in extensions.iter() {
             match extension {
                 ZExtensionInstructionData::MetadataPointer(extension) => {
@@ -151,4 +154,3 @@ pub fn process_extensions_config(
         (false, Vec::new(), 0)
     }
 }
-
