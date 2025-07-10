@@ -58,9 +58,10 @@ impl TokenMetadata {
     pub fn hash(&self) -> Result<[u8; 32], HasherError> {
         match Version::try_from(self.version)? {
             Version::Poseidon => <Self as DataHasher>::hash::<Poseidon>(self),
-            Version::Sha256 => <Self as DataHasher>::hash::<Sha256>(self),
-            Version::Keccak256 => <Self as DataHasher>::hash::<Keccak>(self),
-            Version::Sha256Flat => self.sha_flat(),
+            _ => unimplemented!("TokenMetadata hash version not supported {}", self.version),
+            // Version::Sha256 => <Self as DataHasher>::hash::<Sha256>(self),
+            // Version::Keccak256 => <Self as DataHasher>::hash::<Keccak>(self),
+            // Version::Sha256Flat => self.sha_flat(),
         }
     }
     fn sha_flat(&self) -> Result<[u8; 32], HasherError> {
@@ -87,6 +88,41 @@ fn token_metadata_hash<H: light_hasher::Hasher>(
     }
 
     vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[&mint])?;
+
+    for (key, value) in additional_metadata {
+        // TODO: add check is poseidon and throw meaningful error.
+        vec[3] = H::hashv(&[vec[3].as_slice(), key, value])?;
+    }
+    vec[4][31] = version;
+
+    slice_vec[0] = vec[0].as_slice();
+    slice_vec[1] = vec[2].as_slice();
+    slice_vec[2] = metadata_hash;
+    slice_vec[3] = vec[3].as_slice();
+    slice_vec[4] = vec[4].as_slice();
+
+    if vec[4] != [0u8; 32] {
+        H::hashv(&slice_vec[..4])
+    } else {
+        H::hashv(slice_vec.as_slice())
+    }
+}
+
+fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
+    hashed_update_authority: Option<&[u8; 32]>,
+    hashed_mint: &[u8; 32],
+    metadata_hash: &[u8],
+    additional_metadata: &[(&[u8], &[u8])],
+    version: u8,
+) -> Result<[u8; 32], HasherError> {
+    let mut vec = [[0u8; 32]; 5];
+    let mut slice_vec: [&[u8]; 5] = [&[]; 5];
+
+    if let Some(hashed_update_authority) = hashed_update_authority {
+        vec[0] = *hashed_update_authority;
+    }
+
+    vec[1] = *hashed_mint;
 
     for (key, value) in additional_metadata {
         // TODO: add check is poseidon and throw meaningful error.
@@ -397,11 +433,9 @@ impl<'a> ZTokenMetadataInstructionData<'a> {
             None
         };
 
-        token_metadata_hash::<H>(
-            hashed_update_authority
-                .as_ref()
-                .map(|h: &[u8; 32]| h.as_slice()),
-            hashed_mint.as_slice(),
+        token_metadata_hash_with_hashed_values::<H>(
+            hashed_update_authority.as_ref(),
+            hashed_mint,
             metadata_hash.as_slice(),
             &additional_metadata,
             self.version,
