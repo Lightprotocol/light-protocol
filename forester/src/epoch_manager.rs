@@ -15,7 +15,7 @@ use forester_utils::{
 };
 use futures::future::join_all;
 use light_client::{
-    indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
+    indexer::{MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
@@ -28,7 +28,10 @@ use light_registry::{
 use solana_program::{
     instruction::InstructionError, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
 };
-use solana_sdk::{signature::Signer, transaction::TransactionError};
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::TransactionError,
+};
 use tokio::{
     sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
     task::JoinHandle,
@@ -53,7 +56,8 @@ use crate::{
     },
     queue_helpers::QueueItemData,
     rollover::{
-        is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
+        is_tree_ready_for_rollover, perform_address_merkle_tree_rollover,
+        perform_state_merkle_tree_rollover_forester,
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
     tree_data_sync::fetch_trees,
@@ -90,11 +94,10 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: Rpc, I: Indexer + 'static> {
+pub struct EpochManager<R: Rpc> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
-    indexer: Arc<Mutex<I>>,
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
     trees: Arc<Mutex<Vec<TreeAccounts>>>,
@@ -105,13 +108,12 @@ pub struct EpochManager<R: Rpc, I: Indexer + 'static> {
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
-impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
+impl<R: Rpc> Clone for EpochManager<R> {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
             protocol_config: self.protocol_config.clone(),
             rpc_pool: self.rpc_pool.clone(),
-            indexer: self.indexer.clone(),
             work_report_sender: self.work_report_sender.clone(),
             processed_items_per_epoch_count: self.processed_items_per_epoch_count.clone(),
             trees: self.trees.clone(),
@@ -124,13 +126,12 @@ impl<R: Rpc, I: Indexer> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
+impl<R: Rpc> EpochManager<R> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
         protocol_config: Arc<ProtocolConfig>,
         rpc_pool: Arc<SolanaRpcPool<R>>,
-        indexer: Arc<Mutex<I>>,
         work_report_sender: mpsc::Sender<WorkReport>,
         trees: Vec<TreeAccounts>,
         slot_tracker: Arc<SlotTracker>,
@@ -142,7 +143,6 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
             config,
             protocol_config,
             rpc_pool,
-            indexer,
             work_report_sender,
             processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
             trees: Arc::new(Mutex::new(trees)),
@@ -346,9 +346,9 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
                 let mut rpc = self.rpc_pool.get_connection().await?;
                 let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
                 debug!(
-                    "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
-                    next_epoch, slot, next_phases.registration.start, slots_to_wait
-                );
+                "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
+                next_epoch, slot, next_phases.registration.start, slots_to_wait
+            );
 
                 if let Err(e) = wait_until_slot_reached(
                     &mut *rpc,
@@ -1119,6 +1119,10 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
+                info!(
+                    "Processing V2 tree: {} (type: {:?}, epoch: {})",
+                    tree_accounts.merkle_tree, tree_accounts.tree_type, epoch_info.epoch
+                );
                 self.process_v2(epoch_info, tree_accounts).await
             }
         }
@@ -1157,7 +1161,6 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
         };
 
         let transaction_builder = EpochManagerTransactions::new(
-            self.indexer.clone(),
             self.rpc_pool.clone(),
             epoch_info.epoch,
             self.tx_cache.clone(),
@@ -1185,7 +1188,6 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),
-            indexer: self.indexer.clone(),
             authority: self.config.payer_keypair.insecure_clone(),
             derivation: self.config.derivation_pubkey,
             epoch: epoch_info.epoch,
@@ -1356,22 +1358,46 @@ impl<R: Rpc, I: Indexer + 'static> EpochManager<R, I> {
 
         let result = match tree_account.tree_type {
             TreeType::AddressV1 => {
-                rollover_address_merkle_tree(
-                    self.config.clone(),
+                let new_nullifier_queue_keypair = Keypair::new();
+                let new_merkle_tree_keypair = Keypair::new();
+
+                let rollover_signature = perform_address_merkle_tree_rollover(
+                    &self.config.payer_keypair,
+                    &self.config.derivation_pubkey,
                     &mut *rpc,
-                    tree_account,
+                    &new_nullifier_queue_keypair,
+                    &new_merkle_tree_keypair,
+                    &tree_account.merkle_tree,
+                    &tree_account.queue,
                     current_epoch,
                 )
-                .await
+                .await?;
+
+                info!("Address rollover signature: {:?}", rollover_signature);
+                Ok(())
             }
             TreeType::StateV1 => {
-                rollover_state_merkle_tree(
-                    self.config.clone(),
+                let new_nullifier_queue_keypair = Keypair::new();
+                let new_merkle_tree_keypair = Keypair::new();
+                let new_cpi_signature_keypair = Keypair::new();
+
+                let rollover_signature = perform_state_merkle_tree_rollover_forester(
+                    &self.config.payer_keypair,
+                    &self.config.derivation_pubkey,
                     &mut *rpc,
-                    tree_account,
+                    &new_nullifier_queue_keypair,
+                    &new_merkle_tree_keypair,
+                    &new_cpi_signature_keypair,
+                    &tree_account.merkle_tree,
+                    &tree_account.queue,
+                    &Pubkey::default(),
                     current_epoch,
                 )
-                .await
+                .await?;
+
+                info!("State rollover signature: {:?}", rollover_signature);
+
+                Ok(())
             }
             _ => Err(ForesterError::InvalidTreeType(tree_account.tree_type)),
         };
@@ -1411,15 +1437,14 @@ fn calculate_remaining_time_or_default(
 
 #[instrument(
     level = "info",
-    skip(config, protocol_config, rpc_pool, indexer, shutdown, work_report_sender, slot_tracker),
+    skip(config, protocol_config, rpc_pool, shutdown, work_report_sender, slot_tracker),
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_service<R: Rpc, I: Indexer + 'static>(
+pub async fn run_service<R: Rpc>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
-    indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
     slot_tracker: Arc<SlotTracker>,
@@ -1462,7 +1487,6 @@ pub async fn run_service<R: Rpc, I: Indexer + 'static>(
                     config.clone(),
                     protocol_config.clone(),
                     rpc_pool.clone(),
-                    indexer.clone(),
                     work_report_sender.clone(),
                     trees.clone(),
                     slot_tracker.clone(),

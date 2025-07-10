@@ -5,7 +5,7 @@ use forester_utils::instructions::address_batch_update::{
 };
 use futures::stream::{Stream, StreamExt};
 use light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs;
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_program::instruction::Instruction;
 use solana_sdk::signer::Signer;
@@ -14,8 +14,8 @@ use tracing::{info, instrument};
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData};
 use crate::Result;
 
-async fn create_stream_future<R, I>(
-    ctx: &BatchContext<R, I>,
+async fn create_stream_future<R>(
+    ctx: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<(
     impl Stream<Item = Result<Vec<InstructionDataAddressAppendInputs>>> + Send,
@@ -23,11 +23,9 @@ async fn create_stream_future<R, I>(
 )>
 where
     R: Rpc,
-    I: Indexer + 'static,
 {
     let config = AddressUpdateConfig {
         rpc_pool: ctx.rpc_pool.clone(),
-        indexer: ctx.indexer.clone(),
         merkle_tree_pubkey: ctx.merkle_tree,
         prover_url: ctx.prover_url.clone(),
         polling_interval: ctx.prover_polling_interval,
@@ -42,8 +40,8 @@ where
 }
 
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
-pub(crate) async fn process_batch<R: Rpc, I: Indexer + 'static>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn process_batch<R: Rpc>(
+    context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<usize> {
     info!(

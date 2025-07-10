@@ -1,5 +1,8 @@
 name: forester-tests
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -38,26 +41,9 @@ env:
 
 jobs:
   test:
-    strategy:
-      matrix:
-        test-name:
-          [
-            {
-              name: "e2e (legacy)",
-              command: "test_e2e_v1",
-              timeout: 60,
-              needs-test-program: false,
-            },
-            {
-              name: "e2e",
-              command: "test_e2e_v2",
-              timeout: 60,
-              needs-test-program: true,
-            },
-          ]
-    name: test-${{ matrix.test-name.name }}
+    name: Forester e2e test
     runs-on: warp-ubuntu-latest-x64-4x
-    timeout-minutes: ${{ matrix.test-name.timeout }}
+    timeout-minutes: 30
 
     services:
       redis:
@@ -75,31 +61,35 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis"
+
       - name: Clean build artifacts before tests
         shell: bash
         run: |
           cargo clean
           rm -rf target/debug/deps/*
+
       - name: Check available disk space
         shell: bash
         run: |
           df -h /
           du -sh /home/runner/work/* | sort -hr | head -n 10
+
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
+
       - name: Build test program
-        if: ${{ matrix.test-name.needs-test-program }}
         run: |
           source ./scripts/devenv.sh
           cargo test-sbf -p create-address-test-program
 
-      - name: Run ${{ matrix.test-name.name }} tests
+      - name: Test
         run: |
           source ./scripts/devenv.sh
-          cargo test --package forester ${{ matrix.test-name.command }} -- --nocapture
+          cargo test --package forester e2e_test -- --nocapture

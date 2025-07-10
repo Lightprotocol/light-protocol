@@ -19,20 +19,14 @@ use light_prover_client::{
     proof_types::batch_address_append::get_batch_address_append_circuit_inputs,
 };
 use light_sparse_merkle_tree::SparseMerkleTree;
-use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
-use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
+use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
 
-pub struct AddressUpdateConfig<R, I>
-where
-    R: Rpc + Send + Sync,
-    I: Indexer + Send,
-{
+pub struct AddressUpdateConfig<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
-    pub indexer: Arc<Mutex<I>>,
     pub merkle_tree_pubkey: Pubkey,
     pub prover_url: String,
     pub polling_interval: Duration,
@@ -41,8 +35,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn stream_instruction_data<'a, I>(
-    indexer: Arc<Mutex<I>>,
+async fn stream_instruction_data<'a, R: Rpc>(
+    rpc_pool: Arc<SolanaRpcPool<R>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
     polling_interval: Duration,
@@ -53,8 +47,6 @@ fn stream_instruction_data<'a, I>(
     mut current_root: [u8; 32],
     yield_batch_size: usize,
 ) -> impl Stream<Item = Result<Vec<InstructionDataAddressAppendInputs>, ForesterUtilsError>> + Send + 'a
-where
-    I: Indexer + Send + 'a,
 {
     stream! {
         let proof_client = Arc::new(ProofClient::with_config(prover_url, polling_interval, max_wait_time));
@@ -62,7 +54,6 @@ where
         let total_chunks = leaves_hash_chains.len().div_ceil(max_zkp_batches_per_call);
 
         for chunk_idx in 0..total_chunks {
-            let mut indexer_guard = indexer.lock().await;
             let chunk_start = chunk_idx * max_zkp_batches_per_call;
             let chunk_end = std::cmp::min(chunk_start + max_zkp_batches_per_call, leaves_hash_chains.len());
             let chunk_hash_chains = &leaves_hash_chains[chunk_start..chunk_end];
@@ -70,7 +61,10 @@ where
             let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
             let processed_items_offset = chunk_start * zkp_batch_size as usize;
 
-            let indexer_update_info = match indexer_guard
+            let indexer_update_info = {
+                let mut connection = rpc_pool.get_connection().await?;
+                let indexer = connection.indexer_mut()?;
+                match indexer
                 .get_address_queue_with_proofs(
                     &merkle_tree_pubkey,
                     elements_for_chunk as u16,
@@ -83,7 +77,8 @@ where
                         yield Err(ForesterUtilsError::Indexer(format!("Failed to get address queue with proofs: {}", e)));
                         return;
                     }
-                };
+                }
+            };
 
             if chunk_idx == 0 {
                 if let Some(first_proof) = indexer_update_info.value.non_inclusion_proofs.first() {
@@ -296,8 +291,8 @@ fn get_all_circuit_inputs_for_chunk(
     Ok((all_inputs, current_root))
 }
 
-pub async fn get_address_update_instruction_stream<'a, R, I>(
-    config: AddressUpdateConfig<R, I>,
+pub async fn get_address_update_instruction_stream<'a, R: Rpc>(
+    config: AddressUpdateConfig<R>,
     merkle_tree_data: crate::ParsedMerkleTreeData,
 ) -> Result<
     (
@@ -312,17 +307,7 @@ pub async fn get_address_update_instruction_stream<'a, R, I>(
         u16,
     ),
     ForesterUtilsError,
->
-where
-    R: Rpc + Send + Sync + 'a,
-    I: Indexer + Send + 'a,
-{
-    let rpc = config.rpc_pool.get_connection().await?;
-    let indexer_guard = config.indexer.lock().await;
-    wait_for_indexer(&*rpc, &*indexer_guard).await?;
-    drop(rpc);
-    drop(indexer_guard);
-
+> {
     let (current_root, leaves_hash_chains, start_index, zkp_batch_size) = (
         merkle_tree_data.current_root,
         merkle_tree_data.leaves_hash_chains,
@@ -336,7 +321,7 @@ where
     }
 
     let stream = stream_instruction_data(
-        config.indexer,
+        config.rpc_pool,
         config.merkle_tree_pubkey,
         config.prover_url,
         config.polling_interval,
@@ -346,7 +331,8 @@ where
         zkp_batch_size,
         current_root,
         config.ixs_per_tx,
-    );
+    )
+    .await;
 
     Ok((Box::pin(stream), zkp_batch_size))
 }

@@ -18,7 +18,6 @@ use light_prover_client::{
     proof_types::batch_append::{get_batch_append_inputs, BatchAppendsCircuitInputs},
 };
 use light_sparse_merkle_tree::changelog::ChangelogEntry;
-use tokio::sync::Mutex;
 use tracing::trace;
 
 use crate::{
@@ -45,9 +44,8 @@ async fn generate_zkp_proof(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn get_append_instruction_stream<'a, R, I>(
+pub async fn get_append_instruction_stream<'a, R: Rpc>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
-    indexer: Arc<Mutex<I>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
     polling_interval: Duration,
@@ -67,16 +65,8 @@ pub async fn get_append_instruction_stream<'a, R, I>(
         u16,
     ),
     ForesterUtilsError,
->
-where
-    R: Rpc + Send + Sync + 'a,
-    I: Indexer + Send + 'a,
-{
+> {
     trace!("Initializing append batch instruction stream with parsed data");
-
-    let (indexer_guard, rpc_result) = tokio::join!(indexer.lock(), rpc_pool.get_connection());
-    let rpc = rpc_result?;
-
     let (merkle_tree_next_index, mut current_root, _) = (
         merkle_tree_data.next_index,
         merkle_tree_data.current_root,
@@ -91,19 +81,18 @@ where
         trace!("No hash chains to process, returning empty stream.");
         return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
     }
-
-    wait_for_indexer(&*rpc, &*indexer_guard).await?;
+    let rpc = rpc_pool.get_connection().await?;
+    wait_for_indexer(&*rpc).await?;
     drop(rpc);
-    drop(indexer_guard);
 
     let stream = stream! {
         let total_elements = zkp_batch_size as usize * leaves_hash_chains.len();
         let offset = merkle_tree_next_index;
 
         let queue_elements = {
-            let mut indexer_guard = indexer.lock().await;
-
-            match indexer_guard
+            let mut connection = rpc_pool.get_connection().await?;
+            let indexer = connection.indexer_mut()?;
+            match indexer
                 .get_queue_elements(
                     merkle_tree_pubkey.to_bytes(),
                     QueueType::OutputStateV2,

@@ -26,10 +26,7 @@ pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::{
     forester_epoch::TreeAccounts, rate_limiter::RateLimiter, rpc_pool::SolanaRpcPoolBuilder,
 };
-use light_client::{
-    indexer::Indexer,
-    rpc::{LightClient, LightClientConfig, Rpc},
-};
+use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
@@ -110,11 +107,10 @@ pub async fn run_queue_info(
     Ok(())
 }
 
-pub async fn run_pipeline<R: Rpc, I: Indexer + 'static>(
+pub async fn run_pipeline<R: Rpc>(
     config: Arc<ForesterConfig>,
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,
-    indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
@@ -178,7 +174,6 @@ pub async fn run_pipeline<R: Rpc, I: Indexer + 'static>(
         config,
         Arc::new(protocol_config),
         arc_pool,
-        indexer,
         shutdown,
         work_report_sender,
         arc_slot_tracker,

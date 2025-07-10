@@ -19,7 +19,7 @@ use light_registry::account_compression_cpi::sdk::{
 };
 use reqwest::Url;
 use solana_program::instruction::Instruction;
-use tokio::{join, sync::Mutex};
+use tokio::join;
 use tracing::warn;
 
 use crate::{
@@ -33,11 +33,10 @@ use crate::{
 };
 
 /// Work items should be of only one type and tree
-pub async fn fetch_proofs_and_create_instructions<R: Rpc, I: Indexer>(
+pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     authority: Pubkey,
     derivation: Pubkey,
     pool: Arc<SolanaRpcPool<R>>,
-    indexer: Arc<Mutex<I>>,
     epoch: u64,
     work_items: &[WorkItem],
 ) -> crate::Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
@@ -89,17 +88,15 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc, I: Indexer>(
         None
     };
 
-    let indexer_guard = indexer.lock().await;
     let rpc = pool.get_connection().await?;
-
-    if let Err(e) = wait_for_indexer(&*rpc, &*indexer_guard).await {
+    if let Err(e) = wait_for_indexer(&*rpc).await {
         warn!("Indexer not fully caught up, but proceeding anyway: {}", e);
     }
 
     let (address_proofs_result, state_proofs_result) = {
         let address_future = async {
             if let Some((merkle_tree, addresses)) = address_data {
-                indexer_guard
+                rpc.indexer()?
                     .get_multiple_new_address_proofs(merkle_tree, addresses, None)
                     .await
             } else {
@@ -112,7 +109,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc, I: Indexer>(
 
         let state_future = async {
             if let Some(states) = state_data {
-                indexer_guard
+                rpc.indexer()?
                     .get_multiple_compressed_account_proofs(states, None)
                     .await
             } else {

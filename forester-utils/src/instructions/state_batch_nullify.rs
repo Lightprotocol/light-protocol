@@ -17,7 +17,6 @@ use light_prover_client::{
     proof_client::ProofClient,
     proof_types::batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
 };
-use tokio::sync::Mutex;
 use tracing::{debug, trace};
 
 use crate::{
@@ -44,9 +43,8 @@ async fn generate_nullify_zkp_proof(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn get_nullify_instruction_stream<'a, R, I>(
+pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
-    indexer: Arc<Mutex<I>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
     polling_interval: Duration,
@@ -66,13 +64,7 @@ pub async fn get_nullify_instruction_stream<'a, R, I>(
         u16,
     ),
     ForesterUtilsError,
->
-where
-    R: Rpc + Send + Sync + 'a,
-    I: Indexer + Send + 'a,
-{
-    let rpc = rpc_pool.get_connection().await?;
-
+> {
     let (mut current_root, leaves_hash_chains, num_inserted_zkps, zkp_batch_size) = (
         merkle_tree_data.current_root,
         merkle_tree_data.leaves_hash_chains,
@@ -85,10 +77,9 @@ where
         return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
     }
 
-    let indexer_guard = indexer.lock().await;
-    wait_for_indexer(&*rpc, &*indexer_guard).await?;
+    let rpc = rpc_pool.get_connection().await?;
+    wait_for_indexer(&*rpc).await?;
     drop(rpc);
-    drop(indexer_guard);
 
     let stream = stream! {
         let total_elements = zkp_batch_size as usize * leaves_hash_chains.len();
@@ -97,9 +88,9 @@ where
         trace!("Requesting {} total elements with offset {}", total_elements, offset);
 
         let all_queue_elements = {
-            let mut indexer_guard = indexer.lock().await;
-            indexer_guard
-            .get_queue_elements(
+            let mut connection = rpc_pool.get_connection().await?;
+            let indexer = connection.indexer_mut()?;
+            indexer.get_queue_elements(
                 merkle_tree_pubkey.to_bytes(),
                 QueueType::InputStateV2,
                 total_elements as u16,

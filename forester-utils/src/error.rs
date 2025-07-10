@@ -1,4 +1,5 @@
 use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
+use light_client::rpc::RpcError;
 use light_hasher::HasherError;
 use thiserror::Error;
 
@@ -10,8 +11,8 @@ pub enum ForesterUtilsError {
     Parse(String),
     #[error("prover error: {0:?}")]
     Prover(String),
-    #[error("rpc error: {0:?}")]
-    Rpc(String),
+    #[error("rpc error")]
+    Rpc(#[from] RpcError),
     #[error("indexer error: {0:?}")]
     Indexer(String),
     #[error("invalid slot number")]
@@ -21,9 +22,6 @@ pub enum ForesterUtilsError {
 
     #[error("Account zero-copy error: {0}")]
     AccountZeroCopy(String),
-
-    #[error("light client error: {0}")]
-    LightClient(#[from] light_client::rpc::RpcError),
 
     #[error("batched merkle tree error: {0}")]
     BatchedMerkleTree(#[from] BatchedMerkleTreeError),
