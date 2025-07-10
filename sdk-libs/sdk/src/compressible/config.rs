@@ -73,9 +73,16 @@ impl CompressibleConfig {
         }
         Ok(())
     }
-
-    /// Loads and validates config from account
-    pub fn load(account: &AccountInfo) -> Result<Self, LightSdkError> {
+    /// Loads and validates config from account, checking owner
+    pub fn load_checked(account: &AccountInfo, program_id: &Pubkey) -> Result<Self, LightSdkError> {
+        if account.owner != program_id {
+            msg!(
+                "Config account owner mismatch. Expected: {}. Found: {}.",
+                program_id,
+                account.owner
+            );
+            return Err(LightSdkError::ConstraintViolation);
+        }
         let data = account.try_borrow_data()?;
         let config = Self::try_from_slice(&data).map_err(|_| LightSdkError::Borsh)?;
         config.validate()?;
@@ -190,6 +197,7 @@ pub fn create_compression_config_unchecked<'info>(
 /// * `new_rent_recipient` - Optional new rent recipient
 /// * `new_address_space` - Optional new address space
 /// * `new_compression_delay` - Optional new compression delay
+/// * `owner_program_id` - The program that owns the config
 ///
 /// # Returns
 /// * `Ok(())` if config was updated successfully
@@ -201,9 +209,10 @@ pub fn update_config<'info>(
     new_rent_recipient: Option<&Pubkey>,
     new_address_space: Option<&Pubkey>,
     new_compression_delay: Option<u32>,
+    owner_program_id: &Pubkey,
 ) -> Result<(), LightSdkError> {
     // Load and validate existing config
-    let mut config = CompressibleConfig::load(config_account)?;
+    let mut config = CompressibleConfig::load_checked(config_account, owner_program_id)?;
 
     // Check authority
     if !authority.is_signer {

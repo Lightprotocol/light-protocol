@@ -34,7 +34,7 @@ impl CompressionInfo {
     pub fn new() -> Result<Self, LightSdkError> {
         Ok(Self {
             last_written_slot: Clock::get()?.slot,
-            state: CompressionState::Uninitialized,
+            state: CompressionState::Decompressed,
         })
     }
 
@@ -75,4 +75,9 @@ impl CompressionInfo {
     pub fn set_decompressed(&mut self) {
         self.state = CompressionState::Decompressed;
     }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::Space for CompressionInfo {
+    const INIT_SPACE: usize = 8 + 1; // u64 + enum (1 byte for discriminant)
 }

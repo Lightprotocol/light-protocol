@@ -25,7 +25,7 @@ pub fn compress_dynamic_pda(
     let config_account = &accounts[3];
 
     // Load config
-    let config = CompressibleConfig::load(config_account)?;
+    let config = CompressibleConfig::load_checked(config_account, &crate::ID)?;
 
     // CHECK: rent recipient from config
     if rent_recipient.key != &config.rent_recipient {

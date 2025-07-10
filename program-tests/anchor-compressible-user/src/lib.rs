@@ -11,7 +11,7 @@ use light_sdk_types::CpiSigner;
 declare_id!("CompUser11111111111111111111111111111111111");
 pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-pub const COMPRESSION_DELAY: u64 = 100;
+pub const COMPRESSION_DELAY: u32 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
@@ -20,9 +20,58 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 pub mod anchor_compressible_user {
 
     use light_sdk::account::LightAccount;
-    use light_sdk::compressible::{compress_pda, compress_pda_new, decompress_multiple_idempotent};
+    use light_sdk::compressible::{
+        compress_pda, compress_pda_new, create_compression_config_checked,
+        decompress_multiple_idempotent, update_config,
+    };
 
     use super::*;
+
+    /// Initialize config - only callable by program upgrade authority
+    pub fn initialize_config(
+        ctx: Context<InitializeConfig>,
+        compression_delay: u32,
+        rent_recipient: Pubkey,
+        address_space: Pubkey,
+    ) -> Result<()> {
+        // The SDK's create_compression_config_checked validates that the signer is the program's upgrade authority
+        create_compression_config_checked(
+            &ctx.accounts.config.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.accounts.program_data.to_account_info(),
+            &rent_recipient,
+            &address_space,
+            compression_delay,
+            &ctx.accounts.payer.to_account_info(),
+            &ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        Ok(())
+    }
+
+    /// Update config - only callable by config's update authority
+    pub fn update_config_settings(
+        ctx: Context<UpdateConfigSettings>,
+        new_compression_delay: Option<u32>,
+        new_rent_recipient: Option<Pubkey>,
+        new_address_space: Option<Pubkey>,
+        new_update_authority: Option<Pubkey>,
+    ) -> Result<()> {
+        update_config(
+            &ctx.accounts.config.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            new_update_authority.as_ref(),
+            new_rent_recipient.as_ref(),
+            new_address_space.as_ref(),
+            new_compression_delay,
+            &crate::ID,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        Ok(())
+    }
 
     /// Creates a new compressed user record using global config.
     pub fn create_record_with_config<'info>(
@@ -36,7 +85,7 @@ pub mod anchor_compressible_user {
         let user_record = &mut ctx.accounts.user_record;
 
         // Load config from the config account
-        let config = CompressibleConfig::load(&ctx.accounts.config)
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
         user_record.owner = ctx.accounts.user.key();
@@ -246,7 +295,7 @@ pub mod anchor_compressible_user {
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_recipient,
-            &COMPRESSION_DELAY as u32, // Use the hardcoded value for legacy function
+            &COMPRESSION_DELAY, // Use the hardcoded value for legacy function
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
@@ -260,7 +309,7 @@ pub mod anchor_compressible_user {
         let user_record = &mut ctx.accounts.user_record;
 
         // Load config from the config account
-        let config = CompressibleConfig::load(&ctx.accounts.config)
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
         // Verify rent recipient matches config
@@ -381,6 +430,36 @@ pub struct DecompressMultiplePdas<'info> {
     // Remaining accounts:
     // - First N accounts: PDA accounts to decompress into
     // - After system_accounts_offset: Light Protocol system accounts for CPI
+}
+
+#[derive(Accounts)]
+pub struct InitializeConfig<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// The config PDA to be created
+    #[account(
+        mut,
+        seeds = [b"compressible_config"],
+        bump
+    )]
+    pub config: AccountInfo<'info>,
+    /// The program's data account
+    pub program_data: AccountInfo<'info>,
+    /// The program's upgrade authority (must sign)
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateConfigSettings<'info> {
+    #[account(
+        mut,
+        seeds = [b"compressible_config"],
+        bump,
+    )]
+    pub config: AccountInfo<'info>,
+    /// Must match the update authority stored in config
+    pub authority: Signer<'info>,
 }
 
 /// Unified enum that can hold any account type - perfect for derive macro later
