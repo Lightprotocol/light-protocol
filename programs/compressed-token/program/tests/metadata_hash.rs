@@ -4,6 +4,7 @@ use light_zero_copy::borsh::Deserialize;
 
 use light_hasher::to_byte_array::ToByteArray;
 use light_hasher::DataHasher;
+use light_zero_copy::borsh_mut::DeserializeMut;
 // TODO: add random test
 #[test]
 fn test_metadata_hash_consistency() {
@@ -14,11 +15,9 @@ fn test_metadata_hash_consistency() {
         uri: b"https://example.com/metadata.json".to_vec(),
     };
 
-    // Serialize to bytes
-    let serialized = metadata.try_to_vec().unwrap();
-
     // Deserialize to ZStruct
-    let (z_metadata, _) = Metadata::zero_copy_at(&serialized).unwrap();
+    let mut serialized = metadata.try_to_vec().unwrap();
+    let (z_metadata, _) = Metadata::zero_copy_at_mut(&mut serialized).unwrap();
 
     // Hash both structs
     let original_hash = metadata.hash::<light_hasher::Poseidon>().unwrap();
@@ -42,8 +41,8 @@ fn test_metadata_to_byte_array_consistency() {
         uri: b"https://example.com/metadata.json".to_vec(),
     };
 
-    let serialized = metadata.try_to_vec().unwrap();
-    let (z_metadata, _) = Metadata::zero_copy_at(&serialized).unwrap();
+    let mut serialized = metadata.try_to_vec().unwrap();
+    let (z_metadata, _) = Metadata::zero_copy_at_mut(&mut serialized).unwrap();
 
     let original_bytes = metadata.to_byte_array().unwrap();
     let z_struct_bytes = z_metadata.to_byte_array().unwrap();

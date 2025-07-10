@@ -70,79 +70,78 @@ impl TokenMetadata {
     }
 }
 
-impl DataHasher for TokenMetadata {
-    fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        let mut vec = [[0u8; 32]; 5];
-        let mut slice_vec: [&[u8]; 5] = [&[]; 5];
-        if let Some(update_authority) = self.update_authority {
-            vec[0].copy_from_slice(
-                hashv_to_bn254_field_size_be_const_array::<2>(&[&update_authority.to_bytes()])?
-                    .as_slice(),
-            );
-        }
+fn token_metadata_hash<H: light_hasher::Hasher>(
+    update_authority: Option<&[u8]>,
+    mint: &[u8],
+    metadata_hash: &[u8],
+    additional_metadata: &[(&[u8], &[u8])],
+    version: u8,
+) -> Result<[u8; 32], HasherError> {
+    let mut vec = [[0u8; 32]; 5];
+    let mut slice_vec: [&[u8]; 5] = [&[]; 5];
 
-        vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[&self.mint.to_bytes()])?;
-        vec[2] = self.metadata.hash::<H>()?;
+    if let Some(update_authority) = update_authority {
+        vec[0].copy_from_slice(
+            hashv_to_bn254_field_size_be_const_array::<2>(&[update_authority])?.as_slice(),
+        );
+    }
 
-        for additional_metadata in &self.additional_metadata {
-            // TODO: add check is poseidon and throw meaningful error.
-            vec[3] = H::hashv(&[
-                vec[3].as_slice(),
-                additional_metadata.key.as_slice(),
-                additional_metadata.value.as_slice(),
-            ])?;
-        }
-        vec[4][31] = self.version;
+    vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[&mint])?;
 
-        slice_vec[0] = vec[0].as_slice();
-        slice_vec[1] = vec[1].as_slice();
-        slice_vec[2] = vec[2].as_slice();
-        slice_vec[3] = vec[3].as_slice();
+    for (key, value) in additional_metadata {
+        // TODO: add check is poseidon and throw meaningful error.
+        vec[3] = H::hashv(&[vec[3].as_slice(), key, value])?;
+    }
+    vec[4][31] = version;
 
-        slice_vec[4] = vec[4].as_slice();
-        if vec[4] != [0u8; 32] {
-            H::hashv(&slice_vec[..4])
-        } else {
-            H::hashv(slice_vec.as_slice())
-        }
+    slice_vec[0] = vec[0].as_slice();
+    slice_vec[1] = vec[2].as_slice();
+    slice_vec[2] = metadata_hash;
+    slice_vec[3] = vec[3].as_slice();
+    slice_vec[4] = vec[4].as_slice();
+
+    if vec[4] != [0u8; 32] {
+        H::hashv(&slice_vec[..4])
+    } else {
+        H::hashv(slice_vec.as_slice())
     }
 }
 
-impl DataHasher for ZTokenMetadata<'_> {
+impl DataHasher for TokenMetadata {
     fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        let mut vec = [[0u8; 32]; 5];
-        let mut slice_vec: [&[u8]; 5] = [&[]; 5];
-        if let Some(update_authority) = self.update_authority {
-            vec[0].copy_from_slice(
-                hashv_to_bn254_field_size_be_const_array::<2>(&[&update_authority.to_bytes()])?
-                    .as_slice(),
-            );
-        }
+        let metadata_hash = self.metadata.hash::<H>()?;
+        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
+            .additional_metadata
+            .iter()
+            .map(|item| (item.key.as_slice(), item.value.as_slice()))
+            .collect();
 
-        vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[&self.mint.to_bytes()])?;
-        vec[2] = self.metadata.hash::<H>()?;
+        token_metadata_hash::<H>(
+            self.update_authority.as_ref().map(|auth| (*auth).as_ref()),
+            self.mint.as_ref(),
+            metadata_hash.as_slice(),
+            &additional_metadata,
+            self.version,
+        )
+    }
+}
 
-        for additional_metadata in &self.additional_metadata {
-            // TODO: add check is poseidon and throw meaningful error.
-            vec[3] = H::hashv(&[
-                vec[3].as_slice(),
-                additional_metadata.key,
-                additional_metadata.value,
-            ])?;
-        }
-        vec[4][31] = self.version;
+impl DataHasher for ZTokenMetadataMut<'_> {
+    fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
+        let metadata_hash = self.metadata.hash::<H>()?;
+        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
+            .additional_metadata
+            .iter()
+            .map(|item| (&*item.key, &*item.value))
+            .collect();
 
-        slice_vec[0] = vec[0].as_slice();
-        slice_vec[1] = vec[1].as_slice();
-        slice_vec[2] = vec[2].as_slice();
-        slice_vec[3] = vec[3].as_slice();
-
-        slice_vec[4] = vec[4].as_slice();
-        if vec[4] != [0u8; 32] {
-            H::hashv(&slice_vec[..4])
-        } else {
-            H::hashv(slice_vec.as_slice())
-        }
+        token_metadata_hash::<H>(
+            self.update_authority.as_ref().map(|auth| (*auth).as_ref()),
+            self.mint.as_ref(),
+            metadata_hash.as_slice(),
+            &additional_metadata,
+            *self.version,
+        )
     }
 }
 
@@ -225,7 +224,7 @@ impl light_hasher::DataHasher for Metadata {
 }
 
 // Manual LightHasher implementation for ZMetadata ZStruct
-impl light_hasher::to_byte_array::ToByteArray for ZMetadata<'_> {
+impl light_hasher::to_byte_array::ToByteArray for ZMetadataMut<'_> {
     const NUM_FIELDS: usize = 3;
 
     fn to_byte_array(&self) -> Result<[u8; 32], light_hasher::HasherError> {
@@ -233,7 +232,7 @@ impl light_hasher::to_byte_array::ToByteArray for ZMetadata<'_> {
     }
 }
 
-impl light_hasher::DataHasher for ZMetadata<'_> {
+impl light_hasher::DataHasher for ZMetadataMut<'_> {
     fn hash<H>(&self) -> Result<[u8; 32], light_hasher::HasherError>
     where
         H: light_hasher::Hasher,
@@ -290,7 +289,7 @@ pub fn create_output_token_metadata<'a>(
     token_metadata_data: &ZTokenMetadataInstructionData<'a>,
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'a>,
     start_offset: usize,
-) -> Result<usize, ProgramError> {
+) -> Result<([u8; 32], usize), ProgramError> {
     let cpi_data = output_compressed_account
         .compressed_account
         .data
@@ -324,8 +323,8 @@ pub fn create_output_token_metadata<'a>(
 
     let (mut token_metadata, _) =
         TokenMetadata::new_zero_copy(&mut cpi_data.data[start_offset..end_offset], config)?;
-    if let Some(mut authority) = token_metadata.update_authority {
-        *authority = *token_metadata_data
+    if let Some(ref mut authority) = token_metadata.update_authority {
+        **authority = *token_metadata_data
             .update_authority
             .ok_or(ProgramError::InvalidInstructionData)?;
     }
@@ -350,14 +349,19 @@ pub fn create_output_token_metadata<'a>(
         for (i, item) in additional_metadata.iter().enumerate() {
             token_metadata.additional_metadata[i]
                 .key
-                .copy_from_slice(&item.key);
+                .copy_from_slice(item.key);
             token_metadata.additional_metadata[i]
                 .value
-                .copy_from_slice(&item.value);
+                .copy_from_slice(item.value);
         }
     }
 
-    Ok(end_offset)
+    // Use the zero-copy mut struct for hashing
+    let hash = token_metadata
+        .hash::<light_hasher::Poseidon>()
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    Ok((hash, end_offset))
 }
 
 // #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]

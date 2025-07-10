@@ -136,7 +136,10 @@ impl CompressedMint {
 }
 
 impl ZCompressedMintMut<'_> {
-    pub fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
+    pub fn hash(
+        &self,
+        extension_hashchain: Option<&[u8]>,
+    ) -> std::result::Result<[u8; 32], HasherError> {
         let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
         let mut supply_bytes = [0u8; 32];
         // TODO: copy from slice
@@ -167,7 +170,7 @@ impl ZCompressedMintMut<'_> {
                 None
             };
 
-        CompressedMint::hash_with_hashed_values(
+        let mint_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
             &supply_bytes,
             self.decimals,
@@ -175,6 +178,11 @@ impl ZCompressedMintMut<'_> {
             &hashed_mint_authority_option,
             &hashed_freeze_authority_option,
             self.version,
-        )
+        )?;
+        if let Some(extension_hashchain) = extension_hashchain {
+            Poseidon::hashv(&[mint_hash.as_slice(), extension_hashchain])
+        } else {
+            Ok(mint_hash)
+        }
     }
 }

@@ -63,6 +63,14 @@ impl<'a> light_zero_copy::borsh::Deserialize<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            1 => {
+                let (token_metadata, remaining_bytes) =
+                    TokenMetadata::zero_copy_at(remaining_data)?;
+                Ok((
+                    ZExtensionStruct::TokenMetadata(token_metadata),
+                    remaining_bytes,
+                ))
+            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -92,6 +100,14 @@ impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for ExtensionStruct {
                     MetadataPointer::zero_copy_at_mut(remaining_data)?;
                 Ok((
                     ZExtensionStructMut::MetadataPointer(metadata_pointer),
+                    remaining_bytes,
+                ))
+            }
+            1 => {
+                let (token_metadata, remaining_bytes) =
+                    TokenMetadata::zero_copy_at_mut(remaining_data)?;
+                Ok((
+                    ZExtensionStructMut::TokenMetadata(token_metadata),
                     remaining_bytes,
                 ))
             }

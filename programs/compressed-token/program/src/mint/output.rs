@@ -1,9 +1,9 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
-    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut,
-    Pubkey,
+    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
 
+use light_hasher::Poseidon;
 use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
 
@@ -46,42 +46,48 @@ pub fn create_output_compressed_mint_account<'a>(
         *output_compressed_account.merkle_tree_index = merkle_tree_index;
     }
     // 4. Create CompressedMint account data & compute hash
-    {
-        // TODO: create helper to assign compressed account data
-        let compressed_account_data = output_compressed_account
-            .compressed_account
-            .data
-            .as_mut()
-            .ok_or(ProgramError::InvalidAccountData)?;
 
-        compressed_account_data.discriminator = COMPRESSED_MINT_DISCRIMINATOR;
-        let (mut compressed_mint, _) =
-            CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
-                .map_err(ProgramError::from)?;
-        compressed_mint.spl_mint = mint_pda;
-        compressed_mint.decimals = decimals;
-        compressed_mint.supply = supply;
-        if let Some(freeze_auth) = freeze_authority {
-            if let Some(z_freeze_authority) = compressed_mint.freeze_authority.as_deref_mut() {
-                *z_freeze_authority = freeze_auth;
-            }
+    // 5. Process extensions if provided first
+    let extension_hash = if let Some(extensions) = extensions {
+        Some(process_create_extensions::<Poseidon>(
+            extensions,
+            output_compressed_account,
+            base_mint_len,
+        )?)
+    } else {
+        None
+    };
+
+    // TODO: create helper to assign compressed account data
+    let compressed_account_data = output_compressed_account
+        .compressed_account
+        .data
+        .as_mut()
+        .ok_or(ProgramError::InvalidAccountData)?;
+
+    compressed_account_data.discriminator = COMPRESSED_MINT_DISCRIMINATOR;
+    let (mut compressed_mint, _) =
+        CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
+            .map_err(ProgramError::from)?;
+    compressed_mint.spl_mint = mint_pda;
+    compressed_mint.decimals = decimals;
+    compressed_mint.supply = supply;
+    if let Some(freeze_auth) = freeze_authority {
+        if let Some(z_freeze_authority) = compressed_mint.freeze_authority.as_deref_mut() {
+            *z_freeze_authority = freeze_auth;
         }
-        if let Some(mint_auth) = mint_authority {
-            if let Some(z_mint_authority) = compressed_mint.mint_authority.as_deref_mut() {
-                *z_mint_authority = mint_auth;
-            }
+    }
+    if let Some(mint_auth) = mint_authority {
+        if let Some(z_mint_authority) = compressed_mint.mint_authority.as_deref_mut() {
+            *z_mint_authority = mint_auth;
         }
-        compressed_mint.version = version;
-
-        *compressed_account_data.data_hash = compressed_mint
-            .hash()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
     }
+    compressed_mint.version = version;
 
-    // 5. Process extensions if provided
-    if let Some(extensions) = extensions {
-        process_create_extensions(extensions, output_compressed_account, base_mint_len)?;
-    }
+    // Compute final hash with extensions
+    *compressed_account_data.data_hash = compressed_mint
+        .hash(extension_hash.as_ref().map(|h| h.as_slice()))
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
     Ok(())
 }

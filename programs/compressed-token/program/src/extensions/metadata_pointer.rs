@@ -55,7 +55,7 @@ pub fn create_output_metadata_pointer<'a>(
     metadata_pointer_data: &ZInitMetadataPointer<'a>,
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'a>,
     start_offset: usize,
-) -> Result<usize, ProgramError> {
+) -> Result<([u8; 32], usize), ProgramError> {
     if metadata_pointer_data.authority.is_none() && metadata_pointer_data.metadata_address.is_none()
     {
         return Err(anchor_lang::prelude::ProgramError::InvalidInstructionData);
@@ -87,6 +87,16 @@ pub fn create_output_metadata_pointer<'a>(
             .ok_or(ProgramError::InvalidInstructionData)?;
     }
 
-    Ok(end_offset)
+    // Create the actual MetadataPointer struct for hashing
+    let metadata_pointer_for_hash = MetadataPointer {
+        authority: metadata_pointer_data.authority.map(|a| *a),
+        metadata_address: metadata_pointer_data.metadata_address.map(|a| *a),
+    };
+
+    let hash = metadata_pointer_for_hash
+        .hash::<light_hasher::Poseidon>()
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    Ok((hash, end_offset))
 }
 // TODO: add update

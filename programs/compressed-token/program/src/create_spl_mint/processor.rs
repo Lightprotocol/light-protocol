@@ -186,7 +186,7 @@ fn update_compressed_mint_to_decompressed<'info>(
 
             // Recalculate hash with is_decompressed = true
             *data.data_hash = compressed_mint
-                .hash()
+                .hash(None)
                 .map_err(|_| ProgramError::InvalidAccountData)?;
         }
     }
