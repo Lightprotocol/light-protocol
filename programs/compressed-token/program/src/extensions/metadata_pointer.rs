@@ -9,6 +9,8 @@ use light_hasher::{
 use light_zero_copy::ZeroCopyNew;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
+use crate::shared::context::TokenContext;
+
 use crate::extensions::ExtensionType;
 
 /// Metadata pointer extension data for compressed mints.
@@ -49,6 +51,62 @@ pub struct InitMetadataPointer {
     pub authority: Option<Pubkey>,
     /// The account address that holds the metadata
     pub metadata_address: Option<Pubkey>,
+}
+
+impl InitMetadataPointer {
+    pub fn hash_metadata_pointer<H: Hasher>(
+        &self,
+        context: &mut TokenContext,
+    ) -> Result<[u8; 32], ProgramError> {
+        let mut discriminator = [0u8; 32];
+        discriminator[31] = ExtensionType::MetadataPointer as u8;
+        
+        let hashed_metadata_address = if let Some(metadata_address) = self.metadata_address {
+            context.get_or_hash_pubkey(&metadata_address.into())
+        } else {
+            [0u8; 32]
+        };
+        
+        let hashed_authority = if let Some(authority) = self.authority {
+            context.get_or_hash_pubkey(&authority.into())
+        } else {
+            [0u8; 32]
+        };
+        
+        H::hashv(&[
+            discriminator.as_slice(),
+            hashed_metadata_address.as_slice(),
+            hashed_authority.as_slice(),
+        ]).map_err(|_| ProgramError::InvalidAccountData)
+    }
+}
+
+impl<'a> ZInitMetadataPointer<'a> {
+    pub fn hash_metadata_pointer<H: Hasher>(
+        &self,
+        context: &mut TokenContext,
+    ) -> Result<[u8; 32], ProgramError> {
+        let mut discriminator = [0u8; 32];
+        discriminator[31] = ExtensionType::MetadataPointer as u8;
+        
+        let hashed_metadata_address = if let Some(metadata_address) = self.metadata_address {
+            context.get_or_hash_pubkey(&(*metadata_address).into())
+        } else {
+            [0u8; 32]
+        };
+        
+        let hashed_authority = if let Some(authority) = self.authority {
+            context.get_or_hash_pubkey(&(*authority).into())
+        } else {
+            [0u8; 32]
+        };
+        
+        H::hashv(&[
+            discriminator.as_slice(),
+            hashed_metadata_address.as_slice(),
+            hashed_authority.as_slice(),
+        ]).map_err(|_| ProgramError::InvalidAccountData)
+    }
 }
 
 pub fn create_output_metadata_pointer<'a>(

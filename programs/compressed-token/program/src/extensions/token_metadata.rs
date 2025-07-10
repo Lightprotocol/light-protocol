@@ -109,7 +109,7 @@ fn token_metadata_hash<H: light_hasher::Hasher>(
 
 impl DataHasher for TokenMetadata {
     fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        let metadata_hash = self.metadata.hash::<H>()?;
+        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)?;
         let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
             .additional_metadata
             .iter()
@@ -128,7 +128,7 @@ impl DataHasher for TokenMetadata {
 
 impl DataHasher for ZTokenMetadataMut<'_> {
     fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        let metadata_hash = self.metadata.hash::<H>()?;
+        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)?;
         let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
             .additional_metadata
             .iter()
@@ -145,6 +145,24 @@ impl DataHasher for ZTokenMetadataMut<'_> {
     }
 }
 
+impl DataHasher for ZTokenMetadata<'_> {
+    fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
+        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)?;
+        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
+            .additional_metadata
+            .iter()
+            .map(|item| (item.key, item.value))
+            .collect();
+
+        token_metadata_hash::<H>(
+            self.update_authority.as_ref().map(|auth| (*auth).as_ref()),
+            self.mint.as_ref(),
+            metadata_hash.as_slice(),
+            &additional_metadata,
+            self.version,
+        )
+    }
+}
 // TODO: add borsh compat test TokenMetadataUi TokenMetadata
 /// Ui Token metadata with Strings instead of bytes.
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
@@ -224,6 +242,34 @@ impl light_hasher::DataHasher for Metadata {
 }
 
 // Manual LightHasher implementation for ZMetadata ZStruct
+impl light_hasher::to_byte_array::ToByteArray for ZMetadata<'_> {
+    const NUM_FIELDS: usize = 3;
+
+    fn to_byte_array(&self) -> Result<[u8; 32], light_hasher::HasherError> {
+        light_hasher::DataHasher::hash::<light_hasher::Poseidon>(self)
+    }
+}
+
+impl light_hasher::DataHasher for ZMetadata<'_> {
+    fn hash<H>(&self) -> Result<[u8; 32], light_hasher::HasherError>
+    where
+        H: light_hasher::Hasher,
+    {
+        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
+
+        // Hash each &[u8] slice field using hash_to_bn254_field_size_be for consistency
+        let name_hash = hash_to_bn254_field_size_be(self.name);
+        let symbol_hash = hash_to_bn254_field_size_be(self.symbol);
+        let uri_hash = hash_to_bn254_field_size_be(self.uri);
+
+        H::hashv(&[
+            name_hash.as_slice(),
+            symbol_hash.as_slice(),
+            uri_hash.as_slice(),
+        ])
+    }
+}
+
 impl light_hasher::to_byte_array::ToByteArray for ZMetadataMut<'_> {
     const NUM_FIELDS: usize = 3;
 
@@ -283,7 +329,89 @@ pub struct TokenMetadataInstructionData {
     pub additional_metadata: Option<Vec<AdditionalMetadata>>,
     pub version: u8,
 }
+
+impl TokenMetadataInstructionData {
+    pub fn hash_token_metadata<H: light_hasher::Hasher>(
+        &self,
+        mint: light_compressed_account::Pubkey,
+        context: &mut TokenContext,
+    ) -> Result<[u8; 32], anchor_lang::solana_program::program_error::ProgramError> {
+        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata).map_err(|_| {
+            anchor_lang::solana_program::program_error::ProgramError::InvalidAccountData
+        })?;
+
+        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> =
+            if let Some(ref additional_metadata) = self.additional_metadata {
+                additional_metadata
+                    .iter()
+                    .map(|item| (item.key.as_slice(), item.value.as_slice()))
+                    .collect()
+            } else {
+                arrayvec::ArrayVec::new()
+            };
+
+        let hashed_update_authority = if let Some(update_authority) = self.update_authority {
+            Some(context.get_or_hash_pubkey(&update_authority.into()))
+        } else {
+            None
+        };
+
+        let hashed_mint = context.get_or_hash_mint(&mint.into())?;
+
+        token_metadata_hash::<H>(
+            hashed_update_authority
+                .as_ref()
+                .map(|h: &[u8; 32]| h.as_slice()),
+            hashed_mint.as_slice(),
+            metadata_hash.as_slice(),
+            &additional_metadata,
+            self.version,
+        )
+        .map_err(|_| anchor_lang::solana_program::program_error::ProgramError::InvalidAccountData)
+    }
+}
+
+impl<'a> ZTokenMetadataInstructionData<'a> {
+    pub fn hash_token_metadata<H: light_hasher::Hasher>(
+        &self,
+        hashed_mint: &[u8; 32],
+        context: &mut TokenContext,
+    ) -> Result<[u8; 32], anchor_lang::solana_program::program_error::ProgramError> {
+        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata).map_err(|_| {
+            anchor_lang::solana_program::program_error::ProgramError::InvalidAccountData
+        })?;
+
+        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> =
+            if let Some(ref additional_metadata) = self.additional_metadata {
+                additional_metadata
+                    .iter()
+                    .map(|item| (item.key, item.value))
+                    .collect()
+            } else {
+                arrayvec::ArrayVec::new()
+            };
+
+        let hashed_update_authority = if let Some(update_authority) = self.update_authority {
+            Some(context.get_or_hash_pubkey(&(*update_authority).into()))
+        } else {
+            None
+        };
+
+        token_metadata_hash::<H>(
+            hashed_update_authority
+                .as_ref()
+                .map(|h: &[u8; 32]| h.as_slice()),
+            hashed_mint.as_slice(),
+            metadata_hash.as_slice(),
+            &additional_metadata,
+            self.version,
+        )
+        .map_err(|_| anchor_lang::solana_program::program_error::ProgramError::InvalidAccountData)
+    }
+}
 use light_zero_copy::ZeroCopyNew;
+
+use crate::shared::context::TokenContext;
 
 pub fn create_output_token_metadata<'a>(
     token_metadata_data: &ZTokenMetadataInstructionData<'a>,

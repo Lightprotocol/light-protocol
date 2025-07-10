@@ -20,7 +20,7 @@ use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use rand::Rng;
 
-/*
+/* TODO: reactivate
 #[test]
 fn test_rnd_create_input_compressed_account() {
     let mut rng = rand::thread_rng();

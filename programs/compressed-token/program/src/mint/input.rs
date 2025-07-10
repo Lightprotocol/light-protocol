@@ -1,5 +1,6 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
+use light_hasher::{Hasher, Poseidon};
 
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR, mint::state::CompressedMint,
@@ -52,21 +53,6 @@ pub fn create_input_compressed_mint_account(
     // 2. Extract and validate compressed mint data
     let compressed_mint_input = &compressed_mint_inputs.compressed_mint_input;
 
-    // // Create the expected CompressedMint structure for validation
-    // let compressed_mint = CompressedMint {
-    //     spl_mint: compressed_mint_input.spl_mint,
-    //     supply: compressed_mint_input.supply.get(),
-    //     decimals: compressed_mint_input.decimals,
-    //     is_decompressed: compressed_mint_input.is_decompressed(),
-    //     mint_authority: None, // Will be set based on validation
-    //     freeze_authority: if compressed_mint_input.freeze_authority_is_set() {
-    //         Some(compressed_mint_input.freeze_authority)
-    //     } else {
-    //         None
-    //     },
-    //     num_extensions: compressed_mint_input.num_extensions,
-    // };
-
     // 3. Compute data hash using TokenContext for caching
     {
         let hashed_spl_mint = context.get_or_hash_mint(&compressed_mint_input.spl_mint.into())?;
@@ -92,7 +78,27 @@ pub fn create_input_compressed_mint_account(
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        input_compressed_account.data_hash = data_hash;
+        let extension_hashchain = if let Some(extensions) = compressed_mint_inputs
+            .compressed_mint_input
+            .extensions
+            .as_ref()
+        {
+            let mut extension_hashchain = [0u8; 32];
+            for extension in extensions {
+                let extension_hash = extension.hash::<Poseidon>(&hashed_spl_mint, context)?;
+                extension_hashchain =
+                    Poseidon::hashv(&[extension_hashchain.as_slice(), &extension_hash.as_slice()])?;
+            }
+            Some(extension_hashchain)
+        } else {
+            None
+        };
+        input_compressed_account.data_hash = if let Some(extension_hashchain) = extension_hashchain
+        {
+            Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain.as_slice()])?
+        } else {
+            data_hash
+        };
     }
 
     Ok(())

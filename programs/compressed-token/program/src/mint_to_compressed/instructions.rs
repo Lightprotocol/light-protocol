@@ -5,6 +5,8 @@ use light_compressed_account::{
 };
 use light_zero_copy::ZeroCopy;
 
+use crate::extensions::{state::ExtensionStruct, ExtensionInstructionData};
+
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct CompressedMintInputs {
     pub merkle_context: PackedMerkleContext,
@@ -23,7 +25,7 @@ pub struct CompressedMintInput {
     pub freeze_authority_is_set: bool,
     pub freeze_authority: Pubkey,
     pub version: u8,
-    pub extension_hash: [u8; 32],
+    pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
