@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
-    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
+    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut,
+    Pubkey,
 };
 
 use light_zero_copy::ZeroCopyNew;
@@ -8,12 +9,13 @@ use zerocopy::little_endian::U64;
 
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
+    extensions::{processor::process_create_extensions, ZExtensionInstructionData},
     mint::state::{CompressedMint, CompressedMintConfig},
 };
 // TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
-pub fn create_output_compressed_mint_account(
-    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut,
+pub fn create_output_compressed_mint_account<'a>(
+    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'a>,
     mint_pda: Pubkey,
     decimals: u8,
     freeze_authority: Option<Pubkey>,
@@ -24,6 +26,8 @@ pub fn create_output_compressed_mint_account(
     compressed_account_address: [u8; 32],
     merkle_tree_index: u8,
     version: u8,
+    extensions: Option<&'a [ZExtensionInstructionData<'a>]>,
+    base_mint_len: usize,
 ) -> Result<(), ProgramError> {
     // 3. Create output compressed account
     {
@@ -72,6 +76,11 @@ pub fn create_output_compressed_mint_account(
         *compressed_account_data.data_hash = compressed_mint
             .hash()
             .map_err(|_| ProgramError::InvalidAccountData)?;
+    }
+
+    // 5. Process extensions if provided
+    if let Some(extensions) = extensions {
+        process_create_extensions(extensions, output_compressed_account, base_mint_len)?;
     }
 
     Ok(())

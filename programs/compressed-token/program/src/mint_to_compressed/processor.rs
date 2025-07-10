@@ -11,6 +11,7 @@ use zerocopy::little_endian::U64;
 use crate::{
     mint::{
         input::create_input_compressed_mint_account, output::create_output_compressed_mint_account,
+        state::CompressedMint,
     },
     mint_to_compressed::{
         accounts::MintToCompressedAccounts, instructions::MintToCompressedInstructionData,
@@ -119,6 +120,7 @@ pub fn process_mint_to_compressed(
             .sum::<u64>()
             .into();
         let supply = mint_inputs.supply + sum_amounts;
+        let base_mint_len = CompressedMint::byte_len(&mint_config);
 
         // Compressed mint account is the last output
         create_output_compressed_mint_account(
@@ -134,6 +136,8 @@ pub fn process_mint_to_compressed(
             compressed_account_address,
             2,
             parsed_instruction_data.compressed_mint_inputs.compressed_mint_input.version,
+            None, // TODO: add extensions support for mint_to_compressed
+            base_mint_len,
         )?;
     }
 

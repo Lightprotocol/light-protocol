@@ -20,9 +20,8 @@ use spl_token::solana_program::log::sol_log_compute_units;
 use crate::{
     extensions::{
         metadata_pointer::{MetadataPointer, MetadataPointerConfig},
-        processor::process_create_extensions,
         state::ExtensionStructConfig,
-        token_metadata::{MetadataConfig, TokenMetadata, TokenMetadataConfig},
+        token_metadata::{AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig},
         ZExtensionInstructionData,
     },
     mint::{
@@ -79,6 +78,15 @@ pub fn process_create_compressed_mint(
                     }
                     ZExtensionInstructionData::TokenMetadata(token_metadata_data) => {
                         // TODO: consider validating utf8 encoding.
+                        let additional_metadata_configs = if let Some(ref additional_metadata) = token_metadata_data.additional_metadata {
+                            additional_metadata.iter().map(|item| AdditionalMetadataConfig {
+                                key: item.key.len() as u32,
+                                value: item.value.len() as u32,
+                            }).collect()
+                        } else {
+                            vec![]
+                        };
+                        
                         let config = TokenMetadataConfig {
                             update_authority: (token_metadata_data.update_authority.is_some(), ()),
                             metadata: MetadataConfig {
@@ -86,7 +94,7 @@ pub fn process_create_compressed_mint(
                                 symbol: token_metadata_data.metadata.symbol.len() as u32,
                                 uri: token_metadata_data.metadata.uri.len() as u32,
                             },
-                            additional_metadata: vec![],
+                            additional_metadata: additional_metadata_configs,
                         };
                         let byte_len = TokenMetadata::byte_len(&config);
                         // increased mint account data len
@@ -123,7 +131,6 @@ pub fn process_create_compressed_mint(
     }];
     let new_address_params = vec![NewAddressParamsAssignedPackedConfig {}];
 
-    let final_compressed_mint_len = output_compressed_accounts[0].compressed_account.data.1.data;
     let config = InstructionDataInvokeCpiWithReadOnlyConfig {
         cpi_context: CompressedCpiContextConfig {},
         input_compressed_accounts: vec![],
@@ -164,6 +171,7 @@ pub fn process_create_compressed_mint(
     cpi_instruction_struct.new_address_params[0].assigned_to_account = 1;
 
     // 2. Create compressed mint account data
+    let base_mint_len = CompressedMint::byte_len(&mint_size_config);
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         mint_pda,
@@ -176,15 +184,9 @@ pub fn process_create_compressed_mint(
         *parsed_instruction_data.mint_address,
         1,
         parsed_instruction_data.version,
+        parsed_instruction_data.extensions.as_deref(),
+        base_mint_len,
     )?;
-    // 3. initialize token extensions.
-    if let Some(extensions) = parsed_instruction_data.extensions.as_ref() {
-        process_create_extensions(
-            extensions,
-            &mut cpi_instruction_struct,
-            final_compressed_mint_len as usize,
-        )?;
-    }
     sol_log_compute_units();
     // 4. Execute CPI to light-system-program
     // Extract tree accounts for the generalized CPI call

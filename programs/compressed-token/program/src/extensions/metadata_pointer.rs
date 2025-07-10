@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{
-    instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut, Pubkey,
+    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
 use light_hasher::{
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, Hasher, HasherError,
@@ -51,9 +51,9 @@ pub struct InitMetadataPointer {
     pub metadata_address: Option<Pubkey>,
 }
 
-pub fn initialize_metadata_pointer<'a>(
+pub fn create_output_metadata_pointer<'a>(
     metadata_pointer_data: &ZInitMetadataPointer<'a>,
-    cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'a>,
+    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'a>,
     start_offset: usize,
 ) -> Result<usize, ProgramError> {
     if metadata_pointer_data.authority.is_none() && metadata_pointer_data.metadata_address.is_none()
@@ -61,7 +61,7 @@ pub fn initialize_metadata_pointer<'a>(
         return Err(anchor_lang::prelude::ProgramError::InvalidInstructionData);
     }
 
-    let cpi_data = cpi_instruction_struct.output_compressed_accounts[0]
+    let cpi_data = output_compressed_account
         .compressed_account
         .data
         .as_mut()

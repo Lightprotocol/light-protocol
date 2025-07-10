@@ -136,6 +136,7 @@ fn test_rnd_create_compressed_mint_account() {
         .unwrap();
 
         // Call the function under test
+        let base_mint_len = CompressedMint::byte_len(&mint_config);
         create_output_compressed_mint_account(
             output_account,
             mint_pda,
@@ -148,6 +149,8 @@ fn test_rnd_create_compressed_mint_account() {
             compressed_account_address,
             output_merkle_tree_index,
             version,
+            None, // No extensions in test
+            base_mint_len,
         )
         .unwrap();
 

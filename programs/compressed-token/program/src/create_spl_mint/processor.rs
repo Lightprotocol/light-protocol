@@ -12,7 +12,7 @@ use crate::{
         accounts::CreateSplMintAccounts,
         instructions::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
     },
-    mint::state::CompressedMintConfig,
+    mint::state::{CompressedMint, CompressedMintConfig},
     shared::cpi::execute_cpi_invoke,
 };
 // TODO: check and handle extensions
@@ -146,6 +146,7 @@ fn update_compressed_mint_to_decompressed<'info>(
     };
     let compressed_account_address = *instruction_data.compressed_mint_inputs.address;
     let supply = mint_inputs.supply; // Keep same supply, just mark as decompressed
+    let base_mint_len = CompressedMint::byte_len(&mint_config);
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         mint_pda,
@@ -160,6 +161,8 @@ fn update_compressed_mint_to_decompressed<'info>(
             .compressed_mint_inputs
             .output_merkle_tree_index,
         instruction_data.compressed_mint_inputs.compressed_mint_input.version,
+        None, // TODO: add extensions support for create_spl_mint
+        base_mint_len,
     )?;
 
     // Set proof data if provided

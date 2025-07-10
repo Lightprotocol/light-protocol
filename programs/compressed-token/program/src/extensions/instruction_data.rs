@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::extensions::{
     metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer},
-    token_metadata::{InitTokenMetadata, ZInitTokenMetadata},
+    token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
@@ -10,7 +10,7 @@ pub enum ExtensionInstructionData {
     // TODO: insert 18 placeholders to get consistent enum layout
     MetadataPointer(InitMetadataPointer),
     // TokenMetadata = 19,
-    TokenMetadata(InitTokenMetadata),
+    TokenMetadata(TokenMetadataInstructionData),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +18,7 @@ pub enum ZExtensionInstructionData<'a> {
     // TODO: insert 18 placeholders to get consistent enum layout
     MetadataPointer(ZInitMetadataPointer<'a>),
     // TokenMetadata = 19,
-    TokenMetadata(ZInitTokenMetadata<'a>),
+    TokenMetadata(ZTokenMetadataInstructionData<'a>),
 }
 
 // Manual implementation of zero-copy traits for ExtensionInstructionData

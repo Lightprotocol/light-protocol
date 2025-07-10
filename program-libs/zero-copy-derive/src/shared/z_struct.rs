@@ -383,13 +383,7 @@ pub fn generate_z_struct<const MUT: bool>(
     } else {
         quote! {}
     };
-    let hasher_flatten = if hasher {
-        quote! {
-            #[flatten]
-        }
-    } else {
-        quote! {}
-    };
+    let hasher_flatten = quote! {};
 
     let partial_eq_derive = if MUT { quote!() } else { quote!(, PartialEq) };
 

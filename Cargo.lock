@@ -3465,6 +3465,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "thiserror 2.0.12",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3837,6 +3838,8 @@ version = "0.1.0"
 dependencies = [
  "borsh 0.10.4",
  "lazy_static",
+ "light-hasher",
+ "light-sdk-macros",
  "light-zero-copy",
  "proc-macro2",
  "quote",

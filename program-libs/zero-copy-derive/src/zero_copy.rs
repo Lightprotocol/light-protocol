@@ -590,7 +590,15 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
     // Parse the input DeriveInput
     let input: DeriveInput = syn::parse(input)?;
 
-    let hasher = false;
+    let hasher = utils::struct_has_light_hasher_attribute(&input.attrs);
+    
+    // Disable light_hasher attribute due to Vec<u8>/&[u8] hash inconsistency
+    if hasher {
+        return Err(syn::Error::new_spanned(
+            &input,
+            "#[light_hasher] attribute is currently disabled due to hash inconsistency between Vec<u8> and &[u8] slice representations in ZStruct vs original struct. The original struct hashes Vec<u8> fields while the ZStruct hashes &[u8] slice fields, producing different hash values.",
+        ));
+    }
 
     // Process the input to extract struct information
     let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
