@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
-    compressible::{update_config, CompressibleConfig},
+    compressible::{update_compression_config, CompressibleConfig},
     error::LightSdkError,
 };
 use solana_program::account_info::AccountInfo;
@@ -25,13 +25,12 @@ pub fn process_update_config(
         return Err(LightSdkError::ConstraintViolation);
     }
 
-    // Update the config
-    update_config(
+    update_compression_config(
         config_account,
         authority,
         instruction_data.new_update_authority.as_ref(),
         instruction_data.new_rent_recipient.as_ref(),
-        instruction_data.new_address_space.as_ref(),
+        instruction_data.new_address_space,
         instruction_data.new_compression_delay,
         &crate::ID,
     )?;
@@ -43,6 +42,6 @@ pub fn process_update_config(
 pub struct UpdateConfigInstructionData {
     pub new_update_authority: Option<Pubkey>,
     pub new_rent_recipient: Option<Pubkey>,
-    pub new_address_space: Option<Pubkey>,
+    pub new_address_space: Option<Vec<Pubkey>>,
     pub new_compression_delay: Option<u32>,
 }

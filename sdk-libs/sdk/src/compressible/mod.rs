@@ -10,7 +10,8 @@ pub use compress_pda::compress_pda;
 pub use compress_pda_new::{compress_multiple_pdas_new, compress_pda_new};
 pub use compression_info::{CompressionInfo, HasCompressionInfo};
 pub use config::{
-    create_compression_config_checked, create_compression_config_unchecked, update_config,
-    CompressibleConfig, COMPRESSIBLE_CONFIG_SEED,
+    create_compression_config_checked, create_compression_config_unchecked,
+    update_compression_config, CompressibleConfig, COMPRESSIBLE_CONFIG_SEED,
+    MAX_ADDRESS_TREES_PER_SPACE,
 };
 pub use decompress_idempotent::{decompress_idempotent, decompress_multiple_idempotent};

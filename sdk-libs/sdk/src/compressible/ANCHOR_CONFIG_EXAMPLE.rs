@@ -2,7 +2,7 @@
 // This file shows how to implement secure config creation following Solana best practices
 
 use anchor_lang::prelude::*;
-use light_sdk::compressible::{create_config, update_config, CompressibleConfig};
+use light_sdk::compressible::{create_config, update_compression_config, CompressibleConfig};
 
 #[program]
 pub mod example_program {
@@ -32,7 +32,7 @@ pub mod example_program {
         // If you want the config update authority to be different from the program upgrade authority,
         // you can update it here
         if config_update_authority != ctx.accounts.authority.key() {
-            update_config(
+            update_compression_config(
                 &ctx.accounts.config.to_account_info(),
                 &ctx.accounts.authority.to_account_info(),
                 Some(&config_update_authority),
@@ -53,7 +53,7 @@ pub mod example_program {
         new_address_space: Option<Pubkey>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
-        update_config(
+        update_compression_config(
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             new_update_authority.as_ref(),
@@ -109,7 +109,7 @@ pub struct UpdateConfig<'info> {
         seeds = [b"compressible_config"],
         bump,
         // This constraint could also load and check the config's update_authority
-        // but the SDK's update_config function will do that check
+        // but the SDK's update_compression_config function will do that check
     )]
     pub config: AccountInfo<'info>,
 

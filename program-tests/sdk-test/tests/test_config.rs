@@ -34,7 +34,7 @@ async fn test_create_and_update_config() {
     // Test create config
     let create_ix_data = CreateConfigInstructionData {
         rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
+        address_space: vec![ADDRESS_SPACE], // Can add more for multi-address-space support
         compression_delay: 100,
     };
 
@@ -78,7 +78,7 @@ async fn test_config_validation() {
     // Try to create config with non-authority (should fail)
     let create_ix_data = CreateConfigInstructionData {
         rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
+        address_space: vec![ADDRESS_SPACE],
         compression_delay: 100,
     };
 
@@ -121,7 +121,7 @@ async fn test_config_creation_requires_signer() {
     // Try to create config with non-signer as update authority (should fail)
     let create_ix_data = CreateConfigInstructionData {
         rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
+        address_space: vec![ADDRESS_SPACE],
         compression_delay: 100,
     };
 

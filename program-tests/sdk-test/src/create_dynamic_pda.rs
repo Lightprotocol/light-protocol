@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
+    address::ReadOnlyAddress,
     compressible::{compress_pda_new, CompressibleConfig, CompressionInfo},
     cpi::CpiAccounts,
     error::LightSdkError,
@@ -59,6 +60,7 @@ pub fn create_dynamic_pda(
         &crate::ID,
         rent_recipient,
         &config.address_space,
+        instruction_data.read_only_addresses,
     )?;
 
     Ok(())
@@ -69,5 +71,7 @@ pub struct CreateDynamicPdaInstructionData {
     pub proof: ValidityProof,
     pub compressed_address: [u8; 32],
     pub address_tree_info: PackedAddressTreeInfo,
+    /// Optional read-only addresses for exclusion proofs (same address, different trees)
+    pub read_only_addresses: Option<Vec<ReadOnlyAddress>>,
     pub output_state_tree_index: u8,
 }

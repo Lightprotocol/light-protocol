@@ -22,7 +22,7 @@ pub mod anchor_compressible_user {
     use light_sdk::account::LightAccount;
     use light_sdk::compressible::{
         compress_pda, compress_pda_new, create_compression_config_checked,
-        decompress_multiple_idempotent, update_config,
+        decompress_multiple_idempotent, update_compression_config,
     };
 
     use super::*;
@@ -59,7 +59,7 @@ pub mod anchor_compressible_user {
         new_address_space: Option<Pubkey>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
-        update_config(
+        update_compression_config(
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             new_update_authority.as_ref(),
@@ -118,6 +118,7 @@ pub mod anchor_compressible_user {
             &crate::ID,
             &ctx.accounts.rent_recipient,
             &config.address_space,
+            None,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
@@ -159,7 +160,8 @@ pub mod anchor_compressible_user {
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_recipient,
-            &ADDRESS_SPACE,
+            &vec![ADDRESS_SPACE],
+            None,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
