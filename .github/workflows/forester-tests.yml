@@ -1,5 +1,8 @@
 name: forester-tests
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
