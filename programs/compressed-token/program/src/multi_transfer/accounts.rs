@@ -68,30 +68,30 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
 
         // Parse system accounts from fixed positions
         let mut iter = AccountIterator::new(accounts);
-        let fee_payer = iter.next()?;
-        let authority = iter.next()?;
-        let registered_program_pda = iter.next()?;
-        let noop_program = iter.next()?;
-        let account_compression_authority = iter.next()?;
-        let account_compression_program = iter.next()?;
-        let invoking_program = iter.next()?;
+        let fee_payer = iter.next_account()?;
+        let authority = iter.next_account()?;
+        let registered_program_pda = iter.next_account()?;
+        let noop_program = iter.next_account()?;
+        let account_compression_authority = iter.next_account()?;
+        let account_compression_program = iter.next_account()?;
+        let invoking_program = iter.next_account()?;
 
         let sol_pool_pda = if with_sol_pool {
-            Some(iter.next()?)
+            Some(iter.next_account()?)
         } else {
             None
         };
 
         let sol_decompression_recipient = if with_sol_pool {
-            Some(iter.next()?)
+            Some(iter.next_account()?)
         } else {
             None
         };
 
-        let system_program = iter.next()?;
+        let system_program = iter.next_account()?;
 
         let cpi_context_account = if with_cpi_context {
-            Some(iter.next()?)
+            Some(iter.next_account()?)
         } else {
             None
         };

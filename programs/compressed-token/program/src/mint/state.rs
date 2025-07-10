@@ -4,7 +4,7 @@ use light_hasher::{errors::HasherError, Hasher, Poseidon};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::IntoBytes;
 
-use crate::extensions::ExtensionStruct;
+use crate::extensions::state::ExtensionStruct;
 
 // Order is optimized for hashing.
 // freeze_authority option is skipped if None.
@@ -28,12 +28,6 @@ pub struct CompressedMint {
     /// Optional authority to freeze token accounts.
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionStruct>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy)]
-pub struct Extension {
-    pub extension_type: u16,
-    pub data: Vec<u8>,
 }
 
 // use nested token metadata layout for data extension
@@ -63,7 +57,7 @@ impl CompressedMint {
             None
         };
 
-        Self::hash_with_hashed_values(
+        let mint_hash = Self::hash_with_hashed_values(
             &hashed_spl_mint,
             &supply_bytes,
             self.decimals,
@@ -71,7 +65,20 @@ impl CompressedMint {
             &hashed_mint_authority_option,
             &hashed_freeze_authority_option,
             self.version,
-        )
+        )?;
+        // TODO: consider to make hasher generic. could use version for that.
+        if let Some(extensions) = self.extensions.as_ref() {
+            let mut extension_hashchain = [0u8; 32];
+            for extension in extensions {
+                extension_hashchain = Poseidon::hashv(&[
+                    extension_hashchain.as_slice(),
+                    extension.hash::<Poseidon>()?.as_slice(),
+                ])?;
+            }
+            Poseidon::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])
+        } else {
+            Ok(mint_hash)
+        }
     }
 
     pub fn hash_with_hashed_values(
@@ -81,7 +88,7 @@ impl CompressedMint {
         is_decompressed: bool,
         hashed_mint_authority: &Option<&[u8; 32]>,
         hashed_freeze_authority: &Option<&[u8; 32]>,
-        num_extensions: u8,
+        version: u8,
     ) -> std::result::Result<[u8; 32], HasherError> {
         let mut hash_inputs = vec![hashed_spl_mint.as_slice(), supply_bytes.as_slice()];
 
@@ -116,11 +123,11 @@ impl CompressedMint {
             hash_inputs.push(hashed_freeze_authority.as_slice());
         }
 
-        // Add num_extensions with prefix if not 0
+        // Add version with prefix if not 0
         let mut num_extensions_bytes = [0u8; 32];
-        if num_extensions != 0 {
-            num_extensions_bytes[30] = 3; // num_extensions prefix
-            num_extensions_bytes[31] = num_extensions;
+        if version != 0 {
+            num_extensions_bytes[30] = 3; // version prefix
+            num_extensions_bytes[31] = version;
             hash_inputs.push(&num_extensions_bytes[..]);
         }
 

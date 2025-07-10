@@ -34,9 +34,8 @@ pub fn process_close_token_account(
         }
 
         // Verify the authority matches the account owner
-        let account_owner = solana_pubkey::Pubkey::from(pod_account.owner);
         let authority_key = solana_pubkey::Pubkey::new_from_array(*accounts.authority.key());
-        if account_owner != authority_key {
+        if pod_account.owner != authority_key {
             return Err(ProgramError::InvalidAccountOwner);
         }
     }

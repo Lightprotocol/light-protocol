@@ -1,24 +1,83 @@
 use anchor_compressed_token::ErrorCode;
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::ZeroCopy;
 
-use crate::extensions::metadata_pointer::{
-    MetadataPointer, MetadataPointerConfig, ZMetadataPointer, ZMetadataPointerMut,
-};
-
+pub mod instruction_data;
+pub use instruction_data::{ExtensionInstructionData, ZExtensionInstructionData};
 pub mod metadata_pointer;
 pub mod processor;
+pub mod state;
 pub mod token_metadata;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 #[repr(u16)]
 pub enum ExtensionType {
+    // /// Used as padding if the account size would otherwise be 355, same as a
+    // /// multisig
+    // Uninitialized,
+    // /// Includes transfer fee rate info and accompanying authorities to withdraw
+    // /// and set the fee
+    // TransferFeeConfig,
+    // /// Includes withheld transfer fees
+    // TransferFeeAmount,
+    // /// Includes an optional mint close authority
+    // MintCloseAuthority,
+    // /// Auditor configuration for confidential transfers
+    // ConfidentialTransferMint,
+    // /// State for confidential transfers
+    // ConfidentialTransferAccount,
+    // /// Specifies the default Account::state for new Accounts
+    // DefaultAccountState,
+    // /// Indicates that the Account owner authority cannot be changed
+    // ImmutableOwner,
+    // /// Require inbound transfers to have memo
+    // MemoTransfer,
+    // /// Indicates that the tokens from this mint can't be transferred
+    // NonTransferable,
+    // /// Tokens accrue interest over time,
+    // InterestBearingConfig,
+    // /// Locks privileged token operations from happening via CPI
+    // CpiGuard,
+    // /// Includes an optional permanent delegate
+    // PermanentDelegate,
+    // /// Indicates that the tokens in this account belong to a non-transferable
+    // /// mint
+    // NonTransferableAccount,
+    // /// Mint requires a CPI to a program implementing the "transfer hook"
+    // /// interface
+    // TransferHook,
+    // /// Indicates that the tokens in this account belong to a mint with a
+    // /// transfer hook
+    // TransferHookAccount,
+    // /// Includes encrypted withheld fees and the encryption public that they are
+    // /// encrypted under
+    // ConfidentialTransferFeeConfig,
+    // /// Includes confidential withheld transfer fees
+    // ConfidentialTransferFeeAmount,
     /// Mint contains a pointer to another account (or the same account) that
-    /// holds metadata
+    /// holds metadata. Must not point to itself.
     MetadataPointer = 18,
+    /// Mint contains token-metadata.
+    /// Unlike token22 there is no metadata pointer.
     TokenMetadata = 19,
+    // /// Mint contains a pointer to another account (or the same account) that
+    // /// holds group configurations
+    // GroupPointer,
+    // /// Mint contains token group configurations
+    // TokenGroup,
+    // /// Mint contains a pointer to another account (or the same account) that
+    // /// holds group member configurations
+    // GroupMemberPointer,
+    // /// Mint contains token group member configurations
+    // TokenGroupMember,
+    // /// Mint allowing the minting and burning of confidential tokens
+    // ConfidentialMintBurn,
+    // /// Tokens whose UI amount is scaled by a given amount
+    // ScaledUiAmount,
+    // /// Tokens where minting / burning / transferring can be paused
+    // Pausable,
+    // /// Indicates that the account belongs to a pausable mint
+    // PausableAccount,
 }
-// use spl_token_2022::extension::ExtensionType SplExtensionType;
 
 impl TryFrom<u16> for ExtensionType {
     type Error = ErrorCode;
@@ -31,138 +90,3 @@ impl TryFrom<u16> for ExtensionType {
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
-pub enum ExtensionStruct {
-    /// Mint contains a pointer to another account (or the same account) that
-    /// holds metadata
-    MetadataPointer(MetadataPointer),
-    // TokenMetadata = 19,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ZExtensionStruct<'a> {
-    /// Mint contains a pointer to another account (or the same account) that
-    /// holds metadata
-    MetadataPointer(ZMetadataPointer<'a>),
-    // TokenMetadata = 19,
-}
-
-#[derive(Debug)]
-pub enum ZExtensionStructMut<'a> {
-    /// Mint contains a pointer to another account (or the same account) that
-    /// holds metadata
-    MetadataPointer(ZMetadataPointerMut<'a>),
-    // TokenMetadata = 19,
-}
-
-// Manual implementation of zero-copy traits for ExtensionStruct
-impl<'a> light_zero_copy::borsh::Deserialize<'a> for ExtensionStruct {
-    type Output = ZExtensionStruct<'a>;
-
-    fn zero_copy_at(
-        data: &'a [u8],
-    ) -> Result<(Self::Output, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
-        // Read discriminant (first 1 byte for borsh enum)
-        if data.is_empty() {
-            return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
-                1,
-                data.len(),
-            ));
-        }
-
-        let discriminant = data[0];
-        let remaining_data = &data[1..];
-
-        match discriminant {
-            0 => {
-                // MetadataPointer variant
-                let (metadata_pointer, remaining_bytes) =
-                    MetadataPointer::zero_copy_at(remaining_data)?;
-                Ok((
-                    ZExtensionStruct::MetadataPointer(metadata_pointer),
-                    remaining_bytes,
-                ))
-            }
-            _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
-        }
-    }
-}
-
-impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for ExtensionStruct {
-    type Output = ZExtensionStructMut<'a>;
-
-    fn zero_copy_at_mut(
-        data: &'a mut [u8],
-    ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        // Read discriminant (first 1 byte for borsh enum)
-        if data.is_empty() {
-            return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
-                1,
-                data.len(),
-            ));
-        }
-
-        let discriminant = data[0];
-        let remaining_data = &mut data[1..];
-
-        match discriminant {
-            0 => {
-                // MetadataPointer variant
-                let (metadata_pointer, remaining_bytes) =
-                    MetadataPointer::zero_copy_at_mut(remaining_data)?;
-                Ok((
-                    ZExtensionStructMut::MetadataPointer(metadata_pointer),
-                    remaining_bytes,
-                ))
-            }
-            _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
-        }
-    }
-}
-
-impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
-    type ZeroCopyConfig = ExtensionStructConfig;
-    type Output = ZExtensionStructMut<'a>;
-
-    fn byte_len(config: &Self::ZeroCopyConfig) -> usize {
-        match config {
-            ExtensionStructConfig::MetadataPointer(metadata_config) => {
-                // 1 byte for discriminant + MetadataPointer size
-                1 + MetadataPointer::byte_len(metadata_config)
-            }
-        }
-    }
-
-    fn new_zero_copy(
-        bytes: &'a mut [u8],
-        config: Self::ZeroCopyConfig,
-    ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        match config {
-            ExtensionStructConfig::MetadataPointer(metadata_config) => {
-                // Write discriminant (0 for MetadataPointer)
-                if bytes.is_empty() {
-                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
-                        1,
-                        bytes.len(),
-                    ));
-                }
-                bytes[0] = 0u8;
-
-                // Create MetadataPointer at offset 1
-                let (metadata_pointer, remaining_bytes) =
-                    MetadataPointer::new_zero_copy(&mut bytes[1..], metadata_config)?;
-                Ok((
-                    ZExtensionStructMut::MetadataPointer(metadata_pointer),
-                    remaining_bytes,
-                ))
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExtensionStructConfig {
-    MetadataPointer(MetadataPointerConfig),
-}
-

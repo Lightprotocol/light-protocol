@@ -1,9 +1,9 @@
 pub mod context;
 pub mod cpi;
 pub mod cpi_bytes_size;
+pub mod initialize_token_account;
 pub mod inputs;
 pub mod outputs;
-pub mod initialize_token_account;
 
 use anchor_lang::solana_program::program_error::ProgramError;
 use pinocchio::account_info::AccountInfo;
@@ -21,7 +21,7 @@ impl<'info> AccountIterator<'info> {
         }
     }
 
-    pub fn next(&mut self) -> Result<&'info AccountInfo, ProgramError> {
+    pub fn next_account(&mut self) -> Result<&'info AccountInfo, ProgramError> {
         if self.position >= self.accounts.len() {
             return Err(ProgramError::NotEnoughAccountKeys);
         }

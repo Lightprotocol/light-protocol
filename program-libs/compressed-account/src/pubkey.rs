@@ -1,6 +1,11 @@
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
-use light_zero_copy::{borsh::{Deserialize, ZeroCopyStructInner}, borsh_mut::{DeserializeMut, ZeroCopyStructInnerMut}, errors::ZeroCopyError, ZeroCopyNew};
+use light_zero_copy::{
+    borsh::{Deserialize, ZeroCopyStructInner},
+    borsh_mut::{DeserializeMut, ZeroCopyStructInnerMut},
+    errors::ZeroCopyError,
+    ZeroCopyNew,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -185,6 +190,10 @@ impl Pubkey {
 
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
+    }
+
+    pub fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }
 

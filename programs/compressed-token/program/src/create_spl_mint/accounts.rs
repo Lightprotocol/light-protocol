@@ -1,7 +1,7 @@
+use crate::shared::AccountIterator;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
 use pinocchio::account_info::AccountInfo;
-use crate::shared::AccountIterator;
 
 pub struct CreateSplMintAccounts<'info> {
     pub fee_payer: &'info AccountInfo,
@@ -24,37 +24,30 @@ pub struct CreateSplMintAccounts<'info> {
 }
 
 impl<'info> CreateSplMintAccounts<'info> {
-
-    pub fn validate_and_parse(
-        accounts: &'info [AccountInfo],
-    ) -> Result<Self, ProgramError> {
-        if accounts.len() < 17 {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        }
-
+    pub fn validate_and_parse(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
 
         // Static non-CPI accounts first
-        let authority = iter.next()?;
-        let mint = iter.next()?;
-        let mint_signer = iter.next()?;
-        let token_pool_pda = iter.next()?;
-        let token_program = iter.next()?;
-        let light_system_program = iter.next()?;
+        let authority = iter.next_account()?;
+        let mint = iter.next_account()?;
+        let mint_signer = iter.next_account()?;
+        let token_pool_pda = iter.next_account()?;
+        let token_program = iter.next_account()?;
+        let light_system_program = iter.next_account()?;
 
         // CPI accounts in exact order expected by light-system-program
-        let fee_payer = iter.next()?;
-        let cpi_authority_pda = iter.next()?;
-        let registered_program_pda = iter.next()?;
-        let noop_program = iter.next()?;
-        let account_compression_authority = iter.next()?;
-        let account_compression_program = iter.next()?;
-        let self_program = iter.next()?;
+        let fee_payer = iter.next_account()?;
+        let cpi_authority_pda = iter.next_account()?;
+        let registered_program_pda = iter.next_account()?;
+        let noop_program = iter.next_account()?;
+        let account_compression_authority = iter.next_account()?;
+        let account_compression_program = iter.next_account()?;
+        let self_program = iter.next_account()?;
 
-        let system_program = iter.next()?;
-        let in_merkle_tree = iter.next()?;
-        let in_output_queue = iter.next()?;
-        let out_output_queue = iter.next()?;
+        let system_program = iter.next_account()?;
+        let in_merkle_tree = iter.next_account()?;
+        let in_output_queue = iter.next_account()?;
+        let out_output_queue = iter.next_account()?;
 
         // Validate fee_payer: must be signer and mutable
         check_signer(fee_payer).map_err(ProgramError::from)?;

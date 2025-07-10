@@ -8,8 +8,8 @@ use super::{
 use crate::shared::initialize_token_account::initialize_token_account;
 
 /// Process the create token account instruction
-pub fn process_create_token_account<'info>(
-    account_infos: &'info [AccountInfo],
+pub fn process_create_token_account(
+    account_infos: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Parse instruction data using zero-copy

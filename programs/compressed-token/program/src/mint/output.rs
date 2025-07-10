@@ -23,6 +23,7 @@ pub fn create_output_compressed_mint_account(
     mint_config: CompressedMintConfig,
     compressed_account_address: [u8; 32],
     merkle_tree_index: u8,
+    version: u8,
 ) -> Result<(), ProgramError> {
     // 3. Create output compressed account
     {
@@ -66,6 +67,7 @@ pub fn create_output_compressed_mint_account(
                 *z_mint_authority = mint_auth;
             }
         }
+        compressed_mint.version = version;
 
         *compressed_account_data.data_hash = compressed_mint
             .hash()

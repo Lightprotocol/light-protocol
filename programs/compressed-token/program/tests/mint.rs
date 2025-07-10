@@ -147,6 +147,7 @@ fn test_rnd_create_compressed_mint_account() {
             mint_config,
             compressed_account_address,
             output_merkle_tree_index,
+            version,
         )
         .unwrap();
 
@@ -162,7 +163,7 @@ fn test_rnd_create_compressed_mint_account() {
             is_decompressed: false,
             mint_authority,
             freeze_authority,
-            version: 0,
+            version,
             extensions: None,
         };
 
@@ -190,7 +191,7 @@ fn test_rnd_create_compressed_mint_account() {
             is_decompressed,
             mint_authority, // Use the actual mint authority passed to the function
             freeze_authority,
-            version: 0,
+            version,
             extensions: None,
         };
         let expected_input_data_hash = expected_input_compressed_mint.hash().unwrap();

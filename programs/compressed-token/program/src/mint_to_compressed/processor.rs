@@ -133,6 +133,7 @@ pub fn process_mint_to_compressed(
             mint_config,
             compressed_account_address,
             2,
+            parsed_instruction_data.compressed_mint_inputs.compressed_mint_input.version,
         )?;
     }
 

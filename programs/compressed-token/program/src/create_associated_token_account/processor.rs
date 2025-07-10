@@ -15,8 +15,8 @@ use crate::shared::initialize_token_account::initialize_token_account;
 /// - it is possible to create an associated token account for non existing mints
 /// - accounts with non existing mints can never have a balance
 /// Process the create associated token account instruction
-pub fn process_create_associated_token_account<'info>(
-    account_infos: &'info [AccountInfo],
+pub fn process_create_associated_token_account(
+    account_infos: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Parse instruction data using zero-copy

@@ -2,6 +2,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_zero_copy::ZeroCopy;
 
+use crate::extensions::ExtensionInstructionData;
+
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct CreateCompressedMintInstructionData {
     pub decimals: u8,
@@ -12,11 +14,6 @@ pub struct CreateCompressedMintInstructionData {
     // compressed address TODO: make a type CompressedAddress
     pub mint_address: [u8; 32],
     pub freeze_authority: Option<Pubkey>,
+    pub version: u8,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
-}
-
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
-pub struct ExtensionInstructionData {
-    pub extension_type: u16,
-    pub data: Vec<u8>,
 }
