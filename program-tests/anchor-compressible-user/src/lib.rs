@@ -40,7 +40,7 @@ pub mod anchor_compressible_user {
             &ctx.accounts.authority.to_account_info(),
             &ctx.accounts.program_data.to_account_info(),
             &rent_recipient,
-            &address_space,
+            vec![address_space],
             compression_delay,
             &ctx.accounts.payer.to_account_info(),
             &ctx.accounts.system_program.to_account_info(),
@@ -64,7 +64,7 @@ pub mod anchor_compressible_user {
             &ctx.accounts.authority.to_account_info(),
             new_update_authority.as_ref(),
             new_rent_recipient.as_ref(),
-            new_address_space.as_ref(),
+            new_address_space.map(|s| vec![s]),
             new_compression_delay,
             &crate::ID,
         )

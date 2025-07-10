@@ -75,7 +75,7 @@ await program.methods
   .createCompressibleConfig(
     100, // compression_delay
     rentRecipient,
-    addressSpace
+    [addressSpace] // Now accepts an array of address trees (1-4 allowed)
   )
   .accounts({
     payer: wallet.publicKey,
@@ -92,7 +92,7 @@ await program.methods
   .updateCompressibleConfig(
     200, // new_compression_delay (optional)
     newRentRecipient, // (optional)
-    newAddressSpace, // (optional)
+    [newAddressSpace1, newAddressSpace2], // (optional) - array of 1-4 address trees
     newUpdateAuthority // (optional)
   )
   .accounts({
@@ -159,6 +159,53 @@ await program.methods
   .rpc();
 ```
 
+## Address Space Configuration
+
+The config now supports multiple address trees per address space (1-4 allowed):
+
+```typescript
+// Single address tree (backward compatible)
+const addressSpace = [addressTree1];
+
+// Multiple address trees for better scalability
+const addressSpace = [addressTree1, addressTree2, addressTree3];
+
+// When creating config
+await program.methods
+  .createCompressibleConfig(
+    100,
+    rentRecipient,
+    addressSpace // Array of 1-4 unique address tree pubkeys
+  )
+  // ... accounts
+  .rpc();
+```
+
+### Address Space Validation Rules
+
+**Create Config:**
+
+- Must contain 1-4 unique address tree pubkeys
+- No duplicate pubkeys allowed
+- All pubkeys must be valid address trees
+
+**Update Config:**
+
+- Can only **add** new address trees, never remove existing ones
+- No duplicate pubkeys allowed in the new configuration
+- Must maintain all existing address trees
+
+```typescript
+// Valid update: adding new trees
+const currentAddressSpace = [tree1, tree2];
+const newAddressSpace = [tree1, tree2, tree3]; // ✅ Valid: adds tree3
+
+// Invalid update: removing existing trees
+const invalidAddressSpace = [tree2, tree3]; // ❌ Invalid: removes tree1
+```
+
+The system validates that compressed accounts use address trees from the configured address space, providing flexibility while maintaining security and preventing accidental removal of active trees.
+
 ## What You Need to Implement
 
 Since the macro only generates compression-related instructions, you need to implement:
@@ -188,13 +235,13 @@ pub fn create_user_record(
     name: String,
 ) -> Result<()> {
     let user_record = &mut ctx.accounts.user_record;
-    
+
     // Your custom initialization logic here
     user_record.compression_info = CompressionInfo::new()?;
     user_record.owner = ctx.accounts.user.key();
     user_record.name = name;
     user_record.score = 0;
-    
+
     Ok(())
 }
 ```

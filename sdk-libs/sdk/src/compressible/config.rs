@@ -10,6 +10,7 @@ use solana_pubkey::Pubkey;
 use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::Sysvar;
+use std::collections::HashSet;
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
 pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 4;
@@ -43,9 +44,9 @@ pub struct CompressibleConfig {
 impl Default for CompressibleConfig {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 0,
             discriminator: CompressibleConfig::LIGHT_DISCRIMINATOR,
-            compression_delay: 100,
+            compression_delay: 216_000, // 24h
             update_authority: Pubkey::default(),
             rent_recipient: Pubkey::default(),
             address_space: vec![Pubkey::default()],
@@ -150,6 +151,9 @@ pub fn create_compression_config_unchecked<'info>(
         msg!("Invalid number of address spaces: {}", address_space.len());
         return Err(LightSdkError::ConstraintViolation);
     }
+
+    // Validate no duplicate pubkeys in address_space
+    validate_address_space_no_duplicates(&address_space)?;
 
     // Verify update authority is signer
     if !update_authority.is_signer {
@@ -256,6 +260,13 @@ pub fn update_compression_config<'info>(
             msg!("Invalid number of address spaces: {}", new_spaces.len());
             return Err(LightSdkError::ConstraintViolation);
         }
+
+        // Validate no duplicate pubkeys in new address_space
+        validate_address_space_no_duplicates(&new_spaces)?;
+
+        // Validate that we're only adding, not removing existing pubkeys
+        validate_address_space_only_adds(&config.address_space, &new_spaces)?;
+
         config.address_space = new_spaces;
     }
     if let Some(new_delay) = new_compression_delay {
@@ -383,4 +394,34 @@ pub fn create_compression_config_checked<'info>(
         system_program,
         program_id,
     )
+}
+
+/// Validates that address_space contains no duplicate pubkeys
+fn validate_address_space_no_duplicates(address_space: &[Pubkey]) -> Result<(), LightSdkError> {
+    let mut seen = HashSet::new();
+    for pubkey in address_space {
+        if !seen.insert(pubkey) {
+            msg!("Duplicate pubkey found in address_space: {}", pubkey);
+            return Err(LightSdkError::ConstraintViolation);
+        }
+    }
+    Ok(())
+}
+
+/// Validates that new_address_space only adds to existing address_space (no removals)
+fn validate_address_space_only_adds(
+    existing_address_space: &[Pubkey],
+    new_address_space: &[Pubkey],
+) -> Result<(), LightSdkError> {
+    // Check that all existing pubkeys are still present in new address space
+    for existing_pubkey in existing_address_space {
+        if !new_address_space.contains(existing_pubkey) {
+            msg!(
+                "Cannot remove existing pubkey from address_space: {}",
+                existing_pubkey
+            );
+            return Err(LightSdkError::ConstraintViolation);
+        }
+    }
+    Ok(())
 }
