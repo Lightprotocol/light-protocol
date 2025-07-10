@@ -25,6 +25,7 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
     compressed_account_address: [u8; 32],
     merkle_tree_index: u8,
     version: u8,
+    is_decompressed: bool,
     extensions: Option<&[ZExtensionInstructionData<'b>]>,
 ) -> Result<(), ProgramError> {
     // 3. Create output compressed account
@@ -80,6 +81,7 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
         }
     }
     compressed_mint.version = version;
+    compressed_mint.is_decompressed = if is_decompressed { 1 } else { 0 };
 
     // Process extensions if provided and populate the zero-copy extension data
     if let Some(extensions) = extensions.as_ref() {

@@ -165,6 +165,7 @@ fn update_compressed_mint_to_decompressed<'info>(
             compressed_account_address,
             OUT_OUTPUT_QUEUE,
             instruction_data.mint.mint.version,
+            true, // Set is_decompressed = true for create_spl_mint
             mint_inputs.extensions.as_deref(),
         )?;
 

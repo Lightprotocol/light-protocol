@@ -138,6 +138,7 @@ pub fn process_create_compressed_mint(
         *parsed_instruction_data.mint_address,
         1,
         parsed_instruction_data.version,
+        false, // Set is_decompressed = false for new mint creation
         parsed_instruction_data.extensions.as_deref(),
     )?;
     sol_log_compute_units();

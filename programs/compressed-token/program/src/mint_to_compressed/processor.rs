@@ -5,6 +5,7 @@ use light_compressed_account::{
 };
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 use zerocopy::little_endian::U64;
 
@@ -56,15 +57,28 @@ pub fn process_mint_to_compressed(
         .freeze_authority
         .is_some();
 
-    let config_input = CpiConfigInput::mint_to_compressed(
+    // Process extensions to get the proper config for CPI bytes allocation
+    // The mint contains ZExtensionInstructionData, so we can use process_extensions_config directly
+    let (_, extensions_config, _) = crate::extensions::process_extensions_config(
+        parsed_instruction_data
+            .compressed_mint_inputs
+            .mint
+            .extensions
+            .as_ref(),
+    );
+    msg!("extensions_config: {:?}", extensions_config);
+
+    let mut config_input = CpiConfigInput::mint_to_compressed(
         parsed_instruction_data.recipients.len(),
         parsed_instruction_data.proof.is_some(),
         compressed_mint_with_freeze_authority,
     );
+    // Override the empty extensions_config with the actual one
+    config_input.extensions_config = extensions_config;
 
     let config = cpi_bytes_config(config_input);
     let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
-
+    msg!("cpi_bytes");
     sol_log_compute_units();
     let (mut cpi_instruction_struct, _) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
@@ -84,6 +98,7 @@ pub fn process_mint_to_compressed(
     let hashed_mint_authority = context.get_or_hash_pubkey(validated_accounts.authority.key());
 
     {
+        msg!("pre create_input_compressed_mint_account");
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
@@ -91,6 +106,8 @@ pub fn process_mint_to_compressed(
             &parsed_instruction_data.compressed_mint_inputs,
             &hashed_mint_authority,
         )?;
+        msg!("post create_input_compressed_mint_account");
+
         let mint_inputs = &parsed_instruction_data.compressed_mint_inputs.mint;
         let mint_pda = mint_inputs.spl_mint;
         let decimals = mint_inputs.decimals;
@@ -122,6 +139,7 @@ pub fn process_mint_to_compressed(
 
         // Extensions are already in zero-copy format, so we can pass them directly
         let z_extensions = mint_inputs.extensions.as_deref();
+        msg!("pre create_output_compressed_mint_account");
 
         // Compressed mint account is the last output
         create_output_compressed_mint_account(
@@ -137,10 +155,16 @@ pub fn process_mint_to_compressed(
             compressed_account_address,
             2,
             parsed_instruction_data.compressed_mint_inputs.mint.version,
+            parsed_instruction_data.compressed_mint_inputs.mint.is_decompressed(),
             z_extensions,
         )?;
+        msg!("post create_output_compressed_mint_account");
     }
 
+    msg!(
+        "pre create_output_compressed_token_accounts {:?}",
+        cpi_instruction_struct
+    );
     let is_decompressed = parsed_instruction_data
         .compressed_mint_inputs
         .mint
@@ -153,6 +177,7 @@ pub fn process_mint_to_compressed(
         mint,
         hashed_mint,
     )?;
+    msg!("post create_output_compressed_token_accounts");
 
     // Extract tree accounts for the generalized CPI call
     let tree_accounts = [
