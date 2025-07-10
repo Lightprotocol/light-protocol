@@ -1,6 +1,6 @@
 use crate::{
     account::LightAccount,
-    compressible::compress_pda::HasCompressionMetadata,
+    compressible::{compression_info::HasCompressionInfo, CompressibleConfig},
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::ValidityProof,
@@ -56,7 +56,7 @@ where
         + BorshDeserialize
         + Default
         + Clone
-        + HasCompressionMetadata,
+        + HasCompressionInfo,
 {
     decompress_multiple_idempotent(
         &[pda_account],
@@ -102,7 +102,7 @@ where
         + BorshDeserialize
         + Default
         + Clone
-        + HasCompressionMetadata,
+        + HasCompressionInfo,
 {
     // Validate input lengths
     if pda_accounts.len() != compressed_accounts.len() || pda_accounts.len() != signer_seeds.len() {
@@ -181,8 +181,10 @@ where
         // Initialize PDA with decompressed data and update slot
         let mut decompressed_pda = compressed_account.account.clone();
         decompressed_pda
-            .compression_metadata_mut()
+            .compression_info_mut()
             .set_last_written_slot_value(current_slot);
+        // set discriminator to decompressed
+        decompressed_pda.compression_info_mut().set_decompressed();
 
         // Write discriminator
         // TODO: we don't mind the onchain account being different?

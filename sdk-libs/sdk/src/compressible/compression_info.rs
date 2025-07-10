@@ -3,22 +3,38 @@ use crate::error::LightSdkError;
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_hasher::{to_byte_array::ToByteArray, DataHasher, Hasher, HasherError};
 use solana_clock::Clock;
 use solana_sysvar::Sysvar;
 
-/// Metadata for compressible accounts that tracks when the account was last written
-#[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
-pub struct CompressionMetadata {
-    /// The slot when this account was last written/decompressed
-    pub last_written_slot: u64,
+/// Trait for accounts that contain CompressionInfo
+pub trait HasCompressionInfo {
+    fn compression_info(&self) -> &CompressionInfo;
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo;
 }
 
-impl CompressionMetadata {
-    /// Creates new compression metadata with the current slot
+/// Information for compressible accounts that tracks when the account was last written
+#[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
+pub struct CompressionInfo {
+    /// The slot when this account was last written/decompressed
+    pub last_written_slot: u64,
+    /// 0 not inited, 1 decompressed, 2 compressed
+    pub state: CompressionState,
+}
+
+#[derive(Clone, Default, Debug, BorshSerialize, BorshDeserialize)]
+pub enum CompressionState {
+    #[default]
+    Uninitialized,
+    Decompressed,
+    Compressed,
+}
+
+impl CompressionInfo {
+    /// Creates new compression info with the current slot
     pub fn new() -> Result<Self, LightSdkError> {
         Ok(Self {
             last_written_slot: Clock::get()?.slot,
+            state: CompressionState::Uninitialized,
         })
     }
 
@@ -49,21 +65,14 @@ impl CompressionMetadata {
         let current_slot = Clock::get()?.slot;
         Ok((self.last_written_slot + compression_delay).saturating_sub(current_slot))
     }
-}
 
-// Implement ToByteArray for CompressionMetadata
-impl ToByteArray for CompressionMetadata {
-    const NUM_FIELDS: usize = 1;
-    const IS_PRIMITIVE: bool = false;
-
-    fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
-        self.last_written_slot.to_byte_array()
+    /// Set compressed
+    pub fn set_compressed(&mut self) {
+        self.state = CompressionState::Compressed;
     }
-}
 
-// Implement DataHasher for CompressionMetadata
-impl DataHasher for CompressionMetadata {
-    fn hash<H: Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        self.to_byte_array()
+    /// Set decompressed
+    pub fn set_decompressed(&mut self) {
+        self.state = CompressionState::Decompressed;
     }
 }

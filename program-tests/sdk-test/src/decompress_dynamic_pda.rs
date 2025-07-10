@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    compressible::{decompress_idempotent, CompressionMetadata, HasCompressionMetadata},
+    compressible::{decompress_idempotent, CompressionInfo, HasCompressionInfo},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -41,8 +41,6 @@ pub fn decompress_dynamic_pda(
     // Extract the data field for use in seeds
     let account_data = compressed_account.data;
 
-    // Derive the PDA seeds and bump
-    // In a real implementation, you would pass these as part of the instruction data
     // For this example, we'll use the account data as part of the seed
     let seeds: &[&[u8]] = &[b"test_pda", &account_data];
     let (derived_pda, bump) =
@@ -176,17 +174,18 @@ pub struct MyCompressedAccount {
     Clone, Debug, Default, LightHasher, LightDiscriminator, BorshDeserialize, BorshSerialize,
 )]
 pub struct MyPdaAccount {
-    pub compression_metadata: CompressionMetadata,
+    #[skip]
+    pub compression_info: CompressionInfo,
     pub data: [u8; 31],
 }
 
-// Implement the HasCompressionMetadata trait
-impl HasCompressionMetadata for MyPdaAccount {
-    fn compression_metadata(&self) -> &CompressionMetadata {
-        &self.compression_metadata
+// Implement the HasCompressionInfo trait
+impl HasCompressionInfo for MyPdaAccount {
+    fn compression_info(&self) -> &CompressionInfo {
+        &self.compression_info
     }
 
-    fn compression_metadata_mut(&mut self) -> &mut CompressionMetadata {
-        &mut self.compression_metadata
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        &mut self.compression_info
     }
 }
