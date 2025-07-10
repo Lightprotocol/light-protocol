@@ -9,7 +9,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressWithTree},
+    indexer::AddressWithTree,
     local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{merkle_tree::MerkleTreeExt, LightClient, LightClientConfig, Rpc},
 };

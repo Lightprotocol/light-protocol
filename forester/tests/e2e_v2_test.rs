@@ -19,7 +19,7 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
     local_test_validator::{LightValidatorConfig, ProverConfig},
-    rpc::{merkle_tree::MerkleTreeExt, LightClient, LightClientConfig, Rpc},
+    rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
