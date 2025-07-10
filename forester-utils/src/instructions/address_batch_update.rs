@@ -25,10 +25,7 @@ use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
 
-pub struct AddressUpdateConfig<R>
-where
-    R: Rpc + Send + Sync,
-{
+pub struct AddressUpdateConfig<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
     pub merkle_tree_pubkey: Pubkey,
     pub prover_url: String,
@@ -38,7 +35,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn stream_instruction_data<'a, R>(
+async fn stream_instruction_data<'a, R: Rpc>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
@@ -50,8 +47,6 @@ async fn stream_instruction_data<'a, R>(
     mut current_root: [u8; 32],
     yield_batch_size: usize,
 ) -> impl Stream<Item = Result<Vec<InstructionDataAddressAppendInputs>, ForesterUtilsError>> + Send + 'a
-where
-    R: Rpc + Send + 'a,
 {
     stream! {
         let proof_client = Arc::new(ProofClient::with_config(prover_url, polling_interval, max_wait_time));
@@ -296,7 +291,7 @@ fn get_all_circuit_inputs_for_chunk(
     Ok((all_inputs, current_root))
 }
 
-pub async fn get_address_update_instruction_stream<'a, R>(
+pub async fn get_address_update_instruction_stream<'a, R: Rpc>(
     config: AddressUpdateConfig<R>,
     merkle_tree_data: crate::ParsedMerkleTreeData,
 ) -> Result<
@@ -312,10 +307,7 @@ pub async fn get_address_update_instruction_stream<'a, R>(
         u16,
     ),
     ForesterUtilsError,
->
-where
-    R: Rpc + Send + Sync + 'a,
-{
+> {
     let (current_root, leaves_hash_chains, start_index, zkp_batch_size) = (
         merkle_tree_data.current_root,
         merkle_tree_data.leaves_hash_chains,

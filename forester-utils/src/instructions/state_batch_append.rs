@@ -44,7 +44,7 @@ async fn generate_zkp_proof(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn get_append_instruction_stream<'a, R>(
+pub async fn get_append_instruction_stream<'a, R: Rpc>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
@@ -65,10 +65,7 @@ pub async fn get_append_instruction_stream<'a, R>(
         u16,
     ),
     ForesterUtilsError,
->
-where
-    R: Rpc + Send + Sync + 'a,
-{
+> {
     trace!("Initializing append batch instruction stream with parsed data");
     let (merkle_tree_next_index, mut current_root, _) = (
         merkle_tree_data.next_index,

@@ -43,7 +43,7 @@ async fn generate_nullify_zkp_proof(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn get_nullify_instruction_stream<'a, R>(
+pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
@@ -64,10 +64,7 @@ pub async fn get_nullify_instruction_stream<'a, R>(
         u16,
     ),
     ForesterUtilsError,
->
-where
-    R: Rpc + Send + Sync + 'a,
-{
+> {
     let (mut current_root, leaves_hash_chains, num_inserted_zkps, zkp_batch_size) = (
         merkle_tree_data.current_root,
         merkle_tree_data.leaves_hash_chains,
