@@ -2,7 +2,7 @@
 
 use std::assert_eq;
 
-use anchor_lang::prelude::borsh::BorshSerialize;
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use anchor_spl::token_2022::spl_token_2022;
 use light_compressed_token::mint_to_compressed::instructions::{
     CompressedMintInput, CompressedMintInputs, MintToCompressedInstructionData, Recipient,
@@ -313,6 +313,18 @@ fn create_compressed_mint(
             proof,
             mint_bump,
             address_merkle_tree_root_index,
+            extensions: None,
+            mint_address: light_compressed_account::address::derive_address(
+                &Pubkey::find_program_address(
+                    &[b"compressed_mint", mint_signer.as_ref()],
+                    &light_compressed_token::ID,
+                )
+                .0
+                .to_bytes(),
+                &address_tree_pubkey.to_bytes(),
+                &light_compressed_token::ID.to_bytes(),
+            ),
+            version: 0,
         };
 
     let accounts = vec![
@@ -434,14 +446,15 @@ async fn test_create_compressed_mint() {
         .value;
 
     // Create expected compressed mint for comparison
-    let expected_compressed_mint = light_compressed_token::create_mint::CompressedMint {
-        spl_mint: mint_pda,
+    let expected_compressed_mint = light_compressed_token::mint::state::CompressedMint {
+        spl_mint: mint_pda.into(),
         supply: 0,
         decimals,
         is_decompressed: false,
-        mint_authority: Some(mint_authority),
-        freeze_authority: Some(freeze_authority),
-        num_extensions: 0,
+        mint_authority: Some(mint_authority.into()),
+        freeze_authority: Some(freeze_authority.into()),
+        version: 0,
+        extensions: None,
     };
 
     // Verify the account exists and has correct properties
@@ -460,9 +473,8 @@ async fn test_create_compressed_mint() {
     );
 
     // Deserialize and verify the CompressedMint struct matches expected
-    let actual_compressed_mint: light_compressed_token::create_mint::CompressedMint =
-        anchor_lang::AnchorDeserialize::deserialize(&mut compressed_account_data.data.as_slice())
-            .unwrap();
+    let actual_compressed_mint: light_compressed_token::mint::state::CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
 
     assert_eq!(actual_compressed_mint, expected_compressed_mint);
 
@@ -499,7 +511,8 @@ async fn test_create_compressed_mint() {
                 .freeze_authority
                 .unwrap_or_default()
                 .into(),
-            num_extensions: 0,
+            version: 0,
+            extensions: None,
         },
         output_merkle_tree_index: 3,
     };
@@ -617,8 +630,8 @@ async fn test_create_compressed_mint() {
         .unwrap()
         .value;
 
-    let updated_compressed_mint: light_compressed_token::create_mint::CompressedMint =
-        anchor_lang::AnchorDeserialize::deserialize(
+    let updated_compressed_mint: light_compressed_token::mint::state::CompressedMint =
+        BorshDeserialize::deserialize(
             &mut updated_compressed_mint_account
                 .data
                 .unwrap()
@@ -658,7 +671,8 @@ async fn test_create_compressed_mint() {
             is_decompressed: false, // Not yet decompressed
             freeze_authority_is_set: true,
             freeze_authority: freeze_authority.into(),
-            num_extensions: 0,
+            version: 0,
+            extensions: None,
         },
         output_merkle_tree_index: 2,
     };
@@ -773,8 +787,8 @@ async fn test_create_compressed_mint() {
         .unwrap()
         .value;
 
-    let final_compressed_mint: light_compressed_token::create_mint::CompressedMint =
-        anchor_lang::AnchorDeserialize::deserialize(
+    let final_compressed_mint: light_compressed_token::mint::state::CompressedMint =
+        BorshDeserialize::deserialize(
             &mut final_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -1281,4 +1295,294 @@ async fn test_create_associated_token_account() {
     );
     assert_eq!(expected_ata_pubkey, derived_ata_pubkey);
     assert_eq!(bump, derived_bump);
+}
+
+fn create_compressed_mint_with_extensions(
+    decimals: u8,
+    mint_authority: Pubkey,
+    freeze_authority: Option<Pubkey>,
+    proof: light_verifier::CompressedProof,
+    mint_bump: u8,
+    address_merkle_tree_root_index: u16,
+    mint_signer: Pubkey,
+    payer: Pubkey,
+    address_tree_pubkey: Pubkey,
+    output_queue: Pubkey,
+    extensions: Option<
+        Vec<light_compressed_token::extensions::instruction_data::ExtensionInstructionData>,
+    >,
+) -> Instruction {
+    let instruction_data =
+        light_compressed_token::mint::instructions::CreateCompressedMintInstructionData {
+            decimals,
+            mint_authority: mint_authority.into(),
+            freeze_authority: freeze_authority.map(|auth| auth.into()),
+            proof,
+            mint_bump,
+            address_merkle_tree_root_index,
+            extensions,
+            mint_address: light_compressed_account::address::derive_address(
+                &Pubkey::find_program_address(
+                    &[b"compressed_mint", mint_signer.as_ref()],
+                    &light_compressed_token::ID,
+                )
+                .0
+                .to_bytes(),
+                &address_tree_pubkey.to_bytes(),
+                &light_compressed_token::ID.to_bytes(),
+            ),
+            version: 0,
+        };
+
+    let accounts = vec![
+        // Static non-CPI accounts first
+        AccountMeta::new_readonly(mint_signer, true), // 0: mint_signer (signer)
+        AccountMeta::new_readonly(light_system_program::ID, false), // light system program
+        // CPI accounts in exact order expected by execute_cpi_invoke
+        AccountMeta::new(payer, true), // 1: fee_payer (signer, mutable)
+        AccountMeta::new_readonly(
+            light_compressed_token::process_transfer::get_cpi_authority_pda().0,
+            false,
+        ), // 2: cpi_authority_pda
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
+            false,
+        ), // 3: registered_program_pda
+        AccountMeta::new_readonly(
+            Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+            false,
+        ), // 4: noop_program
+        AccountMeta::new_readonly(
+            light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
+            false,
+        ), // 5: account_compression_authority
+        AccountMeta::new_readonly(account_compression::ID, false), // 6: account_compression_program
+        AccountMeta::new_readonly(light_compressed_token::ID, false), // 7: invoking_program (self_program)
+        AccountMeta::new_readonly(system_program::ID, false),         // 10: system_program
+        AccountMeta::new(address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
+        AccountMeta::new(output_queue, false),        // 13: output_queue (mutable)
+    ];
+
+    Instruction {
+        program_id: light_compressed_token::ID,
+        accounts,
+        data: [vec![100], instruction_data.try_to_vec().unwrap()].concat(),
+    }
+}
+
+#[tokio::test]
+#[serial]
+async fn test_create_compressed_mint_with_token_metadata() {
+    use light_compressed_account::Pubkey as LightPubkey;
+    use light_compressed_token::extensions::{
+        instruction_data::ExtensionInstructionData,
+        token_metadata::{Metadata, TokenMetadataInstructionData},
+    };
+
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test parameters
+    let decimals = 6u8;
+    let mint_authority_keypair = Keypair::new();
+    let mint_authority = mint_authority_keypair.pubkey();
+    let freeze_authority = Pubkey::new_unique();
+    let mint_signer = Keypair::new();
+
+    // Get address tree for creating compressed mint address
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+
+    // Find mint PDA and bump
+    let (mint_pda, mint_bump) = Pubkey::find_program_address(
+        &[b"compressed_mint", mint_signer.pubkey().as_ref()],
+        &light_compressed_token::ID,
+    );
+
+    // Create token metadata extension with additional metadata
+    let additional_metadata = vec![
+        light_compressed_token::extensions::token_metadata::AdditionalMetadata {
+            key: b"website".to_vec(),
+            value: b"https://mytoken.com".to_vec(),
+        },
+        light_compressed_token::extensions::token_metadata::AdditionalMetadata {
+            key: b"category".to_vec(),
+            value: b"DeFi".to_vec(),
+        },
+        light_compressed_token::extensions::token_metadata::AdditionalMetadata {
+            key: b"creator".to_vec(),
+            value: b"TokenMaker Inc.".to_vec(),
+        },
+    ];
+
+    let token_metadata = TokenMetadataInstructionData {
+        update_authority: Some(LightPubkey::from(mint_authority.to_bytes())),
+        metadata: Metadata {
+            name: b"Test Token".to_vec(),
+            symbol: b"TEST".to_vec(),
+            uri: b"https://example.com/token.json".to_vec(),
+        },
+        additional_metadata: Some(additional_metadata.clone()),
+        version: 0, // Poseidon hash version
+    };
+
+    let extensions = vec![ExtensionInstructionData::TokenMetadata(token_metadata)];
+
+    // Use the mint PDA as the seed for the compressed account address
+    let address_seed = mint_pda.to_bytes();
+
+    let compressed_mint_address = light_compressed_account::address::derive_address(
+        &address_seed,
+        &address_tree_pubkey.to_bytes(),
+        &light_compressed_token::ID.to_bytes(),
+    );
+
+    // Get validity proof for address creation
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![light_program_test::AddressWithTree {
+                address: compressed_mint_address,
+                tree: address_tree_pubkey,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
+
+    // Create instruction using the helper function
+    let instruction = create_compressed_mint_with_extensions(
+        decimals,
+        mint_authority,
+        Some(freeze_authority),
+        rpc_result.proof.0.unwrap(),
+        mint_bump,
+        address_merkle_tree_root_index,
+        mint_signer.pubkey(),
+        payer.pubkey(),
+        address_tree_pubkey,
+        output_queue,
+        Some(extensions),
+    );
+
+    // Send transaction
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
+        .await
+        .unwrap();
+
+    // Verify the compressed mint was created
+    let compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    // Verify the account exists and has correct properties
+    assert_eq!(
+        compressed_mint_account.address.unwrap(),
+        compressed_mint_address
+    );
+    assert_eq!(compressed_mint_account.owner, light_compressed_token::ID);
+    assert_eq!(compressed_mint_account.lamports, 0);
+
+    // Verify the compressed mint data
+    let compressed_account_data = compressed_mint_account.data.unwrap();
+    assert_eq!(
+        compressed_account_data.discriminator,
+        light_compressed_token::constants::COMPRESSED_MINT_DISCRIMINATOR
+    );
+
+    // Deserialize and verify the CompressedMint struct
+    let actual_compressed_mint: light_compressed_token::mint::state::CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
+
+    // Verify basic mint fields
+    assert_eq!(actual_compressed_mint.spl_mint, mint_pda);
+    assert_eq!(actual_compressed_mint.supply, 0);
+    assert_eq!(actual_compressed_mint.decimals, decimals);
+    assert_eq!(actual_compressed_mint.is_decompressed, false);
+    assert_eq!(
+        actual_compressed_mint.mint_authority,
+        Some(mint_authority.into())
+    );
+    assert_eq!(
+        actual_compressed_mint.freeze_authority,
+        Some(freeze_authority.into())
+    );
+    assert_eq!(actual_compressed_mint.version, 0);
+
+    // Verify extensions
+    assert!(actual_compressed_mint.extensions.is_some());
+    let extensions = actual_compressed_mint.extensions.as_ref().unwrap();
+    assert_eq!(extensions.len(), 1);
+
+    match &extensions[0] {
+        light_compressed_token::extensions::state::ExtensionStruct::TokenMetadata(metadata) => {
+            assert_eq!(metadata.mint.to_bytes(), mint_pda.to_bytes());
+            assert_eq!(metadata.update_authority, Some(mint_authority.into()));
+            assert_eq!(metadata.metadata.name, b"Test Token".to_vec());
+            assert_eq!(metadata.metadata.symbol, b"TEST".to_vec());
+            assert_eq!(
+                metadata.metadata.uri,
+                b"https://example.com/token.json".to_vec()
+            );
+            // Verify additional metadata
+            assert_eq!(metadata.additional_metadata.len(), 3);
+            
+            // Sort both expected and actual for comparison
+            let mut expected_additional = additional_metadata.clone();
+            expected_additional.sort_by(|a, b| a.key.cmp(&b.key));
+            
+            let mut actual_additional = metadata.additional_metadata.clone();
+            actual_additional.sort_by(|a, b| a.key.cmp(&b.key));
+            
+            for (expected, actual) in expected_additional.iter().zip(actual_additional.iter()) {
+                assert_eq!(actual.key, expected.key);
+                assert_eq!(actual.value, expected.value);
+            }
+            assert_eq!(metadata.version, 0);
+        }
+        _ => panic!("Expected TokenMetadata extension"),
+    }
+
+    println!("✅ Compressed mint with token metadata created successfully!");
+    println!("   - Mint PDA: {}", mint_pda);
+    println!(
+        "   - Compressed mint address: {:?}",
+        compressed_mint_address
+    );
+
+    if let Some(extensions) = &actual_compressed_mint.extensions.as_ref() {
+        if let light_compressed_token::extensions::state::ExtensionStruct::TokenMetadata(metadata) =
+            &extensions[0]
+        {
+            println!(
+                "   - Token name: {}",
+                String::from_utf8_lossy(&metadata.metadata.name)
+            );
+            println!(
+                "   - Token symbol: {}",
+                String::from_utf8_lossy(&metadata.metadata.symbol)
+            );
+            println!(
+                "   - Additional metadata count: {}",
+                metadata.additional_metadata.len()
+            );
+            for (i, additional) in metadata.additional_metadata.iter().enumerate() {
+                println!(
+                    "     {}. {}: {}",
+                    i + 1,
+                    String::from_utf8_lossy(&additional.key),
+                    String::from_utf8_lossy(&additional.value)
+                );
+            }
+        }
+    }
 }

@@ -21,7 +21,9 @@ use crate::{
     extensions::{
         metadata_pointer::{MetadataPointer, MetadataPointerConfig},
         state::ExtensionStructConfig,
-        token_metadata::{AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig},
+        token_metadata::{
+            AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig,
+        },
         ZExtensionInstructionData,
     },
     mint::{
@@ -78,15 +80,20 @@ pub fn process_create_compressed_mint(
                     }
                     ZExtensionInstructionData::TokenMetadata(token_metadata_data) => {
                         // TODO: consider validating utf8 encoding.
-                        let additional_metadata_configs = if let Some(ref additional_metadata) = token_metadata_data.additional_metadata {
-                            additional_metadata.iter().map(|item| AdditionalMetadataConfig {
-                                key: item.key.len() as u32,
-                                value: item.value.len() as u32,
-                            }).collect()
+                        let additional_metadata_configs = if let Some(ref additional_metadata) =
+                            token_metadata_data.additional_metadata
+                        {
+                            additional_metadata
+                                .iter()
+                                .map(|item| AdditionalMetadataConfig {
+                                    key: item.key.len() as u32,
+                                    value: item.value.len() as u32,
+                                })
+                                .collect()
                         } else {
                             vec![]
                         };
-                        
+
                         let config = TokenMetadataConfig {
                             update_authority: (token_metadata_data.update_authority.is_some(), ()),
                             metadata: MetadataConfig {
@@ -144,15 +151,19 @@ pub fn process_create_compressed_mint(
     let vec_len = InstructionDataInvokeCpiWithReadOnly::byte_len(&config);
     msg!("vec len {}", vec_len);
     // + discriminator len + vector len
-    let mut cpi_bytes = vec![0u8; vec_len + 8 + 4];
-    cpi_bytes[0..8]
-        .copy_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
-    cpi_bytes[8..12].copy_from_slice(&(vec_len as u32).to_le_bytes());
+    let mut cpi_bytes = vec![0u8; vec_len + 8];
+    cpi_bytes[0..8].copy_from_slice(
+        &light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY,
+    );
 
     sol_log_compute_units();
     let (mut cpi_instruction_struct, _) =
-        InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[12..], config)
+        InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
+
+    cpi_instruction_struct.bump = crate::LIGHT_CPI_SIGNER.bump;
+    cpi_instruction_struct.invoking_program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
+
     sol_log_compute_units();
 
     let proof = cpi_instruction_struct
