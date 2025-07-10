@@ -1,11 +1,3 @@
-use anchor_lang::solana_program::{
-    program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
-};
-use arrayvec::ArrayVec;
-use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopyNew};
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use spl_token::solana_program::log::sol_log_compute_units;
-
 use crate::{
     constants::POOL_SEED,
     create_spl_mint::{
@@ -15,6 +7,14 @@ use crate::{
     mint::state::{CompressedMint, CompressedMintConfig},
     shared::cpi::execute_cpi_invoke,
 };
+use anchor_lang::solana_program::{
+    program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
+};
+use arrayvec::ArrayVec;
+use light_zero_copy::borsh_mut::DeserializeMut;
+use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_token::solana_program::log::sol_log_compute_units;
 // TODO: check and handle extensions
 pub fn process_create_spl_mint(
     program_id: Pubkey,
@@ -96,6 +96,13 @@ fn update_compressed_mint_to_decompressed<'info>(
     };
     use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 
+    // Process extensions from input mint
+    let mint_inputs = &instruction_data
+        .compressed_mint_inputs
+        .compressed_mint_input;
+    let (_has_extensions, extensions_config, _) =
+        crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref());
+
     // Build configuration for CPI instruction data - 1 input, 1 output, with optional proof
     let config_input = CpiConfigInput {
         input_accounts: ArrayVec::new(),
@@ -103,95 +110,96 @@ fn update_compressed_mint_to_decompressed<'info>(
         has_proof: instruction_data.proof.is_some(),
         compressed_mint: true,
         compressed_mint_with_freeze_authority: instruction_data.freeze_authority.is_some(),
-        extensions_config: vec![], // TODO: Add extensions support for create_spl_mint
+        extensions_config,
     };
 
     let config = cpi_bytes_config(config_input);
     let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
-    let (mut cpi_instruction_struct, _) =
-        InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
-            .map_err(ProgramError::from)?;
-
-    cpi_instruction_struct.bump = crate::LIGHT_CPI_SIGNER.bump;
-    cpi_instruction_struct.invoking_program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
-
-    let mut context = TokenContext::new();
-    let hashed_mint_authority = context.get_or_hash_pubkey(accounts.authority.key());
-
-    // Process input compressed mint account (before is_decompressed = true)
-    create_input_compressed_mint_account(
-        &mut cpi_instruction_struct.input_compressed_accounts[0],
-        &mut context,
-        &instruction_data.compressed_mint_inputs,
-        &hashed_mint_authority,
-    )?;
-
-    // Process output compressed mint account (with is_decompressed = true)
-    let mint_inputs = &instruction_data
-        .compressed_mint_inputs
-        .compressed_mint_input;
-    let mint_pda = mint_inputs.spl_mint;
-    let decimals = instruction_data.decimals;
-    let freeze_authority = if mint_inputs.freeze_authority_is_set() {
-        Some(mint_inputs.freeze_authority)
-    } else {
-        None
-    };
-
-    let mint_config = CompressedMintConfig {
-        mint_authority: (true, ()),
-        freeze_authority: (mint_inputs.freeze_authority_is_set(), ()),
-        // TODO: implement correctly
-        extensions: (false, vec![]),
-    };
-    let compressed_account_address = *instruction_data.compressed_mint_inputs.address;
-    let supply = mint_inputs.supply; // Keep same supply, just mark as decompressed
-    let base_mint_len = CompressedMint::byte_len(&mint_config);
-    create_output_compressed_mint_account(
-        &mut cpi_instruction_struct.output_compressed_accounts[0],
-        mint_pda,
-        decimals,
-        freeze_authority,
-        Some(instruction_data.mint_authority),
-        supply,
-        &program_id.into(),
-        mint_config,
-        compressed_account_address,
-        instruction_data
-            .compressed_mint_inputs
-            .output_merkle_tree_index,
-        instruction_data.compressed_mint_inputs.compressed_mint_input.version,
-        None, // TODO: add extensions support for create_spl_mint
-        base_mint_len,
-    )?;
-
-    // Set proof data if provided
-    if let Some(instruction_proof) = &instruction_data.proof {
-        if let Some(proof) = cpi_instruction_struct.proof.as_deref_mut() {
-            proof.a = instruction_proof.a;
-            proof.b = instruction_proof.b;
-            proof.c = instruction_proof.c;
-        }
-    }
-
-    // Override the output compressed mint to set is_decompressed = true
-    // The create_output_compressed_mint_account function sets is_decompressed = false by default
     {
-        let output_account = &mut cpi_instruction_struct.output_compressed_accounts[0];
-        if let Some(data) = output_account.compressed_account.data.as_mut() {
-            let (mut compressed_mint, _) =
-                crate::mint::state::CompressedMint::zero_copy_at_mut(data.data)
-                    .map_err(ProgramError::from)?;
-            compressed_mint.is_decompressed = 1; // Override to mark as decompressed (1 = true)
+        let (mut cpi_instruction_struct, _) =
+            InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
+                .map_err(ProgramError::from)?;
 
-            // Recalculate hash with is_decompressed = true
-            *data.data_hash = compressed_mint
-                .hash(None)
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+        cpi_instruction_struct.bump = crate::LIGHT_CPI_SIGNER.bump;
+        cpi_instruction_struct.invoking_program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
+
+        let mut context = TokenContext::new();
+        let hashed_mint_authority = context.get_or_hash_pubkey(accounts.authority.key());
+
+        // Process input compressed mint account (before is_decompressed = true)
+        create_input_compressed_mint_account(
+            &mut cpi_instruction_struct.input_compressed_accounts[0],
+            &mut context,
+            &instruction_data.compressed_mint_inputs,
+            &hashed_mint_authority,
+        )?;
+
+        // Process output compressed mint account (with is_decompressed = true)
+        let mint_inputs = &instruction_data
+            .compressed_mint_inputs
+            .compressed_mint_input;
+        let mint_pda = mint_inputs.spl_mint;
+        let decimals = instruction_data.decimals;
+        let freeze_authority = if mint_inputs.freeze_authority_is_set() {
+            Some(mint_inputs.freeze_authority)
+        } else {
+            None
+        };
+
+        // Reuse the extensions config we already processed
+        let (has_extensions_output, extensions_config_output, _) =
+            crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref());
+
+        let mint_config = CompressedMintConfig {
+            mint_authority: (true, ()),
+            freeze_authority: (mint_inputs.freeze_authority_is_set(), ()),
+            extensions: (has_extensions_output, extensions_config_output),
+        };
+        let compressed_account_address = *instruction_data.compressed_mint_inputs.address;
+        let supply = mint_inputs.supply; // Keep same supply, just mark as decompressed
+
+        create_output_compressed_mint_account(
+            &mut cpi_instruction_struct.output_compressed_accounts[0],
+            mint_pda,
+            decimals,
+            freeze_authority,
+            Some(instruction_data.mint_authority),
+            supply,
+            &program_id.into(),
+            mint_config,
+            compressed_account_address,
+            instruction_data
+                .compressed_mint_inputs
+                .output_merkle_tree_index,
+            instruction_data
+                .compressed_mint_inputs
+                .compressed_mint_input
+                .version,
+            mint_inputs.extensions.as_deref(),
+        )?;
+
+        // Set proof data if provided
+        if let Some(instruction_proof) = &instruction_data.proof {
+            if let Some(proof) = cpi_instruction_struct.proof.as_deref_mut() {
+                proof.a = instruction_proof.a;
+                proof.b = instruction_proof.b;
+                proof.c = instruction_proof.c;
+            }
+        }
+
+        // Override the output compressed mint to set is_decompressed = true
+        // The create_output_compressed_mint_account function sets is_decompressed = false by default
+        {
+            let output_account = &mut cpi_instruction_struct.output_compressed_accounts[0];
+            if let Some(data) = output_account.compressed_account.data.as_mut() {
+                let (mut compressed_mint, _) =
+                    crate::mint::state::CompressedMint::zero_copy_at_mut(data.data)
+                        .map_err(ProgramError::from)?;
+                compressed_mint.is_decompressed = 1; // Override to mark as decompressed (1 = true)
+            }
         }
     }
-
     // Extract tree accounts for the generalized CPI call
     let tree_accounts = [
         accounts.in_merkle_tree.key(),

@@ -123,7 +123,6 @@ pub fn process_create_compressed_mint(
     cpi_instruction_struct.new_address_params[0].assigned_to_account = 1;
 
     // 2. Create compressed mint account data
-    let base_mint_len = CompressedMint::byte_len(&mint_size_config);
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         mint_pda,
@@ -137,7 +136,6 @@ pub fn process_create_compressed_mint(
         1,
         parsed_instruction_data.version,
         parsed_instruction_data.extensions.as_deref(),
-        base_mint_len,
     )?;
     sol_log_compute_units();
     // 4. Execute CPI to light-system-program

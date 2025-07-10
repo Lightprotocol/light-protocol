@@ -11,10 +11,9 @@ use crate::{
 };
 
 // Applying extension(s) to compressed accounts.
-pub fn process_create_extensions<'a, 'b, H: Hasher>(
-    extensions: &'a [ZExtensionInstructionData<'b>],
+pub fn process_create_extensions<'b, H: Hasher>(
+    extensions: &[ZExtensionInstructionData<'b>],
     output_compressed_account: &mut [ZExtensionStructMut<'_>],
-    mut start_offset: usize,
     mint: light_compressed_account::Pubkey,
 ) -> Result<[u8; 32], ProgramError> {
     let mut extension_hash_chain = [0u8; 32];
@@ -36,11 +35,7 @@ pub fn process_create_extensions<'a, 'b, H: Hasher>(
             (
                 ZExtensionInstructionData::TokenMetadata(extension),
                 ZExtensionStructMut::TokenMetadata(output_extension),
-            ) => {
-                let (hash, _new_start_offset) =
-                    create_output_token_metadata(extension, output_extension, start_offset, mint)?;
-                hash
-            }
+            ) => create_output_token_metadata(extension, output_extension, mint)?,
             _ => {
                 return Err(ProgramError::InvalidInstructionData);
             }

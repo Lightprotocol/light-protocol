@@ -127,7 +127,6 @@ pub fn process_mint_to_compressed(
             .sum::<u64>()
             .into();
         let supply = mint_inputs.supply + sum_amounts;
-        let base_mint_len = CompressedMint::byte_len(&mint_config);
 
         // Extensions are already in zero-copy format, so we can pass them directly
         let z_extensions = mint_inputs.extensions.as_deref();
@@ -147,7 +146,6 @@ pub fn process_mint_to_compressed(
             2,
             parsed_instruction_data.compressed_mint_inputs.compressed_mint_input.version,
             z_extensions,
-            base_mint_len,
         )?;
     }
 

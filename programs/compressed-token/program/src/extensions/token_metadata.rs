@@ -443,47 +443,14 @@ impl<'a> ZTokenMetadataInstructionData<'a> {
         .map_err(|_| anchor_lang::solana_program::program_error::ProgramError::InvalidAccountData)
     }
 }
-use light_zero_copy::ZeroCopyNew;
 
 use crate::shared::context::TokenContext;
 
-pub fn create_output_token_metadata<'a, 'b>(
+pub fn create_output_token_metadata<'a>(
     token_metadata_data: &ZTokenMetadataInstructionData<'a>,
     token_metadata: &mut ZTokenMetadataMut<'_>,
-    _start_offset: usize,
     mint: Pubkey,
-) -> Result<([u8; 32], usize), ProgramError> {
-    // let cpi_data = output_compressed_account
-    //     .compressed_account
-    //     .data
-    //     .as_mut()
-    //     .ok_or(ProgramError::InvalidInstructionData)?;
-
-    // let additional_metadata_configs =
-    //     if let Some(ref additional_metadata) = token_metadata_data.additional_metadata {
-    //         additional_metadata
-    //             .iter()
-    //             .map(|item| AdditionalMetadataConfig {
-    //                 key: item.key.len() as u32,
-    //                 value: item.value.len() as u32,
-    //             })
-    //             .collect()
-    //     } else {
-    //         vec![]
-    //     };
-
-    // let config = TokenMetadataConfig {
-    //     update_authority: (token_metadata_data.update_authority.is_some(), ()),
-    //     metadata: MetadataConfig {
-    //         name: token_metadata_data.metadata.name.len() as u32,
-    //         symbol: token_metadata_data.metadata.symbol.len() as u32,
-    //         uri: token_metadata_data.metadata.uri.len() as u32,
-    //     },
-    //     additional_metadata: additional_metadata_configs,
-    // };
-    // let byte_len = TokenMetadata::byte_len(&config);
-    // let end_offset = start_offset + byte_len;
-
+) -> Result<[u8; 32], ProgramError> {
     println!(
         "TokenMetadata::new_zero_copy - start_offset: {:?}",
         token_metadata
@@ -529,8 +496,8 @@ pub fn create_output_token_metadata<'a, 'b>(
     let hash = token_metadata
         .hash::<light_hasher::Poseidon>()
         .map_err(|_| ProgramError::InvalidAccountData)?;
-    let end_offset = 0;
-    Ok((hash, end_offset))
+
+    Ok(hash)
 }
 
 // #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut)]

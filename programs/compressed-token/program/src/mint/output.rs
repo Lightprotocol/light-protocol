@@ -15,7 +15,7 @@ use crate::{
 // TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
-    output_compressed_account: &'a mut ZOutputCompressedAccountWithPackedContextMut<'b>,
+    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     mint_pda: Pubkey,
     decimals: u8,
     freeze_authority: Option<Pubkey>,
@@ -27,7 +27,6 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
     merkle_tree_index: u8,
     version: u8,
     extensions: Option<&[ZExtensionInstructionData<'b>]>,
-    base_mint_len: usize,
 ) -> Result<(), ProgramError> {
     // 3. Create output compressed account
     {
@@ -86,7 +85,7 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
     // Process extensions if provided and populate the zero-copy extension data
     if let Some(extensions) = extensions.as_ref() {
         // Process extensions in a separate scope to avoid borrowing conflicts
-        let hash = {
+        {
             if let Some(z_extensions) = compressed_mint.extensions.as_mut() {
                 // Now we can directly populate the extension data using the updated process_create_extensions
                 use crate::extensions::processor::process_create_extensions;
@@ -94,7 +93,6 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
                 let extension_hash = process_create_extensions::<Poseidon>(
                     extensions,
                     z_extensions.as_mut_slice(),
-                    0, // start_offset not used anymore
                     mint_pda,
                 )?;
                 // Compute final hash with extensions
