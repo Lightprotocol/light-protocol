@@ -186,14 +186,14 @@ pub(crate) fn add_compressible_instructions(
             ctx: Context<CreateCompressibleConfig>,
             compression_delay: u32,
             rent_recipient: Pubkey,
-            address_space: Pubkey,
+            address_space: Vec<Pubkey>,
         ) -> Result<()> {
             light_sdk::compressible::create_compression_config_checked(
                 &ctx.accounts.config.to_account_info(),
                 &ctx.accounts.authority.to_account_info(),
                 &ctx.accounts.program_data.to_account_info(),
                 &rent_recipient,
-                &address_space,
+                address_space,
                 compression_delay,
                 &ctx.accounts.payer.to_account_info(),
                 &ctx.accounts.system_program.to_account_info(),
@@ -211,7 +211,7 @@ pub(crate) fn add_compressible_instructions(
             ctx: Context<UpdateCompressibleConfig>,
             new_compression_delay: Option<u32>,
             new_rent_recipient: Option<Pubkey>,
-            new_address_space: Option<Pubkey>,
+            new_address_space: Option<Vec<Pubkey>>,
             new_update_authority: Option<Pubkey>,
         ) -> Result<()> {
             light_sdk::compressible::update_compression_config(
@@ -219,7 +219,7 @@ pub(crate) fn add_compressible_instructions(
                 &ctx.accounts.authority.to_account_info(),
                 new_update_authority.as_ref(),
                 new_rent_recipient.as_ref(),
-                new_address_space.as_ref(),
+                new_address_space,
                 new_compression_delay,
                 &crate::ID,
             )
