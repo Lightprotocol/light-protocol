@@ -1,6 +1,6 @@
 use crate::{
     account::LightAccount,
-    compressible::{compression_info::HasCompressionInfo, CompressibleConfig},
+    compressible::compression_info::HasCompressionInfo,
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::ValidityProof,

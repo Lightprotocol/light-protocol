@@ -33,6 +33,7 @@ pub fn process_update_config(
         instruction_data.new_rent_recipient.as_ref(),
         instruction_data.new_address_space.as_ref(),
         instruction_data.new_compression_delay,
+        &crate::ID,
     )?;
 
     Ok(())

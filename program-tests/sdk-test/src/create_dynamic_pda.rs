@@ -25,7 +25,7 @@ pub fn create_dynamic_pda(
     let config_account = &accounts[3];
 
     // Load config
-    let config = CompressibleConfig::load(config_account)?;
+    let config = CompressibleConfig::load_checked(config_account, &crate::ID)?;
 
     // CHECK: rent recipient from config
     if rent_recipient.key != &config.rent_recipient {
@@ -46,7 +46,7 @@ pub fn create_dynamic_pda(
     let mut pda_account_data = MyPdaAccount::try_from_slice(&pda_account.data.borrow())
         .map_err(|_| LightSdkError::Borsh)?;
 
-    // Initialize compression info with current slot
+    // Initialize compression info with current slot and decompressed state
     pda_account_data.compression_info = CompressionInfo::new()?;
 
     compress_pda_new::<MyPdaAccount>(

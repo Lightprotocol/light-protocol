@@ -2,7 +2,7 @@ extern crate proc_macro;
 use accounts::{process_light_accounts, process_light_system_accounts};
 use hasher::derive_light_hasher;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemMod, ItemStruct};
+use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use traits::process_light_traits;
 
 mod account;
