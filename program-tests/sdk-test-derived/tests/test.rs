@@ -11,12 +11,10 @@ use light_program_test::{
 use light_sdk::instruction::{
     account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
 };
-use sdk_test::{
-    create_pda::CreatePdaInstructionData,
-    decompress_dynamic_pda::{
-        DecompressToPdaInstructionData, MyCompressedAccount, MyPdaAccount, COMPRESSION_DELAY,
-    },
+use sdk_test_derived::{
+    create_dynamic_pda::CreateDynamicPdaInstructionData,
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
+    MyPdaAccount, COMPRESSION_DELAY,
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -25,26 +23,21 @@ use solana_sdk::{
 };
 
 #[tokio::test]
-async fn test_sdk_test() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
+async fn test_sdk_test_derived() {
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("sdk_test_derived", sdk_test_derived::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
-    let account_data = [1u8; 31];
+    let account_data = 42u64;
 
-    // // V1 trees
-    // let (address, _) = light_sdk::address::derive_address(
-    //     &[b"compressed", &account_data],
-    //     &address_tree_info,
-    //     &sdk_test::ID,
-    // );
     // Batched trees
-    let address_seed = hashv_to_bn254_field_size_be(&[b"compressed", account_data.as_slice()]);
+    let address_seed = hashv_to_bn254_field_size_be(&[b"compressed", &account_data.to_le_bytes()]);
     let address = derive_address(
         &address_seed,
         &address_tree_pubkey.to_bytes(),
-        &sdk_test::ID.to_bytes(),
+        &sdk_test_derived::ID.to_bytes(),
     );
     let ouput_queue = rpc.get_random_state_tree_info().unwrap().queue;
     create_pda(
@@ -68,14 +61,15 @@ async fn test_sdk_test() {
         .clone();
     assert_eq!(compressed_pda.address.unwrap(), address);
 
-    update_pda(&payer, &mut rpc, [2u8; 31], compressed_pda.into())
+    update_pda(&payer, &mut rpc, 84u64, compressed_pda.into())
         .await
         .unwrap();
 }
 
 #[tokio::test]
 async fn test_decompress_dynamic_pda() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("sdk_test_derived", sdk_test_derived::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -101,11 +95,11 @@ pub async fn create_pda(
     payer: &Keypair,
     rpc: &mut LightProgramTest,
     merkle_tree_pubkey: &Pubkey,
-    account_data: [u8; 31],
+    account_data: u64,
     address_tree_pubkey: Pubkey,
     address: [u8; 32],
 ) -> Result<(), RpcError> {
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test_derived::ID);
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
@@ -126,20 +120,19 @@ pub async fn create_pda(
     let packed_address_tree_info = rpc_result.pack_tree_infos(&mut accounts).address_trees[0];
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
-    let instruction_data = CreatePdaInstructionData {
+    let instruction_data = CreateDynamicPdaInstructionData {
         proof: rpc_result.proof.0.unwrap().into(),
+        compressed_address: address,
         address_tree_info: packed_address_tree_info,
-        data: account_data,
-        output_merkle_tree_index,
-        system_accounts_offset: system_accounts_offset as u8,
-        tree_accounts_offset: tree_accounts_offset as u8,
+        read_only_addresses: None,
+        output_state_tree_index: output_merkle_tree_index,
     };
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: sdk_test::ID,
+        program_id: sdk_test_derived::ID,
         accounts,
-        data: [&[0u8][..], &inputs[..]].concat(),
+        data: [&[10u8][..], &inputs[..]].concat(),
     };
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
@@ -150,10 +143,10 @@ pub async fn create_pda(
 pub async fn update_pda(
     payer: &Keypair,
     rpc: &mut LightProgramTest,
-    new_account_data: [u8; 31],
+    new_account_data: u64,
     compressed_account: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError> {
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test_derived::ID);
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
@@ -178,13 +171,11 @@ pub async fn update_pda(
     let instruction_data = UpdatePdaInstructionData {
         my_compressed_account: UpdateMyCompressedAccount {
             meta,
-            data: compressed_account
-                .compressed_account
-                .data
-                .unwrap()
-                .data
-                .try_into()
-                .unwrap(),
+            data: u64::from_le_bytes(
+                compressed_account.compressed_account.data.unwrap().data[0..8]
+                    .try_into()
+                    .unwrap(),
+            ),
         },
         proof: rpc_result.proof,
         new_data: new_account_data,
@@ -193,9 +184,9 @@ pub async fn update_pda(
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: sdk_test::ID,
+        program_id: sdk_test_derived::ID,
         accounts,
-        data: [&[1u8][..], &inputs[..]].concat(),
+        data: [&[11u8][..], &inputs[..]].concat(),
     };
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
@@ -209,7 +200,7 @@ pub async fn decompress_pda(
     compressed_account: CompressedAccountWithMerkleContext,
     pda_pubkey: Pubkey,
 ) -> Result<(), RpcError> {
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test_derived::ID);
     let mut accounts = PackedAccounts::default();
 
     // Add pre-accounts
@@ -241,35 +232,9 @@ pub async fn decompress_pda(
 
     let (accounts, system_accounts_offset, _) = accounts.to_account_metas();
 
-    let instruction_data = DecompressToPdaInstructionData {
-        proof: rpc_result.proof,
-        compressed_account: MyCompressedAccount {
-            meta,
-            data: MyPdaAccount {
-                compression_info: light_sdk::compressible::CompressionInfo::default(),
-                data: compressed_account
-                    .compressed_account
-                    .data
-                    .unwrap()
-                    .data
-                    .try_into()
-                    .unwrap(),
-            },
-        },
-        system_accounts_offset: system_accounts_offset as u8,
-    };
-
-    let inputs = instruction_data.try_to_vec().unwrap();
-
-    let instruction = Instruction {
-        program_id: sdk_test::ID,
-        accounts,
-        data: [&[2u8][..], &inputs[..]].concat(), // 2 is the instruction discriminator for DecompressToPda
-    };
-
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
-        .await?;
-    Ok(())
+    // Note: This function is not implemented yet as it requires additional structs
+    // that aren't available in this test module
+    todo!("decompress_pda is not implemented yet")
 }
 
 pub async fn decompress_pda_with_seeds(

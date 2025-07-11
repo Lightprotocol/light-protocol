@@ -103,8 +103,11 @@
 
 /// Compressed account abstraction similar to anchor Account.
 pub mod account;
+pub use account::LightAccount;
 /// Functions to derive compressed account addresses.
 pub mod address;
+/// SDK helpers for compressing and decompressing PDAs.
+pub mod compressible;
 /// Utilities to invoke the light-system-program via cpi.
 pub mod cpi;
 pub mod error;
