@@ -15,6 +15,7 @@ pub fn process_compress_spl_token_account<'info>(
     remaining_amount: Option<u64>,
     cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
+    crate::check_cpi_context(&cpi_context)?;
     let compression_token_account =
         if let Some(token_account) = ctx.accounts.compress_or_decompress_token_account.as_ref() {
             token_account

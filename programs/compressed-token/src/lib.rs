@@ -148,6 +148,10 @@ pub mod light_compressed_token {
         inputs.extend_from_slice(&[0u8; 1]);
         let inputs: CompressedTokenInstructionDataTransfer =
             CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
+        // Only check CPI context if we're compressing or decompressing (modifying Solana account state)
+        if inputs.compress_or_decompress_amount.is_some() {
+            check_cpi_context(&inputs.cpi_context)?;
+        }
         process_transfer::process_transfer(ctx, inputs)
     }
 
@@ -276,4 +280,17 @@ pub enum ErrorCode {
     NoMatchingBumpFound,
     NoAmount,
     AmountsAndAmountProvided,
+    #[msg("Cpi context set and set first is not usable with burn, compression(transfer ix) or decompress(transfer).")]
+    CpiContextSetNotUsable,
+}
+
+/// Checks if CPI context usage is valid for the current instruction
+/// Throws an error if cpi_context is Some and (set_context OR first_set_context is true)
+fn check_cpi_context(cpi_context: &Option<CompressedCpiContext>) -> Result<()> {
+    if let Some(ctx) = cpi_context {
+        if ctx.set_context || ctx.first_set_context {
+            return Err(ErrorCode::CpiContextSetNotUsable.into());
+        }
+    }
+    Ok(())
 }
