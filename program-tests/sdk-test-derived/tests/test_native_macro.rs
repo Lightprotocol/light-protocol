@@ -6,7 +6,7 @@ use sdk_test_derived::{
         CompressMyPdaAccountData, CompressedAccountData, CompressedAccountVariant,
         CreateCompressionConfigData, DecompressMultiplePdasData,
     },
-    decompress_dynamic_pda::MyPdaAccount,
+    MyPdaAccount,
 };
 use solana_sdk::pubkey::Pubkey;
 

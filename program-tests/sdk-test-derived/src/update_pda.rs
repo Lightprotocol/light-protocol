@@ -8,7 +8,7 @@ use light_sdk::{
 };
 use solana_program::{account_info::AccountInfo, log::sol_log_compute_units};
 
-use crate::decompress_dynamic_pda::MyPdaAccount;
+use crate::MyPdaAccount;
 
 /// CU usage:
 /// - sdk pre system program  9,183k CU

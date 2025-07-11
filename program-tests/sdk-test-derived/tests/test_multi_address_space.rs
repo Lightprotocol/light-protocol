@@ -10,7 +10,7 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
-use sdk_test::{
+use sdk_test_derived::{
     create_config::CreateConfigInstructionData, create_dynamic_pda::CreateDynamicPdaInstructionData,
 };
 use solana_sdk::{
@@ -25,23 +25,24 @@ pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7
 
 #[tokio::test]
 async fn test_multi_address_space_compression() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("sdk_test_derived", sdk_test_derived::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
     // 1. Create config with both primary and secondary address spaces
-    let (config_pda, _) = CompressibleConfig::derive_pda(&sdk_test::ID);
+    let (config_pda, _) = CompressibleConfig::derive_pda(&sdk_test_derived::ID);
 
     // 2. Create a PDA to compress
     let pda_seeds: &[&[u8]] = &[b"test_pda", &[1u8; 8]];
-    let (pda_pubkey, _bump) = Pubkey::find_program_address(pda_seeds, &sdk_test::ID);
+    let (pda_pubkey, _bump) = Pubkey::find_program_address(pda_seeds, &sdk_test_derived::ID);
 
     // 3. Derive the SAME address for both address spaces
     let address_seed = pda_pubkey.to_bytes();
     let compressed_address = derive_address(
         &address_seed,
         &PRIMARY_ADDRESS_SPACE.to_bytes(),
-        &sdk_test::ID.to_bytes(),
+        &sdk_test_derived::ID.to_bytes(),
     );
 
     // 4. Get validity proof for both address spaces
@@ -65,7 +66,7 @@ async fn test_multi_address_space_compression() {
     // 5. Build packed accounts
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test_derived::ID);
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_pre_accounts_meta(AccountMeta::new(pda_pubkey, false)); // pda_account
@@ -99,7 +100,7 @@ async fn test_multi_address_space_compression() {
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let _instruction = Instruction {
-        program_id: sdk_test::ID,
+        program_id: sdk_test_derived::ID,
         accounts,
         data: [&[4u8][..], &inputs[..]].concat(), // 4 is CompressFromPdaNew discriminator
     };
@@ -113,22 +114,23 @@ async fn test_multi_address_space_compression() {
 
 #[tokio::test]
 async fn test_single_address_space_backward_compatibility() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("sdk_test_derived", sdk_test_derived::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let _payer = rpc.get_payer().insecure_clone();
 
     // Test that single address space (no read-only addresses) still works
-    let (_config_pda, _) = CompressibleConfig::derive_pda(&sdk_test::ID);
+    let (_config_pda, _) = CompressibleConfig::derive_pda(&sdk_test_derived::ID);
 
     // Create a PDA to compress
     let pda_seeds: &[&[u8]] = &[b"test_pda_single", &[2u8; 15]];
-    let (pda_pubkey, _bump) = Pubkey::find_program_address(pda_seeds, &sdk_test::ID);
+    let (pda_pubkey, _bump) = Pubkey::find_program_address(pda_seeds, &sdk_test_derived::ID);
 
     let address_seed = pda_pubkey.to_bytes();
     let compressed_address = derive_address(
         &address_seed,
         &PRIMARY_ADDRESS_SPACE.to_bytes(),
-        &sdk_test::ID.to_bytes(),
+        &sdk_test_derived::ID.to_bytes(),
     );
 
     // Get validity proof for single address
@@ -163,7 +165,8 @@ async fn test_single_address_space_backward_compatibility() {
 #[tokio::test]
 async fn test_multi_address_space_config_creation() {
     // Test creating a config with multiple address spaces
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("sdk_test_derived", sdk_test_derived::ID)]));
     let _rpc = LightProgramTest::new(config).await.unwrap();
 
     let create_ix_data = CreateConfigInstructionData {

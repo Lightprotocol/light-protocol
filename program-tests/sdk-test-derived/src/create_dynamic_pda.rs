@@ -8,7 +8,7 @@ use light_sdk::{
 };
 use solana_program::account_info::AccountInfo;
 
-use crate::decompress_dynamic_pda::MyPdaAccount;
+use crate::MyPdaAccount;
 
 /// INITS a PDA and compresses it into a new compressed account.
 pub fn create_dynamic_pda(
