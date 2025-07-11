@@ -5496,6 +5496,7 @@ dependencies = [
  "light-macros",
  "light-program-test",
  "light-sdk",
+ "light-sdk-macros",
  "light-sdk-types",
  "solana-clock",
  "solana-program",
