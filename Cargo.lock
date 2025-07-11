@@ -5486,6 +5486,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdk-test-derived"
+version = "1.0.0"
+dependencies = [
+ "arrayvec",
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-types",
+ "solana-clock",
+ "solana-program",
+ "solana-sdk",
+ "solana-sysvar",
+ "tokio",
+]
+
+[[package]]
 name = "security-framework"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
