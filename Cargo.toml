@@ -50,6 +50,7 @@ members = [
     "sparse-merkle-tree",
     "program-tests/anchor-compressible-user",
     "program-tests/anchor-compressible-user-derived",
+    "program-tests/sdk-test-derived",
 ]
 
 resolver = "2"
