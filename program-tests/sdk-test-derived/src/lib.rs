@@ -1,5 +1,10 @@
 use borsh::BorshDeserialize;
+use borsh::BorshSerialize;
 use light_macros::pubkey;
+use light_sdk::{
+    compressible::{CompressionInfo, HasCompressionInfo},
+    LightDiscriminator, LightHasher,
+};
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer, error::LightSdkError};
 use light_sdk_macros::add_native_compressible_instructions;
 use solana_program::{
@@ -7,19 +12,13 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub mod compress_dynamic_pda;
-pub mod create_config;
 pub mod create_dynamic_pda;
-pub mod decompress_dynamic_pda;
-pub mod update_config;
+
 pub mod update_pda;
 
 pub const ID: Pubkey = pubkey!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
-
-// Re-export so it's available to the macro
-pub use decompress_dynamic_pda::MyPdaAccount;
 
 // Generate all compression-related instructions and data structures
 #[add_native_compressible_instructions(MyPdaAccount)]
@@ -39,8 +38,6 @@ pub enum InstructionType {
     // Custom instructions
     CreateDynamicPda = 10,
     UpdatePda = 11,
-    CompressDynamicPda = 12,
-    DecompressDynamicPda = 13,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -54,8 +51,6 @@ impl TryFrom<u8> for InstructionType {
             3 => Ok(InstructionType::CompressMyPdaAccount),
             10 => Ok(InstructionType::CreateDynamicPda),
             11 => Ok(InstructionType::UpdatePda),
-            12 => Ok(InstructionType::CompressDynamicPda),
-            13 => Ok(InstructionType::DecompressDynamicPda),
             _ => Err(LightSdkError::ConstraintViolation),
         }
     }
@@ -143,14 +138,30 @@ pub fn process_instruction(
             update_pda::update_pda::<false>(accounts, data).map_err(|e| ProgramError::from(e))
         }
 
-        InstructionType::CompressDynamicPda => {
-            compress_dynamic_pda::compress_dynamic_pda(accounts, data)
-                .map_err(|e| ProgramError::from(e))
-        }
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
+}
 
-        InstructionType::DecompressDynamicPda => {
-            decompress_dynamic_pda::decompress_dynamic_pda(accounts, data.to_vec())
-                .map_err(|_| ProgramError::Custom(3))
-        }
+pub const COMPRESSION_DELAY: u64 = 100;
+
+#[derive(
+    Default, Clone, Debug, BorshSerialize, BorshDeserialize, LightHasher, LightDiscriminator,
+)]
+pub struct MyPdaAccount {
+    #[skip]
+    pub compression_info: CompressionInfo,
+    #[hash]
+    pub owner: Pubkey,
+    pub data: u64,
+}
+
+// Implement the HasCompressionInfo trait
+impl HasCompressionInfo for MyPdaAccount {
+    fn compression_info(&self) -> &CompressionInfo {
+        &self.compression_info
+    }
+
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        &mut self.compression_info
     }
 }
