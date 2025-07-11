@@ -21,6 +21,7 @@ default = []
 [dependencies]
 light-sdk = { workspace = true }
 light-sdk-types = { workspace = true }
+light-sdk-macros = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }

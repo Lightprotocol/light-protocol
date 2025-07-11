@@ -50,7 +50,6 @@ pub fn compress_dynamic_pda(
         &config.compression_delay,
     )?;
 
-    // any other program logic here...
 
     Ok(())
 }

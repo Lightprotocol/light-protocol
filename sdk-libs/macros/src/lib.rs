@@ -11,6 +11,7 @@ mod compressible;
 mod cpi_signer;
 mod discriminator;
 mod hasher;
+mod native_compressible;
 mod program;
 mod traits;
 
@@ -153,195 +154,46 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 /// `AsByteVec` trait. The trait is implemented by default for the most of
 /// standard Rust types (primitives, `String`, arrays and options carrying the
 /// former). If there is a field of a type not implementing the trait, there
-/// are two options:
+/// will be a compilation error.
 ///
-/// 1. The most recommended one - annotating that type with the `light_hasher`
-///    macro as well.
-/// 2. Manually implementing the `AsByteVec` trait.
-///
-/// # Attributes
-///
-/// - `skip` - skips the given field, it doesn't get included neither in
-///   `AsByteVec` nor `DataHasher` implementation.
-/// - `hash` - makes sure that the byte value does not exceed the BN254
-///   prime field modulus, by hashing it (with Keccak) and truncating it to 31
-///   bytes. It's generally a good idea to use it on any field which is
-///   expected to output more than 31 bytes.
-///
-/// # Examples
-///
-/// Compressed account with only primitive types as fields:
+/// ## Example
 ///
 /// ```ignore
+/// use light_sdk::LightHasher;
+/// use solana_pubkey::Pubkey;
+///
 /// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64,
-///     b: Option<u64>,
+/// pub struct UserRecord {
+///     pub owner: Pubkey,
+///     pub name: String,
+///     pub score: u64,
 /// }
 /// ```
 ///
-/// Compressed account with fields which might exceed the BN254 prime field:
+/// ## Hash attribute
+///
+/// Fields marked with `#[hash]` will be hashed to field size (31 bytes) before
+/// being included in the main hash calculation. This is useful for fields that
+/// exceed the field size limit (like Pubkeys which are 32 bytes).
 ///
 /// ```ignore
 /// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
+/// pub struct GameState {
 ///     #[hash]
-///     c: [u8; 32],
-///     #[hash]
-///     d: String,
+///     pub player: Pubkey,  // Will be hashed to 31 bytes
+///     pub level: u32,
 /// }
 /// ```
-///
-/// Compressed account with fields we want to skip:
-///
-/// ```ignore
-/// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
-///     #[skip]
-///     c: [u8; 32],
-/// }
-/// ```
-///
-/// Compressed account with a nested struct:
-///
-/// ```ignore
-/// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
-///     c: MyStruct,
-/// }
-///
-/// #[derive(LightHasher)]
-/// pub struct MyStruct {
-///     a: i32
-///     b: u32,
-/// }
-/// ```
-///
-/// Compressed account with a type with a custom `AsByteVec` implementation:
-///
-/// ```ignore
-/// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
-///     c: RData,
-/// }
-///
-/// pub enum RData {
-///     A(Ipv4Addr),
-///     AAAA(Ipv6Addr),
-///     CName(String),
-/// }
-///
-/// impl AsByteVec for RData {
-///     fn as_byte_vec(&self) -> Vec<Vec<u8>> {
-///         match self {
-///             Self::A(ipv4_addr) => vec![ipv4_addr.octets().to_vec()],
-///             Self::AAAA(ipv6_addr) => vec![ipv6_addr.octets().to_vec()],
-///             Self::CName(cname) => cname.as_byte_vec(),
-///         }
-///     }
-/// }
-/// ```
-#[proc_macro_derive(LightHasher, attributes(skip, hash))]
+#[proc_macro_derive(LightHasher, attributes(hash, skip))]
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
+
     derive_light_hasher(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 
-/// Alias of `LightHasher`.
-#[proc_macro_derive(DataHasher, attributes(skip, hash))]
-pub fn data_hasher(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-    derive_light_hasher(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-#[proc_macro_attribute]
-pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-    account::account(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-#[proc_macro_attribute]
-pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(input as syn::ItemMod);
-
-    program::program(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// Marks a struct as compressible, enabling automatic compression functionality
-#[proc_macro_attribute]
-pub fn compressible(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = syn::parse_macro_input!(args as compressible::CompressibleArgs);
-    let input = syn::parse_macro_input!(input as syn::ItemStruct);
-
-    compressible::compressible(args, input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// Derives a Light Protocol CPI signer address at compile time
-///
-/// This macro computes the CPI signer PDA using the "cpi_authority" seed
-/// for the given program ID at compile time.
-///
-/// ## Usage
-///
-/// ```
-/// use light_sdk_macros::derive_light_cpi_signer_pda;
-/// // Derive CPI signer for your program
-/// const CPI_SIGNER_DATA: ([u8; 32], u8) = derive_light_cpi_signer_pda!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
-/// const CPI_SIGNER: [u8; 32] = CPI_SIGNER_DATA.0;
-/// const CPI_SIGNER_BUMP: u8 = CPI_SIGNER_DATA.1;
-/// ```
-///
-/// This macro computes the PDA during compile time and returns a tuple of ([u8; 32], bump).
-#[proc_macro]
-pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
-    cpi_signer::derive_light_cpi_signer_pda(input)
-}
-
-/// Derives a complete Light Protocol CPI configuration at compile time
-///
-/// This macro computes the program ID, CPI signer PDA, and bump seed
-/// for the given program ID at compile time.
-///
-/// ## Usage
-///
-/// ```
-/// use light_sdk_macros::derive_light_cpi_signer;
-/// use light_sdk_types::CpiSigner;
-/// // Derive complete CPI signer for your program
-/// const LIGHT_CPI_SIGNER: CpiSigner = derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
-///
-/// // Access individual fields:
-/// const PROGRAM_ID: [u8; 32] = LIGHT_CPI_SIGNER.program_id;
-/// const CPI_SIGNER: [u8; 32] = LIGHT_CPI_SIGNER.cpi_signer;
-/// const BUMP: u8 = LIGHT_CPI_SIGNER.bump;
-/// ```
-///
-/// This macro computes all values during compile time and returns a CpiSigner struct
-/// containing the program ID, CPI signer address, and bump seed.
-#[proc_macro]
-pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
-    cpi_signer::derive_light_cpi_signer(input)
-}
-
-/// Adds compress instructions for the specified account types
+/// Adds compress instructions for the specified account types (Anchor version)
 ///
 /// This macro must be placed BEFORE the #[program] attribute to ensure
 /// the generated instructions are visible to Anchor's macro processing.
@@ -359,6 +211,93 @@ pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> T
     let input = syn::parse_macro_input!(input as syn::ItemMod);
 
     compressible::add_compressible_instructions(args.into(), input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Adds native compressible instructions for the specified account types
+///
+/// This macro generates thin wrapper processor functions that you dispatch manually.
+///
+/// ## Usage
+/// ```
+/// #[add_native_compressible_instructions(MyPdaAccount, AnotherAccount)]
+/// pub mod compression {}
+/// ```
+///
+/// This generates:
+/// - Unified data structures (CompressedAccountVariant enum, etc.)
+/// - Instruction data structs (CreateCompressionConfigData, etc.)
+/// - Processor functions (create_compression_config, compress_my_pda_account, etc.)
+///
+/// You then dispatch these in your process_instruction function.
+#[proc_macro_attribute]
+pub fn add_native_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::ItemMod);
+
+    native_compressible::add_native_compressible_instructions(args.into(), input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Deprecated: Use `#[add_compressible_instructions]` instead
+#[proc_macro_attribute]
+pub fn compressible(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    // Parse the args to get the deprecated CompressibleArgs
+    let args = syn::parse_macro_input!(args as compressible::CompressibleArgs);
+
+    compressible::compressible(args, input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+#[proc_macro_attribute]
+pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    account::account(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Derive the CPI signer from the program ID. The program ID must be a string
+/// literal.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::derive_light_cpi_signer;
+///
+/// pub const LIGHT_CPI_SIGNER: CpiSigner =
+///     derive_light_cpi_signer!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
+/// ```
+#[proc_macro]
+pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
+    cpi_signer::derive_light_cpi_signer(input)
+}
+
+/// Generates a Light program for the given module.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::light_program;
+///
+/// #[light_program]
+/// pub mod my_program {
+///     pub fn my_instruction(ctx: Context<MyInstruction>) -> Result<()> {
+///         // Your instruction logic here
+///         Ok(())
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::ItemMod);
+
+    program::program(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

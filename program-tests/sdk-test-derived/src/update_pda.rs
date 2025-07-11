@@ -8,7 +8,7 @@ use light_sdk::{
 };
 use solana_program::{account_info::AccountInfo, log::sol_log_compute_units};
 
-use crate::decompress_dynamic_pda::{MyCompressedAccount, MyPdaAccount};
+use crate::decompress_dynamic_pda::MyPdaAccount;
 
 /// CU usage:
 /// - sdk pre system program  9,183k CU
@@ -28,6 +28,7 @@ pub fn update_pda<const BATCHED: bool>(
         &instruction_data.my_compressed_account.meta,
         MyPdaAccount {
             compression_info: CompressionInfo::default(),
+            owner: solana_program::pubkey::Pubkey::default(),
             data: instruction_data.my_compressed_account.data,
         },
     )?;
@@ -56,12 +57,12 @@ pub fn update_pda<const BATCHED: bool>(
 pub struct UpdatePdaInstructionData {
     pub proof: ValidityProof,
     pub my_compressed_account: UpdateMyCompressedAccount,
-    pub new_data: [u8; 31],
+    pub new_data: u64,
     pub system_accounts_offset: u8,
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct UpdateMyCompressedAccount {
     pub meta: CompressedAccountMeta,
-    pub data: [u8; 31],
+    pub data: u64,
 }

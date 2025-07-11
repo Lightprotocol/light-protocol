@@ -37,7 +37,7 @@ impl Parse for IdentList {
     }
 }
 
-/// Generate compress instructions for the specified account types
+/// Generate compress instructions for the specified account types (Anchor version)
 pub(crate) fn add_compressible_instructions(
     args: TokenStream,
     mut module: ItemMod,
@@ -63,33 +63,32 @@ pub(crate) fn add_compressible_instructions(
     });
 
     let compressed_variant_enum: ItemEnum = syn::parse_quote! {
-        /// Unified enum that can hold any account type
         #[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
         pub enum CompressedAccountVariant {
             #(#enum_variants),*
         }
     };
 
-    // Generate Default implementation
-    let first_struct = &struct_names[0];
+    // Generate Default implementation for the enum
+    let first_struct = struct_names.first().expect("At least one struct required");
     let default_impl: Item = syn::parse_quote! {
         impl Default for CompressedAccountVariant {
             fn default() -> Self {
-                Self::#first_struct(#first_struct::default())
+                CompressedAccountVariant::#first_struct(Default::default())
             }
         }
     };
 
-    // Generate DataHasher implementation
+    // Generate DataHasher implementation for the enum
     let hash_match_arms = struct_names.iter().map(|name| {
         quote! {
-            Self::#name(data) => data.hash::<H>()
+            CompressedAccountVariant::#name(data) => data.hash()
         }
     });
 
     let data_hasher_impl: Item = syn::parse_quote! {
-        impl light_sdk::light_hasher::DataHasher for CompressedAccountVariant {
-            fn hash<H: light_sdk::light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], light_sdk::light_hasher::HasherError> {
+        impl light_hasher::DataHasher for CompressedAccountVariant {
+            fn hash(&self) -> Result<[u8; 32], light_hasher::errors::HasherError> {
                 match self {
                     #(#hash_match_arms),*
                 }
@@ -97,46 +96,30 @@ pub(crate) fn add_compressible_instructions(
         }
     };
 
-    // Generate LightDiscriminator implementation
+    // Generate LightDiscriminator implementation for the enum
+    let discriminator_match_arms = struct_names.iter().enumerate().map(|(i, name)| {
+        quote! {
+            CompressedAccountVariant::#name(_) => #i as u64
+        }
+    });
+
     let light_discriminator_impl: Item = syn::parse_quote! {
         impl light_sdk::LightDiscriminator for CompressedAccountVariant {
-            const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8]; // This won't be used directly
-            const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
+            fn discriminator(&self) -> u64 {
+                match self {
+                    #(#discriminator_match_arms),*
+                }
+            }
         }
     };
 
-    // Generate HasCompressionInfo implementation
-    let compression_info_arms = struct_names.iter().map(|name| {
-        quote! {
-            Self::#name(data) => data.compression_info()
-        }
-    });
-
-    let compression_info_mut_arms = struct_names.iter().map(|name| {
-        quote! {
-            Self::#name(data) => data.compression_info_mut()
-        }
-    });
-
+    // Generate HasCompressionInfo implementation for the enum
     let has_compression_info_impl: Item = syn::parse_quote! {
-        impl light_sdk::compressible::HasCompressionInfo for CompressedAccountVariant {
-            fn compression_info(&self) -> &light_sdk::compressible::CompressionInfo {
-                match self {
-                    #(#compression_info_arms),*
-                }
-            }
-
-            fn compression_info_mut(&mut self) -> &mut light_sdk::compressible::CompressionInfo {
-                match self {
-                    #(#compression_info_mut_arms),*
-                }
-            }
-        }
+        impl light_sdk::compressible::HasCompressionInfo for CompressedAccountVariant {}
     };
 
-    // Generate CompressedAccountData struct
+    // Generate the CompressedAccountData struct
     let compressed_account_data: ItemStruct = syn::parse_quote! {
-        /// Client-side data structure for passing compressed accounts
         #[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize)]
         pub struct CompressedAccountData {
             pub meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
