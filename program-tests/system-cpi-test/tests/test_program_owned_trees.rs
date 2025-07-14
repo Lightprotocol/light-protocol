@@ -31,8 +31,8 @@ use light_registry::{
 };
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
-    get_concurrent_merkle_tree, spl::create_mint_helper, FeeConfig, Rpc, RpcError,
-    TransactionParams,
+    get_concurrent_merkle_tree, setup_forester_and_advance_to_epoch, spl::create_mint_helper,
+    FeeConfig, Rpc, RpcError, TransactionParams,
 };
 use serial_test::serial;
 use solana_sdk::{
@@ -211,6 +211,13 @@ async fn test_invalid_registered_program() {
     airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000)
         .await
         .unwrap();
+
+    // Setup forester to ensure registered_forester_pda is initialized
+    let protocol_config = rpc.config.protocol_config;
+    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+        .await
+        .unwrap();
+
     let group_seed_keypair = Keypair::new();
     let program_id_keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
     println!("program_id_keypair: {:?}", program_id_keypair.pubkey());

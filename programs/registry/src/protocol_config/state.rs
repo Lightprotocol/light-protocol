@@ -176,10 +176,9 @@ impl ProtocolConfig {
     }
 
     pub fn get_current_active_epoch_progress(&self, slot: u64) -> u64 {
-        (slot
-            .checked_sub(self.genesis_slot + self.registration_phase_length)
-            .unwrap())
-            % self.active_phase_length
+        slot.checked_sub(self.genesis_slot + self.registration_phase_length)
+            .map(|s| s % self.active_phase_length)
+            .unwrap_or(0)
     }
 
     /// In the last part of the active phase the registration phase starts.
