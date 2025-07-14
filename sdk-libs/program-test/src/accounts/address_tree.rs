@@ -2,7 +2,6 @@ use account_compression::{
     instruction::InitializeAddressMerkleTreeAndQueue, AddressMerkleTreeConfig, AddressQueueConfig,
 };
 use anchor_lang::InstructionData;
-use crate::utils::create_account::create_account_instruction;
 use light_client::rpc::{errors::RpcError, Rpc};
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
@@ -11,6 +10,8 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
+
+use crate::utils::create_account::create_account_instruction;
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_initialize_address_merkle_tree_and_queue_instruction(

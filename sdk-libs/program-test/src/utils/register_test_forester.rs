@@ -1,8 +1,6 @@
 use light_client::rpc::{Rpc, RpcError};
 use light_registry::{
-    sdk::create_register_forester_instruction,
-    utils::get_forester_pda,
-    ForesterConfig, ForesterPda,
+    sdk::create_register_forester_instruction, utils::get_forester_pda, ForesterConfig, ForesterPda,
 };
 use solana_sdk::{
     pubkey::Pubkey,

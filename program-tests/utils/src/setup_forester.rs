@@ -1,11 +1,13 @@
 use forester_utils::forester_epoch::{Epoch, TreeAccounts};
 use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::TreeType;
-use light_program_test::utils::register_test_forester::register_test_forester;
-use light_program_test::{accounts::test_keypairs::TestKeypairs, program_test::TestRpc};
-use light_registry::ForesterConfig;
+use light_program_test::{
+    accounts::test_keypairs::TestKeypairs, program_test::TestRpc,
+    utils::register_test_forester::register_test_forester,
+};
 use light_registry::{
     protocol_config::state::ProtocolConfig, sdk::create_finalize_registration_instruction,
+    ForesterConfig,
 };
 use solana_sdk::signature::Signer;
 

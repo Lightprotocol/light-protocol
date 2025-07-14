@@ -1712,14 +1712,8 @@ async fn regenerate_accounts() {
             "registered_forester_pda",
             env.protocol.registered_forester_pda,
         ),
-        (
-            "forester_epoch_pda",
-            forester_epoch.forester_epoch_pda,
-        ),
-        (
-            "epoch_pda",
-            forester_epoch.epoch_pda,
-        ),
+        ("forester_epoch_pda", forester_epoch.forester_epoch_pda),
+        ("epoch_pda", forester_epoch.epoch_pda),
         ("batch_state_merkle_tree", env.v2_state_trees[0].merkle_tree),
         ("batched_output_queue", env.v2_state_trees[0].output_queue),
         ("batch_address_merkle_tree", env.v2_address_trees[0]),
@@ -1846,8 +1840,8 @@ async fn batch_invoke_test() {
     let config = ProgramTestConfig::default_test_forester(false);
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let protocol_config = rpc.config.protocol_config.clone();
-    let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+    let protocol_config = rpc.config.protocol_config;
+    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
         .await
         .unwrap();
 

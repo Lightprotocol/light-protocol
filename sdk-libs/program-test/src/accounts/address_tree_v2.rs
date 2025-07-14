@@ -1,4 +1,3 @@
-use crate::utils::create_account::create_account_instruction;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::get_merkle_tree_account_size,
@@ -6,6 +5,8 @@ use light_batched_merkle_tree::{
 use light_client::rpc::{Rpc, RpcError};
 use light_registry::account_compression_cpi::sdk::create_initialize_batched_address_merkle_tree_instruction;
 use solana_sdk::signature::{Keypair, Signature, Signer};
+
+use crate::utils::create_account::create_account_instruction;
 
 pub async fn create_batch_address_merkle_tree<R: Rpc>(
     rpc: &mut R,

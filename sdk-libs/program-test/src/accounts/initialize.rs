@@ -99,7 +99,6 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
         ));
     }
 
-
     #[cfg(feature = "devenv")]
     if !_skip_register_programs {
         register_program_with_registry_program(

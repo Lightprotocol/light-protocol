@@ -78,7 +78,6 @@ use forester_utils::{
     forester_epoch::{Epoch, Forester, TreeAccounts},
     utils::airdrop_lamports,
 };
-use light_program_test::utils::register_test_forester::register_test_forester;
 use light_batched_merkle_tree::{
     batch::BatchState,
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE},
@@ -132,6 +131,7 @@ use light_program_test::{
         TestIndexerExtensions,
     },
     program_test::{LightProgramTest, TestRpc},
+    utils::register_test_forester::register_test_forester,
 };
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},

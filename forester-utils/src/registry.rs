@@ -27,7 +27,6 @@ use crate::{
     instructions::create_account::create_account_instruction,
 };
 
-
 pub async fn update_test_forester<R: Rpc>(
     rpc: &mut R,
     forester_authority: &Keypair,
