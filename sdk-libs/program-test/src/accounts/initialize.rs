@@ -1,8 +1,9 @@
 use account_compression::{utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority};
 use forester_utils::{
-    forester_epoch::{Epoch, TreeAccounts},
+    forester_epoch::Epoch,
     registry::register_test_forester,
 };
+use crate::utils::tree_accounts::TreeAccounts;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{Rpc, RpcError},
@@ -233,8 +234,10 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             },
         ];
 
+        let forester_tree_accounts: Vec<forester_utils::forester_epoch::TreeAccounts> = 
+            tree_accounts.iter().map(|ta| ta.to_forester_utils()).collect();
         registered_epoch
-            .fetch_account_and_add_trees_with_schedule(context, &tree_accounts)
+            .fetch_account_and_add_trees_with_schedule(context, &forester_tree_accounts)
             .await?;
         let ix = create_finalize_registration_instruction(
             &keypairs.forester.pubkey(),
