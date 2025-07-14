@@ -168,7 +168,6 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
         v1_state_tree_config: StateMerkleTreeConfig::default(),
         v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::default()),
         v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::default()),
-        register_forester_and_advance_to_active_phase: false,
         ..Default::default()
     };
     initialize_accounts(&mut rpc, &config, &test_keypairs)

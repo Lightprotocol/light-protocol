@@ -10,10 +10,9 @@ default = []
 devenv = [
     "v2",
     "light-client/devenv",
-    "forester-utils/devenv",
     "light-prover-client/devenv",
 ]
-v2 = ["light-client/v2", "forester-utils/v2"]
+v2 = ["light-client/v2"]
 
 [dependencies]
 light-sdk = { workspace = true, features = ["anchor"] }
@@ -28,7 +27,6 @@ light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 
 # unreleased
 light-client = { workspace = true, features = ["program-test"] }
-forester-utils = { workspace = true }
 light-prover-client = { workspace = true }
 litesvm = { workspace = true }
 

@@ -32,6 +32,7 @@ pub mod mock_batched_forester;
 pub mod pack;
 pub mod registered_program_accounts_v1;
 pub mod setup_accounts;
+pub mod setup_forester;
 #[allow(unused)]
 pub mod spl;
 pub mod state_tree_rollover;
@@ -51,6 +52,7 @@ pub use forester_utils::{
     },
 };
 pub use light_program_test::utils::register_test_forester::register_test_forester;
+pub use setup_forester::setup_forester_and_advance_to_epoch;
 pub use light_client::{
     fee::{FeeConfig, TransactionParams},
     rpc::{client::RpcUrl, LightClient, Rpc, RpcError},

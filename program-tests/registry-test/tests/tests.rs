@@ -749,7 +749,6 @@ async fn test_register_and_update_forester_pda() {
     let config = ProgramTestConfig {
         protocol_config: ProtocolConfig::default(),
         with_prover: false,
-        register_forester_and_advance_to_active_phase: false,
         ..Default::default()
     };
 

@@ -1,4 +1,3 @@
-use forester_utils::forester_epoch::Epoch;
 use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TreeInfo};
 use light_compressed_account::TreeType;
 use light_registry::{
@@ -25,7 +24,6 @@ pub struct ProtocolAccounts {
     pub registered_program_pda: Pubkey,
     pub registered_registry_program_pda: Pubkey,
     pub registered_forester_pda: Pubkey,
-    pub forester_epoch: Option<Epoch>,
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
@@ -69,7 +67,6 @@ impl TestAccounts {
                 )),
                 registered_registry_program_pda: get_registered_program_pda(&light_registry::ID),
                 registered_forester_pda: Pubkey::default(),
-                forester_epoch: None, // Set to None or to an appropriate Epoch value if needed
             },
             v1_state_trees: vec![StateMerkleTreeAccounts {
                 merkle_tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
@@ -120,7 +117,6 @@ impl TestAccounts {
                 registered_program_pda,
                 registered_registry_program_pda,
                 registered_forester_pda: get_forester_pda(&forester_pubkey).0,
-                forester_epoch: None,
             },
             v1_state_trees: vec![StateMerkleTreeAccounts {
                 merkle_tree: merkle_tree_keypair.pubkey(),
@@ -165,7 +161,6 @@ impl Clone for TestAccounts {
                 registered_program_pda: self.protocol.registered_program_pda,
                 registered_registry_program_pda: self.protocol.registered_registry_program_pda,
                 registered_forester_pda: self.protocol.registered_forester_pda,
-                forester_epoch: self.protocol.forester_epoch.clone(),
             },
             v1_state_trees: self.v1_state_trees.clone(),
             v1_address_trees: self.v1_address_trees.clone(),

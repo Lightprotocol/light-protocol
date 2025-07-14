@@ -3561,7 +3561,6 @@ dependencies = [
  "async-trait",
  "borsh 0.10.4",
  "bytemuck",
- "forester-utils",
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",

@@ -24,12 +24,4 @@ impl TreeAccounts {
         }
     }
 
-    pub fn to_forester_utils(&self) -> forester_utils::forester_epoch::TreeAccounts {
-        forester_utils::forester_epoch::TreeAccounts::new(
-            self.merkle_tree,
-            self.queue,
-            self.tree_type,
-            self.is_rolledover,
-        )
-    }
 }
