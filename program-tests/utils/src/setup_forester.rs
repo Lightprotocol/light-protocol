@@ -43,7 +43,7 @@ pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
         &test_keypairs.forester.pubkey(),
     )
     .await?
-    .unwrap();
+    .ok_or_else(|| RpcError::Custom("Failed to register epoch".to_string()))?;
 
     // Advance to active phase
     context.warp_to_slot(registered_epoch.phases.active.start)?;
