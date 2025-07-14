@@ -1,8 +1,6 @@
 use account_compression::{utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority};
-use forester_utils::{
-    forester_epoch::Epoch,
-    registry::register_test_forester,
-};
+use forester_utils::forester_epoch::Epoch;
+use crate::utils::register_test_forester::register_test_forester;
 use crate::utils::tree_accounts::TreeAccounts;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},

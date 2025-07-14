@@ -76,9 +76,9 @@ use forester_utils::{
     account_zero_copy::AccountZeroCopy,
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
     forester_epoch::{Epoch, Forester, TreeAccounts},
-    registry::register_test_forester,
     utils::airdrop_lamports,
 };
+use light_program_test::utils::register_test_forester::register_test_forester;
 use light_batched_merkle_tree::{
     batch::BatchState,
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE},

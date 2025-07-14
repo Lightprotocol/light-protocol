@@ -11,7 +11,7 @@ use light_registry::{
         create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
     },
     protocol_config::state::ProtocolConfig,
-    sdk::{create_register_forester_instruction, create_update_forester_pda_instruction},
+    sdk::create_update_forester_pda_instruction,
     utils::get_forester_pda,
     ForesterConfig, ForesterPda,
 };
@@ -27,37 +27,6 @@ use crate::{
     instructions::create_account::create_account_instruction,
 };
 
-/// Creates and asserts forester account creation.
-pub async fn register_test_forester<R: Rpc>(
-    rpc: &mut R,
-    governance_authority: &Keypair,
-    forester_authority: &Pubkey,
-    config: ForesterConfig,
-) -> Result<(), RpcError> {
-    let ix = create_register_forester_instruction(
-        &governance_authority.pubkey(),
-        &governance_authority.pubkey(),
-        forester_authority,
-        config,
-    );
-    rpc.create_and_send_transaction(
-        &[ix],
-        &governance_authority.pubkey(),
-        &[governance_authority],
-    )
-    .await?;
-    assert_registered_forester(
-        rpc,
-        forester_authority,
-        ForesterPda {
-            authority: *forester_authority,
-            config,
-            active_weight: 1,
-            ..Default::default()
-        },
-    )
-    .await
-}
 
 pub async fn update_test_forester<R: Rpc>(
     rpc: &mut R,

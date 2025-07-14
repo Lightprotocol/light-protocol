@@ -46,10 +46,11 @@ pub use forester_utils::{
     forester_epoch::{Epoch, TreeAccounts},
     registry::{
         create_rollover_address_merkle_tree_instructions,
-        create_rollover_state_merkle_tree_instructions, register_test_forester,
+        create_rollover_state_merkle_tree_instructions,
         update_test_forester,
     },
 };
+pub use light_program_test::utils::register_test_forester::register_test_forester;
 pub use light_client::{
     fee::{FeeConfig, TransactionParams},
     rpc::{client::RpcUrl, LightClient, Rpc, RpcError},
