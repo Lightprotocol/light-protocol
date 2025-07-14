@@ -1,5 +1,5 @@
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use forester_utils::instructions::create_account_instruction;
+use crate::utils::create_account::create_account_instruction;
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::get_merkle_tree_account_size, queue::get_output_queue_account_size,

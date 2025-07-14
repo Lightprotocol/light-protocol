@@ -3,7 +3,7 @@ use account_compression::{
     StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
-use forester_utils::instructions::create_account::create_account_instruction;
+use crate::utils::create_account::create_account_instruction;
 use light_client::rpc::{errors::RpcError, Rpc};
 use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 use light_registry::protocol_config::state::ProtocolConfig;

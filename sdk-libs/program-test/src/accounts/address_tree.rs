@@ -2,7 +2,7 @@ use account_compression::{
     instruction::InitializeAddressMerkleTreeAndQueue, AddressMerkleTreeConfig, AddressQueueConfig,
 };
 use anchor_lang::InstructionData;
-use forester_utils::instructions::create_account::create_account_instruction;
+use crate::utils::create_account::create_account_instruction;
 use light_client::rpc::{errors::RpcError, Rpc};
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
