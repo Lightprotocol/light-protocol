@@ -11,7 +11,7 @@ use light_sdk::{
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use sdk_test_derived::{
-    create_config::CreateConfigInstructionData, create_dynamic_pda::CreateDynamicPdaInstructionData,
+    compression::CreateConfigInstructionData, create_dynamic_pda::CreateDynamicPdaInstructionData,
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
