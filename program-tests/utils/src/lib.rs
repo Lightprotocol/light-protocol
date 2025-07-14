@@ -32,6 +32,7 @@ pub mod mock_batched_forester;
 pub mod pack;
 pub mod registered_program_accounts_v1;
 pub mod setup_accounts;
+pub mod setup_forester;
 #[allow(unused)]
 pub mod spl;
 pub mod state_tree_rollover;
@@ -46,8 +47,7 @@ pub use forester_utils::{
     forester_epoch::{Epoch, TreeAccounts},
     registry::{
         create_rollover_address_merkle_tree_instructions,
-        create_rollover_state_merkle_tree_instructions, register_test_forester,
-        update_test_forester,
+        create_rollover_state_merkle_tree_instructions, update_test_forester,
     },
 };
 pub use light_client::{
@@ -56,7 +56,9 @@ pub use light_client::{
 };
 use light_hasher::Poseidon;
 use light_program_test::accounts::address_tree::create_address_merkle_tree_and_queue_account;
+pub use light_program_test::utils::register_test_forester::register_test_forester;
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
+pub use setup_forester::setup_forester_and_advance_to_epoch;
 
 use crate::assert_queue::assert_address_queue_initialized;
 

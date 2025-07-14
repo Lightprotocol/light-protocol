@@ -13,7 +13,6 @@ use solana_sdk::pubkey::Pubkey;
 pub struct ProgramTestConfig {
     pub additional_programs: Option<Vec<(&'static str, Pubkey)>>,
     pub protocol_config: ProtocolConfig,
-    pub register_forester_and_advance_to_active_phase: bool,
     pub with_prover: bool,
     pub prover_config: Option<ProverConfig>,
     pub skip_register_programs: bool,
@@ -105,7 +104,6 @@ impl Default for ProgramTestConfig {
                 registration_phase_length: 2,
                 ..Default::default()
             },
-            register_forester_and_advance_to_active_phase: true,
             with_prover: true,
             prover_config: None,
             skip_second_v1_tree: false,

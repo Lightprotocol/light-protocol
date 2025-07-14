@@ -3554,14 +3554,13 @@ dependencies = [
 
 [[package]]
 name = "light-program-test"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "account-compression",
  "anchor-lang",
  "async-trait",
  "borsh 0.10.4",
  "bytemuck",
- "forester-utils",
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",

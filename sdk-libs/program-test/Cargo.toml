@@ -1,19 +1,14 @@
 [package]
 name = "light-program-test"
-version = "0.13.1"
+version = "0.13.2"
 description = "A fast local test environment for Solana programs using compressed accounts and tokens."
 license = "MIT"
 edition = "2021"
 
 [features]
 default = []
-devenv = [
-    "v2",
-    "light-client/devenv",
-    "forester-utils/devenv",
-    "light-prover-client/devenv",
-]
-v2 = ["light-client/v2", "forester-utils/v2"]
+devenv = ["v2", "light-client/devenv", "light-prover-client/devenv"]
+v2 = ["light-client/v2"]
 
 [dependencies]
 light-sdk = { workspace = true, features = ["anchor"] }
@@ -28,7 +23,6 @@ light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 
 # unreleased
 light-client = { workspace = true, features = ["program-test"] }
-forester-utils = { workspace = true }
 light-prover-client = { workspace = true }
 litesvm = { workspace = true }
 

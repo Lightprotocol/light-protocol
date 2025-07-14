@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
 use forester_utils::{
-    registry::{register_test_forester, update_test_forester},
+    registry::update_test_forester,
     rpc_pool::SolanaRpcPoolBuilder,
 };
 use light_batched_merkle_tree::{

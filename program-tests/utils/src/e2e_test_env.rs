@@ -76,7 +76,6 @@ use forester_utils::{
     account_zero_copy::AccountZeroCopy,
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
     forester_epoch::{Epoch, Forester, TreeAccounts},
-    registry::register_test_forester,
     utils::airdrop_lamports,
 };
 use light_batched_merkle_tree::{
@@ -132,6 +131,7 @@ use light_program_test::{
         TestIndexerExtensions,
     },
     program_test::{LightProgramTest, TestRpc},
+    utils::register_test_forester::register_test_forester,
 };
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -394,23 +394,9 @@ where
             .config;
         // TODO: add clear test env enum
         // register foresters is only compatible with ProgramTest environment
-        let (foresters, epoch_config) =
-            if let Some(registered_epoch) = test_accounts.protocol.forester_epoch.as_ref() {
-                let _forester = Forester {
-                    registration: registered_epoch.clone(),
-                    active: registered_epoch.clone(),
-                    ..Default::default()
-                };
-                // Forester epoch account is assumed to exist (is inited with test program deployment)
-                let forester = TestForester {
-                    keypair: test_accounts.protocol.forester.insecure_clone(),
-                    forester: _forester.clone(),
-                    is_registered: Some(0),
-                };
-                (vec![forester], _forester)
-            } else {
-                (Vec::<TestForester>::new(), Forester::default())
-            };
+        // Default forester setup - tests that need forester functionality should call
+        // setup_forester_and_advance_to_epoch explicitly and manage their own forester state
+        let (foresters, epoch_config) = (Vec::<TestForester>::new(), Forester::default());
         Self {
             payer,
             indexer,

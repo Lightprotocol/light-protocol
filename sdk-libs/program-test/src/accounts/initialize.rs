@@ -1,22 +1,15 @@
 use account_compression::{utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority};
-use forester_utils::{
-    forester_epoch::{Epoch, TreeAccounts},
-    registry::register_test_forester,
-};
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{Rpc, RpcError},
 };
-use light_compressed_account::TreeType;
 use light_registry::{
     account_compression_cpi::sdk::get_registered_program_pda,
     sdk::{
-        create_finalize_registration_instruction,
         create_initialize_governance_authority_instruction,
         create_initialize_group_authority_instruction, create_update_protocol_config_instruction,
     },
     utils::{get_cpi_authority_pda, get_forester_pda, get_protocol_config_pda_address},
-    ForesterConfig,
 };
 use solana_sdk::{
     pubkey::Pubkey,
@@ -49,7 +42,6 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
 ) -> Result<TestAccounts, RpcError> {
     let ProgramTestConfig {
         protocol_config,
-        register_forester_and_advance_to_active_phase,
         v2_state_tree_config,
         v2_address_tree_config,
         skip_register_programs,
@@ -106,14 +98,6 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             "Invalid governance authority.".to_string(),
         ));
     }
-
-    register_test_forester(
-        context,
-        &keypairs.governance_authority,
-        &keypairs.forester.pubkey(),
-        ForesterConfig::default(),
-    )
-    .await?;
 
     #[cfg(feature = "devenv")]
     if !_skip_register_programs {
@@ -208,46 +192,6 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
     let registered_system_program_pda =
         get_registered_program_pda(&Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID));
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
-    let forester_epoch = if *register_forester_and_advance_to_active_phase {
-        let mut registered_epoch = Epoch::register(
-            context,
-            protocol_config,
-            &keypairs.forester,
-            &keypairs.forester.pubkey(),
-        )
-        .await?
-        .unwrap();
-        context.warp_to_slot(registered_epoch.phases.active.start)?;
-        let tree_accounts = vec![
-            TreeAccounts {
-                tree_type: TreeType::StateV1,
-                merkle_tree: merkle_tree_pubkey,
-                queue: nullifier_queue_pubkey,
-                is_rolledover: false,
-            },
-            TreeAccounts {
-                tree_type: TreeType::AddressV1,
-                merkle_tree: keypairs.address_merkle_tree.pubkey(),
-                queue: keypairs.address_merkle_tree_queue.pubkey(),
-                is_rolledover: false,
-            },
-        ];
-
-        registered_epoch
-            .fetch_account_and_add_trees_with_schedule(context, &tree_accounts)
-            .await?;
-        let ix = create_finalize_registration_instruction(
-            &keypairs.forester.pubkey(),
-            &keypairs.forester.pubkey(),
-            0,
-        );
-        context
-            .create_and_send_transaction(&[ix], &keypairs.forester.pubkey(), &[&keypairs.forester])
-            .await?;
-        Some(registered_epoch)
-    } else {
-        None
-    };
     Ok(TestAccounts {
         protocol: ProtocolAccounts {
             governance_authority: keypairs.governance_authority.insecure_clone(),
@@ -257,7 +201,6 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             registered_program_pda: registered_system_program_pda,
             registered_registry_program_pda,
             registered_forester_pda: get_forester_pda(&keypairs.forester.pubkey()).0,
-            forester_epoch,
         },
         v1_state_trees: vec![StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_pubkey,

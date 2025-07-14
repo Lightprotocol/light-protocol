@@ -1,5 +1,4 @@
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use forester_utils::instructions::create_account_instruction;
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::get_merkle_tree_account_size, queue::get_output_queue_account_size,
@@ -12,6 +11,8 @@ use light_registry::{
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signature, Signer};
+
+use crate::utils::create_account::create_account_instruction;
 
 pub async fn create_batched_state_merkle_tree<R: Rpc>(
     payer: &Keypair,
