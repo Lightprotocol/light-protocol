@@ -1,17 +1,13 @@
 use forester_utils::forester_epoch::{Epoch, TreeAccounts};
 use light_client::rpc::{Rpc, RpcError};
-use light_program_test::program_test::TestRpc;
 use light_compressed_account::TreeType;
-use light_registry::{
-    protocol_config::state::ProtocolConfig,
-    sdk::create_finalize_registration_instruction,
-};
 use light_program_test::utils::register_test_forester::register_test_forester;
-use solana_sdk::{
-    pubkey::Pubkey,
-    signature::{Keypair, Signer},
-};
+use light_program_test::{accounts::test_keypairs::TestKeypairs, program_test::TestRpc};
 use light_registry::ForesterConfig;
+use light_registry::{
+    protocol_config::state::ProtocolConfig, sdk::create_finalize_registration_instruction,
+};
+use solana_sdk::signature::Signer;
 
 /// Sets up a forester, registers it, and advances to the active epoch phase.
 /// This function encapsulates all forester-related setup that was previously
@@ -20,29 +16,19 @@ use light_registry::ForesterConfig;
 /// # Arguments
 /// * `context` - The test RPC context
 /// * `protocol_config` - Protocol configuration
-/// * `forester_keypair` - Keypair for the forester
-/// * `state_merkle_tree` - State merkle tree pubkey
-/// * `nullifier_queue` - Nullifier queue pubkey  
-/// * `address_merkle_tree` - Address merkle tree pubkey
-/// * `address_queue` - Address queue pubkey
 ///
 /// # Returns
 /// * `Result<Epoch, RpcError>` - The registered and activated epoch
 pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
     context: &mut R,
     protocol_config: &ProtocolConfig,
-    governance_authority: &Keypair,
-    forester_keypair: &Keypair,
-    state_merkle_tree: Pubkey,
-    nullifier_queue: Pubkey,
-    address_merkle_tree: Pubkey,
-    address_queue: Pubkey,
 ) -> Result<Epoch, RpcError> {
+    let test_keypairs = TestKeypairs::program_test_default();
     // Register the test forester
     register_test_forester(
         context,
-        governance_authority,
-        &forester_keypair.pubkey(),
+        &test_keypairs.governance_authority,
+        &test_keypairs.forester.pubkey(),
         ForesterConfig::default(),
     )
     .await?;
@@ -51,8 +37,8 @@ pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
     let mut registered_epoch = Epoch::register(
         context,
         protocol_config,
-        forester_keypair,
-        &forester_keypair.pubkey(),
+        &test_keypairs.forester,
+        &test_keypairs.forester.pubkey(),
     )
     .await?
     .unwrap();
@@ -60,17 +46,17 @@ pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
     // Advance to active phase
     context.warp_to_slot(registered_epoch.phases.active.start)?;
 
-    // Create tree accounts for the epoch
+    // Create tree accounts for the epoch using test keypairs
     let tree_accounts = vec![
         TreeAccounts::new(
-            state_merkle_tree,
-            nullifier_queue,
+            test_keypairs.state_merkle_tree.pubkey(),
+            test_keypairs.nullifier_queue.pubkey(),
             TreeType::StateV1,
             false,
         ),
         TreeAccounts::new(
-            address_merkle_tree,
-            address_queue,
+            test_keypairs.address_merkle_tree.pubkey(),
+            test_keypairs.address_merkle_tree_queue.pubkey(),
             TreeType::AddressV1,
             false,
         ),
@@ -83,12 +69,16 @@ pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
 
     // Finalize registration
     let ix = create_finalize_registration_instruction(
-        &forester_keypair.pubkey(),
-        &forester_keypair.pubkey(),
+        &test_keypairs.forester.pubkey(),
+        &test_keypairs.forester.pubkey(),
         0,
     );
     context
-        .create_and_send_transaction(&[ix], &forester_keypair.pubkey(), &[forester_keypair])
+        .create_and_send_transaction(
+            &[ix],
+            &test_keypairs.forester.pubkey(),
+            &[&test_keypairs.forester],
+        )
         .await?;
 
     Ok(registered_epoch)

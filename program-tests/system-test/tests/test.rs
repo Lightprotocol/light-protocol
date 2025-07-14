@@ -34,7 +34,7 @@ use light_system_program::{
 use light_test_utils::{
     airdrop_lamports,
     assert_compressed_tx::assert_created_compressed_accounts,
-    assert_custom_error_or_program_error,
+    assert_custom_error_or_program_error, setup_forester_and_advance_to_epoch,
     system_program::{
         compress_sol_test, create_addresses_test, create_invoke_instruction,
         create_invoke_instruction_data_and_remaining_accounts, decompress_sol_test,
@@ -1674,6 +1674,11 @@ async fn regenerate_accounts() {
         .unwrap();
     let keypairs = for_regenerate_accounts();
 
+    // Setup forester and get epoch information
+    let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+        .await
+        .unwrap();
+
     // List of public keys to fetch and export
     let pubkeys = vec![
         ("merkle_tree_pubkey", env.v1_state_trees[0].merkle_tree),
@@ -1709,15 +1714,11 @@ async fn regenerate_accounts() {
         ),
         (
             "forester_epoch_pda",
-            env.protocol
-                .forester_epoch
-                .as_ref()
-                .unwrap()
-                .forester_epoch_pda,
+            forester_epoch.forester_epoch_pda,
         ),
         (
             "epoch_pda",
-            env.protocol.forester_epoch.as_ref().unwrap().epoch_pda,
+            forester_epoch.epoch_pda,
         ),
         ("batch_state_merkle_tree", env.v2_state_trees[0].merkle_tree),
         ("batched_output_queue", env.v2_state_trees[0].output_queue),
@@ -1845,6 +1846,10 @@ async fn batch_invoke_test() {
     let config = ProgramTestConfig::default_test_forester(false);
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let protocol_config = rpc.config.protocol_config.clone();
+    let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+        .await
+        .unwrap();
 
     let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
