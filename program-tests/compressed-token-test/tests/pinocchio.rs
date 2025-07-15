@@ -2,16 +2,23 @@
 
 use std::assert_eq;
 
-use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
-use anchor_spl::token_2022::spl_token_2022;
-use light_compressed_token::create_spl_mint::instructions::CreateSplMintInstructionData;
-use light_compressed_token::mint::instructions::UpdateCompressedMintInstructionData;
-use light_compressed_token::mint_to_compressed::instructions::{
-    CompressedMintInputs, MintToCompressedInstructionData, Recipient,
+use anchor_lang::{
+    prelude::{
+        borsh::{BorshDeserialize, BorshSerialize},
+        AccountMeta,
+    },
+    solana_program::program_pack::Pack,
+    system_program,
 };
-
-use anchor_lang::{prelude::AccountMeta, solana_program::program_pack::Pack, system_program};
+use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
+use light_compressed_token::{
+    create_spl_mint::instructions::CreateSplMintInstructionData,
+    mint::instructions::UpdateCompressedMintInstructionData,
+    mint_to_compressed::instructions::{
+        CompressedMintInputs, MintToCompressedInstructionData, Recipient,
+    },
+};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk::instruction::ValidityProof;
 use light_test_utils::Rpc;
@@ -1056,8 +1063,7 @@ pub fn close_account(
 #[tokio::test]
 async fn test_create_and_close_token_account() {
     use spl_pod::bytemuck::pod_from_bytes;
-    use spl_token_2022::pod::PodAccount;
-    use spl_token_2022::state::AccountState;
+    use spl_token_2022::{pod::PodAccount, state::AccountState};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -1201,8 +1207,7 @@ async fn test_create_and_close_token_account() {
 #[tokio::test]
 async fn test_create_associated_token_account() {
     use spl_pod::bytemuck::pod_from_bytes;
-    use spl_token_2022::pod::PodAccount;
-    use spl_token_2022::state::AccountState;
+    use spl_token_2022::{pod::PodAccount, state::AccountState};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await

@@ -1,7 +1,8 @@
-use crate::shared::AccountIterator;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
 use pinocchio::account_info::AccountInfo;
+
+use crate::shared::AccountIterator;
 
 /// Validated system accounts for multi-transfer instruction
 /// Accounts are ordered to match light-system-program CPI expectation

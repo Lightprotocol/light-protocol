@@ -58,14 +58,22 @@ pub fn execute_cpi_invoke(
     // Add accounts one by one since extend_from_slice is private
     account_metas.push(AccountMeta::new(accounts[0].key(), true, true)); // 0 fee_payer (signer, mutable)
     account_metas.push(AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true)); // 1 authority (cpi_authority_pda)
-    account_metas.push(AccountMeta::new(&REGISTERED_PROGRAM_PDA, false, false));     // 2 registered_program_pda
-    account_metas.push(AccountMeta::new(&NOOP_PUBKEY, false, false));                // 3 noop_program
-    account_metas.push(AccountMeta::new(&ACCOUNT_COMPRESSION_AUTHORITY_PDA, false, false)); // 4 account_compression_authority
-    account_metas.push(AccountMeta::new(&ACCOUNT_COMPRESSION_PROGRAM_ID, false, false)); // 5 account_compression_program
+    account_metas.push(AccountMeta::new(&REGISTERED_PROGRAM_PDA, false, false)); // 2 registered_program_pda
+    account_metas.push(AccountMeta::new(&NOOP_PUBKEY, false, false)); // 3 noop_program
+    account_metas.push(AccountMeta::new(
+        &ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+        false,
+        false,
+    )); // 4 account_compression_authority
+    account_metas.push(AccountMeta::new(
+        &ACCOUNT_COMPRESSION_PROGRAM_ID,
+        false,
+        false,
+    )); // 5 account_compression_program
     account_metas.push(AccountMeta::new(&LIGHT_CPI_SIGNER.program_id, false, false)); // 6 invoking_program (self_program)
-    account_metas.push(sol_pool_pda);                                                 // 7 sol_pool_pda
+    account_metas.push(sol_pool_pda); // 7 sol_pool_pda
     account_metas.push(AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)); // 8 decompression_recipient (None, using default)
-    account_metas.push(AccountMeta::new(&[0u8; 32], false, false));               // system_program
+    account_metas.push(AccountMeta::new(&[0u8; 32], false, false)); // system_program
     account_metas.push(AccountMeta::new(
         if let Some(cpi_context) = cpi_context_account.as_ref() {
             cpi_context

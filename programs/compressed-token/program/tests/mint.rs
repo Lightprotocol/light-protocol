@@ -235,8 +235,9 @@ fn create_random_extension_data<R: Rng>(
             vec![]
         };
 
-        use light_compressed_token::extensions::state::ExtensionStruct;
-        use light_compressed_token::extensions::token_metadata::TokenMetadata;
+        use light_compressed_token::extensions::{
+            state::ExtensionStruct, token_metadata::TokenMetadata,
+        };
 
         let expected_token_metadata = TokenMetadata {
             update_authority,
@@ -371,8 +372,9 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Create input data
         use light_compressed_account::compressed_account::PackedMerkleContext;
-        use light_compressed_token::mint_to_compressed::instructions::CompressedMintInputs;
-        use light_compressed_token::shared::context::TokenContext;
+        use light_compressed_token::{
+            mint_to_compressed::instructions::CompressedMintInputs, shared::context::TokenContext,
+        };
         use light_zero_copy::borsh::Deserialize;
 
         let input_compressed_mint = CompressedMintInputs {

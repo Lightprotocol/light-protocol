@@ -1,10 +1,7 @@
 use borsh::BorshSerialize;
 use light_compressed_token::extensions::token_metadata::Metadata;
-use light_zero_copy::borsh::Deserialize;
-
-use light_hasher::to_byte_array::ToByteArray;
-use light_hasher::DataHasher;
-use light_zero_copy::borsh_mut::DeserializeMut;
+use light_hasher::{to_byte_array::ToByteArray, DataHasher};
+use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut};
 // TODO: add random test
 #[test]
 fn test_metadata_hash_consistency() {

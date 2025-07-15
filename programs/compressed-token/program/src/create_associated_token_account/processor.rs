@@ -1,5 +1,7 @@
-use anchor_lang::prelude::{ProgramError, SolanaSysvar};
-use anchor_lang::solana_program::{rent::Rent, system_instruction};
+use anchor_lang::{
+    prelude::{ProgramError, SolanaSysvar},
+    solana_program::{rent::Rent, system_instruction},
+};
 use light_account_checks::AccountInfoTrait;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::account_info::AccountInfo;

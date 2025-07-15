@@ -2,8 +2,7 @@ use anchor_lang::prelude::ProgramError;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_hasher::{
-    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, Hasher, HasherError,
-    Poseidon, Sha256,
+    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, HasherError, Poseidon,
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
@@ -61,11 +60,6 @@ impl TokenMetadata {
             // Version::Sha256Flat => self.sha_flat(),
         }
     }
-    fn sha_flat(&self) -> Result<[u8; 32], HasherError> {
-        use borsh::BorshSerialize;
-        let vec = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
-        Sha256::hash(vec.as_slice())
-    }
 }
 
 fn token_metadata_hash<H: light_hasher::Hasher>(
@@ -84,7 +78,7 @@ fn token_metadata_hash<H: light_hasher::Hasher>(
         );
     }
 
-    vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[&mint])?;
+    vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[mint])?;
 
     for (key, value) in additional_metadata {
         // TODO: add check is poseidon and throw meaningful error.
@@ -330,11 +324,9 @@ impl TokenMetadataInstructionData {
                 arrayvec::ArrayVec::new()
             };
 
-        let hashed_update_authority = if let Some(update_authority) = self.update_authority {
-            Some(context.get_or_hash_pubkey(&update_authority.into()))
-        } else {
-            None
-        };
+        let hashed_update_authority = self
+            .update_authority
+            .map(|update_authority| context.get_or_hash_pubkey(&update_authority.into()));
 
         let hashed_mint = context.get_or_hash_mint(&mint.into())?;
 
@@ -351,7 +343,7 @@ impl TokenMetadataInstructionData {
     }
 }
 
-impl<'a> ZTokenMetadataInstructionData<'a> {
+impl ZTokenMetadataInstructionData<'_> {
     pub fn hash_token_metadata<H: light_hasher::Hasher>(
         &self,
         hashed_mint: &[u8; 32],
@@ -371,11 +363,9 @@ impl<'a> ZTokenMetadataInstructionData<'a> {
                 arrayvec::ArrayVec::new()
             };
 
-        let hashed_update_authority = if let Some(update_authority) = self.update_authority {
-            Some(context.get_or_hash_pubkey(&(*update_authority).into()))
-        } else {
-            None
-        };
+        let hashed_update_authority = self
+            .update_authority
+            .map(|update_authority| context.get_or_hash_pubkey(&(*update_authority).into()));
 
         token_metadata_hash_with_hashed_values::<H>(
             hashed_update_authority.as_ref(),
@@ -390,8 +380,8 @@ impl<'a> ZTokenMetadataInstructionData<'a> {
 
 use crate::shared::context::TokenContext;
 
-pub fn create_output_token_metadata<'a>(
-    token_metadata_data: &ZTokenMetadataInstructionData<'a>,
+pub fn create_output_token_metadata(
+    token_metadata_data: &ZTokenMetadataInstructionData<'_>,
     token_metadata: &mut ZTokenMetadataMut<'_>,
     mint: Pubkey,
 ) -> Result<[u8; 32], ProgramError> {

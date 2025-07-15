@@ -1,3 +1,11 @@
+use anchor_lang::solana_program::{
+    program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
+};
+use arrayvec::ArrayVec;
+use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopyNew};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_token::solana_program::log::sol_log_compute_units;
+
 use crate::{
     constants::POOL_SEED,
     create_spl_mint::{
@@ -7,14 +15,6 @@ use crate::{
     mint::state::CompressedMintConfig,
     shared::cpi::execute_cpi_invoke,
 };
-use anchor_lang::solana_program::{
-    program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
-};
-use arrayvec::ArrayVec;
-use light_zero_copy::borsh_mut::DeserializeMut;
-use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use spl_token::solana_program::log::sol_log_compute_units;
 // TODO: check and handle extensions
 pub fn process_create_spl_mint(
     program_id: Pubkey,
@@ -82,16 +82,20 @@ fn update_compressed_mint_to_decompressed<'info>(
     instruction_data: &ZCreateSplMintInstructionData,
     program_id: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
-    use crate::mint::{
-        input::create_input_compressed_mint_account, output::create_output_compressed_mint_account,
-    };
-    use crate::shared::{
-        context::TokenContext,
-        cpi_bytes_size::{
-            allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+    use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
+
+    use crate::{
+        mint::{
+            input::create_input_compressed_mint_account,
+            output::create_output_compressed_mint_account,
+        },
+        shared::{
+            context::TokenContext,
+            cpi_bytes_size::{
+                allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+            },
         },
     };
-    use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 
     // Process extensions from input mint
     let mint_inputs = &instruction_data.mint.mint;
@@ -159,7 +163,7 @@ fn update_compressed_mint_to_decompressed<'info>(
                 .mint_authority
                 .as_ref()
                 .map(|ma| ma.to_bytes().into()),
-            supply.into(),
+            supply,
             &program_id.into(),
             mint_config,
             compressed_account_address,

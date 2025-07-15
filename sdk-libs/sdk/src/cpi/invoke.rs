@@ -134,7 +134,7 @@ where
     data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
-    let account_infos = cpi_accounts.to_account_infos();
+    let account_infos = light_system_accounts.to_account_infos();
 
     let bump = light_system_accounts.bump();
     let account_metas: Vec<AccountMeta> = to_account_metas(light_system_accounts)?;

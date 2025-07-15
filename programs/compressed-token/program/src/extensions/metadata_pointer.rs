@@ -6,12 +6,9 @@ use light_compressed_account::{
 use light_hasher::{
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, Hasher, HasherError,
 };
-use light_zero_copy::ZeroCopyNew;
-use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
 
-use crate::shared::context::TokenContext;
-
-use crate::extensions::ExtensionType;
+use crate::{extensions::ExtensionType, shared::context::TokenContext};
 
 /// Metadata pointer extension data for compressed mints.
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, ZeroCopy, BorshDeserialize, ZeroCopyMut)]
@@ -82,7 +79,7 @@ impl InitMetadataPointer {
     }
 }
 
-impl<'a> ZInitMetadataPointer<'a> {
+impl ZInitMetadataPointer<'_> {
     pub fn hash_metadata_pointer<H: Hasher>(
         &self,
         context: &mut TokenContext,

@@ -245,12 +245,8 @@ pub fn process_update_deposit<'info>(
         .split_at(system_accounts_start_offset as usize);
     // TODO: figure out why the offsets are wrong.
     // Could add with pre account infos Option<u8>
-    let cpi_accounts = CpiAccounts::try_new_with_config(
-        ctx.accounts.signer.as_ref(),
-        system_account_infos,
-        config,
-    )
-    .unwrap();
+    let cpi_accounts =
+        CpiAccounts::new_with_config(ctx.accounts.signer.as_ref(), system_account_infos, config);
 
     let recipient = *ctx.accounts.authority.key;
     // We want to keep only one escrow compressed token account

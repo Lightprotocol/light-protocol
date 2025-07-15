@@ -61,12 +61,10 @@ pub fn create_input_compressed_mint_account(
         supply_bytes[24..]
             .copy_from_slice(compressed_mint_input.supply.get().to_be_bytes().as_slice());
 
-        let hashed_freeze_authority =
-            if let Some(freeze_authority) = compressed_mint_input.freeze_authority.as_ref() {
-                Some(context.get_or_hash_pubkey(&(**freeze_authority).to_bytes()))
-            } else {
-                None
-            };
+        let hashed_freeze_authority = compressed_mint_input
+            .freeze_authority
+            .as_ref()
+            .map(|freeze_authority| context.get_or_hash_pubkey(&(**freeze_authority).to_bytes()));
 
         // Compute the data hash using the CompressedMint hash function
         let data_hash = CompressedMint::hash_with_hashed_values(

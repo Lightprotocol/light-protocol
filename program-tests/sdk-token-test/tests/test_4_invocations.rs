@@ -363,7 +363,7 @@ async fn create_compressed_escrow_pda(
 
     // Add system accounts configuration
     let config = SystemAccountMetaConfig::new(sdk_token_test::ID);
-    remaining_accounts.add_system_accounts(config).unwrap();
+    remaining_accounts.add_system_accounts(config);
 
     // Get address tree info and derive the PDA address
     let address_tree_info = rpc.get_address_tree_v1();
@@ -456,7 +456,7 @@ async fn test_four_invokes_instruction(
         sdk_token_test::ID,
         tree_info.cpi_context.unwrap(),
     );
-    remaining_accounts.add_system_accounts(config).unwrap();
+    remaining_accounts.add_system_accounts(config);
 
     // Get validity proof - need to prove the escrow PDA and compressed token accounts
     let escrow_account = rpc

@@ -2,8 +2,8 @@ use anchor_compressed_token::token_data::TokenData as AnchorTokenData;
 use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
 use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::instruction_data::{
-    with_readonly::InAccount, with_readonly::InstructionDataInvokeCpiWithReadOnly,
+use light_compressed_account::instruction_data::with_readonly::{
+    InAccount, InstructionDataInvokeCpiWithReadOnly,
 };
 use light_compressed_token::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,

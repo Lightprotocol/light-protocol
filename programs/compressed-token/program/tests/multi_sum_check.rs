@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::AnchorSerialize;
 use light_compressed_token::multi_transfer::{
@@ -5,7 +7,6 @@ use light_compressed_token::multi_transfer::{
     sum_check::sum_check_multi_mint,
 };
 use light_zero_copy::borsh::Deserialize;
-use std::collections::HashMap;
 
 type Result<T> = std::result::Result<T, ErrorCode>;
 // TODO: check test coverage

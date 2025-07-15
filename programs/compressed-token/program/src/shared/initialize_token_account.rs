@@ -2,8 +2,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::bytemuck::pod_from_bytes_mut;
-use spl_token_2022::pod::PodAccount;
-use spl_token_2022::state::AccountState;
+use spl_token_2022::{pod::PodAccount, state::AccountState};
 
 /// Initialize a token account using spl-pod with zero balance and default settings
 pub fn initialize_token_account(

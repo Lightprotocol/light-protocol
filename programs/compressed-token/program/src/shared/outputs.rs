@@ -1,3 +1,5 @@
+// Import the anchor TokenData for hash computation
+use anchor_compressed_token::token_data::TokenData as AnchorTokenData;
 use anchor_lang::{
     prelude::borsh, solana_program::program_error::ProgramError, AnchorDeserialize, AnchorSerialize,
 };
@@ -7,11 +9,7 @@ use light_compressed_account::{
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
 
 use super::context::TokenContext;
-
 use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-
-// Import the anchor TokenData for hash computation
-use anchor_compressed_token::token_data::TokenData as AnchorTokenData;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]

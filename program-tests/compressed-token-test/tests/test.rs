@@ -2,15 +2,11 @@
 
 use std::{assert_eq, str::FromStr};
 
-use anchor_lang::prelude::borsh::BorshSerialize;
-use light_compressed_token::mint_to_compressed::instructions::{
-    CompressedMintInputs, MintToCompressedInstructionData, Recipient,
-};
-
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
-    prelude::AccountMeta, solana_program::program_pack::Pack, system_program, AccountDeserialize,
-    AnchorDeserialize, InstructionData, ToAccountMetas,
+    prelude::{borsh::BorshSerialize, AccountMeta},
+    solana_program::program_pack::Pack,
+    system_program, AccountDeserialize, AnchorDeserialize, InstructionData, ToAccountMetas,
 };
 use anchor_spl::{
     token::{Mint, TokenAccount},
@@ -38,6 +34,9 @@ use light_compressed_token::{
     freeze::sdk::{create_instruction, CreateInstructionInputs},
     get_token_pool_pda, get_token_pool_pda_with_index,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
+    mint_to_compressed::instructions::{
+        CompressedMintInputs, MintToCompressedInstructionData, Recipient,
+    },
     process_transfer::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
     },

@@ -191,10 +191,6 @@ impl Pubkey {
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
     }
-
-    pub fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
 }
 
 pub trait AsPubkey {

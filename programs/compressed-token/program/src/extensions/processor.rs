@@ -7,8 +7,8 @@ use crate::extensions::{
 };
 
 // Applying extension(s) to compressed accounts.
-pub fn process_create_extensions<'b, H: Hasher>(
-    extensions: &[ZExtensionInstructionData<'b>],
+pub fn process_create_extensions<H: Hasher>(
+    extensions: &[ZExtensionInstructionData<'_>],
     output_compressed_account: &mut [ZExtensionStructMut<'_>],
     mint: light_compressed_account::Pubkey,
 ) -> Result<[u8; 32], ProgramError> {

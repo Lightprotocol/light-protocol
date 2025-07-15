@@ -1,3 +1,4 @@
+use light_account_checks::error::AccountError;
 use light_hasher::HasherError;
 use light_sdk_types::error::LightSdkTypesError;
 use light_zero_copy::errors::ZeroCopyError;
@@ -77,6 +78,8 @@ pub enum LightSdkError {
     InvalidCpiAccountsOffset,
     #[error("CPI context must be added before any other accounts (next_index must be 0)")]
     CpiContextOrderingViolation,
+    #[error(transparent)]
+    AccountError(#[from] AccountError),
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]

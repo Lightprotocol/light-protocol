@@ -12,8 +12,7 @@ use light_compressed_account::{
     Pubkey,
 };
 use light_sdk_pinocchio::NewAddressParamsAssignedPackedConfig;
-use light_zero_copy::borsh::Deserialize;
-use light_zero_copy::ZeroCopyNew;
+use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 

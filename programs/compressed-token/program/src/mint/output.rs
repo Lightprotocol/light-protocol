@@ -2,7 +2,6 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
-
 use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
 
@@ -13,7 +12,7 @@ use crate::{
 };
 // TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
-pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
+pub fn create_output_compressed_mint_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     mint_pda: Pubkey,
     decimals: u8,
@@ -26,7 +25,7 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
     merkle_tree_index: u8,
     version: u8,
     is_decompressed: bool,
-    extensions: Option<&[ZExtensionInstructionData<'b>]>,
+    extensions: Option<&[ZExtensionInstructionData<'_>]>,
 ) -> Result<(), ProgramError> {
     // 1. Create output compressed account
     {
@@ -56,7 +55,7 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
     compressed_account_data.discriminator = COMPRESSED_MINT_DISCRIMINATOR;
 
     let (mut compressed_mint, _) =
-        CompressedMint::new_zero_copy(&mut compressed_account_data.data, mint_config)
+        CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
             .map_err(ProgramError::from)?;
     compressed_mint.spl_mint = mint_pda;
     compressed_mint.decimals = decimals;
@@ -76,25 +75,20 @@ pub fn create_output_compressed_mint_account<'a, 'b, 'c>(
 
     // Process extensions if provided and populate the zero-copy extension data
     if let Some(extensions) = extensions.as_ref() {
-        // Process extensions in a separate scope to avoid borrowing conflicts
-        {
-            if let Some(z_extensions) = compressed_mint.extensions.as_mut() {
-                // Now we can directly populate the extension data using the updated process_create_extensions
-                use crate::extensions::processor::process_create_extensions;
-                use light_hasher::Poseidon;
-                let extension_hash = process_create_extensions::<Poseidon>(
-                    extensions,
-                    z_extensions.as_mut_slice(),
-                    mint_pda,
-                )?;
-                // Compute final hash with extensions
-                *compressed_account_data.data_hash = compressed_mint
-                    .hash(Some(extension_hash.as_slice()))
-                    .map_err(|_| ProgramError::InvalidAccountData)?;
-                extension_hash
-            } else {
-                [0u8; 32]
-            }
+        if let Some(z_extensions) = compressed_mint.extensions.as_mut() {
+            // Now we can directly populate the extension data using the updated process_create_extensions
+            use light_hasher::Poseidon;
+
+            use crate::extensions::processor::process_create_extensions;
+            let extension_hash = process_create_extensions::<Poseidon>(
+                extensions,
+                z_extensions.as_mut_slice(),
+                mint_pda,
+            )?;
+            // Compute final hash with extensions
+            *compressed_account_data.data_hash = compressed_mint
+                .hash(Some(extension_hash.as_slice()))
+                .map_err(|_| ProgramError::InvalidAccountData)?;
         };
     } else {
         *compressed_account_data.data_hash = compressed_mint

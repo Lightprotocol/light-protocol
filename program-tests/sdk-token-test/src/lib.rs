@@ -128,12 +128,11 @@ pub mod sdk_token_test {
             .remaining_accounts
             .split_at(system_accounts_start_offset as usize);
         // Could add with pre account infos Option<u8>
-        let light_cpi_accounts = CpiAccounts::try_new_with_config(
+        let light_cpi_accounts = CpiAccounts::new_with_config(
             ctx.accounts.signer.as_ref(),
             system_account_infos,
             config,
-        )
-        .unwrap();
+        );
         let (address, address_seed) = derive_address(
             &[
                 b"escrow",

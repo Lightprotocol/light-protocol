@@ -49,7 +49,7 @@ mod zero_copy_mut;
 ///     pub a: u8,
 /// }
 /// ```
-/// 
+///
 /// Note: #[light_hasher] is currently disabled due to hash inconsistency between
 /// Vec<u8> fields in the original struct and &[u8] slice fields in the generated ZStruct.
 ///

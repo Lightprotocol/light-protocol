@@ -2,11 +2,13 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::Hasher;
 
-use crate::extensions::{
-    metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer},
-    token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData},
+use crate::{
+    extensions::{
+        metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer},
+        token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData},
+    },
+    shared::context::TokenContext,
 };
-use crate::shared::context::TokenContext;
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub enum ExtensionInstructionData {
@@ -41,7 +43,7 @@ impl ExtensionInstructionData {
     }
 }
 
-impl<'a> ZExtensionInstructionData<'a> {
+impl ZExtensionInstructionData<'_> {
     pub fn hash<H: Hasher>(
         &self,
         hashed_mint: &[u8; 32],

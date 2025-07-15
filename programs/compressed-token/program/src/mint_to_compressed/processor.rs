@@ -111,12 +111,10 @@ pub fn process_mint_to_compressed(
         let mint_inputs = &parsed_instruction_data.compressed_mint_inputs.mint;
         let mint_pda = mint_inputs.spl_mint;
         let decimals = mint_inputs.decimals;
-        let freeze_authority = if let Some(freeze_authority) = mint_inputs.freeze_authority.as_ref()
-        {
-            Some((**freeze_authority).into())
-        } else {
-            None
-        };
+        let freeze_authority = mint_inputs
+            .freeze_authority
+            .as_ref()
+            .map(|freeze_authority| (**freeze_authority));
         use crate::mint::state::CompressedMintConfig;
 
         // Process extensions from input mint
@@ -155,7 +153,10 @@ pub fn process_mint_to_compressed(
             compressed_account_address,
             2,
             parsed_instruction_data.compressed_mint_inputs.mint.version,
-            parsed_instruction_data.compressed_mint_inputs.mint.is_decompressed(),
+            parsed_instruction_data
+                .compressed_mint_inputs
+                .mint
+                .is_decompressed(),
             z_extensions,
         )?;
         msg!("post create_output_compressed_mint_account");

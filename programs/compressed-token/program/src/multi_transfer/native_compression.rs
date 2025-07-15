@@ -3,11 +3,13 @@ use pinocchio::{account_info::AccountInfo, msg};
 use spl_pod::bytemuck::pod_from_bytes_mut;
 use spl_token_2022::pod::PodAccount;
 
-use crate::multi_transfer::{
-    accounts::MultiTransferPackedAccounts,
-    instruction_data::{ZCompressedTokenInstructionDataMultiTransfer, ZCompression},
+use crate::{
+    multi_transfer::{
+        accounts::MultiTransferPackedAccounts,
+        instruction_data::{ZCompressedTokenInstructionDataMultiTransfer, ZCompression},
+    },
+    LIGHT_CPI_SIGNER,
 };
-use crate::LIGHT_CPI_SIGNER;
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 /// Process native compressions/decompressions with token accounts
 pub fn process_token_compression(

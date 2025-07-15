@@ -1,7 +1,8 @@
-use crate::shared::AccountIterator;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
 use pinocchio::account_info::AccountInfo;
+
+use crate::shared::AccountIterator;
 
 pub struct CreateSplMintAccounts<'info> {
     pub fee_payer: &'info AccountInfo,

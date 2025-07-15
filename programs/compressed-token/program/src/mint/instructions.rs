@@ -3,8 +3,10 @@ use light_compressed_account::{instruction_data::compressed_proof::CompressedPro
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::ZeroCopy;
 
-use crate::extensions::{state::ExtensionStruct, ExtensionInstructionData};
-use crate::mint::state::CompressedMint;
+use crate::{
+    extensions::{state::ExtensionStruct, ExtensionInstructionData},
+    mint::state::CompressedMint,
+};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct CreateCompressedMintInstructionData {

@@ -1,9 +1,5 @@
-use crate::constants::BUMP_CPI_AUTHORITY;
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::{
-    check_mut, check_non_mut, check_pda_seeds_with_bump, check_program, check_signer,
-};
+use light_account_checks::checks::{check_mut, check_non_mut, check_program, check_signer};
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 

@@ -591,7 +591,7 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
     let input: DeriveInput = syn::parse(input)?;
 
     let hasher = utils::struct_has_light_hasher_attribute(&input.attrs);
-    
+
     // Disable light_hasher attribute due to Vec<u8>/&[u8] hash inconsistency
     if hasher {
         return Err(syn::Error::new_spanned(

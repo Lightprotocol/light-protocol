@@ -59,12 +59,8 @@ pub fn process_four_invokes<'info>(
         .remaining_accounts
         .split_at(system_accounts_start_offset as usize);
 
-    let cpi_accounts = CpiAccounts::try_new_with_config(
-        ctx.accounts.signer.as_ref(),
-        system_account_infos,
-        config,
-    )
-    .unwrap();
+    let cpi_accounts =
+        CpiAccounts::new_with_config(ctx.accounts.signer.as_ref(), system_account_infos, config);
 
     // Invocation 1: Compress mint 1 (writes to CPI context)
     compress_tokens_with_cpi_context(

@@ -1,7 +1,6 @@
 use std::mem::ManuallyDrop;
 
 use anchor_lang::solana_program::program_error::ProgramError;
-
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::account_info::AccountInfo;
 use spl_token::instruction::TokenInstruction;
@@ -151,8 +150,7 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
         return Err(ProgramError::MaxAccountsDataAllocationsExceeded);
     }
 
-    use std::cell::RefCell;
-    use std::rc::Rc;
+    use std::{cell::RefCell, rc::Rc};
 
     // Compile-time type safety: Ensure Pubkey types are layout-compatible
     const _: () = {
