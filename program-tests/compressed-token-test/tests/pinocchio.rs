@@ -19,6 +19,7 @@ use light_compressed_token::{
         CompressedMintInputs, MintToCompressedInstructionData, Recipient,
     },
 };
+use light_compressed_token_sdk::instructions::create_compressed_mint::*;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk::instruction::ValidityProof;
 use light_test_utils::Rpc;

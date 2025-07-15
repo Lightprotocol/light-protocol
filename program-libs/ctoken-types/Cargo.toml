@@ -1,0 +1,22 @@
+[package]
+name = "light-ctoken-types"
+version = { workspace = true }
+edition = { workspace = true }
+
+[features]
+anchor = ["light-compressed-account/anchor"]
+solana = ["dep:solana-program-error"]
+default = []
+
+[dependencies]
+borsh = { workspace = true }
+# Solana dependencies
+solana-pubkey = { workspace = true }
+solana-program-error = { workspace = true, optional = true }
+light-zero-copy = { workspace = true, features = ["derive", "mut"] }
+light-compressed-account = { workspace = true }
+light-hasher = { workspace = true }
+arrayvec = { workspace = true }
+zerocopy = { workspace = true }
+thiserror = { workspace = true }
+pinocchio = { workspace = true }

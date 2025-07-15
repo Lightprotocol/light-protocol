@@ -1,14 +1,14 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
-use light_sdk::instruction::PackedMerkleContext;
+use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_zero_copy::ZeroCopy;
 
 use crate::{
-    extensions::{state::ExtensionStruct, ExtensionInstructionData},
-    mint::state::CompressedMint,
+    state::{ExtensionStruct, CompressedMint},
+    instructions::extensions::ExtensionInstructionData,
+    AnchorSerialize, AnchorDeserialize,
 };
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CreateCompressedMintInstructionData {
     pub decimals: u8,
     pub mint_authority: Pubkey,
@@ -22,7 +22,7 @@ pub struct CreateCompressedMintInstructionData {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct UpdateCompressedMintInstructionData {
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
@@ -31,7 +31,7 @@ pub struct UpdateCompressedMintInstructionData {
     pub mint: CompressedMintInstructionData,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
+#[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInstructionData {
     /// Version for upgradability
     pub version: u8,
@@ -60,7 +60,7 @@ impl From<CompressedMint> for CompressedMintInstructionData {
                 .map(|ext| match ext {
                     ExtensionStruct::MetadataPointer(metadata_pointer) => {
                         ExtensionInstructionData::MetadataPointer(
-                            crate::extensions::metadata_pointer::InitMetadataPointer {
+                            crate::instructions::extensions::metadata_pointer::InitMetadataPointer {
                                 authority: metadata_pointer.authority,
                                 metadata_address: metadata_pointer.metadata_address,
                             },
@@ -68,7 +68,7 @@ impl From<CompressedMint> for CompressedMintInstructionData {
                     }
                     ExtensionStruct::TokenMetadata(token_metadata) => {
                         ExtensionInstructionData::TokenMetadata(
-                            crate::extensions::token_metadata::TokenMetadataInstructionData {
+                            crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {
                                 update_authority: token_metadata.update_authority,
                                 metadata: token_metadata.metadata,
                                 additional_metadata: Some(token_metadata.additional_metadata),

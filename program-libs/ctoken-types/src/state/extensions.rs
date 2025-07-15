@@ -1,14 +1,16 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{DataHasher, Hasher, HasherError};
 
-use crate::extensions::{
-    metadata_pointer::{
-        MetadataPointer, MetadataPointerConfig, ZMetadataPointer, ZMetadataPointerMut,
+use crate::{
+    AnchorSerialize, AnchorDeserialize,
+    instructions::extensions::{
+        metadata_pointer::{
+            MetadataPointer, MetadataPointerConfig, ZMetadataPointer, ZMetadataPointerMut,
+        },
+        token_metadata::{TokenMetadata, TokenMetadataConfig, ZTokenMetadata, ZTokenMetadataMut},
     },
-    token_metadata::{TokenMetadata, TokenMetadataConfig, ZTokenMetadata, ZTokenMetadataMut},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum ExtensionStruct {
     /// Mint contains a pointer to another account (or the same account) that
     /// holds metadata

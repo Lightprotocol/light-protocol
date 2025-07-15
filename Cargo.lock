@@ -3395,6 +3395,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
+ "light-ctoken-types",
  "light-hasher",
  "light-heap",
  "light-sdk",
@@ -3424,6 +3425,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-compressed-token-types",
+ "light-ctoken-types",
  "light-macros",
  "light-sdk",
  "solana-account-info",
@@ -3468,6 +3470,22 @@ dependencies = [
  "solana-program-error",
  "thiserror 2.0.12",
  "tokio",
+]
+
+[[package]]
+name = "light-ctoken-types"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-zero-copy",
+ "pinocchio",
+ "solana-program-error",
+ "solana-pubkey",
+ "thiserror 2.0.12",
+ "zerocopy",
 ]
 
 [[package]]

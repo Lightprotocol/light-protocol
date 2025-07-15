@@ -1,0 +1,105 @@
+use thiserror::Error;
+use light_zero_copy::errors::ZeroCopyError;
+
+#[derive(Debug, PartialEq, Error)]
+pub enum CTokenError {
+    #[error("Invalid instruction data provided")]
+    InvalidInstructionData,
+    
+    #[error("Invalid account data format")]
+    InvalidAccountData,
+    
+    #[error("Arithmetic operation resulted in overflow")]
+    ArithmeticOverflow,
+    
+    #[error("Failed to compute hash for data")]
+    HashComputationError,
+    
+    #[error("Invalid or malformed extension data")]
+    InvalidExtensionData,
+    
+    #[error("Missing required mint authority")]
+    MissingMintAuthority,
+    
+    #[error("Missing required freeze authority")]
+    MissingFreezeAuthority,
+    
+    #[error("Invalid metadata pointer configuration")]
+    InvalidMetadataPointer,
+    
+    #[error("Token metadata validation failed")]
+    InvalidTokenMetadata,
+    
+    #[error("Insufficient token supply for operation")]
+    InsufficientSupply,
+    
+    #[error("Token account is frozen and cannot be modified")]
+    AccountFrozen,
+    
+    #[error("Invalid compressed proof provided")]
+    InvalidProof,
+    
+    #[error("Address derivation failed")]
+    AddressDerivationFailed,
+    
+    #[error("Extension type not supported")]
+    UnsupportedExtension,
+    
+    #[error("Maximum number of extensions exceeded")]
+    TooManyExtensions,
+    
+    #[error("Invalid merkle tree root index")]
+    InvalidRootIndex,
+    
+    #[error("Compressed account data size exceeds limit")]
+    DataSizeExceeded,
+    
+    #[error("Light hasher error: {0}")]
+    HasherError(#[from] light_hasher::HasherError),
+    
+    #[error("Light zero copy error: {0}")]
+    ZeroCopyError(#[from] ZeroCopyError),
+    
+    #[error("Light compressed account error: {0}")]
+    CompressedAccountError(#[from] light_compressed_account::CompressedAccountError),
+}
+
+impl From<CTokenError> for u32 {
+    fn from(e: CTokenError) -> u32 {
+        match e {
+            CTokenError::InvalidInstructionData => 18001,
+            CTokenError::InvalidAccountData => 18002,
+            CTokenError::ArithmeticOverflow => 18003,
+            CTokenError::HashComputationError => 18004,
+            CTokenError::InvalidExtensionData => 18005,
+            CTokenError::MissingMintAuthority => 18006,
+            CTokenError::MissingFreezeAuthority => 18007,
+            CTokenError::InvalidMetadataPointer => 18008,
+            CTokenError::InvalidTokenMetadata => 18009,
+            CTokenError::InsufficientSupply => 18010,
+            CTokenError::AccountFrozen => 18011,
+            CTokenError::InvalidProof => 18012,
+            CTokenError::AddressDerivationFailed => 18013,
+            CTokenError::UnsupportedExtension => 18014,
+            CTokenError::TooManyExtensions => 18015,
+            CTokenError::InvalidRootIndex => 18016,
+            CTokenError::DataSizeExceeded => 18017,
+            CTokenError::HasherError(e) => u32::from(e),
+            CTokenError::ZeroCopyError(e) => u32::from(e),
+            CTokenError::CompressedAccountError(e) => u32::from(e),
+        }
+    }
+}
+
+#[cfg(feature = "solana")]
+impl From<CTokenError> for solana_program_error::ProgramError {
+    fn from(e: CTokenError) -> Self {
+        solana_program_error::ProgramError::Custom(e.into())
+    }
+}
+
+impl From<CTokenError> for pinocchio::program_error::ProgramError {
+    fn from(e: CTokenError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
+    }
+}

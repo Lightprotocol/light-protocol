@@ -1,4 +1,4 @@
-use anchor_lang::solana_program::program_error::ProgramError;
+use crate::error::CTokenError;
 use arrayvec::ArrayVec;
 use light_compressed_account::hash_to_bn254_field_size_be;
 use pinocchio::pubkey::Pubkey;
@@ -21,7 +21,7 @@ impl TokenContext {
     }
 
     /// Get or compute hash for a mint pubkey
-    pub fn get_or_hash_mint(&mut self, mint: &Pubkey) -> Result<[u8; 32], ProgramError> {
+    pub fn get_or_hash_mint(&mut self, mint: &Pubkey) -> Result<[u8; 32], CTokenError> {
         let hashed_mint = self.hashed_mints.iter().find(|a| &a.0 == mint).map(|a| a.1);
         match hashed_mint {
             Some(hashed_mint) => Ok(hashed_mint),
@@ -29,7 +29,7 @@ impl TokenContext {
                 let hashed_mint = hash_to_bn254_field_size_be(mint);
                 self.hashed_mints
                     .try_push((*mint, hashed_mint))
-                    .map_err(|_| ProgramError::InvalidAccountData)?;
+                    .map_err(|_| CTokenError::InvalidAccountData)?;
                 Ok(hashed_mint)
             }
         }

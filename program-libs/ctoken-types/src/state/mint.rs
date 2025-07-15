@@ -1,14 +1,13 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::IntoBytes;
 
-use crate::extensions::state::ExtensionStruct;
+use crate::{AnchorSerialize, AnchorDeserialize, state::ExtensionStruct};
 
 // Order is optimized for hashing.
 // freeze_authority option is skipped if None.
-#[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy)]
+#[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut, ZeroCopy)]
 pub struct CompressedMint {
     /// Version for upgradability
     pub version: u8,

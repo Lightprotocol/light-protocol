@@ -1,5 +1,6 @@
 pub mod approve;
 pub mod batch_compress;
+pub mod create_compressed_mint;
 pub mod ctoken_accounts;
 pub mod transfer;
 
@@ -9,4 +10,5 @@ pub use approve::{
     ApproveMetaConfig,
 };
 pub use batch_compress::*;
+pub use create_compressed_mint::*;
 pub use ctoken_accounts::*;

@@ -1,16 +1,16 @@
-use anchor_lang::solana_program::program_error::ProgramError;
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::Hasher;
+pub mod metadata_pointer;
+pub mod token_metadata;
 
 use crate::{
-    extensions::{
-        metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer},
-        token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData},
-    },
-    shared::context::TokenContext,
+    AnchorSerialize, AnchorDeserialize, CTokenError,
+    context::TokenContext,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+pub use metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer};
+pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
+
+#[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum ExtensionInstructionData {
     // TODO: insert 18 placeholders to get consistent enum layout
     MetadataPointer(InitMetadataPointer),
@@ -31,7 +31,7 @@ impl ExtensionInstructionData {
         &self,
         mint: light_compressed_account::Pubkey,
         context: &mut TokenContext,
-    ) -> Result<[u8; 32], ProgramError> {
+    ) -> Result<[u8; 32], CTokenError> {
         match self {
             ExtensionInstructionData::MetadataPointer(metadata_pointer) => {
                 metadata_pointer.hash_metadata_pointer::<H>(context)
@@ -48,7 +48,7 @@ impl ZExtensionInstructionData<'_> {
         &self,
         hashed_mint: &[u8; 32],
         context: &mut TokenContext,
-    ) -> Result<[u8; 32], ProgramError> {
+    ) -> Result<[u8; 32], CTokenError> {
         match self {
             ZExtensionInstructionData::MetadataPointer(metadata_pointer) => {
                 metadata_pointer.hash_metadata_pointer::<H>(context)

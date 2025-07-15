@@ -11,6 +11,8 @@ anchor = ["anchor-lang", "light-compressed-token-types/anchor"]
 # Light Protocol dependencies
 light-compressed-token-types = { workspace = true }
 light-compressed-account = { workspace = true }
+light-ctoken-types = { workspace = true }
+light-compressed-token = { workspace = true }
 light-sdk = { workspace = true }
 light-macros = { workspace = true }
 thiserror = { workspace = true }
@@ -30,5 +32,4 @@ anchor-lang = { workspace = true, optional = true }
 
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "solana"] }
-light-compressed-token = { workspace = true }
 anchor-lang = { workspace = true }
