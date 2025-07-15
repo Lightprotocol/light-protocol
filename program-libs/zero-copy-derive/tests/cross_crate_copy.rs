@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(deserialized.b.get(), 2); // U16 type, use .get()
         assert_eq!(deserialized.c.get(), 3); // U32 type, use .get()
         assert_eq!(deserialized.d.get(), 4); // U64 type, use .get()
-        assert_eq!(deserialized.e(), true); // bool accessor method
+        assert!(deserialized.e()); // bool accessor method
 
         // Verify we can access struct fields
         assert_eq!(deserialized.f, &[5, 6, 7]);
@@ -165,8 +165,8 @@ mod tests {
         assert_eq!(deserialized.b.get(), 20); // U16 via .get()
         assert_eq!(deserialized.c.get(), 30); // U32 via .get()
         assert_eq!(deserialized.d.get(), 40); // U64 via .get()
-        assert_eq!(deserialized.e(), true); // bool accessor method
         assert_eq!(deserialized.g.get(), 50); // U32 via .get()
+        assert!(deserialized.e()); // bool accessor method
 
         // Test ZeroCopyEq (PartialEq implementation)
         let original = PrimitiveCopyStruct2 {
@@ -206,7 +206,7 @@ mod tests {
             assert_eq!(*deserialized_mut.a, 10); // Mutable u8 field
             assert_eq!(deserialized_mut.b.get(), 20);
             let (deserialized_mut, _) =
-                PrimitiveCopyStruct2::zero_copy_at(&mut serialized_mut).unwrap();
+                PrimitiveCopyStruct2::zero_copy_at(&serialized_mut).unwrap();
 
             // Test From implementation (ZeroCopyEq generates this for immutable version)
             let converted: PrimitiveCopyStruct2 = deserialized_mut.into();
@@ -214,7 +214,7 @@ mod tests {
             assert_eq!(converted.b, 20);
             assert_eq!(converted.c, 30);
             assert_eq!(converted.d, 40);
-            assert_eq!(converted.e, true);
+            assert!(converted.e);
             assert_eq!(converted.f, vec![1, 2, 3]);
             assert_eq!(converted.g, 50);
         }

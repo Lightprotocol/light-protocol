@@ -194,6 +194,78 @@ pub fn generate_deserialize_impl<const MUT: bool>(
     Ok(result)
 }
 
+/// Generates the ZeroCopyStructInner implementation as a TokenStream
+pub fn generate_zero_copy_struct_inner<const MUT: bool>(
+    name: &Ident,
+    z_struct_name: &Ident,
+) -> syn::Result<TokenStream> {
+    let result = if MUT {
+        quote! {
+            // ZeroCopyStructInner implementation
+            impl light_zero_copy::borsh_mut::ZeroCopyStructInnerMut for #name {
+                type ZeroCopyInnerMut = #z_struct_name<'static>;
+            }
+        }
+    } else {
+        quote! {
+            // ZeroCopyStructInner implementation
+            impl light_zero_copy::borsh::ZeroCopyStructInner for #name {
+                type ZeroCopyInner = #z_struct_name<'static>;
+            }
+        }
+    };
+    Ok(result)
+}
+
+pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2::TokenStream> {
+    // Parse the input DeriveInput
+    let input: DeriveInput = syn::parse(input)?;
+
+    let hasher = false;
+
+    // Process the input to extract struct information
+    let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
+
+    // Process the fields to separate meta fields and struct fields
+    let (meta_fields, struct_fields) = utils::process_fields(fields);
+
+    let meta_struct_def = if !meta_fields.is_empty() {
+        meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
+    } else {
+        quote! {}
+    };
+
+    let z_struct_def = generate_z_struct::<false>(
+        &z_struct_name,
+        &z_struct_meta_name,
+        &struct_fields,
+        &meta_fields,
+        hasher,
+    )?;
+
+    let zero_copy_struct_inner_impl =
+        generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
+
+    let deserialize_impl = generate_deserialize_impl::<false>(
+        name,
+        &z_struct_name,
+        &z_struct_meta_name,
+        &struct_fields,
+        meta_fields.is_empty(),
+        quote! {},
+    )?;
+
+    // Combine all implementations
+    let expanded = quote! {
+        #meta_struct_def
+        #z_struct_def
+        #zero_copy_struct_inner_impl
+        #deserialize_impl
+    };
+
+    Ok(expanded)
+}
+
 #[cfg(test)]
 mod tests {
     use quote::format_ident;
@@ -254,13 +326,6 @@ mod tests {
         (0..count).map(|_| random_field(rng)).collect()
     }
 
-
-
-
-
-
-
-
     // Test for field initialization code generation - behavioral test
     #[test]
     fn test_init_fields() {
@@ -269,14 +334,16 @@ mod tests {
         let struct_fields = vec![&field1, &field2];
 
         let result = generate_init_fields(&struct_fields).collect::<Vec<_>>();
-        assert_eq!(result.len(), 2, "Should generate exactly 2 field initializations");
-        
+        assert_eq!(
+            result.len(),
+            2,
+            "Should generate exactly 2 field initializations"
+        );
+
         let result_str = format!("{} {}", result[0], result[1]);
         assert!(result_str.contains("id"), "Should contain 'id' field");
         assert!(result_str.contains("name"), "Should contain 'name' field");
     }
-
-
 
     #[test]
     fn test_fuzz_generate_deserialize_impl() {
@@ -396,76 +463,4 @@ mod tests {
             );
         }
     }
-}
-
-/// Generates the ZeroCopyStructInner implementation as a TokenStream
-pub fn generate_zero_copy_struct_inner<const MUT: bool>(
-    name: &Ident,
-    z_struct_name: &Ident,
-) -> syn::Result<TokenStream> {
-    let result = if MUT {
-        quote! {
-            // ZeroCopyStructInner implementation
-            impl light_zero_copy::borsh_mut::ZeroCopyStructInnerMut for #name {
-                type ZeroCopyInnerMut = #z_struct_name<'static>;
-            }
-        }
-    } else {
-        quote! {
-            // ZeroCopyStructInner implementation
-            impl light_zero_copy::borsh::ZeroCopyStructInner for #name {
-                type ZeroCopyInner = #z_struct_name<'static>;
-            }
-        }
-    };
-    Ok(result)
-}
-
-pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2::TokenStream> {
-    // Parse the input DeriveInput
-    let input: DeriveInput = syn::parse(input)?;
-
-    let hasher = false;
-
-    // Process the input to extract struct information
-    let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
-
-    // Process the fields to separate meta fields and struct fields
-    let (meta_fields, struct_fields) = utils::process_fields(fields);
-
-    let meta_struct_def = if !meta_fields.is_empty() {
-        meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
-    } else {
-        quote! {}
-    };
-
-    let z_struct_def = generate_z_struct::<false>(
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        &meta_fields,
-        hasher,
-    )?;
-
-    let zero_copy_struct_inner_impl =
-        generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
-
-    let deserialize_impl = generate_deserialize_impl::<false>(
-        name,
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        meta_fields.is_empty(),
-        quote! {},
-    )?;
-
-    // Combine all implementations
-    let expanded = quote! {
-        #meta_struct_def
-        #z_struct_def
-        #zero_copy_struct_inner_impl
-        #deserialize_impl
-    };
-
-    Ok(expanded)
 }
