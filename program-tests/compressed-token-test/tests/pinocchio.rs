@@ -22,7 +22,6 @@ use light_compressed_token::{
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk::instruction::ValidityProof;
 use light_test_utils::Rpc;
-use light_verifier::CompressedProof;
 use serial_test::serial;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -301,79 +300,6 @@ fn create_decompress_instruction(
     }
 }
 
-fn create_compressed_mint(
-    decimals: u8,
-    mint_authority: Pubkey,
-    freeze_authority: Option<Pubkey>,
-    proof: CompressedProof,
-    mint_bump: u8,
-    address_merkle_tree_root_index: u16,
-    mint_signer: Pubkey,
-    payer: Pubkey,
-    address_tree_pubkey: Pubkey,
-    output_queue: Pubkey,
-) -> Instruction {
-    let instruction_data =
-        light_compressed_token::mint::instructions::CreateCompressedMintInstructionData {
-            decimals,
-            mint_authority: mint_authority.into(),
-            freeze_authority: freeze_authority.map(|auth| auth.into()),
-            proof,
-            mint_bump,
-            address_merkle_tree_root_index,
-            extensions: None,
-            mint_address: light_compressed_account::address::derive_address(
-                &Pubkey::find_program_address(
-                    &[b"compressed_mint", mint_signer.as_ref()],
-                    &light_compressed_token::ID,
-                )
-                .0
-                .to_bytes(),
-                &address_tree_pubkey.to_bytes(),
-                &light_compressed_token::ID.to_bytes(),
-            ),
-            version: 0,
-        };
-
-    let accounts = vec![
-        // Static non-CPI accounts first
-        AccountMeta::new_readonly(mint_signer, true), // 0: mint_signer (signer)
-        AccountMeta::new_readonly(light_system_program::ID, false), // light system program
-        // CPI accounts in exact order expected by execute_cpi_invoke
-        AccountMeta::new(payer, true), // 1: fee_payer (signer, mutable)
-        AccountMeta::new_readonly(
-            light_compressed_token::process_transfer::get_cpi_authority_pda().0,
-            false,
-        ), // 2: cpi_authority_pda
-        AccountMeta::new_readonly(
-            light_system_program::utils::get_registered_program_pda(&light_system_program::ID),
-            false,
-        ), // 3: registered_program_pda
-        AccountMeta::new_readonly(
-            Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-            false,
-        ), // 4: noop_program
-        AccountMeta::new_readonly(
-            light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID),
-            false,
-        ), // 5: account_compression_authority
-        AccountMeta::new_readonly(account_compression::ID, false), // 6: account_compression_program
-        AccountMeta::new_readonly(light_compressed_token::ID, false), // 7: invoking_program (self_program)
-        // AccountMeta::new_readonly(light_system_program::ID, false),   // 8: sol_pool_pda placeholder
-        // AccountMeta::new_readonly(light_system_program::ID, false),   // 9: decompression_recipient
-        AccountMeta::new_readonly(system_program::ID, false), // 10: system_program
-        // AccountMeta::new_readonly(light_system_program::ID, false), // 11: cpi_context_account placeholder
-        AccountMeta::new(address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
-        AccountMeta::new(output_queue, false),        // 13: output_queue (mutable)
-    ];
-
-    Instruction {
-        program_id: light_compressed_token::ID,
-        accounts,
-        data: [vec![100], instruction_data.try_to_vec().unwrap()].concat(),
-    }
-}
-
 #[tokio::test]
 #[serial]
 async fn test_create_compressed_mint() {
@@ -426,18 +352,19 @@ async fn test_create_compressed_mint() {
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
     // Create instruction
-    let instruction = create_compressed_mint(
+    let instruction = create_compressed_mint(CreateCompressedMintWithExtensionsInputs {
         decimals,
         mint_authority,
-        Some(freeze_authority),
-        rpc_result.proof.0.unwrap(),
+        freeze_authority: Some(freeze_authority),
+        proof: rpc_result.proof.0.unwrap(),
         mint_bump,
         address_merkle_tree_root_index,
-        mint_signer.pubkey(),
-        payer.pubkey(),
+        mint_signer: mint_signer.pubkey(),
+        payer: payer.pubkey(),
         address_tree_pubkey,
         output_queue,
-    );
+        extensions: None,
+    });
 
     // Send transaction
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
@@ -1390,7 +1317,7 @@ fn create_spl_mint_instruction(
     }
 }
 
-fn create_compressed_mint_with_extensions(
+struct CreateCompressedMintWithExtensionsInputs {
     decimals: u8,
     mint_authority: Pubkey,
     freeze_authority: Option<Pubkey>,
@@ -1401,38 +1328,33 @@ fn create_compressed_mint_with_extensions(
     payer: Pubkey,
     address_tree_pubkey: Pubkey,
     output_queue: Pubkey,
-    extensions: Option<
-        Vec<light_compressed_token::extensions::instruction_data::ExtensionInstructionData>,
-    >,
+    extensions:
+        Option<Vec<light_compressed_token::extensions::instruction_data::ExtensionInstructionData>>,
+}
+
+fn create_compressed_mint_cpi(
+    input: CreateCompressedMintWithExtensionsInputs,
+    mint_address: [u8; 32],
 ) -> Instruction {
     let instruction_data =
         light_compressed_token::mint::instructions::CreateCompressedMintInstructionData {
-            decimals,
-            mint_authority: mint_authority.into(),
-            freeze_authority: freeze_authority.map(|auth| auth.into()),
-            proof,
-            mint_bump,
-            address_merkle_tree_root_index,
-            extensions,
-            mint_address: light_compressed_account::address::derive_address(
-                &Pubkey::find_program_address(
-                    &[b"compressed_mint", mint_signer.as_ref()],
-                    &light_compressed_token::ID,
-                )
-                .0
-                .to_bytes(),
-                &address_tree_pubkey.to_bytes(),
-                &light_compressed_token::ID.to_bytes(),
-            ),
+            decimals: input.decimals,
+            mint_authority: input.mint_authority.into(),
+            freeze_authority: input.freeze_authority.map(|auth| auth.into()),
+            proof: input.proof,
+            mint_bump: input.mint_bump,
+            address_merkle_tree_root_index: input.address_merkle_tree_root_index,
+            extensions: input.extensions,
+            mint_address,
             version: 0,
         };
 
     let accounts = vec![
         // Static non-CPI accounts first
-        AccountMeta::new_readonly(mint_signer, true), // 0: mint_signer (signer)
+        AccountMeta::new_readonly(input.mint_signer, true), // 0: mint_signer (signer)
         AccountMeta::new_readonly(light_system_program::ID, false), // light system program
         // CPI accounts in exact order expected by execute_cpi_invoke
-        AccountMeta::new(payer, true), // 1: fee_payer (signer, mutable)
+        AccountMeta::new(input.payer, true), // 1: fee_payer (signer, mutable)
         AccountMeta::new_readonly(
             light_compressed_token::process_transfer::get_cpi_authority_pda().0,
             false,
@@ -1452,8 +1374,8 @@ fn create_compressed_mint_with_extensions(
         AccountMeta::new_readonly(account_compression::ID, false), // 6: account_compression_program
         AccountMeta::new_readonly(light_compressed_token::ID, false), // 7: invoking_program (self_program)
         AccountMeta::new_readonly(system_program::ID, false),         // 10: system_program
-        AccountMeta::new(address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
-        AccountMeta::new(output_queue, false),        // 13: output_queue (mutable)
+        AccountMeta::new(input.address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
+        AccountMeta::new(input.output_queue, false),        // 13: output_queue (mutable)
     ];
 
     Instruction {
@@ -1461,6 +1383,21 @@ fn create_compressed_mint_with_extensions(
         accounts,
         data: [vec![100], instruction_data.try_to_vec().unwrap()].concat(),
     }
+}
+
+fn create_compressed_mint(input: CreateCompressedMintWithExtensionsInputs) -> Instruction {
+    let mint_address = light_compressed_account::address::derive_address(
+        &Pubkey::find_program_address(
+            &[b"compressed_mint", input.mint_signer.as_ref()],
+            &light_compressed_token::ID,
+        )
+        .0
+        .to_bytes(),
+        &input.address_tree_pubkey.to_bytes(),
+        &light_compressed_token::ID.to_bytes(),
+    );
+
+    create_compressed_mint_cpi(input, mint_address)
 }
 
 #[tokio::test]
@@ -1549,19 +1486,19 @@ async fn test_create_compressed_mint_with_token_metadata() {
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
     // Create instruction using the helper function
-    let instruction = create_compressed_mint_with_extensions(
+    let instruction = create_compressed_mint(CreateCompressedMintWithExtensionsInputs {
         decimals,
         mint_authority,
-        Some(freeze_authority),
-        rpc_result.proof.0.unwrap(),
+        freeze_authority: Some(freeze_authority),
+        proof: rpc_result.proof.0.unwrap(),
         mint_bump,
         address_merkle_tree_root_index,
-        mint_signer.pubkey(),
-        payer.pubkey(),
+        mint_signer: mint_signer.pubkey(),
+        payer: payer.pubkey(),
         address_tree_pubkey,
         output_queue,
-        Some(extensions),
-    );
+        extensions: Some(extensions),
+    });
     println!("instruction {:?}", instruction);
     // Send transaction
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])

@@ -37,13 +37,6 @@ pub fn execute_cpi_invoke(
     with_sol_pool: bool,
     cpi_context_account: Option<Pubkey>,
 ) -> Result<(), ProgramError> {
-    msg!(
-        "accounts: {:?}",
-        accounts
-            .iter()
-            .map(|account| solana_pubkey::Pubkey::new_from_array(*account.key()))
-            .collect::<Vec<_>>()
-    );
     // Build account metas with capacity for standard accounts + dynamic tree accounts
     let capacity = 11 + tree_accounts.len(); // 11 standard accounts + dynamic tree accounts
                                              // TODO: investigate why array vec is not working
