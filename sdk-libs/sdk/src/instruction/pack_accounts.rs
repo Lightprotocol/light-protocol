@@ -7,17 +7,17 @@ use crate::{
 
 #[derive(Default, Debug)]
 pub struct PackedAccounts {
-    pre_accounts: Vec<AccountMeta>,
+    pub pre_accounts: Vec<AccountMeta>,
     system_accounts: Vec<AccountMeta>,
     next_index: u8,
     map: HashMap<Pubkey, (u8, AccountMeta)>,
 }
 
 impl PackedAccounts {
-    pub fn new_with_system_accounts(config: SystemAccountMetaConfig) -> Self {
+    pub fn new_with_system_accounts(config: SystemAccountMetaConfig) -> crate::error::Result<Self> {
         let mut remaining_accounts = PackedAccounts::default();
-        remaining_accounts.add_system_accounts(config);
-        remaining_accounts
+        remaining_accounts.add_system_accounts(config)?;
+        Ok(remaining_accounts)
     }
 
     pub fn add_pre_accounts_signer(&mut self, pubkey: Pubkey) {
@@ -40,9 +40,24 @@ impl PackedAccounts {
         self.pre_accounts.push(account_meta);
     }
 
-    pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
+    pub fn add_pre_accounts_metas(&mut self, account_metas: &[AccountMeta]) {
+        self.pre_accounts.extend_from_slice(account_metas);
+    }
+
+    pub fn add_system_accounts(
+        &mut self,
+        config: SystemAccountMetaConfig,
+    ) -> crate::error::Result<()> {
         self.system_accounts
             .extend(get_light_system_account_metas(config));
+        if let Some(pubkey) = config.cpi_context {
+            if self.next_index != 0 {
+                return Err(crate::error::LightSdkError::CpiContextOrderingViolation);
+            }
+            self.next_index += 1;
+            self.system_accounts.push(AccountMeta::new(pubkey, false));
+        }
+        Ok(())
     }
 
     /// Returns the index of the provided `pubkey` in the collection.

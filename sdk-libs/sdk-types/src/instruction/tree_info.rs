@@ -29,7 +29,7 @@ impl PackedAddressTreeInfo {
         }
     }
 
-    pub fn get_tree_pubkey<T: AccountInfoTrait>(
+    pub fn get_tree_pubkey<T: AccountInfoTrait + Clone>(
         &self,
         cpi_accounts: &CpiAccounts<'_, T>,
     ) -> Result<T::Pubkey, crate::error::LightSdkTypesError> {
