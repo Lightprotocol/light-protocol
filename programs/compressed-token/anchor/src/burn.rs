@@ -36,6 +36,7 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataBurn =
         CompressedTokenInstructionDataBurn::deserialize(&mut inputs.as_slice())?;
+    crate::check_cpi_context(&inputs.cpi_context)?;
     burn_spl_from_pool_pda(&ctx, &inputs)?;
     let mint = ctx.accounts.mint.key();
     let (compressed_input_accounts, output_compressed_accounts) =
