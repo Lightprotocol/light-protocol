@@ -2,7 +2,6 @@ use std::mem::MaybeUninit;
 
 use account_compression::utils::constants::NOOP_PUBKEY;
 use anchor_lang::solana_program::program_error::ProgramError;
-use arrayvec::ArrayVec;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA_SEED,
     LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
@@ -38,9 +37,18 @@ pub fn execute_cpi_invoke(
     with_sol_pool: bool,
     cpi_context_account: Option<Pubkey>,
 ) -> Result<(), ProgramError> {
+    msg!(
+        "accounts: {:?}",
+        accounts
+            .iter()
+            .map(|account| solana_pubkey::Pubkey::new_from_array(*account.key()))
+            .collect::<Vec<_>>()
+    );
     // Build account metas with capacity for standard accounts + dynamic tree accounts
-    let _capacity = 11 + tree_accounts.len(); // 11 standard accounts + dynamic tree accounts
-    let mut account_metas = ArrayVec::<AccountMeta, 30>::new();
+    let capacity = 11 + tree_accounts.len(); // 11 standard accounts + dynamic tree accounts
+                                             // TODO: investigate why array vec is not working
+                                             // let mut account_metas = ArrayVec::<AccountMeta, 15>::new();
+    let mut account_metas = Vec::with_capacity(capacity);
 
     // Standard account metas for light-system-program CPI
     // Account order must match light-system program's InvokeCpiInstruction expectation:
@@ -83,7 +91,14 @@ pub fn execute_cpi_invoke(
         false,
         false,
     )); // cpi_context_account
-
+    msg!(
+        "tree_accounts {:?}",
+        tree_accounts
+            .iter()
+            .map(|meta| solana_pubkey::Pubkey::new_from_array(**meta))
+            .collect::<Vec<_>>()
+    );
+    msg!("tree_accounts {:?}", tree_accounts);
     // Append dynamic tree accounts (merkle trees, queues, etc.) as mutable accounts
     for tree_account in tree_accounts {
         account_metas.push(AccountMeta::new(tree_account, true, false));

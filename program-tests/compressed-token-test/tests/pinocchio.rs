@@ -177,7 +177,7 @@ fn create_ctoken_ata_instruction(
 
 fn create_decompress_instruction(
     _proof: ValidityProof,
-    compressed_token_account: &[light_client::indexer::TokenAccount],
+    compressed_token_account: &[light_client::indexer::CompressedTokenAccount],
     decompress_amount: u64,
     spl_token_account: Pubkey,
     payer: Pubkey,
@@ -1562,7 +1562,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
         output_queue,
         Some(extensions),
     );
-
+    println!("instruction {:?}", instruction);
     // Send transaction
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
         .await
