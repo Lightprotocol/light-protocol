@@ -1387,7 +1387,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             .value
             .items[0]
             .clone();
-        perform_with_input_accounts(
+        let res = perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,
             &payer,
@@ -1397,20 +1397,16 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             u32::MAX,
             WithInputAccountsMode::Burn,
         )
-        .await
+        .await;
+        assert_rpc_error(
+            res,
+            0,
+            light_compressed_token::ErrorCode::CpiContextSetNotUsable.into(),
+        )
         .unwrap();
-        let compressed_token_data = test_indexer
-            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
-            .await
-            .unwrap()
-            .value
-            .items[0]
-            .clone();
-        let mut ref_data = ref_compressed_token_data.token.clone();
-        ref_data.amount = 1;
-        assert_eq!(compressed_token_data.token, ref_data);
     }
 }
+
 /// Test:
 /// 1. Cannot create an address in a program owned address Merkle tree owned by a different program (InvalidMerkleTreeOwner)
 /// 2. Cannot create a compressed account in a program owned state Merkle tree owned by a different program (InvalidMerkleTreeOwner)

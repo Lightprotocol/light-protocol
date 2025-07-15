@@ -42,6 +42,7 @@ pub fn process_freeze_or_thaw<
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataFreeze =
         CompressedTokenInstructionDataFreeze::deserialize(&mut inputs.as_slice())?;
+    // CPI context check not needed: freeze/thaw operations don't modify Solana account state
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_freeze_or_thaw::<FROZEN_INPUTS, FROZEN_OUTPUTS>(
             &inputs,
