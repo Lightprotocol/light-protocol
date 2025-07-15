@@ -32,7 +32,7 @@ solana-system-interface = { workspace = true }
 solana-clock = { workspace = true }
 solana-sysvar = { workspace = true }
 solana-rent = { workspace = true }
-solana-bpf-loader-program = { workspace = true }
+
 
 anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }
