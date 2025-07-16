@@ -4,6 +4,7 @@ use light_compressed_account::instruction_data::compressed_proof::CompressedProo
 use light_sdk::constants::{ACCOUNT_COMPRESSION_AUTHORITY_PDA, REGISTERED_PROGRAM_PDA};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+use light_ctoken_types;
 
 pub const CREATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 100;
 
@@ -32,8 +33,8 @@ pub fn create_compressed_mint_instruction_cpi(
 
     let instruction_data = CreateCompressedMintInstructionData {
         decimals: input.decimals,
-        mint_authority: input.mint_authority.into(),
-        freeze_authority: input.freeze_authority.map(|auth| auth.into()),
+        mint_authority: input.mint_authority.to_bytes().into(),
+        freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
         proof: input.proof,
         mint_bump: input.mint_bump,
         address_merkle_tree_root_index: input.address_merkle_tree_root_index,
@@ -52,7 +53,7 @@ pub fn create_compressed_mint_instruction_cpi(
         // CPI accounts in exact order expected by execute_cpi_invoke
         AccountMeta::new(input.payer, true), // 1: fee_payer (signer, mutable)
         AccountMeta::new_readonly(
-            light_compressed_token::process_transfer::get_cpi_authority_pda().0,
+            solana_pubkey::Pubkey::new_from_array(light_ctoken_types::CPI_AUTHORITY),
             false,
         ), // 2: cpi_authority_pda
         AccountMeta::new_readonly(
@@ -73,14 +74,14 @@ pub fn create_compressed_mint_instruction_cpi(
             ),
             false,
         ), // 6: account_compression_program
-        AccountMeta::new_readonly(light_compressed_token::ID, false), // 7: invoking_program (self_program)
+        AccountMeta::new_readonly(solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID), false), // 7: invoking_program (self_program)
         AccountMeta::new_readonly(solana_pubkey::Pubkey::default(), false), // 10: system_program
         AccountMeta::new(input.address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
         AccountMeta::new(input.output_queue, false),        // 13: output_queue (mutable)
     ];
 
     Instruction {
-        program_id: light_compressed_token::ID,
+        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts,
         data: [
             vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR],
@@ -105,11 +106,11 @@ pub fn derive_compressed_mint_address(
     light_compressed_account::address::derive_address(
         &Pubkey::find_program_address(
             &[b"compressed_mint", mint_signer.as_ref()],
-            &light_compressed_token::ID,
+            &solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         )
         .0
         .to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_compressed_token::ID.to_bytes(),
+        &light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
     )
 }

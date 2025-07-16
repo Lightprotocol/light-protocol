@@ -1,19 +1,10 @@
 use anchor_lang::prelude::ProgramError;
-use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::{
-    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
+use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
+use light_ctoken_types::instructions::extensions::metadata_pointer::{
+    MetadataPointer, MetadataPointerConfig, ZInitMetadataPointer,
 };
-use light_ctoken_types::instructions::extensions::metadata_pointer::ZInitMetadataPointer;
-use light_hasher::{
-    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, Hasher, HasherError,
-};
-use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
-
-use light_ctoken_types::{
-    state::ExtensionType, 
-    context::TokenContext,
-    instructions::extensions::metadata_pointer::{MetadataPointer, MetadataPointerConfig},
-};
+use light_hasher::DataHasher;
+use light_zero_copy::ZeroCopyNew;
 
 pub fn create_output_metadata_pointer<'a>(
     metadata_pointer_data: &ZInitMetadataPointer<'a>,

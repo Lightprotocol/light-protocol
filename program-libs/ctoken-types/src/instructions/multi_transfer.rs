@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
+use crate::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
 };

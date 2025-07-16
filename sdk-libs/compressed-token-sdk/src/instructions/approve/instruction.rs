@@ -1,8 +1,8 @@
 use borsh::BorshSerialize;
 use light_compressed_token_types::{
-    constants::PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID,
     instruction::delegation::CompressedTokenInstructionDataApprove, ValidityProof,
 };
+use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 

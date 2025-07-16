@@ -21,3 +21,4 @@ zerocopy = { workspace = true }
 thiserror = { workspace = true }
 pinocchio = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
+light-macros = { workspace = true }

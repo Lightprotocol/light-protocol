@@ -1,10 +1,8 @@
-use light_compressed_account::{
-    instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
-};
+use light_compressed_account::Pubkey;
 use light_hasher::{
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, Hasher, HasherError,
 };
-use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError, state::ExtensionType};
 

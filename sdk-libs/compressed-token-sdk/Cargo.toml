@@ -12,7 +12,6 @@ anchor = ["anchor-lang", "light-compressed-token-types/anchor"]
 light-compressed-token-types = { workspace = true }
 light-compressed-account = { workspace = true }
 light-ctoken-types = { workspace = true }
-light-compressed-token = { workspace = true }
 light-sdk = { workspace = true }
 light-macros = { workspace = true }
 thiserror = { workspace = true }

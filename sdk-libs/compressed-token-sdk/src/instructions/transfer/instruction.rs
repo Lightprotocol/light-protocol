@@ -1,8 +1,9 @@
 use light_compressed_token_types::{
-    constants::{PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID, TRANSFER},
+    constants::TRANSFER,
     instruction::transfer::CompressedTokenInstructionDataTransfer,
     CompressedCpiContext, ValidityProof,
 };
+use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 

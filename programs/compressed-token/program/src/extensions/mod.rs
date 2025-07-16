@@ -5,7 +5,7 @@ pub mod token_metadata_ui;
 
 // Import from ctoken-types instead of local modules
 use light_ctoken_types::{
-    instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
+    instructions::extensions::ZExtensionInstructionData,
     instructions::extensions::metadata_pointer::{MetadataPointer, MetadataPointerConfig},
     state::ExtensionStructConfig,
     instructions::extensions::token_metadata::{AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig},

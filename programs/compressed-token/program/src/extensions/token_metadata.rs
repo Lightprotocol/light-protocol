@@ -1,15 +1,9 @@
 use anchor_lang::prelude::ProgramError;
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
-use light_hasher::{
-    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, HasherError, Poseidon,
+use light_ctoken_types::instructions::extensions::token_metadata::{
+    ZTokenMetadataInstructionData, ZTokenMetadataMut,
 };
-use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-
-use light_ctoken_types::{
-    context::TokenContext,
-    instructions::extensions::token_metadata::{ZTokenMetadataInstructionData, ZTokenMetadataMut},
-};
+use light_hasher::DataHasher;
 
 pub fn create_output_token_metadata(
     token_metadata_data: &ZTokenMetadataInstructionData<'_>,
