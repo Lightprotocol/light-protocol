@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use arrayvec::ArrayVec;
 
-use crate::multi_transfer::instruction_data::{
+use light_ctoken_types::instructions::multi_transfer::{
     ZCompression, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
 

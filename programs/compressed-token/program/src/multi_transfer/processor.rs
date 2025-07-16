@@ -4,6 +4,13 @@ use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::multi_transfer::{
+        validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
+        ZCompressedTokenInstructionDataMultiTransfer,
+    },
+};
 use crate::{
     multi_transfer::{
         accounts::{MultiTransferPackedAccounts, MultiTransferValidatedAccounts},
@@ -11,14 +18,10 @@ use crate::{
         assign_outputs::assign_output_compressed_accounts,
         change_account::process_change_lamports,
         cpi::allocate_cpi_bytes,
-        instruction_data::{
-            validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
-            ZCompressedTokenInstructionDataMultiTransfer,
-        },
         native_compression::process_token_compression,
         sum_check::sum_check_multi_mint,
     },
-    shared::{context::TokenContext, cpi::execute_cpi_invoke},
+    shared::cpi::execute_cpi_invoke,
     LIGHT_CPI_SIGNER,
 };
 

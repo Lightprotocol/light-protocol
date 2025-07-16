@@ -6,7 +6,7 @@ use light_hasher::{
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
 
-use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError, ExtensionType};
+use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError, state::ExtensionType};
 
 /// Metadata pointer extension data for compressed mints.
 #[derive(

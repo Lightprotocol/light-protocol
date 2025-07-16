@@ -1,10 +1,8 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 
-use crate::multi_transfer::{
-    accounts::MultiTransferPackedAccounts,
-    instruction_data::ZCompressedTokenInstructionDataMultiTransfer,
-};
+use crate::multi_transfer::accounts::MultiTransferPackedAccounts;
+use light_ctoken_types::instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer;
 
 /// Create a change account for excess lamports (following anchor program pattern)
 pub fn assign_change_account(

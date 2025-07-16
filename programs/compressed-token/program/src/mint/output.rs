@@ -5,11 +5,9 @@ use light_compressed_account::{
 use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
 
-use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR,
-    extensions::ZExtensionInstructionData,
-    mint::state::{CompressedMint, CompressedMintConfig},
-};
+use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;
+use light_ctoken_types::instructions::extensions::ZExtensionInstructionData;
+use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
 // TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_mint_account(

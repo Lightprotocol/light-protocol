@@ -1,20 +1,16 @@
-use anchor_compressed_token::ErrorCode;
-use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::ZeroCopyNew;
-
-pub mod instruction_data;
-pub use instruction_data::{ExtensionInstructionData, ZExtensionInstructionData};
 pub mod metadata_pointer;
 pub mod processor;
-pub mod state;
 pub mod token_metadata;
 pub mod token_metadata_ui;
 
-use metadata_pointer::{MetadataPointer, MetadataPointerConfig};
-use state::ExtensionStructConfig;
-use token_metadata::{
-    AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig,
+// Import from ctoken-types instead of local modules
+use light_ctoken_types::{
+    instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
+    instructions::extensions::metadata_pointer::{MetadataPointer, MetadataPointerConfig},
+    state::ExtensionStructConfig,
+    instructions::extensions::token_metadata::{AdditionalMetadataConfig, MetadataConfig, TokenMetadata, TokenMetadataConfig},
 };
+use light_zero_copy::ZeroCopyNew;
 
 /// Processes extension instruction data and returns the configuration tuple and additional data length
 /// Returns: (has_extensions, extension_configs, additional_data_len)

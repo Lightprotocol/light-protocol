@@ -6,7 +6,10 @@ use light_hasher::{
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
-use crate::shared::context::TokenContext;
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::extensions::token_metadata::{ZTokenMetadataInstructionData, ZTokenMetadataMut},
+};
 
 pub fn create_output_token_metadata(
     token_metadata_data: &ZTokenMetadataInstructionData<'_>,

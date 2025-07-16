@@ -9,15 +9,16 @@ use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 use zerocopy::little_endian::U64;
 
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::mint_to_compressed::MintToCompressedInstructionData,
+};
 use crate::{
     mint::{
         input::create_input_compressed_mint_account, output::create_output_compressed_mint_account,
     },
-    mint_to_compressed::{
-        accounts::MintToCompressedAccounts, instructions::MintToCompressedInstructionData,
-    },
+    mint_to_compressed::accounts::MintToCompressedAccounts,
     shared::{
-        context::TokenContext,
         cpi::execute_cpi_invoke,
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
@@ -115,7 +116,7 @@ pub fn process_mint_to_compressed(
             .freeze_authority
             .as_ref()
             .map(|freeze_authority| (**freeze_authority));
-        use crate::mint::state::CompressedMintConfig;
+        use light_ctoken_types::state::CompressedMintConfig;
 
         // Process extensions from input mint
         let (has_extensions, extensions_config, _) =
@@ -200,7 +201,7 @@ pub fn process_mint_to_compressed(
 }
 
 fn create_output_compressed_token_accounts(
-    parsed_instruction_data: super::instructions::ZMintToCompressedInstructionData<'_>,
+    parsed_instruction_data: light_ctoken_types::instructions::mint_to_compressed::ZMintToCompressedInstructionData<'_>,
     mut cpi_instruction_struct: light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
     context: &mut TokenContext,
     mint: Pubkey,

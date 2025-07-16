@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_token::extensions::ExtensionInstructionData;
-use light_compressed_token_types::CompressedProof;
+use light_ctoken_types::instructions::extensions::ExtensionInstructionData;
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_sdk::constants::{ACCOUNT_COMPRESSION_AUTHORITY_PDA, REGISTERED_PROGRAM_PDA};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -28,7 +28,7 @@ pub fn create_compressed_mint_instruction_cpi(
     input: CreateCompressedMintInputs,
     mint_address: [u8; 32],
 ) -> Instruction {
-    use light_compressed_token::mint::instructions::CreateCompressedMintInstructionData;
+    use light_ctoken_types::instructions::create_compressed_mint::CreateCompressedMintInstructionData;
 
     let instruction_data = CreateCompressedMintInstructionData {
         decimals: input.decimals,

@@ -1334,6 +1334,7 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-ctoken-types",
  "light-program-test",
  "light-prover-client",
  "light-registry",
@@ -3476,6 +3477,7 @@ dependencies = [
 name = "light-ctoken-types"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
  "arrayvec",
  "borsh 0.10.4",
  "light-compressed-account",

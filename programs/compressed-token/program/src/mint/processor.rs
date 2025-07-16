@@ -19,11 +19,13 @@ use spl_token::solana_program::log::sol_log_compute_units;
 use crate::{
     mint::{
         accounts::CreateCompressedMintAccounts,
-        instructions::CreateCompressedMintInstructionData,
         output::create_output_compressed_mint_account,
-        state::{CompressedMint, CompressedMintConfig},
     },
     shared::cpi::execute_cpi_invoke,
+};
+use light_ctoken_types::{
+    instructions::create_compressed_mint::CreateCompressedMintInstructionData,
+    state::{CompressedMint, CompressedMintConfig},
 };
 
 pub fn process_create_compressed_mint(

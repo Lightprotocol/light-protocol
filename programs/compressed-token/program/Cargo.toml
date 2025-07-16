@@ -44,7 +44,7 @@ solana-pubkey = { workspace = true }
 arrayvec = { workspace = true }
 pinocchio = { workspace = true, features = ["std"] }
 light-sdk-pinocchio = { workspace = true }
-light-ctoken-types = { workspace = true }
+light-ctoken-types = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 rand = { workspace = true }

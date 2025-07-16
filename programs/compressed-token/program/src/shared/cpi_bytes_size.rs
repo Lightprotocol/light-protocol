@@ -26,7 +26,7 @@ pub struct CpiConfigInput {
     pub has_proof: bool,
     pub compressed_mint: bool,
     pub compressed_mint_with_freeze_authority: bool,
-    pub extensions_config: Vec<crate::extensions::state::ExtensionStructConfig>,
+    pub extensions_config: Vec<light_ctoken_types::state::ExtensionStructConfig>,
 }
 
 impl CpiConfigInput {
@@ -102,7 +102,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 
             // Add compressed mint update if needed (last output account)
             if input.compressed_mint {
-                use crate::mint::state::{CompressedMint, CompressedMintConfig};
+                use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
                 let mint_size_config = CompressedMintConfig {
                     mint_authority: (input.compressed_mint, ()),
                     freeze_authority: (input.compressed_mint_with_freeze_authority, ()),

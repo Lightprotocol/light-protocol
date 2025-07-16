@@ -2,10 +2,11 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_hasher::{Hasher, Poseidon};
 
-use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR,
-    mint::{instructions::ZUpdateCompressedMintInstructionData, state::CompressedMint},
-    shared::context::TokenContext,
+use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;
+use light_ctoken_types::{
+    context::TokenContext,
+    state::CompressedMint,
+    instructions::create_compressed_mint::ZUpdateCompressedMintInstructionData,
 };
 
 /// Creates and validates an input compressed mint account.
@@ -56,7 +57,8 @@ pub fn create_input_compressed_mint_account(
 
     // 3. Compute data hash using TokenContext for caching
     {
-        let hashed_spl_mint = context.get_or_hash_mint(&compressed_mint_input.spl_mint.into())?;
+        let hashed_spl_mint = context.get_or_hash_mint(&compressed_mint_input.spl_mint.into())
+            .map_err(ProgramError::from)?;
         let mut supply_bytes = [0u8; 32];
         supply_bytes[24..]
             .copy_from_slice(compressed_mint_input.supply.get().to_be_bytes().as_slice());

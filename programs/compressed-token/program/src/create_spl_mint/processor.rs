@@ -8,12 +8,13 @@ use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
     constants::POOL_SEED,
-    create_spl_mint::{
-        accounts::CreateSplMintAccounts,
-        instructions::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
-    },
-    mint::state::CompressedMintConfig,
+    create_spl_mint::accounts::CreateSplMintAccounts,
     shared::cpi::execute_cpi_invoke,
+};
+use light_ctoken_types::{
+    state::{CompressedMint, CompressedMintConfig},
+    instructions::create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
+    context::TokenContext,
 };
 // TODO: check and handle extensions
 pub fn process_create_spl_mint(
@@ -90,7 +91,6 @@ fn update_compressed_mint_to_decompressed<'info>(
             output::create_output_compressed_mint_account,
         },
         shared::{
-            context::TokenContext,
             cpi_bytes_size::{
                 allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
             },
@@ -188,7 +188,7 @@ fn update_compressed_mint_to_decompressed<'info>(
             let output_account = &mut cpi_instruction_struct.output_compressed_accounts[0];
             if let Some(data) = output_account.compressed_account.data.as_mut() {
                 let (mut compressed_mint, _) =
-                    crate::mint::state::CompressedMint::zero_copy_at_mut(data.data)
+                    CompressedMint::zero_copy_at_mut(data.data)
                         .map_err(ProgramError::from)?;
                 compressed_mint.is_decompressed = 1; // Override to mark as decompressed (1 = true)
             }

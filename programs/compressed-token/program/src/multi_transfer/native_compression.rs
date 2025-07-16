@@ -3,11 +3,9 @@ use pinocchio::{account_info::AccountInfo, msg};
 use spl_pod::bytemuck::pod_from_bytes_mut;
 use spl_token_2022::pod::PodAccount;
 
+use light_ctoken_types::instructions::multi_transfer::{ZCompressedTokenInstructionDataMultiTransfer, ZCompression};
 use crate::{
-    multi_transfer::{
-        accounts::MultiTransferPackedAccounts,
-        instruction_data::{ZCompressedTokenInstructionDataMultiTransfer, ZCompression},
-    },
+    multi_transfer::accounts::MultiTransferPackedAccounts,
     LIGHT_CPI_SIGNER,
 };
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;

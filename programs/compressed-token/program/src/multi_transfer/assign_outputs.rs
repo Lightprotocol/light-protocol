@@ -2,11 +2,12 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 
 use crate::{
-    multi_transfer::{
-        accounts::MultiTransferPackedAccounts,
-        instruction_data::ZCompressedTokenInstructionDataMultiTransfer,
-    },
-    shared::{context::TokenContext, outputs::create_output_compressed_account},
+    multi_transfer::accounts::MultiTransferPackedAccounts,
+    shared::outputs::create_output_compressed_account,
+};
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer,
 };
 
 /// Process output compressed accounts and return total output lamports

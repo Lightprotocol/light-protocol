@@ -12,14 +12,25 @@ use anchor_lang::{
 };
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
-use light_compressed_token::{
-    create_spl_mint::instructions::CreateSplMintInstructionData,
-    mint::instructions::UpdateCompressedMintInstructionData,
-    mint_to_compressed::instructions::{
-        CompressedMintInputs, MintToCompressedInstructionData, Recipient,
+use light_ctoken_types::{
+    instructions::{
+        create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+        create_compressed_mint::{
+            CreateCompressedMintInstructionData, UpdateCompressedMintInstructionData,
+        },
+        create_spl_mint::CreateSplMintInstructionData,
+        extensions::{
+            token_metadata::{AdditionalMetadata, Metadata, TokenMetadataInstructionData},
+            ExtensionInstructionData,
+        },
+        mint_to_compressed::{CompressedMintInputs, MintToCompressedInstructionData, Recipient},
+        multi_transfer::{
+            CompressedTokenInstructionDataMultiTransfer, Compression,
+            MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
+        },
     },
+    state::{extensions::ExtensionStruct, CompressedMint},
 };
-use light_compressed_token_sdk::instructions::create_compressed_mint::*;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk::instruction::ValidityProof;
 use light_test_utils::Rpc;
@@ -42,34 +53,32 @@ struct MultiTransferInput {
 
 fn create_multi_transfer_instruction(input: &MultiTransferInput) -> Instruction {
     // Create input token data
-    let input_token_data =
-        light_compressed_token::multi_transfer::instruction_data::MultiInputTokenDataWithContext {
-            amount: input.input_amount,
-            merkle_context: light_sdk::instruction::PackedMerkleContext {
-                merkle_tree_pubkey_index: 0, // Index for merkle tree in remaining accounts
-                queue_pubkey_index: 1,       // Index for output queue in remaining accounts
-                leaf_index: input.leaf_index,
-                prove_by_index: true,
-            },
-            root_index: 0,
-            mint: 2,  // Index in remaining accounts
-            owner: 3, // Index in remaining accounts
-            with_delegate: false,
-            delegate: 0, // Unused
-        };
+    let input_token_data = MultiInputTokenDataWithContext {
+        amount: input.input_amount,
+        merkle_context: light_sdk::instruction::PackedMerkleContext {
+            merkle_tree_pubkey_index: 0, // Index for merkle tree in remaining accounts
+            queue_pubkey_index: 1,       // Index for output queue in remaining accounts
+            leaf_index: input.leaf_index,
+            prove_by_index: true,
+        },
+        root_index: 0,
+        mint: 2,  // Index in remaining accounts
+        owner: 3, // Index in remaining accounts
+        with_delegate: false,
+        delegate: 0, // Unused
+    };
 
     // Create output token data
-    let output_token_data =
-        light_compressed_token::multi_transfer::instruction_data::MultiTokenTransferOutputData {
-            owner: 4, // Index for new recipient in remaining accounts
-            amount: input.transfer_amount,
-            merkle_tree: 1, // Index for output queue in remaining accounts
-            delegate: 0,    // No delegate
-            mint: 2,        // Same mint index
-        };
+    let output_token_data = MultiTokenTransferOutputData {
+        owner: 4, // Index for new recipient in remaining accounts
+        amount: input.transfer_amount,
+        merkle_tree: 1, // Index for output queue in remaining accounts
+        delegate: 0,    // No delegate
+        mint: 2,        // Same mint index
+    };
 
     // Create multi-transfer instruction data
-    let multi_transfer_data = light_compressed_token::multi_transfer::instruction_data::CompressedTokenInstructionDataMultiTransfer {
+    let multi_transfer_data = CompressedTokenInstructionDataMultiTransfer {
         with_transaction_hash: false,
         with_lamports_change_account_merkle_tree_index: false,
         lamports_change_account_merkle_tree_index: 0,
@@ -147,7 +156,6 @@ fn create_ctoken_ata_instruction(
     let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(owner, mint);
 
     use light_compressed_account::Pubkey as LightPubkey;
-    use light_compressed_token::create_associated_token_account::instruction_data::CreateAssociatedTokenAccountInstructionData;
 
     let instruction_data = CreateAssociatedTokenAccountInstructionData {
         owner: LightPubkey::from(owner.to_bytes()),
@@ -198,22 +206,20 @@ fn create_decompress_instruction(
     for account in compressed_token_account {
         total_amount += account.token.amount;
 
-        in_token_data.push(
-            light_compressed_token::multi_transfer::instruction_data::MultiInputTokenDataWithContext {
-                amount: account.token.amount,
-                merkle_context: light_sdk::instruction::PackedMerkleContext {
-                    merkle_tree_pubkey_index: merkle_tree_index,
-                    queue_pubkey_index: output_queue_index,
-                    leaf_index: account.account.leaf_index,
-                    prove_by_index: true,
-                },
-                root_index: 0,
-                mint: mint_index,
-                owner: owner_index,
-                with_delegate: false,
-                delegate: 0,
-            }
-        );
+        in_token_data.push(MultiInputTokenDataWithContext {
+            amount: account.token.amount,
+            merkle_context: light_sdk::instruction::PackedMerkleContext {
+                merkle_tree_pubkey_index: merkle_tree_index,
+                queue_pubkey_index: output_queue_index,
+                leaf_index: account.account.leaf_index,
+                prove_by_index: true,
+            },
+            root_index: 0,
+            mint: mint_index,
+            owner: owner_index,
+            with_delegate: false,
+            delegate: 0,
+        });
 
         in_lamports.push(account.account.lamports);
     }
@@ -228,36 +234,42 @@ fn create_decompress_instruction(
     let mut out_lamports = Vec::new();
 
     if remaining_amount > 0 {
-        out_token_data.push(
-            light_compressed_token::multi_transfer::instruction_data::MultiTokenTransferOutputData {
-                owner: owner_index,
-                amount: remaining_amount,
-                merkle_tree: output_queue_index,
-                delegate: 0,
-                mint: mint_index,
-            }
-        );
+        out_token_data.push(MultiTokenTransferOutputData {
+            owner: owner_index,
+            amount: remaining_amount,
+            merkle_tree: output_queue_index,
+            delegate: 0,
+            mint: mint_index,
+        });
         out_lamports.push(compressed_token_account[0].account.lamports);
     }
 
     // Create compression data for decompression
-    let compression_data = light_compressed_token::multi_transfer::instruction_data::Compression {
+    let compression_data = Compression {
         amount: decompress_amount,
         is_compress: false, // This is decompression
         mint: mint_index,
         source_or_recipient: spl_token_account_index,
     };
 
-    let multi_transfer_data = light_compressed_token::multi_transfer::instruction_data::CompressedTokenInstructionDataMultiTransfer {
+    let multi_transfer_data = CompressedTokenInstructionDataMultiTransfer {
         with_transaction_hash: false,
         with_lamports_change_account_merkle_tree_index: false,
         lamports_change_account_merkle_tree_index: 0, // Index of output queue
-        lamports_change_account_owner_index: 0, // Index of owner
+        lamports_change_account_owner_index: 0,       // Index of owner
         proof: None,
         in_token_data,
         out_token_data,
-        in_lamports: if in_lamports.is_empty() { None } else { Some(in_lamports) },
-        out_lamports: if out_lamports.is_empty() { None } else { Some(out_lamports) },
+        in_lamports: if in_lamports.is_empty() {
+            None
+        } else {
+            Some(in_lamports)
+        },
+        out_lamports: if out_lamports.is_empty() {
+            None
+        } else {
+            Some(out_lamports)
+        },
         in_tlv: None,
         out_tlv: None,
         compressions: Some(vec![compression_data]),
@@ -382,7 +394,7 @@ async fn test_create_compressed_mint() {
         .value;
 
     // Create expected compressed mint for comparison
-    let expected_compressed_mint = light_compressed_token::mint::state::CompressedMint {
+    let expected_compressed_mint = CompressedMint {
         spl_mint: mint_pda.into(),
         supply: 0,
         decimals,
@@ -409,7 +421,7 @@ async fn test_create_compressed_mint() {
     );
 
     // Deserialize and verify the CompressedMint struct matches expected
-    let actual_compressed_mint: light_compressed_token::mint::state::CompressedMint =
+    let actual_compressed_mint: CompressedMint =
         BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
 
     assert_eq!(actual_compressed_mint, expected_compressed_mint);
@@ -564,15 +576,14 @@ async fn test_create_compressed_mint() {
         .unwrap()
         .value;
 
-    let updated_compressed_mint: light_compressed_token::mint::state::CompressedMint =
-        BorshDeserialize::deserialize(
-            &mut updated_compressed_mint_account
-                .data
-                .unwrap()
-                .data
-                .as_slice(),
-        )
-        .unwrap();
+    let updated_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut updated_compressed_mint_account
+            .data
+            .unwrap()
+            .data
+            .as_slice(),
+    )
+    .unwrap();
 
     assert_eq!(
         updated_compressed_mint.supply, mint_amount,
@@ -598,7 +609,7 @@ async fn test_create_compressed_mint() {
         },
         root_index: address_merkle_tree_root_index,
         address: compressed_mint_address,
-        compressed_mint_input: light_compressed_token::mint::state::CompressedMint {
+        compressed_mint_input: CompressedMint {
             version: 0,
             spl_mint: mint_pda.into(),
             supply: mint_amount,
@@ -724,11 +735,10 @@ async fn test_create_compressed_mint() {
         .unwrap()
         .value;
 
-    let final_compressed_mint: light_compressed_token::mint::state::CompressedMint =
-        BorshDeserialize::deserialize(
-            &mut final_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+    let final_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut final_compressed_mint_account.data.unwrap().data.as_slice(),
+    )
+    .unwrap();
 
     assert!(
         final_compressed_mint.is_decompressed,
@@ -1162,7 +1172,6 @@ async fn test_create_associated_token_account() {
 
     // Build the create_associated_token_account instruction
     use light_compressed_account::Pubkey as LightPubkey;
-    use light_compressed_token::create_associated_token_account::instruction_data::CreateAssociatedTokenAccountInstructionData;
 
     let instruction_data = CreateAssociatedTokenAccountInstructionData {
         owner: LightPubkey::from(owner_pubkey.to_bytes()),
@@ -1329,26 +1338,24 @@ struct CreateCompressedMintWithExtensionsInputs {
     payer: Pubkey,
     address_tree_pubkey: Pubkey,
     output_queue: Pubkey,
-    extensions:
-        Option<Vec<light_compressed_token::extensions::instruction_data::ExtensionInstructionData>>,
+    extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
 fn create_compressed_mint_cpi(
     input: CreateCompressedMintWithExtensionsInputs,
     mint_address: [u8; 32],
 ) -> Instruction {
-    let instruction_data =
-        light_compressed_token::mint::instructions::CreateCompressedMintInstructionData {
-            decimals: input.decimals,
-            mint_authority: input.mint_authority.into(),
-            freeze_authority: input.freeze_authority.map(|auth| auth.into()),
-            proof: input.proof,
-            mint_bump: input.mint_bump,
-            address_merkle_tree_root_index: input.address_merkle_tree_root_index,
-            extensions: input.extensions,
-            mint_address,
-            version: 0,
-        };
+    let instruction_data = CreateCompressedMintInstructionData {
+        decimals: input.decimals,
+        mint_authority: input.mint_authority.into(),
+        freeze_authority: input.freeze_authority.map(|auth| auth.into()),
+        proof: input.proof,
+        mint_bump: input.mint_bump,
+        address_merkle_tree_root_index: input.address_merkle_tree_root_index,
+        extensions: input.extensions,
+        mint_address,
+        version: 0,
+    };
 
     let accounts = vec![
         // Static non-CPI accounts first
@@ -1405,10 +1412,6 @@ fn create_compressed_mint(input: CreateCompressedMintWithExtensionsInputs) -> In
 #[serial]
 async fn test_create_compressed_mint_with_token_metadata() {
     use light_compressed_account::Pubkey as LightPubkey;
-    use light_compressed_token::extensions::{
-        instruction_data::ExtensionInstructionData,
-        token_metadata::{Metadata, TokenMetadataInstructionData},
-    };
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -1434,15 +1437,15 @@ async fn test_create_compressed_mint_with_token_metadata() {
 
     // Create token metadata extension with additional metadata
     let additional_metadata = vec![
-        light_compressed_token::extensions::token_metadata::AdditionalMetadata {
+        AdditionalMetadata {
             key: b"website".to_vec(),
             value: b"https://mytoken.com".to_vec(),
         },
-        light_compressed_token::extensions::token_metadata::AdditionalMetadata {
+        AdditionalMetadata {
             key: b"category".to_vec(),
             value: b"DeFi".to_vec(),
         },
-        light_compressed_token::extensions::token_metadata::AdditionalMetadata {
+        AdditionalMetadata {
             key: b"creator".to_vec(),
             value: b"TokenMaker Inc.".to_vec(),
         },
@@ -1531,7 +1534,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     );
 
     // Deserialize and verify the CompressedMint struct
-    let actual_compressed_mint: light_compressed_token::mint::state::CompressedMint =
+    let actual_compressed_mint: CompressedMint =
         BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
 
     // Verify basic mint fields
@@ -1555,7 +1558,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     assert_eq!(extensions.len(), 1);
 
     match &extensions[0] {
-        light_compressed_token::extensions::state::ExtensionStruct::TokenMetadata(metadata) => {
+        ExtensionStruct::TokenMetadata(metadata) => {
             assert_eq!(metadata.mint.to_bytes(), mint_pda.to_bytes());
             assert_eq!(metadata.update_authority, Some(mint_authority.into()));
             assert_eq!(metadata.metadata.name, b"Test Token".to_vec());
@@ -1591,9 +1594,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     );
 
     if let Some(extensions) = &actual_compressed_mint.extensions.as_ref() {
-        if let light_compressed_token::extensions::state::ExtensionStruct::TokenMetadata(metadata) =
-            &extensions[0]
-        {
+        if let ExtensionStruct::TokenMetadata(metadata) = &extensions[0] {
             println!(
                 "   - Token name: {}",
                 String::from_utf8_lossy(&metadata.metadata.name)
@@ -1730,11 +1731,10 @@ async fn test_create_compressed_mint_with_token_metadata() {
         .unwrap()
         .value;
 
-    let final_compressed_mint: light_compressed_token::mint::state::CompressedMint =
-        BorshDeserialize::deserialize(
-            &mut final_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+    let final_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut final_compressed_mint_account.data.unwrap().data.as_slice(),
+    )
+    .unwrap();
 
     assert!(
         final_compressed_mint.is_decompressed,
@@ -1746,7 +1746,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     let final_extensions = final_compressed_mint.extensions.as_ref().unwrap();
     assert_eq!(final_extensions.len(), 1);
     match &final_extensions[0] {
-        light_compressed_token::extensions::state::ExtensionStruct::TokenMetadata(metadata) => {
+        ExtensionStruct::TokenMetadata(metadata) => {
             assert_eq!(metadata.mint.to_bytes(), mint_pda.to_bytes());
             assert_eq!(metadata.update_authority, Some(mint_authority.into()));
             assert_eq!(metadata.metadata.name, b"Test Token".to_vec());
@@ -1787,16 +1787,15 @@ async fn test_create_compressed_mint_with_token_metadata() {
         "updated_compressed_mint_account {:?}",
         updated_compressed_mint_account
     );
-    let updated_compressed_mint: light_compressed_token::mint::state::CompressedMint =
-        BorshDeserialize::deserialize(
-            &mut updated_compressed_mint_account
-                .data
-                .as_ref()
-                .unwrap()
-                .data
-                .as_slice(),
-        )
-        .unwrap();
+    let updated_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut updated_compressed_mint_account
+            .data
+            .as_ref()
+            .unwrap()
+            .data
+            .as_slice(),
+    )
+    .unwrap();
 
     // Verify the mint is now marked as decompressed
     assert!(

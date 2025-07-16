@@ -89,7 +89,7 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
 /// Validate instruction data consistency (lamports and TLV checks)
 pub fn validate_instruction_data(
     inputs: &ZCompressedTokenInstructionDataMultiTransfer,
-) -> Result<(), ProgramError> {
+) -> Result<(), crate::CTokenError> {
     if let Some(ref in_lamports) = inputs.in_lamports {
         if in_lamports.len() > inputs.in_token_data.len() {
             unimplemented!("Tlv is unimplemented");

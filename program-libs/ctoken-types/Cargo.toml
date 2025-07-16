@@ -4,7 +4,7 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [features]
-anchor = ["light-compressed-account/anchor"]
+anchor = ["light-compressed-account/anchor", "dep:anchor-lang"]
 solana = ["dep:solana-program-error"]
 default = []
 
@@ -20,3 +20,4 @@ arrayvec = { workspace = true }
 zerocopy = { workspace = true }
 thiserror = { workspace = true }
 pinocchio = { workspace = true }
+anchor-lang = { workspace = true, optional = true }

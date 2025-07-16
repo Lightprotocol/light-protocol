@@ -2,9 +2,10 @@ use anchor_lang::prelude::ProgramError;
 use light_hasher::Hasher;
 
 use crate::extensions::{
-    state::ZExtensionStructMut, token_metadata::create_output_token_metadata,
+    token_metadata::create_output_token_metadata,
     ZExtensionInstructionData,
 };
+use light_ctoken_types::state::ZExtensionStructMut;
 
 // Applying extension(s) to compressed accounts.
 pub fn process_create_extensions<H: Hasher>(

@@ -6,10 +6,8 @@ use light_account_checks::AccountInfoTrait;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::account_info::AccountInfo;
 
-use super::{
-    accounts::CreateAssociatedTokenAccountAccounts,
-    instruction_data::CreateAssociatedTokenAccountInstructionData,
-};
+use super::accounts::CreateAssociatedTokenAccountAccounts;
+use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 use crate::shared::initialize_token_account::initialize_token_account;
 
 /// Note:

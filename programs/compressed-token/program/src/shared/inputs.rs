@@ -4,11 +4,9 @@ use light_account_checks::checks::check_signer;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use pinocchio::account_info::AccountInfo;
 
-use super::context::TokenContext;
-use crate::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-    multi_transfer::instruction_data::ZMultiInputTokenDataWithContext,
-};
+use light_ctoken_types::context::TokenContext;
+use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+use light_ctoken_types::instructions::multi_transfer::ZMultiInputTokenDataWithContext;
 
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.
 ///

@@ -103,3 +103,10 @@ impl From<CTokenError> for pinocchio::program_error::ProgramError {
         pinocchio::program_error::ProgramError::Custom(e.into())
     }
 }
+
+#[cfg(feature = "anchor")]
+impl From<CTokenError> for anchor_lang::prelude::ProgramError {
+    fn from(e: CTokenError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
+    }
+}
