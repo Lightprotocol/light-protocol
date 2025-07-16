@@ -1334,6 +1334,7 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-compressed-token-sdk",
  "light-ctoken-types",
  "light-program-test",
  "light-prover-client",
@@ -1342,6 +1343,7 @@ dependencies = [
  "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
+ "light-zero-copy",
  "rand 0.8.5",
  "serial_test",
  "solana-sdk",
@@ -3434,6 +3436,7 @@ dependencies = [
  "solana-msg",
  "solana-program-error",
  "solana-pubkey",
+ "spl-token-2022 7.0.0",
  "thiserror 2.0.12",
 ]
 
@@ -3484,8 +3487,12 @@ dependencies = [
  "light-macros",
  "light-zero-copy",
  "pinocchio",
+ "rand 0.8.5",
  "solana-program-error",
  "solana-pubkey",
+ "solana-sysvar",
+ "spl-pod",
+ "spl-token-2022 7.0.0",
  "thiserror 2.0.12",
  "zerocopy",
 ]

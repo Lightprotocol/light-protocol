@@ -1,65 +1,74 @@
-use thiserror::Error;
 use light_zero_copy::errors::ZeroCopyError;
+use thiserror::Error;
 
 #[derive(Debug, PartialEq, Error)]
 pub enum CTokenError {
     #[error("Invalid instruction data provided")]
     InvalidInstructionData,
-    
+
     #[error("Invalid account data format")]
     InvalidAccountData,
-    
+
     #[error("Arithmetic operation resulted in overflow")]
     ArithmeticOverflow,
-    
+
     #[error("Failed to compute hash for data")]
     HashComputationError,
-    
+
     #[error("Invalid or malformed extension data")]
     InvalidExtensionData,
-    
+
     #[error("Missing required mint authority")]
     MissingMintAuthority,
-    
+
     #[error("Missing required freeze authority")]
     MissingFreezeAuthority,
-    
+
     #[error("Invalid metadata pointer configuration")]
     InvalidMetadataPointer,
-    
+
     #[error("Token metadata validation failed")]
     InvalidTokenMetadata,
-    
+
     #[error("Insufficient token supply for operation")]
     InsufficientSupply,
-    
+
     #[error("Token account is frozen and cannot be modified")]
     AccountFrozen,
-    
+
     #[error("Invalid compressed proof provided")]
     InvalidProof,
-    
+
     #[error("Address derivation failed")]
     AddressDerivationFailed,
-    
+
     #[error("Extension type not supported")]
     UnsupportedExtension,
-    
+
     #[error("Maximum number of extensions exceeded")]
     TooManyExtensions,
-    
+
     #[error("Invalid merkle tree root index")]
     InvalidRootIndex,
-    
+
     #[error("Compressed account data size exceeds limit")]
     DataSizeExceeded,
-    
+
+    #[error("Invalid compression mode")]
+    InvalidCompressionMode,
+
+    #[error("Insufficient funds for compression.")]
+    CompressInsufficientFunds,
+
+    #[error("Failed to access sysvar")]
+    SysvarAccessError,
+
     #[error("Light hasher error: {0}")]
     HasherError(#[from] light_hasher::HasherError),
-    
+
     #[error("Light zero copy error: {0}")]
     ZeroCopyError(#[from] ZeroCopyError),
-    
+
     #[error("Light compressed account error: {0}")]
     CompressedAccountError(#[from] light_compressed_account::CompressedAccountError),
 }
@@ -84,6 +93,9 @@ impl From<CTokenError> for u32 {
             CTokenError::TooManyExtensions => 18015,
             CTokenError::InvalidRootIndex => 18016,
             CTokenError::DataSizeExceeded => 18017,
+            CTokenError::InvalidCompressionMode => 18018,
+            CTokenError::CompressInsufficientFunds => 18019,
+            CTokenError::SysvarAccessError => 18020,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

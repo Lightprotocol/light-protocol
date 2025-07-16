@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_types::instructions::extensions::ExtensionInstructionData;
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_ctoken_types;
+use light_ctoken_types::instructions::extensions::ExtensionInstructionData;
 use light_sdk::constants::{ACCOUNT_COMPRESSION_AUTHORITY_PDA, REGISTERED_PROGRAM_PDA};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
-use light_ctoken_types;
 
 pub const CREATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 100;
 
@@ -25,7 +25,7 @@ pub struct CreateCompressedMintInputs {
 }
 
 /// Creates a compressed mint instruction with a pre-computed mint address
-pub fn create_compressed_mint_instruction_cpi(
+pub fn create_compressed_mint_cpi(
     input: CreateCompressedMintInputs,
     mint_address: [u8; 32],
 ) -> Instruction {
@@ -74,14 +74,19 @@ pub fn create_compressed_mint_instruction_cpi(
             ),
             false,
         ), // 6: account_compression_program
-        AccountMeta::new_readonly(solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID), false), // 7: invoking_program (self_program)
+        AccountMeta::new_readonly(
+            solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+            false,
+        ), // 7: invoking_program (self_program)
         AccountMeta::new_readonly(solana_pubkey::Pubkey::default(), false), // 10: system_program
         AccountMeta::new(input.address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
-        AccountMeta::new(input.output_queue, false),        // 13: output_queue (mutable)
+        AccountMeta::new(input.output_queue, false), // 13: output_queue (mutable)
     ];
 
     Instruction {
-        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: solana_pubkey::Pubkey::new_from_array(
+            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        ),
         accounts,
         data: [
             vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR],
@@ -92,10 +97,10 @@ pub fn create_compressed_mint_instruction_cpi(
 }
 
 /// Creates a compressed mint instruction with automatic mint address derivation
-pub fn create_compressed_mint_instruction(input: CreateCompressedMintInputs) -> Instruction {
+pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Instruction {
     let mint_address =
         derive_compressed_mint_address(&input.mint_signer, &input.address_tree_pubkey);
-    create_compressed_mint_instruction_cpi(input, mint_address)
+    create_compressed_mint_cpi(input, mint_address)
 }
 
 /// Derives the compressed mint address from the mint signer and address tree

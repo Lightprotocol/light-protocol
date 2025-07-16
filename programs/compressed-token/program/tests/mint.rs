@@ -33,10 +33,8 @@ use light_ctoken_types::{
         ZCompressedMint, ZExtensionStruct,
     },
 };
-use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::ZeroCopyNew;
 use rand::Rng;
-use spl_token_2022::extension;
 
 // Function to create expected input account
 fn create_expected_input_account(
@@ -182,6 +180,11 @@ fn create_instruction_data_from_expected(
                         authority: (metadata_pointer.authority.is_some(), ()),
                         metadata_address: (metadata_pointer.metadata_address.is_some(), ()),
                     });
+                    extension_configs.push(config);
+                }
+                ExtensionStruct::Compressible(_compressible) => {
+                    // Compressible extension doesn't need special handling in mint tests
+                    let config = ExtensionStructConfig::Compressible;
                     extension_configs.push(config);
                 }
             }
@@ -450,12 +453,6 @@ fn test_rnd_create_compressed_mint_account() {
         };
 
         // Create output data
-        let base_mint_config = CompressedMintConfig {
-            mint_authority: mint_config.mint_authority,
-            freeze_authority: mint_config.freeze_authority,
-            extensions: (false, vec![]), // No extensions for base size
-        };
-        let base_mint_len = CompressedMint::byte_len(&base_mint_config);
 
         create_output_compressed_mint_account(
             output_account,

@@ -76,6 +76,10 @@ impl From<CompressedMint> for CompressedMintInstructionData {
                             },
                         )
                     }
+                    ExtensionStruct::Compressible(_) => {
+                        // Compressible extensions are not supported for mints
+                        panic!("Compressible extensions are only supported for token accounts, not mints")
+                    }
                 })
                 .collect()
         });

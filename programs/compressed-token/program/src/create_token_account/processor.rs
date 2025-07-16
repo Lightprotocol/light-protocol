@@ -1,6 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 
 use super::{
     accounts::CreateTokenAccountAccounts, instruction_data::CreateTokenAccountInstructionData,
@@ -12,9 +13,17 @@ pub fn process_create_token_account(
     account_infos: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    // Parse instruction data using zero-copy
-    let (inputs, _) = CreateTokenAccountInstructionData::zero_copy_at(instruction_data)
-        .map_err(ProgramError::from)?;
+    let mut backup_instruction_data = [0u8; 33];
+    let (inputs, _) = if instruction_data.len() == 32 {
+        // Extend instruction data with a zero option byte for initialize_3 spl_token instruction compatibility
+        backup_instruction_data[0..32].copy_from_slice(instruction_data);
+        CreateTokenAccountInstructionData::zero_copy_at(backup_instruction_data.as_slice())
+            .map_err(ProgramError::from)?
+    } else {
+        msg!("instruction_data {:?}", instruction_data);
+        CreateTokenAccountInstructionData::zero_copy_at(instruction_data)
+            .map_err(ProgramError::from)?
+    };
 
     // Validate and get accounts
     let accounts = CreateTokenAccountAccounts::get_checked(account_infos)?;
@@ -24,6 +33,7 @@ pub fn process_create_token_account(
         accounts.token_account,
         accounts.mint.key(),
         &inputs.owner.to_bytes(),
+        inputs.compressible_config,
     )?;
 
     Ok(())

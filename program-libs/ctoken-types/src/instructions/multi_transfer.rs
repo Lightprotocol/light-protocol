@@ -1,13 +1,18 @@
 use std::fmt::Debug;
 
-use crate::{AnchorDeserialize, AnchorSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
+use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
 };
-use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use light_zero_copy::borsh::Deserialize;
+use light_zero_copy::borsh_mut::DeserializeMut;
+use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
+use zerocopy::Ref;
 
-#[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
+#[derive(
+    Debug, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+)]
 pub struct MultiInputTokenDataWithContext {
     pub amount: u64,
     pub merkle_context: PackedMerkleContext,
@@ -44,25 +49,150 @@ pub struct MultiTokenTransferOutputData {
     pub mint: u8,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+#[repr(u8)]
+pub enum CompressionMode {
+    Compress = 0u8,
+    Decompress = 1u8,
+    CompressFull = 2u8, // Ignores the amount, we keep the amount for efficient zero copy
+    CompressAndClose = 3u8, // Compresses the token and closes the account
+}
+
+pub const COMPRESS: u8 = 0u8;
+pub const DECOMPRESS: u8 = 1u8;
+pub const COMPRESS_FULL: u8 = 2u8;
+pub const COMPRESS_AND_CLOSE: u8 = 3u8;
+
+impl Deserialize<'_> for CompressionMode {
+    type Output = CompressionMode;
+    fn zero_copy_at(
+        bytes: &'_ [u8],
+    ) -> Result<(Self::Output, &'_ [u8]), light_zero_copy::errors::ZeroCopyError> {
+        let (mode, bytes) = bytes.split_at(1);
+        let enm = match mode[0] {
+            COMPRESS => Ok(CompressionMode::Compress),
+            DECOMPRESS => Ok(CompressionMode::Decompress),
+            // COMPRESS_FULL => Ok(CompressionMode::Full),
+            // COMPRESS_AND_CLOSE => Ok(CompressionMode::CompressAndClose),
+            // TODO: add enum error
+            _ => Err(light_zero_copy::errors::ZeroCopyError::IterFromOutOfBounds),
+        }?;
+        Ok((enm, bytes))
+    }
+}
+
+impl<'a> DeserializeMut<'a> for CompressionMode {
+    type Output = Ref<&'a mut [u8], u8>;
+    fn zero_copy_at_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+        let (mode, bytes) = zerocopy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
+
+        Ok((mode, bytes))
+    }
+}
+
+impl<'a> ZeroCopyNew<'a> for CompressionMode {
+    type ZeroCopyConfig = ();
+    type Output = Ref<&'a mut [u8], u8>;
+
+    fn byte_len(_config: &Self::ZeroCopyConfig) -> usize {
+        1 // CompressionMode is always 1 byte
+    }
+
+    fn new_zero_copy(
+        bytes: &'a mut [u8],
+        _config: Self::ZeroCopyConfig,
+    ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+        let (mode, remaining_bytes) = zerocopy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
+
+        Ok((mode, remaining_bytes))
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
 pub struct Compression {
     pub amount: u64,
-    pub is_compress: bool,
+    pub mode: CompressionMode,
     pub mint: u8,
     pub source_or_recipient: u8,
 }
 
-// #[derive(
-//     Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
-// )]
-// pub struct MultiTokenTransferDelegateOutputData {
-//     pub delegate: u8,
-//     pub owner: u8,
-//     pub amount: u64,
-//     pub merkle_tree: u8,
-// }
+impl ZCompressionMut<'_> {
+    pub fn mode(&self) -> Result<CompressionMode, CTokenError> {
+        match *self.mode {
+            COMPRESS => Ok(CompressionMode::Compress),
+            DECOMPRESS => Ok(CompressionMode::Decompress),
+            // COMPRESS_FULL => Ok(CompressionMode::CompressFull),
+            // COMPRESS_AND_CLOSE => Ok(CompressionMode::CompressAndClose),
+            _ => Err(CTokenError::InvalidCompressionMode),
+        }
+    }
+}
+
+impl ZCompression<'_> {
+    pub fn new_balance_compressed_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
+        let new_balance = match self.mode {
+            CompressionMode::Compress => {
+                // Compress: add to balance (tokens are being added to compressed pool)
+                current_balance
+                    .checked_add(self.amount.into())
+                    .ok_or(CTokenError::ArithmeticOverflow)
+            }
+            CompressionMode::Decompress => {
+                // Decompress: subtract from balance (tokens are being removed from compressed pool)
+                current_balance
+                    .checked_sub(self.amount.into())
+                    .ok_or(CTokenError::CompressInsufficientFunds)
+            }
+            CompressionMode::CompressFull => {
+                // Full: add entire current balance (all tokens are being compressed)
+                current_balance
+                    .checked_add(self.amount.into())
+                    .ok_or(CTokenError::ArithmeticOverflow)
+            }
+            CompressionMode::CompressAndClose => {
+                // CompressAndClose: add to balance (tokens are being compressed to pool)
+                current_balance
+                    .checked_sub(self.amount.into())
+                    .ok_or(CTokenError::ArithmeticOverflow)
+            }
+        }?;
+        Ok(new_balance)
+    }
+
+    pub fn new_balance_solana_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
+        let new_balance = match self.mode {
+            CompressionMode::Compress => {
+                // Compress: add to balance (tokens are being added to compressed pool)
+                current_balance
+                    .checked_sub(self.amount.into())
+                    .ok_or(CTokenError::ArithmeticOverflow)
+            }
+            CompressionMode::Decompress => {
+                // Decompress: subtract from balance (tokens are being removed from compressed pool)
+                current_balance
+                    .checked_add(self.amount.into())
+                    .ok_or(CTokenError::CompressInsufficientFunds)
+            }
+            CompressionMode::CompressFull => {
+                // Full: add entire current balance (all tokens are being compressed)
+                current_balance
+                    .checked_sub(self.amount.into())
+                    .ok_or(CTokenError::ArithmeticOverflow)
+            }
+            CompressionMode::CompressAndClose => {
+                // CompressAndClose: add to balance (tokens are being compressed to pool)
+                current_balance
+                    .checked_sub(self.amount.into())
+                    .ok_or(CTokenError::ArithmeticOverflow)
+            }
+        }?;
+        Ok(new_balance)
+    }
+}
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
 pub struct CompressedTokenInstructionDataMultiTransfer {

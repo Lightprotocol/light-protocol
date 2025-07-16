@@ -133,6 +133,13 @@ impl PackedAccounts {
             packed_accounts_start_offset,
         )
     }
+
+    pub fn packed_pubkeys(&self) -> Vec<Pubkey> {
+        self.hash_set_accounts_to_metas()
+            .iter()
+            .map(|meta| meta.pubkey)
+            .collect()
+    }
 }
 
 #[cfg(test)]

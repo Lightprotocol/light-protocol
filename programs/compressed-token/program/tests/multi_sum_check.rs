@@ -6,7 +6,7 @@ use light_compressed_token::multi_transfer::{
     sum_check::sum_check_multi_mint,
 };
 use light_ctoken_types::instructions::multi_transfer::{
-    Compression, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
+    Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use light_zero_copy::borsh::Deserialize;
 
@@ -15,42 +15,42 @@ type Result<T> = std::result::Result<T, ErrorCode>;
 #[test]
 fn test_multi_sum_check() {
     // SUCCEED: no relay fee, compression
-    multi_sum_check_test(&[100, 50], &[150], None, false).unwrap();
-    multi_sum_check_test(&[75, 25, 25], &[25, 25, 25, 25, 12, 13], None, false).unwrap();
+    multi_sum_check_test(&[100, 50], &[150], None, CompressionMode::Decompress).unwrap();
+    multi_sum_check_test(&[75, 25, 25], &[25, 25, 25, 25, 12, 13], None, CompressionMode::Decompress).unwrap();
 
     // FAIL: no relay fee, compression
-    multi_sum_check_test(&[100, 50], &[150 + 1], None, false).unwrap_err();
-    multi_sum_check_test(&[100, 50], &[150 - 1], None, false).unwrap_err();
-    multi_sum_check_test(&[100, 50], &[], None, false).unwrap_err();
-    multi_sum_check_test(&[], &[100, 50], None, false).unwrap_err();
+    multi_sum_check_test(&[100, 50], &[150 + 1], None, CompressionMode::Decompress).unwrap_err();
+    multi_sum_check_test(&[100, 50], &[150 - 1], None, CompressionMode::Decompress).unwrap_err();
+    multi_sum_check_test(&[100, 50], &[], None, CompressionMode::Decompress).unwrap_err();
+    multi_sum_check_test(&[], &[100, 50], None, CompressionMode::Decompress).unwrap_err();
 
     // SUCCEED: empty
-    multi_sum_check_test(&[], &[], None, true).unwrap();
-    multi_sum_check_test(&[], &[], None, false).unwrap();
+    multi_sum_check_test(&[], &[], None, CompressionMode::Compress).unwrap();
+    multi_sum_check_test(&[], &[], None, CompressionMode::Decompress).unwrap();
     // FAIL: empty
-    multi_sum_check_test(&[], &[], Some(1), false).unwrap_err();
-    multi_sum_check_test(&[], &[], Some(1), true).unwrap_err();
+    multi_sum_check_test(&[], &[], Some(1), CompressionMode::Decompress).unwrap_err();
+    multi_sum_check_test(&[], &[], Some(1), CompressionMode::Compress).unwrap_err();
 
     // SUCCEED: with compress
-    multi_sum_check_test(&[100], &[123], Some(23), true).unwrap();
-    multi_sum_check_test(&[], &[150], Some(150), true).unwrap();
+    multi_sum_check_test(&[100], &[123], Some(23), CompressionMode::Compress).unwrap();
+    multi_sum_check_test(&[], &[150], Some(150), CompressionMode::Compress).unwrap();
     // FAIL: compress
-    multi_sum_check_test(&[], &[150], Some(150 - 1), true).unwrap_err();
-    multi_sum_check_test(&[], &[150], Some(150 + 1), true).unwrap_err();
+    multi_sum_check_test(&[], &[150], Some(150 - 1), CompressionMode::Compress).unwrap_err();
+    multi_sum_check_test(&[], &[150], Some(150 + 1), CompressionMode::Compress).unwrap_err();
 
     // SUCCEED: with decompress
-    multi_sum_check_test(&[100, 50], &[100], Some(50), false).unwrap();
-    multi_sum_check_test(&[100, 50], &[], Some(150), false).unwrap();
+    multi_sum_check_test(&[100, 50], &[100], Some(50), CompressionMode::Decompress).unwrap();
+    multi_sum_check_test(&[100, 50], &[], Some(150), CompressionMode::Decompress).unwrap();
     // FAIL: decompress
-    multi_sum_check_test(&[100, 50], &[], Some(150 - 1), false).unwrap_err();
-    multi_sum_check_test(&[100, 50], &[], Some(150 + 1), false).unwrap_err();
+    multi_sum_check_test(&[100, 50], &[], Some(150 - 1), CompressionMode::Decompress).unwrap_err();
+    multi_sum_check_test(&[100, 50], &[], Some(150 + 1), CompressionMode::Decompress).unwrap_err();
 }
 
 fn multi_sum_check_test(
     input_amounts: &[u64],
     output_amounts: &[u64],
     compress_or_decompress_amount: Option<u64>,
-    is_compress: bool,
+    compression_mode: CompressionMode,
 ) -> Result<()> {
     // Create normal types
     let inputs: Vec<_> = input_amounts
@@ -72,7 +72,7 @@ fn multi_sum_check_test(
     let compressions = compress_or_decompress_amount.map(|amount| {
         vec![Compression {
             amount,
-            is_compress,
+            mode: compression_mode,
             mint: 0, // Same mint
             source_or_recipient: 0,
         }]
@@ -130,14 +130,14 @@ fn test_simple_multi_mint() -> Result<()> {
     // Test with compression: mint 0: input 100 + compress 50 = output 150
     let inputs = vec![(0, 100)];
     let outputs = vec![(0, 150)];
-    let compressions = vec![(0, 50, true)];
+    let compressions = vec![(0, 50, CompressionMode::Compress)];
 
     test_multi_mint_scenario(&inputs, &outputs, &compressions)?;
 
     // Test with decompression: mint 0: input 200 - decompress 50 = output 150
     let inputs = vec![(0, 200)];
     let outputs = vec![(0, 150)];
-    let compressions = vec![(0, 50, false)];
+    let compressions = vec![(0, 50, CompressionMode::Decompress)];
 
     test_multi_mint_scenario(&inputs, &outputs, &compressions)
 }
@@ -177,11 +177,11 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
     for _ in 0..num_compressions {
         let mint = mint_ids[(next_rand() % num_mints as u64) as usize];
         let amount = 50 + (next_rand() % 500);
-        let is_compress = (next_rand() % 2) == 0;
+        let compression_mode = if (next_rand() % 2) == 0 { CompressionMode::Compress } else { CompressionMode::Decompress };
 
-        compressions.push((mint, amount, is_compress));
+        compressions.push((mint, amount, compression_mode));
 
-        if is_compress {
+        if matches!(compression_mode, CompressionMode::Compress) {
             *mint_balances.entry(mint).or_insert(0) += amount as i128;
         } else {
             // Only allow decompress if the mint has sufficient balance
@@ -190,7 +190,7 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
                 *mint_balances.entry(mint).or_insert(0) -= amount as i128;
             } else {
                 // Convert to compress instead to avoid negative balance
-                compressions.last_mut().unwrap().2 = true;
+                compressions.last_mut().unwrap().2 = CompressionMode::Compress;
                 *mint_balances.entry(mint).or_insert(0) += amount as i128;
             }
         }
@@ -201,7 +201,7 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
         if *balance < 0 {
             // Add compression to make balance positive
             let needed = (-*balance) as u64;
-            compressions.push((mint, needed, true));
+            compressions.push((mint, needed, CompressionMode::Compress));
             *balance += needed as i128;
         }
     }
@@ -310,7 +310,7 @@ fn test_failing_cases() -> Result<()> {
 fn test_multi_mint_scenario(
     inputs: &[(u8, u64)],             // (mint, amount)
     outputs: &[(u8, u64)],            // (mint, amount)
-    compressions: &[(u8, u64, bool)], // (mint, amount, is_compress)
+    compressions: &[(u8, u64, CompressionMode)], // (mint, amount, compression_mode)
 ) -> Result<()> {
     // Create input structures
     let input_structs: Vec<_> = inputs
@@ -335,9 +335,9 @@ fn test_multi_mint_scenario(
     // Create compression structures
     let compression_structs: Vec<_> = compressions
         .iter()
-        .map(|&(mint, amount, is_compress)| Compression {
+        .map(|&(mint, amount, mode)| Compression {
             amount,
-            is_compress,
+            mode,
             mint,
             source_or_recipient: 0,
         })

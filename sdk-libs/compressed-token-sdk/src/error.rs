@@ -22,6 +22,10 @@ pub enum TokenSdkError {
     InvalidCompressDecompressAmount,
     #[error("Ctoken::transfer, compress, or decompress cannot be used with fn transfer(), fn compress(), fn decompress()")]
     MethodUsed,
+    #[error("DecompressedMintConfig is required for decompressed mints")]
+    DecompressedMintConfigRequired,
+    #[error("Invalid compress input owner")]
+    InvalidCompressInputOwner,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
 }
@@ -43,6 +47,8 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::BothCompressAndDecompress => 17006,
             TokenSdkError::InvalidCompressDecompressAmount => 17007,
             TokenSdkError::MethodUsed => 17008,
+            TokenSdkError::DecompressedMintConfigRequired => 17009,
+            TokenSdkError::InvalidCompressInputOwner => 17010,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
         }
     }

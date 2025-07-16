@@ -4,13 +4,6 @@ use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 
-use light_ctoken_types::{
-    context::TokenContext,
-    instructions::multi_transfer::{
-        validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
-        ZCompressedTokenInstructionDataMultiTransfer,
-    },
-};
 use crate::{
     multi_transfer::{
         accounts::{MultiTransferPackedAccounts, MultiTransferValidatedAccounts},
@@ -23,6 +16,13 @@ use crate::{
     },
     shared::cpi::execute_cpi_invoke,
     LIGHT_CPI_SIGNER,
+};
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::multi_transfer::{
+        validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
+        ZCompressedTokenInstructionDataMultiTransfer,
+    },
 };
 
 /// Process a token transfer instruction
@@ -114,6 +114,7 @@ pub fn process_multi_transfer(
         &packed_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
+    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
 
     msg!("pre process_change_lamports");
     process_change_lamports(

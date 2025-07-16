@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use arrayvec::ArrayVec;
 
 use light_ctoken_types::instructions::multi_transfer::{
-    ZCompression, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
+    CompressionMode, ZCompression, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
 
 /// Process inputs and add amounts to mint sums with order validation
@@ -49,22 +49,12 @@ fn sum_compressions(
 
         // Find mint entry (create if doesn't exist for compression)
         if let Some(entry) = mint_sums.iter_mut().find(|(idx, _)| *idx == mint_index) {
-            if compression.is_compress() {
-                // Compress: add to balance
-                entry.1 = entry
-                    .1
-                    .checked_add(compression.amount.into())
-                    .ok_or(ErrorCode::ComputeCompressSumFailed)?;
-            } else {
-                // Decompress: subtract from balance
-                entry.1 = entry
-                    .1
-                    .checked_sub(compression.amount.into())
-                    .ok_or(ErrorCode::ComputeDecompressSumFailed)?;
-            }
+            entry.1 = compression
+                .new_balance_compressed_account(entry.1)
+                .map_err(|_| ErrorCode::SumCheckFailed)?; // TODO propagate error
         } else {
             // Create new entry if compressing
-            if compression.is_compress() {
+            if compression.mode == CompressionMode::Compress {
                 if mint_sums.is_full() {
                     return Err(ErrorCode::TooManyMints);
                 }

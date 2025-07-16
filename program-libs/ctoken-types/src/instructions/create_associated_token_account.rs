@@ -1,6 +1,9 @@
+use crate::{
+    instructions::extensions::compressible::CompressibleExtensionInstructionData,
+    AnchorDeserialize, AnchorSerialize,
+};
 use light_compressed_account::Pubkey;
 use light_zero_copy::ZeroCopy;
-use crate::{AnchorSerialize, AnchorDeserialize};
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CreateAssociatedTokenAccountInstructionData {
@@ -9,4 +12,6 @@ pub struct CreateAssociatedTokenAccountInstructionData {
     /// The mint for the associated token account
     pub mint: Pubkey,
     pub bump: u8,
+    /// Optional compressible configuration for the token account
+    pub compressible_config: Option<CompressibleExtensionInstructionData>,
 }

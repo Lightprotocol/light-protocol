@@ -51,6 +51,8 @@ pub enum ExtensionType {
     /// Mint contains token-metadata.
     /// Unlike token22 there is no metadata pointer.
     TokenMetadata = 19,
+    /// Account contains compressible timing data and rent authority
+    Compressible = 26,
     // /// Mint contains a pointer to another account (or the same account) that
     // /// holds group configurations
     // GroupPointer,
@@ -78,6 +80,7 @@ impl TryFrom<u16> for ExtensionType {
         match value {
             18 => Ok(ExtensionType::MetadataPointer),
             19 => Ok(ExtensionType::TokenMetadata),
+            26 => Ok(ExtensionType::Compressible),
             _ => Err(crate::CTokenError::UnsupportedExtension),
         }
     }

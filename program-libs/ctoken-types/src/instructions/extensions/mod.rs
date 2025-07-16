@@ -1,12 +1,11 @@
 use light_hasher::Hasher;
+pub mod compressible;
 pub mod metadata_pointer;
 pub mod token_metadata;
 
-use crate::{
-    AnchorSerialize, AnchorDeserialize, CTokenError,
-    context::TokenContext,
-};
+use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError};
 
+pub use compressible::{CompressibleExtension, ZCompressibleExtension};
 pub use metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer};
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 

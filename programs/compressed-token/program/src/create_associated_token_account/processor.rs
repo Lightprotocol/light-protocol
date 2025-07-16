@@ -7,8 +7,8 @@ use light_zero_copy::borsh::Deserialize;
 use pinocchio::account_info::AccountInfo;
 
 use super::accounts::CreateAssociatedTokenAccountAccounts;
-use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 use crate::shared::initialize_token_account::initialize_token_account;
+use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 
 /// Note:
 /// - we don't validate the mint because it would be very expensive with compressed mints
@@ -44,8 +44,12 @@ pub fn process_create_associated_token_account(
         ];
         let signer = Signer::from(&seed_array);
 
-        // Calculate rent for SPL token account (165 bytes)
-        let token_account_size = 165_usize;
+        // Calculate rent based on whether compressible extension is needed
+        let token_account_size = if inputs.compressible_config.is_some() {
+            light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
+        } else {
+            light_ctoken_types::BASIC_TOKEN_ACCOUNT_SIZE as usize
+        };
         let rent = Rent::get()?;
         let rent_lamports = rent.minimum_balance(token_account_size);
 
@@ -109,6 +113,7 @@ pub fn process_create_associated_token_account(
         accounts.associated_token_account,
         &inputs.mint.to_bytes(),
         &inputs.owner.to_bytes(),
+        inputs.compressible_config,
     )?;
 
     Ok(())

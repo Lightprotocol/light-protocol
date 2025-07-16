@@ -3,10 +3,9 @@ use pinocchio::{account_info::AccountInfo, msg};
 use spl_pod::bytemuck::pod_from_bytes_mut;
 use spl_token_2022::pod::PodAccount;
 
-use light_ctoken_types::instructions::multi_transfer::{ZCompressedTokenInstructionDataMultiTransfer, ZCompression};
-use crate::{
-    multi_transfer::accounts::MultiTransferPackedAccounts,
-    LIGHT_CPI_SIGNER,
+use crate::{multi_transfer::accounts::MultiTransferPackedAccounts, LIGHT_CPI_SIGNER};
+use light_ctoken_types::instructions::multi_transfer::{
+    ZCompressedTokenInstructionDataMultiTransfer, ZCompression,
 };
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 /// Process native compressions/decompressions with token accounts
@@ -55,17 +54,7 @@ fn process_native_compressions(
     let current_balance: u64 = pod_account.amount.into();
 
     // Update balance based on compression type
-    let new_balance = if compression.is_compress() {
-        // Compress: subtract balance (tokens are being compressed)
-        current_balance
-            .checked_sub(compression.amount.into())
-            .ok_or(ProgramError::InsufficientFunds)?
-    } else {
-        // Decompress: add balance (tokens are being decompressed)
-        current_balance
-            .checked_add(compression.amount.into())
-            .ok_or(ProgramError::ArithmeticOverflow)?
-    };
+    let new_balance = compression.new_balance_solana_account(current_balance)?;
 
     // Update the balance in the pod account
     pod_account.amount = new_balance.into();

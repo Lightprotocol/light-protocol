@@ -1,13 +1,15 @@
 use light_hasher::{DataHasher, Hasher, HasherError};
+use spl_pod::solana_msg::msg;
 
 use crate::{
-    AnchorSerialize, AnchorDeserialize,
     instructions::extensions::{
+        compressible::{CompressibleExtension, CompressibleExtensionConfig},
         metadata_pointer::{
             MetadataPointer, MetadataPointerConfig, ZMetadataPointer, ZMetadataPointerMut,
         },
         token_metadata::{TokenMetadata, TokenMetadataConfig, ZTokenMetadata, ZTokenMetadataMut},
     },
+    AnchorDeserialize, AnchorSerialize,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -17,6 +19,8 @@ pub enum ExtensionStruct {
     MetadataPointer(MetadataPointer),
     // TokenMetadata = 19,
     TokenMetadata(TokenMetadata),
+    /// Account contains compressible timing data and rent authority
+    Compressible(CompressibleExtension),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +30,8 @@ pub enum ZExtensionStruct<'a> {
     MetadataPointer(ZMetadataPointer<'a>),
     // TokenMetadata = 19,
     TokenMetadata(ZTokenMetadata<'a>),
+    /// Account contains compressible timing data and rent authority
+    Compressible(<CompressibleExtension as light_zero_copy::borsh::Deserialize<'a>>::Output),
 }
 
 #[derive(Debug)]
@@ -35,6 +41,8 @@ pub enum ZExtensionStructMut<'a> {
     MetadataPointer(ZMetadataPointerMut<'a>),
     // TokenMetadata = 19,
     TokenMetadata(ZTokenMetadataMut<'a>),
+    /// Account contains compressible timing data and rent authority
+    Compressible(<CompressibleExtension as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output),
 }
 
 // Manual implementation of zero-copy traits for ExtensionStruct
@@ -70,6 +78,15 @@ impl<'a> light_zero_copy::borsh::Deserialize<'a> for ExtensionStruct {
                     TokenMetadata::zero_copy_at(remaining_data)?;
                 Ok((
                     ZExtensionStruct::TokenMetadata(token_metadata),
+                    remaining_bytes,
+                ))
+            }
+            2 => {
+                // Compressible variant
+                let (compressible_ext, remaining_bytes) =
+                    CompressibleExtension::zero_copy_at(remaining_data)?;
+                Ok((
+                    ZExtensionStruct::Compressible(compressible_ext),
                     remaining_bytes,
                 ))
             }
@@ -113,6 +130,15 @@ impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            2 => {
+                // Compressible variant
+                let (compressible_ext, remaining_bytes) =
+                    CompressibleExtension::zero_copy_at_mut(remaining_data)?;
+                Ok((
+                    ZExtensionStructMut::Compressible(compressible_ext),
+                    remaining_bytes,
+                ))
+            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -131,6 +157,10 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
             ExtensionStructConfig::TokenMetadata(token_metadata_config) => {
                 // 1 byte for discriminant + TokenMetadata size
                 1 + TokenMetadata::byte_len(token_metadata_config)
+            }
+            ExtensionStructConfig::Compressible => {
+                // 1 byte for discriminant + CompressibleExtension size
+                1 + std::mem::size_of::<CompressibleExtension>()
             }
         }
     }
@@ -159,7 +189,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 ))
             }
             ExtensionStructConfig::TokenMetadata(config) => {
-                // Write discriminant (0 for MetadataPointer)
+                // Write discriminant (1 for TokenMetadata)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
@@ -175,6 +205,26 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            ExtensionStructConfig::Compressible => {
+                // Write discriminant (2 for Compressible)
+                if bytes.is_empty() {
+                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
+                        1,
+                        bytes.len(),
+                    ));
+                }
+                bytes[0] = 2u8;
+
+                let (compressible_ext, remaining_bytes) = CompressibleExtension::new_zero_copy(
+                    &mut bytes[1..],
+                    CompressibleExtensionConfig {},
+                )?;
+                msg!("compressible_ext {:?}", compressible_ext);
+                Ok((
+                    ZExtensionStructMut::Compressible(compressible_ext),
+                    remaining_bytes,
+                ))
+            }
         }
     }
 }
@@ -183,6 +233,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
 pub enum ExtensionStructConfig {
     MetadataPointer(MetadataPointerConfig),
     TokenMetadata(TokenMetadataConfig),
+    Compressible,
 }
 
 impl ExtensionStruct {
@@ -193,6 +244,10 @@ impl ExtensionStruct {
                 // hash function is defined on the metadata level
                 token_metadata.hash()
                 // <TokenMetadata as DataHasher>::hash(token_metadata)
+            }
+            ExtensionStruct::Compressible(_) => {
+                // Compressible extensions cannot be hashed
+                Err(HasherError::EmptyInput)
             }
         }
     }

@@ -18,6 +18,9 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::LightClientConfig,
 };
+use light_ctoken_types::instructions::mint_to_compressed::{
+    CompressedMintInputs, MintToCompressedInstructionData, Recipient,
+};
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
@@ -34,9 +37,6 @@ use light_compressed_token::{
     freeze::sdk::{create_instruction, CreateInstructionInputs},
     get_token_pool_pda, get_token_pool_pda_with_index,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
-    mint_to_compressed::instructions::{
-        CompressedMintInputs, MintToCompressedInstructionData, Recipient,
-    },
     process_transfer::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
     },

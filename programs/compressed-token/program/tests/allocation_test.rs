@@ -6,7 +6,7 @@ use light_compressed_token::{
 };
 use light_ctoken_types::{
     state::{ExtensionStructConfig, CompressedMint, CompressedMintConfig},
-    instructions::extensions::token_metadata::{AdditionalMetadataConfig, MetadataConfig, TokenMetadataConfig},
+    instructions::extensions::token_metadata::{MetadataConfig, TokenMetadataConfig},
 };
 use light_zero_copy::ZeroCopyNew;
 

@@ -59,14 +59,6 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
         with_sol_pool: bool,
         with_cpi_context: bool,
     ) -> Result<(Self, MultiTransferPackedAccounts<'info>), ProgramError> {
-        // Calculate minimum required accounts
-        let min_accounts =
-            11 + if with_sol_pool { 1 } else { 0 } + if with_cpi_context { 1 } else { 0 };
-
-        if accounts.len() < min_accounts {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        }
-
         // Parse system accounts from fixed positions
         let mut iter = AccountIterator::new(accounts);
         let fee_payer = iter.next_account()?;

@@ -37,6 +37,8 @@ light-sdk = { workspace = true, features = ["anchor"] }
 light-verifier = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
+light-compressed-token-sdk = { workspace = true }
+light-zero-copy = { workspace = true }
 tokio = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }
 spl-token = { workspace = true }
