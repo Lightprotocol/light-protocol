@@ -17,10 +17,12 @@ pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 4;
 
 /// BPF Loader Upgradeable Program ID
 /// BPFLoaderUpgradeab1e11111111111111111111111
-const BPF_LOADER_UPGRADEABLE_ID: Pubkey = Pubkey::new_from_array([
-    2, 168, 246, 145, 78, 136, 161, 110, 57, 90, 225, 40, 148, 143, 250, 105, 86, 147, 55, 104, 24,
-    221, 71, 67, 82, 33, 243, 198, 0, 0, 0, 0,
-]);
+// const BPF_LOADER_UPGRADEABLE_ID: Pubkey = Pubkey::new_from_array([
+//     2, 168, 246, 145, 78, 136, 161, 110, 57, 90, 225, 40, 148, 143, 250, 105, 86, 147, 55, 104, 24,
+//     221, 71, 67, 82, 33, 243, 198, 0, 0, 0, 0,
+// ]);
+const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
+    Pubkey::from_str_const("BPFLoaderUpgradeab1e11111111111111111111111");
 
 /// Global configuration for compressible accounts
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize, LightDiscriminator)]
@@ -57,6 +59,11 @@ impl Default for CompressibleConfig {
 
 impl CompressibleConfig {
     pub const LEN: usize = 1 + 8 + 4 + 32 + 32 + 4 + (32 * MAX_ADDRESS_TREES_PER_SPACE) + 1; // 241 bytes max
+
+    /// Calculate the exact size needed for a CompressibleConfig with the given number of address spaces
+    pub fn size_for_address_spaces(num_address_spaces: usize) -> usize {
+        1 + 8 + 4 + 32 + 32 + 4 + (32 * num_address_spaces) + 1
+    }
 
     /// Derives the config PDA address
     pub fn derive_pda(program_id: &Pubkey) -> (Pubkey, u8) {
@@ -168,17 +175,18 @@ pub fn create_compression_config_unchecked<'info>(
         return Err(LightSdkError::ConstraintViolation);
     }
 
-    // Get rent
+    // Get rent for the exact size needed
     let rent = Rent::get()?;
-    let rent_lamports = rent.minimum_balance(CompressibleConfig::LEN);
+    let account_size = CompressibleConfig::size_for_address_spaces(address_space.len());
+    let rent_lamports = rent.minimum_balance(account_size);
 
-    // Create the account
+    // Create the account with exact size
     let seeds = &[COMPRESSIBLE_CONFIG_SEED, &[bump]];
     let create_account_ix = system_instruction::create_account(
         payer.key,
         config_account.key,
         rent_lamports,
-        CompressibleConfig::LEN as u64,
+        account_size as u64,
         program_id,
     );
 
@@ -380,6 +388,14 @@ pub fn create_compression_config_checked<'info>(
     system_program: &AccountInfo<'info>,
     program_id: &Pubkey,
 ) -> Result<(), LightSdkError> {
+    msg!(
+        "create_compression_config_checked program_data_account: {:?}",
+        program_data_account.key.log()
+    );
+    msg!(
+        "create_compression_config_checked program_id: {:?}",
+        program_id.log()
+    );
     // Verify the signer is the program's upgrade authority
     verify_program_upgrade_authority(program_id, program_data_account, update_authority)?;
 

@@ -8,12 +8,12 @@ use light_sdk::{
 use light_sdk::{derive_light_cpi_signer, LightDiscriminator, LightHasher};
 use light_sdk_types::CpiSigner;
 
-declare_id!("CompUser11111111111111111111111111111111111");
-pub const ADDRESS_SPACE: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
+pub const ADDRESS_SPACE: Pubkey = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const COMPRESSION_DELAY: u32 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
-    derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
+    derive_light_cpi_signer!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
 // Simple anchor program retrofitted with compressible accounts.
 #[program]
