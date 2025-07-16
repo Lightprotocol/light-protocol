@@ -13,13 +13,13 @@ use light_compressed_account::{
 use light_compressed_token::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     shared::{
-        context::TokenContext,
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
         outputs::create_output_compressed_account,
     },
 };
+use light_ctoken_types::context::TokenContext;
 use light_zero_copy::ZeroCopyNew;
 
 #[test]

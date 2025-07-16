@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use light_compressed_token::extensions::token_metadata::Metadata;
+use light_ctoken_types::instructions::extensions::token_metadata::Metadata;
 use light_hasher::{to_byte_array::ToByteArray, DataHasher};
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut};
 // TODO: add random test

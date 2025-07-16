@@ -10,21 +10,27 @@ use light_compressed_account::{
 };
 use light_compressed_token::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
-    extensions::{
-        instruction_data::{ExtensionInstructionData, ZExtensionInstructionData},
-        metadata_pointer::MetadataPointer,
-        state::{ExtensionStruct, ZExtensionStruct},
-        token_metadata::{
-            AdditionalMetadata, AdditionalMetadataConfig, Metadata, MetadataConfig, TokenMetadata,
-            TokenMetadataConfig, TokenMetadataInstructionData,
-        },
-    },
-    mint::{
-        output::create_output_compressed_mint_account,
-        state::{CompressedMint, CompressedMintConfig},
-    },
+    mint::output::create_output_compressed_mint_account,
     shared::cpi_bytes_size::{
         allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+    },
+};
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::{
+        extensions::{
+            metadata_pointer::MetadataPointerConfig,
+            token_metadata::{
+                AdditionalMetadata, AdditionalMetadataConfig, Metadata, MetadataConfig,
+                TokenMetadata, TokenMetadataConfig,
+            },
+            ExtensionInstructionData, InitMetadataPointer, TokenMetadataInstructionData,
+        },
+        mint_to_compressed::CompressedMintInputs,
+    },
+    state::{
+        CompressedMint, CompressedMintConfig, ExtensionStruct, ExtensionStructConfig,
+        ZCompressedMint, ZExtensionStruct,
     },
 };
 use light_hasher::{Hasher, Poseidon};
@@ -41,7 +47,7 @@ fn create_expected_input_account(
     mint_authority: Option<Pubkey>,
     freeze_authority: Option<Pubkey>,
     version: u8,
-    extensions: Option<Vec<light_compressed_token::extensions::state::ExtensionStruct>>,
+    extensions: Option<Vec<ExtensionStruct>>,
     compressed_account_address: [u8; 32],
     merkle_tree_pubkey_index: u8,
     queue_pubkey_index: u8,
@@ -81,10 +87,11 @@ fn create_expected_output_account(
     mint_pda: Pubkey,
     output_supply: u64,
     decimals: u8,
+    is_decompressed: bool,
     mint_authority: Option<Pubkey>,
     freeze_authority: Option<Pubkey>,
     version: u8,
-    extensions: Option<Vec<light_compressed_token::extensions::state::ExtensionStruct>>,
+    extensions: Option<Vec<ExtensionStruct>>,
     compressed_account_address: [u8; 32],
     program_id: Pubkey,
     output_merkle_tree_index: u8,
@@ -93,7 +100,7 @@ fn create_expected_output_account(
         spl_mint: mint_pda,
         supply: output_supply,
         decimals,
-        is_decompressed: false,
+        is_decompressed,
         mint_authority,
         freeze_authority,
         version,
@@ -118,10 +125,10 @@ fn create_expected_output_account(
 
 // Function to convert expected accounts to instruction data
 fn create_instruction_data_from_expected(
-    expected_extensions: Option<Vec<light_compressed_token::extensions::state::ExtensionStruct>>,
+    expected_extensions: Option<Vec<ExtensionStruct>>,
 ) -> (
     Option<Vec<ExtensionInstructionData>>,
-    Vec<light_compressed_token::extensions::state::ExtensionStructConfig>,
+    Vec<ExtensionStructConfig>,
 ) {
     if let Some(extension_structs) = expected_extensions {
         let mut instruction_extensions = Vec::new();
@@ -129,9 +136,7 @@ fn create_instruction_data_from_expected(
 
         for extension_struct in extension_structs {
             match extension_struct {
-                light_compressed_token::extensions::state::ExtensionStruct::TokenMetadata(
-                    token_metadata,
-                ) => {
+                ExtensionStruct::TokenMetadata(token_metadata) => {
                     let instruction_data = TokenMetadataInstructionData {
                         update_authority: token_metadata.update_authority,
                         metadata: token_metadata.metadata.clone(),
@@ -154,36 +159,29 @@ fn create_instruction_data_from_expected(
                         })
                         .collect();
 
-                    let config = light_compressed_token::extensions::state::ExtensionStructConfig::TokenMetadata(
-                        TokenMetadataConfig {
-                            update_authority: (token_metadata.update_authority.is_some(), ()),
-                            metadata: MetadataConfig {
-                                name: token_metadata.metadata.name.len() as u32,
-                                symbol: token_metadata.metadata.symbol.len() as u32,
-                                uri: token_metadata.metadata.uri.len() as u32,
-                            },
-                            additional_metadata: additional_metadata_configs,
-                        }
-                    );
+                    let config = ExtensionStructConfig::TokenMetadata(TokenMetadataConfig {
+                        update_authority: (token_metadata.update_authority.is_some(), ()),
+                        metadata: MetadataConfig {
+                            name: token_metadata.metadata.name.len() as u32,
+                            symbol: token_metadata.metadata.symbol.len() as u32,
+                            uri: token_metadata.metadata.uri.len() as u32,
+                        },
+                        additional_metadata: additional_metadata_configs,
+                    });
                     extension_configs.push(config);
                 }
-                light_compressed_token::extensions::state::ExtensionStruct::MetadataPointer(
-                    metadata_pointer,
-                ) => {
-                    let instruction_data =
-                        light_compressed_token::extensions::metadata_pointer::InitMetadataPointer {
-                            authority: metadata_pointer.authority,
-                            metadata_address: metadata_pointer.metadata_address,
-                        };
+                ExtensionStruct::MetadataPointer(metadata_pointer) => {
+                    let instruction_data = InitMetadataPointer {
+                        authority: metadata_pointer.authority,
+                        metadata_address: metadata_pointer.metadata_address,
+                    };
                     instruction_extensions
                         .push(ExtensionInstructionData::MetadataPointer(instruction_data));
 
-                    let config = light_compressed_token::extensions::state::ExtensionStructConfig::MetadataPointer(
-                        light_compressed_token::extensions::metadata_pointer::MetadataPointerConfig {
-                            authority: (metadata_pointer.authority.is_some(), ()),
-                            metadata_address: (metadata_pointer.metadata_address.is_some(), ()),
-                        }
-                    );
+                    let config = ExtensionStructConfig::MetadataPointer(MetadataPointerConfig {
+                        authority: (metadata_pointer.authority.is_some(), ()),
+                        metadata_address: (metadata_pointer.metadata_address.is_some(), ()),
+                    });
                     extension_configs.push(config);
                 }
             }
@@ -199,7 +197,7 @@ fn create_instruction_data_from_expected(
 fn create_random_extension_data<R: Rng>(
     rng: &mut R,
     mint_pda: Pubkey,
-) -> Option<Vec<light_compressed_token::extensions::state::ExtensionStruct>> {
+) -> Option<Vec<ExtensionStruct>> {
     if rng.gen_bool(0.3) {
         let update_authority = if rng.gen_bool(0.7) {
             Some(Pubkey::new_from_array(rng.gen::<[u8; 32]>()))
@@ -233,10 +231,6 @@ fn create_random_extension_data<R: Rng>(
                 .collect()
         } else {
             vec![]
-        };
-
-        use light_compressed_token::extensions::{
-            state::ExtensionStruct, token_metadata::TokenMetadata,
         };
 
         let expected_token_metadata = TokenMetadata {
@@ -328,6 +322,7 @@ fn test_rnd_create_compressed_mint_account() {
             mint_pda,
             output_supply,
             decimals,
+            is_decompressed,
             mint_authority,
             freeze_authority,
             version,
@@ -339,7 +334,7 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Step 3: Convert expected accounts to instruction data
         let (extensions, extensions_config) =
-            create_instruction_data_from_expected(expected_extensions);
+            create_instruction_data_from_expected(expected_extensions.clone());
 
         // Step 4: Create allocations and mint config
         let mint_config = CompressedMintConfig {
@@ -372,23 +367,20 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Create input data
         use light_compressed_account::compressed_account::PackedMerkleContext;
-        use light_compressed_token::{
-            mint_to_compressed::instructions::CompressedMintInputs, shared::context::TokenContext,
-        };
+
         use light_zero_copy::borsh::Deserialize;
 
         let input_compressed_mint = CompressedMintInputs {
-            compressed_mint_input:
-                light_compressed_token::mint_to_compressed::instructions::CompressedMintInput {
-                    spl_mint: mint_pda,
-                    supply: input_supply,
-                    decimals,
-                    is_decompressed,
-                    freeze_authority_is_set: freeze_authority.is_some(),
-                    freeze_authority: freeze_authority.unwrap_or_default(),
-                    version,
-                    extensions: extensions.clone(),
-                },
+            compressed_mint_input: CompressedMint {
+                spl_mint: mint_pda,
+                supply: input_supply,
+                decimals,
+                is_decompressed,
+                mint_authority,
+                freeze_authority,
+                version,
+                extensions: expected_extensions.clone(),
+            },
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,
@@ -400,16 +392,33 @@ fn test_rnd_create_compressed_mint_account() {
             output_merkle_tree_index,
         };
 
-        let input_data = input_compressed_mint.try_to_vec().unwrap();
-        let (z_compressed_mint_inputs, _) =
-            CompressedMintInputs::zero_copy_at(&input_data).unwrap();
+        let update_instruction_data = light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData {
+            merkle_context: input_compressed_mint.merkle_context,
+            root_index: input_compressed_mint.root_index,
+            address: input_compressed_mint.address,
+            proof: None,
+            mint: light_ctoken_types::instructions::create_compressed_mint::CompressedMintInstructionData {
+                version: input_compressed_mint.compressed_mint_input.version,
+                spl_mint: input_compressed_mint.compressed_mint_input.spl_mint,
+                supply: input_compressed_mint.compressed_mint_input.supply,
+                decimals: input_compressed_mint.compressed_mint_input.decimals,
+                is_decompressed: input_compressed_mint.compressed_mint_input.is_decompressed,
+                mint_authority: input_compressed_mint.compressed_mint_input.mint_authority,
+                freeze_authority: input_compressed_mint.compressed_mint_input.freeze_authority,
+                extensions: extensions.clone(),
+            },
+        };
+
+        let input_data = update_instruction_data.try_to_vec().unwrap();
+        let (z_update_instruction_data, _) =
+            light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData::zero_copy_at(&input_data).unwrap();
 
         let mut context = TokenContext::new();
         let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.unwrap().into());
         light_compressed_token::mint::input::create_input_compressed_mint_account(
             input_account,
             &mut context,
-            &z_compressed_mint_inputs,
+            &z_update_instruction_data,
             &hashed_mint_authority,
         )
         .unwrap();
@@ -460,8 +469,8 @@ fn test_rnd_create_compressed_mint_account() {
             compressed_account_address,
             output_merkle_tree_index,
             version,
+            is_decompressed,
             z_extensions.as_deref(),
-            base_mint_len,
         )
         .unwrap();
 
@@ -511,7 +520,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
     let borsh_bytes = borsh::to_vec(&compressed_mint).unwrap();
 
     // Deserialize with zero_copy_at
-    let (zc_mint, remaining) = CompressedMint::zero_copy_at(&borsh_bytes).unwrap();
+    let (zc_mint, remaining): (ZCompressedMint<'_>, &[u8]) =
+        CompressedMint::zero_copy_at(&borsh_bytes).unwrap();
     assert!(remaining.is_empty());
 
     // Verify data matches - zero-copy fields vs original fields

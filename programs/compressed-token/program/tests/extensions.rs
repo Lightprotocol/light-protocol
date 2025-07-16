@@ -1,9 +1,11 @@
 use borsh::BorshSerialize;
 use light_compressed_account::Pubkey;
-use light_compressed_token::extensions::{
-    metadata_pointer::{InitMetadataPointer, MetadataPointer, MetadataPointerConfig},
+use light_ctoken_types::{
+    instructions::extensions::{
+        metadata_pointer::{InitMetadataPointer, MetadataPointer, MetadataPointerConfig},
+        ExtensionInstructionData, ZExtensionInstructionData,
+    },
     state::{ExtensionStruct, ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut},
-    ExtensionInstructionData, ZExtensionInstructionData,
 };
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopyNew};
 
