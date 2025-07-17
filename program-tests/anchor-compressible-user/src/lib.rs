@@ -9,7 +9,7 @@ use light_sdk::{derive_light_cpi_signer, LightDiscriminator, LightHasher};
 use light_sdk_types::CpiSigner;
 
 declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
-pub const ADDRESS_SPACE: Pubkey = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
+pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")];
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const COMPRESSION_DELAY: u32 = 100;
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -32,7 +32,7 @@ pub mod anchor_compressible_user {
         ctx: Context<InitializeConfig>,
         compression_delay: u32,
         rent_recipient: Pubkey,
-        address_space: Pubkey,
+        address_space: Vec<Pubkey>,
     ) -> Result<()> {
         // The SDK's create_compression_config_checked validates that the signer is the program's upgrade authority
         create_compression_config_checked(
@@ -40,7 +40,7 @@ pub mod anchor_compressible_user {
             &ctx.accounts.authority.to_account_info(),
             &ctx.accounts.program_data.to_account_info(),
             &rent_recipient,
-            vec![address_space],
+            address_space,
             compression_delay,
             &ctx.accounts.payer.to_account_info(),
             &ctx.accounts.system_program.to_account_info(),
@@ -56,7 +56,7 @@ pub mod anchor_compressible_user {
         ctx: Context<UpdateConfigSettings>,
         new_compression_delay: Option<u32>,
         new_rent_recipient: Option<Pubkey>,
-        new_address_space: Option<Pubkey>,
+        new_address_space: Option<Vec<Pubkey>>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
         update_compression_config(
@@ -64,7 +64,7 @@ pub mod anchor_compressible_user {
             &ctx.accounts.authority.to_account_info(),
             new_update_authority.as_ref(),
             new_rent_recipient.as_ref(),
-            new_address_space.map(|s| vec![s]),
+            new_address_space,
             new_compression_delay,
             &crate::ID,
         )
@@ -82,12 +82,18 @@ pub mod anchor_compressible_user {
         address_tree_info: PackedAddressTreeInfo,
         output_state_tree_index: u8,
     ) -> Result<()> {
+        msg!(
+            "...Creating record with config. remaining accounts: LEN: {:?} {:#?}",
+            ctx.remaining_accounts.len(),
+            ctx.remaining_accounts
+        );
         let user_record = &mut ctx.accounts.user_record;
 
         // Load config from the config account
         let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
+        msg!("...Config loaded: {:?}", config);
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 0;
@@ -105,9 +111,16 @@ pub mod anchor_compressible_user {
             &ctx.remaining_accounts[..],
             LIGHT_CPI_SIGNER,
         );
+        msg!(
+            "...CPI accounts. tree_accounts: LEN: {:?} {:?}",
+            cpi_accounts.tree_accounts().unwrap().len(),
+            cpi_accounts.tree_accounts()
+        );
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
 
+        msg!("...New address params PACKED: {:#?}", new_address_params);
+        msg!("...Compressing record");
         compress_pda_new::<UserRecord>(
             &user_record.to_account_info(),
             compressed_address,
@@ -134,6 +147,7 @@ pub mod anchor_compressible_user {
         address_tree_info: PackedAddressTreeInfo,
         output_state_tree_index: u8,
     ) -> Result<()> {
+        // msg!("Creating record");
         let user_record = &mut ctx.accounts.user_record;
 
         user_record.owner = ctx.accounts.user.key();
@@ -160,7 +174,7 @@ pub mod anchor_compressible_user {
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_recipient,
-            &vec![ADDRESS_SPACE],
+            &ADDRESS_SPACE,
             None,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
@@ -355,6 +369,7 @@ pub struct CreateRecordWithConfig<'info> {
     /// The global config account
     pub config: AccountInfo<'info>,
     /// Rent recipient - must match config
+    #[account(mut)]
     pub rent_recipient: AccountInfo<'info>,
 }
 
@@ -514,13 +529,14 @@ pub struct CompressedAccountData {
     pub data: CompressedAccountVariant,
 }
 
-#[derive(Default, Debug, LightHasher, LightDiscriminator)]
+#[derive(Default, Debug, LightHasher, LightDiscriminator, InitSpace)]
 #[account]
 pub struct UserRecord {
     #[skip]
     pub compression_info: CompressionInfo,
     #[hash]
     pub owner: Pubkey,
+    #[max_len(32)]
     pub name: String,
     pub score: u64,
 }

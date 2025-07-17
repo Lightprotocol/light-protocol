@@ -12,12 +12,14 @@
 
 #![cfg(feature = "test-sbf")]
 
+mod common;
+
 use anchor_compressible_user::{ADDRESS_SPACE, RENT_RECIPIENT};
 use anchor_lang::InstructionData;
 use anchor_lang::ToAccountMetas;
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
-    ProgramTestConfig, Rpc,
+    ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::compressible::CompressibleConfig;
 use solana_sdk::{
@@ -26,16 +28,6 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-
-/// Create mock program data account
-fn create_mock_program_data(authority: Pubkey) -> Vec<u8> {
-    let mut data = vec![0u8; 1024];
-    data[0..4].copy_from_slice(&3u32.to_le_bytes());
-    data[4..12].copy_from_slice(&0u64.to_le_bytes());
-    data[12] = 1;
-    data[13..45].copy_from_slice(authority.as_ref());
-    data
-}
 
 #[tokio::test]
 async fn test_initialize_config() {
@@ -46,37 +38,21 @@ async fn test_initialize_config() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let pk = Pubkey::from_str_const("BPFLoaderUpgradeab1e11111111111111111111111");
-    let (program_data_pda, _) = Pubkey::find_program_address(&[program_id.as_ref()], &pk);
-    let mock_data = create_mock_program_data(payer.pubkey());
-    let mock_account = solana_sdk::account::Account {
-        lamports: 1_000_000,
-        data: mock_data,
-        owner: pk,
-        executable: false,
-        rent_epoch: 0,
-    };
-    rpc.set_account(program_data_pda, mock_account);
-    let accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: program_data_pda,
-        authority: payer.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
-    };
-    let instruction = Instruction {
-        program_id,
-        accounts: accounts.to_account_metas(None),
-        data: instruction_data.data(),
-    };
-    let result = rpc
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
-        .await;
+
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    let result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
     assert!(result.is_ok(), "Initialize config should succeed");
 }
 
@@ -90,40 +66,23 @@ async fn test_config_validation() {
     let payer = rpc.get_payer().insecure_clone();
     let non_authority = Keypair::new();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let (program_data_pda, _) =
-        Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-    let mock_data = create_mock_program_data(payer.pubkey());
-    let mock_account = solana_sdk::account::Account {
-        lamports: 1_000_000,
-        data: mock_data,
-        owner: bpf_loader_upgradeable::ID,
-        executable: false,
-        rent_epoch: 0,
-    };
-    rpc.set_account(program_data_pda, mock_account);
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: program_data_pda,
-        authority: non_authority.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
-    };
-    let instruction = Instruction {
-        program_id,
-        accounts: accounts.to_account_metas(None),
-        data: instruction_data.data(),
-    };
-    let result = rpc
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &non_authority])
-        .await;
+    let result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &non_authority,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
     assert!(result.is_err(), "Should fail with wrong authority");
 }
 
@@ -136,37 +95,19 @@ async fn test_update_config() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let (program_data_pda, _) =
-        Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-    let mock_data = create_mock_program_data(payer.pubkey());
-    let mock_account = solana_sdk::account::Account {
-        lamports: 1_000_000,
-        data: mock_data,
-        owner: bpf_loader_upgradeable::ID,
-        executable: false,
-        rent_epoch: 0,
-    };
-    rpc.set_account(program_data_pda, mock_account);
-    let init_accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: program_data_pda,
-        authority: payer.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let init_instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
-    };
-    let init_instruction = Instruction {
-        program_id,
-        accounts: init_accounts.to_account_metas(None),
-        data: init_instruction_data.data(),
-    };
-    let init_result = rpc
-        .create_and_send_transaction(&[init_instruction], &payer.pubkey(), &[&payer])
-        .await;
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let init_result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
     assert!(init_result.is_ok(), "Init should succeed");
     let config_account = rpc.get_account(config_pda).await.unwrap();
     assert!(config_account.is_some(), "Config account should exist");
@@ -177,7 +118,7 @@ async fn test_update_config() {
     let update_instruction_data = anchor_compressible_user::instruction::UpdateConfigSettings {
         new_compression_delay: Some(200),
         new_rent_recipient: Some(RENT_RECIPIENT),
-        new_address_space: Some(ADDRESS_SPACE),
+        new_address_space: Some(ADDRESS_SPACE.to_vec()),
         new_update_authority: None,
     };
     let update_instruction = Instruction {
@@ -200,41 +141,32 @@ async fn test_config_reinit_attack_prevention() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let (program_data_pda, _) =
-        Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-    let mock_data = create_mock_program_data(payer.pubkey());
-    let mock_account = solana_sdk::account::Account {
-        lamports: 1_000_000,
-        data: mock_data,
-        owner: bpf_loader_upgradeable::ID,
-        executable: false,
-        rent_epoch: 0,
-    };
-    rpc.set_account(program_data_pda, mock_account);
-    let accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: program_data_pda,
-        authority: payer.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
-    };
-    let instruction = Instruction {
-        program_id,
-        accounts: accounts.to_account_metas(None),
-        data: instruction_data.data(),
-    };
-    let result = rpc
-        .create_and_send_transaction(&[instruction.clone()], &payer.pubkey(), &[&payer])
-        .await;
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
     assert!(result.is_ok(), "First init should succeed");
-    let reinit_result = rpc
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
-        .await;
+    let reinit_result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
     assert!(reinit_result.is_err(), "Config reinit should fail");
 }
 
@@ -248,7 +180,7 @@ async fn test_wrong_program_data_account() {
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let fake_program_data = Keypair::new();
-    let mock_data = create_mock_program_data(payer.pubkey());
+    let mock_data = common::create_mock_program_data(payer.pubkey());
     let mock_account = solana_sdk::account::Account {
         lamports: 1_000_000,
         data: mock_data,
@@ -267,7 +199,7 @@ async fn test_wrong_program_data_account() {
     let instruction_data = anchor_compressible_user::instruction::InitializeConfig {
         compression_delay: 100,
         rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
+        address_space: ADDRESS_SPACE.to_vec(),
     };
     let instruction = Instruction {
         program_id,
@@ -292,39 +224,21 @@ async fn test_update_remove_address_space() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let (program_data_pda, _) =
-        Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-    let mock_data = create_mock_program_data(payer.pubkey());
-    let mock_account = solana_sdk::account::Account {
-        lamports: 1_000_000,
-        data: mock_data,
-        owner: bpf_loader_upgradeable::ID,
-        executable: false,
-        rent_epoch: 0,
-    };
-    rpc.set_account(program_data_pda, mock_account);
-    let address_space_1 = ADDRESS_SPACE;
-    let address_space_2 = Pubkey::new_unique();
-    let init_accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: program_data_pda,
-        authority: payer.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let init_instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: address_space_1,
-    };
-    let init_instruction = Instruction {
-        program_id,
-        accounts: init_accounts.to_account_metas(None),
-        data: init_instruction_data.data(),
-    };
-    let init_result = rpc
-        .create_and_send_transaction(&[init_instruction], &payer.pubkey(), &[&payer])
-        .await;
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let address_space_1 = ADDRESS_SPACE.to_vec();
+    let address_space_2 = vec![Pubkey::new_unique()];
+    let init_result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        address_space_1,
+    )
+    .await;
     assert!(init_result.is_ok(), "Init should succeed");
     let update_accounts = anchor_compressible_user::accounts::UpdateConfigSettings {
         config: config_pda,
@@ -363,37 +277,19 @@ async fn test_update_with_non_authority() {
         .await
         .unwrap();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let (program_data_pda, _) =
-        Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-    let mock_data = create_mock_program_data(payer.pubkey());
-    let mock_account = solana_sdk::account::Account {
-        lamports: 1_000_000,
-        data: mock_data,
-        owner: bpf_loader_upgradeable::ID,
-        executable: false,
-        rent_epoch: 0,
-    };
-    rpc.set_account(program_data_pda, mock_account);
-    let init_accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: program_data_pda,
-        authority: payer.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let init_instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
-    };
-    let init_instruction = Instruction {
-        program_id,
-        accounts: init_accounts.to_account_metas(None),
-        data: init_instruction_data.data(),
-    };
-    let init_result = rpc
-        .create_and_send_transaction(&[init_instruction], &payer.pubkey(), &[&payer])
-        .await;
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let init_result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
     assert!(init_result.is_ok(), "Init should succeed");
     let update_accounts = anchor_compressible_user::accounts::UpdateConfigSettings {
         config: config_pda,
@@ -432,37 +328,19 @@ async fn test_config_with_wrong_rent_recipient() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let (program_data_pda, _) =
-        Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-    let mock_data = create_mock_program_data(payer.pubkey());
-    let mock_account = solana_sdk::account::Account {
-        lamports: 1_000_000,
-        data: mock_data,
-        owner: bpf_loader_upgradeable::ID,
-        executable: false,
-        rent_epoch: 0,
-    };
-    rpc.set_account(program_data_pda, mock_account);
-    let init_accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: program_data_pda,
-        authority: payer.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let init_instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE,
-    };
-    let init_instruction = Instruction {
-        program_id,
-        accounts: init_accounts.to_account_metas(None),
-        data: init_instruction_data.data(),
-    };
-    let init_result = rpc
-        .create_and_send_transaction(&[init_instruction], &payer.pubkey(), &[&payer])
-        .await;
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let init_result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
     assert!(init_result.is_ok(), "Init should succeed");
     let user = payer;
     let (user_record_pda, _bump) =

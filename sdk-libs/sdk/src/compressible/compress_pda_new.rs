@@ -1,7 +1,7 @@
 use crate::{
     account::LightAccount,
     address::PackedNewAddressParams,
-    compressible::CompressibleConfig,
+    compressible::{CompressibleConfig, HasCompressionInfo},
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::ValidityProof,
@@ -52,7 +52,14 @@ pub fn compress_pda_new<'info, A>(
     read_only_addresses: Option<Vec<ReadOnlyAddress>>,
 ) -> Result<(), LightSdkError>
 where
-    A: DataHasher + LightDiscriminator + BorshSerialize + BorshDeserialize + Default + Clone,
+    A: DataHasher
+        + LightDiscriminator
+        + BorshSerialize
+        + BorshDeserialize
+        + Default
+        + Clone
+        + HasCompressionInfo
+        + std::fmt::Debug,
 {
     compress_multiple_pdas_new::<A>(
         &[pda_account],
@@ -103,7 +110,14 @@ pub fn compress_multiple_pdas_new<'info, A>(
     read_only_addresses: Option<Vec<ReadOnlyAddress>>,
 ) -> Result<(), LightSdkError>
 where
-    A: DataHasher + LightDiscriminator + BorshSerialize + BorshDeserialize + Default + Clone,
+    A: DataHasher
+        + LightDiscriminator
+        + BorshSerialize
+        + BorshDeserialize
+        + Default
+        + Clone
+        + HasCompressionInfo
+        + std::fmt::Debug,
 {
     if pda_accounts.len() != addresses.len()
         || pda_accounts.len() != new_address_params.len()
@@ -132,6 +146,7 @@ where
             }
         }
     }
+    msg!("...address space checked");
 
     let mut total_lamports = 0u64;
     let mut compressed_account_infos = Vec::new();
@@ -143,11 +158,22 @@ where
         .zip(new_address_params.iter())
         .zip(output_state_tree_indices.iter())
     {
-        // Deserialize the PDA data
+        // Deserialize the PDA data - skip discriminator and let Borsh read exactly what it needs
         let pda_data = pda_account.try_borrow_data()?;
-        let pda_account_data =
-            A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
-        drop(pda_data);
+        msg!("...pda data {:?}", pda_data.len());
+
+        // Skip discriminator and deserialize with Borsh
+        let discriminator_len = A::discriminator().len();
+        let mut data_slice = &pda_data[discriminator_len..];
+        let mut pda_account_data = A::deserialize(&mut data_slice).map_err(|e| {
+            msg!("Borsh deserialization error: {:?}", e);
+            LightSdkError::Borsh
+        })?;
+
+        msg!("...deserialized pda data {:?}", pda_account_data);
+
+        // Ensure the account is marked as compressed
+        pda_account_data.compression_info_mut().set_compressed();
 
         // Create the compressed account with the PDA data
         let mut compressed_account =
