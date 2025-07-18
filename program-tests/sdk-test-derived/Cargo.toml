@@ -1,5 +1,5 @@
 [package]
-name = "sdk-test"
+name = "sdk-test-derived"
 version = "1.0.0"
 description = "Test program using generalized account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -8,7 +8,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "sdk_test"
+name = "sdk_test_derived"
 
 [features]
 no-entrypoint = []
@@ -21,6 +21,7 @@ default = []
 [dependencies]
 light-sdk = { workspace = true }
 light-sdk-types = { workspace = true }
+light-sdk-macros = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
