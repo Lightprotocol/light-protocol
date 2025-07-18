@@ -6,24 +6,22 @@ use anchor_compressible_user::{
     CompressedAccountData, CompressedAccountVariant, UserRecord, ADDRESS_SPACE, RENT_RECIPIENT,
 };
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_compressed_account::{address::derive_address, hashv_to_bn254_field_size_be};
+use light_compressed_account::address::derive_address;
 use light_program_test::{
-    indexer::TestIndexerExtensions, program_test::LightProgramTest, AddressWithTree, Indexer,
-    ProgramTestConfig, Rpc,
+    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc,
 };
-use light_sdk::compressible::CompressibleConfig;
-use light_sdk::compressible::CompressionInfo;
+use light_sdk::compressible::{CompressibleConfig, FromCompressedData};
 use light_sdk::instruction::{
-    account_meta::CompressedAccountMeta, PackedAccounts, PackedAddressTreeInfo,
-    SystemAccountMetaConfig,
+    account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
 };
 use light_sdk::LightDiscriminator;
-use light_test_utils::RpcError;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
+
+// The FromCompressedData trait is now implemented in the main program lib.rs
 
 #[tokio::test]
 async fn test_all() {
@@ -113,16 +111,9 @@ async fn test_create_record_with_config(
     let output_state_tree_index =
         remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
 
-    println!("...Output state tree index: {:?}", output_state_tree_index);
-
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
-    println!(
-        "system accounts: LEN: {:?} {:#?}",
-        system_accounts.len(),
-        system_accounts
-    );
     // Create instruction data
     let instruction_data = anchor_compressible_user::instruction::CreateRecordWithConfig {
         name: "Test User".to_string(),
@@ -156,30 +147,17 @@ async fn test_create_record_with_config(
     // Deserialize and verify the user record data
     let user_record_data = user_record_account.unwrap().data;
     let discriminator_len = UserRecord::discriminator().len();
-    println!("user_record_data: {:?}", user_record_data);
-    println!("user_record_data len {:?}", user_record_data.len());
-    let user_record = UserRecord::deserialize(&mut &user_record_data[discriminator_len..]).unwrap(); // Skip discriminator
+    let user_record = UserRecord::deserialize(&mut &user_record_data[discriminator_len..]).unwrap();
     assert_eq!(user_record.name, "Test User");
     assert_eq!(user_record.score, 0);
-    println!(
-        "user_record.compression_info: {:?}",
-        user_record.compression_info.state
-    );
     assert_eq!(user_record.compression_info.is_compressed(), true);
-}
-
-#[derive(AnchorDeserialize)]
-struct UserRecordWithoutCompressionInfo {
-    pub owner: Pubkey,
-    pub name: String,
-    pub score: u64,
 }
 
 async fn test_decompress_multiple_pdas(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     program_id: &Pubkey,
-    config_pda: &Pubkey,
+    _config_pda: &Pubkey,
     user_record_pda: &Pubkey,
 ) {
     // TODO: dynamic
@@ -198,25 +176,11 @@ async fn test_decompress_multiple_pdas(
         .unwrap()
         .value;
 
-    // Deserialize the account data to get the UserRecord
+    // Deserialize the account data to get the UserRecord using the SDK trait
     let account_data = c_pda.data.as_ref().unwrap();
-    println!("account_data: {:?}", account_data);
-    println!("account_data len: {:?}", account_data.data.len());
 
-    // FIXME: need skip compression info
-    // 2324 extra zeroes padding ??.
-    let temp_record =
-        UserRecordWithoutCompressionInfo::deserialize(&mut &account_data.data.as_slice()[..])
-            .unwrap(); // Skip discriminator
-
-    // not ideal because we pass empty 9 bytes.
-    // Convert back to UserRecord with default compression info
-    let user_record = UserRecord {
-        compression_info: CompressionInfo::default(),
-        owner: temp_record.owner,
-        name: temp_record.name,
-        score: temp_record.score,
-    };
+    // Use the trait to handle padding differences intelligently
+    let user_record = UserRecord::from_compressed_data(&account_data.data).unwrap();
 
     // Create a new PDA that will receive the decompressed data
     let decompress_user = Keypair::new();

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
-    compressible::{CompressibleConfig, CompressionInfo, HasCompressionInfo},
+    compressible::{CompressibleConfig, CompressionInfo, FromCompressedData, HasCompressionInfo},
     cpi::CpiAccounts,
     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
     light_hasher::{DataHasher, Hasher},
@@ -581,6 +581,136 @@ impl HasCompressionInfo for GameSession {
 
     fn compression_info_mut(&mut self) -> &mut CompressionInfo {
         &mut self.compression_info
+    }
+}
+
+// Helper structs for deserialization without compression_info
+#[derive(AnchorDeserialize)]
+struct UserRecordWithoutCompressionInfo {
+    pub owner: Pubkey,
+    pub name: String,
+    pub score: u64,
+}
+
+#[derive(AnchorDeserialize)]
+struct GameSessionWithoutCompressionInfo {
+    pub session_id: u64,
+    pub player: Pubkey,
+    pub game_type: String,
+    pub start_time: u64,
+    pub end_time: Option<u64>,
+    pub score: u64,
+}
+
+// Implement FromCompressedData for UserRecord
+impl FromCompressedData<UserRecord> for UserRecord {
+    fn from_compressed_data(
+        data: &[u8],
+    ) -> std::result::Result<UserRecord, Box<dyn std::error::Error>> {
+        // Try to deserialize directly first
+        match UserRecordWithoutCompressionInfo::deserialize(&mut &data[..]) {
+            Ok(temp) => Ok(UserRecord {
+                compression_info: CompressionInfo::default(),
+                owner: temp.owner,
+                name: temp.name,
+                score: temp.score,
+            }),
+            Err(_) => {
+                // If direct deserialization fails, try with smart padding
+                // Calculate minimum required size for the compressed data
+                if data.len() < 32 + 4 {
+                    return Err("Data too small for owner and string length".into());
+                }
+
+                // Read string length from position 32 (after owner)
+                let string_len_bytes = &data[32..36];
+                let string_len = u32::from_le_bytes([
+                    string_len_bytes[0],
+                    string_len_bytes[1],
+                    string_len_bytes[2],
+                    string_len_bytes[3],
+                ]) as usize;
+
+                // Calculate minimum required size: owner(32) + string_len(4) + string + score(8)
+                let min_required = 32 + 4 + string_len + 8;
+
+                let padded_data = if data.len() < min_required {
+                    let mut padded = data.to_vec();
+                    padded.resize(min_required, 0);
+                    padded
+                } else {
+                    data.to_vec()
+                };
+
+                let temp = UserRecordWithoutCompressionInfo::deserialize(&mut &padded_data[..])?;
+                Ok(UserRecord {
+                    compression_info: CompressionInfo::default(),
+                    owner: temp.owner,
+                    name: temp.name,
+                    score: temp.score,
+                })
+            }
+        }
+    }
+}
+
+// Implement FromCompressedData for GameSession
+impl FromCompressedData<GameSession> for GameSession {
+    fn from_compressed_data(
+        data: &[u8],
+    ) -> std::result::Result<GameSession, Box<dyn std::error::Error>> {
+        // Try to deserialize directly first
+        match GameSessionWithoutCompressionInfo::deserialize(&mut &data[..]) {
+            Ok(temp) => Ok(GameSession {
+                compression_info: CompressionInfo::default(),
+                session_id: temp.session_id,
+                player: temp.player,
+                game_type: temp.game_type,
+                start_time: temp.start_time,
+                end_time: temp.end_time,
+                score: temp.score,
+            }),
+            Err(_) => {
+                // If direct deserialization fails, try with smart padding
+                // GameSession layout: session_id(8) + player(32) + game_type(4+len) + start_time(8) + end_time(9) + score(8)
+                if data.len() < 8 + 32 + 4 {
+                    return Err(
+                        "Data too small for session_id, player, and game_type length".into(),
+                    );
+                }
+
+                // Read game_type string length from position 40 (after session_id + player)
+                let game_type_len_bytes = &data[40..44];
+                let game_type_len = u32::from_le_bytes([
+                    game_type_len_bytes[0],
+                    game_type_len_bytes[1],
+                    game_type_len_bytes[2],
+                    game_type_len_bytes[3],
+                ]) as usize;
+
+                // Calculate minimum required size: session_id(8) + player(32) + game_type(4+len) + start_time(8) + end_time(9) + score(8)
+                let min_required = 8 + 32 + 4 + game_type_len + 8 + 9 + 8;
+
+                let padded_data = if data.len() < min_required {
+                    let mut padded = data.to_vec();
+                    padded.resize(min_required, 0);
+                    padded
+                } else {
+                    data.to_vec()
+                };
+
+                let temp = GameSessionWithoutCompressionInfo::deserialize(&mut &padded_data[..])?;
+                Ok(GameSession {
+                    compression_info: CompressionInfo::default(),
+                    session_id: temp.session_id,
+                    player: temp.player,
+                    game_type: temp.game_type,
+                    start_time: temp.start_time,
+                    end_time: temp.end_time,
+                    score: temp.score,
+                })
+            }
+        }
     }
 }
 

@@ -5,6 +5,7 @@ pub mod compress_pda_new;
 pub mod compression_info;
 pub mod config;
 pub mod decompress_idempotent;
+pub mod from_compressed_data;
 
 pub use compress_pda::compress_pda;
 #[cfg(feature = "anchor")]
@@ -17,3 +18,4 @@ pub use config::{
     MAX_ADDRESS_TREES_PER_SPACE,
 };
 pub use decompress_idempotent::{decompress_idempotent, decompress_multiple_idempotent};
+pub use from_compressed_data::FromCompressedData;
