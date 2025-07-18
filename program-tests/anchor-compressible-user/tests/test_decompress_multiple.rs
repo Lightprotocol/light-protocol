@@ -14,13 +14,13 @@ use light_sdk::instruction::{
     account_meta::CompressedAccountMeta, PackedAccounts, PackedAddressTreeInfo,
     SystemAccountMetaConfig,
 };
+use light_sdk::LightDiscriminator;
 use light_test_utils::RpcError;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-
 // #[tokio::test]
 async fn test_decompress_multiple_pdas() {
     // Setup test environment
@@ -226,7 +226,15 @@ async fn test_create_record_with_config() {
 
     // Deserialize and verify the user record data
     let user_record_data = user_record_account.unwrap().data;
-    let user_record = UserRecord::deserialize(&mut &user_record_data[..]).unwrap(); // Skip discriminator
+    let discriminator_len = UserRecord::discriminator().len();
+    println!("user_record_data: {:?}", user_record_data);
+    println!("user_record_data len {:?}", user_record_data.len());
+    let user_record = UserRecord::deserialize(&mut &user_record_data[discriminator_len..]).unwrap(); // Skip discriminator
     assert_eq!(user_record.name, "Test User");
     assert_eq!(user_record.score, 0);
+    println!(
+        "user_record.compression_info: {:?}",
+        user_record.compression_info.state
+    );
+    assert_eq!(user_record.compression_info.is_compressed(), true);
 }

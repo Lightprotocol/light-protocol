@@ -21,7 +21,7 @@ pub struct CompressionInfo {
     pub state: CompressionState,
 }
 
-#[derive(Clone, Default, Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Default, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
 pub enum CompressionState {
     #[default]
     Uninitialized,
@@ -74,6 +74,11 @@ impl CompressionInfo {
     /// Set decompressed
     pub fn set_decompressed(&mut self) {
         self.state = CompressionState::Decompressed;
+    }
+
+    /// Check if the account is compressed
+    pub fn is_compressed(&self) -> bool {
+        self.state == CompressionState::Compressed
     }
 }
 

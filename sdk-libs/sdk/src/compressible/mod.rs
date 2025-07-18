@@ -7,7 +7,9 @@ pub mod config;
 pub mod decompress_idempotent;
 
 pub use compress_pda::compress_pda;
+#[cfg(feature = "anchor")]
 pub use compress_pda_new::{compress_multiple_pdas_new, compress_pda_new};
+pub use compress_pda_new::{compress_multiple_pdas_new_with_data, compress_pda_new_with_data};
 pub use compression_info::{CompressionInfo, HasCompressionInfo};
 pub use config::{
     create_compression_config_checked, create_compression_config_unchecked,

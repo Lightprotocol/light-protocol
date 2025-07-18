@@ -41,6 +41,7 @@ impl TryFrom<u8> for InstructionType {
             4 => Ok(InstructionType::CompressFromPdaNew),
             5 => Ok(InstructionType::CreateConfig),
             6 => Ok(InstructionType::UpdateConfig),
+
             _ => panic!("Invalid instruction discriminator."),
         }
     }
@@ -68,6 +69,7 @@ pub fn process_instruction(
         InstructionType::CompressFromPdaNew => {
             create_dynamic_pda::create_dynamic_pda(accounts, &instruction_data[1..])
         }
+
         InstructionType::CreateConfig => create_config::process_create_compression_config_checked(
             accounts,
             &instruction_data[1..],

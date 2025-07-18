@@ -122,7 +122,7 @@ pub mod anchor_compressible_user {
         msg!("...New address params PACKED: {:#?}", new_address_params);
         msg!("...Compressing record");
         compress_pda_new::<UserRecord>(
-            &user_record.to_account_info(),
+            user_record,
             compressed_address,
             new_address_params,
             output_state_tree_index,
@@ -166,7 +166,7 @@ pub mod anchor_compressible_user {
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
 
         compress_pda_new::<UserRecord>(
-            &user_record.to_account_info(),
+            user_record,
             compressed_address,
             new_address_params,
             output_state_tree_index,

@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::instruction_data::data::ReadOnlyAddress;
 use light_sdk::{
-    compressible::{compress_pda_new, CompressibleConfig, CompressionInfo},
+    compressible::{compress_pda_new_with_data, CompressibleConfig, CompressionInfo},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
@@ -50,8 +50,10 @@ pub fn create_dynamic_pda(
     // Initialize compression info with current slot and decompressed state
     pda_account_data.compression_info = CompressionInfo::new()?;
 
-    compress_pda_new::<MyPdaAccount>(
+    // Use the efficient native variant that accepts pre-deserialized data
+    compress_pda_new_with_data::<MyPdaAccount>(
         pda_account,
+        &mut pda_account_data,
         instruction_data.compressed_address,
         new_address_params,
         instruction_data.output_state_tree_index,
