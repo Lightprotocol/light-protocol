@@ -5,21 +5,11 @@ use std::assert_eq;
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::{
-    account2::CTokenAccount2,
-    error::TokenSdkError,
-    instructions::{
-        close::close_account,
-        create_associated_token_account, create_compressed_mint,
-        create_mint_to_compressed_instruction, create_spl_mint_instruction, create_token_account,
-        derive_ctoken_ata,
-        multi_transfer::{
-            account_metas::MultiTransferAccountsMetaConfig, create_multi_transfer_instruction_raw,
-            MultiTransferConfig, MultiTransferInputsRaw,
-        },
-        CreateCompressedMintInputs, CreateSplMintInputs, DecompressedMintConfig,
-        MintToCompressedInputs,
-    },
+use light_compressed_token_sdk::instructions::{
+    close::close_account, create_associated_token_account, create_compressed_mint,
+    create_mint_to_compressed_instruction, create_spl_mint_instruction, create_token_account,
+    derive_ctoken_ata, CreateCompressedMintInputs, CreateSplMintInputs, DecompressedMintConfig,
+    MintToCompressedInputs,
 };
 use light_ctoken_types::state::solana_ctoken::CompressedToken;
 use light_ctoken_types::{
@@ -29,284 +19,19 @@ use light_ctoken_types::{
             ExtensionInstructionData,
         },
         mint_to_compressed::{CompressedMintInputs, Recipient},
-        multi_transfer::MultiInputTokenDataWithContext,
     },
     state::{extensions::ExtensionStruct, CompressedMint},
     BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use light_test_utils::Rpc;
+use light_token_client::instructions::multi_transfer::{
+    create_decompress_instruction, create_generic_multi_transfer_instruction, CompressInput,
+    DecompressInput, MultiTransferInstructionType, TransferInput,
+};
 use light_zero_copy::borsh::Deserialize;
 use serial_test::serial;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
-
-fn pack_input_token_account(
-    account: &light_client::indexer::CompressedTokenAccount,
-    tree_info: &PackedStateTreeInfo,
-    packed_accounts: &mut PackedAccounts,
-    in_lamports: &mut Vec<u64>,
-) -> MultiInputTokenDataWithContext {
-    let delegate_index = if let Some(delegate) = account.token.delegate {
-        packed_accounts.insert_or_get_read_only(delegate) // TODO: cover delegated transfer
-    } else {
-        0
-    };
-    println!("account {:?}", account);
-    if account.account.lamports != 0 {
-        in_lamports.push(account.account.lamports);
-    }
-    MultiInputTokenDataWithContext {
-        amount: account.token.amount,
-        merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
-            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            queue_pubkey_index: tree_info.queue_pubkey_index,
-            leaf_index: tree_info.leaf_index,
-            prove_by_index: tree_info.prove_by_index,
-        },
-        root_index: tree_info.root_index,
-        mint: packed_accounts.insert_or_get_read_only(account.token.mint),
-        owner: packed_accounts.insert_or_get_config(account.token.owner, true, false),
-        with_delegate: account.token.delegate.is_some(),
-        delegate: delegate_index,
-    }
-}
-
-async fn create_decompress_instruction(
-    rpc: &mut LightProgramTest,
-    compressed_token_account: &[light_client::indexer::CompressedTokenAccount],
-    decompress_amount: u64,
-    spl_token_account: Pubkey,
-    payer: Pubkey,
-) -> Result<Instruction, TokenSdkError> {
-    create_generic_multi_transfer_instruction(
-        rpc,
-        vec![MultiTransferInstructionType::Decompress(DecompressInput {
-            compressed_token_account,
-            decompress_amount,
-            spl_token_account,
-            amount: decompress_amount,
-        })],
-        payer,
-    )
-    .await
-}
-
-pub struct TransferInput<'a> {
-    pub compressed_token_account: &'a [light_client::indexer::CompressedTokenAccount],
-    pub to: Pubkey,
-    pub amount: u64,
-}
-pub struct DecompressInput<'a> {
-    pub compressed_token_account: &'a [light_client::indexer::CompressedTokenAccount],
-    pub decompress_amount: u64,
-    pub spl_token_account: Pubkey,
-    pub amount: u64,
-}
-pub struct CompressInput<'a> {
-    pub compressed_token_account: Option<&'a [light_client::indexer::CompressedTokenAccount]>,
-    pub spl_token_account: Pubkey,
-    pub to: Pubkey,
-    pub mint: Pubkey,
-    pub amount: u64,
-    pub output_queue: Pubkey,
-}
-pub enum MultiTransferInstructionType<'a> {
-    Compress(CompressInput<'a>),
-    Decompress(DecompressInput<'a>),
-    Transfer(TransferInput<'a>),
-}
-
-// Note doesn't support multiple signers.
-async fn create_generic_multi_transfer_instruction(
-    rpc: &mut LightProgramTest,
-    actions: Vec<MultiTransferInstructionType<'_>>,
-    payer: Pubkey,
-) -> Result<Instruction, TokenSdkError> {
-    let mut hashes = Vec::new();
-    actions.iter().for_each(|account| match account {
-        MultiTransferInstructionType::Compress(_) => {}
-        MultiTransferInstructionType::Decompress(input) => input
-            .compressed_token_account
-            .iter()
-            .for_each(|account| hashes.push(account.account.hash)),
-        MultiTransferInstructionType::Transfer(input) => input
-            .compressed_token_account
-            .iter()
-            .for_each(|account| hashes.push(account.account.hash)),
-    });
-    let rpc_proof_result = rpc
-        .get_validity_proof(hashes, vec![], None)
-        .await
-        .unwrap()
-        .value;
-
-    let mut packed_tree_accounts = PackedAccounts::default();
-    // tree infos must be packed before packing the token input accounts
-    let packed_tree_infos = rpc_proof_result.pack_tree_infos(&mut packed_tree_accounts);
-    println!("packed_tree_infos: {:?}", packed_tree_infos);
-    let mut inputs_offset = 0;
-    let mut in_lamports = Vec::new();
-    let mut out_lamports = Vec::new();
-    let mut token_accounts = Vec::new();
-    for action in actions {
-        match action {
-            MultiTransferInstructionType::Compress(input) => {
-                let mut token_account =
-                    if let Some(input_token_account) = input.compressed_token_account {
-                        let token_data = input_token_account
-                            .iter()
-                            .zip(
-                                packed_tree_infos
-                                    .state_trees
-                                    .as_ref()
-                                    .unwrap()
-                                    .packed_tree_infos[inputs_offset..]
-                                    .iter(),
-                            )
-                            .map(|(account, rpc_account)| {
-                                if input.to != account.token.owner {
-                                    return Err(TokenSdkError::InvalidCompressInputOwner);
-                                }
-                                Ok(pack_input_token_account(
-                                    account,
-                                    &rpc_account,
-                                    &mut packed_tree_accounts,
-                                    &mut in_lamports,
-                                ))
-                            })
-                            .collect::<Result<Vec<_>, _>>()?;
-                        inputs_offset += token_data.len();
-                        CTokenAccount2::new(
-                            token_data,
-                            packed_tree_accounts.insert_or_get(input.output_queue),
-                        )?
-                    } else {
-                        CTokenAccount2::new_empty(
-                            packed_tree_accounts.insert_or_get(input.to),
-                            packed_tree_accounts.insert_or_get(input.mint),
-                            packed_tree_accounts.insert_or_get(input.output_queue),
-                        )
-                    };
-
-                let source_index = packed_tree_accounts.insert_or_get(input.spl_token_account);
-                token_account.compress(input.amount, source_index)?;
-                token_accounts.push(token_account);
-            }
-            MultiTransferInstructionType::Decompress(input) => {
-                let token_data = input
-                    .compressed_token_account
-                    .iter()
-                    .zip(
-                        packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[inputs_offset..]
-                            .iter(),
-                    )
-                    .map(|(account, rpc_account)| {
-                        pack_input_token_account(
-                            account,
-                            &rpc_account,
-                            &mut packed_tree_accounts,
-                            &mut in_lamports,
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                inputs_offset += token_data.len();
-                let mut token_account = CTokenAccount2::new(
-                    token_data,
-                    packed_tree_infos
-                        .state_trees
-                        .as_ref()
-                        .unwrap()
-                        .output_tree_index,
-                )?;
-                let recipient_index = packed_tree_accounts.insert_or_get(input.spl_token_account);
-                token_account.decompress(input.decompress_amount, recipient_index)?;
-                if !in_lamports.is_empty() {
-                    out_lamports.push(
-                        input
-                            .compressed_token_account
-                            .iter()
-                            .map(|account| account.account.lamports)
-                            .sum::<u64>(),
-                    );
-                }
-                token_accounts.push(token_account);
-            }
-            MultiTransferInstructionType::Transfer(input) => {
-                let token_data = input
-                    .compressed_token_account
-                    .iter()
-                    .zip(
-                        packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[inputs_offset..]
-                            .iter(),
-                    )
-                    .map(|(account, rpc_account)| {
-                        pack_input_token_account(
-                            account,
-                            &rpc_account,
-                            &mut packed_tree_accounts,
-                            &mut in_lamports,
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                inputs_offset += token_data.len();
-                let mut token_account = CTokenAccount2::new(
-                    token_data,
-                    packed_tree_infos
-                        .state_trees
-                        .as_ref()
-                        .unwrap()
-                        .output_tree_index,
-                )?;
-                let recipient_index = packed_tree_accounts.insert_or_get(input.to);
-                let recipient_token_account =
-                    token_account.transfer(recipient_index, input.amount, None)?;
-                if !in_lamports.is_empty() {
-                    out_lamports.push(
-                        input
-                            .compressed_token_account
-                            .iter()
-                            .map(|account| account.account.lamports)
-                            .sum::<u64>(),
-                    );
-                }
-                token_accounts.push(token_account);
-                token_accounts.push(recipient_token_account);
-            }
-        }
-    }
-    let packed_accounts = packed_tree_accounts.to_account_metas().0;
-    println!("packed_accounts: {:?}", packed_accounts);
-    let inputs = MultiTransferInputsRaw {
-        validity_proof: rpc_proof_result.proof,
-        transfer_config: MultiTransferConfig::default(),
-        meta_config: MultiTransferAccountsMetaConfig {
-            fee_payer: Some(payer),
-            packed_accounts: Some(packed_accounts),
-            ..Default::default()
-        },
-        in_lamports: if in_lamports.is_empty() {
-            None
-        } else {
-            Some(in_lamports)
-        },
-        out_lamports: if out_lamports.is_empty() {
-            None
-        } else {
-            Some(out_lamports)
-        },
-        token_accounts,
-    };
-    create_multi_transfer_instruction_raw(inputs)
-}
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 #[tokio::test]
 #[serial]

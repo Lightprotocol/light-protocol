@@ -1,0 +1,20 @@
+[package]
+name = "light-token-client"
+version = { workspace = true }
+edition = { workspace = true }
+
+[features]
+
+[dependencies]
+# Light Protocol dependencies
+light-compressed-token-types = { workspace = true }
+light-compressed-account = { workspace = true }
+light-ctoken-types = { workspace = true }
+light-sdk = { workspace = true }
+light-client = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
+
+# Solana dependencies
+solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }
+solana-instruction = { workspace = true }
+solana-msg = { workspace = true }

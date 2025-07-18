@@ -1,11 +1,9 @@
 use std::ops::Deref;
 
-use arrayvec::ArrayVec;
 use light_ctoken_types::instructions::multi_transfer::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use solana_account_info::AccountInfo;
-use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
 use crate::error::TokenSdkError;

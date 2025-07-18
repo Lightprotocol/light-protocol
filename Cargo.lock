@@ -1342,6 +1342,7 @@ dependencies = [
  "light-sdk",
  "light-system-program-anchor",
  "light-test-utils",
+ "light-token-client",
  "light-verifier",
  "light-zero-copy",
  "rand 0.8.5",
@@ -3869,6 +3870,21 @@ dependencies = [
  "spl-token",
  "spl-token-2022 7.0.0",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "light-token-client"
+version = "0.1.0"
+dependencies = [
+ "light-client",
+ "light-compressed-account",
+ "light-compressed-token-sdk",
+ "light-compressed-token-types",
+ "light-ctoken-types",
+ "light-sdk",
+ "solana-instruction",
+ "solana-msg",
+ "solana-pubkey",
 ]
 
 [[package]]

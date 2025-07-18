@@ -30,6 +30,7 @@ members = [
     "sdk-libs/program-test",
     "sdk-libs/compressed-token-types",
     "sdk-libs/compressed-token-sdk",
+    "sdk-libs/token-client",
     "xtask",
     "examples/anchor/token-escrow",
     # "examples/anchor/name-service-without-macros",
@@ -190,6 +191,7 @@ light-compressed-token = { path = "programs/compressed-token/program", version =
 ] }
 light-compressed-token-types = { path = "sdk-libs/compressed-token-types", name = "light-compressed-token-types" }
 light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk" }
+light-token-client = { path = "sdk-libs/token-client" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }
