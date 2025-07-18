@@ -11,6 +11,7 @@ mod process_create_compressed_account;
 mod process_create_escrow_pda;
 mod process_decompress_tokens;
 mod process_four_invokes;
+pub mod process_four_multi_transfer;
 mod process_transfer_tokens;
 mod process_update_deposit;
 
@@ -22,6 +23,7 @@ use process_create_escrow_pda::process_create_escrow_pda;
 use process_decompress_tokens::process_decompress_tokens;
 use process_four_invokes::process_four_invokes;
 pub use process_four_invokes::{CompressParams, FourInvokesParams, TransferParams};
+use process_four_multi_transfer::process_four_multi_transfer;
 use process_transfer_tokens::process_transfer_tokens;
 
 declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
@@ -45,17 +47,17 @@ pub struct PdaParams {
     pub account_meta: CompressedAccountMeta,
     pub existing_amount: u64,
 }
-
+use crate::{
+    process_create_compressed_account::deposit_tokens,
+    process_four_multi_transfer::FourMultiTransferParams,
+    process_update_deposit::process_update_deposit,
+};
 #[program]
 pub mod sdk_token_test {
     use light_sdk::address::v1::derive_address;
     use light_sdk_types::CpiAccountsConfig;
 
     use super::*;
-    use crate::{
-        process_create_compressed_account::deposit_tokens,
-        process_update_deposit::process_update_deposit,
-    };
 
     pub fn compress_tokens<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
@@ -206,6 +208,24 @@ pub mod sdk_token_test {
             proof,
             system_accounts_start_offset,
             four_invokes_params,
+            pda_params,
+        )
+    }
+
+    pub fn four_multi_transfer<'info>(
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        output_tree_index: u8,
+        proof: LightValidityProof,
+        system_accounts_start_offset: u8,
+        four_multi_transfer_params: FourMultiTransferParams,
+        pda_params: PdaParams,
+    ) -> Result<()> {
+        process_four_multi_transfer(
+            ctx,
+            output_tree_index,
+            proof,
+            system_accounts_start_offset,
+            four_multi_transfer_params,
             pda_params,
         )
     }
