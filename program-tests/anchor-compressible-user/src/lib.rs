@@ -367,8 +367,10 @@ pub struct CreateRecordWithConfig<'info> {
     pub user_record: Account<'info, UserRecord>,
     pub system_program: Program<'info, System>,
     /// The global config account
+    /// CHECK: Config is validated by the SDK's load_checked method
     pub config: AccountInfo<'info>,
     /// Rent recipient - must match config
+    /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
     pub rent_recipient: AccountInfo<'info>,
 }
@@ -386,6 +388,7 @@ pub struct CreateRecord<'info> {
     )]
     pub user_record: Account<'info, UserRecord>,
     pub system_program: Program<'info, System>,
+    /// CHECK: Rent recipient is a hardcoded address
     #[account(address = RENT_RECIPIENT)]
     pub rent_recipient: AccountInfo<'info>,
 }
@@ -416,8 +419,10 @@ pub struct CompressRecordWithConfig<'info> {
     pub user_record: Account<'info, UserRecord>,
     pub system_program: Program<'info, System>,
     /// The global config account
+    /// CHECK: Config is validated by the SDK's load_checked method
     pub config: AccountInfo<'info>,
     /// Rent recipient - must match config
+    /// CHECK: Rent recipient is validated against the config
     pub rent_recipient: AccountInfo<'info>,
 }
 
@@ -433,6 +438,7 @@ pub struct CompressRecord<'info> {
     )]
     pub user_record: Account<'info, UserRecord>,
     pub system_program: Program<'info, System>,
+    /// CHECK: Rent recipient is a hardcoded address
     #[account(address = RENT_RECIPIENT)]
     pub rent_recipient: AccountInfo<'info>,
 }
@@ -454,6 +460,7 @@ pub struct InitializeConfig<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     /// The config PDA to be created
+    /// CHECK: Config PDA is created with the correct seeds
     #[account(
         mut,
         seeds = [b"compressible_config"],
@@ -461,6 +468,7 @@ pub struct InitializeConfig<'info> {
     )]
     pub config: AccountInfo<'info>,
     /// The program's data account
+    /// CHECK: Program data account is validated by the SDK
     pub program_data: AccountInfo<'info>,
     /// The program's upgrade authority (must sign)
     pub authority: Signer<'info>,
@@ -469,6 +477,7 @@ pub struct InitializeConfig<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateConfigSettings<'info> {
+    /// CHECK: Config is validated by the SDK's load_checked method
     #[account(
         mut,
         seeds = [b"compressible_config"],
