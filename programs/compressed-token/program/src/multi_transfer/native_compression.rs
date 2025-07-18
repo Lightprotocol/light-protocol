@@ -21,6 +21,10 @@ pub fn process_token_compression(
                 "source_or_recipient: {:?}",
                 solana_pubkey::Pubkey::new_from_array(*source_or_recipient.key())
             );
+            msg!(
+                "source_or_recipient: {:?}",
+                solana_pubkey::Pubkey::new_from_array(unsafe { *source_or_recipient.owner() })
+            );
 
             match unsafe { source_or_recipient.owner() } {
                 ID => {

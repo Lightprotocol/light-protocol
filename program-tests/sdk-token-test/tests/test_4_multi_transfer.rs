@@ -1,5 +1,6 @@
 use anchor_lang::{prelude::AccountMeta, AccountDeserialize, InstructionData};
 use light_compressed_token_sdk::{
+    error::TokenSdkError,
     instructions::{
         transfer::account_metas::{
             get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
@@ -9,10 +10,11 @@ use light_compressed_token_sdk::{
     token_pool::get_token_pool_pda,
     SPL_TOKEN_PROGRAM_ID,
 };
+use light_ctoken_types::instructions::multi_transfer::MultiInputTokenDataWithContext;
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,
-    instruction::{PackedAccounts, SystemAccountMetaConfig},
+    instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
 };
 use light_test_utils::{
     spl::{create_mint_helper, create_token_account, mint_spl_tokens},
@@ -24,7 +26,6 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 
-#[ignore = "fix cpi context usage"]
 #[tokio::test]
 async fn test_4_multi_transfer() {
     // Initialize the test environment
@@ -457,7 +458,7 @@ async fn test_four_multi_transfer_instruction(
         sdk_token_test::ID,
         tree_info.cpi_context.unwrap(),
     );
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     // Get validity proof - need to prove the escrow PDA and compressed token accounts
     let escrow_account = rpc
@@ -500,6 +501,7 @@ async fn test_four_multi_transfer_instruction(
     remaining_accounts.insert_or_get(rpc_result.accounts[0].tree_info.tree);
 
     let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
+    let packed_accounts_start_offset = remaining_accounts.packed_pubkeys().len();
     let output_tree_index = packed_tree_info
         .state_trees
         .as_ref()
@@ -524,37 +526,30 @@ async fn test_four_multi_transfer_instruction(
     let four_multi_transfer_params =
         sdk_token_test::process_four_multi_transfer::FourMultiTransferParams {
             compress_1: sdk_token_test::process_four_multi_transfer::CompressParams {
-                mint: mint1,
+                mint: remaining_accounts.insert_or_get(mint1),
                 amount: 500,
-                recipient: payer.pubkey(),
-                recipient_bump: 0,
-                token_account: compression_token_account,
+                recipient: remaining_accounts.insert_or_get(payer.pubkey()),
+                spl_token_account: remaining_accounts.insert_or_get(compression_token_account),
             },
             transfer_2: sdk_token_test::process_four_multi_transfer::TransferParams {
-                mint: mint2,
                 transfer_amount: 300,
-                token_metas: vec![light_compressed_token_sdk::TokenAccountMeta {
-                    amount: mint2_token_account.token.amount,
-                    delegate_index: None,
-                    packed_tree_info: mint2_tree_info,
-                    lamports: None,
-                    tlv: None,
-                }],
-                recipient: payer.pubkey(),
-                recipient_bump: 0,
+                token_metas: vec![pack_input_token_account(
+                    &mint2_token_account,
+                    &mint2_tree_info,
+                    &mut remaining_accounts,
+                    &mut Vec::new(),
+                )],
+                recipient: remaining_accounts.insert_or_get(payer.pubkey()),
             },
             transfer_3: sdk_token_test::process_four_multi_transfer::TransferParams {
-                mint: mint3,
                 transfer_amount: 200,
-                token_metas: vec![light_compressed_token_sdk::TokenAccountMeta {
-                    amount: mint3_token_account.token.amount,
-                    delegate_index: None,
-                    packed_tree_info: mint3_tree_info,
-                    lamports: None,
-                    tlv: None,
-                }],
-                recipient: payer.pubkey(),
-                recipient_bump: 0,
+                token_metas: vec![pack_input_token_account(
+                    &mint3_token_account,
+                    &mint3_tree_info,
+                    &mut remaining_accounts,
+                    &mut Vec::new(),
+                )],
+                recipient: remaining_accounts.insert_or_get(payer.pubkey()),
             },
         };
 
@@ -574,7 +569,22 @@ async fn test_four_multi_transfer_instruction(
         existing_amount: initial_escrow_amount,
     };
 
-    let (accounts, system_accounts_start_offset, _) = remaining_accounts.to_account_metas();
+    let (accounts, system_accounts_start_offset, tree_accounts_start_offset) =
+        remaining_accounts.to_account_metas();
+    let packed_accounts_start_offset = tree_accounts_start_offset - 1;
+    println!("accounts {:?}", accounts);
+    println!(
+        "system_accounts_start_offset {}",
+        system_accounts_start_offset
+    );
+    println!(
+        "packed_accounts_start_offset {}",
+        packed_accounts_start_offset
+    );
+    println!(
+        "accounts packed_accounts_start_offset {:?}",
+        accounts[packed_accounts_start_offset..].to_vec()
+    );
 
     // We need to concat here to separate remaining accounts from the payer account.
     let accounts = [vec![AccountMeta::new(payer.pubkey(), true)], accounts].concat();
@@ -585,14 +595,46 @@ async fn test_four_multi_transfer_instruction(
             output_tree_index,
             proof: rpc_result.proof,
             system_accounts_start_offset: system_accounts_start_offset as u8,
+            packed_accounts_start_offset: packed_accounts_start_offset as u8,
             four_multi_transfer_params,
             pda_params,
         }
         .data(),
     };
-
+    println!("instruction {:?}", instruction);
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await?;
 
     Ok(())
+}
+
+fn pack_input_token_account(
+    account: &light_client::indexer::CompressedTokenAccount,
+    tree_info: &PackedStateTreeInfo,
+    packed_accounts: &mut PackedAccounts,
+    in_lamports: &mut Vec<u64>,
+) -> MultiInputTokenDataWithContext {
+    let delegate_index = if let Some(delegate) = account.token.delegate {
+        packed_accounts.insert_or_get_read_only(delegate) // TODO: cover delegated transfer
+    } else {
+        0
+    };
+    println!("account {:?}", account);
+    if account.account.lamports != 0 {
+        in_lamports.push(account.account.lamports);
+    }
+    MultiInputTokenDataWithContext {
+        amount: account.token.amount,
+        merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
+            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+            queue_pubkey_index: tree_info.queue_pubkey_index,
+            leaf_index: tree_info.leaf_index,
+            prove_by_index: tree_info.prove_by_index,
+        },
+        root_index: tree_info.root_index,
+        mint: packed_accounts.insert_or_get_read_only(account.token.mint),
+        owner: packed_accounts.insert_or_get_config(account.token.owner, true, false),
+        with_delegate: account.token.delegate.is_some(),
+        delegate: delegate_index,
+    }
 }

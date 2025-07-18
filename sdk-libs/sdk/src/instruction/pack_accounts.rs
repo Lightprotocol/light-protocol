@@ -81,21 +81,33 @@ impl PackedAccounts {
         is_signer: bool,
         is_writable: bool,
     ) -> u8 {
-        self.map
-            .entry(pubkey)
-            .or_insert_with(|| {
+        match self.map.get_mut(&pubkey) {
+            Some((index, entry)) => {
+                if !entry.is_writable {
+                    entry.is_writable = is_writable;
+                }
+                if !entry.is_signer {
+                    entry.is_signer = is_signer;
+                }
+                *index
+            }
+            None => {
                 let index = self.next_index;
                 self.next_index += 1;
-                (
-                    index,
-                    AccountMeta {
-                        pubkey,
-                        is_signer,
-                        is_writable,
-                    },
-                )
-            })
-            .0
+                self.map.insert(
+                    pubkey,
+                    (
+                        index,
+                        AccountMeta {
+                            pubkey,
+                            is_signer,
+                            is_writable,
+                        },
+                    ),
+                );
+                index
+            }
+        }
     }
 
     fn hash_set_accounts_to_metas(&self) -> Vec<AccountMeta> {

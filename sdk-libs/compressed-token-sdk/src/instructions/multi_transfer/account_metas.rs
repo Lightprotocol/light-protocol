@@ -11,8 +11,8 @@ pub struct MultiTransferAccountsMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub sol_pool_pda: Option<Pubkey>,
     pub sol_decompression_recipient: Option<Pubkey>,
+    pub cpi_context: Option<Pubkey>,
     pub with_sol_pool: bool,
-    pub with_cpi_context: bool,
     pub packed_accounts: Option<Vec<AccountMeta>>,
 }
 
@@ -29,7 +29,7 @@ pub fn get_multi_transfer_instruction_account_metas(
 
     // Build the account metas following the order expected by MultiTransferValidatedAccounts
     let mut metas = Vec::with_capacity(10 + packed_accounts_len);
-    metas.push(AccountMeta::new(
+    metas.push(AccountMeta::new_readonly(
         Pubkey::new_from_array(LIGHT_SYSTEM_PROGRAM_ID),
         false,
     ));
@@ -68,6 +68,9 @@ pub fn get_multi_transfer_instruction_account_metas(
         default_pubkeys.system_program,
         false,
     ));
+    if let Some(cpi_context) = config.cpi_context {
+        metas.push(AccountMeta::new(cpi_context, false));
+    }
     if let Some(packed_accounts) = config.packed_accounts.as_ref() {
         for account in packed_accounts {
             metas.push(account.clone());

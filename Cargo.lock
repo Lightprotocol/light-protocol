@@ -5537,6 +5537,7 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token-sdk",
+ "light-ctoken-types",
  "light-hasher",
  "light-program-test",
  "light-sdk",

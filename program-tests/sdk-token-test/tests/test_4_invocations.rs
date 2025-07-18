@@ -457,7 +457,7 @@ async fn test_four_invokes_instruction(
         sdk_token_test::ID,
         tree_info.cpi_context.unwrap(),
     );
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     // Get validity proof - need to prove the escrow PDA and compressed token accounts
     let escrow_account = rpc

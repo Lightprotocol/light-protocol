@@ -217,6 +217,7 @@ pub mod sdk_token_test {
         output_tree_index: u8,
         proof: LightValidityProof,
         system_accounts_start_offset: u8,
+        packed_accounts_start_offset: u8,
         four_multi_transfer_params: FourMultiTransferParams,
         pda_params: PdaParams,
     ) -> Result<()> {
@@ -225,6 +226,7 @@ pub mod sdk_token_test {
             output_tree_index,
             proof,
             system_accounts_start_offset,
+            packed_accounts_start_offset,
             four_multi_transfer_params,
             pda_params,
         )

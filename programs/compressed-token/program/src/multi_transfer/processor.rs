@@ -70,7 +70,7 @@ pub fn process_multi_transfer(
     validate_instruction_data(&inputs)?;
     msg!("validate_instruction_data");
     bench_sbf_start!("t_context_and_check_sig");
-    anchor_lang::solana_program::log::msg!("inputs {:?}", inputs);
+    // anchor_lang::solana_program::log::msg!("inputs {:?}", inputs);
 
     // Create TokenContext for hash caching
     let mut context = TokenContext::new();

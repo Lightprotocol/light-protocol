@@ -45,7 +45,7 @@ pub struct MultiTokenTransferOutputData {
     pub owner: u8,
     pub amount: u64,
     pub merkle_tree: u8,
-    pub delegate: u8,
+    pub delegate: u8, // TODO: check whether we need delegate is set
     pub mint: u8,
 }
 

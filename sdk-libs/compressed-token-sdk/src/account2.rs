@@ -1,9 +1,11 @@
 use std::ops::Deref;
 
+use arrayvec::ArrayVec;
 use light_ctoken_types::instructions::multi_transfer::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use solana_account_info::AccountInfo;
+use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
 use crate::error::TokenSdkError;
@@ -13,6 +15,7 @@ pub struct CTokenAccount2 {
     inputs: Vec<MultiInputTokenDataWithContext>,
     output: MultiTokenTransferOutputData,
     compression: Option<Compression>,
+    delegate_is_set: bool,
     pub(crate) method_used: bool,
 }
 
@@ -42,6 +45,7 @@ impl CTokenAccount2 {
         Ok(Self {
             inputs: token_data,
             output,
+            delegate_is_set: false,
             compression: None,
             method_used: false,
         })
@@ -58,6 +62,7 @@ impl CTokenAccount2 {
                 mint: mint_index,
             },
             compression: None,
+            delegate_is_set: false,
             method_used: false,
         }
     }
@@ -88,6 +93,7 @@ impl CTokenAccount2 {
                 delegate: 0,
                 mint: self.output.mint,
             },
+            delegate_is_set: false,
             method_used: false,
         })
     }
@@ -124,6 +130,7 @@ impl CTokenAccount2 {
                 delegate: delegate_index,
                 mint: self.output.mint,
             },
+            delegate_is_set: true,
             method_used: false,
         })
     }
