@@ -1950,39 +1950,10 @@ pub async fn get_validity_proof_v2_post(
 }
 
 fn append_api_key(configuration: &Configuration, uri_str: &str) -> String {
-    // Check if the URI is malformed (query params before endpoint path)
-    if uri_str.contains('?') {
-        // Find the last '/' in the entire URL - this should be the endpoint
-        if let Some(last_slash) = uri_str.rfind('/') {
-            let query_pos = uri_str.find('?').unwrap();
-            // If the last slash comes after the query start, it's malformed
-            if last_slash > query_pos {
-                // Extract parts: everything before last slash, and the endpoint
-                let (before_endpoint, endpoint) = uri_str.split_at(last_slash);
-                // Split the before_endpoint at the query marker
-                let (base_url, query_params) = before_endpoint.split_at(query_pos);
-
-                // Remove trailing slash from base_url to avoid double slashes
-                let base_url = base_url.trim_end_matches('/');
-
-                // Reconstruct: base + endpoint + query
-                let uri_str = format!("{}{}{}", base_url, endpoint, query_params);
-                if std::env::var("RUST_BACKTRACE").is_ok() {
-                    eprintln!("photon api URI: {}", uri_str);
-                }
-                return uri_str;
-            }
-        }
-    }
-
     let mut uri_str = uri_str.to_string();
     if let Some(ref api_key) = configuration.api_key {
         let prefix = api_key.prefix.clone().unwrap_or("api-key".to_string());
-        let separator = if uri_str.contains('?') { "&" } else { "?" };
-        uri_str = format!("{}{}{}={}", uri_str, separator, prefix, api_key.key);
-    }
-    if std::env::var("RUST_BACKTRACE").is_ok() {
-        eprintln!("photon api URI: {}", uri_str);
+        uri_str = format!("{}?{}={}", uri_str, prefix, api_key.key);
     }
     uri_str
 }
