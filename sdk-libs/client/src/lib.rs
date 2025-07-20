@@ -41,9 +41,13 @@
 //!     // Connect to the validator
 //!     let mut rpc = LightClient::new(LightClientConfig::local()).await?;
 //!
-//!     // Or connect to devnet/mainnet:
-//!     // let mut rpc = LightClient::new(LightClientConfig::new("https://devnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
-//!     // let mut rpc = LightClient::new(LightClientConfig::new("https://mainnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
+//!     // Or connect to devnet/mainnet with API key:
+//!     // let api_key = "your-api-key".to_string();
+//!     // let mut rpc = LightClient::new(LightClientConfig::new(
+//!     //     "https://devnet.helius-rpc.com/?api-key=".to_string(),
+//!     //     Some("https://devnet.helius-rpc.com".to_string()),
+//!     //     Some(api_key),
+//!     // )).await?;
 //!
 //!     let owner = Pubkey::new_unique();
 //!

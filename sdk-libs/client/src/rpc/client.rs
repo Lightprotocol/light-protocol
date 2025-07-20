@@ -107,7 +107,12 @@ impl LightClient {
         let commitment_config = config
             .commitment_config
             .unwrap_or(CommitmentConfig::confirmed());
-        let client = RpcClient::new_with_commitment(config.url.to_string(), commitment_config);
+        let rpc_url = if let Some(api_key) = &config.api_key {
+            format!("{}{}", config.url.trim_end_matches('/'), api_key)
+        } else {
+            config.url.clone()
+        };
+        let client = RpcClient::new_with_commitment(rpc_url, commitment_config);
         let retry_config = retry_config.unwrap_or_default();
 
         let indexer = config
