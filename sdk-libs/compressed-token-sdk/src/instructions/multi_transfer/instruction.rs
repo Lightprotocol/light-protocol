@@ -122,6 +122,10 @@ pub fn create_multi_transfer_instruction_raw(
         },
         cpi_context: transfer_config.cpi_context,
     };
+    solana_msg::msg!(
+        "transfer_config.cpi_context {:?}",
+        transfer_config.cpi_context
+    );
 
     // Serialize instruction data
     let serialized = instruction_data

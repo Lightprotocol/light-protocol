@@ -160,7 +160,13 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
     }
 
     pub fn cpi_context(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndex::CpiContext as usize;
+        let mut index = CompressionCpiAccountIndex::CpiContext as usize;
+        if !self.config.sol_pool_pda {
+            index -= 1;
+        }
+        if !self.config.sol_compression_recipient {
+            index -= 1;
+        }
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))

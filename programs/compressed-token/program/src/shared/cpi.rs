@@ -75,15 +75,11 @@ pub fn execute_cpi_invoke(
     account_metas.push(sol_pool_pda); // 7 sol_pool_pda
     account_metas.push(AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)); // 8 decompression_recipient (None, using default)
     account_metas.push(AccountMeta::new(&[0u8; 32], false, false)); // system_program
-    account_metas.push(AccountMeta::new(
-        if let Some(cpi_context) = cpi_context_account.as_ref() {
-            cpi_context
-        } else {
-            &LIGHT_SYSTEM_PROGRAM_ID
-        },
-        false,
-        false,
-    )); // cpi_context_account
+    account_metas.push(if let Some(cpi_context) = cpi_context_account.as_ref() {
+        AccountMeta::new(cpi_context, true, false)
+    } else {
+        AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)
+    }); // cpi_context_account
     msg!(
         "tree_accounts {:?}",
         tree_accounts

@@ -46,7 +46,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
     compressed_token_account: &[light_client::indexer::CompressedTokenAccount],
     decompress_amount: u64,
-    spl_token_account: Pubkey,
+    solana_token_account: Pubkey,
     payer: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     create_generic_multi_transfer_instruction(
@@ -54,7 +54,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
         vec![MultiTransferInstructionType::Decompress(DecompressInput {
             compressed_token_account,
             decompress_amount,
-            spl_token_account,
+            solana_token_account,
             amount: decompress_amount,
         })],
         payer,
@@ -70,12 +70,12 @@ pub struct TransferInput<'a> {
 pub struct DecompressInput<'a> {
     pub compressed_token_account: &'a [light_client::indexer::CompressedTokenAccount],
     pub decompress_amount: u64,
-    pub spl_token_account: Pubkey,
+    pub solana_token_account: Pubkey,
     pub amount: u64,
 }
 pub struct CompressInput<'a> {
     pub compressed_token_account: Option<&'a [light_client::indexer::CompressedTokenAccount]>,
-    pub spl_token_account: Pubkey,
+    pub solana_token_account: Pubkey,
     pub to: Pubkey,
     pub mint: Pubkey,
     pub amount: u64,
@@ -158,7 +158,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                         )
                     };
 
-                let source_index = packed_tree_accounts.insert_or_get(input.spl_token_account);
+                let source_index = packed_tree_accounts.insert_or_get(input.solana_token_account);
                 token_account.compress(input.amount, source_index)?;
                 token_accounts.push(token_account);
             }
@@ -192,7 +192,8 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                         .unwrap()
                         .output_tree_index,
                 )?;
-                let recipient_index = packed_tree_accounts.insert_or_get(input.spl_token_account);
+                let recipient_index =
+                    packed_tree_accounts.insert_or_get(input.solana_token_account);
                 token_account.decompress(input.decompress_amount, recipient_index)?;
                 if !in_lamports.is_empty() {
                     out_lamports.push(

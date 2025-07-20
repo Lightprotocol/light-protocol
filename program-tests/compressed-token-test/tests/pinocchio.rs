@@ -562,9 +562,9 @@ async fn test_create_compressed_mint() {
     let compress_instruction = create_generic_multi_transfer_instruction(
         &mut rpc,
         vec![MultiTransferInstructionType::Compress(CompressInput {
-            compressed_token_account: None,       // No existing compressed tokens
-            spl_token_account: ctoken_ata_pubkey, // Source SPL token account
-            to: compress_recipient.pubkey(),      // New recipient for compressed tokens
+            compressed_token_account: None, // No existing compressed tokens
+            solana_token_account: ctoken_ata_pubkey, // Source SPL token account
+            to: compress_recipient.pubkey(), // New recipient for compressed tokens
             mint: mint_pda,
             amount: compress_amount,
             output_queue,
@@ -645,7 +645,7 @@ async fn test_create_compressed_mint() {
         &mut rpc,
         vec![MultiTransferInstructionType::Compress(CompressInput {
             compressed_token_account: None,
-            spl_token_account: ctoken_ata_pubkey,
+            solana_token_account: ctoken_ata_pubkey,
             to: transfer_source_recipient.pubkey(),
             mint: mint_pda,
             amount: transfer_compress_amount,
@@ -679,7 +679,7 @@ async fn test_create_compressed_mint() {
         &mut rpc,
         vec![MultiTransferInstructionType::Compress(CompressInput {
             compressed_token_account: None,
-            spl_token_account: ctoken_ata_pubkey,
+            solana_token_account: ctoken_ata_pubkey,
             to: multi_test_recipient.pubkey(),
             mint: mint_pda,
             amount: multi_compress_amount,
@@ -754,13 +754,13 @@ async fn test_create_compressed_mint() {
             MultiTransferInstructionType::Decompress(DecompressInput {
                 compressed_token_account: &compressed_tokens_for_compress,
                 decompress_amount,
-                spl_token_account: decompress_dest_ata,
+                solana_token_account: decompress_dest_ata,
                 amount: decompress_amount,
             }),
             // 3. Compress SPL tokens to compressed tokens
             MultiTransferInstructionType::Compress(CompressInput {
                 compressed_token_account: None,
-                spl_token_account: compress_source_ata, // Use remaining SPL tokens
+                solana_token_account: compress_source_ata, // Use remaining SPL tokens
                 to: compress_from_spl_recipient.pubkey(),
                 mint: mint_pda,
                 amount: compress_amount_multi,

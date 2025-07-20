@@ -15,10 +15,7 @@ use light_compressed_token_sdk::{
     TokenAccountMeta,
 };
 use light_ctoken_types::instructions::multi_transfer::MultiInputTokenDataWithContext;
-use light_sdk::{
-    cpi::CpiAccounts, instruction::ValidityProof as LightValidityProof,
-    light_account_checks::AccountInfoTrait,
-};
+use light_sdk::{cpi::CpiAccounts, instruction::ValidityProof as LightValidityProof};
 use light_sdk_types::CpiAccountsConfig;
 
 use crate::{process_update_deposit::process_update_escrow_pda, PdaParams};
@@ -35,7 +32,7 @@ pub struct CompressParams {
     pub mint: u8,
     pub amount: u64,
     pub recipient: u8,
-    pub spl_token_account: u8,
+    pub solana_token_account: u8,
 }
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
@@ -54,6 +51,97 @@ pub fn process_four_multi_transfer<'info>(
     four_invokes_params: FourMultiTransferParams,
     pda_params: PdaParams,
 ) -> Result<()> {
+    // Debug prints for CPI struct values
+    msg!("=== PROGRAM DEBUG - CPI STRUCT VALUES ===");
+    msg!("output_tree_index: {}", output_tree_index);
+    msg!(
+        "system_accounts_start_offset: {}",
+        system_accounts_start_offset
+    );
+    msg!(
+        "packed_accounts_start_offset: {}",
+        packed_accounts_start_offset
+    );
+    msg!("signer: {}", ctx.accounts.signer.key());
+
+    msg!("compress_1.mint: {}", four_invokes_params.compress_1.mint);
+    msg!(
+        "compress_1.amount: {}",
+        four_invokes_params.compress_1.amount
+    );
+    msg!(
+        "compress_1.recipient: {}",
+        four_invokes_params.compress_1.recipient
+    );
+    msg!(
+        "compress_1.solana_token_account: {}",
+        four_invokes_params.compress_1.solana_token_account
+    );
+
+    msg!(
+        "transfer_2.transfer_amount: {}",
+        four_invokes_params.transfer_2.transfer_amount
+    );
+    msg!(
+        "transfer_2.recipient: {}",
+        four_invokes_params.transfer_2.recipient
+    );
+    msg!(
+        "transfer_2.token_metas len: {}",
+        four_invokes_params.transfer_2.token_metas.len()
+    );
+    for (i, meta) in four_invokes_params
+        .transfer_2
+        .token_metas
+        .iter()
+        .enumerate()
+    {
+        msg!("  transfer_2.token_metas[{}].amount: {}", i, meta.amount);
+        msg!(
+            "  transfer_2.token_metas[{}].merkle_context.merkle_tree_pubkey_index: {}",
+            i,
+            meta.merkle_context.merkle_tree_pubkey_index
+        );
+        msg!("  transfer_2.token_metas[{}].mint: {}", i, meta.mint);
+        msg!("  transfer_2.token_metas[{}].owner: {}", i, meta.owner);
+    }
+
+    msg!(
+        "transfer_3.transfer_amount: {}",
+        four_invokes_params.transfer_3.transfer_amount
+    );
+    msg!(
+        "transfer_3.recipient: {}",
+        four_invokes_params.transfer_3.recipient
+    );
+    msg!(
+        "transfer_3.token_metas len: {}",
+        four_invokes_params.transfer_3.token_metas.len()
+    );
+    for (i, meta) in four_invokes_params
+        .transfer_3
+        .token_metas
+        .iter()
+        .enumerate()
+    {
+        msg!("  transfer_3.token_metas[{}].amount: {}", i, meta.amount);
+        msg!(
+            "  transfer_3.token_metas[{}].merkle_context.merkle_tree_pubkey_index: {}",
+            i,
+            meta.merkle_context.merkle_tree_pubkey_index
+        );
+        msg!("  transfer_3.token_metas[{}].mint: {}", i, meta.mint);
+        msg!("  transfer_3.token_metas[{}].owner: {}", i, meta.owner);
+    }
+
+    msg!("pda_params.account_meta: {:?}", pda_params.account_meta);
+    msg!("pda_params.existing_amount: {}", pda_params.existing_amount);
+
+    // Debug remaining accounts
+    msg!("=== REMAINING ACCOUNTS ===");
+    for (i, account) in ctx.remaining_accounts.iter().enumerate() {
+        msg!("  {}: {}", i, anchor_lang::Key::key(account));
+    }
     // Parse CPI accounts once for the final system program invocation
     let config = CpiAccountsConfig {
         cpi_signer: crate::LIGHT_CPI_SIGNER,
@@ -77,7 +165,7 @@ pub fn process_four_multi_transfer<'info>(
         token_account_compress
             .compress(
                 four_invokes_params.compress_1.amount,
-                four_invokes_params.compress_1.spl_token_account,
+                four_invokes_params.compress_1.solana_token_account,
             )
             .map_err(ProgramError::from)?;
 
@@ -107,10 +195,10 @@ pub fn process_four_multi_transfer<'info>(
             )
             .map_err(ProgramError::from)?;
 
-        let packed_account_infos = &ctx.remaining_accounts[packed_accounts_start_offset as usize..];
-
-        let mut packed_accounts = Vec::with_capacity(packed_account_infos.len());
-        for account_info in packed_account_infos {
+        msg!("tree_pubkeys {:?}", cpi_accounts.tree_pubkeys());
+        let tree_accounts = cpi_accounts.tree_accounts().unwrap();
+        let mut packed_accounts = Vec::with_capacity(tree_accounts.len());
+        for account_info in tree_accounts {
             packed_accounts.push(account_meta_from_account_info(account_info));
         }
         msg!("packed_accounts {:?}", packed_accounts);

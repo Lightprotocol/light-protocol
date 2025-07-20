@@ -50,13 +50,13 @@ impl PackedAccounts {
     ) -> crate::error::Result<()> {
         self.system_accounts
             .extend(get_light_system_account_metas(config));
-        if let Some(pubkey) = config.cpi_context {
+        // note cpi context account is part of the system accounts
+        /*  if let Some(pubkey) = config.cpi_context {
             if self.next_index != 0 {
                 return Err(crate::error::LightSdkError::CpiContextOrderingViolation);
             }
-            self.next_index += 1;
-            self.system_accounts.push(AccountMeta::new(pubkey, false));
-        }
+            self.insert_or_get(pubkey);
+        }*/
         Ok(())
     }
 

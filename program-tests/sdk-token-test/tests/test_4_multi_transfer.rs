@@ -1,15 +1,18 @@
 use anchor_lang::{prelude::AccountMeta, AccountDeserialize, InstructionData};
+use light_compressed_account;
+use light_compressed_token;
 use light_compressed_token_sdk::{
-    error::TokenSdkError,
     instructions::{
+        create_compressed_mint, create_mint_to_compressed_instruction,
         transfer::account_metas::{
             get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
         },
-        CTokenDefaultAccounts,
+        CTokenDefaultAccounts, CreateCompressedMintInputs, MintToCompressedInputs,
     },
     token_pool::get_token_pool_pda,
     SPL_TOKEN_PROGRAM_ID,
 };
+use light_ctoken_types::instructions::mint_to_compressed::{CompressedMintInputs, Recipient};
 use light_ctoken_types::instructions::multi_transfer::MultiInputTokenDataWithContext;
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
@@ -38,29 +41,10 @@ async fn test_4_multi_transfer() {
 
     let payer = rpc.get_payer().insecure_clone();
 
-    let (mint1, mint2, mint3, token_account_1, token_account_2, token_account_3) =
-        create_mints_and_tokens(&mut rpc, &payer).await;
+    let (mint1_pda, mint2_pda, mint3_pda, token_account_1) =
+        create_compressed_mints_and_tokens(&mut rpc, &payer).await;
 
-    println!("✅ Test setup complete: 3 mints created and minted to 3 token accounts");
-
-    // Compress tokens
-    let compress_amount = 1000; // Compress 1000 tokens
-
-    compress_tokens_bundled(
-        &mut rpc,
-        &payer,
-        vec![
-            (token_account_2, compress_amount, Some(mint2)),
-            (token_account_3, compress_amount, Some(mint3)),
-        ],
-    )
-    .await
-    .unwrap();
-
-    println!(
-        "✅ Completed compression of {} tokens from mint 2 and mint 3",
-        compress_amount
-    );
+    println!("✅ Test setup complete: 3 compressed mints created with compressed tokens");
 
     // Create compressed escrow PDA
     let initial_amount = 100; // Initial escrow amount
@@ -77,9 +61,9 @@ async fn test_4_multi_transfer() {
     test_four_multi_transfer_instruction(
         &mut rpc,
         &payer,
-        mint1,
-        mint2,
-        mint3,
+        mint1_pda,
+        mint2_pda,
+        mint3_pda,
         escrow_address,
         initial_amount,
         token_account_1,
@@ -354,8 +338,205 @@ async fn compress_tokens_bundled(
     Ok(signatures)
 }
 
+async fn create_compressed_mints_and_tokens(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+) -> (Pubkey, Pubkey, Pubkey, Pubkey) {
+    let decimals = 6u8;
+    let compress_amount = 1000; // Amount to mint as compressed tokens
+
+    // Create 3 compressed mints
+    let (mint1_pda, mint1_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
+    let (mint2_pda, mint2_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
+    let (mint3_pda, mint3_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
+
+    println!("Created compressed mint 1: {}", mint1_pubkey);
+    println!("Created compressed mint 2: {}", mint2_pubkey);
+    println!("Created compressed mint 3: {}", mint3_pubkey);
+
+    // Mint compressed tokens for all three mints
+    mint_compressed_tokens(rpc, payer, &mint1_pda, mint1_pubkey, compress_amount).await;
+    mint_compressed_tokens(rpc, payer, &mint2_pda, mint2_pubkey, compress_amount).await;
+    mint_compressed_tokens(rpc, payer, &mint3_pda, mint3_pubkey, compress_amount).await;
+
+    // Create associated token account for mint1 decompression
+    let (token_account1_pubkey, _bump) =
+        light_compressed_token_sdk::instructions::derive_ctoken_ata(&payer.pubkey(), &mint1_pda);
+    let create_ata_instruction =
+        light_compressed_token_sdk::instructions::create_associated_token_account(
+            payer.pubkey(),
+            payer.pubkey(),
+            mint1_pda,
+        )
+        .unwrap();
+    rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])
+        .await
+        .unwrap();
+
+    // Decompress some compressed tokens for mint1 into the associated token account
+    let decompress_amount = 500u64;
+    let compressed_token_accounts = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    let mint1_token_account = compressed_token_accounts
+        .iter()
+        .find(|acc| acc.token.mint == mint1_pda)
+        .expect("Compressed token account for mint1 should exist");
+
+    let decompress_instruction =
+        light_token_client::instructions::multi_transfer::create_decompress_instruction(
+            rpc,
+            std::slice::from_ref(mint1_token_account),
+            decompress_amount,
+            token_account1_pubkey,
+            payer.pubkey(),
+        )
+        .await
+        .unwrap();
+
+    rpc.create_and_send_transaction(&[decompress_instruction], &payer.pubkey(), &[payer])
+        .await
+        .unwrap();
+
+    println!(
+        "✅ Minted {} compressed tokens for all three mints and decompressed {} tokens for mint1",
+        compress_amount, decompress_amount
+    );
+
+    (mint1_pda, mint2_pda, mint3_pda, token_account1_pubkey)
+}
+
+async fn create_compressed_mint_helper(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    decimals: u8,
+) -> (Pubkey, Pubkey) {
+    let mint_authority = payer.pubkey();
+    let mint_signer = Keypair::new();
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+
+    // Find mint PDA
+    let (mint_pda, mint_bump) = Pubkey::find_program_address(
+        &[b"compressed_mint", mint_signer.pubkey().as_ref()],
+        &light_compressed_token::ID,
+    );
+
+    // Derive compressed mint address
+    let address_seed = mint_pda.to_bytes();
+    let compressed_mint_address = light_compressed_account::address::derive_address(
+        &address_seed,
+        &address_tree_pubkey.to_bytes(),
+        &light_compressed_token::ID.to_bytes(),
+    );
+
+    // Get validity proof
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address: compressed_mint_address,
+                tree: address_tree_pubkey,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Create compressed mint
+    let instruction = create_compressed_mint(CreateCompressedMintInputs {
+        decimals,
+        mint_authority,
+        freeze_authority: None,
+        proof: rpc_result.proof.0.unwrap(),
+        mint_bump,
+        address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
+        mint_signer: mint_signer.pubkey(),
+        payer: payer.pubkey(),
+        address_tree_pubkey,
+        output_queue,
+        extensions: None,
+    });
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, &mint_signer])
+        .await
+        .unwrap();
+
+    (mint_pda, compressed_mint_address.into())
+}
+
+async fn mint_compressed_tokens(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    mint_pda: &Pubkey,
+    mint_pubkey: Pubkey,
+    amount: u64,
+) {
+    let state_merkle_tree = rpc.get_random_state_tree_info().unwrap().tree;
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+
+    // Get the compressed mint account to use in the inputs
+    let compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(mint_pubkey.to_bytes(), None)
+        .await
+        .unwrap()
+        .value;
+
+    // Create expected compressed mint for the input
+    let expected_compressed_mint = light_ctoken_types::state::CompressedMint {
+        spl_mint: mint_pda.into(),
+        supply: 0,
+        decimals: 6,
+        is_decompressed: false,
+        mint_authority: Some(payer.pubkey().into()),
+        freeze_authority: None,
+        version: 0,
+        extensions: None,
+    };
+
+    let mint_to_instruction = create_mint_to_compressed_instruction(MintToCompressedInputs {
+        compressed_mint_inputs: CompressedMintInputs {
+            merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
+                merkle_tree_pubkey_index: 0,
+                queue_pubkey_index: 1,
+                leaf_index: compressed_mint_account.leaf_index,
+                prove_by_index: true,
+            },
+            root_index: 0,
+            address: compressed_mint_account.address.unwrap(),
+            compressed_mint_input: expected_compressed_mint,
+            output_merkle_tree_index: 3,
+        },
+        recipients: vec![Recipient {
+            recipient: payer.pubkey().into(),
+            amount,
+        }],
+        mint_authority: payer.pubkey(),
+        payer: payer.pubkey(),
+        state_merkle_tree,
+        output_queue,
+        state_tree_pubkey: state_merkle_tree,
+        decompressed_mint_config: None,
+        lamports: None,
+    })
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[mint_to_instruction], &payer.pubkey(), &[payer])
+        .await
+        .unwrap();
+}
+
 async fn create_compressed_escrow_pda(
-    rpc: &mut (impl Rpc + Indexer),
+    rpc: &mut LightProgramTest,
     payer: &Keypair,
     initial_amount: u64,
 ) -> Result<[u8; 32], RpcError> {
@@ -365,7 +546,7 @@ async fn create_compressed_escrow_pda(
 
     // Add system accounts configuration
     let config = SystemAccountMetaConfig::new(sdk_token_test::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     // Get address tree info and derive the PDA address
     let address_tree_info = rpc.get_address_tree_v1();
@@ -419,30 +600,26 @@ async fn create_compressed_escrow_pda(
 
 #[allow(clippy::too_many_arguments)]
 async fn test_four_multi_transfer_instruction(
-    rpc: &mut (impl Rpc + Indexer),
+    rpc: &mut LightProgramTest,
     payer: &Keypair,
     mint1: Pubkey,
     mint2: Pubkey,
     mint3: Pubkey,
     escrow_address: [u8; 32],
     initial_escrow_amount: u64,
-    compression_token_account: Pubkey,
+    token_account_1: Pubkey,
 ) -> Result<(), RpcError> {
     let default_pubkeys = CTokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
-    let token_pool_pda1 = get_token_pool_pda(&mint1);
+    let _token_pool_pda1 = get_token_pool_pda(&mint1);
+    // We don't need SPL token accounts for this test since we're using compressed tokens
+    // Just add the compressed token program and CPI authority PDA
     // Remaining accounts 0
-    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(compression_token_account, false));
-    // Remaining accounts 1
-    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(token_pool_pda1, false));
-    // Remaining accounts 2
-    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(SPL_TOKEN_PROGRAM_ID.into(), false));
-    // Remaining accounts 3
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(
         default_pubkeys.compressed_token_program,
         false,
     ));
-    // Remaining accounts 4
+    // Remaining accounts 1
     remaining_accounts
         .add_pre_accounts_meta(AccountMeta::new(default_pubkeys.cpi_authority_pda, false));
 
@@ -459,6 +636,7 @@ async fn test_four_multi_transfer_instruction(
         tree_info.cpi_context.unwrap(),
     );
     remaining_accounts.add_system_accounts(config).unwrap();
+    println!("next index {}", remaining_accounts.packed_pubkeys().len());
 
     // Get validity proof - need to prove the escrow PDA and compressed token accounts
     let escrow_account = rpc
@@ -501,7 +679,6 @@ async fn test_four_multi_transfer_instruction(
     remaining_accounts.insert_or_get(rpc_result.accounts[0].tree_info.tree);
 
     let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
-    let packed_accounts_start_offset = remaining_accounts.packed_pubkeys().len();
     let output_tree_index = packed_tree_info
         .state_trees
         .as_ref()
@@ -529,7 +706,7 @@ async fn test_four_multi_transfer_instruction(
                 mint: remaining_accounts.insert_or_get(mint1),
                 amount: 500,
                 recipient: remaining_accounts.insert_or_get(payer.pubkey()),
-                spl_token_account: remaining_accounts.insert_or_get(compression_token_account),
+                solana_token_account: remaining_accounts.insert_or_get(token_account_1),
             },
             transfer_2: sdk_token_test::process_four_multi_transfer::TransferParams {
                 transfer_amount: 300,
@@ -571,7 +748,7 @@ async fn test_four_multi_transfer_instruction(
 
     let (accounts, system_accounts_start_offset, tree_accounts_start_offset) =
         remaining_accounts.to_account_metas();
-    let packed_accounts_start_offset = tree_accounts_start_offset - 1;
+    let packed_accounts_start_offset = tree_accounts_start_offset;
     println!("accounts {:?}", accounts);
     println!(
         "system_accounts_start_offset {}",
@@ -595,13 +772,42 @@ async fn test_four_multi_transfer_instruction(
             output_tree_index,
             proof: rpc_result.proof,
             system_accounts_start_offset: system_accounts_start_offset as u8,
-            packed_accounts_start_offset: packed_accounts_start_offset as u8,
+            packed_accounts_start_offset: tree_accounts_start_offset as u8,
             four_multi_transfer_params,
             pda_params,
         }
         .data(),
     };
-    println!("instruction {:?}", instruction);
+    // Print test setup values
+    println!("=== TEST SETUP VALUES ===");
+    println!("  mint1_pda: {}", mint1);
+    println!("  mint2_pda: {}", mint2);
+    println!("  mint3_pda: {}", mint3);
+    println!("  token_account_1: {}", token_account_1);
+    println!("  escrow_address: {:?}", escrow_address);
+    println!("  initial_escrow_amount: {}", initial_escrow_amount);
+    println!("  payer: {}", payer.pubkey());
+
+    // Print all instruction accounts with names
+    println!("=== INSTRUCTION ACCOUNTS ===");
+    for (i, account) in instruction.accounts.iter().enumerate() {
+        let name = match i {
+            0 => "payer",
+            1 => "compressed_token_program",
+            2 => "cpi_authority_pda",
+            3 => "system_program",
+            4 => "light_system_program",
+            5 => "account_compression_authority",
+            6 => "noop_program",
+            7 => "registered_program_pda",
+            8 => "account_compression_program",
+            9 => "self_program",
+            10 => "sol_pool_pda",
+            i if i >= 11 && i < 11 + system_accounts_start_offset => &format!("tree_{}", i - 11),
+            _ => "remaining_account",
+        };
+        println!("  {}: {} - {}", i, name, account.pubkey);
+    }
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await?;
 

@@ -57,6 +57,7 @@ pub fn process_multi_transfer(
     };
     // Determine optional account flags from instruction data
     let with_sol_pool = total_input_lamports != total_output_lamports;
+    msg!("with_sol_pool {}", with_sol_pool);
     let with_cpi_context = inputs.cpi_context.is_some();
 
     // Skip first account (light-system-program) and validate remaining accounts
@@ -85,6 +86,13 @@ pub fn process_multi_transfer(
     // Set CPI signer information
     cpi_instruction_struct.bump = LIGHT_CPI_SIGNER.bump;
     cpi_instruction_struct.invoking_program_id = LIGHT_CPI_SIGNER.program_id.into();
+    cpi_instruction_struct.with_cpi_context = with_cpi_context as u8;
+    if let Some(cpi_context) = inputs.cpi_context.as_ref() {
+        cpi_instruction_struct.cpi_context.cpi_context_account_index =
+            cpi_context.cpi_context_account_index;
+        cpi_instruction_struct.cpi_context.first_set_context = cpi_context.first_set_context as u8;
+        cpi_instruction_struct.cpi_context.set_context = cpi_context.set_context as u8;
+    }
     msg!("pre assign_input_compressed_accounts");
 
     // Process input compressed accounts
@@ -114,7 +122,7 @@ pub fn process_multi_transfer(
         &packed_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
-    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
+    //msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
 
     msg!("pre process_change_lamports");
     process_change_lamports(
