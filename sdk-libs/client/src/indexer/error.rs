@@ -46,7 +46,9 @@ pub enum IndexerError {
 
     #[error("Error: `{0}`")]
     CustomError(String),
-    #[error("Indexer not initialized.")]
+    #[error(
+        "Indexer not initialized. Set photon_url in LightClientConfig to enable indexer API calls."
+    )]
     NotInitialized,
     #[error("Indexer slot has not reached the requested slot.")]
     IndexerNotSyncedToSlot,
