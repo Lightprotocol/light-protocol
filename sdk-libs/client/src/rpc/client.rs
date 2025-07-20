@@ -129,6 +129,24 @@ impl LightClient {
         self.indexer = Some(PhotonIndexer::new(path, api_key));
     }
 
+    /// Detects the network type based on the RPC URL
+    fn detect_network(&self) -> RpcUrl {
+        let url = self.client.url();
+        
+        if url.contains("devnet") {
+            RpcUrl::Devnet
+        } else if url.contains("testnet") {
+            RpcUrl::Testnet
+        } else if url.contains("localhost") || url.contains("127.0.0.1") {
+            RpcUrl::Localnet
+        } else if url.contains("zk-testnet") {
+            RpcUrl::ZKTestnet
+        } else {
+            // Default to mainnet for production URLs and custom URLs
+            RpcUrl::Custom(url.to_string())
+        }
+    }
+
     async fn retry<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
     where
         F: Fn() -> Fut,
@@ -662,11 +680,19 @@ impl Rpc for LightClient {
 
     /// Fetch the latest state tree addresses from the cluster.
     async fn get_latest_active_state_trees(&mut self) -> Result<Vec<TreeInfo>, RpcError> {
-        let res = default_state_tree_lookup_tables().0;
+        let network = self.detect_network();
+        let (mainnet_tables, devnet_tables) = default_state_tree_lookup_tables();
+        
+        let lookup_tables = match network {
+            RpcUrl::Devnet | RpcUrl::Testnet | RpcUrl::ZKTestnet => &devnet_tables,
+            RpcUrl::Localnet => &devnet_tables, // Use devnet tables for local development
+            _ => &mainnet_tables, // Default to mainnet for production and custom URLs
+        };
+        
         let res = get_light_state_tree_infos(
             self,
-            &res[0].state_tree_lookup_table,
-            &res[0].nullify_table,
+            &lookup_tables[0].state_tree_lookup_table,
+            &lookup_tables[0].nullify_table,
         )
         .await?;
         self.state_merkle_trees = res.clone();

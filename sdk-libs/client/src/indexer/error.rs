@@ -46,7 +46,9 @@ pub enum IndexerError {
 
     #[error("Error: `{0}`")]
     CustomError(String),
-    #[error("Indexer not initialized.")]
+    #[error(
+        "Indexer not initialized. Set photon_url in LightClientConfig to enable indexer API calls."
+    )]
     NotInitialized,
     #[error("Indexer slot has not reached the requested slot.")]
     IndexerNotSyncedToSlot,
@@ -91,7 +93,7 @@ impl<T> From<photon_api::apis::Error<T>> for IndexerError {
                 IndexerError::ApiError(format!("Serialization error: {}", e))
             }
             photon_api::apis::Error::Io(e) => IndexerError::ApiError(format!("IO error: {}", e)),
-            _ => IndexerError::ApiError("Unknown API error".to_string()),
+            _ => IndexerError::ApiError(format!("Unknown API error {}", error)),
         }
     }
 }
