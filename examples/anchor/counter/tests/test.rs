@@ -122,7 +122,7 @@ where
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -180,7 +180,7 @@ where
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     let hash = compressed_account.hash;
 
@@ -241,7 +241,7 @@ where
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     let hash = compressed_account.hash;
 
@@ -301,7 +301,7 @@ where
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     let hash = compressed_account.hash;
 
@@ -361,7 +361,7 @@ where
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     let hash = compressed_account.hash;
 
