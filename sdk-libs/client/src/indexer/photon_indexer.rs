@@ -132,7 +132,10 @@ impl PhotonIndexer {
         result: Option<T>,
     ) -> Result<T, IndexerError> {
         if let Some(error) = error {
-            let error_message = error.message.unwrap_or_default();
+            let error_message = error
+                .clone()
+                .message
+                .unwrap_or_else(|| format!("Unknown API error: {:?}", error).to_string());
             return Err(IndexerError::ApiError(format!(
                 "API error in {} (code: {:?}): {}",
                 context, error.code, error_message

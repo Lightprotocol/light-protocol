@@ -144,6 +144,11 @@ impl<R: Rpc> SolanaRpcPoolBuilder<R> {
         self
     }
 
+    pub fn api_key(mut self, api_key: Option<String>) -> Self {
+        self.api_key = api_key;
+        self
+    }
+
     pub fn commitment(mut self, commitment: CommitmentConfig) -> Self {
         self.commitment = Some(commitment);
         self
