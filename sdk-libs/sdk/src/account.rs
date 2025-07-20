@@ -264,7 +264,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     /// Remove the data from this account by setting it to default.
     /// This is used when decompressing to ensure the compressed account is properly zeroed.
     pub fn remove_data(&mut self) {
-        self.account = A::default(); // TODO: remove
+        // self.account = A::default(); // TODO: remove
         self.empty_data = true;
     }
 
@@ -279,6 +279,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 // TODO: check if this is right
                 output.data_hash = [0; 32];
                 output.data = Vec::new();
+                output.output_merkle_tree_index = 1;
             } else {
                 output.data_hash = self.account.hash::<Poseidon>()?;
                 output.data = self

@@ -25,6 +25,8 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_all() {
+    std::env::set_var("RUST_LOG", "debug");
+    // let _ = env_logger::try_init();
     let program_id = anchor_compressible_user::ID;
     let config =
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
@@ -47,13 +49,20 @@ async fn test_all() {
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
 
-    let (user_record_pda, _bump) =
+    let (user_record_pda, bump) =
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
     test_create_record_with_config(&mut rpc, &payer, &program_id, &config_pda, &user_record_pda)
         .await;
-    test_decompress_multiple_pdas(&mut rpc, &payer, &program_id, &config_pda, &user_record_pda)
-        .await;
+    test_decompress_multiple_pdas(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &user_record_pda,
+        &bump,
+    )
+    .await;
 }
 
 async fn test_create_record_with_config(
@@ -87,6 +96,10 @@ async fn test_create_record_with_config(
         &program_id.to_bytes(),
     );
 
+    println!("compressed_address: {:?}", compressed_address);
+    println!("SEED1 (user_record_pda): {:?}", user_record_pda);
+    println!("SEED2 (address_tree_pubkey): {:?}", address_tree_pubkey);
+    println!("SEED3 (program_id): {:?}", program_id);
     // Get validity proof from RPC
     let rpc_result = rpc
         .get_validity_proof(
@@ -101,12 +114,14 @@ async fn test_create_record_with_config(
         .unwrap()
         .value;
 
+    println!("rpc_result: {:?}", rpc_result);
     // Pack tree infos into remaining accounts
     let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
 
     // Get the packed address tree info
     let address_tree_info = packed_tree_infos.address_trees[0];
 
+    println!("packed address tree info: {:?}", address_tree_info);
     // Get output state tree index
     let output_state_tree_index =
         remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
@@ -137,20 +152,21 @@ async fn test_create_record_with_config(
 
     assert!(result.is_ok(), "Transaction should succeed");
 
-    // Verify the user record was created
+    // should be empty
     let user_record_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert!(
         user_record_account.is_some(),
-        "User record PDA should exist"
+        "Account should exist after compression"
     );
 
-    // Deserialize and verify the user record data
-    let user_record_data = user_record_account.unwrap().data;
-    let discriminator_len = UserRecord::discriminator().len();
-    let user_record = UserRecord::deserialize(&mut &user_record_data[discriminator_len..]).unwrap();
-    assert_eq!(user_record.name, "Test User");
-    assert_eq!(user_record.score, 0);
-    assert_eq!(user_record.compression_info.is_compressed(), true);
+    let account = user_record_account.unwrap();
+    assert_eq!(account.lamports, 0, "Account lamports should be 0");
+
+    let user_record_data = account.data;
+    println!("user_record_data: {:?}", user_record_data);
+    println!("user_record_data len: {:?}", user_record_data.len());
+
+    assert!(user_record_data.is_empty(), "Account data should be empty");
 }
 
 async fn test_decompress_multiple_pdas(
@@ -159,6 +175,7 @@ async fn test_decompress_multiple_pdas(
     program_id: &Pubkey,
     _config_pda: &Pubkey,
     user_record_pda: &Pubkey,
+    bump: &u8,
 ) {
     // TODO: dynamic
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
@@ -179,15 +196,19 @@ async fn test_decompress_multiple_pdas(
     // Deserialize the account data to get the UserRecord using the SDK trait
     let account_data = c_pda.data.as_ref().unwrap();
 
-    // Use the trait to handle padding differences intelligently
-    let user_record = UserRecord::from_compressed_data(&account_data.data).unwrap();
+    println!("account_data: {:?}", account_data.data);
+    println!("account_data len: {:?}", account_data.data.len());
 
-    // Create a new PDA that will receive the decompressed data
-    let decompress_user = Keypair::new();
-    let (decompress_pda, decompress_bump) = Pubkey::find_program_address(
-        &[b"user_record", decompress_user.pubkey().as_ref()],
-        program_id,
-    );
+    println!("c-ac disc: {:?}", account_data.discriminator);
+
+    let mut with_discriminator = UserRecord::discriminator().to_vec();
+    with_discriminator.extend_from_slice(&account_data.data);
+
+    println!("with_discriminator: {:?}", with_discriminator);
+    println!("with_discriminator len: {:?}", with_discriminator.len());
+
+    // Use the trait to handle padding differences intelligently
+    let c_user_record = UserRecord::from_compressed_data(&with_discriminator).unwrap();
 
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
@@ -214,16 +235,16 @@ async fn test_decompress_multiple_pdas(
     // Create the compressed account data for the instruction
     let compressed_account_data = CompressedAccountData {
         meta: compressed_account_meta,
-        data: CompressedAccountVariant::UserRecord(user_record),
+        data: CompressedAccountVariant::UserRecord(c_user_record),
     };
 
     // Build instruction accounts
-    let pda_accounts = vec![decompress_pda];
+    let pda_accounts = vec![user_record_pda];
     let system_accounts_offset = pda_accounts.len() as u8;
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
     // Prepare bumps for the PDA
-    let bumps = vec![decompress_bump];
+    let bumps = vec![*bump];
 
     let instruction_data = anchor_compressible_user::instruction::DecompressMultiplePdas {
         proof: rpc_result.proof,
@@ -242,13 +263,20 @@ async fn test_decompress_multiple_pdas(
             ],
             pda_accounts
                 .iter()
-                .map(|&pda| AccountMeta::new(pda, false))
+                .map(|&pda| AccountMeta::new(*pda, false))
                 .collect(),
             system_accounts,
         ]
         .concat(),
         data: instruction_data.data(),
     };
+
+    let pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    // assert!(
+    //     pda_account.is_none(),
+    //     "PDA account should not exist before decompression"
+    // );
+    println!("pda_account BEFORE DECOMPRESSION: {:?}", pda_account);
 
     // Execute transaction
     let result = rpc
@@ -257,21 +285,27 @@ async fn test_decompress_multiple_pdas(
 
     assert!(result.is_ok(), "Decompress transaction should succeed");
 
+    // Get just the logs
+    let logs = rpc.context.get_transaction(&result.unwrap());
+    println!("Transaction logs: {:#?}", logs);
+
     // Verify the PDA account was created and contains the correct data
-    let pda_account = rpc.get_account(decompress_pda).await.unwrap();
+    let pda_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert!(
         pda_account.is_some(),
         "PDA account should exist after decompression"
     );
+    println!("decompressed pda_account: {:?}", pda_account);
 
     let pda_account_data = pda_account.unwrap().data;
     let discriminator_len = UserRecord::discriminator().len();
     let decompressed_user_record =
         UserRecord::deserialize(&mut &pda_account_data[discriminator_len..]).unwrap();
 
+    println!("decompressed_user_record: {:?}", decompressed_user_record);
     // Verify the decompressed data matches the original
     assert_eq!(decompressed_user_record.name, "Test User");
-    assert_eq!(decompressed_user_record.score, 0);
+    assert_eq!(decompressed_user_record.score, 11);
     assert_eq!(decompressed_user_record.owner, payer.pubkey());
 
     // Verify the compression info shows it's decompressed

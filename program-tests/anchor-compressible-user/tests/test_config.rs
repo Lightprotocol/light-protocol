@@ -58,11 +58,14 @@ async fn test_initialize_config() {
 
 #[tokio::test]
 async fn test_config_validation() {
+    solana_logger::setup_with_default("solana_runtime::message_processor=debug");
+
     // Fail: non-authority cannot init
     let program_id = anchor_compressible_user::ID;
     let config =
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
+    rpc.context.with_log_bytes_limit(Some(100000));
     let payer = rpc.get_payer().insecure_clone();
     let non_authority = Keypair::new();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);

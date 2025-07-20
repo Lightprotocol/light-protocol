@@ -264,6 +264,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
+ "solana-logger",
  "solana-program",
  "solana-sdk",
  "tokio",

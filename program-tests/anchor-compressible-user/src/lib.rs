@@ -22,7 +22,8 @@ pub mod anchor_compressible_user {
     use light_sdk::account::LightAccount;
     use light_sdk::compressible::{
         compress_pda, compress_pda_new, create_compression_config_checked,
-        decompress_multiple_idempotent, update_compression_config,
+        decompress_multiple_idempotent, decompress_multiple_idempotent_anchor,
+        update_compression_config,
     };
 
     use super::*;
@@ -96,7 +97,7 @@ pub mod anchor_compressible_user {
         msg!("...Config loaded: {:?}", config);
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
-        user_record.score = 0;
+        user_record.score = 11;
         // Initialize compression info with current slot
         user_record.compression_info = CompressionInfo::new()
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
@@ -201,6 +202,7 @@ pub mod anchor_compressible_user {
         bumps: Vec<u8>,
         system_accounts_offset: u8,
     ) -> Result<()> {
+        msg!("ONCHAIN: decompress_multiple_pdas");
         // Get PDA accounts from remaining accounts
         let pda_accounts_end = system_accounts_offset as usize;
         let pda_accounts = &ctx.remaining_accounts[..pda_accounts_end];
@@ -276,6 +278,7 @@ pub mod anchor_compressible_user {
             .map(|seeds| seeds.as_slice())
             .collect();
 
+        msg!("ONCHAIN: decompress_multiple_idempotent");
         // Single CPI call with unified enum type
         decompress_multiple_idempotent::<CompressedAccountVariant>(
             &pda_account_refs,
@@ -285,6 +288,8 @@ pub mod anchor_compressible_user {
             cpi_accounts,
             &crate::ID,
             &ctx.accounts.rent_payer,
+            // TODO: review safety of this.
+            ADDRESS_SPACE[0], // TODO: add better support for bigger address space. ie check and pass the right one.
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
@@ -607,7 +612,7 @@ impl FromCompressedData<UserRecord> for UserRecord {
     fn from_compressed_data(
         data: &[u8],
     ) -> std::result::Result<UserRecord, Box<dyn std::error::Error>> {
-        // Try to deserialize directly first
+        // Try to deserialize directly first - this should work most of the time
         match UserRecordWithoutCompressionInfo::deserialize(&mut &data[..]) {
             Ok(temp) => Ok(UserRecord {
                 compression_info: CompressionInfo::default(),
@@ -616,14 +621,29 @@ impl FromCompressedData<UserRecord> for UserRecord {
                 score: temp.score,
             }),
             Err(_) => {
-                // If direct deserialization fails, try with smart padding
-                // Calculate minimum required size for the compressed data
-                if data.len() < 32 + 4 {
-                    return Err("Data too small for owner and string length".into());
+                let anchor_disc = UserRecord::discriminator();
+                println!("anchor_disc: {:?}", anchor_disc);
+                println!("data: {:?}", data);
+                // We need to ensure minimum size for: owner(32) + string_len(4) + string_content + score(8)
+
+                let discriminator = &data[0..8];
+                println!("discriminator: {:?}", discriminator);
+                let compression_info = &data[8..17];
+                println!("compression_info: {:?}", compression_info);
+                let unpadded_data = &data[17..];
+                println!("unpadded_data: {:?}", unpadded_data);
+
+                let max_len = 32 + // owner
+                4 + // string_len
+                32 + // string
+                8; // score
+
+                if unpadded_data.len() > max_len {
+                    return Err("Data too big for struct".into());
                 }
 
-                // Read string length from position 32 (after owner)
-                let string_len_bytes = &data[32..36];
+                // Read the actual string length from the data
+                let string_len_bytes = &unpadded_data[32..36];
                 let string_len = u32::from_le_bytes([
                     string_len_bytes[0],
                     string_len_bytes[1],
@@ -631,24 +651,26 @@ impl FromCompressedData<UserRecord> for UserRecord {
                     string_len_bytes[3],
                 ]) as usize;
 
-                // Calculate minimum required size: owner(32) + string_len(4) + string + score(8)
-                let min_required = 32 + 4 + string_len + 8;
+                println!("string_len: {:?}", string_len);
 
-                let padded_data = if data.len() < min_required {
-                    let mut padded = data.to_vec();
-                    padded.resize(min_required, 0);
-                    padded
-                } else {
-                    data.to_vec()
-                };
+                // Calculate minimum required size for the actual data (not max_len allocation)
+                let space_used = 32 + 4 + string_len + 8;
 
-                let temp = UserRecordWithoutCompressionInfo::deserialize(&mut &padded_data[..])?;
-                Ok(UserRecord {
-                    compression_info: CompressionInfo::default(),
-                    owner: temp.owner,
-                    name: temp.name,
-                    score: temp.score,
-                })
+                // Pad with zeros at the end if data is too small
+                let mut padded_data = unpadded_data.to_vec();
+                padded_data.resize(max_len, 0);
+
+                println!("padded_data: {:?}", padded_data);
+
+                let mut all_data_padded = anchor_disc.to_vec();
+                all_data_padded.extend_from_slice(&compression_info);
+                all_data_padded.extend_from_slice(&padded_data);
+
+                println!("all_data_padded: {:?}", all_data_padded);
+                println!("all_data_padded len: {:?}", all_data_padded.len());
+                // Try deserializing the padded data
+                let temp = UserRecord::deserialize(&mut &all_data_padded[8..])?;
+                Ok(temp)
             }
         }
     }
@@ -659,7 +681,7 @@ impl FromCompressedData<GameSession> for GameSession {
     fn from_compressed_data(
         data: &[u8],
     ) -> std::result::Result<GameSession, Box<dyn std::error::Error>> {
-        // Try to deserialize directly first
+        // Try to deserialize directly first - this should work most of the time
         match GameSessionWithoutCompressionInfo::deserialize(&mut &data[..]) {
             Ok(temp) => Ok(GameSession {
                 compression_info: CompressionInfo::default(),
@@ -671,16 +693,17 @@ impl FromCompressedData<GameSession> for GameSession {
                 score: temp.score,
             }),
             Err(_) => {
-                // If direct deserialization fails, try with smart padding
+                // If direct deserialization fails, the data might be truncated
                 // GameSession layout: session_id(8) + player(32) + game_type(4+len) + start_time(8) + end_time(9) + score(8)
+
                 if data.len() < 8 + 32 + 4 {
                     return Err(
                         "Data too small for session_id, player, and game_type length".into(),
                     );
                 }
 
-                // Read game_type string length from position 40 (after session_id + player)
-                let game_type_len_bytes = &data[40..44];
+                // Read the actual game_type string length from the data
+                let game_type_len_bytes = &data[40..44]; // After session_id(8) + player(32)
                 let game_type_len = u32::from_le_bytes([
                     game_type_len_bytes[0],
                     game_type_len_bytes[1],
@@ -688,9 +711,10 @@ impl FromCompressedData<GameSession> for GameSession {
                     game_type_len_bytes[3],
                 ]) as usize;
 
-                // Calculate minimum required size: session_id(8) + player(32) + game_type(4+len) + start_time(8) + end_time(9) + score(8)
+                // Calculate minimum required size for the actual data
                 let min_required = 8 + 32 + 4 + game_type_len + 8 + 9 + 8;
 
+                // Pad with zeros at the end if data is too small
                 let padded_data = if data.len() < min_required {
                     let mut padded = data.to_vec();
                     padded.resize(min_required, 0);
@@ -699,6 +723,7 @@ impl FromCompressedData<GameSession> for GameSession {
                     data.to_vec()
                 };
 
+                // Try deserializing the padded data
                 let temp = GameSessionWithoutCompressionInfo::deserialize(&mut &padded_data[..])?;
                 Ok(GameSession {
                     compression_info: CompressionInfo::default(),

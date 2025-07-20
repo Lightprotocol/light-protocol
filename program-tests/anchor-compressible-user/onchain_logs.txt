@@ -1,0 +1,592 @@
+Error: Function _ZN14regex_automata4meta8strategy3new17hf9448a628a3fc95cE Stack offset of 5224 exceeded max offset of 4096 by 1128 bytes, please minimize large stack variables. Estimated function frame size: 11328 bytes. Exceeding the maximum stack offset may cause undefined behavior during execution.
+
+Error: Function _ZN15anchor_lang_idl5build10IdlBuilder5build17h4adaab42d7ef8a89E Stack offset of 4784 exceeded max offset of 4096 by 688 bytes, please minimize large stack variables. Estimated function frame size: 5312 bytes. Exceeding the maximum stack offset may cause undefined behavior during execution.
+
+warning: function `derive_light_cpi_signer_pda` is never used
+ --> sdk-libs/macros/src/cpi_signer.rs:5:8
+  |
+5 | pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: `light-sdk-macros` (lib) generated 1 warning
+warning: unused variable: `new_address_param`
+   --> sdk-libs/sdk/src/compressible/compress_pda_new.rs:160:37
+    |
+160 |     for (((pda_account, &address), &new_address_param), &output_state_tree_index) in pda_accounts
+    |                                     ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_address_param`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `pda_account`
+   --> sdk-libs/sdk/src/compressible/decompress_idempotent.rs:345:12
+    |
+345 |     for (((pda_account, pda_info), mut compressed_account), seeds) in pda_accounts
+    |            ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pda_account`
+
+warning: `light-sdk` (lib) generated 2 warnings
+warning: unused import: `decompress_multiple_idempotent_anchor`
+  --> program-tests/anchor-compressible-user/src/lib.rs:25:41
+   |
+25 |         decompress_multiple_idempotent, decompress_multiple_idempotent_anchor,
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `space_used`
+   --> program-tests/anchor-compressible-user/src/lib.rs:657:21
+    |
+657 |                 let space_used = 32 + 4 + string_len + 8;
+    |                     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_space_used`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `anchor-compressible-user` (lib) generated 2 warnings (run `cargo fix --lib -p anchor-compressible-user` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.50s
+   Compiling proc-macro2 v1.0.95
+   Compiling unicode-ident v1.0.18
+   Compiling libc v0.2.174
+   Compiling version_check v0.9.5
+   Compiling typenum v1.18.0
+   Compiling autocfg v1.5.0
+   Compiling serde v1.0.219
+   Compiling zerocopy v0.8.26
+   Compiling generic-array v0.14.7
+   Compiling num-traits v0.2.19
+   Compiling syn v1.0.109
+   Compiling getrandom v0.3.3
+   Compiling getrandom v0.2.16
+   Compiling rand_core v0.6.4
+   Compiling cpufeatures v0.2.17
+   Compiling toml_write v0.1.2
+   Compiling winnow v0.7.12
+   Compiling quote v1.0.40
+   Compiling ahash v0.8.12
+   Compiling syn v2.0.104
+   Compiling semver v1.0.26
+   Compiling cfg_aliases v0.2.1
+   Compiling borsh v1.5.7
+   Compiling solana-decode-error v2.3.0
+   Compiling num-integer v0.1.46
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.6
+   Compiling jobserver v0.1.33
+   Compiling digest v0.10.7
+   Compiling shlex v1.3.0
+   Compiling getrandom v0.1.16
+   Compiling rustc_version v0.4.1
+   Compiling sha2 v0.10.9
+   Compiling cc v1.2.29
+   Compiling digest v0.9.0
+   Compiling keccak v0.1.5
+   Compiling thiserror v1.0.69
+   Compiling block-buffer v0.9.0
+   Compiling curve25519-dalek v4.2.0
+   Compiling thiserror v2.0.12
+   Compiling rand_core v0.5.1
+   Compiling sha2 v0.9.9
+   Compiling serde_json v1.0.140
+   Compiling sha3 v0.10.8
+   Compiling solana-program-memory v2.2.1
+   Compiling crunchy v0.2.4
+   Compiling subtle v2.6.1
+   Compiling feature-probe v0.1.1
+   Compiling crossbeam-utils v0.8.21
+   Compiling crypto-mac v0.8.0
+   Compiling bv v0.11.1
+   Compiling hmac v0.8.1
+   Compiling num-bigint v0.4.6
+   Compiling hmac-drbg v0.3.0
+   Compiling libsecp256k1-core v0.2.2
+   Compiling blake3 v1.8.2
+   Compiling signal-hook-registry v1.4.5
+   Compiling libsecp256k1-gen-ecmult v0.2.1
+   Compiling libsecp256k1-gen-genmult v0.2.1
+   Compiling paste v1.0.15
+   Compiling libsecp256k1 v0.6.0
+   Compiling lock_api v0.4.13
+   Compiling borsh-derive-internal v0.10.4
+   Compiling borsh-schema-derive-internal v0.10.4
+   Compiling parking_lot_core v0.9.11
+   Compiling pkg-config v0.3.32
+   Compiling socket2 v0.5.10
+   Compiling mio v1.0.4
+   Compiling parking_lot v0.12.4
+   Compiling hmac v0.12.1
+   Compiling pbkdf2 v0.11.0
+   Compiling vcpkg v0.2.15
+   Compiling anyhow v1.0.98
+   Compiling solana-seed-phrase v2.2.1
+   Compiling solana-precompile-error v2.2.2
+   Compiling openssl v0.10.73
+   Compiling memoffset v0.9.1
+   Compiling core-foundation v0.9.4
+   Compiling crossbeam-epoch v0.9.18
+   Compiling serde_derive v1.0.219
+   Compiling zerocopy-derive v0.8.26
+   Compiling zeroize_derive v1.4.2
+   Compiling bytemuck_derive v1.9.3
+   Compiling thiserror-impl v1.0.69
+   Compiling solana-sdk-macro v2.2.1
+   Compiling thiserror-impl v2.0.12
+   Compiling num-derive v0.4.2
+   Compiling zeroize v1.8.1
+   Compiling tokio-macros v2.5.0
+   Compiling bytemuck v1.23.1
+   Compiling curve25519-dalek v3.2.0
+   Compiling futures-macro v0.3.31
+   Compiling tokio v1.46.1
+   Compiling openssl-sys v0.9.109
+   Compiling tracing-attributes v0.1.30
+   Compiling futures-util v0.3.31
+   Compiling enum-ordinalize-derive v4.3.1
+   Compiling ark-serialize-derive v0.5.0
+   Compiling enum-ordinalize v4.3.0
+   Compiling tracing v0.1.41
+   Compiling openssl-macros v0.1.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling educe v0.6.0
+   Compiling ark-ff-macros v0.5.0
+   Compiling rand_chacha v0.3.1
+   Compiling hashbrown v0.13.2
+   Compiling rand v0.8.5
+   Compiling rand_chacha v0.2.2
+   Compiling rand v0.7.3
+   Compiling ark-ff-asm v0.5.0
+   Compiling rayon-core v1.12.1
+   Compiling httparse v1.10.1
+   Compiling crossbeam-deque v0.8.6
+   Compiling rustix v1.0.8
+   Compiling ring v0.17.14
+   Compiling errno v0.3.13
+   Compiling unicode-joining-type v1.0.0
+   Compiling rayon v1.10.0
+   Compiling tokio-util v0.7.15
+   Compiling security-framework-sys v2.14.0
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling toml v0.5.11
+   Compiling bincode v1.3.3
+   Compiling toml_edit v0.22.27
+   Compiling bitflags v2.9.1
+   Compiling ed25519-dalek v1.0.1
+   Compiling proc-macro-crate v0.1.5
+   Compiling solana-fee-calculator v2.2.1
+   Compiling borsh-derive v0.10.4
+   Compiling solana-short-vec v2.2.1
+   Compiling borsh v0.10.4
+   Compiling serde-big-array v0.5.1
+   Compiling serde_bytes v0.11.17
+   Compiling solana-signature v2.2.1
+   Compiling proc-macro-crate v3.3.0
+   Compiling solana-serde-varint v2.2.1
+   Compiling solana-big-mod-exp v2.2.1
+   Compiling native-tls v0.2.14
+   Compiling ark-std v0.5.0
+   Compiling security-framework v2.11.1
+   Compiling borsh-derive v1.5.7
+   Compiling strsim v0.11.1
+   Compiling ident_case v1.0.1
+   Compiling tempfile v3.20.0
+   Compiling idna_mapping v1.1.0
+   Compiling darling_core v0.20.11
+   Compiling ark-serialize v0.5.0
+   Compiling ark-std v0.4.0
+   Compiling ark-serialize-derive v0.4.2
+   Compiling unicode-segmentation v1.12.0
+   Compiling memchr v2.7.5
+   Compiling ark-serialize v0.4.2
+   Compiling heck v0.3.3
+   Compiling idna_adapter v1.1.0
+   Compiling ark-ff v0.5.0
+   Compiling tokio-native-tls v0.3.1
+   Compiling toml v0.8.23
+   Compiling derivative v2.2.0
+   Compiling solana-hash v2.2.1
+   Compiling solana-secp256k1-recover v2.2.1
+   Compiling solana-sha256-hasher v2.2.1
+   Compiling solana-keccak-hasher v2.2.1
+   Compiling solana-pubkey v2.2.1
+   Compiling solana-blake3-hasher v2.2.1
+   Compiling solana-borsh v2.2.1
+   Compiling solana-instruction v2.2.1
+   Compiling solana-sdk-ids v2.2.1
+   Compiling solana-nonce v2.2.1
+   Compiling solana-cluster-type v2.2.1
+   Compiling darling_macro v0.20.11
+   Compiling solana-sysvar-id v2.2.1
+   Compiling solana-program-error v2.2.2
+   Compiling solana-transaction-error v2.2.1
+   Compiling solana-system-interface v1.0.0
+   Compiling solana-epoch-schedule v2.2.1
+   Compiling solana-account-info v2.2.1
+   Compiling solana-clock v2.2.1
+   Compiling solana-slot-hashes v2.2.1
+   Compiling solana-program-entrypoint v2.2.1
+   Compiling solana-serialize-utils v2.2.1
+   Compiling solana-cpi v2.2.1
+   Compiling solana-rent v2.2.1
+   Compiling solana-epoch-rewards v2.2.1
+   Compiling solana-last-restart-slot v2.2.1
+   Compiling solana-slot-history v2.2.1
+   Compiling solana-stake-interface v1.2.1
+   Compiling solana-instructions-sysvar v2.2.2
+   Compiling solana-bincode v2.2.1
+   Compiling solana-signer v2.2.1
+   Compiling solana-stable-layout v2.2.1
+   Compiling solana-feature-set v2.2.1
+   Compiling solana-message v2.2.1
+   Compiling solana-vote-interface v2.2.1
+   Compiling solana-address-lookup-table-interface v2.2.2
+   Compiling solana-loader-v4-interface v2.2.1
+   Compiling solana-loader-v3-interface v3.0.0
+   Compiling solana-program-pack v2.2.1
+   Compiling solana-loader-v2-interface v2.2.1
+   Compiling ark-ff-asm v0.4.2
+   Compiling ark-ff-macros v0.4.2
+   Compiling solana-sysvar v2.2.1
+   Compiling solana-ed25519-program v2.2.3
+   Compiling solana-secp256r1-program v2.2.3
+   Compiling solana-account v2.2.1
+   Compiling solana-secp256k1-program v2.2.1
+   Compiling solana-example-mocks v2.2.1
+   Compiling solana-precompiles v2.2.1
+   Compiling solana-feature-gate-interface v2.2.1
+   Compiling solana-transaction-context v2.2.1
+   Compiling solana-fee-structure v2.2.1
+   Compiling crc32fast v1.5.0
+   Compiling rustls v0.21.12
+   Compiling idna v1.0.3
+   Compiling ark-ff v0.4.2
+   Compiling darling v0.20.11
+   Compiling sct v0.7.1
+   Compiling rustls-webpki v0.101.7
+   Compiling cargo_toml v0.19.2
+   Compiling h2 v0.3.27
+   Compiling solana-program v2.2.1
+   Compiling inout v0.1.4
+   Compiling system-configuration-sys v0.5.0
+   Compiling cipher v0.4.4
+   Compiling serde_with_macros v3.14.0
+   Compiling url v2.5.4
+   Compiling serde_urlencoded v0.7.1
+   Compiling anchor-syn v0.31.1
+   Compiling serde_with v3.14.0
+   Compiling flate2 v1.1.2
+   Compiling universal-hash v0.5.1
+   Compiling system-configuration v0.5.1
+   Compiling polyval v0.6.2
+   Compiling async-compression v0.4.27
+   Compiling tokio-rustls v0.24.1
+   Compiling ctr v0.9.2
+   Compiling aes v0.8.4
+   Compiling solana-reserved-account-keys v2.2.1
+   Compiling cfg_eval v0.1.2
+   Compiling crossbeam-channel v0.5.15
+   Compiling solana-nostd-keccak v0.1.3
+   Compiling aead v0.5.2
+   Compiling hyper v0.14.32
+   Compiling ark-poly v0.5.0
+   Compiling aes-gcm-siv v0.11.1
+   Compiling solana-packet v2.2.1
+   Compiling solana-transaction v2.2.1
+   Compiling ed25519-dalek-bip32 v0.2.0
+   Compiling merlin v3.0.0
+   Compiling solana-keypair v2.2.1
+   Compiling ark-ec v0.5.0
+   Compiling num-bigint v0.2.6
+   Compiling signal-hook v0.3.18
+   Compiling solana-zk-sdk v2.2.4
+   Compiling solana-inflation v2.2.1
+   Compiling anchor-lang-idl-spec v0.1.0
+   Compiling atty v0.2.14
+   Compiling num-complex v0.2.4
+   Compiling num-rational v0.2.4
+   Compiling rustversion v1.0.21
+   Compiling env_logger v0.9.3
+   Compiling anchor-lang-idl v0.1.2
+   Compiling ark-bn254 v0.5.0
+   Compiling chrono v0.4.41
+   Compiling hyper-rustls v0.24.2
+   Compiling hyper-tls v0.5.0
+   Compiling reqwest v0.11.27
+   Compiling light-poseidon v0.3.0
+   Compiling light-hasher v3.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/hasher)
+   Compiling ark-poly v0.4.2
+   Compiling solana-hard-forks v2.2.1
+   Compiling solana-shred-version v2.2.1
+   Compiling anchor-attribute-program v0.31.1
+   Compiling solana-logger v2.3.1
+   Compiling anchor-derive-accounts v0.31.1
+   Compiling anchor-attribute-event v0.31.1
+   Compiling ark-ec v0.4.2
+   Compiling anchor-attribute-error v0.31.1
+   Compiling anchor-attribute-account v0.31.1
+   Compiling anchor-derive-serde v0.31.1
+   Compiling anchor-attribute-constant v0.31.1
+   Compiling anchor-attribute-access-control v0.31.1
+   Compiling num_enum_derive v0.7.4
+   Compiling solana-poh-config v2.2.1
+   Compiling anchor-derive-space v0.31.1
+   Compiling enum-iterator-derive v1.4.0
+   Compiling num-iter v0.1.45
+   Compiling memmap2 v0.5.10
+   Compiling num v0.2.1
+   Compiling solana-genesis-config v2.2.1
+   Compiling anchor-lang v0.31.1
+   Compiling solana-curve25519 v2.2.4
+   Compiling num_enum v0.7.4
+   Compiling enum-iterator v1.5.0
+   Compiling gethostname v0.2.3
+   Compiling ark-bn254 v0.4.0
+   Compiling solana-sbpf v0.10.0
+   Compiling solana-metrics v2.2.4
+   Compiling solana-bn254 v2.2.1
+   Compiling percentage v0.1.0
+   Compiling solana-compute-budget v2.2.4
+   Compiling solana-nonce-account v2.2.1
+   Compiling solana-type-overrides v2.2.4
+   Compiling light-zero-copy v0.2.0 (/Users/swen-code/Developer/light-protocol/program-libs/zero-copy)
+   Compiling solana-reward-info v2.2.1
+   Compiling solana-commitment-config v2.2.1
+   Compiling light-macros v2.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/macros)
+   Compiling solana-timings v2.2.4
+   Compiling either v1.15.0
+   Compiling itertools v0.13.0
+   Compiling spl-pod v0.5.1
+   Compiling solana-compute-budget-interface v2.2.1
+   Compiling solana-epoch-info v2.2.1
+   Compiling spl-discriminator-syn v0.2.0
+   Compiling light-indexed-array v0.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/indexed-array)
+   Compiling light-account-checks v0.3.0 (/Users/swen-code/Developer/light-protocol/program-libs/account-checks)
+   Compiling futures-executor v0.3.31
+   Compiling spl-discriminator-derive v0.2.0
+   Compiling async-trait v0.1.88
+   Compiling zstd-sys v2.0.15+zstd.1.5.7
+   Compiling solana-program-runtime v2.2.4
+   Compiling radium v0.7.0
+   Compiling solana-epoch-rewards-hasher v2.2.1
+   Compiling light-compressed-account v0.3.0 (/Users/swen-code/Developer/light-protocol/program-libs/compressed-account)
+   Compiling spl-discriminator v0.4.1
+   Compiling solana-client-traits v2.2.1
+   Compiling solana-rent-debits v2.2.1
+   Compiling solana-offchain-message v2.2.1
+   Compiling solana-rent-collector v2.2.1
+   Compiling solana-quic-definitions v2.2.1
+   Compiling solana-system-transaction v2.2.1
+   Compiling solana-presigner v2.2.1
+   Compiling solana-serde v2.2.1
+   Compiling light-bounded-vec v2.0.0
+   Compiling pin-project-internal v1.1.10
+   Compiling solana-sdk v2.2.1
+   Compiling zstd-safe v7.2.4
+   Compiling system-configuration-sys v0.6.0
+   Compiling bitvec v1.0.1
+   Compiling light-concurrent-merkle-tree v2.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/concurrent-merkle-tree)
+   Compiling light-merkle-tree-metadata v0.3.0 (/Users/swen-code/Developer/light-protocol/program-libs/merkle-tree-metadata)
+   Compiling spl-type-length-value v0.7.0
+   Compiling futures v0.3.31
+   Compiling light-merkle-tree-reference v2.0.0 (/Users/swen-code/Developer/light-protocol/program-tests/merkle-tree)
+   Compiling groth16-solana v0.2.0
+   Compiling spl-program-error-derive v0.4.1
+   Compiling pin-project v1.1.10
+   Compiling h2 v0.4.11
+   Compiling spl-program-error v0.6.0
+   Compiling light-verifier v2.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/verifier)
+   Compiling light-indexed-merkle-tree v2.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/indexed-merkle-tree)
+   Compiling light-poseidon v0.2.0
+   Compiling qualifier_attr v0.2.2
+   Compiling enum-ordinalize v3.1.15
+   Compiling light-bloom-filter v0.3.0 (/Users/swen-code/Developer/light-protocol/program-libs/bloom-filter)
+   Compiling aligned-sized v1.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/aligned-sized)
+   Compiling portable-atomic v1.11.1
+   Compiling educe v0.4.23
+   Compiling solana-poseidon v2.2.4
+   Compiling system-configuration v0.6.1
+   Compiling light-batched-merkle-tree v0.3.0 (/Users/swen-code/Developer/light-protocol/program-libs/batched-merkle-tree)
+   Compiling spl-tlv-account-resolution v0.9.0
+   Compiling opentelemetry v0.17.0
+   Compiling spl-token-confidential-transfer-proof-extraction v0.2.1
+   Compiling light-hash-set v2.1.0 (/Users/swen-code/Developer/light-protocol/program-libs/hash-set)
+   Compiling heck v0.4.1
+   Compiling tower v0.5.2
+   Compiling account-compression v2.0.0 (/Users/swen-code/Developer/light-protocol/programs/account-compression)
+   Compiling spl-elgamal-registry v0.1.1
+   Compiling tokio-serde v0.8.0
+   Compiling tracing-opentelemetry v0.17.4
+   Compiling spl-transfer-hook-interface v0.9.0
+   Compiling hyper v1.6.0
+   Compiling solana-bpf-loader-program v2.2.4
+   Compiling spl-token-metadata-interface v0.6.0
+   Compiling light-sdk-types v0.13.0 (/Users/swen-code/Developer/light-protocol/sdk-libs/sdk-types)
+   Compiling hyper-util v0.1.15
+   Compiling spl-token-group-interface v0.5.0
+   Compiling solana-config-program v2.2.4
+   Compiling spl-token v7.0.0
+   Compiling spl-token-confidential-transfer-ciphertext-arithmetic v0.2.1
+   Compiling spl-memo v6.0.0
+   Compiling tokio-util v0.6.10
+   Compiling tarpc-plugins v0.12.0
+   Compiling console v0.15.11
+   Compiling hyper-tls v0.6.0
+   Compiling tower-http v0.6.6
+   Compiling reqwest-middleware v0.2.5
+   Compiling tarpc v0.29.0
+   Compiling solana-stake-program v2.2.4
+   Compiling solana-loader-v4-program v2.2.4
+   Compiling light-system-program-anchor v2.0.0 (/Users/swen-code/Developer/light-protocol/anchor-programs/system)
+   Compiling solana-compute-budget-program v2.2.4
+   Compiling jsonrpc-core v18.0.0
+   Compiling solana-vote-program v2.2.4
+   Compiling solana-system-program v2.2.4
+   Compiling solana-address-lookup-table-program v2.2.4
+   Compiling spl-token-confidential-transfer-proof-generation v0.2.0
+   Compiling solana-version v2.2.4
+   Compiling solana-inline-spl v2.2.4
+   Compiling rustls-pki-types v1.12.0
+   Compiling indicatif v0.17.11
+   Compiling spl-token-2022 v6.0.0
+   Compiling solana-banks-interface v2.2.4
+   Compiling light-sparse-merkle-tree v0.1.0 (/Users/swen-code/Developer/light-protocol/sparse-merkle-tree)
+   Compiling reqwest v0.12.22
+   Compiling solana-zk-token-sdk v2.2.4
+   Compiling solana-svm-transaction v2.2.4
+   Compiling spl-associated-token-account-client v2.0.0
+   Compiling uuid v1.17.0
+   Compiling rand_core v0.9.3
+   Compiling solana-banks-client v2.2.4
+   Compiling rand_chacha v0.9.0
+   Compiling photon-api v0.51.0 (/Users/swen-code/Developer/light-protocol/sdk-libs/photon-api)
+   Compiling light-prover-client v2.0.0 (/Users/swen-code/Developer/light-protocol/prover/client)
+   Compiling light-sdk-macros v0.13.0 (/Users/swen-code/Developer/light-protocol/sdk-libs/macros)
+   Compiling solana-builtins-default-costs v2.2.4
+warning: function `derive_light_cpi_signer_pda` is never used
+ --> sdk-libs/macros/src/cpi_signer.rs:5:8
+  |
+5 | pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+   Compiling solana-zk-elgamal-proof-program v2.2.4
+   Compiling spl-token-confidential-transfer-proof-generation v0.3.0
+warning: `light-sdk-macros` (lib) generated 1 warning
+   Compiling light-sdk v0.13.0 (/Users/swen-code/Developer/light-protocol/sdk-libs/sdk)
+   Compiling dashmap v6.1.0
+   Compiling spl-token-2022 v7.0.0
+   Compiling solana-compute-budget-instruction v2.2.4
+warning: unused variable: `new_address_param`
+   --> sdk-libs/sdk/src/compressible/compress_pda_new.rs:160:37
+    |
+160 |     for (((pda_account, &address), &new_address_param), &output_state_tree_index) in pda_accounts
+    |                                     ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_new_address_param`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `pda_account`
+   --> sdk-libs/sdk/src/compressible/decompress_idempotent.rs:345:12
+    |
+345 |     for (((pda_account, pda_info), mut compressed_account), seeds) in pda_accounts
+    |            ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pda_account`
+
+   Compiling rand v0.9.1
+warning: `light-sdk` (lib) generated 2 warnings
+   Compiling solana-fee v2.2.4
+   Compiling spl-associated-token-account v6.0.0
+   Compiling light-registry v2.0.0 (/Users/swen-code/Developer/light-protocol/programs/registry)
+   Compiling light-heap v2.0.0 (/Users/swen-code/Developer/light-protocol/program-libs/heap)
+   Compiling solana-zk-token-proof-program v2.2.4
+   Compiling async-stream-impl v0.3.6
+   Compiling anchor-spl v0.31.1
+   Compiling spinning_top v0.3.0
+   Compiling solana-builtins v2.2.4
+   Compiling quanta v0.12.6
+   Compiling litesvm v0.6.1
+   Compiling async-stream v0.3.6
+   Compiling governor v0.8.1
+   Compiling bb8 v0.8.6
+   Compiling create-address-test-program v1.0.0 (/Users/swen-code/Developer/light-protocol/program-tests/create-address-test-program)
+   Compiling anchor-compressible-user v0.1.0 (/Users/swen-code/Developer/light-protocol/program-tests/anchor-compressible-user)
+warning: unused import: `decompress_multiple_idempotent_anchor`
+  --> program-tests/anchor-compressible-user/src/lib.rs:25:41
+   |
+25 |         decompress_multiple_idempotent, decompress_multiple_idempotent_anchor,
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `space_used`
+   --> program-tests/anchor-compressible-user/src/lib.rs:657:21
+    |
+657 |                 let space_used = 32 + 4 + string_len + 8;
+    |                     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_space_used`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+   Compiling zstd v0.13.3
+   Compiling solana-account-decoder-client-types v2.2.4
+   Compiling light-compressed-token v2.0.0 (/Users/swen-code/Developer/light-protocol/programs/compressed-token)
+warning: `anchor-compressible-user` (lib) generated 2 warnings (run `cargo fix --lib -p anchor-compressible-user` to apply 1 suggestion)
+   Compiling solana-transaction-status-client-types v2.2.4
+   Compiling solana-rpc-client-api v2.2.4
+   Compiling solana-rpc-client v2.2.4
+   Compiling light-client v0.13.1 (/Users/swen-code/Developer/light-protocol/sdk-libs/client)
+   Compiling light-program-test v0.13.2 (/Users/swen-code/Developer/light-protocol/sdk-libs/program-test)
+   Compiling forester-utils v2.0.0 (/Users/swen-code/Developer/light-protocol/forester-utils)
+   Compiling light-test-utils v1.2.1 (/Users/swen-code/Developer/light-protocol/program-tests/utils)
+warning: unused variable: `pda_account`
+   --> program-tests/anchor-compressible-user/tests/test_decompress_multiple.rs:275:9
+    |
+275 |     let pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pda_account`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `anchor-compressible-user` (test "test_decompress_multiple") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 49.09s
+     Running tests/test_decompress_multiple.rs (/Users/swen-code/Developer/light-protocol/target/debug/deps/test_decompress_multiple-dc856cdeac20e061)
+
+running 1 test
+Use only in light protocol monorepo. Using 'git rev-parse --show-toplevel' to find the location of 'light' binary
+compressed_address: [0, 255, 175, 53, 185, 24, 28, 64, 194, 160, 205, 80, 77, 38, 162, 224, 251, 53, 193, 250, 6, 225, 238, 56, 214, 210, 203, 37, 175, 120, 232, 234]
+SEED1 (user_record_pda): 7te11gMJFun4C3CEVM3BscK5P7sL31MSNGT27sU6zJhM
+SEED2 (address_tree_pubkey): EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK
+SEED3 (program_id): FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah
+rpc_result: ValidityProofWithContext { proof: ValidityProof(Some(CompressedProof { a: [9, 53, 117, 252, 52, 166, 136, 249, 231, 213, 107, 232, 226, 164, 250, 77, 196, 74, 248, 62, 114, 221, 47, 163, 210, 58, 174, 177, 66, 236, 57, 31], b: [165, 103, 120, 253, 74, 177, 182, 234, 11, 223, 66, 74, 130, 176, 222, 113, 160, 179, 121, 245, 29, 160, 54, 126, 175, 176, 161, 177, 179, 30, 42, 217, 45, 83, 42, 20, 224, 12, 114, 217, 168, 215, 202, 235, 67, 203, 114, 7, 33, 98, 230, 41, 10, 154, 209, 155, 154, 127, 152, 106, 140, 238, 166, 40], c: [148, 184, 222, 193, 163, 3, 54, 240, 66, 38, 243, 142, 127, 66, 130, 54, 180, 86, 217, 56, 15, 113, 90, 159, 85, 93, 121, 134, 163, 39, 162, 152] })), accounts: [], addresses: [AddressProofInputs { address: [0, 255, 175, 53, 185, 24, 28, 64, 194, 160, 205, 80, 77, 38, 162, 224, 251, 53, 193, 250, 6, 225, 238, 56, 214, 210, 203, 37, 175, 120, 232, 234], root: [28, 65, 107, 255, 208, 234, 51, 3, 131, 95, 62, 130, 202, 177, 176, 26, 216, 81, 64, 184, 200, 25, 95, 124, 248, 129, 44, 109, 229, 146, 106, 76], root_index: 0, tree_info: TreeInfo { cpi_context: None, next_tree_info: None, queue: EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK, tree: EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK, tree_type: AddressV2 } }] }
+packed address tree info: PackedAddressTreeInfo { address_merkle_tree_pubkey_index: 0, address_queue_pubkey_index: 0, root_index: 0 }
+user_record_data: [210, 252, 132, 218, 191, 85, 173, 167, 0, 0, 0, 0, 0, 0, 0, 0, 2, 82, 119, 53, 51, 0, 173, 216, 34, 192, 54, 245, 43, 203, 178, 196, 120, 216, 104, 159, 224, 94, 31, 142, 187, 117, 91, 213, 117, 41, 236, 121, 189, 9, 0, 0, 0, 84, 101, 115, 116, 32, 85, 115, 101, 114, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+user_record_data len: 93
+account_data: [0, 0, 0, 0, 0, 0, 0, 0, 2, 82, 119, 53, 51, 0, 173, 216, 34, 192, 54, 245, 43, 203, 178, 196, 120, 216, 104, 159, 224, 94, 31, 142, 187, 117, 91, 213, 117, 41, 236, 121, 189, 9, 0, 0, 0, 84, 101, 115, 116, 32, 85, 115, 101, 114, 11, 0, 0, 0, 0, 0, 0, 0]
+account_data len: 62
+c-ac disc: [102, 153, 211, 164, 62, 220, 128, 15]
+with_discriminator: [102, 153, 211, 164, 62, 220, 128, 15, 0, 0, 0, 0, 0, 0, 0, 0, 2, 82, 119, 53, 51, 0, 173, 216, 34, 192, 54, 245, 43, 203, 178, 196, 120, 216, 104, 159, 224, 94, 31, 142, 187, 117, 91, 213, 117, 41, 236, 121, 189, 9, 0, 0, 0, 84, 101, 115, 116, 32, 85, 115, 101, 114, 11, 0, 0, 0, 0, 0, 0, 0]
+with_discriminator len: 70
+anchor_disc: [102, 153, 211, 164, 62, 220, 128, 15]
+data: [102, 153, 211, 164, 62, 220, 128, 15, 0, 0, 0, 0, 0, 0, 0, 0, 2, 82, 119, 53, 51, 0, 173, 216, 34, 192, 54, 245, 43, 203, 178, 196, 120, 216, 104, 159, 224, 94, 31, 142, 187, 117, 91, 213, 117, 41, 236, 121, 189, 9, 0, 0, 0, 84, 101, 115, 116, 32, 85, 115, 101, 114, 11, 0, 0, 0, 0, 0, 0, 0]
+discriminator: [102, 153, 211, 164, 62, 220, 128, 15]
+compression_info: [0, 0, 0, 0, 0, 0, 0, 0, 2]
+unpadded_data: [82, 119, 53, 51, 0, 173, 216, 34, 192, 54, 245, 43, 203, 178, 196, 120, 216, 104, 159, 224, 94, 31, 142, 187, 117, 91, 213, 117, 41, 236, 121, 189, 9, 0, 0, 0, 84, 101, 115, 116, 32, 85, 115, 101, 114, 11, 0, 0, 0, 0, 0, 0, 0]
+string_len: 9
+padded_data: [82, 119, 53, 51, 0, 173, 216, 34, 192, 54, 245, 43, 203, 178, 196, 120, 216, 104, 159, 224, 94, 31, 142, 187, 117, 91, 213, 117, 41, 236, 121, 189, 9, 0, 0, 0, 84, 101, 115, 116, 32, 85, 115, 101, 114, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+all_data_padded: [102, 153, 211, 164, 62, 220, 128, 15, 0, 0, 0, 0, 0, 0, 0, 0, 2, 82, 119, 53, 51, 0, 173, 216, 34, 192, 54, 245, 43, 203, 178, 196, 120, 216, 104, 159, 224, 94, 31, 142, 187, 117, 91, 213, 117, 41, 236, 121, 189, 9, 0, 0, 0, 84, 101, 115, 116, 32, 85, 115, 101, 114, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+all_data_padded len: 93
+Transaction logs: None
+decompressed pda_account: Some(Account { lamports: 0, data.len: 93, owner: FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah, executable: false, rent_epoch: 0, data: d2fc84dabf55ada70000000000000000025277353300add822c036f52bcbb2c478d8689fe05e1f8ebb755bd57529ec79bd090000005465737420557365720b00 })
+decompressed_user_record: UserRecord { compression_info: CompressionInfo { last_written_slot: 0, state: Compressed }, owner: 6YurqNgbtNjKDwMtjaPuJZiK9juhpyydZzmmQU7AqKvc, name: "Test User", score: 11 }
+
+thread 'test_all' panicked at program-tests/anchor-compressible-user/tests/test_decompress_multiple.rs:312:5:
+assertion `left == right` failed
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test test_all ... FAILED
+
+failures:
+
+failures:
+    test_all
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+
+error: test failed, to rerun pass `--test test_decompress_multiple`

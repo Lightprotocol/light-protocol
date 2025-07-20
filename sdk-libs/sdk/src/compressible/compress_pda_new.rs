@@ -21,6 +21,8 @@ use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
+pub const SOLANA_SYSTEM_PROGRAM_ID: Pubkey = Pubkey::new_from_array([1; 32]);
+
 #[cfg(feature = "anchor")]
 /// Helper function to compress an onchain PDA into a new compressed account.
 ///
@@ -171,6 +173,7 @@ where
             LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
         compressed_account.account = (***pda_account).clone();
 
+        msg!("compressed_account: {:?}", compressed_account.account);
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Accumulate lamports
@@ -190,14 +193,20 @@ where
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
     // Close all PDA accounts
-    let dest_starting_lamports = rent_recipient.lamports();
-    **rent_recipient.try_borrow_mut_lamports()? = dest_starting_lamports
-        .checked_add(total_lamports)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+    // let dest_starting_lamports = rent_recipient.lamports();
+    // **rent_recipient.try_borrow_mut_lamports()? = dest_starting_lamports
+    //     .checked_add(total_lamports)
+    //     .ok_or(ProgramError::ArithmeticOverflow)?;
 
     for pda_account in pda_accounts {
         // Decrement source account lamports
-        **pda_account.to_account_info().try_borrow_mut_lamports()? = 0;
+
+        use anchor_lang::AccountsClose;
+
+        pda_account.close(rent_recipient.clone()).map_err(|err| {
+            msg!("Error closing PDA account: {:?}", err);
+            LightSdkError::ConstraintViolation
+        })?;
     }
 
     Ok(())

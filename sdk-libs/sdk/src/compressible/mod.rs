@@ -18,4 +18,6 @@ pub use config::{
     MAX_ADDRESS_TREES_PER_SPACE,
 };
 pub use decompress_idempotent::{decompress_idempotent, decompress_multiple_idempotent};
+#[cfg(feature = "anchor")]
+pub use decompress_idempotent::{decompress_idempotent_anchor, decompress_multiple_idempotent_anchor};
 pub use from_compressed_data::FromCompressedData;
