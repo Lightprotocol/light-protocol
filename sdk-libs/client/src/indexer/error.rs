@@ -91,7 +91,7 @@ impl<T> From<photon_api::apis::Error<T>> for IndexerError {
                 IndexerError::ApiError(format!("Serialization error: {}", e))
             }
             photon_api::apis::Error::Io(e) => IndexerError::ApiError(format!("IO error: {}", e)),
-            _ => IndexerError::ApiError("Unknown API error".to_string()),
+            _ => IndexerError::ApiError(format!("Unknown error: {}", error)),
         }
     }
 }
