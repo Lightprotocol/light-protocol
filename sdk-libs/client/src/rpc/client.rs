@@ -132,7 +132,7 @@ impl LightClient {
     /// Detects the network type based on the RPC URL
     fn detect_network(&self) -> RpcUrl {
         let url = self.client.url();
-        
+
         if url.contains("devnet") {
             RpcUrl::Devnet
         } else if url.contains("testnet") {
@@ -681,14 +681,42 @@ impl Rpc for LightClient {
     /// Fetch the latest state tree addresses from the cluster.
     async fn get_latest_active_state_trees(&mut self) -> Result<Vec<TreeInfo>, RpcError> {
         let network = self.detect_network();
+
+        // Return default test values for localnet
+        if matches!(network, RpcUrl::Localnet) {
+            use crate::indexer::TreeInfo;
+            use light_compressed_account::TreeType;
+            use solana_pubkey::pubkey;
+
+            #[cfg(feature = "v2")]
+            let default_trees = vec![TreeInfo {
+                tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
+                queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
+                cpi_context: Some(pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj")),
+                next_tree_info: None,
+                tree_type: TreeType::StateV2,
+            }];
+            
+            #[cfg(not(feature = "v2"))]
+            let default_trees = vec![TreeInfo {
+                tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
+                queue: pubkey!("nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148"),
+                cpi_context: Some(pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4")),
+                next_tree_info: None,
+                tree_type: TreeType::StateV1,
+            }];
+
+            self.state_merkle_trees = default_trees.clone();
+            return Ok(default_trees);
+        }
+
         let (mainnet_tables, devnet_tables) = default_state_tree_lookup_tables();
-        
+
         let lookup_tables = match network {
             RpcUrl::Devnet | RpcUrl::Testnet | RpcUrl::ZKTestnet => &devnet_tables,
-            RpcUrl::Localnet => &devnet_tables, // Use devnet tables for local development
             _ => &mainnet_tables, // Default to mainnet for production and custom URLs
         };
-        
+
         let res = get_light_state_tree_infos(
             self,
             &lookup_tables[0].state_tree_lookup_table,
