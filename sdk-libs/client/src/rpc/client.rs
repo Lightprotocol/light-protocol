@@ -684,9 +684,10 @@ impl Rpc for LightClient {
 
         // Return default test values for localnet
         if matches!(network, RpcUrl::Localnet) {
-            use crate::indexer::TreeInfo;
             use light_compressed_account::TreeType;
             use solana_pubkey::pubkey;
+
+            use crate::indexer::TreeInfo;
 
             #[cfg(feature = "v2")]
             let default_trees = vec![TreeInfo {
@@ -696,7 +697,7 @@ impl Rpc for LightClient {
                 next_tree_info: None,
                 tree_type: TreeType::StateV2,
             }];
-            
+
             #[cfg(not(feature = "v2"))]
             let default_trees = vec![TreeInfo {
                 tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
