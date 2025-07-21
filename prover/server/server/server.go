@@ -453,6 +453,12 @@ func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, run
 }
 
 func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+	apiKey := getAPIKeyFromEnv()
+	if apiKey != "" {
+		logging.Logger().Info().Msg("API key authentication enabled for prover server")
+	} else {
+		logging.Logger().Warn().Msg("No API key configured - server will accept all requests. Set PROVER_API_KEY environment variable to enable authentication.")
+	}
 	metricsMux := http.NewServeMux()
 	metricsServer := &http.Server{Addr: config.MetricsAddress, Handler: metricsMux}
 	metricsJob := spawnServerJob(metricsServer, "metrics server")
@@ -531,6 +537,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 			"X-Requested-With",
 			"Content-Type",
 			"Authorization",
+			"X-API-Key",
 			"X-Async",
 			"X-Sync",
 		}),
@@ -538,7 +545,8 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 	)
 
-	proverServer := &http.Server{Addr: config.ProverAddress, Handler: corsHandler(proverMux)}
+	authHandler := conditionalAuthMiddleware(apiKey)
+	proverServer := &http.Server{Addr: config.ProverAddress, Handler: corsHandler(authHandler(proverMux))}
 	proverJob := spawnServerJob(proverServer, "prover server")
 
 	if redisQueue != nil {
