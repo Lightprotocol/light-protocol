@@ -49,6 +49,11 @@ light-ctoken-types = { workspace = true, features = ["anchor"] }
 [dev-dependencies]
 rand = { workspace = true }
 num-bigint = { workspace = true }
+light-account-checks = { workspace = true, features = [
+    "solana",
+    "pinocchio",
+    "test-only",
+] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

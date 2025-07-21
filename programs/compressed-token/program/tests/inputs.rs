@@ -1,7 +1,8 @@
 use anchor_compressed_token::token_data::TokenData as AnchorTokenData;
-use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
+use anchor_lang::prelude::*;
 use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
+use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_compressed_account::instruction_data::with_readonly::{
     InAccount, InstructionDataInvokeCpiWithReadOnly,
 };
@@ -15,14 +16,13 @@ use light_compressed_token::{
     },
 };
 use light_ctoken_types::{
-    instructions::multi_transfer::MultiInputTokenDataWithContext,
-    context::TokenContext,
+    context::TokenContext, instructions::multi_transfer::MultiInputTokenDataWithContext,
 };
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
+use pinocchio::account_info::AccountInfo;
 use rand::Rng;
 
-/* TODO: reactivate
 #[test]
 fn test_rnd_create_input_compressed_account() {
     let mut rng = rand::thread_rng();
@@ -93,6 +93,7 @@ fn test_rnd_create_input_compressed_account() {
                 has_proof: false,
                 compressed_mint: false,
                 compressed_mint_with_freeze_authority: false,
+                extensions_config: vec![],
             };
 
             let config = cpi_bytes_config(config_input);
@@ -112,7 +113,7 @@ fn test_rnd_create_input_compressed_account() {
                     input_account,
                     &mut context,
                     &z_input_data,
-                    &remaining_accounts,
+                    remaining_accounts.as_slice(),
                     lamports,
                 )
             } else {
@@ -120,7 +121,7 @@ fn test_rnd_create_input_compressed_account() {
                     input_account,
                     &mut context,
                     &z_input_data,
-                    &remaining_accounts,
+                    remaining_accounts.as_slice(),
                     lamports,
                 )
             };
@@ -179,20 +180,15 @@ fn test_rnd_create_input_compressed_account() {
         }
     }
 }
-*/
 
 // Helper function to create mock AccountInfo
-fn create_mock_account(pubkey: Pubkey, is_signer: bool) -> AccountInfo<'static> {
-    let lamports = Box::leak(Box::new(0u64));
-    let data = Box::leak(Box::new(vec![]));
-    AccountInfo::new(
-        Box::leak(Box::new(pubkey)),
+fn create_mock_account(pubkey: Pubkey, is_signer: bool) -> AccountInfo {
+    get_account_info(
+        pubkey.to_bytes(),
+        Pubkey::default().to_bytes(), // owner is not checked,
         is_signer,
         false,
-        lamports,
-        data,
-        Box::leak(Box::new(Pubkey::default())),
         false,
-        0,
+        vec![],
     )
 }
