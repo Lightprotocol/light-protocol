@@ -1,11 +1,12 @@
-use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_compressed_account::compressed_account::PackedMerkleContext;
+use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_zero_copy::ZeroCopy;
 
+use crate::CTokenError;
 use crate::{
-    state::{ExtensionStruct, CompressedMint},
     instructions::extensions::ExtensionInstructionData,
-    AnchorSerialize, AnchorDeserialize,
+    state::{CompressedMint, ExtensionStruct},
+    AnchorDeserialize, AnchorSerialize,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
@@ -15,7 +16,7 @@ pub struct CreateCompressedMintInstructionData {
     pub proof: CompressedProof,
     pub mint_bump: u8,
     pub address_merkle_tree_root_index: u16,
-    // compressed address TODO: make a type CompressedAddress
+    // compressed address TODO: make a type CompressedAddress (not straight forward because of AnchorSerialize)
     pub mint_address: [u8; 32],
     pub freeze_authority: Option<Pubkey>,
     pub version: u8,
@@ -52,39 +53,44 @@ pub struct CompressedMintInstructionData {
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
+impl TryFrom<CompressedMint> for CompressedMintInstructionData {
+    type Error = CTokenError;
 
-impl From<CompressedMint> for CompressedMintInstructionData {
-    fn from(mint: CompressedMint) -> Self {
-        let extensions = mint.extensions.map(|exts| {
-            exts.into_iter()
-                .map(|ext| match ext {
-                    ExtensionStruct::MetadataPointer(metadata_pointer) => {
-                        ExtensionInstructionData::MetadataPointer(
-                            crate::instructions::extensions::metadata_pointer::InitMetadataPointer {
-                                authority: metadata_pointer.authority,
-                                metadata_address: metadata_pointer.metadata_address,
-                            },
-                        )
-                    }
-                    ExtensionStruct::TokenMetadata(token_metadata) => {
-                        ExtensionInstructionData::TokenMetadata(
-                            crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {
-                                update_authority: token_metadata.update_authority,
-                                metadata: token_metadata.metadata,
-                                additional_metadata: Some(token_metadata.additional_metadata),
-                                version: token_metadata.version,
-                            },
-                        )
-                    }
-                    ExtensionStruct::Compressible(_) => {
-                        // Compressible extensions are not supported for mints
-                        panic!("Compressible extensions are only supported for token accounts, not mints")
-                    }
-                })
-                .collect()
-        });
+    fn try_from(mint: CompressedMint) -> Result<Self, Self::Error> {
+        let extensions = match mint.extensions {
+            Some(exts) => {
+                let converted_exts: Result<Vec<_>, Self::Error> = exts
+                    .into_iter()
+                    .map(|ext| match ext {
+                        ExtensionStruct::MetadataPointer(metadata_pointer) => {
+                            Ok(ExtensionInstructionData::MetadataPointer(
+                                crate::instructions::extensions::metadata_pointer::InitMetadataPointer {
+                                    authority: metadata_pointer.authority,
+                                    metadata_address: metadata_pointer.metadata_address,
+                                },
+                            ))
+                        }
+                        ExtensionStruct::TokenMetadata(token_metadata) => {
+                            Ok(ExtensionInstructionData::TokenMetadata(
+                                crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+                                    update_authority: token_metadata.update_authority,
+                                    metadata: token_metadata.metadata,
+                                    additional_metadata: Some(token_metadata.additional_metadata),
+                                    version: token_metadata.version,
+                                },
+                            ))
+                        }
+                        _ => {
+                            Err(CTokenError::UnsupportedExtension)
+                        }
+                    })
+                    .collect();
+                Some(converted_exts?)
+            }
+            None => None,
+        };
 
-        Self {
+        Ok(Self {
             version: mint.version,
             spl_mint: mint.spl_mint,
             supply: mint.supply,
@@ -93,6 +99,6 @@ impl From<CompressedMint> for CompressedMintInstructionData {
             mint_authority: mint.mint_authority,
             freeze_authority: mint.freeze_authority,
             extensions,
-        }
+        })
     }
 }

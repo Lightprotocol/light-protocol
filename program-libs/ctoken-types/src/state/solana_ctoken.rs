@@ -62,6 +62,7 @@ pub struct CompressedTokenMeta {
     pub close_authority: Option<Pubkey>,
 }
 
+// Note: spl zero-copy compatibility is implemented in fn zero_copy_at
 #[derive(Debug, PartialEq, Clone)]
 pub struct ZCompressedTokenMeta<'a> {
     pub mint: <Pubkey as light_zero_copy::borsh::Deserialize<'a>>::Output,
@@ -79,12 +80,15 @@ pub struct ZCompressedTokenMetaMut<'a> {
     pub mint: <Pubkey as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output,
     pub owner: <Pubkey as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output,
     pub amount: zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U64>,
+    // 4 option bytes (spl compat) + 32 pubkey bytes
     delegate_option: zerocopy::Ref<&'a mut [u8], [u8; 36]>,
     pub delegate: Option<<Pubkey as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output>,
     pub state: zerocopy::Ref<&'a mut [u8], u8>,
+    // 4 option bytes (spl compat) + 8 u64 bytes
     is_native_option: zerocopy::Ref<&'a mut [u8], [u8; 12]>,
     pub is_native: Option<zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U64>>,
     pub delegated_amount: zerocopy::Ref<&'a mut [u8], zerocopy::little_endian::U64>,
+    // 4 option bytes (spl compat) + 32 pubkey bytes
     close_authority_option: zerocopy::Ref<&'a mut [u8], [u8; 36]>,
     pub close_authority: Option<<Pubkey as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output>,
 }

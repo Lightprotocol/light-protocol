@@ -1,12 +1,10 @@
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
-use light_compressed_token::{
-    shared::cpi_bytes_size::{
-        allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
-    },
+use light_compressed_token::shared::cpi_bytes_size::{
+    allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 use light_ctoken_types::{
-    state::{ExtensionStructConfig, CompressedMint, CompressedMintConfig},
-    instructions::extensions::token_metadata::{MetadataConfig, TokenMetadataConfig},
+    state::extensions::{MetadataConfig, TokenMetadataConfig},
+    state::{CompressedMint, CompressedMintConfig, ExtensionStructConfig},
 };
 use light_zero_copy::ZeroCopyNew;
 

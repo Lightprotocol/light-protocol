@@ -9,10 +9,6 @@ use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 use zerocopy::little_endian::U64;
 
-use light_ctoken_types::{
-    context::TokenContext,
-    instructions::mint_to_compressed::MintToCompressedInstructionData,
-};
 use crate::{
     mint::{
         input::create_input_compressed_mint_account, output::create_output_compressed_mint_account,
@@ -26,6 +22,9 @@ use crate::{
         outputs::create_output_compressed_account,
     },
     LIGHT_CPI_SIGNER,
+};
+use light_ctoken_types::{
+    context::TokenContext, instructions::mint_to_compressed::MintToCompressedInstructionData,
 };
 
 pub fn process_mint_to_compressed(
@@ -66,8 +65,7 @@ pub fn process_mint_to_compressed(
             .mint
             .extensions
             .as_ref(),
-    );
-    msg!("extensions_config: {:?}", extensions_config);
+    )?;
 
     let mut config_input = CpiConfigInput::mint_to_compressed(
         parsed_instruction_data.recipients.len(),
@@ -120,7 +118,7 @@ pub fn process_mint_to_compressed(
 
         // Process extensions from input mint
         let (has_extensions, extensions_config, _) =
-            crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref());
+            crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref())?;
 
         let mint_config = CompressedMintConfig {
             mint_authority: (true, ()),

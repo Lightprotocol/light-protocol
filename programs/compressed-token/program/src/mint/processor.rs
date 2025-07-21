@@ -17,10 +17,7 @@ use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
-    mint::{
-        accounts::CreateCompressedMintAccounts,
-        output::create_output_compressed_mint_account,
-    },
+    mint::{accounts::CreateCompressedMintAccounts, output::create_output_compressed_mint_account},
     shared::cpi::execute_cpi_invoke,
 };
 use light_ctoken_types::{
@@ -58,7 +55,7 @@ pub fn process_create_compressed_mint(
         let (has_extensions, extensions_config, additional_mint_data_len) =
             crate::extensions::process_extensions_config(
                 parsed_instruction_data.extensions.as_ref(),
-            );
+            )?;
         let mint_size_config: <CompressedMint as ZeroCopyNew>::ZeroCopyConfig =
             CompressedMintConfig {
                 mint_authority: (true, ()),

@@ -21,12 +21,8 @@ pub struct MultiInputTokenDataWithContext {
     pub mint: u8,
     pub owner: u8,
     pub with_delegate: bool,
-    // Only used if with_delegate is true
+    // Only used if with_delegate is true, we could also use 255 to indicate no delegate
     pub delegate: u8,
-    // // Only used if with_delegate is true
-    // pub delegate_change_account: u8,
-    // pub lamports: Option<u64>, move into separate vector to opt zero copy
-    // pub tlv: Option<Vec<u8>>, move into separate vector to opt zero copy
 }
 
 #[derive(
@@ -52,10 +48,10 @@ pub struct MultiTokenTransferOutputData {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
 pub enum CompressionMode {
-    Compress = 0u8,
-    Decompress = 1u8,
-    CompressFull = 2u8, // Ignores the amount, we keep the amount for efficient zero copy
-    CompressAndClose = 3u8, // Compresses the token and closes the account
+    Compress = COMPRESS,
+    Decompress = DECOMPRESS,
+    CompressFull = COMPRESS_FULL, // Ignores the amount, we keep the amount for efficient zero copy
+    CompressAndClose = COMPRESS_AND_CLOSE, // Compresses the token and closes the account
 }
 
 pub const COMPRESS: u8 = 0u8;
@@ -204,7 +200,6 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
     pub proof: Option<CompressedProof>,
     pub in_token_data: Vec<MultiInputTokenDataWithContext>,
     pub out_token_data: Vec<MultiTokenTransferOutputData>,
-    // pub delegate_out_token_data: Option<Vec<MultiTokenTransferDelegateOutputData>>,
     // put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
     pub in_lamports: Option<Vec<u64>>,
     // TODO: put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
@@ -221,20 +216,20 @@ pub fn validate_instruction_data(
     inputs: &ZCompressedTokenInstructionDataMultiTransfer,
 ) -> Result<(), crate::CTokenError> {
     if let Some(ref in_lamports) = inputs.in_lamports {
-        if in_lamports.len() > inputs.in_token_data.len() {
-            unimplemented!("Tlv is unimplemented");
+        if in_lamports.len() != inputs.in_token_data.len() {
+            return Err(CTokenError::InputAccountsLamportsLengthMismatch);
         }
     }
     if let Some(ref out_lamports) = inputs.out_lamports {
-        if out_lamports.len() > inputs.out_token_data.len() {
-            unimplemented!("Tlv is unimplemented");
+        if out_lamports.len() != inputs.out_token_data.len() {
+            return Err(CTokenError::OutputAccountsLamportsLengthMismatch);
         }
     }
     if inputs.in_tlv.is_some() {
-        unimplemented!("Tlv is unimplemented");
+        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
     }
     if inputs.out_tlv.is_some() {
-        unimplemented!("Tlv is unimplemented");
+        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
     }
     Ok(())
 }

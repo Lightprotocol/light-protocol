@@ -844,7 +844,7 @@ pub mod mint_sdk {
 #[cfg(test)]
 mod test {
     use light_compressed_account::{
-        compressed_account::{CompressedAccount, CompressedAccountData},
+        compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
         instruction_data::{
             data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
         },

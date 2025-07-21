@@ -2,12 +2,15 @@ use light_hasher::{DataHasher, Hasher, HasherError};
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    instructions::extensions::{
-        compressible::{CompressibleExtension, CompressibleExtensionConfig},
-        metadata_pointer::{
-            MetadataPointer, MetadataPointerConfig, ZMetadataPointer, ZMetadataPointerMut,
+    instructions::extensions::metadata_pointer::{
+        MetadataPointer, MetadataPointerConfig, ZMetadataPointer, ZMetadataPointerMut,
+    },
+    state::{
+        extensions::{
+            CompressibleExtension, TokenMetadata, TokenMetadataConfig, ZTokenMetadata,
+            ZTokenMetadataMut,
         },
-        token_metadata::{TokenMetadata, TokenMetadataConfig, ZTokenMetadata, ZTokenMetadataMut},
+        CompressibleExtensionConfig,
     },
     AnchorDeserialize, AnchorSerialize,
 };

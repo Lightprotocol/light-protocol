@@ -19,18 +19,15 @@ use light_ctoken_types::{
     context::TokenContext,
     instructions::{
         extensions::{
-            metadata_pointer::MetadataPointerConfig,
-            token_metadata::{
-                AdditionalMetadata, AdditionalMetadataConfig, Metadata, MetadataConfig,
-                TokenMetadata, TokenMetadataConfig,
-            },
-            ExtensionInstructionData, InitMetadataPointer, TokenMetadataInstructionData,
+            metadata_pointer::MetadataPointerConfig, ExtensionInstructionData, InitMetadataPointer,
+            TokenMetadataInstructionData,
         },
         mint_to_compressed::CompressedMintInputs,
     },
     state::{
-        CompressedMint, CompressedMintConfig, ExtensionStruct, ExtensionStructConfig,
-        ZCompressedMint, ZExtensionStruct,
+        AdditionalMetadata, AdditionalMetadataConfig, CompressedMint, CompressedMintConfig,
+        ExtensionStruct, ExtensionStructConfig, Metadata, MetadataConfig, TokenMetadata,
+        TokenMetadataConfig, ZCompressedMint, ZExtensionStruct,
     },
 };
 use light_zero_copy::ZeroCopyNew;

@@ -168,3 +168,5 @@ impl From<u64> for TreeType {
         }
     }
 }
+
+pub type CompressedAddress = [u8; 32];

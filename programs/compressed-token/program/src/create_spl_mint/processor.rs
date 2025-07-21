@@ -7,14 +7,13 @@ use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
-    constants::POOL_SEED,
-    create_spl_mint::accounts::CreateSplMintAccounts,
+    constants::POOL_SEED, create_spl_mint::accounts::CreateSplMintAccounts,
     shared::cpi::execute_cpi_invoke,
 };
 use light_ctoken_types::{
-    state::{CompressedMint, CompressedMintConfig},
-    instructions::create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
     context::TokenContext,
+    instructions::create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
+    state::{CompressedMint, CompressedMintConfig},
 };
 // TODO: check and handle extensions
 pub fn process_create_spl_mint(
@@ -90,17 +89,15 @@ fn update_compressed_mint_to_decompressed<'info>(
             input::create_input_compressed_mint_account,
             output::create_output_compressed_mint_account,
         },
-        shared::{
-            cpi_bytes_size::{
-                allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
-            },
+        shared::cpi_bytes_size::{
+            allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
     };
 
     // Process extensions from input mint
     let mint_inputs = &instruction_data.mint.mint;
     let (_, extensions_config, _) =
-        crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref());
+        crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref())?;
 
     // Build configuration for CPI instruction data - 1 input, 1 output, with optional proof
     let config_input = CpiConfigInput {
@@ -145,7 +142,7 @@ fn update_compressed_mint_to_decompressed<'info>(
 
         // Reuse the extensions config we already processed
         let (has_extensions_output, extensions_config_output, _) =
-            crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref());
+            crate::extensions::process_extensions_config(mint_inputs.extensions.as_ref())?;
 
         let mint_config = CompressedMintConfig {
             mint_authority: (true, ()),
@@ -188,8 +185,7 @@ fn update_compressed_mint_to_decompressed<'info>(
             let output_account = &mut cpi_instruction_struct.output_compressed_accounts[0];
             if let Some(data) = output_account.compressed_account.data.as_mut() {
                 let (mut compressed_mint, _) =
-                    CompressedMint::zero_copy_at_mut(data.data)
-                        .map_err(ProgramError::from)?;
+                    CompressedMint::zero_copy_at_mut(data.data).map_err(ProgramError::from)?;
                 compressed_mint.is_decompressed = 1; // Override to mark as decompressed (1 = true)
             }
         }

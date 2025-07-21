@@ -63,6 +63,15 @@ pub enum CTokenError {
     #[error("Failed to access sysvar")]
     SysvarAccessError,
 
+    #[error("Compressed token account TLV is unimplemented.")]
+    CompressedTokenAccountTlvUnimplemented,
+
+    #[error("Input accounts lamports length mismatch")]
+    InputAccountsLamportsLengthMismatch,
+
+    #[error("Output accounts lamports length mismatch")]
+    OutputAccountsLamportsLengthMismatch,
+
     #[error("Light hasher error: {0}")]
     HasherError(#[from] light_hasher::HasherError),
 
@@ -96,6 +105,9 @@ impl From<CTokenError> for u32 {
             CTokenError::InvalidCompressionMode => 18018,
             CTokenError::CompressInsufficientFunds => 18019,
             CTokenError::SysvarAccessError => 18020,
+            CTokenError::CompressedTokenAccountTlvUnimplemented => 18021,
+            CTokenError::InputAccountsLamportsLengthMismatch => 18022,
+            CTokenError::OutputAccountsLamportsLengthMismatch => 18023,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

@@ -5,7 +5,6 @@ pub mod token_metadata;
 
 use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError};
 
-pub use compressible::{CompressibleExtension, ZCompressibleExtension};
 pub use metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer};
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
