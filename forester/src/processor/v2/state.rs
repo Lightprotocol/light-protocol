@@ -71,7 +71,11 @@ where
     Ok((stream, size))
 }
 
-#[instrument(level = "debug", skip(context))]
+#[instrument(
+    level = "debug",
+    skip(context, merkle_tree_data),
+    fields(merkle_tree = ?context.merkle_tree)
+)]
 pub(crate) async fn perform_nullify<R: Rpc>(
     context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
@@ -104,7 +108,11 @@ pub(crate) async fn perform_nullify<R: Rpc>(
     Ok(())
 }
 
-#[instrument(level = "debug", skip(context))]
+#[instrument(
+    level = "debug",
+    skip(context, merkle_tree_data, output_queue_data),
+    fields(merkle_tree = ?context.merkle_tree)
+)]
 pub(crate) async fn perform_append<R: Rpc>(
     context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,

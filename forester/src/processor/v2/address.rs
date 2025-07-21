@@ -39,7 +39,7 @@ where
     Ok((stream, size))
 }
 
-#[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
+#[instrument(level = "debug", skip(context, merkle_tree_data), fields(tree = %context.merkle_tree))]
 pub(crate) async fn process_batch<R: Rpc>(
     context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
