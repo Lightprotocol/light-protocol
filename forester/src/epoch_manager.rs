@@ -545,23 +545,22 @@ impl<R: Rpc> EpochManager<R> {
                     if attempt < max_retries - 1 {
                         sleep(retry_delay).await;
                     } else {
-                        if let Err(alert_err) = send_pagerduty_alert(
-                            &self
-                                .config
-                                .external_services
-                                .pagerduty_routing_key
-                                .clone()
-                                .unwrap(),
-                            &format!(
-                                "Forester failed to register for epoch {} after {} attempts",
-                                epoch, max_retries
-                            ),
-                            "critical",
-                            &format!("Forester {}", self.config.payer_keypair.pubkey()),
-                        )
-                        .await
+                        if let Some(pagerduty_key) =
+                            self.config.external_services.pagerduty_routing_key.clone()
                         {
-                            error!("Failed to send PagerDuty alert: {:?}", alert_err);
+                            if let Err(alert_err) = send_pagerduty_alert(
+                                &pagerduty_key,
+                                &format!(
+                                    "Forester failed to register for epoch {} after {} attempts",
+                                    epoch, max_retries
+                                ),
+                                "critical",
+                                &format!("Forester {}", self.config.payer_keypair.pubkey()),
+                            )
+                            .await
+                            {
+                                error!("Failed to send PagerDuty alert: {:?}", alert_err);
+                            }
                         }
                         return Err(e);
                     }
