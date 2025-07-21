@@ -1452,6 +1452,19 @@ pub async fn run_service<R: Rpc>(
 ) -> Result<()> {
     info_span!("run_service", forester = %config.payer_keypair.pubkey())
         .in_scope(|| async {
+            let processor_mode_str = match (
+                config.general_config.skip_v1_state_trees
+                    && config.general_config.skip_v1_address_trees,
+                config.general_config.skip_v2_state_trees
+                    && config.general_config.skip_v2_address_trees,
+            ) {
+                (true, false) => "v2",
+                (false, true) => "v1",
+                (false, false) => "all",
+                _ => "unknown",
+            };
+            info!("Starting forester in {} mode", processor_mode_str);
+
             const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(1);
             const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
 

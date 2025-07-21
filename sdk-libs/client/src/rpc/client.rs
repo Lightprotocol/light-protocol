@@ -175,7 +175,6 @@ impl LightClient {
                             self.retry_config.max_retries,
                             e
                         );
-                        tokio::task::yield_now().await;
                         sleep(self.retry_config.retry_delay).await;
                     } else {
                         return Err(e);

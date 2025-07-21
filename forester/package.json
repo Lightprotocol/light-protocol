@@ -4,7 +4,7 @@
   "license": "GPL-3.0",
   "scripts": {
     "build": "cargo build",
-    "test": "source .env && RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_e2e_v2 -- --nocapture",
+    "test": "source .env && RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester e2e_test -- --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
   },
   "devDependencies": {

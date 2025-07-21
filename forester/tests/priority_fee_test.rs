@@ -1,5 +1,5 @@
 use forester::{
-    cli::StartArgs,
+    cli::{ProcessorMode, StartArgs},
     processor::v1::{
         config::CapConfig,
         helpers::{get_capped_priority_fee, request_priority_fee_estimate},
@@ -75,6 +75,7 @@ async fn test_priority_fee_request() {
         rpc_rate_limit: None,
         photon_rate_limit: None,
         send_tx_rate_limit: None,
+        processor_mode: ProcessorMode::All,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
