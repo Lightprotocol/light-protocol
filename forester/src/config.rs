@@ -8,7 +8,7 @@ use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 
 use crate::{
-    cli::{StartArgs, StatusArgs},
+    cli::{ProcessorMode, StartArgs, StatusArgs},
     errors::ConfigError,
     Result,
 };
@@ -245,10 +245,10 @@ impl ForesterConfig {
                 slot_update_interval_seconds: args.slot_update_interval_seconds,
                 tree_discovery_interval_seconds: args.tree_discovery_interval_seconds,
                 enable_metrics: args.enable_metrics(),
-                skip_v1_state_trees: false,
-                skip_v2_state_trees: false,
-                skip_v1_address_trees: false,
-                skip_v2_address_trees: false,
+                skip_v1_state_trees: args.processor_mode == ProcessorMode::V2,
+                skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
+                skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
+                skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,

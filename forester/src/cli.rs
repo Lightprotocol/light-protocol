@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -173,6 +173,14 @@ pub struct StartArgs {
 
     #[arg(long, env = "FORESTER_SEND_TRANSACTION_RATE_LIMIT")]
     pub send_tx_rate_limit: Option<u32>,
+
+    #[arg(
+           long,
+           env = "FORESTER_PROCESSOR_MODE",
+           default_value_t = ProcessorMode::All,
+           help = "Processor mode: v1 (process only v1 trees), v2 (process only v2 trees), all (process all trees)"
+       )]
+    pub processor_mode: ProcessorMode,
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -202,5 +210,82 @@ impl StartArgs {
 impl StatusArgs {
     pub fn enable_metrics(&self) -> bool {
         self.push_gateway_url.is_some()
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ProcessorMode {
+    #[clap(name = "v1")]
+    V1,
+    #[clap(name = "v2")]
+    V2,
+    #[clap(name = "all")]
+    #[default]
+    All,
+}
+
+impl std::fmt::Display for ProcessorMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProcessorMode::V1 => write!(f, "v1"),
+            ProcessorMode::V2 => write!(f, "v2"),
+            ProcessorMode::All => write!(f, "all"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::*;
+
+    #[test]
+    fn test_processor_mode_parsing() {
+        // Test v1-only
+        let args = StartArgs::try_parse_from([
+            "forester",
+            "--processor-mode", "v1",
+            "--rpc-url", "http://test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
+        ]).unwrap();
+        assert_eq!(args.processor_mode, ProcessorMode::V1);
+
+        // Test v2-only
+        let args = StartArgs::try_parse_from([
+            "forester",
+            "--processor-mode", "v2",
+            "--rpc-url", "http://test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
+        ]).unwrap();
+        assert_eq!(args.processor_mode, ProcessorMode::V2);
+
+        // Test all (default)
+        let args = StartArgs::try_parse_from([
+            "forester",
+            "--rpc-url", "http://test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
+        ]).unwrap();
+        assert_eq!(args.processor_mode, ProcessorMode::All);
+
+        // Test invalid mode should fail
+        let result = StartArgs::try_parse_from([
+            "forester",
+            "--processor-mode", "invalid-mode",
+            "--rpc-url", "http://test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_processor_mode_display() {
+        assert_eq!(ProcessorMode::V1.to_string(), "v1");
+        assert_eq!(ProcessorMode::V2.to_string(), "v2");
+        assert_eq!(ProcessorMode::All.to_string(), "all");
     }
 }
