@@ -179,22 +179,28 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
         fetch_active_tree: false,
     })
     .await?;
-    let trees = fetch_trees(&rpc).await?;
+    let trees = fetch_trees(&rpc)
+        .await?
+        .iter()
+        .sorted_by_key(|t| t.merkle_tree.to_string())
+        .cloned()
+        .collect::<Vec<_>>();
+
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
     }
-    run_queue_info(config.clone(), trees.clone(), TreeType::StateV1).await?;
-    run_queue_info(config.clone(), trees.clone(), TreeType::AddressV1).await?;
+    run_queue_info(config.clone(), &trees, TreeType::StateV1).await?;
+    run_queue_info(config.clone(), &trees, TreeType::AddressV1).await?;
 
-    run_queue_info(config.clone(), trees.clone(), TreeType::StateV2).await?;
-    run_queue_info(config.clone(), trees.clone(), TreeType::AddressV2).await?;
+    run_queue_info(config.clone(), &trees, TreeType::StateV2).await?;
+    run_queue_info(config.clone(), &trees, TreeType::AddressV2).await?;
 
     for tree in &trees {
-        let tree_type = format!("[{}]", tree.tree_type);
+        let tree_type = format!("{}", tree.tree_type);
         let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type).await?;
         let fullness_percentage = tree_info.fullness * 100.0;
         println!(
-            "{} Tree {}: Fullness: {:.4}% | Next Index: {} | Threshold: {}",
+            "{} {}: Fullness: {:.4}% | Next Index: {} | Threshold: {}",
             tree_type,
             &tree.merkle_tree,
             format!("{:.2}%", fullness_percentage),
@@ -323,9 +329,7 @@ fn print_current_forester_assignments(
         );
 
         println!("Queue processors for the current light slot:");
-        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        println!("│ Tree Type │ Tree Address                               │ Forester                                  │");
-        println!("┼───────────┼──────────────────────────────────────────┼──────────────────────────────────────────┤");
+        println!("Tree Type\t\tTree Address\tForester");
 
         for tree in trees {
             let eligible_forester_slot_index = match ForesterEpochPda::get_eligible_forester_index(
@@ -337,7 +341,7 @@ fn print_current_forester_assignments(
                 Ok(idx) => idx,
                 Err(e) => {
                     println!(
-                        "│ {:9} │ {} │ ERROR: {:?} │",
+                        "{:12}\t\t{}\tERROR: {:?}",
                         tree.tree_type, tree.merkle_tree, e
                     );
                     continue;
@@ -350,17 +354,16 @@ fn print_current_forester_assignments(
 
             if let Some(forester_pda) = assigned_forester {
                 println!(
-                    "│ {:9} │ {} │ {} │",
+                    "{:12}\t\t{}\t{}",
                     tree.tree_type, tree.merkle_tree, forester_pda.authority
                 );
             } else {
                 println!(
-                    "│ {:9} │ {} │ UNASSIGNED (Eligible Index: {}) │",
+                    "{:12}\t\t{}\tUNASSIGNED (Eligible Index: {})",
                     tree.tree_type, tree.merkle_tree, eligible_forester_slot_index
                 );
             }
         }
-        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     } else {
         println!(
             "ERROR: Could not find EpochPda for active epoch {}. Cannot determine forester assignments.",

@@ -26,6 +26,7 @@ pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::{
     forester_epoch::TreeAccounts, rate_limiter::RateLimiter, rpc_pool::SolanaRpcPoolBuilder,
 };
+use itertools::Itertools;
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
@@ -37,7 +38,8 @@ use crate::{
     metrics::QUEUE_LENGTH,
     processor::tx_cache::ProcessedHashCache,
     queue_helpers::{
-        fetch_address_v2_queue_length, fetch_queue_item_data, fetch_state_v2_queue_length,
+        fetch_queue_item_data, print_address_v2_queue_info, print_state_v2_input_queue_info,
+        print_state_v2_output_queue_info,
     },
     slot_tracker::SlotTracker,
     utils::get_protocol_config,
@@ -45,7 +47,7 @@ use crate::{
 
 pub async fn run_queue_info(
     config: Arc<ForesterConfig>,
-    trees: Vec<TreeAccounts>,
+    trees: &[TreeAccounts],
     queue_type: TreeType,
 ) -> Result<()> {
     let mut rpc = LightClient::new(LightClientConfig {
@@ -60,49 +62,87 @@ pub async fn run_queue_info(
     let trees: Vec<_> = trees
         .iter()
         .filter(|t| t.tree_type == queue_type)
+        .sorted_by_key(|t| t.merkle_tree.to_string())
         .cloned()
         .collect();
 
     for tree_data in trees {
-        let queue_length = match tree_data.tree_type {
-            TreeType::StateV1 => fetch_queue_item_data(
-                &mut rpc,
-                &tree_data.queue,
-                0,
-                STATE_NULLIFIER_QUEUE_VALUES,
-                STATE_NULLIFIER_QUEUE_VALUES,
-            )
-            .await?
-            .len(),
-            TreeType::AddressV1 => fetch_queue_item_data(
-                &mut rpc,
-                &tree_data.queue,
-                0,
-                ADDRESS_QUEUE_VALUES,
-                ADDRESS_QUEUE_VALUES,
-            )
-            .await?
-            .len(),
-            TreeType::StateV2 => fetch_state_v2_queue_length(&mut rpc, &tree_data.queue).await?,
+        match tree_data.tree_type {
+            TreeType::StateV1 => {
+                let queue_length = fetch_queue_item_data(
+                    &mut rpc,
+                    &tree_data.queue,
+                    0,
+                    STATE_NULLIFIER_QUEUE_VALUES,
+                    STATE_NULLIFIER_QUEUE_VALUES,
+                )
+                .await?
+                .len();
+                QUEUE_LENGTH
+                    .with_label_values(&[
+                        &*queue_type.to_string(),
+                        &tree_data.merkle_tree.to_string(),
+                    ])
+                    .set(queue_length as i64);
+
+                println!(
+                    "{:?} queue {} length: {}",
+                    queue_type, tree_data.queue, queue_length
+                );
+            }
+            TreeType::AddressV1 => {
+                let queue_length = fetch_queue_item_data(
+                    &mut rpc,
+                    &tree_data.queue,
+                    0,
+                    ADDRESS_QUEUE_VALUES,
+                    ADDRESS_QUEUE_VALUES,
+                )
+                .await?
+                .len();
+                QUEUE_LENGTH
+                    .with_label_values(&[
+                        &*queue_type.to_string(),
+                        &tree_data.merkle_tree.to_string(),
+                    ])
+                    .set(queue_length as i64);
+
+                println!(
+                    "{:?} queue {} length: {}",
+                    queue_type, tree_data.queue, queue_length
+                );
+            }
+            TreeType::StateV2 => {
+                println!("\n=== StateV2 {} ===", tree_data.merkle_tree);
+
+                println!("\n1. APPEND OPERATIONS:");
+                let append_unprocessed =
+                    print_state_v2_output_queue_info(&mut rpc, &tree_data.queue).await?;
+
+                println!("\n2. NULLIFY OPERATIONS:");
+                let nullify_unprocessed =
+                    print_state_v2_input_queue_info(&mut rpc, &tree_data.merkle_tree).await?;
+
+                println!("===========================================\n");
+
+                QUEUE_LENGTH
+                    .with_label_values(&["StateV2.Append", &tree_data.queue.to_string()])
+                    .set(append_unprocessed as i64);
+
+                QUEUE_LENGTH
+                    .with_label_values(&["StateV2.Nullify", &tree_data.merkle_tree.to_string()])
+                    .set(nullify_unprocessed as i64);
+            }
             TreeType::AddressV2 => {
-                fetch_address_v2_queue_length(&mut rpc, &tree_data.merkle_tree).await?
+                println!("\n=== AddressV2 {} ===", tree_data.merkle_tree);
+                let queue_length =
+                    print_address_v2_queue_info(&mut rpc, &tree_data.merkle_tree).await?;
+                println!("===========================================\n");
+                QUEUE_LENGTH
+                    .with_label_values(&["AddressV2", &tree_data.merkle_tree.to_string()])
+                    .set(queue_length as i64);
             }
         };
-
-        QUEUE_LENGTH
-            .with_label_values(&[&*queue_type.to_string(), &tree_data.merkle_tree.to_string()])
-            .set(queue_length as i64);
-
-        let queue_identifier = if tree_data.tree_type == TreeType::AddressV2 {
-            tree_data.merkle_tree.to_string()
-        } else {
-            tree_data.queue.to_string()
-        };
-
-        println!(
-            "{:?} queue {} length: {}",
-            queue_type, queue_identifier, queue_length
-        );
     }
     Ok(())
 }
