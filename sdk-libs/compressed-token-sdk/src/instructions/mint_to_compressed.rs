@@ -72,7 +72,7 @@ pub fn create_mint_to_compressed_instruction(
         root_index: compressed_mint_inputs.root_index,
         address: compressed_mint_inputs.address,
         proof: None, // No proof needed for this test
-        mint: compressed_mint_inputs.compressed_mint_input.into(),
+        mint: compressed_mint_inputs.compressed_mint_input.try_into()?,
     };
 
     // Create mint_to_compressed instruction

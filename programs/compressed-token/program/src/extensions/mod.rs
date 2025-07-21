@@ -1,4 +1,4 @@
-pub mod metadata_pointer;
+// pub mod metadata_pointer;
 pub mod processor;
 pub mod token_metadata;
 pub mod token_metadata_ui;

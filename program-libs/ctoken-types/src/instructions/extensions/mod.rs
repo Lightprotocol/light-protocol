@@ -1,26 +1,58 @@
 use light_hasher::Hasher;
 pub mod compressible;
-pub mod metadata_pointer;
+//pub mod metadata_pointer;
 pub mod token_metadata;
 
 use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError};
 
-pub use metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer};
+//pub use metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer};
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum ExtensionInstructionData {
-    // TODO: insert 18 placeholders to get consistent enum layout
-    MetadataPointer(InitMetadataPointer),
-    // TokenMetadata = 19,
+    Placeholder0,
+    Placeholder1,
+    Placeholder2,
+    Placeholder3,
+    Placeholder4,
+    Placeholder5,
+    Placeholder6,
+    Placeholder7,
+    Placeholder8,
+    Placeholder9,
+    Placeholder10,
+    Placeholder11,
+    Placeholder12,
+    Placeholder13,
+    Placeholder14,
+    Placeholder15,
+    Placeholder16,
+    Placeholder17,
+    Placeholder18, // MetadataPointer(InitMetadataPointer),
     TokenMetadata(TokenMetadataInstructionData),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ZExtensionInstructionData<'a> {
-    // TODO: insert 18 placeholders to get consistent enum layout
-    MetadataPointer(ZInitMetadataPointer<'a>),
-    // TokenMetadata = 19,
+    Placeholder0,
+    Placeholder1,
+    Placeholder2,
+    Placeholder3,
+    Placeholder4,
+    Placeholder5,
+    Placeholder6,
+    Placeholder7,
+    Placeholder8,
+    Placeholder9,
+    Placeholder10,
+    Placeholder11,
+    Placeholder12,
+    Placeholder13,
+    Placeholder14,
+    Placeholder15,
+    Placeholder16,
+    Placeholder17,
+    Placeholder18, // MetadataPointer(ZInitMetadataPointer<'a>),
     TokenMetadata(ZTokenMetadataInstructionData<'a>),
 }
 
@@ -31,12 +63,13 @@ impl ExtensionInstructionData {
         context: &mut TokenContext,
     ) -> Result<[u8; 32], CTokenError> {
         match self {
-            ExtensionInstructionData::MetadataPointer(metadata_pointer) => {
+            /* ExtensionInstructionData::MetadataPointer(metadata_pointer) => {
                 metadata_pointer.hash_metadata_pointer::<H>(context)
-            }
+            }*/
             ExtensionInstructionData::TokenMetadata(token_metadata) => {
                 token_metadata.hash_token_metadata::<H>(mint, context)
             }
+            _ => Err(CTokenError::UnsupportedExtension),
         }
     }
 }
@@ -48,12 +81,13 @@ impl ZExtensionInstructionData<'_> {
         context: &mut TokenContext,
     ) -> Result<[u8; 32], CTokenError> {
         match self {
-            ZExtensionInstructionData::MetadataPointer(metadata_pointer) => {
+            /*ZExtensionInstructionData::MetadataPointer(metadata_pointer) => {
                 metadata_pointer.hash_metadata_pointer::<H>(context)
-            }
+            }*/
             ZExtensionInstructionData::TokenMetadata(token_metadata) => {
                 token_metadata.hash_token_metadata::<H>(hashed_mint, context)
             }
+            _ => Err(CTokenError::UnsupportedExtension),
         }
     }
 }
@@ -77,15 +111,15 @@ impl<'a> light_zero_copy::borsh::Deserialize<'a> for ExtensionInstructionData {
         let remaining_data = &data[1..];
 
         match discriminant {
-            0 => {
+            /* 18 => {
                 let (metadata_pointer, remaining_bytes) =
                     InitMetadataPointer::zero_copy_at(remaining_data)?;
                 Ok((
                     ZExtensionInstructionData::MetadataPointer(metadata_pointer),
                     remaining_bytes,
                 ))
-            }
-            1 => {
+            }*/
+            19 => {
                 let (token_metadata, remaining_bytes) =
                     TokenMetadataInstructionData::zero_copy_at(remaining_data)?;
                 Ok((

@@ -3,11 +3,13 @@ use light_hasher::{errors::HasherError, Hasher, Poseidon};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::IntoBytes;
 
-use crate::{AnchorSerialize, AnchorDeserialize, state::ExtensionStruct};
+use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
 
 // Order is optimized for hashing.
 // freeze_authority option is skipped if None.
-#[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut, ZeroCopy)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut, ZeroCopy,
+)]
 pub struct CompressedMint {
     /// Version for upgradability
     pub version: u8,
@@ -33,7 +35,7 @@ pub struct CompressedMint {
 // pub extension_hash: [u8; 32],
 impl CompressedMint {
     #[allow(dead_code)]
-    pub fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
+    pub fn hash(&self) -> std::result::Result<[u8; 32], CTokenError> {
         let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
         let mut supply_bytes = [0u8; 32];
         supply_bytes[24..].copy_from_slice(self.supply.to_be_bytes().as_slice());
@@ -74,7 +76,10 @@ impl CompressedMint {
                     extension.hash::<Poseidon>()?.as_slice(),
                 ])?;
             }
-            Poseidon::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])
+            Ok(Poseidon::hashv(&[
+                mint_hash.as_slice(),
+                extension_hashchain.as_slice(),
+            ])?)
         } else {
             Ok(mint_hash)
         }

@@ -1,7 +1,7 @@
 use crate::{AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
-#[repr(u16)]
+#[repr(u8)] // Note: token22 uses u16
 pub enum ExtensionType {
     // /// Used as padding if the account size would otherwise be 355, same as a
     // /// multisig
@@ -47,10 +47,34 @@ pub enum ExtensionType {
     // ConfidentialTransferFeeAmount,
     /// Mint contains a pointer to another account (or the same account) that
     /// holds metadata. Must not point to itself.
-    MetadataPointer = 18,
+    Placeholder0,
+    Placeholder1,
+    Placeholder2,
+    Placeholder3,
+    Placeholder4,
+    Placeholder5,
+    Placeholder6,
+    Placeholder7,
+    Placeholder8,
+    Placeholder9,
+    Placeholder10,
+    Placeholder11,
+    Placeholder12,
+    Placeholder13,
+    Placeholder14,
+    Placeholder15,
+    Placeholder16,
+    Placeholder17,
+    Placeholder18, //MetadataPointer = 18,
     /// Mint contains token-metadata.
     /// Unlike token22 there is no metadata pointer.
     TokenMetadata = 19,
+    Placeholder20,
+    Placeholder21,
+    Placeholder22,
+    Placeholder23,
+    Placeholder24,
+    Placeholder25,
     // /// Mint contains a pointer to another account (or the same account) that
     // /// holds group configurations
     // GroupPointer,
@@ -73,12 +97,12 @@ pub enum ExtensionType {
     Compressible = 26,
 }
 
-impl TryFrom<u16> for ExtensionType {
+impl TryFrom<u8> for ExtensionType {
     type Error = crate::CTokenError;
 
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            18 => Ok(ExtensionType::MetadataPointer),
+            // 18 => Ok(ExtensionType::MetadataPointer),
             19 => Ok(ExtensionType::TokenMetadata),
             26 => Ok(ExtensionType::Compressible),
             _ => Err(crate::CTokenError::UnsupportedExtension),

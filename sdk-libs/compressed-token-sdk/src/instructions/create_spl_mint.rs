@@ -1,4 +1,4 @@
-use crate::AnchorSerialize;
+use crate::{error::Result, AnchorSerialize};
 use light_compressed_token_types::{ValidityProof, CPI_AUTHORITY_PDA};
 use light_ctoken_types::{
     instructions::{
@@ -28,7 +28,7 @@ pub struct CreateSplMintInputs {
     pub mint_authority: Pubkey,
 }
 
-pub fn create_spl_mint_instruction(inputs: CreateSplMintInputs) -> Instruction {
+pub fn create_spl_mint_instruction(inputs: CreateSplMintInputs) -> Result<Instruction> {
     // Extract values from compressed_mint_inputs
     let mint_pda: Pubkey = inputs
         .compressed_mint_inputs
@@ -47,7 +47,7 @@ pub fn create_spl_mint_instruction(inputs: CreateSplMintInputs) -> Instruction {
 pub fn create_spl_mint_instruction_with_bump(
     inputs: CreateSplMintInputs,
     token_pool_pda: Pubkey,
-) -> Instruction {
+) -> Result<Instruction> {
     let CreateSplMintInputs {
         mint_signer,
         mint_bump,
@@ -72,7 +72,7 @@ pub fn create_spl_mint_instruction_with_bump(
         root_index: compressed_mint_inputs.root_index,
         address: compressed_mint_inputs.address,
         proof: proof.into(),
-        mint: compressed_mint_inputs.compressed_mint_input.into(),
+        mint: compressed_mint_inputs.compressed_mint_input.try_into()?,
     };
 
     // Create the create_spl_mint instruction data
@@ -110,7 +110,7 @@ pub fn create_spl_mint_instruction_with_bump(
         AccountMeta::new(output_queue, false),               // out_output_queue
     ];
 
-    Instruction {
+    Ok(Instruction {
         program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: create_spl_mint_accounts,
         data: [
@@ -118,5 +118,5 @@ pub fn create_spl_mint_instruction_with_bump(
             create_spl_mint_instruction_data.try_to_vec().unwrap(), // TODO: use manual serialization
         ]
         .concat(),
-    }
+    })
 }

@@ -18,10 +18,7 @@ use light_compressed_token::{
 use light_ctoken_types::{
     context::TokenContext,
     instructions::{
-        extensions::{
-            metadata_pointer::MetadataPointerConfig, ExtensionInstructionData, InitMetadataPointer,
-            TokenMetadataInstructionData,
-        },
+        extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
         mint_to_compressed::CompressedMintInputs,
     },
     state::{
@@ -165,7 +162,7 @@ fn create_instruction_data_from_expected(
                     });
                     extension_configs.push(config);
                 }
-                ExtensionStruct::MetadataPointer(metadata_pointer) => {
+                /*  ExtensionStruct::MetadataPointer(metadata_pointer) => {
                     let instruction_data = InitMetadataPointer {
                         authority: metadata_pointer.authority,
                         metadata_address: metadata_pointer.metadata_address,
@@ -178,12 +175,13 @@ fn create_instruction_data_from_expected(
                         metadata_address: (metadata_pointer.metadata_address.is_some(), ()),
                     });
                     extension_configs.push(config);
-                }
+                }*/
                 ExtensionStruct::Compressible(_compressible) => {
                     // Compressible extension doesn't need special handling in mint tests
                     let config = ExtensionStructConfig::Compressible;
                     extension_configs.push(config);
                 }
+                _ => {}
             }
         }
 

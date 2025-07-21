@@ -32,3 +32,4 @@ anchor-lang = { workspace = true, optional = true }
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "solana"] }
 anchor-lang = { workspace = true }
+light-compressed-token = { workspace = true }

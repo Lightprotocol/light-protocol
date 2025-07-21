@@ -1,4 +1,4 @@
-use borsh::BorshSerialize;
+/*use borsh::BorshSerialize;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{
     instructions::extensions::{
@@ -191,3 +191,4 @@ fn test_extension_instruction_data_borsh_zero_copy_compatibility_none_fields() {
         panic!("Unexpected deserialization result");
     }
 }
+*/

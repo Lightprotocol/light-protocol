@@ -62,14 +62,14 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
                 let converted_exts: Result<Vec<_>, Self::Error> = exts
                     .into_iter()
                     .map(|ext| match ext {
-                        ExtensionStruct::MetadataPointer(metadata_pointer) => {
+                       /* ExtensionStruct::MetadataPointer(metadata_pointer) => {
                             Ok(ExtensionInstructionData::MetadataPointer(
                                 crate::instructions::extensions::metadata_pointer::InitMetadataPointer {
                                     authority: metadata_pointer.authority,
                                     metadata_address: metadata_pointer.metadata_address,
                                 },
                             ))
-                        }
+                        }*/
                         ExtensionStruct::TokenMetadata(token_metadata) => {
                             Ok(ExtensionInstructionData::TokenMetadata(
                                 crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {

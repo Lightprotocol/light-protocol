@@ -3427,6 +3427,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
+ "light-compressed-token",
  "light-compressed-token-types",
  "light-ctoken-types",
  "light-macros",

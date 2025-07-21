@@ -321,7 +321,7 @@ impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
                                 return false;
                             }
                         }
-                        (
+                        /*(
                             crate::state::extensions::ZExtensionStruct::MetadataPointer(zc_mp),
                             crate::state::extensions::ExtensionStruct::MetadataPointer(regular_mp),
                         ) => {
@@ -343,7 +343,7 @@ impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
                                 (None, None) => {}
                                 _ => return false,
                             }
-                        }
+                        }*/
                         (
                             crate::state::extensions::ZExtensionStruct::TokenMetadata(zc_tm),
                             crate::state::extensions::ExtensionStruct::TokenMetadata(regular_tm),

@@ -1,4 +1,5 @@
 use light_compressed_token_types::error::LightTokenSdkTypeError;
+use light_ctoken_types::CTokenError;
 use solana_program_error::ProgramError;
 use thiserror::Error;
 
@@ -28,6 +29,8 @@ pub enum TokenSdkError {
     InvalidCompressInputOwner,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
+    #[error(transparent)]
+    CTokenError(#[from] CTokenError),
 }
 
 impl From<TokenSdkError> for ProgramError {
@@ -50,6 +53,7 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::DecompressedMintConfigRequired => 17009,
             TokenSdkError::InvalidCompressInputOwner => 17010,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
+            TokenSdkError::CTokenError(e) => e.into(),
         }
     }
 }
