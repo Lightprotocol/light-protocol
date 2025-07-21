@@ -12,6 +12,7 @@ use crate::{
     AnchorDeserialize, AnchorSerialize,
 };
 
+// TODO: add placeholder enums for other existint token22 extensions
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum ExtensionStruct {
     /// Mint contains a pointer to another account (or the same account) that
@@ -62,7 +63,7 @@ impl<'a> light_zero_copy::borsh::Deserialize<'a> for ExtensionStruct {
 
         let discriminant = data[0];
         let remaining_data = &data[1..];
-
+        // TODO: make discriminants compatible with enum
         match discriminant {
             0 => {
                 // MetadataPointer variant
@@ -111,7 +112,7 @@ impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for ExtensionStruct {
 
         let discriminant = data[0];
         let remaining_data = &mut data[1..];
-
+        // TODO: make discriminants compatible with enum
         match discriminant {
             0 => {
                 // MetadataPointer variant

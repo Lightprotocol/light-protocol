@@ -51,8 +51,6 @@ pub enum ExtensionType {
     /// Mint contains token-metadata.
     /// Unlike token22 there is no metadata pointer.
     TokenMetadata = 19,
-    /// Account contains compressible timing data and rent authority
-    Compressible = 26,
     // /// Mint contains a pointer to another account (or the same account) that
     // /// holds group configurations
     // GroupPointer,
@@ -71,6 +69,8 @@ pub enum ExtensionType {
     // Pausable,
     // /// Indicates that the account belongs to a pausable mint
     // PausableAccount,
+    /// Account contains compressible timing data and rent authority
+    Compressible = 26,
 }
 
 impl TryFrom<u16> for ExtensionType {

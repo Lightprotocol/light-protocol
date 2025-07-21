@@ -247,14 +247,16 @@ impl<'a> Deref for ZCompressedToken<'a> {
     }
 }
 
+// TODO: add randomized tests
 impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
     fn eq(&self, other: &CompressedToken) -> bool {
         // Compare basic fields
-        if self.mint.to_bytes() != other.mint.to_bytes() ||
-           self.owner.to_bytes() != other.owner.to_bytes() ||
-           u64::from(*self.amount) != other.amount ||
-           self.state != other.state ||
-           u64::from(*self.delegated_amount) != other.delegated_amount {
+        if self.mint.to_bytes() != other.mint.to_bytes()
+            || self.owner.to_bytes() != other.owner.to_bytes()
+            || u64::from(*self.amount) != other.amount
+            || self.state != other.state
+            || u64::from(*self.delegated_amount) != other.delegated_amount
+        {
             return false;
         }
 
@@ -301,18 +303,23 @@ impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
                     match (zc_ext, regular_ext) {
                         (
                             crate::state::extensions::ZExtensionStruct::Compressible(zc_comp),
-                            crate::state::extensions::ExtensionStruct::Compressible(regular_comp)
+                            crate::state::extensions::ExtensionStruct::Compressible(regular_comp),
                         ) => {
-                            if u64::from(zc_comp.last_written_slot) != regular_comp.last_written_slot ||
-                               u64::from(zc_comp.slots_until_compression) != regular_comp.slots_until_compression ||
-                               zc_comp.rent_authority.to_bytes() != regular_comp.rent_authority.to_bytes() ||
-                               zc_comp.rent_recipient.to_bytes() != regular_comp.rent_recipient.to_bytes() {
+                            if u64::from(zc_comp.last_written_slot)
+                                != regular_comp.last_written_slot
+                                || u64::from(zc_comp.slots_until_compression)
+                                    != regular_comp.slots_until_compression
+                                || zc_comp.rent_authority.to_bytes()
+                                    != regular_comp.rent_authority.to_bytes()
+                                || zc_comp.rent_recipient.to_bytes()
+                                    != regular_comp.rent_recipient.to_bytes()
+                            {
                                 return false;
                             }
                         }
                         (
                             crate::state::extensions::ZExtensionStruct::MetadataPointer(zc_mp),
-                            crate::state::extensions::ExtensionStruct::MetadataPointer(regular_mp)
+                            crate::state::extensions::ExtensionStruct::MetadataPointer(regular_mp),
                         ) => {
                             match (&zc_mp.authority, &regular_mp.authority) {
                                 (Some(zc_auth), Some(regular_auth)) => {
@@ -335,13 +342,14 @@ impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
                         }
                         (
                             crate::state::extensions::ZExtensionStruct::TokenMetadata(zc_tm),
-                            crate::state::extensions::ExtensionStruct::TokenMetadata(regular_tm)
+                            crate::state::extensions::ExtensionStruct::TokenMetadata(regular_tm),
                         ) => {
-                            if zc_tm.mint.to_bytes() != regular_tm.mint.to_bytes() ||
-                               &*zc_tm.metadata.name != regular_tm.metadata.name.as_slice() ||
-                               &*zc_tm.metadata.symbol != regular_tm.metadata.symbol.as_slice() ||
-                               &*zc_tm.metadata.uri != regular_tm.metadata.uri.as_slice() ||
-                               zc_tm.version != regular_tm.version {
+                            if zc_tm.mint.to_bytes() != regular_tm.mint.to_bytes()
+                                || &*zc_tm.metadata.name != regular_tm.metadata.name.as_slice()
+                                || &*zc_tm.metadata.symbol != regular_tm.metadata.symbol.as_slice()
+                                || &*zc_tm.metadata.uri != regular_tm.metadata.uri.as_slice()
+                                || zc_tm.version != regular_tm.version
+                            {
                                 return false;
                             }
                             match (&zc_tm.update_authority, &regular_tm.update_authority) {
@@ -353,12 +361,19 @@ impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
                                 (None, None) => {}
                                 _ => return false,
                             }
-                            if zc_tm.additional_metadata.len() != regular_tm.additional_metadata.len() {
+                            if zc_tm.additional_metadata.len()
+                                != regular_tm.additional_metadata.len()
+                            {
                                 return false;
                             }
-                            for (zc_meta, regular_meta) in zc_tm.additional_metadata.iter().zip(regular_tm.additional_metadata.iter()) {
-                                if &*zc_meta.key != regular_meta.key.as_slice() ||
-                                   &*zc_meta.value != regular_meta.value.as_slice() {
+                            for (zc_meta, regular_meta) in zc_tm
+                                .additional_metadata
+                                .iter()
+                                .zip(regular_tm.additional_metadata.iter())
+                            {
+                                if &*zc_meta.key != regular_meta.key.as_slice()
+                                    || &*zc_meta.value != regular_meta.value.as_slice()
+                                {
                                     return false;
                                 }
                             }
@@ -594,8 +609,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
 
         // Only add extension bytes if there are extensions
         if !config.extensions.is_empty() {
-            len += 1; // Option discriminant byte
-                      //  len += 4; // Vec length (u32)
+            len += 1;
             len += <Vec<ExtensionStruct> as ZeroCopyNew<'a>>::byte_len(&config.extensions);
         }
 
@@ -642,7 +656,6 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
             // Initialize each extension
             let mut current_bytes = &mut extension_bytes[4..];
             for extension_config in &config.extensions {
-                msg!(" here");
                 let (_, remaining_bytes) = <ExtensionStruct as ZeroCopyNew<'_>>::new_zero_copy(
                     current_bytes,
                     extension_config.clone(),
@@ -650,8 +663,6 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
                 current_bytes = remaining_bytes;
             }
         }
-        msg!("bytes {:?}", bytes);
-        msg!("bytes len {:?}", bytes.len());
         CompressedToken::zero_copy_at_mut(bytes)
     }
 }
