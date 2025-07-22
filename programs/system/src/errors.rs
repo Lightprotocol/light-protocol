@@ -112,6 +112,10 @@ pub enum SystemProgramError {
     InvalidTreeHeight,
     #[error("TooManyOutputAccounts")]
     TooManyOutputAccounts,
+    #[error("Borrowing data failed")]
+    BorrowingDataFailed,
+    #[error("DuplicateAccountInInputsAndReadOnly")]
+    DuplicateAccountInInputsAndReadOnly,
     #[error("Batched Merkle tree error {0}")]
     BatchedMerkleTreeError(#[from] BatchedMerkleTreeError),
     #[error("Concurrent Merkle tree error {0}")]
@@ -124,8 +128,6 @@ pub enum SystemProgramError {
     ZeroCopyError(#[from] ZeroCopyError),
     #[error("Program error code: {0}")]
     ProgramError(u64),
-    #[error("Borrowing data failed")]
-    BorrowingDataFailed,
 }
 
 impl From<SystemProgramError> for u32 {
@@ -183,12 +185,13 @@ impl From<SystemProgramError> for u32 {
             SystemProgramError::CpiContextAlreadySet => 6049,
             SystemProgramError::InvalidTreeHeight => 6050,
             SystemProgramError::TooManyOutputAccounts => 6051,
+            SystemProgramError::BorrowingDataFailed => 6052,
+            SystemProgramError::DuplicateAccountInInputsAndReadOnly => 6053,
             SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
             SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
             SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),
             SystemProgramError::AccountError(e) => e.into(),
             SystemProgramError::ProgramError(e) => u32::try_from(e).unwrap_or(0),
-            SystemProgramError::BorrowingDataFailed => 6052,
             SystemProgramError::ZeroCopyError(e) => e.into(),
         }
     }

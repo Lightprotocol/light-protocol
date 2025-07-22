@@ -187,6 +187,7 @@ pub fn process<
         &mut cpi_ix_data,
         accounts.as_slice(),
     )?;
+    let read_only_accounts = inputs.read_only_accounts().unwrap_or_default();
 
     // 10. hash input compressed accounts ---------------------------------------------------
     if !inputs.inputs_empty() {
@@ -211,6 +212,12 @@ pub fn process<
             )
             .map_err(ProgramError::from)?;
         }
+
+        // 10.2. Check for duplicate accounts between inputs and read-only ---------------------------------------------------
+        check_no_duplicate_accounts_in_inputs_and_read_only(
+            &cpi_ix_data.nullifiers,
+            read_only_accounts,
+        )?;
     }
     // 11. Sum check ---------------------------------------------------
     let num_input_accounts_by_index = sum_check(&inputs, &None, &inputs.is_compress())?;
@@ -218,9 +225,7 @@ pub fn process<
     // 12. Compress or decompress lamports ---------------------------------------------------
     compress_or_decompress_lamports::<A, T>(&inputs, ctx)?;
 
-    // 13. Verify read-only account inclusion by index ---------------------------------------------------
-    let read_only_accounts = inputs.read_only_accounts().unwrap_or_default();
-
+    // 14. Verify read-only account inclusion by index ---------------------------------------------------
     let num_read_only_accounts_by_index =
         verify_read_only_account_inclusion_by_index(accounts.as_mut_slice(), read_only_accounts)?;
 
@@ -232,7 +237,7 @@ pub fn process<
         num_accounts_by_zkp + num_read_only_accounts_by_zkp
     };
 
-    // 14. Read state roots ---------------------------------------------------
+    // 15. Read state roots ---------------------------------------------------
     let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
     let state_tree_height = read_input_state_roots(
         accounts.as_slice(),
@@ -241,7 +246,7 @@ pub fn process<
         &mut input_compressed_account_roots,
     )?;
 
-    // 15. Verify Inclusion & Non-inclusion Proof ---------------------------------------------------
+    // 16. Verify Inclusion & Non-inclusion Proof ---------------------------------------------------
     if num_inclusion_proof_inputs != 0 || num_non_inclusion_proof_inputs != 0 {
         if let Some(proof) = inputs.proof().as_ref() {
             let mut new_addresses = Vec::with_capacity(num_non_inclusion_proof_inputs);
@@ -320,7 +325,7 @@ pub fn process<
     {
         return Err(SystemProgramError::EmptyInputs.into());
     }
-    // 16. Transfer network, address, and rollover fees ---------------------------------------------------
+    // 17. Transfer network, address, and rollover fees ---------------------------------------------------
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
     context.transfer_fees(remaining_accounts, ctx.get_fee_payer())?;
@@ -331,7 +336,7 @@ pub fn process<
         return Ok(());
     }
 
-    // 17. Copy CPI context outputs ---------------------------------------------------
+    // 18. Copy CPI context outputs ---------------------------------------------------
     copy_cpi_context_outputs(
         inputs.get_cpi_context_account(),
         inputs.get_cpi_context_outputs_start_offset(),
@@ -340,8 +345,26 @@ pub fn process<
         cpi_outputs_data_len,
         bytes,
     )?;
-    // 18. CPI account compression program ---------------------------------------------------
+    // 19. CPI account compression program ---------------------------------------------------
     cpi_account_compression_program(context, cpi_ix_bytes)
+}
+
+/// Check that no read only account is an input account.
+/// Multiple reads of the same account are allowed.
+/// Multiple writes of the same account will fail at nullifier queue insertion.
+#[inline(always)]
+fn check_no_duplicate_accounts_in_inputs_and_read_only(
+    input_nullifiers: &ZeroCopySliceMut<'_, u8, InsertNullifierInput, false>,
+    read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
+) -> Result<()> {
+    for read_only_account in read_only_accounts {
+        for input_nullifier in input_nullifiers.iter() {
+            if read_only_account.account_hash == input_nullifier.account_hash {
+                return Err(SystemProgramError::DuplicateAccountInInputsAndReadOnly.into());
+            }
+        }
+    }
+    Ok(())
 }
 
 #[inline(always)]
