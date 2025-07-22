@@ -88,4 +88,6 @@ pub enum SystemProgramError {
     TooManyOutputAccounts,
     #[msg("Failed to borrow account data")]
     BorrowingDataFailed,
+    #[msg("DuplicateAccountInInputsAndReadOnly")]
+    DuplicateAccountInInputsAndReadOnly,
 }

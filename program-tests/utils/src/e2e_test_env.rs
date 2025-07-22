@@ -2491,7 +2491,9 @@ where
             for _ in 0..select_num_accounts {
                 let index = Self::safe_gen_range(&mut self.rng, 0..num_accounts, 0);
                 let account = program_accounts[index].clone();
-                accounts.push(account);
+                if !input_accounts.contains(&account) {
+                    accounts.push(account);
+                }
             }
             accounts
                 .iter()
