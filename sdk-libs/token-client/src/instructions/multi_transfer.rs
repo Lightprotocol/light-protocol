@@ -195,15 +195,14 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                 let recipient_index =
                     packed_tree_accounts.insert_or_get(input.solana_token_account);
                 token_account.decompress(input.decompress_amount, recipient_index)?;
-                if !in_lamports.is_empty() {
-                    out_lamports.push(
-                        input
-                            .compressed_token_account
-                            .iter()
-                            .map(|account| account.account.lamports)
-                            .sum::<u64>(),
-                    );
-                }
+                out_lamports.push(
+                    input
+                        .compressed_token_account
+                        .iter()
+                        .map(|account| account.account.lamports)
+                        .sum::<u64>(),
+                );
+
                 token_accounts.push(token_account);
             }
             MultiTransferInstructionType::Transfer(input) => {
@@ -239,15 +238,16 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                 let recipient_index = packed_tree_accounts.insert_or_get(input.to);
                 let recipient_token_account =
                     token_account.transfer(recipient_index, input.amount, None)?;
-                if !in_lamports.is_empty() {
-                    out_lamports.push(
-                        input
-                            .compressed_token_account
-                            .iter()
-                            .map(|account| account.account.lamports)
-                            .sum::<u64>(),
-                    );
-                }
+                // all lamports go to the sender.
+                out_lamports.push(
+                    input
+                        .compressed_token_account
+                        .iter()
+                        .map(|account| account.account.lamports)
+                        .sum::<u64>(),
+                );
+                // For consistency add 0 lamports for the recipient.
+                out_lamports.push(0);
                 token_accounts.push(token_account);
                 token_accounts.push(recipient_token_account);
             }
@@ -267,7 +267,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
         } else {
             Some(in_lamports)
         },
-        out_lamports: if out_lamports.is_empty() {
+        out_lamports: if out_lamports.iter().all(|lamports| *lamports == 0) {
             None
         } else {
             Some(out_lamports)

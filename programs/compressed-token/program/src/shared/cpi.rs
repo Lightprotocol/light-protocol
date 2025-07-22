@@ -37,6 +37,10 @@ pub fn execute_cpi_invoke(
     with_sol_pool: bool,
     cpi_context_account: Option<Pubkey>,
 ) -> Result<(), ProgramError> {
+    if cpi_bytes[9] == 0 {
+        msg!("Bump not set in cpi struct.");
+        return Err(ProgramError::InvalidInstructionData);
+    }
     // Build account metas with capacity for standard accounts + dynamic tree accounts
     let capacity = 11 + tree_accounts.len(); // 11 standard accounts + dynamic tree accounts
                                              // TODO: investigate why array vec is not working

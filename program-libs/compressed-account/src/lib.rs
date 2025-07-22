@@ -55,6 +55,16 @@ pub enum CompressedAccountError {
     DeriveAddressError,
     #[error("Invalid argument.")]
     InvalidArgument,
+    #[error("Expected address for compressed account got None.")]
+    ExpectedAddress,
+    #[error("Compressed account data not initialized.")]
+    CompressedAccountDataNotInitialized,
+    #[error("Expected discriminator for compressed account got None.")]
+    ExpectedDiscriminator,
+    #[error("Expected data hash for compressed account got None.")]
+    ExpectedDataHash,
+    #[error("Expected proof for compressed account got None.")]
+    ExpectedProof,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand.
@@ -74,6 +84,11 @@ impl From<CompressedAccountError> for u32 {
             CompressedAccountError::FailedBorrowRentSysvar => 12014,
             CompressedAccountError::DeriveAddressError => 12015,
             CompressedAccountError::InvalidArgument => 12016,
+            CompressedAccountError::ExpectedAddress => 12017,
+            CompressedAccountError::CompressedAccountDataNotInitialized => 12018,
+            CompressedAccountError::ExpectedDiscriminator => 12019,
+            CompressedAccountError::ExpectedDataHash => 12020,
+            CompressedAccountError::ExpectedProof => 12021,
             CompressedAccountError::HasherError(e) => u32::from(e),
         }
     }

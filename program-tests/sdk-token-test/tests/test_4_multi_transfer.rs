@@ -12,8 +12,11 @@ use light_compressed_token_sdk::{
     token_pool::get_token_pool_pda,
     SPL_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_types::instructions::mint_to_compressed::{CompressedMintInputs, Recipient};
 use light_ctoken_types::instructions::multi_transfer::MultiInputTokenDataWithContext;
+use light_ctoken_types::{
+    instructions::mint_to_compressed::{CompressedMintInputs, Recipient},
+    COMPRESSED_MINT_SEED,
+};
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,
@@ -424,7 +427,7 @@ async fn create_compressed_mint_helper(
 
     // Find mint PDA
     let (mint_pda, mint_bump) = Pubkey::find_program_address(
-        &[b"compressed_mint", mint_signer.pubkey().as_ref()],
+        &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &light_compressed_token::ID,
     );
 

@@ -15,7 +15,6 @@ use crate::{
         sum_check::sum_check_multi_mint,
     },
     shared::cpi::execute_cpi_invoke,
-    LIGHT_CPI_SIGNER,
 };
 use light_ctoken_types::{
     context::TokenContext,
@@ -82,7 +81,13 @@ pub fn process_multi_transfer(
     let (mut cpi_instruction_struct, _) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
-
+    cpi_instruction_struct.initialize(
+        crate::LIGHT_CPI_SIGNER.bump,
+        &crate::LIGHT_CPI_SIGNER.program_id.into(),
+        inputs.proof,
+        inputs.cpi_context,
+    )?;
+    /*
     // Set CPI signer information
     cpi_instruction_struct.bump = LIGHT_CPI_SIGNER.bump;
     cpi_instruction_struct.invoking_program_id = LIGHT_CPI_SIGNER.program_id.into();
@@ -92,7 +97,7 @@ pub fn process_multi_transfer(
             cpi_context.cpi_context_account_index;
         cpi_instruction_struct.cpi_context.first_set_context = cpi_context.first_set_context as u8;
         cpi_instruction_struct.cpi_context.set_context = cpi_context.set_context as u8;
-    }
+    }*/
     msg!("pre assign_input_compressed_accounts");
 
     // Process input compressed accounts
@@ -150,12 +155,14 @@ pub fn process_multi_transfer(
         .iter()
         .map(|&x| solana_pubkey::Pubkey::new_from_array(*x))
         .collect::<Vec<_>>();
-    msg!("solana_tree_accounts {:?}", solana_tree_accounts);
-    let _cpi_accounts = cpi_accounts
-        .iter()
-        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
-        .collect::<Vec<_>>();
-    msg!("cpi_accounts {:?}", _cpi_accounts);
+    {
+        msg!("solana_tree_accounts {:?}", solana_tree_accounts);
+        let _cpi_accounts = cpi_accounts
+            .iter()
+            .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
+            .collect::<Vec<_>>();
+        msg!("cpi_accounts {:?}", _cpi_accounts);
+    }
     // Execute CPI call to light-system-program
     execute_cpi_invoke(
         cpi_accounts,

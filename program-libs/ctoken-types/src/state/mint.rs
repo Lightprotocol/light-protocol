@@ -3,7 +3,9 @@ use light_hasher::{errors::HasherError, Hasher, Poseidon};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::IntoBytes;
 
-use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
+use crate::{
+    context::TokenContext, state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError,
+};
 
 // Order is optimized for hashing.
 // freeze_authority option is skipped if None.
@@ -142,9 +144,11 @@ impl CompressedMint {
 impl ZCompressedMintMut<'_> {
     pub fn hash(
         &self,
-        extension_hashchain: Option<&[u8]>,
-    ) -> std::result::Result<[u8; 32], HasherError> {
-        let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
+        extension_hashchain: Option<[u8; 32]>,
+        context: &mut TokenContext,
+    ) -> std::result::Result<[u8; 32], CTokenError> {
+        // let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
+        let hashed_spl_mint = context.get_or_hash_mint(&self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
         // TODO: copy from slice
         self.supply
@@ -157,22 +161,23 @@ impl ZCompressedMintMut<'_> {
         let hashed_mint_authority;
         let hashed_mint_authority_option =
             if let Some(mint_authority) = self.mint_authority.as_ref() {
-                hashed_mint_authority =
-                    hash_to_bn254_field_size_be(mint_authority.to_bytes().as_slice());
+                hashed_mint_authority = context.get_or_hash_pubkey(&(*mint_authority).to_bytes());
+                // hash_to_bn254_field_size_be(mint_authority.to_bytes().as_slice());
                 Some(&hashed_mint_authority)
             } else {
                 None
             };
 
         let hashed_freeze_authority;
-        let hashed_freeze_authority_option =
-            if let Some(freeze_authority) = self.freeze_authority.as_ref() {
-                hashed_freeze_authority =
-                    hash_to_bn254_field_size_be(freeze_authority.to_bytes().as_slice());
-                Some(&hashed_freeze_authority)
-            } else {
-                None
-            };
+        let hashed_freeze_authority_option = if let Some(freeze_authority) =
+            self.freeze_authority.as_ref()
+        {
+            hashed_freeze_authority = context.get_or_hash_pubkey(&(*freeze_authority).to_bytes());
+            // hash_to_bn254_field_size_be(freeze_authority.to_bytes().as_slice());
+            Some(&hashed_freeze_authority)
+        } else {
+            None
+        };
 
         let mint_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
@@ -184,7 +189,10 @@ impl ZCompressedMintMut<'_> {
             self.version,
         )?;
         if let Some(extension_hashchain) = extension_hashchain {
-            Poseidon::hashv(&[mint_hash.as_slice(), extension_hashchain])
+            Ok(Poseidon::hashv(&[
+                mint_hash.as_slice(),
+                extension_hashchain.as_slice(),
+            ])?)
         } else {
             Ok(mint_hash)
         }

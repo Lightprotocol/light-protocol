@@ -401,7 +401,6 @@ fn test_rnd_create_compressed_mint_account() {
                 supply: input_compressed_mint.compressed_mint_input.supply,
                 decimals: input_compressed_mint.compressed_mint_input.decimals,
                 is_decompressed: input_compressed_mint.compressed_mint_input.is_decompressed,
-                mint_authority: input_compressed_mint.compressed_mint_input.mint_authority,
                 freeze_authority: input_compressed_mint.compressed_mint_input.freeze_authority,
                 extensions: extensions.clone(),
             },
@@ -448,7 +447,7 @@ fn test_rnd_create_compressed_mint_account() {
         };
 
         // Create output data
-
+        let mut context = TokenContext::new();
         create_output_compressed_mint_account(
             output_account,
             mint_pda,
@@ -456,13 +455,13 @@ fn test_rnd_create_compressed_mint_account() {
             freeze_authority,
             mint_authority,
             output_supply.into(),
-            &program_id,
             mint_config,
             compressed_account_address,
             output_merkle_tree_index,
             version,
             is_decompressed,
             z_extensions.as_deref(),
+            &mut context,
         )
         .unwrap();
 

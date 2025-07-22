@@ -8,6 +8,7 @@ use light_compressed_account::instruction_data::{
 use light_zero_copy::borsh::Deserialize;
 use light_zero_copy::borsh_mut::DeserializeMut;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
+use spl_pod::solana_msg::msg;
 use zerocopy::Ref;
 
 #[derive(
@@ -217,11 +218,21 @@ pub fn validate_instruction_data(
 ) -> Result<(), crate::CTokenError> {
     if let Some(ref in_lamports) = inputs.in_lamports {
         if in_lamports.len() != inputs.in_token_data.len() {
+            msg!(
+                "in_lamports {} != inputs in_token_data {}",
+                in_lamports.len(),
+                inputs.in_token_data.len()
+            );
             return Err(CTokenError::InputAccountsLamportsLengthMismatch);
         }
     }
     if let Some(ref out_lamports) = inputs.out_lamports {
         if out_lamports.len() != inputs.out_token_data.len() {
+            msg!(
+                "outlamports {} != inputs out_token_data {}",
+                out_lamports.len(),
+                inputs.out_token_data.len()
+            );
             return Err(CTokenError::OutputAccountsLamportsLengthMismatch);
         }
     }

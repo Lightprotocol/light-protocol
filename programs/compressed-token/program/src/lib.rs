@@ -93,15 +93,15 @@ pub fn process_instruction(
         }
         InstructionType::CreateCompressedMint => {
             anchor_lang::solana_program::msg!("CreateCompressedMint");
-            process_create_compressed_mint(*program_id, accounts, &instruction_data[1..])?;
+            process_create_compressed_mint(accounts, &instruction_data[1..])?;
         }
         InstructionType::MintToCompressed => {
             anchor_lang::solana_program::msg!("MintToCompressed");
-            process_mint_to_compressed(*program_id, accounts, &instruction_data[1..])?;
+            process_mint_to_compressed(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateSplMint => {
             anchor_lang::solana_program::msg!("CreateSplMint");
-            process_create_spl_mint(*program_id, accounts, &instruction_data[1..])?;
+            process_create_spl_mint(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
             anchor_lang::solana_program::msg!("CreateAssociatedTokenAccount");

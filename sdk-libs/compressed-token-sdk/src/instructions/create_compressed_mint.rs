@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_ctoken_types;
 use light_ctoken_types::instructions::extensions::ExtensionInstructionData;
+use light_ctoken_types::{self, COMPRESSED_MINT_SEED};
 use light_sdk::constants::{ACCOUNT_COMPRESSION_AUTHORITY_PDA, REGISTERED_PROGRAM_PDA};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -110,7 +110,7 @@ pub fn derive_compressed_mint_address(
 ) -> [u8; 32] {
     light_compressed_account::address::derive_address(
         &Pubkey::find_program_address(
-            &[b"compressed_mint", mint_signer.as_ref()],
+            &[COMPRESSED_MINT_SEED, mint_signer.as_ref()],
             &solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         )
         .0

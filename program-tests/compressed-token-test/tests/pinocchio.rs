@@ -12,15 +12,17 @@ use light_compressed_token_sdk::instructions::{
     MintToCompressedInputs,
 };
 use light_ctoken_types::state::solana_ctoken::CompressedToken;
+use light_ctoken_types::state::CompressibleExtension;
+use light_ctoken_types::COMPRESSED_MINT_SEED;
 use light_ctoken_types::{
     instructions::{
-        extensions::{
-            token_metadata::{AdditionalMetadata, Metadata, TokenMetadataInstructionData},
-            ExtensionInstructionData,
-        },
+        extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_to_compressed::{CompressedMintInputs, Recipient},
     },
-    state::{extensions::ExtensionStruct, CompressedMint},
+    state::{
+        extensions::{AdditionalMetadata, ExtensionStruct, Metadata},
+        CompressedMint,
+    },
     BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -55,7 +57,7 @@ async fn test_create_compressed_mint() {
 
     // Find mint PDA and bump
     let (mint_pda, mint_bump) = Pubkey::find_program_address(
-        &[b"compressed_mint", mint_signer.pubkey().as_ref()],
+        &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &light_compressed_token::ID,
     );
 
@@ -306,7 +308,8 @@ async fn test_create_compressed_mint() {
         input_output_queue: output_queue,
         output_queue,
         mint_authority,
-    });
+    })
+    .unwrap();
 
     // Execute create_spl_mint
     rpc.create_and_send_transaction(
@@ -1139,9 +1142,6 @@ async fn test_create_and_close_account_with_rent_authority() {
     assert!(token_account_info.executable == false);
     assert!(token_account_info.lamports > 0); // Should be rent-exempt
 
-    // Create expected token account for comparison
-    use light_ctoken_types::instructions::extensions::compressible::CompressibleExtension;
-
     let expected_token_account = CompressedToken {
         mint: mint_pubkey.into(),
         owner: owner_pubkey.into(),
@@ -1466,7 +1466,6 @@ async fn test_create_associated_token_account() {
             .expect("Failed to deserialize compressible token account with zero-copy");
 
     // Create expected compressible token account with compressible extension
-    use light_ctoken_types::instructions::extensions::compressible::CompressibleExtension;
 
     let expected_compressible_token_account = CompressedToken {
         mint: mint_pubkey.into(),
@@ -1573,7 +1572,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
 
     // Find mint PDA and bump
     let (mint_pda, mint_bump) = Pubkey::find_program_address(
-        &[b"compressed_mint", mint_signer.pubkey().as_ref()],
+        &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &light_compressed_token::ID,
     );
 
@@ -1784,7 +1783,8 @@ async fn test_create_compressed_mint_with_token_metadata() {
         input_output_queue: input_queue,
         output_queue,
         mint_authority: mint_authority_keypair.pubkey(),
-    });
+    })
+    .unwrap();
 
     // Execute create_spl_mint
     rpc.create_and_send_transaction(
@@ -1808,7 +1808,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     );
     assert_eq!(
         spl_mint.mint_authority.unwrap(),
-        mint_authority,
+        light_compressed_token::LIGHT_CPI_SIGNER.cpi_signer.into(),
         "SPL mint should have correct authority"
     );
 

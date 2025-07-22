@@ -5,7 +5,6 @@ use std::{assert_eq, str::FromStr};
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
     prelude::{borsh::BorshSerialize, AccountMeta},
-    solana_program::program_pack::Pack,
     system_program, AccountDeserialize, AnchorDeserialize, InstructionData, ToAccountMetas,
 };
 use anchor_spl::{
@@ -17,9 +16,6 @@ use light_client::{
     indexer::Indexer,
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::LightClientConfig,
-};
-use light_ctoken_types::instructions::mint_to_compressed::{
-    CompressedMintInputs, MintToCompressedInstructionData, Recipient,
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},

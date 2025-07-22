@@ -2,11 +2,13 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_hasher::{Hasher, Poseidon};
 
-use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;
+use crate::{
+    constants::COMPRESSED_MINT_DISCRIMINATOR, extensions::processor::create_extension_hash_chain,
+};
 use light_ctoken_types::{
     context::TokenContext,
-    state::CompressedMint,
     instructions::create_compressed_mint::ZUpdateCompressedMintInstructionData,
+    state::CompressedMint,
 };
 
 /// Creates and validates an input compressed mint account.
@@ -24,40 +26,13 @@ pub fn create_input_compressed_mint_account(
     compressed_mint_inputs: &ZUpdateCompressedMintInstructionData,
     hashed_mint_authority: &[u8; 32],
 ) -> Result<(), ProgramError> {
-    // 1. Set InAccount fields
-    {
-        input_compressed_account.discriminator = COMPRESSED_MINT_DISCRIMINATOR;
-        // Set merkle context fields manually due to mutability constraints
-        input_compressed_account
-            .merkle_context
-            .merkle_tree_pubkey_index = compressed_mint_inputs
-            .merkle_context
-            .merkle_tree_pubkey_index;
-        input_compressed_account.merkle_context.queue_pubkey_index =
-            compressed_mint_inputs.merkle_context.queue_pubkey_index;
-        input_compressed_account
-            .merkle_context
-            .leaf_index
-            .set(compressed_mint_inputs.merkle_context.leaf_index.get());
-        input_compressed_account.merkle_context.prove_by_index =
-            compressed_mint_inputs.merkle_context.prove_by_index;
-        input_compressed_account
-            .root_index
-            .set(compressed_mint_inputs.root_index.get());
-
-        input_compressed_account
-            .address
-            .as_mut()
-            .ok_or(ProgramError::InvalidAccountData)?
-            .copy_from_slice(compressed_mint_inputs.address.as_ref());
-    }
-
     // 2. Extract and validate compressed mint data
     let compressed_mint_input = &compressed_mint_inputs.mint;
-
-    // 3. Compute data hash using TokenContext for caching
-    {
-        let hashed_spl_mint = context.get_or_hash_mint(&compressed_mint_input.spl_mint.into())
+    //TODO: extract into function and test vs output hash creation
+    // 1. Compute data hash using TokenContext for caching
+    let data_hash = {
+        let hashed_spl_mint = context
+            .get_or_hash_mint(&compressed_mint_input.spl_mint.into())
             .map_err(ProgramError::from)?;
         let mut supply_bytes = [0u8; 32];
         supply_bytes[24..]
@@ -80,26 +55,31 @@ pub fn create_input_compressed_mint_account(
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let extension_hashchain = if let Some(extensions) =
-            compressed_mint_inputs.mint.extensions.as_ref()
-        {
-            let mut extension_hashchain = [0u8; 32];
-            for extension in extensions {
-                let extension_hash = extension.hash::<Poseidon>(&hashed_spl_mint, context)?;
-                extension_hashchain =
-                    Poseidon::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
-            }
-            Some(extension_hashchain)
-        } else {
-            None
-        };
-        input_compressed_account.data_hash = if let Some(extension_hashchain) = extension_hashchain
-        {
-            Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain.as_slice()])?
+        let extension_hashchain =
+            compressed_mint_inputs
+                .mint
+                .extensions
+                .as_ref()
+                .map(|extensions| {
+                    create_extension_hash_chain::<Poseidon>(extensions, &hashed_spl_mint, context)
+                });
+        if let Some(extension_hashchain) = extension_hashchain {
+            Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?
         } else {
             data_hash
-        };
-    }
+        }
+    };
+
+    // 2. Set InAccount fields
+
+    input_compressed_account.set(
+        COMPRESSED_MINT_DISCRIMINATOR,
+        data_hash,
+        &compressed_mint_inputs.merkle_context,
+        *compressed_mint_inputs.root_index,
+        0,
+        compressed_mint_inputs.address.as_ref(),
+    )?;
 
     Ok(())
 }

@@ -2,22 +2,29 @@ use anchor_lang::solana_program::{
     program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
 };
 use arrayvec::ArrayVec;
+use light_compressed_account::pubkey::AsPubkey;
+use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopyNew};
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+};
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
     constants::POOL_SEED, create_spl_mint::accounts::CreateSplMintAccounts,
-    shared::cpi::execute_cpi_invoke,
+    shared::cpi::execute_cpi_invoke, LIGHT_CPI_SIGNER,
 };
 use light_ctoken_types::{
     context::TokenContext,
     instructions::create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
     state::{CompressedMint, CompressedMintConfig},
+    COMPRESSED_MINT_SEED,
 };
+
+// TODO: add test which asserts spl mint and compressed mint equivalence.
 // TODO: check and handle extensions
 pub fn process_create_spl_mint(
-    program_id: Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
@@ -33,6 +40,7 @@ pub fn process_create_spl_mint(
     let validated_accounts = CreateSplMintAccounts::validate_and_parse(accounts)?;
 
     // Verify mint PDA matches the spl_mint field in compressed mint inputs
+    // TODO: set it instead of passing it, to eliminate duplicate ix data.
     let expected_mint: [u8; 32] = parsed_instruction_data.mint.mint.spl_mint.to_bytes();
     if validated_accounts.mint.key() != &expected_mint {
         return Err(ProgramError::InvalidAccountData);
@@ -41,7 +49,7 @@ pub fn process_create_spl_mint(
     // Create the mint account manually (PDA derived from our program, owned by token program)
     create_mint_account(
         &validated_accounts,
-        &program_id,
+        &crate::LIGHT_CPI_SIGNER.program_id,
         parsed_instruction_data.mint_bump,
     )?;
 
@@ -49,7 +57,7 @@ pub fn process_create_spl_mint(
     initialize_mint_account(&validated_accounts, &parsed_instruction_data)?;
 
     // Create the token pool account manually (PDA derived from our program, owned by token program)
-    create_token_pool_account_manual(&validated_accounts, &program_id)?;
+    create_token_pool_account_manual(&validated_accounts, &crate::LIGHT_CPI_SIGNER.program_id)?;
 
     // Initialize the token pool account
     initialize_token_pool_account(&validated_accounts)?;
@@ -58,12 +66,15 @@ pub fn process_create_spl_mint(
     if parsed_instruction_data.mint.mint.supply > 0 {
         mint_existing_supply_to_pool(&validated_accounts, &parsed_instruction_data)?;
     }
+    if parsed_instruction_data.mint_authority_is_none() {
+        // TODO: remove mint authority from spl mint.
+    }
+
     // Update the compressed mint to mark it as is_decompressed = true
     update_compressed_mint_to_decompressed(
         accounts,
         &validated_accounts,
         &parsed_instruction_data,
-        &program_id,
     )?;
 
     sol_log_compute_units();
@@ -80,7 +91,6 @@ fn update_compressed_mint_to_decompressed<'info>(
     all_accounts: &'info [AccountInfo],
     accounts: &CreateSplMintAccounts<'info>,
     instruction_data: &ZCreateSplMintInstructionData,
-    program_id: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 
@@ -139,6 +149,11 @@ fn update_compressed_mint_to_decompressed<'info>(
             .freeze_authority
             .as_ref()
             .map(|fa| fa.to_bytes().into());
+        let mint_authority = if instruction_data.mint_authority_is_none() {
+            None
+        } else {
+            Some(accounts.authority.key().to_pubkey_bytes().into())
+        };
 
         // Reuse the extensions config we already processed
         let (has_extensions_output, extensions_config_output, _) =
@@ -149,25 +164,22 @@ fn update_compressed_mint_to_decompressed<'info>(
             freeze_authority: (mint_inputs.freeze_authority.is_some(), ()),
             extensions: (has_extensions_output, extensions_config_output),
         };
-        let compressed_account_address = *instruction_data.mint.address;
-        let supply = mint_inputs.supply; // Keep same supply, just mark as decompressed
+        let mut token_context = TokenContext::new();
+
         create_output_compressed_mint_account(
             &mut cpi_instruction_struct.output_compressed_accounts[0],
             mint_pda,
             decimals,
             freeze_authority,
-            mint_inputs
-                .mint_authority
-                .as_ref()
-                .map(|ma| ma.to_bytes().into()),
-            supply,
-            &program_id.into(),
+            mint_authority,
+            mint_inputs.supply,
             mint_config,
-            compressed_account_address,
+            *instruction_data.mint.address,
             OUT_OUTPUT_QUEUE,
             instruction_data.mint.mint.version,
             true, // Set is_decompressed = true for create_spl_mint
             mint_inputs.extensions.as_deref(),
+            &mut token_context,
         )?;
 
         // Set proof data if provided
@@ -222,7 +234,7 @@ fn create_mint_account(
     let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
     let expected_mint = solana_pubkey::Pubkey::create_program_address(
         &[
-            b"compressed_mint",
+            COMPRESSED_MINT_SEED,
             accounts.mint_signer.key().as_ref(),
             &[mint_bump],
         ],
@@ -239,7 +251,7 @@ fn create_mint_account(
     let mint_signer_key = accounts.mint_signer.key();
     let bump_bytes = [mint_bump];
     let seed_array = [
-        Seed::from(b"compressed_mint"),
+        Seed::from(COMPRESSED_MINT_SEED),
         Seed::from(mint_signer_key.as_ref()),
         Seed::from(bump_bytes.as_ref()),
     ];
@@ -289,14 +301,8 @@ fn initialize_mint_account(
     let spl_ix = spl_token_2022::instruction::initialize_mint2(
         &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
         &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
-        &solana_pubkey::Pubkey::new_from_array(
-            instruction_data
-                .mint
-                .mint
-                .mint_authority
-                .unwrap()
-                .to_bytes(),
-        ),
+        // cpi_signer is spl mint authority for compressed mints.
+        &solana_pubkey::Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer),
         instruction_data
             .mint
             .mint
@@ -432,18 +438,6 @@ fn mint_existing_supply_to_pool(
     accounts: &CreateSplMintAccounts<'_>,
     instruction_data: &ZCreateSplMintInstructionData,
 ) -> Result<(), ProgramError> {
-    // Only mint if the authority matches
-    if accounts.authority.key()
-        != &instruction_data
-            .mint
-            .mint
-            .mint_authority
-            .unwrap()
-            .to_bytes()
-    {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
     let supply = instruction_data.mint.mint.supply;
 
     // Create SPL mint_to instruction and use its account structure
@@ -462,20 +456,26 @@ fn mint_existing_supply_to_pool(
         accounts: &[
             pinocchio::instruction::AccountMeta::new(accounts.mint.key(), true, false), // writable
             pinocchio::instruction::AccountMeta::new(accounts.token_pool_pda.key(), true, false), // writable
-            pinocchio::instruction::AccountMeta::new(accounts.authority.key(), false, true), // signer
+            pinocchio::instruction::AccountMeta::new(accounts.cpi_authority_pda.key(), false, true), // signer
         ],
         data: &spl_mint_to_ix.data,
     };
+    let bump_seed = [LIGHT_CPI_SIGNER.bump];
+    let seed_array = [
+        Seed::from(CPI_AUTHORITY_PDA_SEED),
+        Seed::from(bump_seed.as_slice()),
+    ];
+    let signer = Signer::from(&seed_array);
 
-    match pinocchio::program::invoke(
+    match pinocchio::program::invoke_signed(
         &mint_to_ix,
         &[accounts.mint, accounts.token_pool_pda, accounts.authority],
+        &[signer],
     ) {
         Ok(()) => {}
         Err(e) => {
             return Err(ProgramError::Custom(u64::from(e) as u32));
         }
     }
-
     Ok(())
 }

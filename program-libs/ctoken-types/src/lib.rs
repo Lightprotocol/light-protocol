@@ -23,5 +23,6 @@ pub const COMPRESSED_TOKEN_PROGRAM_ID: [u8; 32] =
 /// Size of a basic SPL token account
 pub const BASIC_TOKEN_ACCOUNT_SIZE: u64 = 165;
 
-/// Size of a token account with compressible extension  
+/// Size of a token account with compressible extension
 pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 = 257;
+pub const COMPRESSED_MINT_SEED: &[u8] = b"compressed_mint";

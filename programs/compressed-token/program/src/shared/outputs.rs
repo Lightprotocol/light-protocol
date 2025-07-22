@@ -8,8 +8,8 @@ use light_compressed_account::{
 };
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
 
-use light_ctoken_types::context::TokenContext;
 use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+use light_ctoken_types::context::TokenContext;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]

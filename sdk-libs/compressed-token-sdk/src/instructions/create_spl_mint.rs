@@ -79,6 +79,7 @@ pub fn create_spl_mint_instruction_with_bump(
     let create_spl_mint_instruction_data = CreateSplMintInstructionData {
         mint_bump,
         mint: update_mint_data,
+        mint_authority_is_none: false, //TODO: support cases where mint authority is none
     };
 
     // Create create_spl_mint accounts in the exact order expected by accounts.rs

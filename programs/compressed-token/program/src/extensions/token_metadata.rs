@@ -4,13 +4,12 @@ use light_ctoken_types::{
     instructions::extensions::token_metadata::ZTokenMetadataInstructionData,
     state::ZTokenMetadataMut,
 };
-use light_hasher::DataHasher;
 
 pub fn create_output_token_metadata(
     token_metadata_data: &ZTokenMetadataInstructionData<'_>,
     token_metadata: &mut ZTokenMetadataMut<'_>,
     mint: Pubkey,
-) -> Result<[u8; 32], ProgramError> {
+) -> Result<(), ProgramError> {
     if let Some(ref mut authority) = token_metadata.update_authority {
         **authority = *token_metadata_data
             .update_authority
@@ -48,9 +47,8 @@ pub fn create_output_token_metadata(
     }
 
     // Use the zero-copy mut struct for hashing
-    let hash = token_metadata
-        .hash::<light_hasher::Poseidon>()
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    Ok(hash)
+    // let hash = token_metadata
+    //   .hash::<light_hasher::Poseidon>()
+    //  .map_err(|_| ProgramError::InvalidAccountData)?;
+    Ok(())
 }

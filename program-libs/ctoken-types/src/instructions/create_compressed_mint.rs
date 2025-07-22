@@ -44,11 +44,11 @@ pub struct CompressedMintInstructionData {
     pub decimals: u8,
     /// Extension, necessary for mint to.
     pub is_decompressed: bool,
-    /// Optional authority used to mint new tokens. The mint authority may only
-    /// be provided during mint creation. If no mint authority is present
-    /// then the mint has a fixed supply and no further tokens may be
-    /// minted.
-    pub mint_authority: Option<Pubkey>,
+    // /// Optional authority used to mint new tokens. The mint authority may only
+    // /// be provided during mint creation. If no mint authority is present
+    //  /// then the mint has a fixed supply and no further tokens may be
+    //  /// minted.
+    //  pub mint_authority: Option<Pubkey>,
     /// Optional authority to freeze token accounts.
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
@@ -96,7 +96,6 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
             supply: mint.supply,
             decimals: mint.decimals,
             is_decompressed: mint.is_decompressed,
-            mint_authority: mint.mint_authority,
             freeze_authority: mint.freeze_authority,
             extensions,
         })

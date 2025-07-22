@@ -1,22 +1,25 @@
 use anchor_lang::prelude::ProgramError;
 use light_hasher::Hasher;
+use pinocchio::pubkey::Pubkey;
 
 use crate::extensions::{token_metadata::create_output_token_metadata, ZExtensionInstructionData};
-use light_ctoken_types::state::ZExtensionStructMut;
+use light_ctoken_types::{context::TokenContext, state::ZExtensionStructMut};
 
-// Applying extension(s) to compressed accounts.
-pub fn process_create_extensions<H: Hasher>(
+/// Set extensions state in output compressed account.
+/// Compute extensions hash chain.
+pub fn extensions_state_in_output_compressed_account(
     extensions: &[ZExtensionInstructionData<'_>],
-    output_compressed_account: &mut [ZExtensionStructMut<'_>],
+    extension_in_output_compressed_account: &mut [ZExtensionStructMut<'_>],
     mint: light_compressed_account::Pubkey,
-) -> Result<[u8; 32], ProgramError> {
-    let mut extension_hash_chain = [0u8; 32];
-    if output_compressed_account.len() != extensions.len() {
+) -> Result<(), ProgramError> {
+    if extension_in_output_compressed_account.len() != extensions.len() {
         return Err(ProgramError::InvalidInstructionData);
     }
-    for (extension, output_extension) in extensions.iter().zip(output_compressed_account.iter_mut())
+    for (extension, output_extension) in extensions
+        .iter()
+        .zip(extension_in_output_compressed_account.iter_mut())
     {
-        let hash = match (extension, output_extension) {
+        match (extension, output_extension) {
             /*(
                 ZExtensionInstructionData::MetadataPointer(_extension),
                 ZExtensionStructMut::MetadataPointer(_output_extension),
@@ -31,7 +34,21 @@ pub fn process_create_extensions<H: Hasher>(
                 return Err(ProgramError::InvalidInstructionData);
             }
         };
-        extension_hash_chain = H::hashv(&[extension_hash_chain.as_slice(), hash.as_slice()])?;
     }
-    Ok(extension_hash_chain)
+    Ok(())
+}
+
+/// Creates extension hash chain for
+pub fn create_extension_hash_chain<H: Hasher>(
+    extensions: &[ZExtensionInstructionData<'_>],
+    hashed_spl_mint: &Pubkey,
+    context: &mut TokenContext,
+) -> Result<[u8; 32], ProgramError> {
+    let mut extension_hashchain = [0u8; 32];
+    for extension in extensions {
+        let extension_hash = extension.hash::<H>(&hashed_spl_mint, context)?;
+        extension_hashchain =
+            H::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
+    }
+    Ok(extension_hashchain)
 }
