@@ -162,6 +162,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             0,
             0,
             output_queue_pubkey,
+            2u64.pow(params.height),
         )?;
     }
     let metadata = MerkleTreeMetadata {

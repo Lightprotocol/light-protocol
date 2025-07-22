@@ -71,6 +71,7 @@ fn test_output_queue_account() {
             bloom_filter_num_iters,
             bloom_filter_capacity,
             queue_pubkey,
+            1024, // 2^10 for test purposes
         )
         .unwrap();
 
@@ -99,6 +100,7 @@ fn test_value_exists_in_value_vec() {
         0,
         0,
         queue_pubkey,
+        1024, // 2^10 for test purposes
     )
     .unwrap();
     let current_slot = 2;

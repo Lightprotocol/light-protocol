@@ -989,10 +989,9 @@ mod tests {
             num_iters,
             bloom_filter_capacity,
             Pubkey::new_unique(),
+            16, // Tree height 4 -> capacity 16
         )
         .unwrap();
-        // Tree height 4 -> capacity 16
-        account.tree_capacity = 16;
         assert_eq!(account.get_num_inserted_in_current_batch(), 0);
         // Fill first batch
         for i in 1..=batch_size {
