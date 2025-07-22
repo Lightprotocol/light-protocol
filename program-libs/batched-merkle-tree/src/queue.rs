@@ -419,7 +419,7 @@ impl<'a> BatchedQueueAccount<'a> {
 
     /// Returns true if the tree is full.
     pub fn tree_is_full(&self) -> bool {
-        self.tree_capacity == self.batch_metadata.next_index
+        self.batch_metadata.next_index >= self.tree_capacity
     }
 
     /// Check if the tree is full.
