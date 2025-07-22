@@ -231,12 +231,45 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
     assert!(params.bloom_filter_capacity > 0);
     assert!(params.root_history_capacity > 0);
     assert!(params.input_queue_batch_size > 0);
+
+    // Validate root_history_capacity is sufficient for both input and output operations
+    let required_capacity = (params.output_queue_batch_size / params.output_queue_zkp_batch_size)
+        + (params.input_queue_batch_size / params.input_queue_zkp_batch_size);
+    assert!(
+        params.root_history_capacity >= required_capacity as u32,
+        "root_history_capacity ({}) must be >= {} (output_queue_batch_size / output_queue_zkp_batch_size + input_queue_batch_size / input_queue_zkp_batch_size)",
+        params.root_history_capacity,
+        required_capacity
+    );
+
     assert_eq!(params.close_threshold, None);
     assert_eq!(params.height, DEFAULT_BATCH_STATE_TREE_HEIGHT);
 }
 
 pub fn match_circuit_size(size: u64) -> bool {
     matches!(size, 10 | 100 | 250 | 500 | 1000)
+}
+
+#[test]
+fn test_validate_root_history_capacity_state_tree() {
+    // Test with valid params (default should pass)
+    let params = InitStateTreeAccountsInstructionData::default();
+    validate_batched_tree_params(params); // Should not panic
+}
+
+#[test]
+#[should_panic(expected = "root_history_capacity")]
+fn test_validate_root_history_capacity_insufficient_state_tree() {
+    let params = InitStateTreeAccountsInstructionData {
+        root_history_capacity: 1, // Much too small
+        input_queue_batch_size: 1000,
+        output_queue_batch_size: 1000,
+        input_queue_zkp_batch_size: 10,
+        output_queue_zkp_batch_size: 10,
+        // Required: (1000/10) + (1000/10) = 200, but we set only 1
+        ..Default::default()
+    };
+    validate_batched_tree_params(params); // Should panic
 }
 #[cfg(feature = "test-only")]
 pub mod test_utils {

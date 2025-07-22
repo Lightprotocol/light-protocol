@@ -49,6 +49,7 @@ pub struct BatchedQueueMetadata {
 }
 
 impl BatchedQueueMetadata {
+    #[allow(clippy::too_many_arguments)]
     pub fn init(
         &mut self,
         meta_data: QueueMetadata,
@@ -211,6 +212,7 @@ impl<'a> BatchedQueueAccount<'a> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn init(
         account_data: &'a mut [u8],
         metadata: QueueMetadata,
@@ -791,7 +793,7 @@ fn test_tree_capacity_is_set_correctly() {
     let num_iters = 0;
     let pubkey = Pubkey::new_unique();
     let tree_capacity = 1024; // 2^10
-    
+
     let account = BatchedQueueAccount::init(
         &mut account_data,
         queue_metadata,
@@ -803,10 +805,10 @@ fn test_tree_capacity_is_set_correctly() {
         tree_capacity,
     )
     .unwrap();
-    
+
     // Verify tree_capacity is correctly set
     assert_eq!(account.tree_capacity, tree_capacity);
-    
+
     // Verify tree_is_full works correctly
     assert!(!account.tree_is_full()); // Should not be full initially
     assert!(account.check_tree_is_full().is_ok());
