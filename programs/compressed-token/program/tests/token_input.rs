@@ -12,7 +12,7 @@ use light_compressed_token::{
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
-        token_inputs::create_input_compressed_account,
+        token_input::set_input_compressed_account,
     },
 };
 use light_ctoken_types::{
@@ -109,7 +109,7 @@ fn test_rnd_create_input_compressed_account() {
 
             // Call the function under test
             let result = if is_frozen {
-                create_input_compressed_account::<true>(
+                set_input_compressed_account::<true>(
                     input_account,
                     &mut context,
                     &z_input_data,
@@ -117,7 +117,7 @@ fn test_rnd_create_input_compressed_account() {
                     lamports,
                 )
             } else {
-                create_input_compressed_account::<false>(
+                set_input_compressed_account::<false>(
                     input_account,
                     &mut context,
                     &z_input_data,

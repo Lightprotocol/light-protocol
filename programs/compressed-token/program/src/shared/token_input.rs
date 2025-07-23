@@ -4,22 +4,22 @@ use light_account_checks::checks::check_signer;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use pinocchio::account_info::AccountInfo;
 
-use light_ctoken_types::context::TokenContext;
 use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+use light_ctoken_types::context::TokenContext;
 use light_ctoken_types::instructions::multi_transfer::ZMultiInputTokenDataWithContext;
 
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.
 ///
 /// Validates signer authorization (owner or delegate), populates the zero-copy account structure,
 /// and computes the appropriate token data hash based on frozen state.
-pub fn create_input_compressed_account<const IS_FROZEN: bool>(
+pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
     input_token_data: &ZMultiInputTokenDataWithContext,
     remaining_accounts: &[AccountInfo],
     lamports: u64,
 ) -> std::result::Result<(), ProgramError> {
-    anchor_lang::solana_program::msg!("create_input_compressed_account");
+    anchor_lang::solana_program::msg!("set_input_compressed_account");
     anchor_lang::solana_program::msg!("remaining_accounts len {}", remaining_accounts.len());
     // Get owner from remaining accounts using the owner index
     let owner_account = &remaining_accounts[input_token_data.owner as usize];

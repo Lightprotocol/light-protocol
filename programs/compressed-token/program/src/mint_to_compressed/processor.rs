@@ -19,7 +19,7 @@ use crate::{
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
-        token_outputs::create_output_compressed_account,
+        token_output::set_output_compressed_account,
     },
     LIGHT_CPI_SIGNER,
 };
@@ -206,7 +206,7 @@ fn create_output_compressed_token_accounts(
         .zip(cpi_instruction_struct.output_compressed_accounts.iter_mut())
     {
         let output_delegate = None;
-        create_output_compressed_account(
+        set_output_compressed_account(
             output_account,
             context,
             recipient.recipient,

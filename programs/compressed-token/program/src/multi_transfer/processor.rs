@@ -7,12 +7,12 @@ use pinocchio::account_info::AccountInfo;
 use crate::{
     multi_transfer::{
         accounts::{MultiTransferPackedAccounts, MultiTransferValidatedAccounts},
-        assign_inputs::assign_input_compressed_accounts,
-        assign_outputs::assign_output_compressed_accounts,
         change_account::process_change_lamports,
         cpi::allocate_cpi_bytes,
         native_compression::process_token_compression,
         sum_check::sum_check_multi_mint,
+        token_inputs::assign_input_compressed_accounts,
+        token_outputs::assign_output_compressed_accounts,
     },
     shared::cpi::execute_cpi_invoke,
 };

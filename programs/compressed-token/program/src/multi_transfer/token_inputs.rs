@@ -3,7 +3,7 @@ use light_compressed_account::instruction_data::with_readonly::ZInstructionDataI
 
 use crate::{
     multi_transfer::accounts::MultiTransferPackedAccounts,
-    shared::token_inputs::create_input_compressed_account,
+    shared::token_input::set_input_compressed_account,
 };
 use light_ctoken_types::{
     context::TokenContext,
@@ -32,7 +32,7 @@ pub fn assign_input_compressed_accounts(
 
         total_input_lamports += input_lamports;
 
-        create_input_compressed_account::<false>(
+        set_input_compressed_account::<false>(
             cpi_instruction_struct
                 .input_compressed_accounts
                 .get_mut(i)

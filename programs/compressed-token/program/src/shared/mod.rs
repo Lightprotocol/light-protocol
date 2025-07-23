@@ -2,8 +2,8 @@ pub mod accounts;
 pub mod cpi;
 pub mod cpi_bytes_size;
 pub mod initialize_token_account;
-pub mod token_inputs;
-pub mod token_outputs;
+pub mod token_input;
+pub mod token_output;
 
 use anchor_lang::solana_program::program_error::ProgramError;
 use pinocchio::account_info::AccountInfo;

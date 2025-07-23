@@ -36,7 +36,7 @@ pub struct TokenData {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn create_output_compressed_account(
+pub fn set_output_compressed_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     context: &mut TokenContext,
     owner: Pubkey,
