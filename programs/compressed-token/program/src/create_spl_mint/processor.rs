@@ -126,9 +126,12 @@ fn update_compressed_mint_to_decompressed<'info>(
         let (mut cpi_instruction_struct, _) =
             InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
                 .map_err(ProgramError::from)?;
-
-        cpi_instruction_struct.bump = crate::LIGHT_CPI_SIGNER.bump;
-        cpi_instruction_struct.invoking_program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
+        cpi_instruction_struct.initialize(
+            crate::LIGHT_CPI_SIGNER.bump,
+            &crate::LIGHT_CPI_SIGNER.program_id.into(),
+            instruction_data.mint.proof,
+            None,
+        )?;
 
         let mut context = TokenContext::new();
         let hashed_mint_authority = context.get_or_hash_pubkey(accounts.authority.key());
@@ -181,15 +184,6 @@ fn update_compressed_mint_to_decompressed<'info>(
             mint_inputs.extensions.as_deref(),
             &mut token_context,
         )?;
-
-        // Set proof data if provided
-        if let Some(instruction_proof) = &instruction_data.mint.proof {
-            if let Some(proof) = cpi_instruction_struct.proof.as_deref_mut() {
-                proof.a = instruction_proof.a;
-                proof.b = instruction_proof.b;
-                proof.c = instruction_proof.c;
-            }
-        }
 
         // Override the output compressed mint to set is_decompressed = true
         // The create_output_compressed_mint_account function sets is_decompressed = false by default
@@ -434,6 +428,7 @@ fn initialize_token_pool_account(accounts: &CreateSplMintAccounts<'_>) -> Result
 }
 
 /// Mints the existing supply from compressed mint to the token pool
+/// - LIGHT_CPI_SIGNER.cpi_signer is the mint authority.
 fn mint_existing_supply_to_pool(
     accounts: &CreateSplMintAccounts<'_>,
     instruction_data: &ZCreateSplMintInstructionData,
@@ -445,7 +440,7 @@ fn mint_existing_supply_to_pool(
         &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
         &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
         &solana_pubkey::Pubkey::new_from_array(*accounts.token_pool_pda.key()),
-        &solana_pubkey::Pubkey::new_from_array(*accounts.authority.key()),
+        &solana_pubkey::Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer),
         &[],
         supply.into(),
     )?;
@@ -456,7 +451,7 @@ fn mint_existing_supply_to_pool(
         accounts: &[
             pinocchio::instruction::AccountMeta::new(accounts.mint.key(), true, false), // writable
             pinocchio::instruction::AccountMeta::new(accounts.token_pool_pda.key(), true, false), // writable
-            pinocchio::instruction::AccountMeta::new(accounts.cpi_authority_pda.key(), false, true), // signer
+            pinocchio::instruction::AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true), // signer
         ],
         data: &spl_mint_to_ix.data,
     };
@@ -469,7 +464,11 @@ fn mint_existing_supply_to_pool(
 
     match pinocchio::program::invoke_signed(
         &mint_to_ix,
-        &[accounts.mint, accounts.token_pool_pda, accounts.authority],
+        &[
+            accounts.mint,
+            accounts.token_pool_pda,
+            accounts.cpi_authority_pda,
+        ],
         &[signer],
     ) {
         Ok(()) => {}

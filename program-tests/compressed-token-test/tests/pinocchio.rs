@@ -5,6 +5,7 @@ use std::assert_eq;
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
+use light_compressed_token::LIGHT_CPI_SIGNER;
 use light_compressed_token_sdk::instructions::{
     close::close_account, create_associated_token_account, create_compressed_mint,
     create_mint_to_compressed_instruction, create_spl_mint_instruction, create_token_account,
@@ -333,7 +334,7 @@ async fn test_create_compressed_mint() {
     );
     assert_eq!(
         spl_mint.mint_authority.unwrap(),
-        mint_authority,
+        LIGHT_CPI_SIGNER.cpi_signer.into(),
         "SPL mint should have correct authority"
     );
 
