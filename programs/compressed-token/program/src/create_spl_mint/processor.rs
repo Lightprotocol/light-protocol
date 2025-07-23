@@ -196,17 +196,11 @@ fn update_compressed_mint_to_decompressed<'info>(
             }
         }
     }
-    // Extract tree accounts for the generalized CPI call
-    let tree_accounts = [
-        accounts.trees.in_merkle_tree.key(),
-        accounts.trees.in_output_queue.key(),
-        accounts.trees.out_output_queue.key(),
-    ];
     // Execute CPI to light system program to update the compressed mint
     execute_cpi_invoke(
-        &all_accounts[6..], // Skip first 6 non-CPI accounts
+        &all_accounts[CreateSplMintAccounts::SYSTEM_ACCOUNTS_OFFSET..],
         cpi_bytes,
-        &tree_accounts,
+        accounts.tree_pubkeys().as_slice(),
         false, // no sol_pool_pda
         None,  // no cpi_context_account
     )?;

@@ -1,6 +1,6 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::shared::AccountIterator;
 
@@ -55,5 +55,38 @@ impl<'info> UpdateOneCompressedAccountTreeAccounts<'info> {
             in_output_queue,
             out_output_queue,
         })
+    }
+
+    #[inline(always)]
+    pub fn pubkeys(&self) -> [&'info Pubkey; 3] {
+        [
+            self.in_merkle_tree.key(),
+            self.in_output_queue.key(),
+            self.out_output_queue.key(),
+        ]
+    }
+}
+
+pub struct CreateCompressedAccountTreeAccounts<'info> {
+    pub address_merkle_tree: &'info AccountInfo,
+    pub out_output_queue: &'info AccountInfo,
+}
+
+impl<'info> CreateCompressedAccountTreeAccounts<'info> {
+    pub fn validate_and_parse(iter: &mut AccountIterator<'info>) -> Result<Self, ProgramError> {
+        let address_merkle_tree = iter.next_account()?;
+        let out_output_queue = iter.next_account()?;
+        check_mut(address_merkle_tree).map_err(ProgramError::from)?;
+        check_mut(out_output_queue).map_err(ProgramError::from)?;
+
+        Ok(Self {
+            address_merkle_tree,
+            out_output_queue,
+        })
+    }
+
+    #[inline(always)]
+    pub fn pubkeys(&self) -> [&'info Pubkey; 2] {
+        [self.address_merkle_tree.key(), self.out_output_queue.key()]
     }
 }

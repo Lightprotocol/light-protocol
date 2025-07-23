@@ -61,7 +61,7 @@ pub fn process_multi_transfer(
 
     // Skip first account (light-system-program) and validate remaining accounts
     let (validated_accounts, packed_accounts) = MultiTransferValidatedAccounts::validate_and_parse(
-        &accounts[1..],
+        &accounts[MultiTransferValidatedAccounts::CPI_ACCOUNTS_OFFSET..],
         with_sol_pool,
         with_cpi_context,
     )?;

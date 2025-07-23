@@ -38,10 +38,7 @@ pub fn process_create_compressed_mint(
     sol_log_compute_units();
 
     // Validate and parse accounts
-    let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(
-        accounts,
-        &crate::LIGHT_CPI_SIGNER.program_id,
-    )?;
+    let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(accounts)?;
 
     // 1. Create mint PDA using provided bump
     let mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
@@ -79,14 +76,7 @@ pub fn process_create_compressed_mint(
         *parsed_instruction_data.address_merkle_tree_root_index,
         Some(assigned_account_index),
         address_merkle_tree_account_index,
-    ); /*
-           cpi_instruction_struct.new_address_params[0].seed = mint_pda.to_bytes();
-           cpi_instruction_struct.new_address_params[0].address_merkle_tree_root_index =
-               *parsed_instruction_data.address_merkle_tree_root_index;
-           cpi_instruction_struct.new_address_params[0].assigned_account_index = 0;
-           // Note we can skip address derivation since we are assigning it to the account in index 0.
-           cpi_instruction_struct.new_address_params[0].assigned_to_account = 1;
-       */
+    );
     // 2. Create compressed mint account data
     // TODO: add input struct, try to use CompressedMintInput
     let mut token_context = TokenContext::new();
@@ -107,13 +97,10 @@ pub fn process_create_compressed_mint(
     )?;
     sol_log_compute_units();
     // 4. Execute CPI to light-system-program
-    // Extract tree accounts for the generalized CPI call
-    let tree_accounts = [accounts[10].key(), accounts[11].key()]; // address_merkle_tree, output_queue
-
     execute_cpi_invoke(
-        &accounts[2..], // Skip two non-CPI account (light system program mint_signer)
+        &accounts[CreateCompressedMintAccounts::CPI_ACCOUNTS_OFFSET..],
         cpi_bytes,
-        tree_accounts.as_slice(),
+        validated_accounts.tree_pubkeys().as_slice(),
         false, // no sol_pool_pda for create_compressed_mint
         None,  // no cpi_context_account for create_compressed_mint
     )

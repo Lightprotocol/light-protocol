@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_program, check_signer};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::shared::{
     accounts::{LightSystemAccounts, UpdateOneCompressedAccountTreeAccounts},
@@ -18,6 +18,17 @@ pub struct CreateSplMintAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     pub system: LightSystemAccounts<'info>,
     pub trees: UpdateOneCompressedAccountTreeAccounts<'info>,
+}
+
+impl CreateSplMintAccounts<'_> {
+    pub const SYSTEM_ACCOUNTS_OFFSET: usize = 6;
+}
+
+impl<'info> CreateSplMintAccounts<'info> {
+    #[inline(always)]
+    pub fn tree_pubkeys(&self) -> [&'info Pubkey; 3] {
+        self.trees.pubkeys()
+    }
 }
 
 impl<'info> Deref for CreateSplMintAccounts<'info> {

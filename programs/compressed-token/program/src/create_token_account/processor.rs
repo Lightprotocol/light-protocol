@@ -1,7 +1,6 @@
 use anchor_lang::prelude::ProgramError;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
 
 use super::{
     accounts::CreateTokenAccountAccounts, instruction_data::CreateTokenAccountInstructionData,
@@ -20,13 +19,12 @@ pub fn process_create_token_account(
         CreateTokenAccountInstructionData::zero_copy_at(backup_instruction_data.as_slice())
             .map_err(ProgramError::from)?
     } else {
-        msg!("instruction_data {:?}", instruction_data);
         CreateTokenAccountInstructionData::zero_copy_at(instruction_data)
             .map_err(ProgramError::from)?
     };
 
     // Validate and get accounts
-    let accounts = CreateTokenAccountAccounts::get_checked(account_infos)?;
+    let accounts = CreateTokenAccountAccounts::validate_and_parse(account_infos)?;
 
     // Initialize the token account (assumes account already exists and is owned by our program)
     initialize_token_account(

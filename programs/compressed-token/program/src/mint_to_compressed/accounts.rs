@@ -1,28 +1,31 @@
+use std::ops::Deref;
+
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::{check_mut, check_signer};
+use light_account_checks::checks::check_signer;
 use pinocchio::account_info::AccountInfo;
 
-use crate::shared::AccountIterator;
+use crate::shared::{accounts::LightSystemAccounts, AccountIterator};
 
 pub struct MintToCompressedAccounts<'info> {
-    pub fee_payer: &'info AccountInfo,
     pub authority: &'info AccountInfo,
-    pub cpi_authority_pda: &'info AccountInfo,
     pub mint: Option<&'info AccountInfo>,
     pub token_pool_pda: Option<&'info AccountInfo>,
     pub token_program: Option<&'info AccountInfo>,
     pub light_system_program: &'info AccountInfo,
-    pub registered_program_pda: &'info AccountInfo,
-    pub noop_program: &'info AccountInfo,
-    pub account_compression_authority: &'info AccountInfo,
-    pub account_compression_program: &'info AccountInfo,
-    pub self_program: &'info AccountInfo,
-    pub system_program: &'info AccountInfo,
+    pub system: LightSystemAccounts<'info>,
     pub sol_pool_pda: Option<&'info AccountInfo>,
     pub mint_in_merkle_tree: &'info AccountInfo,
     pub mint_in_queue: &'info AccountInfo,
     pub mint_out_queue: &'info AccountInfo,
     pub tokens_out_queue: &'info AccountInfo,
+}
+
+impl<'info> Deref for MintToCompressedAccounts<'info> {
+    type Target = LightSystemAccounts<'info>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.system
+    }
 }
 
 impl<'info> MintToCompressedAccounts<'info> {
@@ -61,15 +64,7 @@ impl<'info> MintToCompressedAccounts<'info> {
 
         let light_system_program = iter.next_account()?;
 
-        // CPI accounts in exact order expected by InvokeCpiWithReadOnly
-        let fee_payer = iter.next_account()?;
-        let cpi_authority_pda = iter.next_account()?;
-        let registered_program_pda = iter.next_account()?;
-        let noop_program = iter.next_account()?;
-        let account_compression_authority = iter.next_account()?;
-        let account_compression_program = iter.next_account()?;
-        let self_program = iter.next_account()?;
-        let system_program = iter.next_account()?;
+        let system = LightSystemAccounts::validate_and_parse(&mut iter)?;
 
         let sol_pool_pda = if with_lamports {
             Some(iter.next_account()?)
@@ -82,28 +77,17 @@ impl<'info> MintToCompressedAccounts<'info> {
         let mint_out_queue = iter.next_account()?;
         let tokens_out_queue = iter.next_account()?;
 
-        // Validate fee_payer: must be signer and mutable
-        check_signer(fee_payer).map_err(ProgramError::from)?;
-        check_mut(fee_payer).map_err(ProgramError::from)?;
-
         // Validate authority: must be signer
         check_signer(authority).map_err(ProgramError::from)?;
 
         Ok(MintToCompressedAccounts {
-            fee_payer,
             authority,
-            cpi_authority_pda,
             mint,
             token_pool_pda,
             token_program,
             light_system_program,
-            registered_program_pda,
-            noop_program,
-            account_compression_authority,
-            account_compression_program,
-            system_program,
+            system,
             sol_pool_pda,
-            self_program,
             mint_in_merkle_tree,
             mint_in_queue,
             mint_out_queue,

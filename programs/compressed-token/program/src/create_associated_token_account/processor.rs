@@ -24,7 +24,7 @@ pub fn process_create_associated_token_account(
         .map_err(ProgramError::from)?;
 
     // Validate and get accounts
-    let accounts = CreateAssociatedTokenAccountAccounts::get_checked(
+    let accounts = CreateAssociatedTokenAccountAccounts::validate_and_parse(
         account_infos,
         &inputs.mint.to_bytes(),
         false,

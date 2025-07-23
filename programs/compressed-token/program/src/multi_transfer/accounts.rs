@@ -1,7 +1,6 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
 
 use crate::shared::AccountIterator;
 
@@ -53,6 +52,10 @@ impl MultiTransferPackedAccounts<'_> {
     }
 }
 
+impl MultiTransferValidatedAccounts<'_> {
+    pub const CPI_ACCOUNTS_OFFSET: usize = 1;
+}
+
 impl<'info> MultiTransferValidatedAccounts<'info> {
     /// Validate and parse accounts from the instruction accounts slice
     pub fn validate_and_parse(
@@ -60,12 +63,6 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
         with_sol_pool: bool,
         with_cpi_context: bool,
     ) -> Result<(Self, MultiTransferPackedAccounts<'info>), ProgramError> {
-        for account in accounts {
-            msg!(
-                "account {:?}",
-                solana_pubkey::Pubkey::new_from_array(*account.key())
-            );
-        }
         // Parse system accounts from fixed positions
         let mut iter = AccountIterator::new(accounts);
         let fee_payer = iter.next_account()?;

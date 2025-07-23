@@ -1,27 +1,27 @@
-use anchor_lang::prelude::ProgramError;
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_non_mut};
 use pinocchio::account_info::AccountInfo;
 
-pub struct CreateTokenAccountAccounts<'a> {
-    pub token_account: &'a AccountInfo,
-    pub mint: &'a AccountInfo,
+use crate::shared::AccountIterator;
+
+pub struct CreateTokenAccountAccounts<'info> {
+    pub token_account: &'info AccountInfo,
+    pub mint: &'info AccountInfo,
 }
 
-impl<'a> CreateTokenAccountAccounts<'a> {
-    pub fn new(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
-        Ok(Self {
-            token_account: &accounts[0],
-            mint: &accounts[1],
+impl<'info> CreateTokenAccountAccounts<'info> {
+    pub fn validate_and_parse(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
+        let mut iter = AccountIterator::new(accounts);
+
+        let token_account = iter.next_account()?;
+        let mint = iter.next_account()?;
+
+        check_mut(token_account)?;
+        check_non_mut(mint)?;
+
+        Ok(CreateTokenAccountAccounts {
+            token_account,
+            mint,
         })
-    }
-
-    pub fn get_checked(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
-        let accounts_struct = Self::new(accounts)?;
-
-        // Basic validations using light_account_checks
-        check_mut(accounts_struct.token_account)?;
-        check_non_mut(accounts_struct.mint)?;
-
-        Ok(accounts_struct)
     }
 }

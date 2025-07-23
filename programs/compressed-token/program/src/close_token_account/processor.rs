@@ -13,7 +13,7 @@ pub fn process_close_token_account(
     _instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Validate and get accounts
-    let accounts = CloseTokenAccountAccounts::get_checked(account_infos)?;
+    let accounts = CloseTokenAccountAccounts::validate_and_parse(account_infos)?;
 
     // Validate token account state and balance
     {
