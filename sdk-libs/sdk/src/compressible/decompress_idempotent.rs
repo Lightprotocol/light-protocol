@@ -11,7 +11,9 @@ use crate::{
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::address::derive_address;
+use light_compressed_account::{
+    address::derive_address, instruction_data::with_account_info::CompressedAccountInfo,
+};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
@@ -87,32 +89,31 @@ where
 
 /// Helper function to decompress multiple compressed accounts into PDAs idempotently with seeds.
 ///
-/// This function is idempotent, meaning it can be called multiple times with the same compressed accounts
+/// This function processes accounts of a single type and returns CompressedAccountInfo for CPI batching.
+/// It's idempotent, meaning it can be called multiple times with the same compressed accounts
 /// and it will only decompress them once. If a PDA already exists and is initialized, it skips that account.
 ///
 /// # Arguments
 /// * `pda_accounts` - The PDA accounts to decompress into
 /// * `compressed_accounts` - The compressed accounts to decompress
 /// * `signer_seeds` - Signer seeds for each PDA including bump (standard Solana format)
-/// * `proof` - Single validity proof for all accounts
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the PDAs
 /// * `rent_payer` - The account to pay for PDA rent
 /// * `address_space` - The address space for the compressed accounts
 ///
 /// # Returns
-/// * `Ok(())` if all compressed accounts were decompressed successfully or PDAs already exist
+/// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
-pub fn decompress_multiple_idempotent<'info, T>(
+pub fn process_accounts_for_decompression<'info, T>(
     pda_accounts: &[&AccountInfo<'info>],
     compressed_accounts: Vec<LightAccount<'_, T>>,
     signer_seeds: &[&[&[u8]]],
-    proof: ValidityProof,
-    cpi_accounts: CpiAccounts<'_, 'info>,
+    cpi_accounts: &CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
     rent_payer: &AccountInfo<'info>,
     address_space: Pubkey,
-) -> Result<(), LightSdkError>
+) -> Result<Vec<CompressedAccountInfo>, LightSdkError>
 where
     T: DataHasher
         + LightDiscriminator
@@ -148,14 +149,6 @@ where
             );
             continue;
         }
-        // TODO: remove
-        // if **pda_account.lamports.borrow() > 0 {
-        //     msg!(
-        //         "PDA {} already initialized, skipping decompression",
-        //         pda_account.key
-        //     );
-        //     continue;
-        // }
 
         // Get the compressed account address
         let c_pda = compressed_account
@@ -218,7 +211,6 @@ where
         pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&T::discriminator());
 
         // Write data to PDA (after discriminator)
-        // TODO: review this!
         decompressed_pda
             .serialize(&mut &mut pda_account.try_borrow_mut_data()?[8..])
             .map_err(|_| LightSdkError::Borsh)?;
@@ -229,9 +221,60 @@ where
         compressed_accounts_for_cpi.push(compressed_account.to_account_info()?);
     }
 
-    // apply compressed account changes via cpi
-    if !compressed_accounts_for_cpi.is_empty() {
-        let cpi_inputs = CpiInputs::new(proof, compressed_accounts_for_cpi);
+    Ok(compressed_accounts_for_cpi)
+}
+
+/// Helper function to decompress multiple compressed accounts into PDAs idempotently with seeds.
+///
+/// This function is idempotent, meaning it can be called multiple times with the same compressed accounts
+/// and it will only decompress them once. If a PDA already exists and is initialized, it skips that account.
+///
+/// # Arguments
+/// * `pda_accounts` - The PDA accounts to decompress into
+/// * `compressed_accounts` - The compressed accounts to decompress
+/// * `signer_seeds` - Signer seeds for each PDA including bump (standard Solana format)
+/// * `proof` - Single validity proof for all accounts
+/// * `cpi_accounts` - Accounts needed for CPI
+/// * `owner_program` - The program that will own the PDAs
+/// * `rent_payer` - The account to pay for PDA rent
+/// * `address_space` - The address space for the compressed accounts
+///
+/// # Returns
+/// * `Ok(())` if all compressed accounts were decompressed successfully or PDAs already exist
+/// * `Err(LightSdkError)` if there was an error
+pub fn decompress_multiple_idempotent<'info, T>(
+    pda_accounts: &[&AccountInfo<'info>],
+    compressed_accounts: Vec<LightAccount<'_, T>>,
+    signer_seeds: &[&[&[u8]]],
+    proof: ValidityProof,
+    cpi_accounts: CpiAccounts<'_, 'info>,
+    owner_program: &Pubkey,
+    rent_payer: &AccountInfo<'info>,
+    address_space: Pubkey,
+) -> Result<(), LightSdkError>
+where
+    T: DataHasher
+        + LightDiscriminator
+        + BorshSerialize
+        + BorshDeserialize
+        + Default
+        + Clone
+        + HasCompressionInfo
+        + AnchorDiscriminatorShim,
+{
+    // Process accounts and get CompressedAccountInfo for CPI
+    let compressed_account_infos = process_accounts_for_decompression(
+        pda_accounts,
+        compressed_accounts,
+        signer_seeds,
+        &cpi_accounts,
+        owner_program,
+        rent_payer,
+        address_space,
+    )?;
+
+    if !compressed_account_infos.is_empty() {
+        let cpi_inputs = CpiInputs::new(proof, compressed_account_infos);
         cpi_inputs.invoke_light_system_program(cpi_accounts)?;
     }
 

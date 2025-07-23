@@ -22,8 +22,9 @@ pub mod anchor_compressible_user {
     use light_sdk::account::LightAccount;
     use light_sdk::compressible::{
         compress_pda, compress_pda_new, create_compression_config_checked,
-        decompress_multiple_idempotent, update_compression_config,
+        process_accounts_for_decompression, update_compression_config,
     };
+    use light_sdk::cpi::CpiInputs;
 
     use super::*;
 
@@ -82,18 +83,12 @@ pub mod anchor_compressible_user {
         address_tree_info: PackedAddressTreeInfo,
         output_state_tree_index: u8,
     ) -> Result<()> {
-        msg!(
-            "...Creating record with config. remaining accounts: LEN: {:?} {:#?}",
-            ctx.remaining_accounts.len(),
-            ctx.remaining_accounts
-        );
         let user_record = &mut ctx.accounts.user_record;
 
         // Load config from the config account
         let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-        msg!("...Config loaded: {:?}", config);
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 11;
@@ -111,16 +106,10 @@ pub mod anchor_compressible_user {
             &ctx.remaining_accounts[..],
             LIGHT_CPI_SIGNER,
         );
-        msg!(
-            "...CPI accounts. tree_accounts: LEN: {:?} {:?}",
-            cpi_accounts.tree_accounts().unwrap().len(),
-            cpi_accounts.tree_accounts()
-        );
+
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
 
-        msg!("...New address params PACKED: {:#?}", new_address_params);
-        msg!("...Compressing record");
         compress_pda_new::<UserRecord>(
             user_record,
             compressed_address,
@@ -210,19 +199,20 @@ pub mod anchor_compressible_user {
             return err!(ErrorCode::InvalidAccountCount);
         }
 
-        // Process accounts one by one to handle discriminators correctly
+        let cpi_accounts = CpiAccounts::new(
+            &ctx.accounts.fee_payer,
+            &ctx.remaining_accounts[system_accounts_offset as usize..],
+            LIGHT_CPI_SIGNER,
+        );
+
+        let mut all_compressed_infos = Vec::new();
+
+        // Process accounts individually but collect CompressedAccountInfo for batched CPI
         for (i, (compressed_data, bump)) in compressed_accounts
             .into_iter()
             .zip(bumps.iter())
             .enumerate()
         {
-            // Create CpiAccounts for each iteration
-            let cpi_accounts = CpiAccounts::new(
-                &ctx.accounts.fee_payer,
-                &ctx.remaining_accounts[system_accounts_offset as usize..],
-                LIGHT_CPI_SIGNER,
-            );
-
             match compressed_data.data {
                 CompressedAccountVariant::UserRecord(data) => {
                     // Create LightAccount with correct UserRecord discriminator
@@ -233,26 +223,29 @@ pub mod anchor_compressible_user {
                     )
                     .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
-                    // Build signer seeds
-                    let bump_array = [*bump];
+                    // Build signer seeds with owned data
+                    let user_record_seed = b"user_record".to_vec();
+                    let owner_bytes = data.owner.to_bytes().to_vec();
+                    let bump_vec = vec![*bump];
                     let seeds = vec![
-                        b"user_record".as_ref(),
-                        data.owner.as_ref(),
-                        bump_array.as_ref(),
+                        user_record_seed.as_slice(),
+                        owner_bytes.as_slice(),
+                        bump_vec.as_slice(),
                     ];
 
-                    // Decompress this single account
-                    decompress_multiple_idempotent::<UserRecord>(
+                    // Process this single UserRecord account
+                    let compressed_infos = process_accounts_for_decompression::<UserRecord>(
                         &[&pda_accounts[i]],
                         vec![light_account],
                         &[&seeds],
-                        proof.clone(),
-                        cpi_accounts,
+                        &cpi_accounts,
                         &crate::ID,
                         &ctx.accounts.rent_payer,
                         ADDRESS_SPACE[0],
                     )
                     .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+                    all_compressed_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::GameSession(data) => {
                     // Create LightAccount with correct GameSession discriminator
@@ -263,29 +256,38 @@ pub mod anchor_compressible_user {
                     )
                     .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
-                    // Build signer seeds
-                    let session_id_bytes = data.session_id.to_le_bytes();
-                    let bump_array = [*bump];
+                    // Build signer seeds with owned data
+                    let game_session_seed = b"game_session".to_vec();
+                    let session_id_bytes = data.session_id.to_le_bytes().to_vec();
+                    let bump_vec = vec![*bump];
                     let seeds = vec![
-                        b"game_session".as_ref(),
-                        session_id_bytes.as_ref(),
-                        bump_array.as_ref(),
+                        game_session_seed.as_slice(),
+                        session_id_bytes.as_slice(),
+                        bump_vec.as_slice(),
                     ];
 
-                    // Decompress this single account
-                    decompress_multiple_idempotent::<GameSession>(
+                    // Process this single GameSession account
+                    let compressed_infos = process_accounts_for_decompression::<GameSession>(
                         &[&pda_accounts[i]],
                         vec![light_account],
                         &[&seeds],
-                        proof.clone(),
-                        cpi_accounts,
+                        &cpi_accounts,
                         &crate::ID,
                         &ctx.accounts.rent_payer,
                         ADDRESS_SPACE[0],
                     )
                     .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+                    all_compressed_infos.extend(compressed_infos);
                 }
             }
+        }
+
+        if !all_compressed_infos.is_empty() {
+            let cpi_inputs = CpiInputs::new(proof, all_compressed_infos);
+            cpi_inputs
+                .invoke_light_system_program(cpi_accounts)
+                .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         }
 
         Ok(())

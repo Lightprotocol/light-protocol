@@ -17,6 +17,6 @@ pub use config::{
     update_compression_config, CompressibleConfig, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
-pub use decompress_idempotent::{decompress_idempotent, decompress_multiple_idempotent};
+pub use decompress_idempotent::{decompress_idempotent, process_accounts_for_decompression};
 
 pub use from_compressed_data::FromCompressedData;

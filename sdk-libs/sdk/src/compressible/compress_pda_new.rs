@@ -173,7 +173,6 @@ where
             LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
         compressed_account.account = (***pda_account).clone();
 
-        msg!("compressed_account: {:?}", compressed_account.account);
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Accumulate lamports
