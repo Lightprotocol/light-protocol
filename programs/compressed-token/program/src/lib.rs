@@ -34,8 +34,8 @@ pub const MAX_ACCOUNTS: usize = 30;
 // When adding new instructions check anchor discriminators for collisions!
 #[repr(u8)]
 pub enum InstructionType {
-    DecompressedTransfer = 3,
-    CloseTokenAccount = 9, // SPL Token CloseAccount
+    DecompressedTransfer = 3, // SPL Token transfer
+    CloseTokenAccount = 9,    // SPL Token CloseAccount
     CreateCompressedMint = 100,
     MintToCompressed = 101,
     CreateSplMint = 102,

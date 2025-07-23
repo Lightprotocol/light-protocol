@@ -17,7 +17,9 @@ use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
-    mint::{accounts::CreateCompressedMintAccounts, output::create_output_compressed_mint_account},
+    mint::{
+        accounts::CreateCompressedMintAccounts, mint_output::create_output_compressed_mint_account,
+    },
     shared::{cpi::execute_cpi_invoke, cpi_bytes_size::allocate_invoke_with_read_only_cpi_bytes},
 };
 use light_ctoken_types::{

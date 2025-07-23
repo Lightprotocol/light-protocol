@@ -10,7 +10,7 @@ use light_compressed_account::{
 };
 use light_compressed_token::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
-    mint::output::create_output_compressed_mint_account,
+    mint::mint_output::create_output_compressed_mint_account,
     shared::cpi_bytes_size::{
         allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
     },
@@ -412,7 +412,7 @@ fn test_rnd_create_compressed_mint_account() {
 
         let mut context = TokenContext::new();
         let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.unwrap().into());
-        light_compressed_token::mint::input::create_input_compressed_mint_account(
+        light_compressed_token::mint::mint_input::create_input_compressed_mint_account(
             input_account,
             &mut context,
             &z_update_instruction_data,

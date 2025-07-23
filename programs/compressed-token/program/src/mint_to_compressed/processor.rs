@@ -10,7 +10,8 @@ use zerocopy::little_endian::U64;
 
 use crate::{
     mint::{
-        input::create_input_compressed_mint_account, output::create_output_compressed_mint_account,
+        mint_input::create_input_compressed_mint_account,
+        mint_output::create_output_compressed_mint_account,
     },
     mint_to_compressed::accounts::MintToCompressedAccounts,
     shared::{

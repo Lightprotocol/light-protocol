@@ -1,4 +1,4 @@
 pub mod accounts;
-pub mod input;
-pub mod output;
+pub mod mint_input;
+pub mod mint_output;
 pub mod processor;

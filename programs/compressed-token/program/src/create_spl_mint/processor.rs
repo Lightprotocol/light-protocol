@@ -96,8 +96,8 @@ fn update_compressed_mint_to_decompressed<'info>(
 
     use crate::{
         mint::{
-            input::create_input_compressed_mint_account,
-            output::create_output_compressed_mint_account,
+            mint_input::create_input_compressed_mint_account,
+            mint_output::create_output_compressed_mint_account,
         },
         shared::cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
