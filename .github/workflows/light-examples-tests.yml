@@ -47,12 +47,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - program: token-escrow-test
-            sub-tests: '[
-              "cargo test-sbf -p token-escrow"
-            ]'
-          - program: counter-test
-            sub-tests: '["cargo test-sbf -p counter"]'
           - program: sdk-test-program
             sub-tests: '["cargo-test-sbf -p sdk-test"]'
           - program: sdk-anchor-test-program

@@ -15,7 +15,6 @@
     "sdk-test-program": "cargo test-sbf -p sdk-test",
     "test-system": "cargo test-sbf -p system-test",
     "test-system-cpi": "cargo test-sbf -p system-cpi-test",
-    "ignored-token-escrow": "cargo-test-sbf -p token-escrow --features idl-build",
     "ignored-program-owned-account-test": "cargo-test-sbf -p program-owned-account-test"
   },
   "nx": {
