@@ -81,15 +81,63 @@ async fn test_all() {
         &game_session_pda,
         &game_bump,
         session_id,
+        "Test User",
+        "Battle Royale",
+        100,
     )
     .await;
 
-    // Test the new combined instruction
+    // Test the new combined instruction with new accounts
+    // Create a new user to avoid PDA conflicts
+    let combined_user = Keypair::new();
+
+    // Fund the new user
+    let fund_user_ix = solana_sdk::system_instruction::transfer(
+        &payer.pubkey(),
+        &combined_user.pubkey(),
+        1_000_000_000, // 1 SOL
+    );
+    let fund_result = rpc
+        .create_and_send_transaction(&[fund_user_ix], &payer.pubkey(), &[&payer])
+        .await;
+    assert!(fund_result.is_ok(), "Funding combined user should succeed");
+    let combined_session_id = 99999u64;
+    let (combined_user_record_pda, combined_user_record_bump) = Pubkey::find_program_address(
+        &[b"user_record", combined_user.pubkey().as_ref()],
+        &program_id,
+    );
+    let (combined_game_session_pda, combined_game_bump) = Pubkey::find_program_address(
+        &[b"game_session", combined_session_id.to_le_bytes().as_ref()],
+        &program_id,
+    );
+
     test_create_user_record_and_game_session_with_config(
         &mut rpc,
-        &payer,
+        &combined_user,
         &program_id,
         &config_pda,
+        &combined_user_record_pda,
+        &combined_game_session_pda,
+        combined_session_id,
+    )
+    .await;
+
+    rpc.warp_to_slot(200).unwrap();
+
+    // Test decompression for the new combined accounts
+    test_decompress_multiple_pdas(
+        &mut rpc,
+        &combined_user,
+        &program_id,
+        &config_pda,
+        &combined_user_record_pda,
+        &combined_user_record_bump,
+        &combined_game_session_pda,
+        &combined_game_bump,
+        combined_session_id,
+        "Combined User",
+        "Combined Game",
+        200,
     )
     .await;
 }
@@ -314,6 +362,9 @@ async fn test_decompress_multiple_pdas(
     game_session_pda: &Pubkey,
     game_bump: &u8,
     session_id: u64,
+    expected_user_name: &str,
+    expected_game_type: &str,
+    expected_slot: u64,
 ) {
     // TODO: dynamic
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
@@ -471,7 +522,7 @@ async fn test_decompress_multiple_pdas(
     );
 
     let decompressed_user_record = UserRecord::try_deserialize(&mut &user_pda_data[..]).unwrap();
-    assert_eq!(decompressed_user_record.name, "Test User");
+    assert_eq!(decompressed_user_record.name, expected_user_name);
     assert_eq!(decompressed_user_record.score, 11);
     assert_eq!(decompressed_user_record.owner, payer.pubkey());
     assert_eq!(
@@ -482,7 +533,7 @@ async fn test_decompress_multiple_pdas(
         decompressed_user_record
             .compression_info
             .last_written_slot(),
-        100
+        expected_slot
     );
 
     // Verify GameSession PDA is decompressed
@@ -502,7 +553,7 @@ async fn test_decompress_multiple_pdas(
     let decompressed_game_session =
         anchor_compressible_user::GameSession::try_deserialize(&mut &game_pda_data[..]).unwrap();
     assert_eq!(decompressed_game_session.session_id, session_id);
-    assert_eq!(decompressed_game_session.game_type, "Battle Royale");
+    assert_eq!(decompressed_game_session.game_type, expected_game_type);
     assert_eq!(decompressed_game_session.player, payer.pubkey());
     assert_eq!(decompressed_game_session.score, 0);
     assert_eq!(
@@ -513,38 +564,19 @@ async fn test_decompress_multiple_pdas(
         decompressed_game_session
             .compression_info
             .last_written_slot(),
-        100
+        expected_slot
     );
 }
 
 async fn test_create_user_record_and_game_session_with_config(
     rpc: &mut LightProgramTest,
-    payer: &Keypair,
+    user: &Keypair,
     program_id: &Pubkey,
     config_pda: &Pubkey,
+    user_record_pda: &Pubkey,
+    game_session_pda: &Pubkey,
+    session_id: u64,
 ) {
-    // Generate a new user to avoid conflicts
-    let user = Keypair::new();
-
-    // Fund the new user
-    let fund_user_ix = solana_sdk::system_instruction::transfer(
-        &payer.pubkey(),
-        &user.pubkey(),
-        1_000_000_000, // 1 SOL
-    );
-    let fund_result = rpc
-        .create_and_send_transaction(&[fund_user_ix], &payer.pubkey(), &[&payer])
-        .await;
-    assert!(fund_result.is_ok(), "Funding user should succeed");
-
-    let session_id = 99999u64;
-    let (user_record_pda, _user_record_bump) =
-        Pubkey::find_program_address(&[b"user_record", user.pubkey().as_ref()], program_id);
-    let (game_session_pda, _game_session_bump) = Pubkey::find_program_address(
-        &[b"game_session", session_id.to_le_bytes().as_ref()],
-        program_id,
-    );
-
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
@@ -556,8 +588,8 @@ async fn test_create_user_record_and_game_session_with_config(
     // Create the instruction
     let accounts = anchor_compressible_user::accounts::CreateUserRecordAndGameSessionWithConfig {
         user: user.pubkey(),
-        user_record: user_record_pda,
-        game_session: game_session_pda,
+        user_record: *user_record_pda,
+        game_session: *game_session_pda,
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_recipient: RENT_RECIPIENT,
@@ -644,7 +676,7 @@ async fn test_create_user_record_and_game_session_with_config(
     );
 
     // Verify both accounts are empty after compression
-    let user_record_account = rpc.get_account(user_record_pda).await.unwrap();
+    let user_record_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert!(
         user_record_account.is_some(),
         "User record account should exist after compression"
@@ -659,7 +691,7 @@ async fn test_create_user_record_and_game_session_with_config(
         "User record account data should be empty"
     );
 
-    let game_session_account = rpc.get_account(game_session_pda).await.unwrap();
+    let game_session_account = rpc.get_account(*game_session_pda).await.unwrap();
     assert!(
         game_session_account.is_some(),
         "Game session account should exist after compression"
