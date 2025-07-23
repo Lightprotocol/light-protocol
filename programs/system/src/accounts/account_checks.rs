@@ -55,19 +55,21 @@ pub fn check_anchor_option_sol_pool_pda(
             &crate::ID,
             option_sol_pool_pda,
         )?;
+        check_mut(option_sol_pool_pda).map_err(ProgramError::from)?;
         Some(option_sol_pool_pda)
     };
     Ok(sol_pool_pda)
 }
 
 /// Processes account equivalent to anchor Accounts Option<AccountInfo>.
-pub fn anchor_option_account_info(
+pub fn anchor_option_mut_account_info(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
     let option_decompression_recipient = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
     let decompression_recipient = if *option_decompression_recipient.key() == crate::ID {
         None
     } else {
+        check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
         Some(option_decompression_recipient)
     };
     Ok(decompression_recipient)
@@ -108,6 +110,7 @@ where
         let option_decompression_recipient = account_infos
             .next()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
         Some(option_decompression_recipient)
     } else {
         None
@@ -147,6 +150,7 @@ where
             .next()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
         check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
+        check_mut(option_sol_pool_pda).map_err(ProgramError::from)?;
         Some(option_sol_pool_pda)
     } else {
         None

@@ -49,6 +49,7 @@ pub struct BatchedQueueMetadata {
 }
 
 impl BatchedQueueMetadata {
+    #[allow(clippy::too_many_arguments)]
     pub fn init(
         &mut self,
         meta_data: QueueMetadata,
@@ -57,6 +58,7 @@ impl BatchedQueueMetadata {
         bloom_filter_capacity: u64,
         num_iters: u64,
         queue_pubkey: &Pubkey,
+        tree_capacity: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         self.metadata = meta_data;
         self.batch_metadata.init(batch_size, zkp_batch_size)?;
@@ -70,6 +72,9 @@ impl BatchedQueueMetadata {
                 batch_size * (i as u64),
             );
         }
+
+        // Set tree capacity for overflow checks
+        self.tree_capacity = tree_capacity;
 
         // Precompute Merkle tree pubkey hash for use in system program.
         // The compressed account hash depends on the Merkle tree pubkey and leaf index.
@@ -207,6 +212,7 @@ impl<'a> BatchedQueueAccount<'a> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn init(
         account_data: &'a mut [u8],
         metadata: QueueMetadata,
@@ -215,6 +221,7 @@ impl<'a> BatchedQueueAccount<'a> {
         num_iters: u64,
         bloom_filter_capacity: u64,
         pubkey: Pubkey,
+        tree_capacity: u64,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
@@ -231,6 +238,7 @@ impl<'a> BatchedQueueAccount<'a> {
             bloom_filter_capacity,
             num_iters,
             &pubkey,
+            tree_capacity,
         )?;
 
         if account_data_len
@@ -411,7 +419,7 @@ impl<'a> BatchedQueueAccount<'a> {
 
     /// Returns true if the tree is full.
     pub fn tree_is_full(&self) -> bool {
-        self.tree_capacity == self.batch_metadata.next_index
+        self.batch_metadata.next_index >= self.tree_capacity
     }
 
     /// Check if the tree is full.
@@ -672,6 +680,7 @@ fn test_batched_queue_metadata_init() {
     let num_iters = 5;
     let queue_pubkey = Pubkey::new_unique();
 
+    let tree_capacity = 16; // 2^4 for test purposes
     let result = metadata.init(
         queue_metadata,
         batch_size,
@@ -679,6 +688,7 @@ fn test_batched_queue_metadata_init() {
         bloom_filter_capacity,
         num_iters,
         &queue_pubkey,
+        tree_capacity,
     );
 
     assert!(result.is_ok());
@@ -701,6 +711,7 @@ fn test_batched_queue_metadata_init() {
         hashed_merkle_tree_pubkey
     );
     assert_eq!(metadata.hashed_queue_pubkey, hashed_queue_pubkey);
+    assert_eq!(metadata.tree_capacity, tree_capacity);
 }
 
 #[test]
@@ -722,6 +733,7 @@ fn test_check_is_associated() {
         num_iters,
         bloom_filter_capacity,
         Pubkey::new_unique(),
+        16, // 2^4 for test purposes
     )
     .unwrap();
     // 1. Functional
@@ -762,7 +774,42 @@ fn test_pubkey() {
         num_iters,
         bloom_filter_capacity,
         pubkey,
+        16, // 2^4 for test purposes
     )
     .unwrap();
     assert_eq!(*account.pubkey(), pubkey);
+}
+
+#[test]
+fn test_tree_capacity_is_set_correctly() {
+    let mut account_data = vec![0u8; 1000];
+    let mut queue_metadata = QueueMetadata::default();
+    let associated_merkle_tree = Pubkey::new_unique();
+    queue_metadata.associated_merkle_tree = associated_merkle_tree;
+    queue_metadata.queue_type = QueueType::OutputStateV2 as u64;
+    let batch_size = 4;
+    let zkp_batch_size = 2;
+    let bloom_filter_capacity = 0;
+    let num_iters = 0;
+    let pubkey = Pubkey::new_unique();
+    let tree_capacity = 1024; // 2^10
+
+    let account = BatchedQueueAccount::init(
+        &mut account_data,
+        queue_metadata,
+        batch_size,
+        zkp_batch_size,
+        num_iters,
+        bloom_filter_capacity,
+        pubkey,
+        tree_capacity,
+    )
+    .unwrap();
+
+    // Verify tree_capacity is correctly set
+    assert_eq!(account.tree_capacity, tree_capacity);
+
+    // Verify tree_is_full works correctly
+    assert!(!account.tree_is_full()); // Should not be full initially
+    assert!(account.check_tree_is_full().is_ok());
 }

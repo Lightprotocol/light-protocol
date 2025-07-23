@@ -376,7 +376,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         queue_account: &mut BatchedQueueAccount,
         instruction_data: InstructionDataBatchAppendInputs,
     ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
-        self.check_tree_is_full()?;
+        self.check_tree_is_full(Some(queue_account.batch_metadata.zkp_batch_size))?;
         let pending_batch_index = queue_account.batch_metadata.pending_batch_index as usize;
         let new_root = instruction_data.new_root;
         let circuit_batch_size = queue_account.batch_metadata.zkp_batch_size;
@@ -465,7 +465,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         if self.tree_type != TreeType::AddressV2 as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
-        self.check_tree_is_full()?;
+        self.check_tree_is_full(Some(self.metadata.queue_batches.zkp_batch_size))?;
         Ok(MerkleTreeEvent::BatchAddressAppend(
             self.update_input_queue::<ADDRESS_QUEUE_TYPE_V2>(instruction_data)?,
         ))
@@ -886,8 +886,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
-    pub fn tree_is_full(&self) -> bool {
-        self.next_index >= self.capacity
+    /// Checks if the tree is full, optionally for a batch size.
+    /// If batch_size is provided, checks if there is enough space for the batch.
+    pub fn tree_is_full(&self, batch_size: Option<u64>) -> bool {
+        self.next_index + batch_size.unwrap_or_default() >= self.capacity
     }
 
     pub fn check_queue_next_index_reached_tree_capacity(
@@ -899,8 +901,13 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
-    pub fn check_tree_is_full(&self) -> Result<(), BatchedMerkleTreeError> {
-        if self.tree_is_full() {
+    /// Checks if the tree is full, optionally for a batch size.
+    /// If batch_size is provided, checks if there is enough space for the batch.
+    pub fn check_tree_is_full(
+        &self,
+        batch_size: Option<u64>,
+    ) -> Result<(), BatchedMerkleTreeError> {
+        if self.tree_is_full(batch_size) {
             return Err(BatchedMerkleTreeError::TreeIsFull);
         }
         Ok(())
@@ -1578,7 +1585,7 @@ mod test {
         )
         .unwrap();
         // 1. empty tree is not full
-        assert!(!account.tree_is_full());
+        assert!(!account.tree_is_full(None));
 
         let mut inserted_elements = vec![];
         let rng = &mut rand::rngs::StdRng::from_seed([0u8; 32]);
@@ -1677,17 +1684,30 @@ mod test {
         )
         .unwrap();
         // 1. empty tree is not full
-        assert!(!account.tree_is_full());
-        assert!(account.check_tree_is_full().is_ok());
+        assert!(!account.tree_is_full(None));
+        assert!(account.check_tree_is_full(None).is_ok());
+        assert!(!account.tree_is_full(Some(1)));
+        assert!(account.check_tree_is_full(Some(1)).is_ok());
+        account.next_index = account.capacity - 2;
+        assert!(!account.tree_is_full(None));
+        assert!(account.check_tree_is_full(None).is_ok());
+        assert!(!account.tree_is_full(Some(1)));
+        assert!(account.check_tree_is_full(Some(1)).is_ok());
         account.next_index = account.capacity - 1;
-        assert!(!account.tree_is_full());
-        assert!(account.check_tree_is_full().is_ok());
+        assert!(!account.tree_is_full(None));
+        assert!(account.check_tree_is_full(None).is_ok());
+        assert!(account.tree_is_full(Some(1)));
+        assert!(account.check_tree_is_full(Some(1)).is_err());
         account.next_index = account.capacity;
-        assert!(account.tree_is_full());
-        assert!(account.check_tree_is_full().is_err());
+        assert!(account.tree_is_full(None));
+        assert!(account.check_tree_is_full(None).is_err());
+        assert!(account.tree_is_full(Some(1)));
+        assert!(account.check_tree_is_full(Some(1)).is_err());
         account.next_index = account.capacity + 1;
-        assert!(account.tree_is_full());
-        assert!(account.check_tree_is_full().is_err());
+        assert!(account.tree_is_full(None));
+        assert!(account.check_tree_is_full(None).is_err());
+        assert!(account.tree_is_full(Some(1)));
+        assert!(account.check_tree_is_full(Some(1)).is_err());
     }
     #[test]
     fn test_increment_next_index() {

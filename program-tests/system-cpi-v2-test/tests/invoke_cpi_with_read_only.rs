@@ -2826,6 +2826,109 @@ fn get_output_account_info(output_merkle_tree_index: u8) -> OutAccountInfo {
     }
 }
 
+#[serial]
+#[tokio::test]
+async fn test_duplicate_account_in_inputs_and_read_only() {
+    spawn_prover(ProverConfig::default()).await;
+
+    let mut config = ProgramTestConfig::default_with_batched_trees(false);
+    config.with_prover = false;
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        create_address_test_program::ID,
+    )]);
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
+
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let env = rpc.test_accounts.clone();
+    let queue = env.v2_state_trees[0].output_queue;
+    let tree = env.v2_state_trees[0].merkle_tree;
+
+    let payer = rpc.get_payer().insecure_clone();
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
+
+    // Create a compressed account first
+    let output_account = get_compressed_output_account(true, queue);
+    local_sdk::perform_test_transaction(
+        &mut rpc,
+        &mut test_indexer,
+        &payer,
+        vec![],
+        vec![output_account.clone()],
+        vec![],
+        None, // proof
+        None,
+        None,
+        false,
+        false,
+        Vec::new(),
+        Vec::new(),
+        queue,
+        tree,
+        false,
+        None,
+        false,
+        None,
+        None,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+
+    // Now try to use the same account as both input and read-only
+    let compressed_account = test_indexer.compressed_accounts[0].clone();
+
+    let read_only_account = ReadOnlyCompressedAccount {
+        account_hash: compressed_account.hash().unwrap(),
+        merkle_context: MerkleContext {
+            merkle_tree_pubkey: tree.into(),
+            queue_pubkey: queue.into(),
+            leaf_index: 0,
+            prove_by_index: false,
+            tree_type: TreeType::StateV2,
+        },
+        root_index: 0,
+    };
+
+    // Get validity proof for the input account
+    let rpc_result = rpc
+        .get_validity_proof(vec![compressed_account.hash().unwrap()], Vec::new(), None)
+        .await
+        .unwrap();
+
+    // Attempt transaction with duplicate account - should fail
+    let result = local_sdk::perform_test_transaction(
+        &mut rpc,
+        &mut test_indexer,
+        &payer,
+        vec![compressed_account], // input_accounts
+        vec![],                   // output_accounts
+        vec![],                   // new_addresses
+        rpc_result.value.proof.0, // proof
+        None,                     // sol_compression_recipient
+        None,                     // account_infos
+        false,                    // small_ix
+        false,                    // with_transaction_hash
+        vec![read_only_account],  // read_only_accounts
+        Vec::new(),               // read_only_addresses
+        queue,
+        tree,
+        false, // is_compress
+        None,  // compress_or_decompress_lamports
+        false, // invalid_sol_pool
+        None,  // invalid_fee_recipient
+        None,  // invalid_cpi_context
+    )
+    .await;
+
+    assert_rpc_error(
+        result,
+        0,
+        SystemProgramError::DuplicateAccountInInputsAndReadOnly.into(),
+    )
+    .unwrap();
+}
+
 pub mod local_sdk {
     use std::collections::HashMap;
 

@@ -215,6 +215,7 @@ mod migrate_state_test {
             3,
             account.batch_metadata.bloom_filter_capacity,
             queue_pubkey.into(),
+            account.tree_capacity,
         )
         .unwrap();
         mock_account.account = Some(output_queue);

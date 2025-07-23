@@ -3,7 +3,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use crate::{
     accounts::{
         account_checks::{
-            anchor_option_account_info, check_account_compression_program,
+            anchor_option_mut_account_info, check_account_compression_program,
             check_anchor_option_cpi_context_account, check_anchor_option_sol_pool_pda,
             check_authority, check_fee_payer, check_non_mut_account_info, check_system_program,
         },
@@ -60,7 +60,7 @@ impl<'info> InvokeCpiInstruction<'info> {
 
         let sol_pool_pda = check_anchor_option_sol_pool_pda(accounts.next())?;
 
-        let decompression_recipient = anchor_option_account_info(accounts.next())?;
+        let decompression_recipient = anchor_option_mut_account_info(accounts.next())?;
 
         let system_program = check_system_program(accounts.next())?;
 

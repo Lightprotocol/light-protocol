@@ -11,7 +11,6 @@ use crate::{
         DEFAULT_BATCH_ROOT_HISTORY_LEN, DEFAULT_BATCH_SIZE,
     },
     errors::BatchedMerkleTreeError,
-    initialize_state_tree::match_circuit_size,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
     BorshDeserialize, BorshSerialize,
 };
@@ -129,6 +128,7 @@ pub fn init_batched_address_merkle_tree_account(
     )
 }
 
+/// Only used for testing. For production use the default config.
 pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstructionData) {
     assert!(params.input_queue_batch_size > 0);
     assert_eq!(
@@ -138,7 +138,7 @@ pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstr
     );
     assert!(
         match_circuit_size(params.input_queue_zkp_batch_size),
-        "Zkp batch size not supported. Supported 1, 10, 100, 500, 1000"
+        "Zkp batch size not supported. Supported: 10, 250"
     );
 
     assert!(params.bloom_filter_num_iters > 0);
@@ -151,10 +151,24 @@ pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstr
     assert!(params.bloom_filter_capacity > 0);
     assert!(params.root_history_capacity > 0);
     assert!(params.input_queue_batch_size > 0);
+
+    // Validate root_history_capacity is sufficient for input operations
+    // (address trees only have input queues, no output queues)
+    let required_capacity = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
+    assert!(
+        params.root_history_capacity >= required_capacity as u32,
+        "root_history_capacity ({}) must be >= {} (input_queue_batch_size / input_queue_zkp_batch_size)",
+        params.root_history_capacity,
+        required_capacity
+    );
+
     assert_eq!(params.close_threshold, None);
     assert_eq!(params.height, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT);
 }
-
+/// Only 10 and 250 are supported.
+pub fn match_circuit_size(size: u64) -> bool {
+    matches!(size, 10 | 250)
+}
 pub fn get_address_merkle_tree_account_size_from_params(
     params: InitAddressTreeAccountsInstructionData,
 ) -> usize {
@@ -329,4 +343,24 @@ fn test_height_not_40() {
         ..InitAddressTreeAccountsInstructionData::default()
     };
     validate_batched_address_tree_params(params);
+}
+
+#[test]
+fn test_validate_root_history_capacity_address_tree() {
+    // Test with valid params (default should pass)
+    let params = InitAddressTreeAccountsInstructionData::default();
+    validate_batched_address_tree_params(params); // Should not panic
+}
+
+#[test]
+#[should_panic(expected = "root_history_capacity")]
+fn test_validate_root_history_capacity_insufficient_address_tree() {
+    let params = InitAddressTreeAccountsInstructionData {
+        root_history_capacity: 1, // Much too small
+        input_queue_batch_size: 1000,
+        input_queue_zkp_batch_size: 10,
+        // Required: 1000/10 = 100, but we set only 1
+        ..Default::default()
+    };
+    validate_batched_address_tree_params(params); // Should panic
 }
