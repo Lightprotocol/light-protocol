@@ -6,21 +6,18 @@ use pinocchio::account_info::AccountInfo;
 
 use crate::{
     multi_transfer::{
-        accounts::{MultiTransferPackedAccounts, MultiTransferValidatedAccounts},
-        change_account::process_change_lamports,
-        cpi::allocate_cpi_bytes,
-        native_compression::process_token_compression,
-        sum_check::sum_check_multi_mint,
-        token_inputs::assign_input_compressed_accounts,
-        token_outputs::assign_output_compressed_accounts,
+        accounts::MultiTransferValidatedAccounts, change_account::process_change_lamports,
+        cpi::allocate_cpi_bytes, native_compression::process_token_compression,
+        sum_check::sum_check_multi_mint, token_inputs::set_input_compressed_accounts,
+        token_outputs::set_output_compressed_accounts,
     },
     shared::cpi::execute_cpi_invoke,
 };
+use anchor_compressed_token::check_cpi_context;
 use light_ctoken_types::{
     context::TokenContext,
     instructions::multi_transfer::{
         validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
-        ZCompressedTokenInstructionDataMultiTransfer,
     },
 };
 
@@ -44,6 +41,9 @@ pub fn process_multi_transfer(
     let (inputs, _) = CompressedTokenInstructionDataMultiTransfer::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 
+    // Check CPI context validity (multi-transfer modifies Solana account state)
+    check_cpi_context(&inputs.cpi_context).map_err(ProgramError::from)?;
+
     let total_input_lamports = if let Some(inputs) = inputs.in_lamports.as_ref() {
         inputs.iter().map(|input| u64::from(**input)).sum()
     } else {
@@ -54,6 +54,7 @@ pub fn process_multi_transfer(
     } else {
         0
     };
+
     // Determine optional account flags from instruction data
     let with_sol_pool = total_input_lamports != total_output_lamports;
     msg!("with_sol_pool {}", with_sol_pool);
@@ -87,21 +88,11 @@ pub fn process_multi_transfer(
         inputs.proof,
         inputs.cpi_context,
     )?;
-    /*
-    // Set CPI signer information
-    cpi_instruction_struct.bump = LIGHT_CPI_SIGNER.bump;
-    cpi_instruction_struct.invoking_program_id = LIGHT_CPI_SIGNER.program_id.into();
-    cpi_instruction_struct.with_cpi_context = with_cpi_context as u8;
-    if let Some(cpi_context) = inputs.cpi_context.as_ref() {
-        cpi_instruction_struct.cpi_context.cpi_context_account_index =
-            cpi_context.cpi_context_account_index;
-        cpi_instruction_struct.cpi_context.first_set_context = cpi_context.first_set_context as u8;
-        cpi_instruction_struct.cpi_context.set_context = cpi_context.set_context as u8;
-    }*/
-    msg!("pre assign_input_compressed_accounts");
+
+    msg!("pre set_input_compressed_accounts");
 
     // Process input compressed accounts
-    assign_input_compressed_accounts(
+    set_input_compressed_accounts(
         &mut cpi_instruction_struct,
         &mut context,
         &inputs,
@@ -117,10 +108,10 @@ pub fn process_multi_transfer(
     )
     .map_err(|e| ProgramError::Custom(e as u32))?;
     bench_sbf_end!("t_sum_check");
-    msg!("pre assign_output_compressed_accounts");
+    msg!("pre set_output_compressed_accounts");
 
     // Process output compressed accounts
-    assign_output_compressed_accounts(
+    set_output_compressed_accounts(
         &mut cpi_instruction_struct,
         &mut context,
         &inputs,
@@ -141,21 +132,15 @@ pub fn process_multi_transfer(
     // TODO: support spl
     process_token_compression(&inputs, &packed_accounts)?;
 
-    // Extract tree accounts using highest index approach
-    let (tree_accounts, tree_accounts_count) = extract_tree_accounts(&inputs, &packed_accounts);
-
-    // Calculate static accounts count after skipping index 0 (system accounts only)
-    let static_accounts_count =
-        8 + if with_sol_pool { 2 } else { 0 } + if with_cpi_context { 1 } else { 0 };
-
-    // Include static CPI accounts + tree accounts based on highest index
-    let cpi_accounts_end = 1 + static_accounts_count + tree_accounts_count;
-    let cpi_accounts = &accounts[1..cpi_accounts_end];
-    let solana_tree_accounts = tree_accounts
-        .iter()
-        .map(|&x| solana_pubkey::Pubkey::new_from_array(*x))
-        .collect::<Vec<_>>();
+    // Get CPI accounts slice and tree accounts for light-system-program invocation
+    let (cpi_accounts, tree_pubkeys) =
+        validated_accounts.cpi_accounts(accounts, &inputs, &packed_accounts);
+    // Debug prints keep for now.
     {
+        let solana_tree_accounts = tree_pubkeys
+            .iter()
+            .map(|&x| solana_pubkey::Pubkey::new_from_array(*x))
+            .collect::<Vec<_>>();
         msg!("solana_tree_accounts {:?}", solana_tree_accounts);
         let _cpi_accounts = cpi_accounts
             .iter()
@@ -167,40 +152,10 @@ pub fn process_multi_transfer(
     execute_cpi_invoke(
         cpi_accounts,
         cpi_bytes,
-        tree_accounts.as_slice(),
+        tree_pubkeys.as_slice(),
         with_sol_pool,
         validated_accounts.cpi_context_account.map(|x| *x.key()),
     )?;
 
     Ok(())
-}
-
-/// Extract tree accounts by finding the highest tree index and using it as closing offset
-fn extract_tree_accounts<'a>(
-    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
-    packed_accounts: &'a MultiTransferPackedAccounts<'a>,
-) -> (Vec<&'a pinocchio::pubkey::Pubkey>, usize) {
-    // Find highest tree index from input and output data to determine tree accounts range
-    let mut highest_tree_index = 0u8;
-    for input_data in inputs.in_token_data.iter() {
-        highest_tree_index =
-            highest_tree_index.max(input_data.merkle_context.merkle_tree_pubkey_index);
-        highest_tree_index = highest_tree_index.max(input_data.merkle_context.queue_pubkey_index);
-    }
-    for output_data in inputs.out_token_data.iter() {
-        highest_tree_index = highest_tree_index.max(output_data.merkle_tree);
-    }
-
-    // Tree accounts span from index 0 to highest_tree_index in remaining accounts
-    let tree_accounts_count = (highest_tree_index + 1) as usize;
-
-    // Extract tree account pubkeys from the determined range
-    let mut tree_accounts = Vec::new();
-    for i in 0..tree_accounts_count {
-        if let Some(account) = packed_accounts.accounts.get(i) {
-            tree_accounts.push(account.key());
-        }
-    }
-
-    (tree_accounts, tree_accounts_count)
 }

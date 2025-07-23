@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
-use pinocchio::account_info::AccountInfo;
+use light_ctoken_types::instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::shared::AccountIterator;
 
@@ -34,7 +35,7 @@ pub struct MultiTransferValidatedAccounts<'info> {
 /// Dynamic accounts slice for index-based access
 /// Contains mint, owner, delegate, merkle tree, and queue accounts
 pub struct MultiTransferPackedAccounts<'info> {
-    /// Remaining accounts slice starting at index 11
+    /// Packed accounts slice starting at index 11
     pub accounts: &'info [AccountInfo],
 }
 
@@ -53,6 +54,7 @@ impl MultiTransferPackedAccounts<'_> {
 }
 
 impl MultiTransferValidatedAccounts<'_> {
+    // The offset of 1 skips the light-system-program account (index 0)
     pub const CPI_ACCOUNTS_OFFSET: usize = 1;
 }
 
@@ -88,15 +90,15 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
         let system_program = iter.next_account()?;
         let cpi_context_account = if with_cpi_context {
             let cpi_context_account = iter.next_account()?;
-            check_mut(cpi_context_account).map_err(ProgramError::from)?;
+            check_mut(cpi_context_account)?;
             Some(cpi_context_account)
         } else {
             None
         };
 
         // Validate fee_payer: must be signer and mutable
-        check_signer(fee_payer).map_err(ProgramError::from)?;
-        check_mut(fee_payer).map_err(ProgramError::from)?;
+        check_signer(fee_payer)?;
+        check_mut(fee_payer)?;
         // Extract remaining accounts slice for dynamic indexing
         let remaining_accounts = iter.remaining();
 
@@ -120,4 +122,68 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
 
         Ok((validated_accounts, packed_accounts))
     }
+
+    /// Calculate static accounts count after skipping index 0 (system accounts only)
+    /// Returns the count of fixed accounts based on optional features
+    #[inline(always)]
+    pub fn static_accounts_count(&self) -> usize {
+        let with_sol_pool = self.sol_pool_pda.is_some();
+        let with_cpi_context = self.cpi_context_account.is_some();
+        8 + if with_sol_pool { 2 } else { 0 } + if with_cpi_context { 1 } else { 0 }
+    }
+
+    /// Extract CPI accounts slice for light-system-program invocation
+    /// Includes static accounts + tree accounts based on highest tree index
+    /// Returns (cpi_accounts_slice, tree_accounts)
+    #[inline(always)]
+    pub fn cpi_accounts(
+        &self,
+        all_accounts: &'info [AccountInfo],
+        inputs: &ZCompressedTokenInstructionDataMultiTransfer,
+        packed_accounts: &'info MultiTransferPackedAccounts<'info>,
+    ) -> (&'info [AccountInfo], Vec<&'info Pubkey>) {
+        // Extract tree accounts using highest index approach
+        let (tree_accounts, tree_accounts_count) = extract_tree_accounts(inputs, packed_accounts);
+
+        // Calculate static accounts count after skipping index 0 (system accounts only)
+        let static_accounts_count = self.static_accounts_count();
+
+        // Include static CPI accounts + tree accounts based on highest tree index
+        let cpi_accounts_end =
+            Self::CPI_ACCOUNTS_OFFSET + static_accounts_count + tree_accounts_count;
+        let cpi_accounts_slice = &all_accounts[Self::CPI_ACCOUNTS_OFFSET..cpi_accounts_end];
+
+        (cpi_accounts_slice, tree_accounts)
+    }
+}
+
+// TODO: unit test.
+/// Extract tree accounts by finding the highest tree index and using it as closing offset
+pub fn extract_tree_accounts<'info>(
+    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
+    packed_accounts: &'info MultiTransferPackedAccounts<'info>,
+) -> (Vec<&'info Pubkey>, usize) {
+    // Find highest tree index from input and output data to determine tree accounts range
+    let mut highest_tree_index = 0u8;
+    for input_data in inputs.in_token_data.iter() {
+        highest_tree_index =
+            highest_tree_index.max(input_data.merkle_context.merkle_tree_pubkey_index);
+        highest_tree_index = highest_tree_index.max(input_data.merkle_context.queue_pubkey_index);
+    }
+    for output_data in inputs.out_token_data.iter() {
+        highest_tree_index = highest_tree_index.max(output_data.merkle_tree);
+    }
+
+    // Tree accounts span from index 0 to highest_tree_index in remaining accounts
+    let tree_accounts_count = highest_tree_index as usize + 1;
+
+    // Extract tree account pubkeys from the determined range
+    let mut tree_accounts = Vec::new();
+    for i in 0..tree_accounts_count {
+        if let Some(account) = packed_accounts.accounts.get(i) {
+            tree_accounts.push(account.key());
+        }
+    }
+
+    (tree_accounts, tree_accounts_count)
 }

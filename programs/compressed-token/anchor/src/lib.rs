@@ -292,7 +292,7 @@ pub enum ErrorCode {
 
 /// Checks if CPI context usage is valid for the current instruction
 /// Throws an error if cpi_context is Some and (set_context OR first_set_context is true)
-fn check_cpi_context(cpi_context: &Option<CompressedCpiContext>) -> Result<()> {
+pub fn check_cpi_context(cpi_context: &Option<CompressedCpiContext>) -> Result<()> {
     if let Some(ctx) = cpi_context {
         if ctx.set_context || ctx.first_set_context {
             return Err(ErrorCode::CpiContextSetNotUsable.into());

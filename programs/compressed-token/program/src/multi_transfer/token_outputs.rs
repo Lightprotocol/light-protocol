@@ -11,7 +11,7 @@ use light_ctoken_types::{
 };
 
 /// Process output compressed accounts and return total output lamports
-pub fn assign_output_compressed_accounts(
+pub fn set_output_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     context: &mut TokenContext,
     inputs: &ZCompressedTokenInstructionDataMultiTransfer,

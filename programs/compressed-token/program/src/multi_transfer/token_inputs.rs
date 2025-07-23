@@ -11,7 +11,7 @@ use light_ctoken_types::{
 };
 
 /// Process input compressed accounts and return total input lamports
-pub fn assign_input_compressed_accounts(
+pub fn set_input_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     context: &mut TokenContext,
     inputs: &ZCompressedTokenInstructionDataMultiTransfer,
