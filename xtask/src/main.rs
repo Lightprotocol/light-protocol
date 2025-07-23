@@ -8,6 +8,7 @@ mod create_update_protocol_config_ix;
 mod create_vkeyrs_from_gnark_key;
 mod export_photon_test_data;
 mod fee;
+mod get_signatures;
 mod hash_set;
 mod new_deployment;
 mod type_sizes;
@@ -57,6 +58,9 @@ enum Command {
     InitNewDeployment(new_deployment::Options),
     /// cargo xtask create-update-protocol-config --slot-length <u64>
     CreateUpdateProtocolConfigIx(create_update_protocol_config_ix::Options),
+    /// Get signatures for the Light System Program ID
+    /// Example: cargo xtask get-signatures --rpc-url https://api.devnet.solana.com --before <signature> --until <signature> --limit 50
+    GetSignatures(get_signatures::Options),
 }
 
 #[tokio::main]
@@ -89,5 +93,6 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::CreateUpdateProtocolConfigIx(opts) => {
             create_update_protocol_config_ix::create_update_protocol_config_ix(opts).await
         }
+        Command::GetSignatures(opts) => get_signatures::get_signatures(opts).await,
     }
 }
