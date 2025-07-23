@@ -22,7 +22,8 @@ pub mod anchor_compressible_user {
     use light_sdk::account::LightAccount;
     use light_sdk::compressible::{
         compress_pda, compress_pda_new, create_compression_config_checked,
-        process_accounts_for_decompression, update_compression_config,
+        process_accounts_for_compression, process_accounts_for_decompression,
+        update_compression_config,
     };
     use light_sdk::cpi::CpiInputs;
 
@@ -359,6 +360,116 @@ pub mod anchor_compressible_user {
         Ok(())
     }
 
+    /// Creates both a user record and game session and compresses them in a single transaction
+    pub fn create_user_record_and_game_session_with_config<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateUserRecordAndGameSessionWithConfig<'info>>,
+        user_name: String,
+        session_id: u64,
+        game_type: String,
+        proof: ValidityProof,
+        user_compressed_address: [u8; 32],
+        user_address_tree_info: PackedAddressTreeInfo,
+        user_output_state_tree_index: u8,
+        game_compressed_address: [u8; 32],
+        game_address_tree_info: PackedAddressTreeInfo,
+        game_output_state_tree_index: u8,
+    ) -> Result<()> {
+        let user_record = &mut ctx.accounts.user_record;
+        let game_session = &mut ctx.accounts.game_session;
+
+        // Load config from the config account
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+        // Verify rent recipient matches config
+        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+            return err!(ErrorCode::InvalidRentRecipient);
+        }
+
+        // Initialize user record data
+        user_record.owner = ctx.accounts.user.key();
+        user_record.name = user_name;
+        user_record.score = 11;
+        user_record.compression_info = CompressionInfo::new()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+        // Initialize game session data
+        game_session.session_id = session_id;
+        game_session.player = ctx.accounts.user.key();
+        game_session.game_type = game_type;
+        game_session.start_time = Clock::get()?.unix_timestamp as u64;
+        game_session.end_time = None;
+        game_session.score = 0;
+        game_session.compression_info = CompressionInfo::new()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+        let cpi_accounts = CpiAccounts::new(
+            &ctx.accounts.user,
+            &ctx.remaining_accounts[..],
+            LIGHT_CPI_SIGNER,
+        );
+
+        // Prepare new address params
+        let user_new_address_params =
+            user_address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
+        let game_new_address_params =
+            game_address_tree_info.into_new_address_params_packed(game_session.key().to_bytes());
+
+        let mut all_compressed_infos = Vec::new();
+
+        // Process UserRecord for compression
+        let user_compressed_infos = process_accounts_for_compression::<UserRecord>(
+            &mut [user_record],
+            &[user_compressed_address],
+            &[user_new_address_params],
+            &[user_output_state_tree_index],
+            &cpi_accounts,
+            &crate::ID,
+            &config.address_space,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        all_compressed_infos.extend(user_compressed_infos);
+
+        // Process GameSession for compression
+        let game_compressed_infos = process_accounts_for_compression::<GameSession>(
+            &mut [game_session],
+            &[game_compressed_address],
+            &[game_new_address_params],
+            &[game_output_state_tree_index],
+            &cpi_accounts,
+            &crate::ID,
+            &config.address_space,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        all_compressed_infos.extend(game_compressed_infos);
+
+        // Create CPI inputs with all compressed accounts and new addresses
+        let cpi_inputs = CpiInputs::new_with_address(
+            proof,
+            all_compressed_infos,
+            vec![user_new_address_params, game_new_address_params],
+        );
+
+        // Invoke light system program to create all compressed accounts
+        cpi_inputs
+            .invoke_light_system_program(cpi_accounts)
+            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        // Close both PDA accounts
+        use anchor_lang::AccountsClose;
+
+        user_record
+            .close(ctx.accounts.rent_recipient.clone())
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+        game_session
+            .close(ctx.accounts.rent_recipient.clone())
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+
+        Ok(())
+    }
+
     pub fn compress_record<'info>(
         ctx: Context<'_, '_, '_, 'info, CompressRecord<'info>>,
         proof: ValidityProof,
@@ -433,6 +544,37 @@ pub struct CreateRecordWithConfig<'info> {
         bump,
     )]
     pub user_record: Account<'info, UserRecord>,
+    pub system_program: Program<'info, System>,
+    /// The global config account
+    /// CHECK: Config is validated by the SDK's load_checked method
+    pub config: AccountInfo<'info>,
+    /// Rent recipient - must match config
+    /// CHECK: Rent recipient is validated against the config
+    #[account(mut)]
+    pub rent_recipient: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(user_name: String, session_id: u64)]
+pub struct CreateUserRecordAndGameSessionWithConfig<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        init,
+        payer = user,
+        space = 8 + 32 + 4 + 32 + 8 + 9, // discriminator + owner + string len + name + score + compression_info
+        seeds = [b"user_record", user.key().as_ref()],
+        bump,
+    )]
+    pub user_record: Account<'info, UserRecord>,
+    #[account(
+        init,
+        payer = user,
+        space = 8 + 9 + 8 + 32 + 4 + 32 + 8 + 9 + 8, // discriminator + compression_info + session_id + player + string len + game_type + start_time + end_time(Option) + score
+        seeds = [b"game_session", session_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub game_session: Account<'info, GameSession>,
     pub system_program: Program<'info, System>,
     /// The global config account
     /// CHECK: Config is validated by the SDK's load_checked method

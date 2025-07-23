@@ -6,9 +6,7 @@ use anchor_compressible_user::{
     CompressedAccountData, CompressedAccountVariant, GameSession, UserRecord, ADDRESS_SPACE,
     RENT_RECIPIENT,
 };
-use anchor_lang::{
-    AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
-};
+use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use light_compressed_account::address::derive_address;
 use light_program_test::program_test::TestRpc;
 use light_program_test::{
@@ -18,7 +16,6 @@ use light_sdk::compressible::{CompressibleConfig, FromCompressedData};
 use light_sdk::instruction::{
     account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
 };
-use light_sdk::LightDiscriminator;
 
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -84,6 +81,15 @@ async fn test_all() {
         &game_session_pda,
         &game_bump,
         session_id,
+    )
+    .await;
+
+    // Test the new combined instruction
+    test_create_user_record_and_game_session_with_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
     )
     .await;
 }
@@ -509,4 +515,200 @@ async fn test_decompress_multiple_pdas(
             .last_written_slot(),
         100
     );
+}
+
+async fn test_create_user_record_and_game_session_with_config(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    program_id: &Pubkey,
+    config_pda: &Pubkey,
+) {
+    // Generate a new user to avoid conflicts
+    let user = Keypair::new();
+
+    // Fund the new user
+    let fund_user_ix = solana_sdk::system_instruction::transfer(
+        &payer.pubkey(),
+        &user.pubkey(),
+        1_000_000_000, // 1 SOL
+    );
+    let fund_result = rpc
+        .create_and_send_transaction(&[fund_user_ix], &payer.pubkey(), &[&payer])
+        .await;
+    assert!(fund_result.is_ok(), "Funding user should succeed");
+
+    let session_id = 99999u64;
+    let (user_record_pda, _user_record_bump) =
+        Pubkey::find_program_address(&[b"user_record", user.pubkey().as_ref()], program_id);
+    let (game_session_pda, _game_session_bump) = Pubkey::find_program_address(
+        &[b"game_session", session_id.to_le_bytes().as_ref()],
+        program_id,
+    );
+
+    // Setup remaining accounts for Light Protocol
+    let mut remaining_accounts = PackedAccounts::default();
+    let system_config = SystemAccountMetaConfig::new(*program_id);
+    remaining_accounts.add_system_accounts(system_config);
+
+    // Get address tree info
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+
+    // Create the instruction
+    let accounts = anchor_compressible_user::accounts::CreateUserRecordAndGameSessionWithConfig {
+        user: user.pubkey(),
+        user_record: user_record_pda,
+        game_session: game_session_pda,
+        system_program: solana_sdk::system_program::ID,
+        config: *config_pda,
+        rent_recipient: RENT_RECIPIENT,
+    };
+
+    // Derive addresses for both compressed accounts
+    let user_compressed_address = derive_address(
+        &user_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+    let game_compressed_address = derive_address(
+        &game_session_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+
+    // Get validity proof from RPC
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![
+                AddressWithTree {
+                    address: user_compressed_address,
+                    tree: address_tree_pubkey,
+                },
+                AddressWithTree {
+                    address: game_compressed_address,
+                    tree: address_tree_pubkey,
+                },
+            ],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Pack tree infos into remaining accounts
+    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
+
+    // Get the packed address tree info (both should use the same tree)
+    let user_address_tree_info = packed_tree_infos.address_trees[0];
+    let game_address_tree_info = packed_tree_infos.address_trees[1];
+
+    // Get output state tree indices
+    let user_output_state_tree_index =
+        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+    let game_output_state_tree_index =
+        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+
+    // Get system accounts for the instruction
+    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+
+    // Create instruction data
+    let instruction_data =
+        anchor_compressible_user::instruction::CreateUserRecordAndGameSessionWithConfig {
+            user_name: "Combined User".to_string(),
+            session_id,
+            game_type: "Combined Game".to_string(),
+            proof: rpc_result.proof,
+            user_compressed_address,
+            user_address_tree_info,
+            user_output_state_tree_index,
+            game_compressed_address,
+            game_address_tree_info,
+            game_output_state_tree_index,
+        };
+
+    // Build the instruction
+    let instruction = Instruction {
+        program_id: *program_id,
+        accounts: [accounts.to_account_metas(None), system_accounts].concat(),
+        data: instruction_data.data(),
+    };
+
+    // Create and send transaction
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &user.pubkey(), &[&user])
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "Combined creation transaction should succeed"
+    );
+
+    // Verify both accounts are empty after compression
+    let user_record_account = rpc.get_account(user_record_pda).await.unwrap();
+    assert!(
+        user_record_account.is_some(),
+        "User record account should exist after compression"
+    );
+    let account = user_record_account.unwrap();
+    assert_eq!(
+        account.lamports, 0,
+        "User record account lamports should be 0"
+    );
+    assert!(
+        account.data.is_empty(),
+        "User record account data should be empty"
+    );
+
+    let game_session_account = rpc.get_account(game_session_pda).await.unwrap();
+    assert!(
+        game_session_account.is_some(),
+        "Game session account should exist after compression"
+    );
+    let account = game_session_account.unwrap();
+    assert_eq!(
+        account.lamports, 0,
+        "Game session account lamports should be 0"
+    );
+    assert!(
+        account.data.is_empty(),
+        "Game session account data should be empty"
+    );
+
+    // Verify compressed accounts exist and have correct data
+    let compressed_user_record = rpc
+        .get_compressed_account(user_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert_eq!(
+        compressed_user_record.address,
+        Some(user_compressed_address)
+    );
+    assert_eq!(compressed_user_record.data.is_some(), true);
+
+    let user_buf = compressed_user_record.data.unwrap().data;
+    let user_record = UserRecord::from_compressed_data(&user_buf).unwrap();
+    assert_eq!(user_record.name, "Combined User");
+    assert_eq!(user_record.score, 11);
+    assert_eq!(user_record.owner, user.pubkey());
+
+    let compressed_game_session = rpc
+        .get_compressed_account(game_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert_eq!(
+        compressed_game_session.address,
+        Some(game_compressed_address)
+    );
+    assert_eq!(compressed_game_session.data.is_some(), true);
+
+    let game_buf = compressed_game_session.data.unwrap().data;
+    let game_session = GameSession::from_compressed_data(&game_buf).unwrap();
+    assert_eq!(game_session.session_id, session_id);
+    assert_eq!(game_session.game_type, "Combined Game");
+    assert_eq!(game_session.player, user.pubkey());
+    assert_eq!(game_session.score, 0);
 }
