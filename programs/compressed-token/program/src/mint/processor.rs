@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::msg, solana_program::program_error::ProgramError};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
     instruction_data::{

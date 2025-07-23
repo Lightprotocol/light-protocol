@@ -3,7 +3,7 @@ use light_compressed_account::instruction_data::with_readonly::ZInstructionDataI
 
 use crate::{
     multi_transfer::accounts::MultiTransferPackedAccounts,
-    shared::inputs::create_input_compressed_account,
+    shared::token_inputs::create_input_compressed_account,
 };
 use light_ctoken_types::{
     context::TokenContext,
