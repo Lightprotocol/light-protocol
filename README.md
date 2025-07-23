@@ -15,6 +15,12 @@ Documentation is available here: www.zkcompression.com.
 
 Our friends at Helius maintain the official ZK Compression indexer [here](https://github.com/helius-labs/photon).
 
+## Examples
+
+- [program-examples](https://github.com/Lightprotocol/program-examples)
+- [example-nodejs-client](https://github.com/Lightprotocol/example-nodejs-client)
+- [example-web-client](https://github.com/Lightprotocol/example-web-client)
+
 ## Custom Circuits
 
 ZK Compression works with any regular onchain program on Solana. You don't have
