@@ -198,9 +198,9 @@ fn update_compressed_mint_to_decompressed<'info>(
     }
     // Extract tree accounts for the generalized CPI call
     let tree_accounts = [
-        accounts.in_merkle_tree.key(),
-        accounts.in_output_queue.key(),
-        accounts.out_output_queue.key(),
+        accounts.trees.in_merkle_tree.key(),
+        accounts.trees.in_output_queue.key(),
+        accounts.trees.out_output_queue.key(),
     ];
     // Execute CPI to light system program to update the compressed mint
     execute_cpi_invoke(
@@ -275,7 +275,11 @@ fn create_mint_account(
 
     match pinocchio::program::invoke_signed(
         &pinocchio_instruction,
-        &[accounts.fee_payer, accounts.mint, accounts.system_program],
+        &[
+            accounts.system.fee_payer,
+            accounts.mint,
+            accounts.system_program,
+        ],
         &[signer], // Signed with our program's PDA seeds
     ) {
         Ok(()) => {}
