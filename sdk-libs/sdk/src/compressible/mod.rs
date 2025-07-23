@@ -9,7 +9,9 @@ pub mod from_compressed_data;
 
 pub use compress_pda::compress_pda;
 #[cfg(feature = "anchor")]
-pub use compress_pda_new::{compress_multiple_pdas_new, compress_pda_new};
+pub use compress_pda_new::{
+    compress_multiple_pdas_new, compress_pda_new, process_accounts_for_compression,
+};
 pub use compress_pda_new::{compress_multiple_pdas_new_with_data, compress_pda_new_with_data};
 pub use compression_info::{CompressionInfo, HasCompressionInfo};
 pub use config::{

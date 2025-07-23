@@ -159,7 +159,7 @@ where
     let mut compressed_account_infos = Vec::new();
 
     // TODO: add support for Multiple PDA addresses!
-    for (((pda_account, &address), &new_address_param), &output_state_tree_index) in pda_accounts
+    for (((pda_account, &address), &_new_address_param), &output_state_tree_index) in pda_accounts
         .iter_mut()
         .zip(addresses.iter())
         .zip(new_address_params.iter())
@@ -191,12 +191,6 @@ where
     // Invoke light system program to create all compressed accounts
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
-    // Close all PDA accounts
-    // let dest_starting_lamports = rent_recipient.lamports();
-    // **rent_recipient.try_borrow_mut_lamports()? = dest_starting_lamports
-    //     .checked_add(total_lamports)
-    //     .ok_or(ProgramError::ArithmeticOverflow)?;
-
     for pda_account in pda_accounts {
         // Decrement source account lamports
 
@@ -209,6 +203,87 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(feature = "anchor")]
+/// Helper function to process multiple onchain PDAs for compression into new compressed accounts.
+///
+/// This function processes accounts of a single type and returns CompressedAccountInfo for CPI batching.
+/// It allows the caller to handle the CPI invocation separately, enabling batching of multiple
+/// different account types.
+///
+/// # Arguments
+/// * `pda_accounts` - The PDA accounts to compress
+/// * `addresses` - The addresses for the compressed accounts
+/// * `new_address_params` - Address parameters for the compressed accounts
+/// * `output_state_tree_indices` - Output state tree indices for the compressed accounts
+/// * `cpi_accounts` - Accounts needed for validation
+/// * `owner_program` - The program that will own the compressed accounts
+/// * `address_space` - The address space to validate uniqueness against
+///
+/// # Returns
+/// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
+/// * `Err(LightSdkError)` if there was an error
+pub fn process_accounts_for_compression<'info, A>(
+    pda_accounts: &mut [&mut Account<'info, A>],
+    addresses: &[[u8; 32]],
+    new_address_params: &[PackedNewAddressParams],
+    output_state_tree_indices: &[u8],
+    cpi_accounts: &CpiAccounts<'_, 'info>,
+    owner_program: &Pubkey,
+    address_space: &[Pubkey],
+) -> Result<
+    Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
+    LightSdkError,
+>
+where
+    A: DataHasher
+        + LightDiscriminator
+        + BorshSerialize
+        + BorshDeserialize
+        + Default
+        + Clone
+        + HasCompressionInfo
+        + std::fmt::Debug,
+    A: AccountSerialize + AccountDeserialize,
+{
+    if pda_accounts.len() != addresses.len()
+        || pda_accounts.len() != new_address_params.len()
+        || pda_accounts.len() != output_state_tree_indices.len()
+    {
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Address space validation
+    for params in new_address_params {
+        let tree = cpi_accounts
+            .get_tree_account_info(params.address_merkle_tree_account_index as usize)?
+            .pubkey();
+        if !address_space.iter().any(|a| a == &tree) {
+            return Err(LightSdkError::ConstraintViolation);
+        }
+    }
+
+    let mut compressed_account_infos = Vec::new();
+
+    for (((pda_account, &address), &_new_address_param), &output_state_tree_index) in pda_accounts
+        .iter_mut()
+        .zip(addresses.iter())
+        .zip(new_address_params.iter())
+        .zip(output_state_tree_indices.iter())
+    {
+        // Ensure the account is marked as compressed
+        pda_account.compression_info_mut().set_compressed();
+
+        // Create the compressed account with the PDA data
+        let mut compressed_account =
+            LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
+        compressed_account.account = (***pda_account).clone();
+
+        compressed_account_infos.push(compressed_account.to_account_info()?);
+    }
+
+    Ok(compressed_account_infos)
 }
 
 /// Helper function to compress an onchain PDA into a new compressed account (native Solana).
