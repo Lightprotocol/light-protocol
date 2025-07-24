@@ -21,8 +21,8 @@ pub mod anchor_compressible_user {
 
     use light_sdk::account::LightAccount;
     use light_sdk::compressible::{
-        compress_pda, compress_pda_new, create_compression_config_checked,
-        process_accounts_for_compression, process_accounts_for_decompression,
+        compress_pda, compress_pda_on_init, create_compression_config_checked,
+        prepare_accounts_for_decompress_idempotent, process_pdas_for_compression_on_init,
         update_compression_config,
     };
     use light_sdk::cpi::CpiInputs;
@@ -111,17 +111,16 @@ pub mod anchor_compressible_user {
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
 
-        compress_pda_new::<UserRecord>(
+        compress_pda_on_init::<UserRecord>(
             user_record,
-            compressed_address,
-            new_address_params,
+            &compressed_address,
+            &new_address_params,
             output_state_tree_index,
-            proof,
             cpi_accounts,
             &crate::ID,
-            &ctx.accounts.rent_recipient,
             &config.address_space,
-            None,
+            &ctx.accounts.rent_recipient,
+            proof,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
@@ -155,17 +154,16 @@ pub mod anchor_compressible_user {
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
 
-        compress_pda_new::<UserRecord>(
+        compress_pda_on_init::<UserRecord>(
             user_record,
-            compressed_address,
-            new_address_params,
+            &compressed_address,
+            &new_address_params,
             output_state_tree_index,
-            proof,
             cpi_accounts,
             &crate::ID,
-            &ctx.accounts.rent_recipient,
             &ADDRESS_SPACE,
-            None,
+            &ctx.accounts.rent_recipient,
+            proof,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
@@ -235,16 +233,17 @@ pub mod anchor_compressible_user {
                     ];
 
                     // Process this single UserRecord account
-                    let compressed_infos = process_accounts_for_decompression::<UserRecord>(
-                        &[&pda_accounts[i]],
-                        vec![light_account],
-                        &[&seeds],
-                        &cpi_accounts,
-                        &crate::ID,
-                        &ctx.accounts.rent_payer,
-                        ADDRESS_SPACE[0],
-                    )
-                    .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+                    let compressed_infos =
+                        prepare_accounts_for_decompress_idempotent::<UserRecord>(
+                            &[&pda_accounts[i]],
+                            vec![light_account],
+                            &[&seeds],
+                            &cpi_accounts,
+                            &crate::ID,
+                            &ctx.accounts.rent_payer,
+                            ADDRESS_SPACE[0],
+                        )
+                        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
                     all_compressed_infos.extend(compressed_infos);
                 }
@@ -268,16 +267,17 @@ pub mod anchor_compressible_user {
                     ];
 
                     // Process this single GameSession account
-                    let compressed_infos = process_accounts_for_decompression::<GameSession>(
-                        &[&pda_accounts[i]],
-                        vec![light_account],
-                        &[&seeds],
-                        &cpi_accounts,
-                        &crate::ID,
-                        &ctx.accounts.rent_payer,
-                        ADDRESS_SPACE[0],
-                    )
-                    .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+                    let compressed_infos =
+                        prepare_accounts_for_decompress_idempotent::<GameSession>(
+                            &[&pda_accounts[i]],
+                            vec![light_account],
+                            &[&seeds],
+                            &cpi_accounts,
+                            &crate::ID,
+                            &ctx.accounts.rent_payer,
+                            ADDRESS_SPACE[0],
+                        )
+                        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
                     all_compressed_infos.extend(compressed_infos);
                 }
@@ -304,17 +304,11 @@ pub mod anchor_compressible_user {
         address_tree_info: PackedAddressTreeInfo,
         output_state_tree_index: u8,
     ) -> Result<()> {
-        msg!(
-            "...Creating game session with config. remaining accounts: LEN: {:?}",
-            ctx.remaining_accounts.len(),
-        );
         let game_session = &mut ctx.accounts.game_session;
 
         // Load config from the config account
         let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
-
-        msg!("...Config loaded: {:?}", config);
 
         // Initialize game session data
         game_session.session_id = session_id;
@@ -343,17 +337,16 @@ pub mod anchor_compressible_user {
             address_tree_info.into_new_address_params_packed(game_session.key().to_bytes());
 
         msg!("...Compressing game session");
-        compress_pda_new::<GameSession>(
+        compress_pda_on_init::<GameSession>(
             game_session,
-            compressed_address,
-            new_address_params,
+            &compressed_address,
+            &new_address_params,
             output_state_tree_index,
-            proof,
             cpi_accounts,
             &crate::ID,
-            &ctx.accounts.rent_recipient,
             &config.address_space,
-            None,
+            &ctx.accounts.rent_recipient,
+            proof,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
@@ -418,7 +411,7 @@ pub mod anchor_compressible_user {
         let mut all_compressed_infos = Vec::new();
 
         // Process UserRecord for compression
-        let user_compressed_infos = process_accounts_for_compression::<UserRecord>(
+        let user_compressed_infos = process_pdas_for_compression_on_init::<UserRecord>(
             &mut [user_record],
             &[user_compressed_address],
             &[user_new_address_params],
@@ -426,13 +419,14 @@ pub mod anchor_compressible_user {
             &cpi_accounts,
             &crate::ID,
             &config.address_space,
+            &ctx.accounts.rent_recipient,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
         all_compressed_infos.extend(user_compressed_infos);
 
         // Process GameSession for compression
-        let game_compressed_infos = process_accounts_for_compression::<GameSession>(
+        let game_compressed_infos = process_pdas_for_compression_on_init::<GameSession>(
             &mut [game_session],
             &[game_compressed_address],
             &[game_new_address_params],
@@ -440,6 +434,7 @@ pub mod anchor_compressible_user {
             &cpi_accounts,
             &crate::ID,
             &config.address_space,
+            &ctx.accounts.rent_recipient,
         )
         .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
@@ -456,16 +451,6 @@ pub mod anchor_compressible_user {
         cpi_inputs
             .invoke_light_system_program(cpi_accounts)
             .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
-        // Close both PDA accounts
-        use anchor_lang::AccountsClose;
-
-        user_record
-            .close(ctx.accounts.rent_recipient.clone())
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
-        game_session
-            .close(ctx.accounts.rent_recipient.clone())
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
 
         Ok(())
     }
