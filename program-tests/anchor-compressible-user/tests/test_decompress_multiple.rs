@@ -32,7 +32,7 @@ async fn test_create_and_decompress_two_accounts() {
 
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let result = common::initialize_config(
+    let result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -147,7 +147,7 @@ async fn test_create_decompress_compress_single_account() {
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let result = common::initialize_config(
+    let result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,

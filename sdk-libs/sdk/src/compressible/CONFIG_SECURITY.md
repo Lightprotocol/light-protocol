@@ -35,10 +35,10 @@ pub fn create_config<'info>(
 - Requires the program data account to verify authority
 - Prevents unauthorized config creation
 
-#### `create_compression_config_unchecked` (Use with Caution)
+#### `process_initialize_compression_config_unchecked` (Use with Caution)
 
 ```rust
-pub fn create_compression_config_unchecked<'info>(
+pub fn process_initialize_compression_config_unchecked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     // ... other params
@@ -62,7 +62,7 @@ pub fn create_compression_config_unchecked<'info>(
 ```rust
 use light_sdk::compressible::{create_config, CompressibleConfig};
 
-pub fn process_create_compression_config_checked(
+pub fn process_initialize_compression_config_checked(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
@@ -93,7 +93,7 @@ See `ANCHOR_CONFIG_EXAMPLE.rs` for a complete Anchor implementation.
 
 ## Security Checklist
 
-- [ ] Use `create_config` (not `create_compression_config_unchecked`) unless you have specific requirements
+- [ ] Use `create_config` (not `process_initialize_compression_config_unchecked`) unless you have specific requirements
 - [ ] Pass the correct program data account
 - [ ] Ensure the upgrade authority signs the transaction
 - [ ] Deploy config immediately after program deployment
@@ -102,7 +102,7 @@ See `ANCHOR_CONFIG_EXAMPLE.rs` for a complete Anchor implementation.
 
 ## Common Vulnerabilities
 
-1. **Using `create_compression_config_unchecked` without validation**: Anyone can create config
+1. **Using `process_initialize_compression_config_unchecked` without validation**: Anyone can create config
 2. **Delayed config creation**: Attacker can front-run and create config first
 3. **Not monitoring config changes**: Compromised keys can modify settings
 

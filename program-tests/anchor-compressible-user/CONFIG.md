@@ -12,7 +12,7 @@ The compressible config allows programs to:
 
 ## Instructions
 
-### 1. `initialize_config`
+### 1. `initialize_compression_config`
 
 Creates the global config PDA. **Can only be called by the program's upgrade authority**.
 
@@ -30,7 +30,7 @@ Creates the global config PDA. **Can only be called by the program's upgrade aut
 - `rent_recipient`: Account that receives rent from compressed PDAs
 - `address_space`: Address space for compressed accounts
 
-### 2. `update_config_settings`
+### 2. `update_compression_config`
 
 Updates the config. **Can only be called by the config's update authority**.
 
@@ -76,7 +76,7 @@ The compression delay from the config is used to determine if enough time has pa
 ## Deployment Process
 
 1. Deploy your program
-2. **Immediately** call `initialize_config` with the upgrade authority
+2. **Immediately** call `initialize_compression_config` with the upgrade authority
 3. Optionally transfer config update authority to a multisig or DAO
 4. Monitor config changes
 

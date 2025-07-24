@@ -140,7 +140,7 @@ impl CompressibleConfig {
 /// * `Ok(())` if config was created successfully
 /// * `Err(LightSdkError)` if there was an error
 #[allow(clippy::too_many_arguments)]
-pub fn create_compression_config_unchecked<'info>(
+pub fn process_initialize_compression_config_unchecked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     rent_recipient: &Pubkey,
@@ -237,7 +237,7 @@ pub fn create_compression_config_unchecked<'info>(
 /// # Returns
 /// * `Ok(())` if config was updated successfully
 /// * `Err(LightSdkError)` if there was an error
-pub fn update_compression_config<'info>(
+pub fn process_update_compression_config<'info>(
     config_account: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     new_update_authority: Option<&Pubkey>,
@@ -381,7 +381,7 @@ pub fn verify_program_upgrade_authority(
 /// * `Ok(())` if config was created successfully
 /// * `Err(LightSdkError)` if there was an error or authority validation fails
 #[allow(clippy::too_many_arguments)]
-pub fn create_compression_config_checked<'info>(
+pub fn process_initialize_compression_config_checked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     program_data_account: &AccountInfo<'info>,
@@ -404,7 +404,7 @@ pub fn create_compression_config_checked<'info>(
     verify_program_upgrade_authority(program_id, program_data_account, update_authority)?;
 
     // Create the config with validated authority
-    create_compression_config_unchecked(
+    process_initialize_compression_config_unchecked(
         config_account,
         update_authority,
         rent_recipient,

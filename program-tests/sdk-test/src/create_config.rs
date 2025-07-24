@@ -3,7 +3,7 @@ use light_sdk::{compressible::create_compression_config_checked, error::LightSdk
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 /// Creates a new compressible config PDA
-pub fn process_create_compression_config_checked(
+pub fn process_initialize_compression_config_checked(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {

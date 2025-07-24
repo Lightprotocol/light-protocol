@@ -23,9 +23,9 @@ pub mod anchor_compressible_user {
     use light_sdk::{
         account::LightAccount,
         compressible::{
-            compress_account_on_init, compress_pda, create_compression_config_checked,
-            prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
-            update_compression_config,
+            compress_account_on_init, compress_pda, prepare_accounts_for_compression_on_init,
+            prepare_accounts_for_decompress_idempotent,
+            process_initialize_compression_config_checked, process_update_compression_config,
         },
         cpi::CpiInputs,
     };
@@ -33,14 +33,14 @@ pub mod anchor_compressible_user {
     use super::*;
 
     /// Initialize config - only callable by program upgrade authority
-    pub fn initialize_config(
-        ctx: Context<InitializeConfig>,
+    pub fn initialize_compression_config(
+        ctx: Context<InitializeCompressionConfig>,
         compression_delay: u32,
         rent_recipient: Pubkey,
         address_space: Vec<Pubkey>,
     ) -> Result<()> {
         // The SDK's create_compression_config_checked validates that the signer is the program's upgrade authority
-        create_compression_config_checked(
+        process_initialize_compression_config_checked(
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             &ctx.accounts.program_data.to_account_info(),
@@ -57,14 +57,14 @@ pub mod anchor_compressible_user {
     }
 
     /// Update config - only callable by config's update authority
-    pub fn update_config_settings(
-        ctx: Context<UpdateConfigSettings>,
+    pub fn update_compression_config(
+        ctx: Context<UpdateCompressionConfig>,
         new_compression_delay: Option<u32>,
         new_rent_recipient: Option<Pubkey>,
         new_address_space: Option<Vec<Pubkey>>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
-        update_compression_config(
+        process_update_compression_config(
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             new_update_authority.as_ref(),
@@ -339,7 +339,6 @@ pub mod anchor_compressible_user {
         let new_address_params =
             address_tree_info.into_new_address_params_packed(game_session.key().to_bytes());
 
-        msg!("...Compressing game session");
         compress_account_on_init::<GameSession>(
             game_session,
             &compressed_address,
@@ -515,7 +514,8 @@ pub mod anchor_compressible_user {
             &crate::ID,
             &ctx.accounts.rent_recipient,
             &config.compression_delay,
-        )?;
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
 
         Ok(())
     }
@@ -680,7 +680,7 @@ pub struct DecompressMultiplePdas<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeConfig<'info> {
+pub struct InitializeCompressionConfig<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     /// The config PDA to be created
@@ -700,7 +700,7 @@ pub struct InitializeConfig<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateConfigSettings<'info> {
+pub struct UpdateCompressionConfig<'info> {
     /// CHECK: Config is validated by the SDK's load_checked method
     #[account(
         mut,

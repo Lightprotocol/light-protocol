@@ -29,7 +29,7 @@ use solana_sdk::{
 };
 
 #[tokio::test]
-async fn test_initialize_config() {
+async fn test_initialize_compression_config() {
     // Success: config can be initialized
     let program_id = anchor_compressible_user::ID;
     let config =
@@ -40,7 +40,7 @@ async fn test_initialize_config() {
 
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let result = common::initialize_config(
+    let result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -72,7 +72,7 @@ async fn test_config_validation() {
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let result = common::initialize_config(
+    let result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -88,7 +88,7 @@ async fn test_config_validation() {
 }
 
 #[tokio::test]
-async fn test_update_config() {
+async fn test_update_compression_config() {
     // Success: authority can update config
     let program_id = anchor_compressible_user::ID;
     let config =
@@ -97,7 +97,7 @@ async fn test_update_config() {
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let init_result = common::initialize_config(
+    let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -112,24 +112,19 @@ async fn test_update_config() {
     assert!(init_result.is_ok(), "Init should succeed");
     let config_account = rpc.get_account(config_pda).await.unwrap();
     assert!(config_account.is_some(), "Config account should exist");
-    let update_accounts = anchor_compressible_user::accounts::UpdateConfigSettings {
-        config: config_pda,
-        authority: payer.pubkey(),
-    };
-    let update_instruction_data = anchor_compressible_user::instruction::UpdateConfigSettings {
-        new_compression_delay: Some(200),
-        new_rent_recipient: Some(RENT_RECIPIENT),
-        new_address_space: Some(ADDRESS_SPACE.to_vec()),
-        new_update_authority: None,
-    };
-    let update_instruction = Instruction {
-        program_id,
-        accounts: update_accounts.to_account_metas(None),
-        data: update_instruction_data.data(),
-    };
-    let update_result = rpc
-        .create_and_send_transaction(&[update_instruction], &payer.pubkey(), &[&payer])
-        .await;
+
+    // Use the new mid-level helper - much cleaner!
+    let update_result = common::update_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        Some(200),
+        Some(RENT_RECIPIENT),
+        Some(ADDRESS_SPACE.to_vec()),
+        None,
+    )
+    .await;
     assert!(update_result.is_ok(), "Update config should succeed");
 }
 
@@ -143,7 +138,7 @@ async fn test_config_reinit_attack_prevention() {
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let result = common::initialize_config(
+    let result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -156,7 +151,7 @@ async fn test_config_reinit_attack_prevention() {
     )
     .await;
     assert!(result.is_ok(), "First init should succeed");
-    let reinit_result = common::initialize_config(
+    let reinit_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -190,26 +185,19 @@ async fn test_wrong_program_data_account() {
         rent_epoch: 0,
     };
     rpc.set_account(fake_program_data.pubkey(), mock_account);
-    let accounts = anchor_compressible_user::accounts::InitializeConfig {
-        payer: payer.pubkey(),
-        config: config_pda,
-        program_data: fake_program_data.pubkey(),
-        authority: payer.pubkey(),
-        system_program: solana_sdk::system_program::ID,
-    };
-    let instruction_data = anchor_compressible_user::instruction::InitializeConfig {
-        compression_delay: 100,
-        rent_recipient: RENT_RECIPIENT,
-        address_space: ADDRESS_SPACE.to_vec(),
-    };
-    let instruction = Instruction {
-        program_id,
-        accounts: accounts.to_account_metas(None),
-        data: instruction_data.data(),
-    };
-    let result = rpc
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
-        .await;
+    let result = common::initialize_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        fake_program_data.pubkey(),
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
+
     assert!(
         result.is_err(),
         "Should fail with wrong program data account"
@@ -228,7 +216,7 @@ async fn test_update_remove_address_space() {
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
     let address_space_1 = ADDRESS_SPACE.to_vec();
     let address_space_2 = vec![Pubkey::new_unique()];
-    let init_result = common::initialize_config(
+    let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -241,24 +229,17 @@ async fn test_update_remove_address_space() {
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
-    let update_accounts = anchor_compressible_user::accounts::UpdateConfigSettings {
-        config: config_pda,
-        authority: payer.pubkey(),
-    };
-    let update_instruction_data = anchor_compressible_user::instruction::UpdateConfigSettings {
-        new_compression_delay: None,
-        new_rent_recipient: None,
-        new_address_space: Some(address_space_2),
-        new_update_authority: None,
-    };
-    let update_instruction = Instruction {
-        program_id,
-        accounts: update_accounts.to_account_metas(None),
-        data: update_instruction_data.data(),
-    };
-    let update_result = rpc
-        .create_and_send_transaction(&[update_instruction], &payer.pubkey(), &[&payer])
-        .await;
+    let update_result = common::update_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        None,
+        None,
+        Some(address_space_2),
+        None,
+    )
+    .await;
     assert!(
         update_result.is_err(),
         "Should fail when removing address space"
@@ -279,7 +260,7 @@ async fn test_update_with_non_authority() {
         .unwrap();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let init_result = common::initialize_config(
+    let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -292,28 +273,19 @@ async fn test_update_with_non_authority() {
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
-    let update_accounts = anchor_compressible_user::accounts::UpdateConfigSettings {
-        config: config_pda,
-        authority: non_authority.pubkey(),
-    };
-    let update_instruction_data = anchor_compressible_user::instruction::UpdateConfigSettings {
-        new_compression_delay: Some(200),
-        new_rent_recipient: None,
-        new_address_space: None,
-        new_update_authority: None,
-    };
-    let update_instruction = Instruction {
-        program_id,
-        accounts: update_accounts.to_account_metas(None),
-        data: update_instruction_data.data(),
-    };
-    let update_result = rpc
-        .create_and_send_transaction(
-            &[update_instruction],
-            &payer.pubkey(),
-            &[&payer, &non_authority],
-        )
-        .await;
+
+    // Use the new mid-level helper to test non-authority update
+    let update_result = common::update_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &non_authority, // This should fail - non_authority tries to update
+        Some(200),
+        None,
+        None,
+        None,
+    )
+    .await;
     assert!(
         update_result.is_err(),
         "Should fail with non-authority update"
@@ -330,7 +302,7 @@ async fn test_config_with_wrong_rent_recipient() {
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let init_result = common::initialize_config(
+    let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,

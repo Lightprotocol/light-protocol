@@ -129,7 +129,7 @@ pub(crate) fn add_compressible_instructions(
     };
 
     // Generate config-related structs and instructions
-    let initialize_config_accounts: ItemStruct = syn::parse_quote! {
+    let initialize_compression_config_accounts: ItemStruct = syn::parse_quote! {
         #[derive(Accounts)]
         pub struct CreateCompressibleConfig<'info> {
             #[account(mut)]
@@ -163,7 +163,7 @@ pub(crate) fn add_compressible_instructions(
         }
     };
 
-    let initialize_config_fn: ItemFn = syn::parse_quote! {
+    let initialize_compression_config_fn: ItemFn = syn::parse_quote! {
         /// Create compressible config - only callable by program upgrade authority
         pub fn create_compression_config(
             ctx: Context<CreateCompressibleConfig>,
@@ -339,9 +339,11 @@ pub(crate) fn add_compressible_instructions(
     content.1.push(light_discriminator_impl);
     content.1.push(has_compression_info_impl);
     content.1.push(Item::Struct(compressed_account_data));
-    content.1.push(Item::Struct(initialize_config_accounts));
+    content
+        .1
+        .push(Item::Struct(initialize_compression_config_accounts));
     content.1.push(Item::Struct(update_config_accounts));
-    content.1.push(Item::Fn(initialize_config_fn));
+    content.1.push(Item::Fn(initialize_compression_config_fn));
     content.1.push(Item::Fn(update_config_fn));
     content.1.push(Item::Struct(decompress_accounts));
     content.1.push(Item::Fn(decompress_instruction));

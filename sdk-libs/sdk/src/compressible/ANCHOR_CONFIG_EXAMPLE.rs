@@ -9,8 +9,8 @@ pub mod example_program {
     use super::*;
 
     /// Initialize config - only callable by program upgrade authority
-    pub fn initialize_config(
-        ctx: Context<InitializeConfig>,
+    pub fn initialize_compression_config(
+        ctx: Context<InitializeCompressionConfig>,
         compression_delay: u32,
         rent_recipient: Pubkey,
         address_space: Pubkey,
@@ -46,7 +46,7 @@ pub mod example_program {
     }
 
     /// Update config - only callable by config's update authority
-    pub fn update_config_settings(
+    pub fn update_compression_config(
         ctx: Context<UpdateConfig>,
         new_compression_delay: Option<u32>,
         new_rent_recipient: Option<Pubkey>,
@@ -67,7 +67,7 @@ pub mod example_program {
 }
 
 #[derive(Accounts)]
-pub struct InitializeConfig<'info> {
+pub struct InitializeCompressionConfig<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
@@ -164,7 +164,7 @@ const [programDataPda] = PublicKey.findProgramAddressSync(
 );
 
 await program.methods
-    .initializeConfig(
+    .initializeCompressionConfig(
         100, // compression_delay
         rentRecipient,
         addressSpace,
