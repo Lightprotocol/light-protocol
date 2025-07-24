@@ -6,6 +6,7 @@ use light_program_test::{program_test::LightProgramTest, ProgramTestConfig, Rpc}
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof};
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Signer};
 
+
 #[tokio::test]
 async fn test_user_record() {
     let program_id = anchor_compressible_user::ID;

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
@@ -11,80 +13,6 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     system_program,
 };
-
-// /// Mid-level instruction builders for anchor_compressible_user program
-// /// Following Solana SDK patterns like system_instruction::transfer()
-// pub struct CompressibleUserInstruction;
-
-// impl CompressibleUserInstruction {
-//     /// Creates an initialize config instruction
-//     ///
-//     /// Returns a ready-to-use Instruction that can be added to a transaction
-//     pub fn initialize_compression_config(
-//         program_id: &Pubkey,
-//         payer: &Pubkey,
-//         authority: &Pubkey,
-//         compression_delay: u32,
-//         rent_recipient: Pubkey,
-//         address_space: Vec<Pubkey>,
-//     ) -> Instruction {
-//         let (config_pda, _) = CompressibleConfig::derive_pda(program_id);
-//         let (program_data_pda, _) =
-//             Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
-
-//         let accounts = anchor_compressible_user::accounts::InitializeCompressionConfig {
-//             payer: *payer,
-//             config: config_pda,
-//             program_data: program_data_pda,
-//             authority: *authority,
-//             system_program: system_program::ID,
-//         };
-
-//         let instruction_data = anchor_compressible_user::instruction::InitializeCompressionConfig {
-//             compression_delay,
-//             rent_recipient,
-//             address_space,
-//         };
-
-//         Instruction {
-//             program_id: *program_id,
-//             accounts: accounts.to_account_metas(None),
-//             data: instruction_data.data(),
-//         }
-//     }
-
-//     /// Creates an update config instruction
-//     ///
-//     /// Returns a ready-to-use Instruction that can be added to a transaction
-//     pub fn update_config(
-//         program_id: &Pubkey,
-//         authority: &Pubkey,
-//         new_compression_delay: Option<u32>,
-//         new_rent_recipient: Option<Pubkey>,
-//         new_address_space: Option<Vec<Pubkey>>,
-//         new_update_authority: Option<Pubkey>,
-//     ) -> Instruction {
-//         let (config_pda, _) = CompressibleConfig::derive_pda(program_id);
-
-//         let accounts = anchor_compressible_user::accounts::UpdateCompressionConfig {
-//             config: config_pda,
-//             authority: *authority,
-//         };
-
-//         let instruction_data = anchor_compressible_user::instruction::UpdateCompressionConfig {
-//             new_compression_delay,
-//             new_rent_recipient,
-//             new_address_space,
-//             new_update_authority,
-//         };
-
-//         Instruction {
-//             program_id: *program_id,
-//             accounts: accounts.to_account_metas(None),
-//             data: instruction_data.data(),
-//         }
-//     }
-// }
 
 /// Create mock program data account
 pub fn create_mock_program_data(authority: Pubkey) -> Vec<u8> {

@@ -1,17 +1,14 @@
 #[cfg(test)]
 mod test_instruction_builders {
-    use super::*;
-    use anchor_compressible_user;
-    use anchor_lang::Discriminator;
+
     use light_sdk::compressible::{CompressibleConfig, CompressibleInstruction};
-    use solana_sdk::{instruction::Instruction, pubkey::Pubkey, system_program};
+    use solana_sdk::{pubkey::Pubkey, system_program};
 
     /// Test that our instruction builders follow Solana SDK patterns correctly
     /// They should return Instruction directly, not Result<Instruction, _>
     #[test]
     fn test_initialize_compression_config_instruction_builder() {
-        let discriminator =
-            anchor_compressible_user::instruction::UpdateCompressionConfig::DISCRIMINATOR;
+
         let program_id = Pubkey::new_unique();
         let payer = Pubkey::new_unique();
         let authority = Pubkey::new_unique();

@@ -19,4 +19,6 @@ pub use config::{
 };
 pub use decompress_idempotent::prepare_accounts_for_decompress_idempotent;
 pub use from_compressed_data::FromCompressedData;
-pub use instruction_builders::{compressible_instruction, CompressibleInstruction};
+pub use instruction_builders::{
+    compressible_instruction, CompressibleInstruction, GenericCompressAccountInstruction,
+};

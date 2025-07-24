@@ -6,21 +6,16 @@ use anchor_compressible_user::{
     CompressedAccountData, CompressedAccountVariant, GameSession, UserRecord, ADDRESS_SPACE,
     RENT_RECIPIENT,
 };
-use anchor_lang::{
-    AccountDeserialize, AnchorSerialize, Discriminator, InstructionData, ToAccountMetas,
-};
-use borsh::{BorshDeserialize, BorshSerialize};
-use light_client::indexer::{TreeInfo, ValidityProofWithContext};
+use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
+
 use light_compressed_account::address::derive_address;
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::{
-    compressible::{CompressibleConfig, FromCompressedData},
-    instruction::{
-        account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig, ValidityProof,
-    },
+    compressible::{CompressibleConfig, CompressibleInstruction, FromCompressedData},
+    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -811,82 +806,6 @@ async fn test_create_user_record_and_game_session_with_config(
     assert_eq!(game_session.score, 0);
 }
 
-/// Generic can be used with any
-fn create_compress_account_instruction(
-    pda_to_compress: &Pubkey,
-    c_pda: &[u8; 32],
-    program_id: &Pubkey,
-    payer: &Pubkey,
-    validity_proof_with_context: ValidityProofWithContext,
-    output_state_tree_info: TreeInfo,
-    instruction_discriminator: &[u8], // TODO: consider alternatives.
-) -> Instruction {
-    let config_pda = CompressibleConfig::derive_pda(program_id).0;
-    let mut remaining_accounts = PackedAccounts::default();
-    let system_config = SystemAccountMetaConfig::new(*program_id);
-    remaining_accounts.add_system_accounts(system_config);
-
-    // Pack tree infos into remaining accounts
-    let packed_tree_infos = validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
-
-    // Get output state tree index
-    let output_state_tree_index = remaining_accounts.insert_or_get(output_state_tree_info.queue);
-
-    // Create compressed account meta
-    let compressed_account_meta = CompressedAccountMeta {
-        tree_info: packed_tree_infos
-            .state_trees
-            .as_ref()
-            .unwrap()
-            .packed_tree_infos[0],
-        address: *c_pda,
-        output_state_tree_index,
-    };
-
-    // Get system accounts for the instruction
-    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
-
-    //TODO: use generic accounts and ixdata.
-    // Create the instruction account metas manually (without anchor)
-    let accounts = vec![
-        AccountMeta::new(*payer, true),            // user (signer)
-        AccountMeta::new(*pda_to_compress, false), // pda_to_compress (writable)
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
-        AccountMeta::new_readonly(config_pda, false), // config
-        AccountMeta::new(RENT_RECIPIENT, false),   // rent_recipient (writable)
-    ];
-
-    // Create instruction data
-    let instruction_data = GenericCompressAccountInstruction {
-        proof: validity_proof_with_context.proof,
-        compressed_account_meta,
-    };
-
-    // Manually serialize instruction data with discriminator
-    let mut data = Vec::with_capacity(8 + instruction_data.try_to_vec().unwrap().len());
-    data.extend_from_slice(instruction_discriminator);
-    data.extend_from_slice(
-        &instruction_data
-            .try_to_vec()
-            .expect("Failed to serialize instruction data"),
-    );
-
-    // Build the instruction
-    let instruction = Instruction {
-        program_id: *program_id,
-        accounts: [accounts.to_account_metas(None), system_accounts].concat(),
-        data,
-    };
-
-    instruction
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct GenericCompressAccountInstruction {
-    proof: ValidityProof,
-    compressed_account_meta: CompressedAccountMeta,
-}
-
 async fn test_compress_record_with_config(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
@@ -938,14 +857,43 @@ async fn test_compress_record_with_config(
         .unwrap()
         .value;
 
-    let instruction = create_compress_account_instruction(
-        user_record_pda,
-        &compressed_address,
+    // Build compressed account meta and system accounts
+    let mut remaining_accounts = PackedAccounts::default();
+    let system_config = SystemAccountMetaConfig::new(*program_id);
+    remaining_accounts.add_system_accounts(system_config);
+
+    // Pack tree infos into remaining accounts
+    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
+
+    // Get output state tree index
+    let output_state_tree_index =
+        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+
+    // Create compressed account meta
+    let compressed_account_meta = CompressedAccountMeta {
+        tree_info: packed_tree_infos
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .packed_tree_infos[0],
+        address: compressed_address,
+        output_state_tree_index,
+    };
+
+    // Get system accounts for the instruction
+    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+
+    let instruction = CompressibleInstruction::compress_account(
         program_id,
         &payer.pubkey(),
-        rpc_result,
-        rpc.get_random_state_tree_info().unwrap(),
-        &anchor_compressible_user::instruction::CompressRecordWithConfig::DISCRIMINATOR,
+        user_record_pda,
+        &RENT_RECIPIENT,
+        rpc_result.proof,
+        compressed_account_meta,
+        system_accounts,
+        &anchor_compressible_user::instruction::CompressRecordWithConfig::DISCRIMINATOR
+            .try_into()
+            .unwrap(),
     );
 
     // Create and send transaction

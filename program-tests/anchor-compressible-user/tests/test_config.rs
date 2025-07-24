@@ -12,7 +12,6 @@
 #![cfg(feature = "test-sbf")]
 
 mod common;
-
 use anchor_compressible_user::{ADDRESS_SPACE, RENT_RECIPIENT};
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_program_test::{

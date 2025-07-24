@@ -7,6 +7,7 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::config::CompressibleConfig;
+use crate::instruction::{account_meta::CompressedAccountMeta, ValidityProof};
 
 /// Instruction builders for compressible accounts, following Solana SDK patterns
 /// These are generic builders that work with any program implementing the compressible pattern
@@ -110,6 +111,71 @@ impl CompressibleInstruction {
             data,
         }
     }
+
+    /// Creates a generic compress account instruction for any compressible account
+    ///
+    /// This is a generic helper that can be used by any program client to build
+    /// a compress account instruction. The caller must provide the instruction
+    /// discriminator specific to their program and the system accounts.
+    ///
+    /// # Arguments
+    /// * `program_id` - The program that owns the compressible account
+    /// * `payer` - The account paying for the transaction
+    /// * `pda_to_compress` - The PDA account to compress
+    /// * `rent_recipient` - The account to receive the reclaimed rent
+    /// * `proof` - The validity proof from the indexer
+    /// * `compressed_account_meta` - The compressed account metadata
+    /// * `system_accounts` - The system accounts needed for the instruction
+    /// * `instruction_discriminator` - The 8-byte instruction discriminator for the program
+    ///
+    /// # Returns
+    /// * `Instruction` - The complete instruction ready to be sent
+    pub fn compress_account(
+        program_id: &Pubkey,
+        payer: &Pubkey,
+        pda_to_compress: &Pubkey,
+        rent_recipient: &Pubkey,
+        proof: ValidityProof,
+        compressed_account_meta: CompressedAccountMeta,
+        system_accounts: Vec<AccountMeta>,
+        instruction_discriminator: &[u8; 8],
+    ) -> Instruction {
+        let config_pda = CompressibleConfig::derive_pda(program_id).0;
+
+        // Create the instruction account metas
+        let accounts = vec![
+            AccountMeta::new(*payer, true),            // user (signer)
+            AccountMeta::new(*pda_to_compress, false), // pda_to_compress (writable)
+            AccountMeta::new_readonly(
+                solana_pubkey::pubkey!("11111111111111111111111111111111"),
+                false,
+            ), // system_program
+            AccountMeta::new_readonly(config_pda, false), // config
+            AccountMeta::new(*rent_recipient, false),  // rent_recipient (writable)
+        ];
+
+        // Create instruction data
+        let instruction_data = GenericCompressAccountInstruction {
+            proof,
+            compressed_account_meta,
+        };
+
+        // Manually serialize instruction data with discriminator
+        let mut data = Vec::with_capacity(8 + instruction_data.try_to_vec().unwrap().len());
+        data.extend_from_slice(instruction_discriminator);
+        data.extend_from_slice(
+            &instruction_data
+                .try_to_vec()
+                .expect("Failed to serialize instruction data"),
+        );
+
+        // Build the instruction
+        Instruction {
+            program_id: *program_id,
+            accounts: [accounts, system_accounts].concat(),
+            data,
+        }
+    }
 }
 
 /// Generic instruction data for initialize config
@@ -129,6 +195,14 @@ struct UpdateConfigData {
     new_rent_recipient: Option<Pubkey>,
     new_address_space: Option<Vec<Pubkey>>,
     new_update_authority: Option<Pubkey>,
+}
+
+/// Generic instruction data for compress account
+/// This matches the expected format for compress account instructions
+#[derive(BorshSerialize, BorshDeserialize)]
+pub struct GenericCompressAccountInstruction {
+    pub proof: ValidityProof,
+    pub compressed_account_meta: CompressedAccountMeta,
 }
 
 // Re-export for easy access following Solana SDK patterns
