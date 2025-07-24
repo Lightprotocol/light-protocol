@@ -78,7 +78,7 @@ pub fn create_input_compressed_mint_account(
         &compressed_mint_inputs.merkle_context,
         *compressed_mint_inputs.root_index,
         0,
-        compressed_mint_inputs.address.as_ref(),
+        Some(compressed_mint_inputs.address.as_ref()),
     )?;
 
     Ok(())

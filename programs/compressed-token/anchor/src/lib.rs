@@ -288,6 +288,9 @@ pub enum ErrorCode {
     InvalidExtensionType,
     #[msg("Cpi context set and set first is not usable with burn, compression(transfer ix) or decompress(transfer).")]
     CpiContextSetNotUsable,
+    InstructionDataExpectedDelegate,
+    ZeroCopyExpectedDelegate,
+    TokenDataTlvUnimplemented,
 }
 
 /// Checks if CPI context usage is valid for the current instruction

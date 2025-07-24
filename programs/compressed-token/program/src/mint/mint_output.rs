@@ -120,8 +120,8 @@ pub fn create_output_compressed_mint_account(
         0,
         Some(compressed_account_address),
         merkle_tree_index,
-        Some(COMPRESSED_MINT_DISCRIMINATOR),
-        Some(data_hash),
+        COMPRESSED_MINT_DISCRIMINATOR,
+        data_hash,
     )?;
 
     Ok(())

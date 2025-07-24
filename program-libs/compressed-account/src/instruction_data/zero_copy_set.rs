@@ -20,26 +20,28 @@ impl ZOutputCompressedAccountWithPackedContextMut<'_> {
         lamports: u64,
         address: Option<[u8; 32]>,
         merkle_tree_index: u8,
-        discriminator: Option<[u8; 8]>,
-        data_hash: Option<[u8; 32]>,
+        discriminator: [u8; 8],
+        data_hash: [u8; 32],
     ) -> Result<(), CompressedAccountError> {
         self.compressed_account.owner = owner;
         self.compressed_account.lamports = lamports.into();
         if let Some(self_address) = self.compressed_account.address.as_deref_mut() {
-            let input_address = address.ok_or(CompressedAccountError::ExpectedAddress)?;
+            let input_address =
+                address.ok_or(CompressedAccountError::InstructionDataExpectedAddress)?;
             *self_address = input_address;
         }
-        *self.merkle_tree_index = merkle_tree_index;
-        if discriminator.is_some() || data_hash.is_some() {
-            let data = self
-                .compressed_account
-                .data
-                .as_mut()
-                .ok_or(CompressedAccountError::CompressedAccountDataNotInitialized)?;
-            data.discriminator =
-                discriminator.ok_or(CompressedAccountError::ExpectedDiscriminator)?;
-            *data.data_hash = data_hash.ok_or(CompressedAccountError::ExpectedDataHash)?;
+        if self.compressed_account.address.is_none() && address.is_some() {
+            return Err(CompressedAccountError::ZeroCopyExpectedAddress);
         }
+        *self.merkle_tree_index = merkle_tree_index;
+        let data = self
+            .compressed_account
+            .data
+            .as_mut()
+            .ok_or(CompressedAccountError::CompressedAccountDataNotInitialized)?;
+        data.discriminator = discriminator;
+        *data.data_hash = data_hash;
+
         Ok(())
     }
 }
@@ -54,7 +56,7 @@ impl ZInAccountMut<'_> {
         merkle_context: &<PackedMerkleContext as Deserialize>::Output,
         root_index: U16,
         lamports: u64,
-        address: &[u8],
+        address: Option<&[u8]>,
     ) -> Result<(), CompressedAccountError> {
         self.discriminator = discriminator;
         // Set merkle context fields manually due to mutability constraints
@@ -67,11 +69,15 @@ impl ZInAccountMut<'_> {
         *self.root_index = root_index;
         self.data_hash = data_hash;
         *self.lamports = lamports.into();
-
-        self.address
-            .as_mut()
-            .ok_or(CompressedAccountError::ExpectedAddress)?
-            .copy_from_slice(address);
+        if let Some(address) = address {
+            self.address
+                .as_mut()
+                .ok_or(CompressedAccountError::InstructionDataExpectedAddress)?
+                .copy_from_slice(address);
+        }
+        if self.address.is_some() && address.is_none() {
+            return Err(CompressedAccountError::ZeroCopyExpectedAddress);
+        }
         Ok(())
     }
 }
@@ -88,10 +94,14 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
         self.bump = bump;
         self.invoking_program_id = *invoking_program_id;
         if let Some(proof) = self.proof.as_deref_mut() {
-            let input_proof = input_proof.ok_or(CompressedAccountError::ExpectedProof)?;
+            let input_proof =
+                input_proof.ok_or(CompressedAccountError::InstructionDataExpectedProof)?;
             proof.a = input_proof.a;
             proof.b = input_proof.b;
             proof.c = input_proof.c;
+        }
+        if self.proof.is_none() && input_proof.is_some() {
+            return Err(CompressedAccountError::ZeroCopyExpectedProof);
         }
         if let Some(cpi_context) = cpi_context {
             self.with_cpi_context = 1;

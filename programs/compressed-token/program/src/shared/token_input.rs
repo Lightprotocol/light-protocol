@@ -16,20 +16,16 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
     input_token_data: &ZMultiInputTokenDataWithContext,
-    remaining_accounts: &[AccountInfo],
+    accounts: &[AccountInfo],
     lamports: u64,
 ) -> std::result::Result<(), ProgramError> {
-    anchor_lang::solana_program::msg!("set_input_compressed_account");
-    anchor_lang::solana_program::msg!("remaining_accounts len {}", remaining_accounts.len());
     // Get owner from remaining accounts using the owner index
-    let owner_account = &remaining_accounts[input_token_data.owner as usize];
-    let owner = *owner_account.key();
-    anchor_lang::solana_program::msg!("owner_account");
+    let owner_account = &accounts[input_token_data.owner as usize];
 
     // Verify signer authorization using light-account-checks
     let hashed_delegate = if input_token_data.with_delegate() {
         // If delegate is used, delegate must be signer
-        let delegate_account = &remaining_accounts[input_token_data.delegate as usize];
+        let delegate_account = &accounts[input_token_data.delegate as usize];
 
         check_signer(delegate_account).map_err(|e| {
             anchor_lang::solana_program::msg!(
@@ -54,39 +50,18 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
         None
     };
 
-    // Create ZInAccountMut with proper fields
-    input_compressed_account.lamports.set(lamports);
-    input_compressed_account.discriminator = TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-    // Set merkle context fields manually due to mutability constraints
-    input_compressed_account
-        .merkle_context
-        .merkle_tree_pubkey_index = input_token_data.merkle_context.merkle_tree_pubkey_index;
-    input_compressed_account.merkle_context.queue_pubkey_index =
-        input_token_data.merkle_context.queue_pubkey_index;
-    input_compressed_account
-        .merkle_context
-        .leaf_index
-        .set(input_token_data.merkle_context.leaf_index.into());
-    input_compressed_account.merkle_context.prove_by_index =
-        input_token_data.merkle_context.prove_by_index;
-    input_compressed_account
-        .root_index
-        .set(input_token_data.root_index.get());
-    input_compressed_account.address = None;
-
-    // TLV handling is now done separately in the parent instruction data
     // Compute data hash using TokenContext for caching
-    let hashed_owner = context.get_or_hash_pubkey(&owner);
+    let hashed_owner = context.get_or_hash_pubkey(&owner_account.key());
 
     // Get mint hash from context
-    let mint_account = &remaining_accounts[input_token_data.mint as usize];
+    let mint_account = &accounts[input_token_data.mint as usize];
     let hashed_mint = context.get_or_hash_mint(mint_account.key())?;
 
     let mut amount_bytes = [0u8; 32];
     amount_bytes[24..].copy_from_slice(input_token_data.amount.get().to_be_bytes().as_slice());
 
     // Use appropriate hash function based on frozen state
-    input_compressed_account.data_hash = if !IS_FROZEN {
+    let data_hash = if !IS_FROZEN {
         TokenData::hash_with_hashed_values(
             &hashed_mint,
             &hashed_owner,
@@ -103,6 +78,17 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
         )
         .map_err(ProgramError::from)?
     };
+
+    input_compressed_account
+        .set(
+            TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            data_hash,
+            &input_token_data.merkle_context,
+            *input_token_data.root_index,
+            lamports,
+            None, // Token accounts don't have addresses
+        )
+        .map_err(ProgramError::from)?;
 
     Ok(())
 }

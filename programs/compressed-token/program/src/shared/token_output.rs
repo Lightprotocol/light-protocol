@@ -1,7 +1,8 @@
 // Import the anchor TokenData for hash computation
-use anchor_compressed_token::token_data::TokenData as AnchorTokenData;
+use anchor_compressed_token::{token_data::TokenData as AnchorTokenData, ErrorCode};
 use anchor_lang::{
-    prelude::borsh, solana_program::program_error::ProgramError, AnchorDeserialize, AnchorSerialize,
+    prelude::{borsh, ProgramError},
+    AnchorDeserialize, AnchorSerialize,
 };
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
@@ -35,6 +36,36 @@ pub struct TokenData {
     pub tlv: Option<Vec<u8>>,
 }
 
+// Implementation for zero-copy mutable TokenData
+impl<'a> ZTokenDataMut<'a> {
+    /// Set all fields of the TokenData struct at once
+    #[inline]
+    pub fn set(
+        &mut self,
+        mint: Pubkey,
+        owner: Pubkey,
+        amount: impl ZeroCopyNumTrait,
+        delegate: Option<Pubkey>,
+        state: AccountState,
+    ) -> Result<(), ErrorCode> {
+        self.mint = mint;
+        self.owner = owner;
+        self.amount.set(amount.into());
+        if let Some(z_delegate) = self.delegate.as_deref_mut() {
+            *z_delegate = delegate.ok_or(ErrorCode::InstructionDataExpectedDelegate)?;
+        }
+        if self.delegate.is_none() && delegate.is_some() {
+            return Err(ErrorCode::ZeroCopyExpectedDelegate);
+        }
+        *self.state = state as u8;
+
+        if self.tlv.is_some() {
+            return Err(ErrorCode::TokenDataTlvUnimplemented);
+        }
+        Ok(())
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn set_output_compressed_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
@@ -47,17 +78,15 @@ pub fn set_output_compressed_account(
     hashed_mint: &[u8; 32],
     merkle_tree_index: u8,
 ) -> Result<(), ProgramError> {
-    // Get compressed account data from CPI struct
-    let compressed_account_data = output_compressed_account
-        .compressed_account
-        .data
-        .as_mut()
-        .ok_or(ProgramError::InvalidAccountData)?;
+    // Create TokenData using zero-copy to compute the data hash
+    let data_hash = {
+        // Get compressed account data from CPI struct to temporarily create TokenData
+        let compressed_account_data = output_compressed_account
+            .compressed_account
+            .data
+            .as_mut()
+            .ok_or(ProgramError::InvalidAccountData)?;
 
-    // Set discriminator
-    compressed_account_data.discriminator = TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-    // Create TokenData using zero-copy
-    {
         // Create token data config based on delegate presence
         let token_config: <TokenData as ZeroCopyNew>::ZeroCopyConfig = TokenDataConfig {
             delegate: (delegate.is_some(), ()),
@@ -68,18 +97,18 @@ pub fn set_output_compressed_account(
             TokenData::new_zero_copy(compressed_account_data.data, token_config)
                 .map_err(ProgramError::from)?;
 
-        // Set token data fields directly on zero-copy struct
-        token_data.mint = mint_pubkey;
-        token_data.owner = owner;
-        token_data.amount.set(amount.into());
-        if let Some(z_delegate) = token_data.delegate.as_deref_mut() {
-            let delegate_pubkey = delegate.ok_or(ProgramError::InvalidAccountData)?;
-            *z_delegate = delegate_pubkey;
-        }
-        *token_data.state = AccountState::Initialized as u8;
-    }
-    // Compute data hash using the anchor TokenData hash_with_hashed_values method
-    {
+        // Convert ErrorCode to ProgramError explicitly
+        token_data
+            .set(
+                mint_pubkey,
+                owner,
+                amount,
+                delegate,
+                AccountState::Initialized,
+            )
+            .map_err(|e| ProgramError::Custom(e.into()))?;
+
+        // Compute data hash using the anchor TokenData hash_with_hashed_values method
         let hashed_owner = context.get_or_hash_pubkey(&owner.into());
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
@@ -87,31 +116,26 @@ pub fn set_output_compressed_account(
         let hashed_delegate =
             delegate.map(|delegate_pubkey| context.get_or_hash_pubkey(&delegate_pubkey.into()));
 
-        let hash_result = AnchorTokenData::hash_with_hashed_values(
+        AnchorTokenData::hash_with_hashed_values(
             hashed_mint,
             &hashed_owner,
             &amount_bytes,
             &hashed_delegate.as_ref(),
         )
+        .map_err(ProgramError::from)?
+    };
+
+    let lamports_value = lamports.unwrap_or(0u64.into()).into();
+    output_compressed_account
+        .set(
+            crate::ID.into(),
+            lamports_value,
+            None, // Token accounts don't have addresses
+            merkle_tree_index,
+            TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            data_hash,
+        )
         .map_err(ProgramError::from)?;
-        compressed_account_data
-            .data_hash
-            .copy_from_slice(&hash_result);
-    }
-
-    // Set other compressed account fields
-    {
-        output_compressed_account.compressed_account.owner = crate::ID.into();
-
-        let lamports_value = lamports.unwrap_or(0u64.into());
-        output_compressed_account
-            .compressed_account
-            .lamports
-            .set(lamports_value.into());
-
-        // Set merkle tree index from parameter
-        *output_compressed_account.merkle_tree_index = merkle_tree_index;
-    }
 
     Ok(())
 }
