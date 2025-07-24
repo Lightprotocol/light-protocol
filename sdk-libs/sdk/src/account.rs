@@ -69,7 +69,7 @@ use light_compressed_account::{
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
-use light_hasher::Hasher;
+
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
 use std::ops::{Deref, DerefMut};

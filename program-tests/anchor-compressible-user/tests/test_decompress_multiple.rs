@@ -7,16 +7,19 @@ use anchor_compressible_user::{
     RENT_RECIPIENT,
 };
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
+
 use light_compressed_account::address::derive_address;
 use light_program_test::program_test::TestRpc;
 use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk::compressible::{CompressibleConfig, FromCompressedData};
+
 use light_sdk::instruction::{
     account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
 };
 
+use light_program_test::RpcError;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -174,7 +177,7 @@ async fn test_create_decompress_compress() {
 
     rpc.warp_to_slot(100).unwrap();
 
-    println!("CREATED USER RECORD");
+
     test_decompress_single_user_record(
         &mut rpc,
         &payer,
@@ -185,11 +188,40 @@ async fn test_create_decompress_compress() {
         100,
     )
     .await;
-    println!("DECOMPRESSED USER RECORD");
-    rpc.warp_to_slot(200).unwrap();
 
-    test_compress_record_with_config(&mut rpc, &payer, &program_id, &config_pda, &user_record_pda)
-        .await;
+    rpc.warp_to_slot(101).unwrap();
+
+    // Should fail due to compressing too soon.
+    let result = test_compress_record_with_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &user_record_pda,
+        true,
+    )
+    .await;
+    assert!(result.is_err(), "Compression should fail due to slot delay");
+    if let Err(err) = result {
+        let err_msg = format!("{:?}", err);
+        assert!(
+            err_msg.contains("Custom(16001)"),
+            "Expected error message about slot delay, got: {}",
+            err_msg
+        );
+    }
+
+    rpc.warp_to_slot(200).unwrap();
+    let _result = test_compress_record_with_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &user_record_pda,
+        false,
+    )
+    .await;
+
 }
 
 async fn test_create_record_with_config(
@@ -432,8 +464,7 @@ async fn test_decompress_multiple_pdas(
         .value;
 
     let user_account_data = c_user_pda.data.as_ref().unwrap();
-    // let mut user_with_discriminator = UserRecord::discriminator().to_vec();
-    // user_with_discriminator.extend_from_slice(&user_account_data.data);
+
     let c_user_record = UserRecord::from_compressed_data(&user_account_data.data).unwrap();
 
     // c pda GAME_SESSION
@@ -623,7 +654,10 @@ async fn test_decompress_multiple_pdas(
         .await
         .unwrap()
         .value;
-    println!("CHECK: c_game_pda: {:?}", c_game_pda);
+
+    assert_eq!(c_game_pda.data.is_some(), true);
+    assert_eq!(c_game_pda.data.unwrap().data.len(), 0);
+
 }
 
 async fn test_create_user_record_and_game_session_with_config(
@@ -809,7 +843,8 @@ async fn test_compress_record_with_config(
     program_id: &Pubkey,
     config_pda: &Pubkey,
     user_record_pda: &Pubkey,
-) {
+    should_fail: bool,
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     // Get the current decompressed user record data
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert!(
@@ -875,7 +910,6 @@ async fn test_compress_record_with_config(
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
-    println!("compressed account meta: {:?}", compressed_account_meta);
     // Create the instruction
     let accounts = anchor_compressible_user::accounts::CompressRecordWithConfig {
         user: payer.pubkey(),
@@ -898,20 +932,19 @@ async fn test_compress_record_with_config(
         data: instruction_data.data(),
     };
 
-    // Verify compressed accounts exist and have correct data
-    let c_user_pda = rpc
-        .get_compressed_account(address, None)
-        .await
-        .unwrap()
-        .value;
-    println!("CHECK: EMPTY c_user_pda: {:?}", c_user_pda);
+
 
     // Create and send transaction
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await;
 
-    assert!(result.is_ok(), "Compress transaction should succeed");
+    if should_fail {
+        assert!(result.is_err(), "Compress transaction should fail");
+        return result;
+    } else {
+        assert!(result.is_ok(), "Compress transaction should succeed");
+    }
 
     // Verify the PDA account is now empty (compressed)
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
@@ -946,6 +979,7 @@ async fn test_compress_record_with_config(
     assert_eq!(user_record.score, 11);
     assert_eq!(user_record.owner, payer.pubkey());
     assert_eq!(user_record.compression_info.is_compressed(), true);
+    Ok(result.unwrap())
 }
 
 async fn test_decompress_single_user_record(

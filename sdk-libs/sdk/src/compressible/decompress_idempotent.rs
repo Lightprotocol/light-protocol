@@ -32,8 +32,6 @@ trait AnchorDiscriminatorShim {}
 #[cfg(not(feature = "anchor"))]
 impl<T> AnchorDiscriminatorShim for T {}
 
-#[cfg(feature = "anchor")]
-use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize, ToAccountInfo};
 
 pub const COMPRESSION_DELAY: u64 = 100;
 
