@@ -1,12 +1,10 @@
 use anchor_lang::prelude::*;
-use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof};
 use light_sdk::{
-    compressible::{compress_pda_new, CompressibleConfig},
+    compressible::{compress_pda_new, CompressibleConfig, CompressionInfo, HasCompressionInfo},
     cpi::CpiAccounts,
-};
-use light_sdk::{
-    compressible::{CompressionInfo, HasCompressionInfo},
-    derive_light_cpi_signer, LightDiscriminator, LightHasher,
+    derive_light_cpi_signer,
+    instruction::{PackedAddressTreeInfo, ValidityProof},
+    LightDiscriminator, LightHasher,
 };
 use light_sdk_macros::add_compressible_instructions;
 use light_sdk_types::CpiSigner;

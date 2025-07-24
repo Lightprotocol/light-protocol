@@ -1,7 +1,5 @@
-use crate::{
-    account::LightAccount, compressible::compression_info::HasCompressionInfo, cpi::CpiAccounts,
-    error::LightSdkError, LightDiscriminator,
-};
+#[cfg(feature = "anchor")]
+use anchor_lang::Discriminator as AnchorDiscriminatorShim;
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -19,8 +17,10 @@ use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::Sysvar;
 
-#[cfg(feature = "anchor")]
-use anchor_lang::Discriminator as AnchorDiscriminatorShim;
+use crate::{
+    account::LightAccount, compressible::compression_info::HasCompressionInfo, cpi::CpiAccounts,
+    error::LightSdkError, LightDiscriminator,
+};
 
 #[cfg(not(feature = "anchor"))]
 trait AnchorDiscriminatorShim {}
@@ -146,7 +146,7 @@ where
         decompressed_pda.compression_info_mut().set_decompressed();
 
         #[cfg(feature = "anchor")]
-        pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&T::DISCRIMINATOR);
+        pda_account.try_borrow_mut_data()?[..8].copy_from_slice(T::DISCRIMINATOR);
         // TODO: test without anchor
         #[cfg(not(feature = "anchor"))]
         pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&T::discriminator());

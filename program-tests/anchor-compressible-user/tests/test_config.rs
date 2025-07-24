@@ -15,8 +15,7 @@
 mod common;
 
 use anchor_compressible_user::{ADDRESS_SPACE, RENT_RECIPIENT};
-use anchor_lang::InstructionData;
-use anchor_lang::ToAccountMetas;
+use anchor_lang::{InstructionData, ToAccountMetas};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     ProgramTestConfig, Rpc, RpcError,

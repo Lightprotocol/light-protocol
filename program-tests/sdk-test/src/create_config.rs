@@ -1,7 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{compressible::create_compression_config_checked, error::LightSdkError};
-use solana_program::account_info::AccountInfo;
-use solana_program::pubkey::Pubkey;
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 /// Creates a new compressible config PDA
 pub fn process_create_compression_config_checked(

@@ -1,4 +1,5 @@
-use crate::{error::LightSdkError, LightDiscriminator};
+use std::collections::HashSet;
+
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -10,7 +11,8 @@ use solana_pubkey::Pubkey;
 use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::Sysvar;
-use std::collections::HashSet;
+
+use crate::{error::LightSdkError, LightDiscriminator};
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
 pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 4;
@@ -137,6 +139,7 @@ impl CompressibleConfig {
 /// # Returns
 /// * `Ok(())` if config was created successfully
 /// * `Err(LightSdkError)` if there was an error
+#[allow(clippy::too_many_arguments)]
 pub fn create_compression_config_unchecked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
@@ -243,7 +246,7 @@ pub fn update_compression_config<'info>(
     new_compression_delay: Option<u32>,
     owner_program_id: &Pubkey,
 ) -> Result<(), LightSdkError> {
-    // Load and validate existing config
+    // Load and validate existing configtr
     let mut config = CompressibleConfig::load_checked(config_account, owner_program_id)?;
 
     // Check authority
@@ -377,6 +380,7 @@ pub fn verify_program_upgrade_authority(
 /// # Returns
 /// * `Ok(())` if config was created successfully
 /// * `Err(LightSdkError)` if there was an error or authority validation fails
+#[allow(clippy::too_many_arguments)]
 pub fn create_compression_config_checked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,

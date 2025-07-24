@@ -1,3 +1,15 @@
+#[cfg(feature = "anchor")]
+use anchor_lang::AccountsClose;
+#[cfg(feature = "anchor")]
+use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize};
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_hasher::DataHasher;
+use solana_account_info::AccountInfo;
+use solana_pubkey::Pubkey;
+
 use crate::{
     account::LightAccount,
     address::PackedNewAddressParams,
@@ -8,24 +20,11 @@ use crate::{
     light_account_checks::AccountInfoTrait,
     LightDiscriminator,
 };
-#[cfg(feature = "anchor")]
-use anchor_lang::AccountsClose;
-#[cfg(feature = "anchor")]
-use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize};
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize, BorshSerialize};
-
-use light_hasher::DataHasher;
-use solana_account_info::AccountInfo;
-use solana_msg::msg;
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
 
 #[cfg(feature = "anchor")]
 /// Wrapper to process a single onchain PDA for compression into a new compressed account.
 /// Calls `process_accounts_for_compression_on_init` with single-element slices and invokes the CPI.
+#[allow(clippy::too_many_arguments)]
 pub fn compress_account_on_init<'info, A>(
     pda_account: &mut Account<'info, A>,
     address: &[u8; 32],
@@ -50,7 +49,7 @@ where
 {
     let mut pda_accounts: [&mut Account<'info, A>; 1] = [pda_account];
     let addresses: [[u8; 32]; 1] = [*address];
-    let new_address_params: [PackedNewAddressParams; 1] = [new_address_param.clone()];
+    let new_address_params: [PackedNewAddressParams; 1] = [*new_address_param];
     let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
 
     let compressed_infos = prepare_accounts_for_compression_on_init(
@@ -65,13 +64,10 @@ where
     )?;
 
     // Create CPI inputs with all compressed accounts and new addresses
-    let cpi_inputs =
-        CpiInputs::new_with_address(proof, compressed_infos, vec![new_address_param.clone()]);
+    let cpi_inputs = CpiInputs::new_with_address(proof, compressed_infos, vec![*new_address_param]);
 
     // Invoke light system program to create all compressed accounts
-    cpi_inputs
-        .invoke_light_system_program(cpi_accounts)
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
     Ok(())
 }
@@ -95,6 +91,7 @@ where
 /// # Returns
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_accounts_for_compression_on_init<'info, A>(
     pda_accounts: &mut [&mut Account<'info, A>],
     addresses: &[[u8; 32]],

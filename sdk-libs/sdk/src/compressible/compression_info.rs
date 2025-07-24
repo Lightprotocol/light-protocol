@@ -1,10 +1,11 @@
-use crate::error::LightSdkError;
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_clock::Clock;
 use solana_sysvar::Sysvar;
+
+use crate::error::LightSdkError;
 
 /// Trait for accounts that contain CompressionInfo
 pub trait HasCompressionInfo {

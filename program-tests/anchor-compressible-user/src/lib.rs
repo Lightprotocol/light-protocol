@@ -2,10 +2,11 @@ use anchor_lang::prelude::*;
 use light_sdk::{
     compressible::{CompressibleConfig, CompressionInfo, FromCompressedData, HasCompressionInfo},
     cpi::CpiAccounts,
+    derive_light_cpi_signer,
     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
     light_hasher::{DataHasher, Hasher},
+    LightDiscriminator, LightHasher,
 };
-use light_sdk::{derive_light_cpi_signer, LightDiscriminator, LightHasher};
 use light_sdk_types::CpiSigner;
 
 declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
@@ -19,13 +20,15 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 #[program]
 pub mod anchor_compressible_user {
 
-    use light_sdk::account::LightAccount;
-    use light_sdk::compressible::{
-        compress_account_on_init, compress_pda, create_compression_config_checked,
-        prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
-        update_compression_config,
+    use light_sdk::{
+        account::LightAccount,
+        compressible::{
+            compress_account_on_init, compress_pda, create_compression_config_checked,
+            prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
+            update_compression_config,
+        },
+        cpi::CpiInputs,
     };
-    use light_sdk::cpi::CpiInputs;
 
     use super::*;
 
@@ -354,6 +357,7 @@ pub mod anchor_compressible_user {
     }
 
     /// Creates both a user record and game session and compresses them in a single transaction
+    #[allow(clippy::too_many_arguments)]
     pub fn create_user_record_and_game_session_with_config<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateUserRecordAndGameSessionWithConfig<'info>>,
         user_name: String,
@@ -511,8 +515,8 @@ pub mod anchor_compressible_user {
             &crate::ID,
             &ctx.accounts.rent_recipient,
             &config.compression_delay,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        )?;
+
         Ok(())
     }
 }

@@ -1,11 +1,3 @@
-use crate::{
-    account::LightAccount,
-    compressible::compression_info::HasCompressionInfo,
-    cpi::{CpiAccounts, CpiInputs},
-    error::LightSdkError,
-    instruction::{account_meta::CompressedAccountMeta, ValidityProof},
-    LightDiscriminator,
-};
 #[cfg(feature = "anchor")]
 use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize};
 #[cfg(feature = "anchor")]
@@ -16,9 +8,17 @@ use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
 use solana_msg::msg;
-
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
+
+use crate::{
+    account::LightAccount,
+    compressible::compression_info::HasCompressionInfo,
+    cpi::{CpiAccounts, CpiInputs},
+    error::LightSdkError,
+    instruction::{account_meta::CompressedAccountMeta, ValidityProof},
+    LightDiscriminator,
+};
 
 #[cfg(feature = "anchor")]
 /// Helper function to compress a PDA and reclaim rent.

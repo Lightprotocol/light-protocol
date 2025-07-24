@@ -65,14 +65,14 @@
 //! ```
 // TODO: add example for manual hashing
 
+use std::ops::{Deref, DerefMut};
+
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
-
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
-use std::ops::{Deref, DerefMut};
 
 use crate::{
     cpi::CpiAccounts,

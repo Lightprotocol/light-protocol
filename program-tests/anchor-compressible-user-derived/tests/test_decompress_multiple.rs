@@ -55,11 +55,11 @@ async fn test_decompress_multiple_pdas() {
 
     // For testing purposes, we'll just verify the data structures compile correctly
     // In a real test, you would need proper validity proofs and Light Protocol setup
-    
+
     // Verify the compressed account data structure is valid
     assert_eq!(compressed_accounts.len(), 1);
     assert_eq!(compressed_accounts[0].seeds.len(), 2);
-    
+
     // Verify PDA derivation works
     assert!(user_record_pda != Pubkey::default());
     assert_eq!(user_bump, user_bump); // Just verify bump was calculated

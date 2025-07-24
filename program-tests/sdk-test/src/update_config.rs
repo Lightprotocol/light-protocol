@@ -3,8 +3,7 @@ use light_sdk::{
     compressible::{update_compression_config, CompressibleConfig},
     error::LightSdkError,
 };
-use solana_program::account_info::AccountInfo;
-use solana_program::pubkey::Pubkey;
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 /// Updates an existing compressible config
 pub fn process_update_config(

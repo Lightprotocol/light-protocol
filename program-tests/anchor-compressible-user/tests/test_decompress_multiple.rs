@@ -7,19 +7,15 @@ use anchor_compressible_user::{
     RENT_RECIPIENT,
 };
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
-
 use light_compressed_account::address::derive_address;
-use light_program_test::program_test::TestRpc;
 use light_program_test::{
-    program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc,
+    program_test::{LightProgramTest, TestRpc},
+    AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
-use light_sdk::compressible::{CompressibleConfig, FromCompressedData};
-
-use light_sdk::instruction::{
-    account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
+use light_sdk::{
+    compressible::{CompressibleConfig, FromCompressedData},
+    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
 };
-
-use light_program_test::RpcError;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
