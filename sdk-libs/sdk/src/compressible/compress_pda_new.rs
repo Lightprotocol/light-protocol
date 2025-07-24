@@ -26,7 +26,7 @@ use solana_pubkey::Pubkey;
 #[cfg(feature = "anchor")]
 /// Wrapper to process a single onchain PDA for compression into a new compressed account.
 /// Calls `process_accounts_for_compression_on_init` with single-element slices and invokes the CPI.
-pub fn compress_pda_on_init<'info, A>(
+pub fn compress_account_on_init<'info, A>(
     pda_account: &mut Account<'info, A>,
     address: &[u8; 32],
     new_address_param: &PackedNewAddressParams,
@@ -53,7 +53,7 @@ where
     let new_address_params: [PackedNewAddressParams; 1] = [new_address_param.clone()];
     let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
 
-    let compressed_infos = process_pdas_for_compression_on_init(
+    let compressed_infos = prepare_accounts_for_compression_on_init(
         &mut pda_accounts,
         &addresses,
         &new_address_params,
@@ -95,7 +95,7 @@ where
 /// # Returns
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
-pub fn process_pdas_for_compression_on_init<'info, A>(
+pub fn prepare_accounts_for_compression_on_init<'info, A>(
     pda_accounts: &mut [&mut Account<'info, A>],
     addresses: &[[u8; 32]],
     new_address_params: &[PackedNewAddressParams],

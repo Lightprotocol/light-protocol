@@ -147,17 +147,16 @@ where
 
         #[cfg(feature = "anchor")]
         pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&T::DISCRIMINATOR);
+        // TODO: test without anchor
         #[cfg(not(feature = "anchor"))]
         pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&T::discriminator());
 
-        // Write data to PDA (after discriminator)
         decompressed_pda
             .serialize(&mut &mut pda_account.try_borrow_mut_data()?[8..])
             .map_err(|_| LightSdkError::Borsh)?;
 
-        // Zero the compressed account data
         compressed_account.remove_data();
-        // Add to CPI batch
+
         compressed_accounts_for_cpi.push(compressed_account.to_account_info()?);
     }
 

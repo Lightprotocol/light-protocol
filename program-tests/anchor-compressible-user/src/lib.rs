@@ -21,8 +21,8 @@ pub mod anchor_compressible_user {
 
     use light_sdk::account::LightAccount;
     use light_sdk::compressible::{
-        compress_pda, compress_pda_on_init, create_compression_config_checked,
-        prepare_accounts_for_decompress_idempotent, process_pdas_for_compression_on_init,
+        compress_account_on_init, compress_pda, create_compression_config_checked,
+        prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
         update_compression_config,
     };
     use light_sdk::cpi::CpiInputs;
@@ -111,7 +111,7 @@ pub mod anchor_compressible_user {
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
 
-        compress_pda_on_init::<UserRecord>(
+        compress_account_on_init::<UserRecord>(
             user_record,
             &compressed_address,
             &new_address_params,
@@ -154,7 +154,7 @@ pub mod anchor_compressible_user {
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
 
-        compress_pda_on_init::<UserRecord>(
+        compress_account_on_init::<UserRecord>(
             user_record,
             &compressed_address,
             &new_address_params,
@@ -337,7 +337,7 @@ pub mod anchor_compressible_user {
             address_tree_info.into_new_address_params_packed(game_session.key().to_bytes());
 
         msg!("...Compressing game session");
-        compress_pda_on_init::<GameSession>(
+        compress_account_on_init::<GameSession>(
             game_session,
             &compressed_address,
             &new_address_params,
@@ -411,7 +411,7 @@ pub mod anchor_compressible_user {
         let mut all_compressed_infos = Vec::new();
 
         // Process UserRecord for compression
-        let user_compressed_infos = process_pdas_for_compression_on_init::<UserRecord>(
+        let user_compressed_infos = prepare_accounts_for_compression_on_init::<UserRecord>(
             &mut [user_record],
             &[user_compressed_address],
             &[user_new_address_params],
@@ -426,7 +426,7 @@ pub mod anchor_compressible_user {
         all_compressed_infos.extend(user_compressed_infos);
 
         // Process GameSession for compression
-        let game_compressed_infos = process_pdas_for_compression_on_init::<GameSession>(
+        let game_compressed_infos = prepare_accounts_for_compression_on_init::<GameSession>(
             &mut [game_session],
             &[game_compressed_address],
             &[game_new_address_params],

@@ -9,7 +9,7 @@ pub mod from_compressed_data;
 
 pub use compress_pda::compress_pda;
 #[cfg(feature = "anchor")]
-pub use compress_pda_new::{compress_pda_on_init, process_pdas_for_compression_on_init};
+pub use compress_pda_new::{compress_account_on_init, prepare_accounts_for_compression_on_init};
 pub use compression_info::{CompressionInfo, HasCompressionInfo};
 pub use config::{
     create_compression_config_checked, create_compression_config_unchecked,

@@ -27,7 +27,7 @@ use solana_sdk::{
 };
 
 #[tokio::test]
-async fn test_all() {
+async fn test_create_and_decompress_two_accounts() {
     let program_id = anchor_compressible_user::ID;
     let config =
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
@@ -89,15 +89,12 @@ async fn test_all() {
         100,
     )
     .await;
-    // Test the new combined instruction with new accounts
-    // Create a new user to avoid PDA conflicts
-    let combined_user = Keypair::new();
 
-    // Fund the new user
+    let combined_user = Keypair::new();
     let fund_user_ix = solana_sdk::system_instruction::transfer(
         &payer.pubkey(),
         &combined_user.pubkey(),
-        1_000_000_000, // 1 SOL
+        1e9 as u64,
     );
     let fund_result = rpc
         .create_and_send_transaction(&[fund_user_ix], &payer.pubkey(), &[&payer])
@@ -126,7 +123,6 @@ async fn test_all() {
 
     rpc.warp_to_slot(200).unwrap();
 
-    // Test decompression for the new combined accounts
     test_decompress_multiple_pdas(
         &mut rpc,
         &combined_user,
@@ -145,7 +141,7 @@ async fn test_all() {
 }
 
 #[tokio::test]
-async fn test_create_decompress_compress() {
+async fn test_create_decompress_compress_single_account() {
     let program_id = anchor_compressible_user::ID;
     let config =
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
@@ -177,7 +173,6 @@ async fn test_create_decompress_compress() {
 
     rpc.warp_to_slot(100).unwrap();
 
-
     test_decompress_single_user_record(
         &mut rpc,
         &payer,
@@ -191,7 +186,6 @@ async fn test_create_decompress_compress() {
 
     rpc.warp_to_slot(101).unwrap();
 
-    // Should fail due to compressing too soon.
     let result = test_compress_record_with_config(
         &mut rpc,
         &payer,
@@ -221,7 +215,6 @@ async fn test_create_decompress_compress() {
         false,
     )
     .await;
-
 }
 
 async fn test_create_record_with_config(
@@ -448,7 +441,6 @@ async fn test_decompress_multiple_pdas(
     expected_game_type: &str,
     expected_slot: u64,
 ) {
-    // TODO: dynamic
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
 
     // c pda USER_RECORD
@@ -657,7 +649,6 @@ async fn test_decompress_multiple_pdas(
 
     assert_eq!(c_game_pda.data.is_some(), true);
     assert_eq!(c_game_pda.data.unwrap().data.len(), 0);
-
 }
 
 async fn test_create_user_record_and_game_session_with_config(
@@ -931,8 +922,6 @@ async fn test_compress_record_with_config(
         accounts: [accounts.to_account_metas(None), system_accounts].concat(),
         data: instruction_data.data(),
     };
-
-
 
     // Create and send transaction
     let result = rpc
