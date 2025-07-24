@@ -122,8 +122,6 @@ pub async fn initialize_compression_config(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     program_id: &Pubkey,
-    config_pda: Pubkey,
-    program_data_pda: Pubkey,
     authority: &Keypair,
     compression_delay: u32,
     rent_recipient: Pubkey,

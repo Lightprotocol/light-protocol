@@ -9,7 +9,6 @@
 //! - Prevent address space removal
 //! - Update with non-authority
 //! - Rent recipient check
-
 #![cfg(feature = "test-sbf")]
 
 mod common;
@@ -18,7 +17,7 @@ use anchor_compressible_user::{ADDRESS_SPACE, RENT_RECIPIENT};
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
-    ProgramTestConfig, Rpc, RpcError,
+    ProgramTestConfig, Rpc,
 };
 use light_sdk::compressible::CompressibleConfig;
 use solana_sdk::{
@@ -36,16 +35,12 @@ async fn test_initialize_compression_config() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-
-    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &payer,
         100,
         RENT_RECIPIENT,
@@ -57,8 +52,6 @@ async fn test_initialize_compression_config() {
 
 #[tokio::test]
 async fn test_config_validation() {
-    solana_logger::setup_with_default("solana_runtime::message_processor=debug");
-
     // Fail: non-authority cannot init
     let program_id = anchor_compressible_user::ID;
     let config =
@@ -66,8 +59,7 @@ async fn test_config_validation() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let non_authority = Keypair::new();
-    let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
@@ -76,8 +68,6 @@ async fn test_config_validation() {
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &non_authority,
         100,
         RENT_RECIPIENT,
@@ -96,13 +86,12 @@ async fn test_update_compression_config() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+
     let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &payer,
         100,
         RENT_RECIPIENT,
@@ -136,14 +125,11 @@ async fn test_config_reinit_attack_prevention() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
     let result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &payer,
         100,
         RENT_RECIPIENT,
@@ -155,8 +141,6 @@ async fn test_config_reinit_attack_prevention() {
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &payer,
         100,
         RENT_RECIPIENT,
@@ -174,7 +158,6 @@ async fn test_wrong_program_data_account() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
     let fake_program_data = Keypair::new();
     let mock_data = common::create_mock_program_data(payer.pubkey());
     let mock_account = solana_sdk::account::Account {
@@ -189,8 +172,6 @@ async fn test_wrong_program_data_account() {
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        fake_program_data.pubkey(),
         &payer,
         100,
         RENT_RECIPIENT,
@@ -212,16 +193,13 @@ async fn test_update_remove_address_space() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
     let address_space_1 = ADDRESS_SPACE.to_vec();
     let address_space_2 = vec![Pubkey::new_unique()];
     let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &payer,
         100,
         RENT_RECIPIENT,
@@ -258,14 +236,11 @@ async fn test_update_with_non_authority() {
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
     let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &payer,
         100,
         RENT_RECIPIENT,
@@ -301,13 +276,11 @@ async fn test_config_with_wrong_rent_recipient() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
     let init_result = common::initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
-        config_pda,
-        program_data_pda,
         &payer,
         100,
         RENT_RECIPIENT,

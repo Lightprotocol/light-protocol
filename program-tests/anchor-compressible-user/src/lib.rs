@@ -489,7 +489,7 @@ pub mod anchor_compressible_user {
         proof: ValidityProof,
         compressed_account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let user_record = &mut ctx.accounts.user_record;
+        let user_record = &mut ctx.accounts.pda_to_compress;
 
         // Load config from the config account
         let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
@@ -636,9 +636,9 @@ pub struct CompressRecordWithConfig<'info> {
         mut,
         seeds = [b"user_record", user.key().as_ref()],
         bump,
-        constraint = user_record.owner == user.key()
+        constraint = pda_to_compress.owner == user.key()
     )]
-    pub user_record: Account<'info, UserRecord>,
+    pub pda_to_compress: Account<'info, UserRecord>,
     pub system_program: Program<'info, System>,
     /// The global config account
     /// CHECK: Config is validated by the SDK's load_checked method
