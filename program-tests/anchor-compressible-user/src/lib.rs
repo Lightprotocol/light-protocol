@@ -484,7 +484,7 @@ pub mod anchor_compressible_user {
         );
 
         compress_pda::<UserRecord>(
-            &user_record.to_account_info(),
+            user_record,
             &compressed_account_meta,
             proof,
             cpi_accounts,
@@ -519,7 +519,7 @@ pub mod anchor_compressible_user {
         );
 
         compress_pda::<UserRecord>(
-            &user_record.to_account_info(),
+            user_record,
             &compressed_account_meta,
             proof,
             cpi_accounts,
@@ -656,6 +656,7 @@ pub struct CompressRecordWithConfig<'info> {
     pub config: AccountInfo<'info>,
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
+    #[account(mut)]
     pub rent_recipient: AccountInfo<'info>,
 }
 
@@ -673,6 +674,7 @@ pub struct CompressRecord<'info> {
     pub system_program: Program<'info, System>,
     /// CHECK: Rent recipient is a hardcoded address
     #[account(address = RENT_RECIPIENT)]
+    #[account(mut)]
     pub rent_recipient: AccountInfo<'info>,
 }
 

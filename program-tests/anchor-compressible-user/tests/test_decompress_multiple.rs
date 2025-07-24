@@ -86,7 +86,6 @@ async fn test_all() {
         100,
     )
     .await;
-
     // Test the new combined instruction with new accounts
     // Create a new user to avoid PDA conflicts
     let combined_user = Keypair::new();
@@ -140,6 +139,57 @@ async fn test_all() {
         200,
     )
     .await;
+}
+
+#[tokio::test]
+async fn test_create_decompress_compress() {
+    let program_id = anchor_compressible_user::ID;
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
+    let program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    let result = common::initialize_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        config_pda,
+        program_data_pda,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
+    assert!(result.is_ok(), "Initialize config should succeed");
+
+    let (user_record_pda, user_record_bump) =
+        Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
+
+    test_create_record_with_config(&mut rpc, &payer, &program_id, &config_pda, &user_record_pda)
+        .await;
+
+    rpc.warp_to_slot(100).unwrap();
+
+    println!("CREATED USER RECORD");
+    test_decompress_single_user_record(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &user_record_pda,
+        &user_record_bump,
+        "Test User",
+        100,
+    )
+    .await;
+    println!("DECOMPRESSED USER RECORD");
+    rpc.warp_to_slot(200).unwrap();
+
+    test_compress_record_with_config(&mut rpc, &payer, &program_id, &config_pda, &user_record_pda)
+        .await;
 }
 
 async fn test_create_record_with_config(
@@ -566,6 +616,14 @@ async fn test_decompress_multiple_pdas(
             .last_written_slot(),
         expected_slot
     );
+
+    // Verify compressed accounts exist and have correct data
+    let c_game_pda = rpc
+        .get_compressed_account(game_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+    println!("CHECK: c_game_pda: {:?}", c_game_pda);
 }
 
 async fn test_create_user_record_and_game_session_with_config(
@@ -743,4 +801,283 @@ async fn test_create_user_record_and_game_session_with_config(
     assert_eq!(game_session.game_type, "Combined Game");
     assert_eq!(game_session.player, user.pubkey());
     assert_eq!(game_session.score, 0);
+}
+
+async fn test_compress_record_with_config(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    program_id: &Pubkey,
+    config_pda: &Pubkey,
+    user_record_pda: &Pubkey,
+) {
+    // Get the current decompressed user record data
+    let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    assert!(
+        user_pda_account.is_some(),
+        "User PDA account should exist before compression"
+    );
+    let account = user_pda_account.unwrap();
+    assert!(
+        account.lamports > 0,
+        "Account should have lamports before compression"
+    );
+    assert!(
+        !account.data.is_empty(),
+        "Account data should not be empty before compression"
+    );
+
+    // Setup remaining accounts for Light Protocol
+    let mut remaining_accounts = PackedAccounts::default();
+    let system_config = SystemAccountMetaConfig::new(*program_id);
+    remaining_accounts.add_system_accounts(system_config);
+
+    // Get address tree info
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+
+    let address = derive_address(
+        &user_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+
+    let compressed_account = rpc
+        .get_compressed_account(address, None)
+        .await
+        .unwrap()
+        .value;
+    let compressed_address = compressed_account.address.unwrap();
+
+    // Get validity proof from RPC
+    let rpc_result = rpc
+        .get_validity_proof(vec![compressed_account.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    // Pack tree infos into remaining accounts
+    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
+
+    // Get output state tree index
+    let output_state_tree_index =
+        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+
+    // Create compressed account meta
+    let compressed_account_meta = CompressedAccountMeta {
+        tree_info: packed_tree_infos
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .packed_tree_infos[0],
+        address: compressed_address,
+        output_state_tree_index,
+    };
+
+    // Get system accounts for the instruction
+    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+
+    println!("compressed account meta: {:?}", compressed_account_meta);
+    // Create the instruction
+    let accounts = anchor_compressible_user::accounts::CompressRecordWithConfig {
+        user: payer.pubkey(),
+        user_record: *user_record_pda,
+        system_program: solana_sdk::system_program::ID,
+        config: *config_pda,
+        rent_recipient: RENT_RECIPIENT,
+    };
+
+    // Create instruction data
+    let instruction_data = anchor_compressible_user::instruction::CompressRecordWithConfig {
+        proof: rpc_result.proof,
+        compressed_account_meta,
+    };
+
+    // Build the instruction
+    let instruction = Instruction {
+        program_id: *program_id,
+        accounts: [accounts.to_account_metas(None), system_accounts].concat(),
+        data: instruction_data.data(),
+    };
+
+    // Verify compressed accounts exist and have correct data
+    let c_user_pda = rpc
+        .get_compressed_account(address, None)
+        .await
+        .unwrap()
+        .value;
+    println!("CHECK: EMPTY c_user_pda: {:?}", c_user_pda);
+
+    // Create and send transaction
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
+
+    assert!(result.is_ok(), "Compress transaction should succeed");
+
+    // Verify the PDA account is now empty (compressed)
+    let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    assert!(
+        user_pda_account.is_some(),
+        "Account should exist after compression"
+    );
+    let account = user_pda_account.unwrap();
+    assert_eq!(
+        account.lamports, 0,
+        "Account lamports should be 0 after compression"
+    );
+    assert!(
+        account.data.is_empty(),
+        "Account data should be empty after compression"
+    );
+
+    // Verify the compressed account exists
+    let compressed_user_record = rpc
+        .get_compressed_account(compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert_eq!(compressed_user_record.address, Some(compressed_address));
+    assert_eq!(compressed_user_record.data.is_some(), true);
+
+    let buf = compressed_user_record.data.unwrap().data;
+    let user_record = UserRecord::from_compressed_data(&buf).unwrap();
+
+    assert_eq!(user_record.name, "Test User");
+    assert_eq!(user_record.score, 11);
+    assert_eq!(user_record.owner, payer.pubkey());
+    assert_eq!(user_record.compression_info.is_compressed(), true);
+}
+
+async fn test_decompress_single_user_record(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    program_id: &Pubkey,
+    user_record_pda: &Pubkey,
+    user_record_bump: &u8,
+    expected_user_name: &str,
+    expected_slot: u64,
+) {
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+
+    // Get compressed user record
+    let user_compressed_address = derive_address(
+        &user_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+    let c_user_pda = rpc
+        .get_compressed_account(user_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    let user_account_data = c_user_pda.data.as_ref().unwrap();
+    let c_user_record = UserRecord::from_compressed_data(&user_account_data.data).unwrap();
+
+    // Setup remaining accounts for Light Protocol
+    let mut remaining_accounts = PackedAccounts::default();
+    let system_config = SystemAccountMetaConfig::new(*program_id);
+    remaining_accounts.add_system_accounts(system_config);
+
+    // Get validity proof for the compressed account
+    let rpc_result = rpc
+        .get_validity_proof(vec![c_user_pda.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    // Pack tree infos
+    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
+
+    // Create compressed account meta
+    let user_compressed_meta = CompressedAccountMeta {
+        tree_info: packed_tree_infos
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .packed_tree_infos[0],
+        address: c_user_pda.address.unwrap(),
+        output_state_tree_index: 0,
+    };
+
+    // Create compressed account data
+    let compressed_accounts = vec![CompressedAccountData {
+        meta: user_compressed_meta,
+        data: CompressedAccountVariant::UserRecord(c_user_record),
+    }];
+
+    // Build instruction accounts
+    let pda_accounts = vec![user_record_pda];
+    let system_accounts_offset = pda_accounts.len() as u8;
+    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+
+    // Prepare bump for the PDA
+    let bumps = vec![*user_record_bump];
+
+    let instruction_data = anchor_compressible_user::instruction::DecompressMultiplePdas {
+        proof: rpc_result.proof,
+        compressed_accounts,
+        bumps,
+        system_accounts_offset,
+    };
+
+    let instruction = Instruction {
+        program_id: *program_id,
+        accounts: [
+            vec![
+                AccountMeta::new(payer.pubkey(), true), // fee_payer
+                AccountMeta::new(payer.pubkey(), true), // rent_payer
+                AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+            ],
+            pda_accounts
+                .iter()
+                .map(|&pda| AccountMeta::new(*pda, false))
+                .collect(),
+            system_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    // Verify PDA is uninitialized before decompression
+    let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    assert_eq!(
+        user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0),
+        0,
+        "User PDA account data len must be 0 before decompression"
+    );
+
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
+    assert!(result.is_ok(), "Decompress transaction should succeed");
+
+    // Verify UserRecord PDA is decompressed
+    let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    assert!(
+        user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
+        "User PDA account data len must be > 0 after decompression"
+    );
+
+    let user_pda_data = user_pda_account.unwrap().data;
+    assert_eq!(
+        &user_pda_data[0..8],
+        UserRecord::DISCRIMINATOR,
+        "User account anchor discriminator mismatch"
+    );
+
+    let decompressed_user_record = UserRecord::try_deserialize(&mut &user_pda_data[..]).unwrap();
+    assert_eq!(decompressed_user_record.name, expected_user_name);
+    assert_eq!(decompressed_user_record.score, 11);
+    assert_eq!(decompressed_user_record.owner, payer.pubkey());
+    assert_eq!(
+        decompressed_user_record.compression_info.is_compressed(),
+        false
+    );
+    assert_eq!(
+        decompressed_user_record
+            .compression_info
+            .last_written_slot(),
+        expected_slot
+    );
 }

@@ -7,6 +7,8 @@ use crate::{
     LightDiscriminator,
 };
 #[cfg(feature = "anchor")]
+use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize};
+#[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -14,10 +16,11 @@ use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
 use solana_msg::msg;
-use solana_program_error::ProgramError;
+
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
+#[cfg(feature = "anchor")]
 /// Helper function to compress a PDA and reclaim rent.
 ///
 /// 1. closes onchain PDA
@@ -36,13 +39,13 @@ use solana_sysvar::Sysvar;
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
 /// * `compression_delay` - The number of slots to wait before compression is allowed
-pub fn compress_pda<A>(
-    pda_account: &AccountInfo,
+pub fn compress_pda<'info, A>(
+    pda_account: &mut Account<'info, A>,
     compressed_account_meta: &CompressedAccountMeta,
     proof: ValidityProof,
-    cpi_accounts: CpiAccounts,
+    cpi_accounts: CpiAccounts<'_, 'info>,
     owner_program: &Pubkey,
-    rent_recipient: &AccountInfo,
+    rent_recipient: &AccountInfo<'info>,
     compression_delay: &u32,
 ) -> Result<(), LightSdkError>
 where
@@ -51,33 +54,14 @@ where
         + BorshSerialize
         + BorshDeserialize
         + Default
-        + HasCompressionInfo,
+        + Clone
+        + HasCompressionInfo
+        + std::fmt::Debug,
+    A: AccountSerialize + AccountDeserialize,
 {
-    // Check that the PDA account is owned by the caller program
-    if pda_account.owner != owner_program {
-        msg!(
-            "Invalid PDA owner. Expected: {}. Found: {}.",
-            owner_program,
-            pda_account.owner
-        );
-        return Err(LightSdkError::ConstraintViolation);
-    }
-
     let current_slot = Clock::get()?.slot;
 
-    let mut pda_data = pda_account.try_borrow_mut_data()?;
-    let mut pda_account_data =
-        A::try_from_slice(&pda_data[8..]).map_err(|_| LightSdkError::Borsh)?;
-
-    let last_written_slot = pda_account_data.compression_info().last_written_slot();
-
-    // ensure re-init attack is not possible
-    pda_account_data.compression_info_mut().set_compressed();
-
-    pda_account_data
-        .serialize(&mut &mut pda_data[8..])
-        .map_err(|_| LightSdkError::Borsh)?;
-    drop(pda_data);
+    let last_written_slot = pda_account.compression_info().last_written_slot();
 
     if current_slot < last_written_slot + *compression_delay as u64 {
         msg!(
@@ -86,14 +70,14 @@ where
         );
         return Err(LightSdkError::ConstraintViolation);
     }
+    // ensure re-init attack is not possible
+    pda_account.compression_info_mut().set_compressed();
 
-    // Get the PDA lamports before we close it
-    let pda_lamports = pda_account.lamports();
-
+    // msg!("compressed_account_data: {:?}", compressed_account_data);
     let mut compressed_account =
-        LightAccount::<'_, A>::new_mut(owner_program, compressed_account_meta, A::default())?;
+        LightAccount::<'_, A>::new_mut_without_data(owner_program, compressed_account_meta)?;
 
-    compressed_account.account = pda_account_data;
+    compressed_account.account = (**pda_account).clone();
 
     // Create CPI inputs
     let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
@@ -101,14 +85,13 @@ where
     // Invoke light system program to create the compressed account
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
-    // Close the PDA account
-    // 1. Transfer all lamports to the rent recipient
-    let dest_starting_lamports = rent_recipient.lamports();
-    **rent_recipient.try_borrow_mut_lamports()? = dest_starting_lamports
-        .checked_add(pda_lamports)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
-    // 2. Decrement source account lamports
-    **pda_account.try_borrow_mut_lamports()? = 0;
+    // Close the PDA account using Anchor's close method
+    use anchor_lang::AccountsClose;
+
+    pda_account.close(rent_recipient.clone()).map_err(|err| {
+        msg!("Error closing PDA account: {:?}", err);
+        LightSdkError::ConstraintViolation
+    })?;
 
     Ok(())
 }
