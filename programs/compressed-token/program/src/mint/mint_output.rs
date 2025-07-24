@@ -71,21 +71,15 @@ pub fn create_output_compressed_mint_account(
         let (mut compressed_mint, _) =
             CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
                 .map_err(ProgramError::from)?;
-        compressed_mint.spl_mint = mint_pda;
-        compressed_mint.decimals = decimals;
-        compressed_mint.supply = supply;
-        if let Some(freeze_auth) = freeze_authority {
-            if let Some(z_freeze_authority) = compressed_mint.freeze_authority.as_deref_mut() {
-                *z_freeze_authority = freeze_auth;
-            }
-        }
-        if let Some(mint_auth) = mint_authority {
-            if let Some(z_mint_authority) = compressed_mint.mint_authority.as_deref_mut() {
-                *z_mint_authority = mint_auth;
-            }
-        }
-        compressed_mint.version = version;
-        compressed_mint.is_decompressed = if is_decompressed { 1 } else { 0 };
+        compressed_mint.set(
+            version,
+            mint_pda,
+            supply,
+            decimals,
+            is_decompressed,
+            mint_authority,
+            freeze_authority,
+        )?;
 
         // Process extensions if provided and populate the zero-copy extension data
         let extension_hash = if let Some(extensions) = extensions.as_ref() {

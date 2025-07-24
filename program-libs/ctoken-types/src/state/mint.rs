@@ -1,7 +1,7 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-use zerocopy::IntoBytes;
+use zerocopy::{little_endian::U64, IntoBytes};
 
 use crate::{
     context::TokenContext, state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError,
@@ -196,5 +196,43 @@ impl ZCompressedMintMut<'_> {
         } else {
             Ok(mint_hash)
         }
+    }
+}
+// Implementation for zero-copy mutable CompressedMint
+impl<'a> ZCompressedMintMut<'a> {
+    /// Set all fields of the CompressedMint struct at once
+    #[inline]
+    pub fn set(
+        &mut self,
+        version: u8,
+        spl_mint: Pubkey,
+        supply: U64,
+        decimals: u8,
+        is_decompressed: bool,
+        mint_authority: Option<Pubkey>,
+        freeze_authority: Option<Pubkey>,
+    ) -> Result<(), CTokenError> {
+        self.version = version;
+        self.spl_mint = spl_mint;
+        self.supply = supply;
+        self.decimals = decimals;
+        self.is_decompressed = if is_decompressed { 1 } else { 0 };
+        if let Some(self_mint_authority) = self.mint_authority.as_deref_mut() {
+            *self_mint_authority =
+                mint_authority.ok_or(CTokenError::InstructionDataExpectedMintAuthority)?;
+        }
+        if self.mint_authority.is_some() && mint_authority.is_none() {
+            return Err(CTokenError::ZeroCopyExpectedMintAuthority);
+        }
+
+        if let Some(self_freeze_authority) = self.freeze_authority.as_deref_mut() {
+            *self_freeze_authority =
+                freeze_authority.ok_or(CTokenError::InstructionDataExpectedFreezeAuthority)?;
+        }
+        if self.freeze_authority.is_some() && freeze_authority.is_none() {
+            return Err(CTokenError::ZeroCopyExpectedFreezeAuthority);
+        }
+        // extensions are handled separately as they require special processing
+        Ok(())
     }
 }

@@ -72,6 +72,18 @@ pub enum CTokenError {
     #[error("Output accounts lamports length mismatch")]
     OutputAccountsLamportsLengthMismatch,
 
+    #[error("Instruction data expected mint authority")]
+    InstructionDataExpectedMintAuthority,
+
+    #[error("Instruction data expected freeze authority")]
+    ZeroCopyExpectedMintAuthority,
+
+    #[error("Instruction data expected freeze authority")]
+    InstructionDataExpectedFreezeAuthority,
+
+    #[error("Instruction data expected freeze authority")]
+    ZeroCopyExpectedFreezeAuthority,
+
     #[error("Light hasher error: {0}")]
     HasherError(#[from] light_hasher::HasherError),
 
@@ -108,6 +120,10 @@ impl From<CTokenError> for u32 {
             CTokenError::CompressedTokenAccountTlvUnimplemented => 18021,
             CTokenError::InputAccountsLamportsLengthMismatch => 18022,
             CTokenError::OutputAccountsLamportsLengthMismatch => 18023,
+            CTokenError::InstructionDataExpectedMintAuthority => 18024,
+            CTokenError::ZeroCopyExpectedMintAuthority => 18025,
+            CTokenError::InstructionDataExpectedFreezeAuthority => 18026,
+            CTokenError::ZeroCopyExpectedFreezeAuthority => 18027,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

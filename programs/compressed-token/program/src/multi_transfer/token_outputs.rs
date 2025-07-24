@@ -47,7 +47,11 @@ pub fn set_output_compressed_accounts(
         } else {
             None
         };
-
+        let output_lamports = if output_lamports > 0 {
+            Some(output_lamports)
+        } else {
+            None
+        };
         set_output_compressed_account(
             cpi_instruction_struct
                 .output_compressed_accounts
@@ -57,11 +61,7 @@ pub fn set_output_compressed_accounts(
             owner_pubkey.into(),
             delegate_pubkey.map(|d| d.into()),
             output_data.amount,
-            if output_lamports > 0 {
-                Some(output_lamports)
-            } else {
-                None
-            },
+            output_lamports,
             mint_account.key().into(),
             &hashed_mint,
             output_data.merkle_tree,
