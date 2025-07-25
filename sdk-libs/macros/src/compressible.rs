@@ -215,7 +215,7 @@ pub(crate) fn add_compressible_instructions(
     // Generate the decompress_multiple_pdas accounts struct
     let decompress_accounts: ItemStruct = syn::parse_quote! {
         #[derive(Accounts)]
-        pub struct DecompressMultiplePdas<'info> {
+        pub struct DecompressMultipleAccountsIdempotent<'info> {
             #[account(mut)]
             pub fee_payer: Signer<'info>,
             #[account(mut)]
@@ -239,7 +239,7 @@ pub(crate) fn add_compressible_instructions(
     let decompress_instruction: ItemFn = syn::parse_quote! {
         /// Decompresses multiple compressed PDAs of any supported account type in a single transaction
         pub fn decompress_multiple_pdas<'info>(
-            ctx: Context<'_, '_, '_, 'info, DecompressMultiplePdas<'info>>,
+            ctx: Context<'_, '_, '_, 'info, DecompressMultipleAccountsIdempotent<'info>>,
             proof: light_sdk::instruction::ValidityProof,
             compressed_accounts: Vec<CompressedAccountData>,
             bumps: Vec<u8>,

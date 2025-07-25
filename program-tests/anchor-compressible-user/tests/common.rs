@@ -1,11 +1,11 @@
 #![allow(unused)]
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_client::compressible::{CompressibleConfig, CompressibleInstruction};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     Rpc, RpcError,
 };
-use light_sdk::compressible::{CompressibleConfig, CompressibleInstruction};
 use solana_sdk::{
     bpf_loader_upgradeable,
     instruction::Instruction,

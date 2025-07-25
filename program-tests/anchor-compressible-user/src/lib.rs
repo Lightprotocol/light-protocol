@@ -185,8 +185,8 @@ pub mod anchor_compressible_user {
     }
 
     /// Decompresses multiple compressed PDAs of any supported account type in a single transaction
-    pub fn decompress_multiple_pdas<'info>(
-        ctx: Context<'_, '_, '_, 'info, DecompressMultiplePdas<'info>>,
+    pub fn decompress_multiple_accounts_idempotent<'info>(
+        ctx: Context<'_, '_, '_, 'info, DecompressMultipleAccountsIdempotent<'info>>,
         proof: ValidityProof,
         compressed_accounts: Vec<CompressedAccountData>,
         bumps: Vec<u8>,
@@ -668,7 +668,7 @@ pub struct CompressRecord<'info> {
 }
 
 #[derive(Accounts)]
-pub struct DecompressMultiplePdas<'info> {
+pub struct DecompressMultipleAccountsIdempotent<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     #[account(mut)]

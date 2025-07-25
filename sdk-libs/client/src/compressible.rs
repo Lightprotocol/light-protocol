@@ -1,13 +1,45 @@
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-#[cfg(feature = "anchor")]
+// #[cfg(feature = "anchor")]
+// use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize, BorshSerialize};
+// #[cfg(not(feature = "anchor"))]
+// use borsh::{BorshDeserialize, BorshSerialize};
 
-use super::config::CompressibleConfig;
-use crate::instruction::{account_meta::CompressedAccountMeta, ValidityProof};
+use super::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
+use light_sdk::{
+    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
+};
+
+pub use light_sdk::compressible::config::CompressibleConfig;
+use light_sdk::instruction::ValidityProof;
+
+/// Generic compressed account data structure for decompress operations
+/// This is generic over the account variant type, allowing programs to use their specific enums
+///
+/// # Type Parameters
+/// * `T` - The program-specific compressed account variant enum (e.g., CompressedAccountVariant)
+///
+/// # Fields
+/// * `meta` - The compressed account metadata containing tree info, address, and output index
+/// * `data` - The program-specific account variant enum
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct CompressedAccountData<T> {
+    pub meta: CompressedAccountMeta,
+    /// Program-specific account variant enum
+    pub data: T,
+}
+
+/// Instruction data structure for decompress_multiple_accounts_idempotent
+/// This matches the exact format expected by Anchor programs
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct DecompressMultipleAccountsIdempotentData<T> {
+    pub proof: ValidityProof,
+    pub compressed_accounts: Vec<CompressedAccountData<T>>,
+    pub bumps: Vec<u8>,
+    pub system_accounts_offset: u8,
+}
 
 /// Instruction builders for compressible accounts, following Solana SDK patterns
 /// These are generic builders that work with any program implementing the compressible pattern
@@ -19,6 +51,11 @@ impl CompressibleInstruction {
 
     pub const UPDATE_COMPRESSION_CONFIG_DISCRIMINATOR: [u8; 8] =
         [135, 215, 243, 81, 163, 146, 33, 70];
+
+    /// Hardcoded discriminator for the standardized decompress_multiple_accounts_idempotent instruction
+    /// This is calculated as SHA256("global:decompress_multiple_accounts_idempotent")[..8] (Anchor format)
+    pub const DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR: [u8; 8] =
+        [226, 55, 236, 26, 73, 174, 225, 131];
 
     /// Creates an initialize_compression_config instruction
     ///
@@ -176,6 +213,121 @@ impl CompressibleInstruction {
             data,
         }
     }
+
+    /// Build a `decompress_multiple_accounts_idempotent` instruction for any program's compressed account variant.
+    ///
+    /// - `T`: program-specific compressed account enum.
+    /// - `program_id`: target program.
+    /// - `fee_payer`, `rent_payer`: signers.
+    /// - `pda_accounts`: PDAs to decompress into.
+    /// - `compressed_accounts`: (meta, variant) pairs.
+    /// - `bumps`: PDA bump seeds.
+    /// - `proof`: validity proof.
+    /// - `output_state_tree_info`: output state tree info.
+    ///
+    /// Returns `Ok(Instruction)` or error.
+    pub fn decompress_multiple_accounts_idempotent<T>(
+        program_id: &Pubkey,
+        fee_payer: &Pubkey,
+        rent_payer: &Pubkey,
+        pda_accounts: &[Pubkey],
+        compressed_accounts: &[(CompressedAccount, T)],
+        bumps: &[u8],
+        validity_proof_with_context: ValidityProofWithContext,
+        output_state_tree_info: TreeInfo,
+    ) -> Result<Instruction, Box<dyn std::error::Error>>
+    where
+        T: BorshSerialize + Clone + std::fmt::Debug,
+    {
+        // Setup remaining accounts to get tree infos
+        let mut remaining_accounts = PackedAccounts::default();
+        let system_config = SystemAccountMetaConfig::new(*program_id);
+        remaining_accounts.add_system_accounts(system_config);
+
+        for pda in pda_accounts {
+            remaining_accounts.add_pre_accounts_meta(AccountMeta::new(*pda, false));
+        }
+
+        let packed_tree_infos =
+            validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
+
+        // get output state tree index
+        let output_state_tree_index =
+            remaining_accounts.insert_or_get(output_state_tree_info.queue);
+
+        // Validation
+        if pda_accounts.len() != compressed_accounts.len() {
+            return Err("PDA accounts and compressed accounts must have the same length".into());
+        }
+        if pda_accounts.len() != bumps.len() {
+            return Err("PDA accounts and bumps must have the same length".into());
+        }
+
+        // Build instruction accounts
+        let mut accounts = vec![
+            AccountMeta::new(*fee_payer, true),  // fee_payer
+            AccountMeta::new(*rent_payer, true), // rent_payer
+            AccountMeta::new_readonly(
+                solana_pubkey::pubkey!("11111111111111111111111111111111"),
+                false,
+            ), // system_program
+        ];
+
+
+        // Add Light Protocol system accounts (already packed by caller)
+        let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+        accounts.extend(system_accounts);
+
+        // Convert to typed compressed account data
+        let typed_compressed_accounts: Vec<CompressedAccountData<T>> = compressed_accounts
+            .iter()
+            .map(|(compressed_account, data)| {
+                // Find the tree info index for this compressed account's queue
+                let queue_index =
+                    remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+            
+                    let compressed_meta = CompressedAccountMeta {
+                    // TODO: Find cleaner way to do this.   
+                    tree_info: packed_tree_infos
+                        .state_trees
+                        .as_ref()
+                        .unwrap()
+                        .packed_tree_infos
+                        .iter()
+                        .find(|pti| {
+                            pti.queue_pubkey_index == queue_index
+                                && pti.leaf_index == compressed_account.leaf_index
+                        })
+                        .copied()
+                        .ok_or("Matching PackedStateTreeInfo (queue_pubkey_index + leaf_index) not found")?,
+                    address: compressed_account.address.unwrap_or([0u8; 32]),
+                    output_state_tree_index,
+                };
+                Ok(CompressedAccountData {
+                    meta: compressed_meta,
+                    data: data.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+
+        // Build instruction data
+        let instruction_data = DecompressMultipleAccountsIdempotentData {
+            proof: validity_proof_with_context.proof,
+            compressed_accounts: typed_compressed_accounts,
+            bumps: bumps.to_vec(),
+            system_accounts_offset: pda_accounts.len() as u8,
+        };
+
+        // Serialize instruction data with discriminator
+        let mut data = Self::DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR.to_vec();
+        data.extend(instruction_data.try_to_vec()?);
+
+        Ok(Instruction {
+            program_id: *program_id,
+            accounts,
+            data,
+        })
+    }
 }
 
 /// Generic instruction data for initialize config
@@ -205,5 +357,6 @@ pub struct GenericCompressAccountInstruction {
     pub compressed_account_meta: CompressedAccountMeta,
 }
 
+/// Generic instruction data for decompress multiple PDAs
 // Re-export for easy access following Solana SDK patterns
 pub use CompressibleInstruction as compressible_instruction;

@@ -76,6 +76,7 @@
 //! }
 //! ```
 
+pub mod compressible;
 pub mod constants;
 pub mod fee;
 pub mod indexer;

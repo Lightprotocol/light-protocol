@@ -3364,6 +3364,7 @@ dependencies = [
 name = "light-client"
 version = "0.13.1"
 dependencies = [
+ "anchor-lang",
  "async-trait",
  "base64 0.13.1",
  "borsh 0.10.4",

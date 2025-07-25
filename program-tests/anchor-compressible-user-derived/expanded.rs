@@ -11,75 +11,19 @@ use light_sdk::{
 use light_sdk_macros::add_compressible_instructions;
 use light_sdk_types::CpiSigner;
 /// The static program ID
-pub static ID: anchor_lang::solana_program::pubkey::Pubkey = anchor_lang::solana_program::pubkey::Pubkey::new_from_array([
-    3u8,
-    6u8,
-    70u8,
-    102u8,
-    100u8,
-    207u8,
-    39u8,
-    187u8,
-    147u8,
-    127u8,
-    107u8,
-    167u8,
-    33u8,
-    157u8,
-    122u8,
-    92u8,
-    62u8,
-    164u8,
-    241u8,
-    111u8,
-    239u8,
-    68u8,
-    0u8,
-    202u8,
-    98u8,
-    33u8,
-    4u8,
-    120u8,
-    0u8,
-    0u8,
-    0u8,
-    0u8,
-]);
+pub static ID: anchor_lang::solana_program::pubkey::Pubkey =
+    anchor_lang::solana_program::pubkey::Pubkey::new_from_array([
+        3u8, 6u8, 70u8, 102u8, 100u8, 207u8, 39u8, 187u8, 147u8, 127u8, 107u8, 167u8, 33u8, 157u8,
+        122u8, 92u8, 62u8, 164u8, 241u8, 111u8, 239u8, 68u8, 0u8, 202u8, 98u8, 33u8, 4u8, 120u8,
+        0u8, 0u8, 0u8, 0u8,
+    ]);
 /// Const version of `ID`
-pub const ID_CONST: anchor_lang::solana_program::pubkey::Pubkey = anchor_lang::solana_program::pubkey::Pubkey::new_from_array([
-    3u8,
-    6u8,
-    70u8,
-    102u8,
-    100u8,
-    207u8,
-    39u8,
-    187u8,
-    147u8,
-    127u8,
-    107u8,
-    167u8,
-    33u8,
-    157u8,
-    122u8,
-    92u8,
-    62u8,
-    164u8,
-    241u8,
-    111u8,
-    239u8,
-    68u8,
-    0u8,
-    202u8,
-    98u8,
-    33u8,
-    4u8,
-    120u8,
-    0u8,
-    0u8,
-    0u8,
-    0u8,
-]);
+pub const ID_CONST: anchor_lang::solana_program::pubkey::Pubkey =
+    anchor_lang::solana_program::pubkey::Pubkey::new_from_array([
+        3u8, 6u8, 70u8, 102u8, 100u8, 207u8, 39u8, 187u8, 147u8, 127u8, 107u8, 167u8, 33u8, 157u8,
+        122u8, 92u8, 62u8, 164u8, 241u8, 111u8, 239u8, 68u8, 0u8, 202u8, 98u8, 33u8, 4u8, 120u8,
+        0u8, 0u8, 0u8, 0u8,
+    ]);
 /// Confirms that a given pubkey is equivalent to the program ID
 pub fn check_id(id: &anchor_lang::solana_program::pubkey::Pubkey) -> bool {
     id == &ID
@@ -95,72 +39,12 @@ pub const fn id_const() -> anchor_lang::solana_program::pubkey::Pubkey {
 pub const LIGHT_CPI_SIGNER: CpiSigner = {
     ::light_sdk_types::CpiSigner {
         program_id: [
-            229,
-            27,
-            189,
-            177,
-            59,
-            219,
-            216,
-            77,
-            57,
-            234,
-            132,
-            178,
-            253,
-            183,
-            68,
-            203,
-            122,
-            149,
-            156,
-            116,
-            234,
-            189,
-            90,
-            28,
-            138,
-            204,
-            148,
-            223,
-            113,
-            189,
-            253,
-            126,
+            229, 27, 189, 177, 59, 219, 216, 77, 57, 234, 132, 178, 253, 183, 68, 203, 122, 149,
+            156, 116, 234, 189, 90, 28, 138, 204, 148, 223, 113, 189, 253, 126,
         ],
         cpi_signer: [
-            149,
-            132,
-            159,
-            193,
-            10,
-            184,
-            134,
-            173,
-            175,
-            180,
-            232,
-            110,
-            145,
-            4,
-            235,
-            205,
-            133,
-            172,
-            125,
-            46,
-            47,
-            215,
-            196,
-            60,
-            67,
-            148,
-            248,
-            69,
-            200,
-            71,
-            227,
-            250,
+            149, 132, 159, 193, 10, 184, 134, 173, 175, 180, 232, 110, 145, 4, 235, 205, 133, 172,
+            125, 46, 47, 215, 196, 60, 67, 148, 248, 69, 200, 71, 227, 250,
         ],
         bump: 255u8,
     }
@@ -169,9 +53,8 @@ use self::anchor_compressible_user_derived::*;
 /// # Safety
 #[no_mangle]
 pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
-    let (program_id, accounts, instruction_data) = unsafe {
-        ::solana_program_entrypoint::deserialize(input)
-    };
+    let (program_id, accounts, instruction_data) =
+        unsafe { ::solana_program_entrypoint::deserialize(input) };
     match entry(program_id, &accounts, instruction_data) {
         Ok(()) => ::solana_program_entrypoint::SUCCESS,
         Err(error) => error.into(),
@@ -211,11 +94,10 @@ pub fn entry<'info>(
     accounts: &'info [AccountInfo<'info>],
     data: &[u8],
 ) -> anchor_lang::solana_program::entrypoint::ProgramResult {
-    try_entry(program_id, accounts, data)
-        .map_err(|e| {
-            e.log();
-            e.into()
-        })
+    try_entry(program_id, accounts, data).map_err(|e| {
+        e.log();
+        e.into()
+    })
 }
 fn try_entry<'info>(
     program_id: &Pubkey,
@@ -274,11 +156,11 @@ fn dispatch<'info>(
             &data[instruction::UpdateCompressionConfig::DISCRIMINATOR.len()..],
         );
     }
-    if data.starts_with(instruction::DecompressMultiplePdas::DISCRIMINATOR) {
+    if data.starts_with(instruction::DecompressMultipleAccountsIdempotent::DISCRIMINATOR) {
         return __private::__global::decompress_multiple_pdas(
             program_id,
             accounts,
-            &data[instruction::DecompressMultiplePdas::DISCRIMINATOR.len()..],
+            &data[instruction::DecompressMultipleAccountsIdempotent::DISCRIMINATOR.len()..],
         );
     }
     if data.starts_with(instruction::CompressUserRecord::DISCRIMINATOR) {
@@ -326,9 +208,7 @@ mod __private {
             let mut accounts = accounts;
             let mut data: &[u8] = idl_ix_data;
             let ix = anchor_lang::idl::IdlInstruction::deserialize(&mut data)
-                .map_err(|_| {
-                    anchor_lang::error::ErrorCode::InstructionDidNotDeserialize
-                })?;
+                .map_err(|_| anchor_lang::error::ErrorCode::InstructionDidNotDeserialize)?;
             match ix {
                 anchor_lang::idl::IdlInstruction::Create { data_len } => {
                     let mut bumps = <IdlCreateAccounts as anchor_lang::Bumps>::Bumps::default();
@@ -466,42 +346,33 @@ mod __private {
                     repr: None,
                     generics: ::alloc::vec::Vec::new(),
                     ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                        fields: Some(
-                            anchor_lang::idl::types::IdlDefinedFields::Named(
-                                <[_]>::into_vec(
-                                    ::alloc::boxed::box_new([
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "authority".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "data_len".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::U32,
-                                        },
-                                    ]),
-                                ),
-                            ),
-                        ),
+                        fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(::alloc::boxed::box_new([
+                                anchor_lang::idl::types::IdlField {
+                                    name: "authority".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "data_len".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::U32,
+                                },
+                            ])),
+                        )),
                     },
                 })
             }
             fn insert_types(
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
-            ) {}
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+            ) {
+            }
             fn get_full_path() -> String {
                 ::alloc::__export::must_use({
-                    let res = ::alloc::fmt::format(
-                        format_args!(
-                            "{0}::{1}",
-                            "anchor_compressible_user_derived::__private::__idl",
-                            "IdlAccount",
-                        ),
-                    );
+                    let res = ::alloc::fmt::format(format_args!(
+                        "{0}::{1}",
+                        "anchor_compressible_user_derived::__private::__idl", "IdlAccount",
+                    ));
                     res
                 })
             }
@@ -532,19 +403,12 @@ mod __private {
         }
         #[automatically_derived]
         impl anchor_lang::AccountSerialize for IdlAccount {
-            fn try_serialize<W: std::io::Write>(
-                &self,
-                writer: &mut W,
-            ) -> anchor_lang::Result<()> {
+            fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
                 if writer.write_all(IdlAccount::DISCRIMINATOR).is_err() {
-                    return Err(
-                        anchor_lang::error::ErrorCode::AccountDidNotSerialize.into(),
-                    );
+                    return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
                 }
                 if AnchorSerialize::serialize(self, writer).is_err() {
-                    return Err(
-                        anchor_lang::error::ErrorCode::AccountDidNotSerialize.into(),
-                    );
+                    return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
                 }
                 Ok(())
             }
@@ -553,30 +417,28 @@ mod __private {
         impl anchor_lang::AccountDeserialize for IdlAccount {
             fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
                 if buf.len() < IdlAccount::DISCRIMINATOR.len() {
-                    return Err(
-                        anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound
-                            .into(),
-                    );
+                    return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
                 }
                 let given_disc = &buf[..IdlAccount::DISCRIMINATOR.len()];
                 if IdlAccount::DISCRIMINATOR != given_disc {
                     return Err(
                         anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
-                                error_name: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                                    .name(),
-                                error_code_number: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                                    .into(),
-                                error_msg: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                                    .to_string(),
-                                error_origin: Some(
-                                    anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
-                                        filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                        line: 15u32,
-                                    }),
-                                ),
-                                compared_values: None,
-                            })
-                            .with_account_name("IdlAccount"),
+                            error_name: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
+                                .name(),
+                            error_code_number:
+                                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+                            error_msg: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
+                                .to_string(),
+                            error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                                anchor_lang::error::Source {
+                                    filename:
+                                        "program-tests/anchor-compressible-user-derived/src/lib.rs",
+                                    line: 15u32,
+                                },
+                            )),
+                            compared_values: None,
+                        })
+                        .with_account_name("IdlAccount"),
                     );
                 }
                 Self::try_deserialize_unchecked(buf)
@@ -584,9 +446,7 @@ mod __private {
             fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
                 let mut data: &[u8] = &buf[IdlAccount::DISCRIMINATOR.len()..];
                 AnchorDeserialize::deserialize(&mut data)
-                    .map_err(|_| {
-                        anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into()
-                    })
+                    .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into())
             }
         }
         #[automatically_derived]
@@ -620,8 +480,7 @@ mod __private {
             pub program: AccountInfo<'info>,
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::Accounts<'info, IdlCreateAccountsBumps>
-        for IdlCreateAccounts<'info>
+        impl<'info> anchor_lang::Accounts<'info, IdlCreateAccountsBumps> for IdlCreateAccounts<'info>
         where
             'info: 'info,
         {
@@ -638,30 +497,31 @@ mod __private {
                 >,
             ) -> anchor_lang::Result<Self> {
                 let from: AccountInfo = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("from"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("from"))?;
                 let to: AccountInfo = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("to"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("to"))?;
                 let base: AccountInfo = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("base"))?;
-                let system_program: anchor_lang::accounts::program::Program<System> = anchor_lang::Accounts::try_accounts(
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("base"))?;
+                let system_program: anchor_lang::accounts::program::Program<System> =
+                    anchor_lang::Accounts::try_accounts(
                         __program_id,
                         __accounts,
                         __ix_data,
@@ -670,50 +530,39 @@ mod __private {
                     )
                     .map_err(|e| e.with_account_name("system_program"))?;
                 let program: AccountInfo = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("program"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("program"))?;
                 if !&from.is_signer {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintSigner,
-                            )
-                            .with_account_name("from"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintSigner,
+                    )
+                    .with_account_name("from"));
                 }
                 if !&to.is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("to"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("to"));
                 }
-                let (__pda_address, __bump) = Pubkey::find_program_address(
-                    &[],
-                    &__program_id,
-                );
+                let (__pda_address, __bump) = Pubkey::find_program_address(&[], &__program_id);
                 __bumps.base = __bump;
                 if base.key() != __pda_address {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintSeeds,
-                            )
-                            .with_account_name("base")
-                            .with_pubkeys((base.key(), __pda_address)),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintSeeds,
+                    )
+                    .with_account_name("base")
+                    .with_pubkeys((base.key(), __pda_address)));
                 }
                 if !&program.executable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintExecutable,
-                            )
-                            .with_account_name("program"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintExecutable,
+                    )
+                    .with_account_name("program"));
                 }
                 Ok(IdlCreateAccounts {
                     from,
@@ -787,9 +636,7 @@ mod __private {
         }
         impl Default for IdlCreateAccountsBumps {
             fn default() -> Self {
-                IdlCreateAccountsBumps {
-                    base: u8::MAX,
-                }
+                IdlCreateAccountsBumps { base: u8::MAX }
             }
         }
         impl<'info> anchor_lang::Bumps for IdlCreateAccounts<'info>
@@ -842,49 +689,42 @@ mod __private {
                 fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                     Some(anchor_lang::idl::types::IdlTypeDef {
                         name: Self::get_full_path(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Generated client accounts for [`IdlCreateAccounts`]."
-                                    .into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Generated client accounts for [`IdlCreateAccounts`].".into(),
+                        ])),
                         serialization: anchor_lang::idl::types::IdlSerialization::default(),
                         repr: None,
                         generics: ::alloc::vec::Vec::new(),
                         ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                            fields: Some(
-                                anchor_lang::idl::types::IdlDefinedFields::Named(
-                                    <[_]>::into_vec(
-                                        ::alloc::boxed::box_new([
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "from".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "to".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "base".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "system_program".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "program".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                        ]),
-                                    ),
-                                ),
-                            ),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "from".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "to".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "base".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "system_program".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "program".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                ])),
+                            )),
                         },
                     })
                 }
@@ -893,7 +733,8 @@ mod __private {
                         String,
                         anchor_lang::idl::types::IdlTypeDef,
                     >,
-                ) {}
+                ) {
+                }
                 fn get_full_path() -> String {
                     ::alloc::__export::must_use({
                         let res = ::alloc::fmt::format(
@@ -914,41 +755,31 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.from,
-                                true,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.to,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.base,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.system_program,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.program,
-                                false,
-                            ),
-                        );
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.from, true,
+                        ),
+                    );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.to, false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.base, false,
+                        ),
+                    );
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.system_program,
+                            false,
+                        ),
+                    );
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.program,
+                            false,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -967,12 +798,8 @@ mod __private {
                 pub from: anchor_lang::solana_program::account_info::AccountInfo<'info>,
                 pub to: anchor_lang::solana_program::account_info::AccountInfo<'info>,
                 pub base: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-                pub system_program: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
-                pub program: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
+                pub system_program: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+                pub program: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             }
             #[automatically_derived]
             impl<'info> anchor_lang::ToAccountMetas for IdlCreateAccounts<'info> {
@@ -981,41 +808,34 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.from),
-                                true,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.to),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.base),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.system_program),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.program),
-                                false,
-                            ),
-                        );
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.from),
+                            true,
+                        ),
+                    );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.to),
+                        false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.base),
+                            false,
+                        ),
+                    );
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.system_program),
+                            false,
+                        ),
+                    );
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.program),
+                            false,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -1023,28 +843,17 @@ mod __private {
             impl<'info> anchor_lang::ToAccountInfos<'info> for IdlCreateAccounts<'info> {
                 fn to_account_infos(
                     &self,
-                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>>
+                {
                     let mut account_infos = ::alloc::vec::Vec::new();
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.from));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.to));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.base));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.system_program,
+                    ));
                     account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.from),
-                        );
-                    account_infos
-                        .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.to));
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.base),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.system_program,
-                            ),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.program),
-                        );
+                        .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.program));
                     account_infos
                 }
             }
@@ -1055,14 +864,11 @@ mod __private {
                     String,
                     anchor_lang::idl::types::IdlAccount,
                 >,
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
             ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
-                <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                <[_]>::into_vec(::alloc::boxed::box_new([
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "from".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -1071,8 +877,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "to".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -1081,8 +889,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "base".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -1091,8 +901,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "system_program".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -1101,8 +913,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "program".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -1111,9 +925,9 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                    ]),
-                )
+                        },
+                    ),
+                ]))
             }
         }
         pub struct IdlAccounts<'info> {
@@ -1139,7 +953,8 @@ mod __private {
                     anchor_lang::solana_program::pubkey::Pubkey,
                 >,
             ) -> anchor_lang::Result<Self> {
-                let idl: anchor_lang::accounts::account::Account<IdlAccount> = anchor_lang::Accounts::try_accounts(
+                let idl: anchor_lang::accounts::account::Account<IdlAccount> =
+                    anchor_lang::Accounts::try_accounts(
                         __program_id,
                         __accounts,
                         __ix_data,
@@ -1148,41 +963,35 @@ mod __private {
                     )
                     .map_err(|e| e.with_account_name("idl"))?;
                 let authority: Signer = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("authority"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("authority"))?;
                 if !AsRef::<AccountInfo>::as_ref(&idl).is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("idl"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("idl"));
                 }
                 {
                     let my_key = idl.authority;
                     let target_key = authority.key();
                     if my_key != target_key {
-                        return Err(
-                            anchor_lang::error::Error::from(
-                                    anchor_lang::error::ErrorCode::ConstraintHasOne,
-                                )
-                                .with_account_name("idl")
-                                .with_pubkeys((my_key, target_key)),
-                        );
+                        return Err(anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintHasOne,
+                        )
+                        .with_account_name("idl")
+                        .with_pubkeys((my_key, target_key)));
                     }
                 }
                 if !(authority.key != &ERASED_AUTHORITY) {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintRaw,
-                            )
-                            .with_account_name("authority"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintRaw,
+                    )
+                    .with_account_name("authority"));
                 }
                 Ok(IdlAccounts { idl, authority })
             }
@@ -1281,33 +1090,27 @@ mod __private {
                 fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                     Some(anchor_lang::idl::types::IdlTypeDef {
                         name: Self::get_full_path(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Generated client accounts for [`IdlAccounts`].".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Generated client accounts for [`IdlAccounts`].".into(),
+                        ])),
                         serialization: anchor_lang::idl::types::IdlSerialization::default(),
                         repr: None,
                         generics: ::alloc::vec::Vec::new(),
                         ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                            fields: Some(
-                                anchor_lang::idl::types::IdlDefinedFields::Named(
-                                    <[_]>::into_vec(
-                                        ::alloc::boxed::box_new([
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "idl".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "authority".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                        ]),
-                                    ),
-                                ),
-                            ),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "idl".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "authority".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                ])),
+                            )),
                         },
                     })
                 }
@@ -1316,7 +1119,8 @@ mod __private {
                         String,
                         anchor_lang::idl::types::IdlTypeDef,
                     >,
-                ) {}
+                ) {
+                }
                 fn get_full_path() -> String {
                     ::alloc::__export::must_use({
                         let res = ::alloc::fmt::format(
@@ -1337,20 +1141,15 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.idl,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.authority,
-                                true,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.idl, false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.authority,
+                            true,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -1367,9 +1166,7 @@ mod __private {
             /// Generated CPI struct of the accounts for [`IdlAccounts`].
             pub struct IdlAccounts<'info> {
                 pub idl: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-                pub authority: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
+                pub authority: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             }
             #[automatically_derived]
             impl<'info> anchor_lang::ToAccountMetas for IdlAccounts<'info> {
@@ -1378,20 +1175,16 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.idl),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.authority),
-                                true,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.idl),
+                        false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.authority),
+                            true,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -1399,18 +1192,13 @@ mod __private {
             impl<'info> anchor_lang::ToAccountInfos<'info> for IdlAccounts<'info> {
                 fn to_account_infos(
                     &self,
-                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>>
+                {
                     let mut account_infos = ::alloc::vec::Vec::new();
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.idl),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.authority,
-                            ),
-                        );
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.idl));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.authority,
+                    ));
                     account_infos
                 }
             }
@@ -1421,10 +1209,7 @@ mod __private {
                     String,
                     anchor_lang::idl::types::IdlAccount,
                 >,
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
             ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
                 if let Some(ty) = <IdlAccount>::create_type() {
                     let account = anchor_lang::idl::types::IdlAccount {
@@ -1435,9 +1220,9 @@ mod __private {
                     types.insert(ty.name.clone(), ty);
                     <IdlAccount>::insert_types(types);
                 }
-                <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                <[_]>::into_vec(::alloc::boxed::box_new([
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "idl".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -1446,8 +1231,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "authority".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -1456,9 +1243,9 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                    ]),
-                )
+                        },
+                    ),
+                ]))
             }
         }
         pub struct IdlResizeAccount<'info> {
@@ -1469,8 +1256,7 @@ mod __private {
             pub system_program: Program<'info, System>,
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::Accounts<'info, IdlResizeAccountBumps>
-        for IdlResizeAccount<'info>
+        impl<'info> anchor_lang::Accounts<'info, IdlResizeAccountBumps> for IdlResizeAccount<'info>
         where
             'info: 'info,
         {
@@ -1486,7 +1272,8 @@ mod __private {
                     anchor_lang::solana_program::pubkey::Pubkey,
                 >,
             ) -> anchor_lang::Result<Self> {
-                let idl: anchor_lang::accounts::account::Account<IdlAccount> = anchor_lang::Accounts::try_accounts(
+                let idl: anchor_lang::accounts::account::Account<IdlAccount> =
+                    anchor_lang::Accounts::try_accounts(
                         __program_id,
                         __accounts,
                         __ix_data,
@@ -1495,14 +1282,15 @@ mod __private {
                     )
                     .map_err(|e| e.with_account_name("idl"))?;
                 let authority: Signer = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("authority"))?;
-                let system_program: anchor_lang::accounts::program::Program<System> = anchor_lang::Accounts::try_accounts(
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("authority"))?;
+                let system_program: anchor_lang::accounts::program::Program<System> =
+                    anchor_lang::Accounts::try_accounts(
                         __program_id,
                         __accounts,
                         __ix_data,
@@ -1511,41 +1299,33 @@ mod __private {
                     )
                     .map_err(|e| e.with_account_name("system_program"))?;
                 if !AsRef::<AccountInfo>::as_ref(&idl).is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("idl"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("idl"));
                 }
                 {
                     let my_key = idl.authority;
                     let target_key = authority.key();
                     if my_key != target_key {
-                        return Err(
-                            anchor_lang::error::Error::from(
-                                    anchor_lang::error::ErrorCode::ConstraintHasOne,
-                                )
-                                .with_account_name("idl")
-                                .with_pubkeys((my_key, target_key)),
-                        );
+                        return Err(anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintHasOne,
+                        )
+                        .with_account_name("idl")
+                        .with_pubkeys((my_key, target_key)));
                     }
                 }
                 if !AsRef::<AccountInfo>::as_ref(&authority).is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("authority"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("authority"));
                 }
                 if !(authority.key != &ERASED_AUTHORITY) {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintRaw,
-                            )
-                            .with_account_name("authority"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintRaw,
+                    )
+                    .with_account_name("authority"));
                 }
                 Ok(IdlResizeAccount {
                     idl,
@@ -1655,38 +1435,32 @@ mod __private {
                 fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                     Some(anchor_lang::idl::types::IdlTypeDef {
                         name: Self::get_full_path(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Generated client accounts for [`IdlResizeAccount`].".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Generated client accounts for [`IdlResizeAccount`].".into(),
+                        ])),
                         serialization: anchor_lang::idl::types::IdlSerialization::default(),
                         repr: None,
                         generics: ::alloc::vec::Vec::new(),
                         ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                            fields: Some(
-                                anchor_lang::idl::types::IdlDefinedFields::Named(
-                                    <[_]>::into_vec(
-                                        ::alloc::boxed::box_new([
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "idl".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "authority".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "system_program".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                        ]),
-                                    ),
-                                ),
-                            ),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "idl".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "authority".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "system_program".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                ])),
+                            )),
                         },
                     })
                 }
@@ -1695,7 +1469,8 @@ mod __private {
                         String,
                         anchor_lang::idl::types::IdlTypeDef,
                     >,
-                ) {}
+                ) {
+                }
                 fn get_full_path() -> String {
                     ::alloc::__export::must_use({
                         let res = ::alloc::fmt::format(
@@ -1716,27 +1491,19 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.idl,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.authority,
-                                true,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.system_program,
-                                false,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.idl, false,
+                    ));
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.authority,
+                        true,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.system_program,
+                            false,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -1753,12 +1520,8 @@ mod __private {
             /// Generated CPI struct of the accounts for [`IdlResizeAccount`].
             pub struct IdlResizeAccount<'info> {
                 pub idl: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-                pub authority: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
-                pub system_program: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
+                pub authority: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+                pub system_program: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             }
             #[automatically_derived]
             impl<'info> anchor_lang::ToAccountMetas for IdlResizeAccount<'info> {
@@ -1767,27 +1530,20 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.idl),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.authority),
-                                true,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.system_program),
-                                false,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.idl),
+                        false,
+                    ));
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.authority),
+                        true,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.system_program),
+                            false,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -1795,24 +1551,16 @@ mod __private {
             impl<'info> anchor_lang::ToAccountInfos<'info> for IdlResizeAccount<'info> {
                 fn to_account_infos(
                     &self,
-                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>>
+                {
                     let mut account_infos = ::alloc::vec::Vec::new();
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.idl),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.authority,
-                            ),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.system_program,
-                            ),
-                        );
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.idl));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.authority,
+                    ));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.system_program,
+                    ));
                     account_infos
                 }
             }
@@ -1823,10 +1571,7 @@ mod __private {
                     String,
                     anchor_lang::idl::types::IdlAccount,
                 >,
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
             ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
                 if let Some(ty) = <IdlAccount>::create_type() {
                     let account = anchor_lang::idl::types::IdlAccount {
@@ -1837,9 +1582,9 @@ mod __private {
                     types.insert(ty.name.clone(), ty);
                     <IdlAccount>::insert_types(types);
                 }
-                <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                <[_]>::into_vec(::alloc::boxed::box_new([
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "idl".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -1848,8 +1593,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "authority".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -1858,8 +1605,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "system_program".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -1868,9 +1617,9 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                    ]),
-                )
+                        },
+                    ),
+                ]))
             }
         }
         pub struct IdlCreateBuffer<'info> {
@@ -1880,8 +1629,7 @@ mod __private {
             pub authority: Signer<'info>,
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::Accounts<'info, IdlCreateBufferBumps>
-        for IdlCreateBuffer<'info>
+        impl<'info> anchor_lang::Accounts<'info, IdlCreateBufferBumps> for IdlCreateBuffer<'info>
         where
             'info: 'info,
         {
@@ -1898,73 +1646,56 @@ mod __private {
                 >,
             ) -> anchor_lang::Result<Self> {
                 if __accounts.is_empty() {
-                    return Err(
-                        anchor_lang::error::ErrorCode::AccountNotEnoughKeys.into(),
-                    );
+                    return Err(anchor_lang::error::ErrorCode::AccountNotEnoughKeys.into());
                 }
                 let buffer = &__accounts[0];
                 *__accounts = &__accounts[1..];
                 let authority: Signer = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("authority"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("authority"))?;
                 let __anchor_rent = Rent::get()?;
                 let buffer: anchor_lang::accounts::account::Account<IdlAccount> = {
                     let mut __data: &[u8] = &buffer.try_borrow_data()?;
                     let __disc = &__data[..IdlAccount::DISCRIMINATOR.len()];
                     let __has_disc = __disc.iter().any(|b| *b != 0);
                     if __has_disc {
-                        return Err(
-                            anchor_lang::error::Error::from(
-                                    anchor_lang::error::ErrorCode::ConstraintZero,
-                                )
-                                .with_account_name("buffer"),
-                        );
+                        return Err(anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintZero,
+                        )
+                        .with_account_name("buffer"));
                     }
-                    match anchor_lang::accounts::account::Account::try_from_unchecked(
-                        &buffer,
-                    ) {
+                    match anchor_lang::accounts::account::Account::try_from_unchecked(&buffer) {
                         Ok(val) => val,
                         Err(e) => return Err(e.with_account_name("buffer")),
                     }
                 };
                 if !AsRef::<AccountInfo>::as_ref(&buffer).is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("buffer"),
-                    );
-                }
-                if !__anchor_rent
-                    .is_exempt(
-                        buffer.to_account_info().lamports(),
-                        buffer.to_account_info().try_data_len()?,
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
                     )
-                {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintRentExempt,
-                            )
-                            .with_account_name("buffer"),
-                    );
+                    .with_account_name("buffer"));
+                }
+                if !__anchor_rent.is_exempt(
+                    buffer.to_account_info().lamports(),
+                    buffer.to_account_info().try_data_len()?,
+                ) {
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintRentExempt,
+                    )
+                    .with_account_name("buffer"));
                 }
                 if !(authority.key != &ERASED_AUTHORITY) {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintRaw,
-                            )
-                            .with_account_name("authority"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintRaw,
+                    )
+                    .with_account_name("authority"));
                 }
-                Ok(IdlCreateBuffer {
-                    buffer,
-                    authority,
-                })
+                Ok(IdlCreateBuffer { buffer, authority })
             }
         }
         #[automatically_derived]
@@ -2061,33 +1792,27 @@ mod __private {
                 fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                     Some(anchor_lang::idl::types::IdlTypeDef {
                         name: Self::get_full_path(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Generated client accounts for [`IdlCreateBuffer`].".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Generated client accounts for [`IdlCreateBuffer`].".into(),
+                        ])),
                         serialization: anchor_lang::idl::types::IdlSerialization::default(),
                         repr: None,
                         generics: ::alloc::vec::Vec::new(),
                         ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                            fields: Some(
-                                anchor_lang::idl::types::IdlDefinedFields::Named(
-                                    <[_]>::into_vec(
-                                        ::alloc::boxed::box_new([
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "buffer".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "authority".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                        ]),
-                                    ),
-                                ),
-                            ),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "buffer".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "authority".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                ])),
+                            )),
                         },
                     })
                 }
@@ -2096,7 +1821,8 @@ mod __private {
                         String,
                         anchor_lang::idl::types::IdlTypeDef,
                     >,
-                ) {}
+                ) {
+                }
                 fn get_full_path() -> String {
                     ::alloc::__export::must_use({
                         let res = ::alloc::fmt::format(
@@ -2117,20 +1843,16 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.buffer,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.authority,
-                                true,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.buffer,
+                        false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.authority,
+                            true,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -2146,12 +1868,8 @@ mod __private {
             use super::*;
             /// Generated CPI struct of the accounts for [`IdlCreateBuffer`].
             pub struct IdlCreateBuffer<'info> {
-                pub buffer: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
-                pub authority: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
+                pub buffer: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+                pub authority: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             }
             #[automatically_derived]
             impl<'info> anchor_lang::ToAccountMetas for IdlCreateBuffer<'info> {
@@ -2160,20 +1878,16 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.buffer),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.authority),
-                                true,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.buffer),
+                        false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.authority),
+                            true,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -2181,18 +1895,14 @@ mod __private {
             impl<'info> anchor_lang::ToAccountInfos<'info> for IdlCreateBuffer<'info> {
                 fn to_account_infos(
                     &self,
-                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>>
+                {
                     let mut account_infos = ::alloc::vec::Vec::new();
                     account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.buffer),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.authority,
-                            ),
-                        );
+                        .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.buffer));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.authority,
+                    ));
                     account_infos
                 }
             }
@@ -2203,10 +1913,7 @@ mod __private {
                     String,
                     anchor_lang::idl::types::IdlAccount,
                 >,
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
             ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
                 if let Some(ty) = <IdlAccount>::create_type() {
                     let account = anchor_lang::idl::types::IdlAccount {
@@ -2217,9 +1924,9 @@ mod __private {
                     types.insert(ty.name.clone(), ty);
                     <IdlAccount>::insert_types(types);
                 }
-                <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                <[_]>::into_vec(::alloc::boxed::box_new([
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "buffer".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -2228,8 +1935,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "authority".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -2238,9 +1947,9 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                    ]),
-                )
+                        },
+                    ),
+                ]))
             }
         }
         pub struct IdlSetBuffer<'info> {
@@ -2252,8 +1961,7 @@ mod __private {
             pub authority: Signer<'info>,
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::Accounts<'info, IdlSetBufferBumps>
-        for IdlSetBuffer<'info>
+        impl<'info> anchor_lang::Accounts<'info, IdlSetBufferBumps> for IdlSetBuffer<'info>
         where
             'info: 'info,
         {
@@ -2269,7 +1977,8 @@ mod __private {
                     anchor_lang::solana_program::pubkey::Pubkey,
                 >,
             ) -> anchor_lang::Result<Self> {
-                let buffer: anchor_lang::accounts::account::Account<IdlAccount> = anchor_lang::Accounts::try_accounts(
+                let buffer: anchor_lang::accounts::account::Account<IdlAccount> =
+                    anchor_lang::Accounts::try_accounts(
                         __program_id,
                         __accounts,
                         __ix_data,
@@ -2277,7 +1986,8 @@ mod __private {
                         __reallocs,
                     )
                     .map_err(|e| e.with_account_name("buffer"))?;
-                let idl: anchor_lang::accounts::account::Account<IdlAccount> = anchor_lang::Accounts::try_accounts(
+                let idl: anchor_lang::accounts::account::Account<IdlAccount> =
+                    anchor_lang::Accounts::try_accounts(
                         __program_id,
                         __accounts,
                         __ix_data,
@@ -2286,57 +1996,47 @@ mod __private {
                     )
                     .map_err(|e| e.with_account_name("idl"))?;
                 let authority: Signer = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("authority"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("authority"))?;
                 if !AsRef::<AccountInfo>::as_ref(&buffer).is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("buffer"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("buffer"));
                 }
                 if !(buffer.authority == idl.authority) {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintRaw,
-                            )
-                            .with_account_name("buffer"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintRaw,
+                    )
+                    .with_account_name("buffer"));
                 }
                 if !AsRef::<AccountInfo>::as_ref(&idl).is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("idl"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("idl"));
                 }
                 {
                     let my_key = idl.authority;
                     let target_key = authority.key();
                     if my_key != target_key {
-                        return Err(
-                            anchor_lang::error::Error::from(
-                                    anchor_lang::error::ErrorCode::ConstraintHasOne,
-                                )
-                                .with_account_name("idl")
-                                .with_pubkeys((my_key, target_key)),
-                        );
+                        return Err(anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintHasOne,
+                        )
+                        .with_account_name("idl")
+                        .with_pubkeys((my_key, target_key)));
                     }
                 }
                 if !(authority.key != &ERASED_AUTHORITY) {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintRaw,
-                            )
-                            .with_account_name("authority"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintRaw,
+                    )
+                    .with_account_name("authority"));
                 }
                 Ok(IdlSetBuffer {
                     buffer,
@@ -2446,38 +2146,32 @@ mod __private {
                 fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                     Some(anchor_lang::idl::types::IdlTypeDef {
                         name: Self::get_full_path(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Generated client accounts for [`IdlSetBuffer`].".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Generated client accounts for [`IdlSetBuffer`].".into(),
+                        ])),
                         serialization: anchor_lang::idl::types::IdlSerialization::default(),
                         repr: None,
                         generics: ::alloc::vec::Vec::new(),
                         ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                            fields: Some(
-                                anchor_lang::idl::types::IdlDefinedFields::Named(
-                                    <[_]>::into_vec(
-                                        ::alloc::boxed::box_new([
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "buffer".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "idl".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "authority".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                        ]),
-                                    ),
-                                ),
-                            ),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "buffer".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "idl".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "authority".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                ])),
+                            )),
                         },
                     })
                 }
@@ -2486,7 +2180,8 @@ mod __private {
                         String,
                         anchor_lang::idl::types::IdlTypeDef,
                     >,
-                ) {}
+                ) {
+                }
                 fn get_full_path() -> String {
                     ::alloc::__export::must_use({
                         let res = ::alloc::fmt::format(
@@ -2507,27 +2202,19 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.buffer,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.idl,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.authority,
-                                true,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.buffer,
+                        false,
+                    ));
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.idl, false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.authority,
+                            true,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -2543,13 +2230,9 @@ mod __private {
             use super::*;
             /// Generated CPI struct of the accounts for [`IdlSetBuffer`].
             pub struct IdlSetBuffer<'info> {
-                pub buffer: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
+                pub buffer: anchor_lang::solana_program::account_info::AccountInfo<'info>,
                 pub idl: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-                pub authority: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
+                pub authority: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             }
             #[automatically_derived]
             impl<'info> anchor_lang::ToAccountMetas for IdlSetBuffer<'info> {
@@ -2558,27 +2241,20 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.buffer),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.idl),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.authority),
-                                true,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.buffer),
+                        false,
+                    ));
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.idl),
+                        false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.authority),
+                            true,
+                        ),
+                    );
                     account_metas
                 }
             }
@@ -2586,22 +2262,15 @@ mod __private {
             impl<'info> anchor_lang::ToAccountInfos<'info> for IdlSetBuffer<'info> {
                 fn to_account_infos(
                     &self,
-                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>>
+                {
                     let mut account_infos = ::alloc::vec::Vec::new();
                     account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.buffer),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.idl),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.authority,
-                            ),
-                        );
+                        .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.buffer));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.idl));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.authority,
+                    ));
                     account_infos
                 }
             }
@@ -2612,10 +2281,7 @@ mod __private {
                     String,
                     anchor_lang::idl::types::IdlAccount,
                 >,
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
             ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
                 if let Some(ty) = <IdlAccount>::create_type() {
                     let account = anchor_lang::idl::types::IdlAccount {
@@ -2635,9 +2301,9 @@ mod __private {
                     types.insert(ty.name.clone(), ty);
                     <IdlAccount>::insert_types(types);
                 }
-                <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                <[_]>::into_vec(::alloc::boxed::box_new([
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "buffer".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -2646,8 +2312,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "idl".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -2656,8 +2324,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "authority".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -2666,9 +2336,9 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                    ]),
-                )
+                        },
+                    ),
+                ]))
             }
         }
         pub struct IdlCloseAccount<'info> {
@@ -2680,8 +2350,7 @@ mod __private {
             pub sol_destination: AccountInfo<'info>,
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::Accounts<'info, IdlCloseAccountBumps>
-        for IdlCloseAccount<'info>
+        impl<'info> anchor_lang::Accounts<'info, IdlCloseAccountBumps> for IdlCloseAccount<'info>
         where
             'info: 'info,
         {
@@ -2697,7 +2366,8 @@ mod __private {
                     anchor_lang::solana_program::pubkey::Pubkey,
                 >,
             ) -> anchor_lang::Result<Self> {
-                let account: anchor_lang::accounts::account::Account<IdlAccount> = anchor_lang::Accounts::try_accounts(
+                let account: anchor_lang::accounts::account::Account<IdlAccount> =
+                    anchor_lang::Accounts::try_accounts(
                         __program_id,
                         __accounts,
                         __ix_data,
@@ -2706,67 +2376,57 @@ mod __private {
                     )
                     .map_err(|e| e.with_account_name("account"))?;
                 let authority: Signer = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("authority"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("authority"))?;
                 let sol_destination: AccountInfo = anchor_lang::Accounts::try_accounts(
-                        __program_id,
-                        __accounts,
-                        __ix_data,
-                        __bumps,
-                        __reallocs,
-                    )
-                    .map_err(|e| e.with_account_name("sol_destination"))?;
+                    __program_id,
+                    __accounts,
+                    __ix_data,
+                    __bumps,
+                    __reallocs,
+                )
+                .map_err(|e| e.with_account_name("sol_destination"))?;
                 if !AsRef::<AccountInfo>::as_ref(&account).is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("account"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("account"));
                 }
                 {
                     let my_key = account.authority;
                     let target_key = authority.key();
                     if my_key != target_key {
-                        return Err(
-                            anchor_lang::error::Error::from(
-                                    anchor_lang::error::ErrorCode::ConstraintHasOne,
-                                )
-                                .with_account_name("account")
-                                .with_pubkeys((my_key, target_key)),
-                        );
+                        return Err(anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintHasOne,
+                        )
+                        .with_account_name("account")
+                        .with_pubkeys((my_key, target_key)));
                     }
                 }
                 {
                     if account.key() == sol_destination.key() {
-                        return Err(
-                            anchor_lang::error::Error::from(
-                                    anchor_lang::error::ErrorCode::ConstraintClose,
-                                )
-                                .with_account_name("account"),
-                        );
+                        return Err(anchor_lang::error::Error::from(
+                            anchor_lang::error::ErrorCode::ConstraintClose,
+                        )
+                        .with_account_name("account"));
                     }
                 }
                 if !(authority.key != &ERASED_AUTHORITY) {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintRaw,
-                            )
-                            .with_account_name("authority"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintRaw,
+                    )
+                    .with_account_name("authority"));
                 }
                 if !&sol_destination.is_writable {
-                    return Err(
-                        anchor_lang::error::Error::from(
-                                anchor_lang::error::ErrorCode::ConstraintMut,
-                            )
-                            .with_account_name("sol_destination"),
-                    );
+                    return Err(anchor_lang::error::Error::from(
+                        anchor_lang::error::ErrorCode::ConstraintMut,
+                    )
+                    .with_account_name("sol_destination"));
                 }
                 Ok(IdlCloseAccount {
                     account,
@@ -2815,10 +2475,10 @@ mod __private {
                 {
                     let sol_destination = &self.sol_destination;
                     anchor_lang::AccountsClose::close(
-                            &self.account,
-                            sol_destination.to_account_info(),
-                        )
-                        .map_err(|e| e.with_account_name("account"))?;
+                        &self.account,
+                        sol_destination.to_account_info(),
+                    )
+                    .map_err(|e| e.with_account_name("account"))?;
                 }
                 anchor_lang::AccountsExit::exit(&self.sol_destination, program_id)
                     .map_err(|e| e.with_account_name("sol_destination"))?;
@@ -2882,38 +2542,32 @@ mod __private {
                 fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                     Some(anchor_lang::idl::types::IdlTypeDef {
                         name: Self::get_full_path(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Generated client accounts for [`IdlCloseAccount`].".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Generated client accounts for [`IdlCloseAccount`].".into(),
+                        ])),
                         serialization: anchor_lang::idl::types::IdlSerialization::default(),
                         repr: None,
                         generics: ::alloc::vec::Vec::new(),
                         ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                            fields: Some(
-                                anchor_lang::idl::types::IdlDefinedFields::Named(
-                                    <[_]>::into_vec(
-                                        ::alloc::boxed::box_new([
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "account".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "authority".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                            anchor_lang::idl::types::IdlField {
-                                                name: "sol_destination".into(),
-                                                docs: ::alloc::vec::Vec::new(),
-                                                ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                            },
-                                        ]),
-                                    ),
-                                ),
-                            ),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "account".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "authority".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                    anchor_lang::idl::types::IdlField {
+                                        name: "sol_destination".into(),
+                                        docs: ::alloc::vec::Vec::new(),
+                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                    },
+                                ])),
+                            )),
                         },
                     })
                 }
@@ -2922,7 +2576,8 @@ mod __private {
                         String,
                         anchor_lang::idl::types::IdlTypeDef,
                     >,
-                ) {}
+                ) {
+                }
                 fn get_full_path() -> String {
                     ::alloc::__export::must_use({
                         let res = ::alloc::fmt::format(
@@ -2943,27 +2598,20 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.account,
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                self.authority,
-                                true,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                self.sol_destination,
-                                false,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.account,
+                        false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            self.authority,
+                            true,
+                        ),
+                    );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        self.sol_destination,
+                        false,
+                    ));
                     account_metas
                 }
             }
@@ -2979,15 +2627,9 @@ mod __private {
             use super::*;
             /// Generated CPI struct of the accounts for [`IdlCloseAccount`].
             pub struct IdlCloseAccount<'info> {
-                pub account: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
-                pub authority: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
-                pub sol_destination: anchor_lang::solana_program::account_info::AccountInfo<
-                    'info,
-                >,
+                pub account: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+                pub authority: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+                pub sol_destination: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             }
             #[automatically_derived]
             impl<'info> anchor_lang::ToAccountMetas for IdlCloseAccount<'info> {
@@ -2996,27 +2638,20 @@ mod __private {
                     is_signer: Option<bool>,
                 ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                     let mut account_metas = ::alloc::vec::Vec::new();
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.account),
-                                false,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                                anchor_lang::Key::key(&self.authority),
-                                true,
-                            ),
-                        );
-                    account_metas
-                        .push(
-                            anchor_lang::solana_program::instruction::AccountMeta::new(
-                                anchor_lang::Key::key(&self.sol_destination),
-                                false,
-                            ),
-                        );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.account),
+                        false,
+                    ));
+                    account_metas.push(
+                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                            anchor_lang::Key::key(&self.authority),
+                            true,
+                        ),
+                    );
+                    account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                        anchor_lang::Key::key(&self.sol_destination),
+                        false,
+                    ));
                     account_metas
                 }
             }
@@ -3024,24 +2659,17 @@ mod __private {
             impl<'info> anchor_lang::ToAccountInfos<'info> for IdlCloseAccount<'info> {
                 fn to_account_infos(
                     &self,
-                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>>
+                {
                     let mut account_infos = ::alloc::vec::Vec::new();
                     account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(&self.account),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.authority,
-                            ),
-                        );
-                    account_infos
-                        .extend(
-                            anchor_lang::ToAccountInfos::to_account_infos(
-                                &self.sol_destination,
-                            ),
-                        );
+                        .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.account));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.authority,
+                    ));
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                        &self.sol_destination,
+                    ));
                     account_infos
                 }
             }
@@ -3052,10 +2680,7 @@ mod __private {
                     String,
                     anchor_lang::idl::types::IdlAccount,
                 >,
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
             ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
                 if let Some(ty) = <IdlAccount>::create_type() {
                     let account = anchor_lang::idl::types::IdlAccount {
@@ -3066,9 +2691,9 @@ mod __private {
                     types.insert(ty.name.clone(), ty);
                     <IdlAccount>::insert_types(types);
                 }
-                <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                <[_]>::into_vec(::alloc::boxed::box_new([
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "account".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -3077,8 +2702,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "authority".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: false,
@@ -3087,8 +2714,10 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                        anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                        },
+                    ),
+                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                        anchor_lang::idl::types::IdlInstructionAccount {
                             name: "sol_destination".into(),
                             docs: ::alloc::vec::Vec::new(),
                             writable: true,
@@ -3097,9 +2726,9 @@ mod __private {
                             address: None,
                             pda: None,
                             relations: ::alloc::vec::Vec::new(),
-                        }),
-                    ]),
-                )
+                        },
+                    ),
+                ]))
             }
         }
         use std::cell::{Ref, RefMut};
@@ -3125,9 +2754,7 @@ mod __private {
         ) -> anchor_lang::Result<()> {
             ::solana_msg::sol_log("Instruction: IdlCreateAccount");
             if program_id != accounts.program.key {
-                return Err(
-                    anchor_lang::error::ErrorCode::IdlInstructionInvalidProgram.into(),
-                );
+                return Err(anchor_lang::error::ErrorCode::IdlInstructionInvalidProgram.into());
             }
             let from = accounts.from.key;
             let (base, nonce) = Pubkey::find_program_address(&[], program_id);
@@ -3186,16 +2813,12 @@ mod __private {
             let idl_ref = AsRef::<AccountInfo>::as_ref(&accounts.idl);
             let new_account_space = idl_ref
                 .data_len()
-                .checked_add(
-                    std::cmp::min(
-                        data_len
-                            .checked_sub(idl_ref.data_len())
-                            .expect(
-                                "data_len should always be >= the current account space",
-                            ),
-                        10_000,
-                    ),
-                )
+                .checked_add(std::cmp::min(
+                    data_len
+                        .checked_sub(idl_ref.data_len())
+                        .expect("data_len should always be >= the current account space"),
+                    10_000,
+                ))
                 .unwrap();
             if new_account_space > idl_ref.data_len() {
                 let sysvar_rent = Rent::get()?;
@@ -3239,17 +2862,13 @@ mod __private {
             idl_data: Vec<u8>,
         ) -> anchor_lang::Result<()> {
             ::solana_msg::sol_log("Instruction: IdlWrite");
-            let prev_len: usize = ::std::convert::TryInto::<
-                usize,
-            >::try_into(accounts.idl.data_len)
-                .unwrap();
+            let prev_len: usize =
+                ::std::convert::TryInto::<usize>::try_into(accounts.idl.data_len).unwrap();
             let new_len: usize = prev_len.checked_add(idl_data.len()).unwrap() as usize;
             accounts.idl.data_len = accounts
                 .idl
                 .data_len
-                .checked_add(
-                    ::std::convert::TryInto::<u32>::try_into(idl_data.len()).unwrap(),
-                )
+                .checked_add(::std::convert::TryInto::<u32>::try_into(idl_data.len()).unwrap())
                 .unwrap();
             use IdlTrailingData;
             let mut idl_bytes = accounts.idl.trailing_data_mut();
@@ -3257,21 +2876,19 @@ mod __private {
             if idl_expansion.len() != idl_data.len() {
                 return Err(
                     anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
-                            error_name: anchor_lang::error::ErrorCode::RequireEqViolated
-                                .name(),
-                            error_code_number: anchor_lang::error::ErrorCode::RequireEqViolated
-                                .into(),
-                            error_msg: anchor_lang::error::ErrorCode::RequireEqViolated
-                                .to_string(),
-                            error_origin: Some(
-                                anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
-                                    filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                    line: 15u32,
-                                }),
-                            ),
-                            compared_values: None,
-                        })
-                        .with_values((idl_expansion.len(), idl_data.len())),
+                        error_name: anchor_lang::error::ErrorCode::RequireEqViolated.name(),
+                        error_code_number: anchor_lang::error::ErrorCode::RequireEqViolated.into(),
+                        error_msg: anchor_lang::error::ErrorCode::RequireEqViolated.to_string(),
+                        error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                            anchor_lang::error::Source {
+                                filename:
+                                    "program-tests/anchor-compressible-user-derived/src/lib.rs",
+                                line: 15u32,
+                            },
+                        )),
+                        compared_values: None,
+                    })
+                    .with_values((idl_expansion.len(), idl_data.len())),
                 );
             }
             idl_expansion.copy_from_slice(&idl_data[..]);
@@ -3295,30 +2912,26 @@ mod __private {
             ::solana_msg::sol_log("Instruction: IdlSetBuffer");
             accounts.idl.data_len = accounts.buffer.data_len;
             use IdlTrailingData;
-            let buffer_len = ::std::convert::TryInto::<
-                usize,
-            >::try_into(accounts.buffer.data_len)
-                .unwrap();
+            let buffer_len =
+                ::std::convert::TryInto::<usize>::try_into(accounts.buffer.data_len).unwrap();
             let mut target = accounts.idl.trailing_data_mut();
             let source = &accounts.buffer.trailing_data()[..buffer_len];
             if target.len() < buffer_len {
                 return Err(
                     anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
-                            error_name: anchor_lang::error::ErrorCode::RequireGteViolated
-                                .name(),
-                            error_code_number: anchor_lang::error::ErrorCode::RequireGteViolated
-                                .into(),
-                            error_msg: anchor_lang::error::ErrorCode::RequireGteViolated
-                                .to_string(),
-                            error_origin: Some(
-                                anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
-                                    filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                    line: 15u32,
-                                }),
-                            ),
-                            compared_values: None,
-                        })
-                        .with_values((target.len(), buffer_len)),
+                        error_name: anchor_lang::error::ErrorCode::RequireGteViolated.name(),
+                        error_code_number: anchor_lang::error::ErrorCode::RequireGteViolated.into(),
+                        error_msg: anchor_lang::error::ErrorCode::RequireGteViolated.to_string(),
+                        error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                            anchor_lang::error::Source {
+                                filename:
+                                    "program-tests/anchor-compressible-user-derived/src/lib.rs",
+                                line: 15u32,
+                            },
+                        )),
+                        compared_values: None,
+                    })
+                    .with_values((target.len(), buffer_len)),
                 );
             }
             target[..buffer_len].copy_from_slice(source);
@@ -3335,12 +2948,8 @@ mod __private {
             __ix_data: &[u8],
         ) -> anchor_lang::Result<()> {
             ::solana_msg::sol_log("Instruction: CreateCompressionConfig");
-            let ix = instruction::CreateCompressionConfig::deserialize(
-                    &mut &__ix_data[..],
-                )
-                .map_err(|_| {
-                    anchor_lang::error::ErrorCode::InstructionDidNotDeserialize
-                })?;
+            let ix = instruction::CreateCompressionConfig::deserialize(&mut &__ix_data[..])
+                .map_err(|_| anchor_lang::error::ErrorCode::InstructionDidNotDeserialize)?;
             let instruction::CreateCompressionConfig {
                 compression_delay,
                 rent_recipient,
@@ -3376,12 +2985,8 @@ mod __private {
             __ix_data: &[u8],
         ) -> anchor_lang::Result<()> {
             ::solana_msg::sol_log("Instruction: UpdateCompressionConfig");
-            let ix = instruction::UpdateCompressionConfig::deserialize(
-                    &mut &__ix_data[..],
-                )
-                .map_err(|_| {
-                    anchor_lang::error::ErrorCode::InstructionDidNotDeserialize
-                })?;
+            let ix = instruction::UpdateCompressionConfig::deserialize(&mut &__ix_data[..])
+                .map_err(|_| anchor_lang::error::ErrorCode::InstructionDidNotDeserialize)?;
             let instruction::UpdateCompressionConfig {
                 new_compression_delay,
                 new_rent_recipient,
@@ -3418,23 +3023,21 @@ mod __private {
             __accounts: &'info [AccountInfo<'info>],
             __ix_data: &[u8],
         ) -> anchor_lang::Result<()> {
-            ::solana_msg::sol_log("Instruction: DecompressMultiplePdas");
-            let ix = instruction::DecompressMultiplePdas::deserialize(
-                    &mut &__ix_data[..],
-                )
-                .map_err(|_| {
-                    anchor_lang::error::ErrorCode::InstructionDidNotDeserialize
-                })?;
-            let instruction::DecompressMultiplePdas {
+            ::solana_msg::sol_log("Instruction: DecompressMultipleAccountsIdempotent");
+            let ix =
+                instruction::DecompressMultipleAccountsIdempotent::deserialize(&mut &__ix_data[..])
+                    .map_err(|_| anchor_lang::error::ErrorCode::InstructionDidNotDeserialize)?;
+            let instruction::DecompressMultipleAccountsIdempotent {
                 proof,
                 compressed_accounts,
                 bumps,
                 system_accounts_offset,
             } = ix;
-            let mut __bumps = <DecompressMultiplePdas as anchor_lang::Bumps>::Bumps::default();
+            let mut __bumps =
+                <DecompressMultipleAccountsIdempotent as anchor_lang::Bumps>::Bumps::default();
             let mut __reallocs = std::collections::BTreeSet::new();
             let mut __remaining_accounts: &[AccountInfo] = __accounts;
-            let mut __accounts = DecompressMultiplePdas::try_accounts(
+            let mut __accounts = DecompressMultipleAccountsIdempotent::try_accounts(
                 __program_id,
                 &mut __remaining_accounts,
                 __ix_data,
@@ -3463,10 +3066,11 @@ mod __private {
         ) -> anchor_lang::Result<()> {
             ::solana_msg::sol_log("Instruction: CompressUserRecord");
             let ix = instruction::CompressUserRecord::deserialize(&mut &__ix_data[..])
-                .map_err(|_| {
-                    anchor_lang::error::ErrorCode::InstructionDidNotDeserialize
-                })?;
-            let instruction::CompressUserRecord { proof, compressed_account_meta } = ix;
+                .map_err(|_| anchor_lang::error::ErrorCode::InstructionDidNotDeserialize)?;
+            let instruction::CompressUserRecord {
+                proof,
+                compressed_account_meta,
+            } = ix;
             let mut __bumps = <CompressUserRecord as anchor_lang::Bumps>::Bumps::default();
             let mut __reallocs = std::collections::BTreeSet::new();
             let mut __remaining_accounts: &[AccountInfo] = __accounts;
@@ -3497,10 +3101,11 @@ mod __private {
         ) -> anchor_lang::Result<()> {
             ::solana_msg::sol_log("Instruction: CompressGameSession");
             let ix = instruction::CompressGameSession::deserialize(&mut &__ix_data[..])
-                .map_err(|_| {
-                    anchor_lang::error::ErrorCode::InstructionDidNotDeserialize
-                })?;
-            let instruction::CompressGameSession { proof, compressed_account_meta } = ix;
+                .map_err(|_| anchor_lang::error::ErrorCode::InstructionDidNotDeserialize)?;
+            let instruction::CompressGameSession {
+                proof,
+                compressed_account_meta,
+            } = ix;
             let mut __bumps = <CompressGameSession as anchor_lang::Bumps>::Bumps::default();
             let mut __reallocs = std::collections::BTreeSet::new();
             let mut __remaining_accounts: &[AccountInfo] = __accounts;
@@ -3538,14 +3143,10 @@ pub mod anchor_compressible_user_derived {
         fn clone(&self) -> CompressedAccountVariant {
             match self {
                 CompressedAccountVariant::UserRecord(__self_0) => {
-                    CompressedAccountVariant::UserRecord(
-                        ::core::clone::Clone::clone(__self_0),
-                    )
+                    CompressedAccountVariant::UserRecord(::core::clone::Clone::clone(__self_0))
                 }
                 CompressedAccountVariant::GameSession(__self_0) => {
-                    CompressedAccountVariant::GameSession(
-                        ::core::clone::Clone::clone(__self_0),
-                    )
+                    CompressedAccountVariant::GameSession(::core::clone::Clone::clone(__self_0))
                 }
             }
         }
@@ -3556,18 +3157,10 @@ pub mod anchor_compressible_user_derived {
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             match self {
                 CompressedAccountVariant::UserRecord(__self_0) => {
-                    ::core::fmt::Formatter::debug_tuple_field1_finish(
-                        f,
-                        "UserRecord",
-                        &__self_0,
-                    )
+                    ::core::fmt::Formatter::debug_tuple_field1_finish(f, "UserRecord", &__self_0)
                 }
                 CompressedAccountVariant::GameSession(__self_0) => {
-                    ::core::fmt::Formatter::debug_tuple_field1_finish(
-                        f,
-                        "GameSession",
-                        &__self_0,
-                    )
+                    ::core::fmt::Formatter::debug_tuple_field1_finish(f, "GameSession", &__self_0)
                 }
             }
         }
@@ -3601,57 +3194,42 @@ pub mod anchor_compressible_user_derived {
         fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
             Some(anchor_lang::idl::types::IdlTypeDef {
                 name: Self::get_full_path(),
-                docs: <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        "Unified enum that can hold any account type".into(),
-                    ]),
-                ),
+                docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                    "Unified enum that can hold any account type".into(),
+                ])),
                 serialization: anchor_lang::idl::types::IdlSerialization::default(),
                 repr: None,
                 generics: ::alloc::vec::Vec::new(),
                 ty: anchor_lang::idl::types::IdlTypeDefTy::Enum {
-                    variants: <[_]>::into_vec(
-                        ::alloc::boxed::box_new([
-                            anchor_lang::idl::types::IdlEnumVariant {
-                                name: "UserRecord".into(),
-                                fields: Some(
-                                    anchor_lang::idl::types::IdlDefinedFields::Tuple(
-                                        <[_]>::into_vec(
-                                            ::alloc::boxed::box_new([
-                                                anchor_lang::idl::types::IdlType::Defined {
-                                                    name: <UserRecord>::get_full_path(),
-                                                    generics: ::alloc::vec::Vec::new(),
-                                                },
-                                            ]),
-                                        ),
-                                    ),
-                                ),
-                            },
-                            anchor_lang::idl::types::IdlEnumVariant {
-                                name: "GameSession".into(),
-                                fields: Some(
-                                    anchor_lang::idl::types::IdlDefinedFields::Tuple(
-                                        <[_]>::into_vec(
-                                            ::alloc::boxed::box_new([
-                                                anchor_lang::idl::types::IdlType::Defined {
-                                                    name: <GameSession>::get_full_path(),
-                                                    generics: ::alloc::vec::Vec::new(),
-                                                },
-                                            ]),
-                                        ),
-                                    ),
-                                ),
-                            },
-                        ]),
-                    ),
+                    variants: <[_]>::into_vec(::alloc::boxed::box_new([
+                        anchor_lang::idl::types::IdlEnumVariant {
+                            name: "UserRecord".into(),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Tuple(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlType::Defined {
+                                        name: <UserRecord>::get_full_path(),
+                                        generics: ::alloc::vec::Vec::new(),
+                                    },
+                                ])),
+                            )),
+                        },
+                        anchor_lang::idl::types::IdlEnumVariant {
+                            name: "GameSession".into(),
+                            fields: Some(anchor_lang::idl::types::IdlDefinedFields::Tuple(
+                                <[_]>::into_vec(::alloc::boxed::box_new([
+                                    anchor_lang::idl::types::IdlType::Defined {
+                                        name: <GameSession>::get_full_path(),
+                                        generics: ::alloc::vec::Vec::new(),
+                                    },
+                                ])),
+                            )),
+                        },
+                    ])),
                 },
             })
         }
         fn insert_types(
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) {
             if let Some(ty) = <UserRecord>::create_type() {
                 types.insert(<UserRecord>::get_full_path(), ty);
@@ -3664,13 +3242,11 @@ pub mod anchor_compressible_user_derived {
         }
         fn get_full_path() -> String {
             ::alloc::__export::must_use({
-                let res = ::alloc::fmt::format(
-                    format_args!(
-                        "{0}::{1}",
-                        "anchor_compressible_user_derived::anchor_compressible_user_derived",
-                        "CompressedAccountVariant",
-                    ),
-                );
+                let res = ::alloc::fmt::format(format_args!(
+                    "{0}::{1}",
+                    "anchor_compressible_user_derived::anchor_compressible_user_derived",
+                    "CompressedAccountVariant",
+                ));
                 res
             })
         }
@@ -3697,28 +3273,23 @@ pub mod anchor_compressible_user_derived {
             variant_idx: u8,
         ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
             let mut return_value = match variant_idx {
-                0u8 => {
-                    CompressedAccountVariant::UserRecord(
-                        borsh::BorshDeserialize::deserialize_reader(reader)?,
-                    )
-                }
-                1u8 => {
-                    CompressedAccountVariant::GameSession(
-                        borsh::BorshDeserialize::deserialize_reader(reader)?,
-                    )
-                }
+                0u8 => CompressedAccountVariant::UserRecord(
+                    borsh::BorshDeserialize::deserialize_reader(reader)?,
+                ),
+                1u8 => CompressedAccountVariant::GameSession(
+                    borsh::BorshDeserialize::deserialize_reader(reader)?,
+                ),
                 _ => {
-                    return Err(
-                        borsh::maybestd::io::Error::new(
-                            borsh::maybestd::io::ErrorKind::InvalidInput,
-                            ::alloc::__export::must_use({
-                                let res = ::alloc::fmt::format(
-                                    format_args!("Unexpected variant index: {0:?}", variant_idx),
-                                );
-                                res
-                            }),
-                        ),
-                    );
+                    return Err(borsh::maybestd::io::Error::new(
+                        borsh::maybestd::io::ErrorKind::InvalidInput,
+                        ::alloc::__export::must_use({
+                            let res = ::alloc::fmt::format(format_args!(
+                                "Unexpected variant index: {0:?}",
+                                variant_idx
+                            ));
+                            res
+                        }),
+                    ));
                 }
             };
             Ok(return_value)
@@ -3750,9 +3321,7 @@ pub mod anchor_compressible_user_derived {
                 Self::GameSession(data) => data.compression_info(),
             }
         }
-        fn compression_info_mut(
-            &mut self,
-        ) -> &mut light_sdk::compressible::CompressionInfo {
+        fn compression_info_mut(&mut self) -> &mut light_sdk::compressible::CompressionInfo {
             match self {
                 Self::UserRecord(data) => data.compression_info_mut(),
                 Self::GameSession(data) => data.compression_info_mut(),
@@ -3810,7 +3379,8 @@ pub mod anchor_compressible_user_derived {
     }
     impl borsh::ser::BorshSerialize for CompressedAccountData
     where
-        light_sdk_types::instruction::account_meta::CompressedAccountMeta: borsh::ser::BorshSerialize,
+        light_sdk_types::instruction::account_meta::CompressedAccountMeta:
+            borsh::ser::BorshSerialize,
         CompressedAccountVariant: borsh::ser::BorshSerialize,
         Vec<Vec<u8>>: borsh::ser::BorshSerialize,
     {
@@ -3873,12 +3443,11 @@ pub mod anchor_compressible_user_derived {
             })
         }
         fn insert_types(
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) {
-            if let Some(ty) = <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::create_type() {
+            if let Some(ty) =
+                <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::create_type()
+            {
                 types
                     .insert(
                         <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::get_full_path(),
@@ -3895,13 +3464,11 @@ pub mod anchor_compressible_user_derived {
         }
         fn get_full_path() -> String {
             ::alloc::__export::must_use({
-                let res = ::alloc::fmt::format(
-                    format_args!(
-                        "{0}::{1}",
-                        "anchor_compressible_user_derived::anchor_compressible_user_derived",
-                        "CompressedAccountData",
-                    ),
-                );
+                let res = ::alloc::fmt::format(format_args!(
+                    "{0}::{1}",
+                    "anchor_compressible_user_derived::anchor_compressible_user_derived",
+                    "CompressedAccountData",
+                ));
                 res
             })
         }
@@ -3920,7 +3487,7 @@ pub mod anchor_compressible_user_derived {
     }
     #[automatically_derived]
     impl<'info> anchor_lang::Accounts<'info, CreateCompressibleConfigBumps>
-    for CreateCompressibleConfig<'info>
+        for CreateCompressibleConfig<'info>
     where
         'info: 'info,
     {
@@ -3937,38 +3504,39 @@ pub mod anchor_compressible_user_derived {
             >,
         ) -> anchor_lang::Result<Self> {
             let payer: Signer = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("payer"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("payer"))?;
             let config: AccountInfo = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("config"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("config"))?;
             let program_data: AccountInfo = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("program_data"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("program_data"))?;
             let authority: Signer = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("authority"))?;
-            let system_program: anchor_lang::accounts::program::Program<System> = anchor_lang::Accounts::try_accounts(
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("authority"))?;
+            let system_program: anchor_lang::accounts::program::Program<System> =
+                anchor_lang::Accounts::try_accounts(
                     __program_id,
                     __accounts,
                     __ix_data,
@@ -3977,34 +3545,26 @@ pub mod anchor_compressible_user_derived {
                 )
                 .map_err(|e| e.with_account_name("system_program"))?;
             if !AsRef::<AccountInfo>::as_ref(&payer).is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("payer"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("payer"));
             }
-            let (__pda_address, __bump) = Pubkey::find_program_address(
-                &[b"compressible_config"],
-                &__program_id,
-            );
+            let (__pda_address, __bump) =
+                Pubkey::find_program_address(&[b"compressible_config"], &__program_id);
             __bumps.config = __bump;
             if config.key() != __pda_address {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintSeeds,
-                        )
-                        .with_account_name("config")
-                        .with_pubkeys((config.key(), __pda_address)),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintSeeds,
+                )
+                .with_account_name("config")
+                .with_pubkeys((config.key(), __pda_address)));
             }
             if !&config.is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("config"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("config"));
             }
             Ok(CreateCompressibleConfig {
                 payer,
@@ -4080,9 +3640,7 @@ pub mod anchor_compressible_user_derived {
     }
     impl Default for CreateCompressibleConfigBumps {
         fn default() -> Self {
-            CreateCompressibleConfigBumps {
-                config: u8::MAX,
-            }
+            CreateCompressibleConfigBumps { config: u8::MAX }
         }
     }
     impl<'info> anchor_lang::Bumps for CreateCompressibleConfig<'info>
@@ -4138,70 +3696,55 @@ pub mod anchor_compressible_user_derived {
             fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                 Some(anchor_lang::idl::types::IdlTypeDef {
                     name: Self::get_full_path(),
-                    docs: <[_]>::into_vec(
-                        ::alloc::boxed::box_new([
-                            "Generated client accounts for [`CreateCompressibleConfig`]."
-                                .into(),
-                        ]),
-                    ),
+                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                        "Generated client accounts for [`CreateCompressibleConfig`].".into(),
+                    ])),
                     serialization: anchor_lang::idl::types::IdlSerialization::default(),
                     repr: None,
                     generics: ::alloc::vec::Vec::new(),
                     ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                        fields: Some(
-                            anchor_lang::idl::types::IdlDefinedFields::Named(
-                                <[_]>::into_vec(
-                                    ::alloc::boxed::box_new([
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "payer".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "config".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "The config PDA to be created".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "program_data".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "The program's data account".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "authority".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "The program's upgrade authority (must sign)".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "system_program".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                    ]),
-                                ),
-                            ),
-                        ),
+                        fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(::alloc::boxed::box_new([
+                                anchor_lang::idl::types::IdlField {
+                                    name: "payer".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "config".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "The config PDA to be created".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "program_data".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "The program's data account".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "authority".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "The program's upgrade authority (must sign)".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "system_program".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                            ])),
+                        )),
                     },
                 })
             }
             fn insert_types(
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
-            ) {}
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+            ) {
+            }
             fn get_full_path() -> String {
                 ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
@@ -4222,41 +3765,31 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.payer,
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.config,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.program_data,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.authority,
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.system_program,
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.payer, true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.config,
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.program_data,
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.authority,
+                        true,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.system_program,
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
@@ -4276,14 +3809,10 @@ pub mod anchor_compressible_user_derived {
             ///The config PDA to be created
             pub config: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             ///The program's data account
-            pub program_data: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
+            pub program_data: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             ///The program's upgrade authority (must sign)
             pub authority: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
+            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<'info>,
         }
         #[automatically_derived]
         impl<'info> anchor_lang::ToAccountMetas for CreateCompressibleConfig<'info> {
@@ -4292,87 +3821,64 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.payer),
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.config),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.program_data),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.authority),
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.system_program),
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.payer),
+                    true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.config),
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.program_data),
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.authority),
+                        true,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.system_program),
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::ToAccountInfos<'info>
-        for CreateCompressibleConfig<'info> {
+        impl<'info> anchor_lang::ToAccountInfos<'info> for CreateCompressibleConfig<'info> {
             fn to_account_infos(
                 &self,
             ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
                 let mut account_infos = ::alloc::vec::Vec::new();
-                account_infos
-                    .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.payer));
-                account_infos
-                    .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(&self.program_data),
-                    );
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(&self.authority),
-                    );
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(
-                            &self.system_program,
-                        ),
-                    );
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.payer));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.program_data,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.authority,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.system_program,
+                ));
                 account_infos
             }
         }
     }
     impl<'info> CreateCompressibleConfig<'info> {
         pub fn __anchor_private_gen_idl_accounts(
-            accounts: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlAccount,
-            >,
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
-            <[_]>::into_vec(
-                ::alloc::boxed::box_new([
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+            <[_]>::into_vec(::alloc::boxed::box_new([
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "payer".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -4381,50 +3887,52 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "config".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "The config PDA to be created".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "The config PDA to be created".into(),
+                        ])),
                         writable: true,
                         signer: false,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "program_data".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "The program's data account".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "The program's data account".into(),
+                        ])),
                         writable: false,
                         signer: false,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "authority".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "The program's upgrade authority (must sign)".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "The program's upgrade authority (must sign)".into(),
+                        ])),
                         writable: false,
                         signer: true,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "system_program".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: false,
@@ -4433,9 +3941,9 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                ]),
-            )
+                    },
+                ),
+            ]))
         }
     }
     pub struct UpdateCompressibleConfig<'info> {
@@ -4446,7 +3954,7 @@ pub mod anchor_compressible_user_derived {
     }
     #[automatically_derived]
     impl<'info> anchor_lang::Accounts<'info, UpdateCompressibleConfigBumps>
-    for UpdateCompressibleConfig<'info>
+        for UpdateCompressibleConfig<'info>
     where
         'info: 'info,
     {
@@ -4463,47 +3971,38 @@ pub mod anchor_compressible_user_derived {
             >,
         ) -> anchor_lang::Result<Self> {
             let config: AccountInfo = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("config"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("config"))?;
             let authority: Signer = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("authority"))?;
-            let (__pda_address, __bump) = Pubkey::find_program_address(
-                &[b"compressible_config"],
-                &__program_id,
-            );
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("authority"))?;
+            let (__pda_address, __bump) =
+                Pubkey::find_program_address(&[b"compressible_config"], &__program_id);
             __bumps.config = __bump;
             if config.key() != __pda_address {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintSeeds,
-                        )
-                        .with_account_name("config")
-                        .with_pubkeys((config.key(), __pda_address)),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintSeeds,
+                )
+                .with_account_name("config")
+                .with_pubkeys((config.key(), __pda_address)));
             }
             if !&config.is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("config"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("config"));
             }
-            Ok(UpdateCompressibleConfig {
-                config,
-                authority,
-            })
+            Ok(UpdateCompressibleConfig { config, authority })
         }
     }
     #[automatically_derived]
@@ -4563,9 +4062,7 @@ pub mod anchor_compressible_user_derived {
     }
     impl Default for UpdateCompressibleConfigBumps {
         fn default() -> Self {
-            UpdateCompressibleConfigBumps {
-                config: u8::MAX,
-            }
+            UpdateCompressibleConfigBumps { config: u8::MAX }
         }
     }
     impl<'info> anchor_lang::Bumps for UpdateCompressibleConfig<'info>
@@ -4610,47 +4107,36 @@ pub mod anchor_compressible_user_derived {
             fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                 Some(anchor_lang::idl::types::IdlTypeDef {
                     name: Self::get_full_path(),
-                    docs: <[_]>::into_vec(
-                        ::alloc::boxed::box_new([
-                            "Generated client accounts for [`UpdateCompressibleConfig`]."
-                                .into(),
-                        ]),
-                    ),
+                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                        "Generated client accounts for [`UpdateCompressibleConfig`].".into(),
+                    ])),
                     serialization: anchor_lang::idl::types::IdlSerialization::default(),
                     repr: None,
                     generics: ::alloc::vec::Vec::new(),
                     ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                        fields: Some(
-                            anchor_lang::idl::types::IdlDefinedFields::Named(
-                                <[_]>::into_vec(
-                                    ::alloc::boxed::box_new([
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "config".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "authority".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "Must match the update authority stored in config".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                    ]),
-                                ),
-                            ),
-                        ),
+                        fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(::alloc::boxed::box_new([
+                                anchor_lang::idl::types::IdlField {
+                                    name: "config".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "authority".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "Must match the update authority stored in config".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                            ])),
+                        )),
                     },
                 })
             }
             fn insert_types(
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
-            ) {}
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+            ) {
+            }
             fn get_full_path() -> String {
                 ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
@@ -4671,20 +4157,16 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.config,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.authority,
-                            true,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.config,
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.authority,
+                        true,
+                    ),
+                );
                 account_metas
             }
         }
@@ -4711,54 +4193,41 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.config),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.authority),
-                            true,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.config),
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.authority),
+                        true,
+                    ),
+                );
                 account_metas
             }
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::ToAccountInfos<'info>
-        for UpdateCompressibleConfig<'info> {
+        impl<'info> anchor_lang::ToAccountInfos<'info> for UpdateCompressibleConfig<'info> {
             fn to_account_infos(
                 &self,
             ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
                 let mut account_infos = ::alloc::vec::Vec::new();
-                account_infos
-                    .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(&self.authority),
-                    );
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.authority,
+                ));
                 account_infos
             }
         }
     }
     impl<'info> UpdateCompressibleConfig<'info> {
         pub fn __anchor_private_gen_idl_accounts(
-            accounts: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlAccount,
-            >,
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
-            <[_]>::into_vec(
-                ::alloc::boxed::box_new([
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+            <[_]>::into_vec(::alloc::boxed::box_new([
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "config".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -4767,23 +4236,23 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "authority".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Must match the update authority stored in config".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Must match the update authority stored in config".into(),
+                        ])),
                         writable: false,
                         signer: true,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                ]),
-            )
+                    },
+                ),
+            ]))
         }
     }
     /// Create compressible config - only callable by program upgrade authority
@@ -4794,17 +4263,17 @@ pub mod anchor_compressible_user_derived {
         address_space: Vec<Pubkey>,
     ) -> Result<()> {
         light_sdk::compressible::create_compression_config_checked(
-                &ctx.accounts.config.to_account_info(),
-                &ctx.accounts.authority.to_account_info(),
-                &ctx.accounts.program_data.to_account_info(),
-                &rent_recipient,
-                address_space,
-                compression_delay,
-                &ctx.accounts.payer.to_account_info(),
-                &ctx.accounts.system_program.to_account_info(),
-                &crate::ID,
-            )
-            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+            &ctx.accounts.config.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.accounts.program_data.to_account_info(),
+            &rent_recipient,
+            address_space,
+            compression_delay,
+            &ctx.accounts.payer.to_account_info(),
+            &ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
     }
     /// Update compressible config - only callable by config's update authority
@@ -4816,18 +4285,18 @@ pub mod anchor_compressible_user_derived {
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
         light_sdk::compressible::update_compression_config(
-                &ctx.accounts.config.to_account_info(),
-                &ctx.accounts.authority.to_account_info(),
-                new_update_authority.as_ref(),
-                new_rent_recipient.as_ref(),
-                new_address_space,
-                new_compression_delay,
-                &crate::ID,
-            )
-            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+            &ctx.accounts.config.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            new_update_authority.as_ref(),
+            new_rent_recipient.as_ref(),
+            new_address_space,
+            new_compression_delay,
+            &crate::ID,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
     }
-    pub struct DecompressMultiplePdas<'info> {
+    pub struct DecompressMultipleAccountsIdempotent<'info> {
         #[account(mut)]
         pub fee_payer: Signer<'info>,
         #[account(mut)]
@@ -4836,7 +4305,7 @@ pub mod anchor_compressible_user_derived {
     }
     #[automatically_derived]
     impl<'info> anchor_lang::Accounts<'info, DecompressMultiplePdasBumps>
-    for DecompressMultiplePdas<'info>
+        for DecompressMultipleAccountsIdempotent<'info>
     where
         'info: 'info,
     {
@@ -4853,22 +4322,23 @@ pub mod anchor_compressible_user_derived {
             >,
         ) -> anchor_lang::Result<Self> {
             let fee_payer: Signer = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("fee_payer"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("fee_payer"))?;
             let rent_payer: Signer = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("rent_payer"))?;
-            let system_program: anchor_lang::accounts::program::Program<System> = anchor_lang::Accounts::try_accounts(
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("rent_payer"))?;
+            let system_program: anchor_lang::accounts::program::Program<System> =
+                anchor_lang::Accounts::try_accounts(
                     __program_id,
                     __accounts,
                     __ix_data,
@@ -4877,22 +4347,18 @@ pub mod anchor_compressible_user_derived {
                 )
                 .map_err(|e| e.with_account_name("system_program"))?;
             if !AsRef::<AccountInfo>::as_ref(&fee_payer).is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("fee_payer"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("fee_payer"));
             }
             if !AsRef::<AccountInfo>::as_ref(&rent_payer).is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("rent_payer"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("rent_payer"));
             }
-            Ok(DecompressMultiplePdas {
+            Ok(DecompressMultipleAccountsIdempotent {
                 fee_payer,
                 rent_payer,
                 system_program,
@@ -4900,7 +4366,7 @@ pub mod anchor_compressible_user_derived {
         }
     }
     #[automatically_derived]
-    impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressMultiplePdas<'info>
+    impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressMultipleAccountsIdempotent<'info>
     where
         'info: 'info,
     {
@@ -4915,7 +4381,7 @@ pub mod anchor_compressible_user_derived {
         }
     }
     #[automatically_derived]
-    impl<'info> anchor_lang::ToAccountMetas for DecompressMultiplePdas<'info> {
+    impl<'info> anchor_lang::ToAccountMetas for DecompressMultipleAccountsIdempotent<'info> {
         fn to_account_metas(
             &self,
             is_signer: Option<bool>,
@@ -4928,7 +4394,7 @@ pub mod anchor_compressible_user_derived {
         }
     }
     #[automatically_derived]
-    impl<'info> anchor_lang::AccountsExit<'info> for DecompressMultiplePdas<'info>
+    impl<'info> anchor_lang::AccountsExit<'info> for DecompressMultipleAccountsIdempotent<'info>
     where
         'info: 'info,
     {
@@ -4956,7 +4422,7 @@ pub mod anchor_compressible_user_derived {
             DecompressMultiplePdasBumps {}
         }
     }
-    impl<'info> anchor_lang::Bumps for DecompressMultiplePdas<'info>
+    impl<'info> anchor_lang::Bumps for DecompressMultipleAccountsIdempotent<'info>
     where
         'info: 'info,
     {
@@ -4974,13 +4440,13 @@ pub mod anchor_compressible_user_derived {
     pub(crate) mod __client_accounts_decompress_multiple_pdas {
         use super::*;
         use anchor_lang::prelude::borsh;
-        /// Generated client accounts for [`DecompressMultiplePdas`].
-        pub struct DecompressMultiplePdas {
+        /// Generated client accounts for [`DecompressMultipleAccountsIdempotent`].
+        pub struct DecompressMultipleAccountsIdempotent {
             pub fee_payer: Pubkey,
             pub rent_payer: Pubkey,
             pub system_program: Pubkey,
         }
-        impl borsh::ser::BorshSerialize for DecompressMultiplePdas
+        impl borsh::ser::BorshSerialize for DecompressMultipleAccountsIdempotent
         where
             Pubkey: borsh::ser::BorshSerialize,
             Pubkey: borsh::ser::BorshSerialize,
@@ -4996,59 +4462,51 @@ pub mod anchor_compressible_user_derived {
                 Ok(())
             }
         }
-        impl anchor_lang::idl::build::IdlBuild for DecompressMultiplePdas {
+        impl anchor_lang::idl::build::IdlBuild for DecompressMultipleAccountsIdempotent {
             fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                 Some(anchor_lang::idl::types::IdlTypeDef {
                     name: Self::get_full_path(),
-                    docs: <[_]>::into_vec(
-                        ::alloc::boxed::box_new([
-                            "Generated client accounts for [`DecompressMultiplePdas`]."
-                                .into(),
-                        ]),
-                    ),
+                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                        "Generated client accounts for [`DecompressMultipleAccountsIdempotent`]."
+                            .into(),
+                    ])),
                     serialization: anchor_lang::idl::types::IdlSerialization::default(),
                     repr: None,
                     generics: ::alloc::vec::Vec::new(),
                     ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                        fields: Some(
-                            anchor_lang::idl::types::IdlDefinedFields::Named(
-                                <[_]>::into_vec(
-                                    ::alloc::boxed::box_new([
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "fee_payer".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "rent_payer".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "system_program".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                    ]),
-                                ),
-                            ),
-                        ),
+                        fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(::alloc::boxed::box_new([
+                                anchor_lang::idl::types::IdlField {
+                                    name: "fee_payer".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "rent_payer".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "system_program".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                            ])),
+                        )),
                     },
                 })
             }
             fn insert_types(
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
-            ) {}
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+            ) {
+            }
             fn get_full_path() -> String {
                 ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
                         format_args!(
                             "{0}::{1}",
                             "anchor_compressible_user_derived::anchor_compressible_user_derived::__client_accounts_decompress_multiple_pdas",
-                            "DecompressMultiplePdas",
+                            "DecompressMultipleAccountsIdempotent",
                         ),
                     );
                     res
@@ -5056,33 +4514,26 @@ pub mod anchor_compressible_user_derived {
             }
         }
         #[automatically_derived]
-        impl anchor_lang::ToAccountMetas for DecompressMultiplePdas {
+        impl anchor_lang::ToAccountMetas for DecompressMultipleAccountsIdempotent {
             fn to_account_metas(
                 &self,
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.fee_payer,
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.rent_payer,
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.system_program,
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.fee_payer,
+                    true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.rent_payer,
+                    true,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.system_program,
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
@@ -5096,86 +4547,63 @@ pub mod anchor_compressible_user_derived {
     /// [`cpi::accounts`] module (also generated), which re-exports this.
     pub(crate) mod __cpi_client_accounts_decompress_multiple_pdas {
         use super::*;
-        /// Generated CPI struct of the accounts for [`DecompressMultiplePdas`].
-        pub struct DecompressMultiplePdas<'info> {
+        /// Generated CPI struct of the accounts for [`DecompressMultipleAccountsIdempotent`].
+        pub struct DecompressMultipleAccountsIdempotent<'info> {
             pub fee_payer: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-            pub rent_payer: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
-            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
+            pub rent_payer: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<'info>,
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::ToAccountMetas for DecompressMultiplePdas<'info> {
+        impl<'info> anchor_lang::ToAccountMetas for DecompressMultipleAccountsIdempotent<'info> {
             fn to_account_metas(
                 &self,
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.fee_payer),
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.rent_payer),
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.system_program),
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.fee_payer),
+                    true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.rent_payer),
+                    true,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.system_program),
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
         #[automatically_derived]
-        impl<'info> anchor_lang::ToAccountInfos<'info>
-        for DecompressMultiplePdas<'info> {
+        impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressMultipleAccountsIdempotent<'info> {
             fn to_account_infos(
                 &self,
             ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
                 let mut account_infos = ::alloc::vec::Vec::new();
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(&self.fee_payer),
-                    );
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(&self.rent_payer),
-                    );
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(
-                            &self.system_program,
-                        ),
-                    );
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.fee_payer,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.rent_payer,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.system_program,
+                ));
                 account_infos
             }
         }
     }
-    impl<'info> DecompressMultiplePdas<'info> {
+    impl<'info> DecompressMultipleAccountsIdempotent<'info> {
         pub fn __anchor_private_gen_idl_accounts(
-            accounts: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlAccount,
-            >,
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
-            <[_]>::into_vec(
-                ::alloc::boxed::box_new([
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+            <[_]>::into_vec(::alloc::boxed::box_new([
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "fee_payer".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -5184,8 +4612,10 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "rent_payer".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -5194,8 +4624,10 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "system_program".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: false,
@@ -5204,14 +4636,14 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                ]),
-            )
+                    },
+                ),
+            ]))
         }
     }
     /// Decompresses multiple compressed PDAs of any supported account type in a single transaction
     pub fn decompress_multiple_pdas<'info>(
-        ctx: Context<'_, '_, '_, 'info, DecompressMultiplePdas<'info>>,
+        ctx: Context<'_, '_, '_, 'info, DecompressMultipleAccountsIdempotent<'info>>,
         proof: light_sdk::instruction::ValidityProof,
         compressed_accounts: Vec<CompressedAccountData>,
         bumps: Vec<u8>,
@@ -5219,23 +4651,21 @@ pub mod anchor_compressible_user_derived {
     ) -> Result<()> {
         let pda_accounts_end = system_accounts_offset as usize;
         let pda_accounts = &ctx.remaining_accounts[..pda_accounts_end];
-        if pda_accounts.len() != compressed_accounts.len()
-            || pda_accounts.len() != bumps.len()
-        {
-            return Err(
-                anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
+        if pda_accounts.len() != compressed_accounts.len() || pda_accounts.len() != bumps.len() {
+            return Err(anchor_lang::error::Error::from(
+                anchor_lang::error::AnchorError {
                     error_name: ErrorCode::InvalidAccountCount.name(),
                     error_code_number: ErrorCode::InvalidAccountCount.into(),
                     error_msg: ErrorCode::InvalidAccountCount.to_string(),
-                    error_origin: Some(
-                        anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
+                    error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                        anchor_lang::error::Source {
                             filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
                             line: 14u32,
-                        }),
-                    ),
+                        },
+                    )),
                     compared_values: None,
-                }),
-            );
+                },
+            ));
         }
         let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
             &ctx.accounts.fee_payer,
@@ -5258,10 +4688,12 @@ pub mod anchor_compressible_user_derived {
                     CompressedAccountVariant::GameSession(data)
                 }
             };
-            let light_account = light_sdk::account::LightAccount::<
-                '_,
-                CompressedAccountVariant,
-            >::new_mut(&crate::ID, &compressed_data.meta, unified_account.clone())
+            let light_account =
+                light_sdk::account::LightAccount::<'_, CompressedAccountVariant>::new_mut(
+                    &crate::ID,
+                    &compressed_data.meta,
+                    unified_account.clone(),
+                )
                 .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
             let seeds = match &unified_account {
                 CompressedAccountVariant::UserRecord(data) => {
@@ -5287,18 +4719,16 @@ pub mod anchor_compressible_user_derived {
             .iter()
             .map(|seeds| seeds.as_slice())
             .collect();
-        light_sdk::compressible::decompress_multiple_idempotent::<
-            CompressedAccountVariant,
-        >(
-                &pda_account_refs,
-                light_accounts,
-                &signer_seeds_slices,
-                proof,
-                cpi_accounts,
-                &crate::ID,
-                &ctx.accounts.rent_payer,
-            )
-            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        light_sdk::compressible::decompress_multiple_idempotent::<CompressedAccountVariant>(
+            &pda_account_refs,
+            light_accounts,
+            &signer_seeds_slices,
+            proof,
+            cpi_accounts,
+            &crate::ID,
+            &ctx.accounts.rent_payer,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
     }
     #[repr(u32)]
@@ -5359,13 +4789,9 @@ pub mod anchor_compressible_user_derived {
             fmt: &mut std::fmt::Formatter<'_>,
         ) -> std::result::Result<(), std::fmt::Error> {
             match self {
-                ErrorCode::InvalidAccountCount => {
-                    fmt.write_fmt(
-                        format_args!(
-                            "Invalid account count: PDAs and compressed accounts must match",
-                        ),
-                    )
-                }
+                ErrorCode::InvalidAccountCount => fmt.write_fmt(format_args!(
+                    "Invalid account count: PDAs and compressed accounts must match",
+                )),
                 ErrorCode::InvalidRentRecipient => {
                     fmt.write_fmt(format_args!("Rent recipient does not match config"))
                 }
@@ -5385,8 +4811,7 @@ pub mod anchor_compressible_user_derived {
         pub rent_recipient: AccountInfo<'info>,
     }
     #[automatically_derived]
-    impl<'info> anchor_lang::Accounts<'info, CompressUserRecordBumps>
-    for CompressUserRecord<'info>
+    impl<'info> anchor_lang::Accounts<'info, CompressUserRecordBumps> for CompressUserRecord<'info>
     where
         'info: 'info,
     {
@@ -5403,14 +4828,15 @@ pub mod anchor_compressible_user_derived {
             >,
         ) -> anchor_lang::Result<Self> {
             let user: Signer = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("user"))?;
-            let pda_account: anchor_lang::accounts::account::Account<UserRecord> = anchor_lang::Accounts::try_accounts(
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("user"))?;
+            let pda_account: anchor_lang::accounts::account::Account<UserRecord> =
+                anchor_lang::Accounts::try_accounts(
                     __program_id,
                     __accounts,
                     __ix_data,
@@ -5418,7 +4844,8 @@ pub mod anchor_compressible_user_derived {
                     __reallocs,
                 )
                 .map_err(|e| e.with_account_name("pda_account"))?;
-            let system_program: anchor_lang::accounts::program::Program<System> = anchor_lang::Accounts::try_accounts(
+            let system_program: anchor_lang::accounts::program::Program<System> =
+                anchor_lang::Accounts::try_accounts(
                     __program_id,
                     __accounts,
                     __ix_data,
@@ -5427,64 +4854,52 @@ pub mod anchor_compressible_user_derived {
                 )
                 .map_err(|e| e.with_account_name("system_program"))?;
             let config: AccountInfo = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("config"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("config"))?;
             let rent_recipient: AccountInfo = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("rent_recipient"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("rent_recipient"))?;
             if !AsRef::<AccountInfo>::as_ref(&user).is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("user"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("user"));
             }
-            let (__pda_address, __bump) = Pubkey::find_program_address(
-                &[b"user_record", user.key().as_ref()],
-                &__program_id,
-            );
+            let (__pda_address, __bump) =
+                Pubkey::find_program_address(&[b"user_record", user.key().as_ref()], &__program_id);
             __bumps.pda_account = __bump;
             if pda_account.key() != __pda_address {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintSeeds,
-                        )
-                        .with_account_name("pda_account")
-                        .with_pubkeys((pda_account.key(), __pda_address)),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintSeeds,
+                )
+                .with_account_name("pda_account")
+                .with_pubkeys((pda_account.key(), __pda_address)));
             }
             if !AsRef::<AccountInfo>::as_ref(&pda_account).is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("pda_account"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("pda_account"));
             }
-            let (__pda_address, __bump) = Pubkey::find_program_address(
-                &[b"compressible_config"],
-                &__program_id,
-            );
+            let (__pda_address, __bump) =
+                Pubkey::find_program_address(&[b"compressible_config"], &__program_id);
             __bumps.config = __bump;
             if config.key() != __pda_address {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintSeeds,
-                        )
-                        .with_account_name("config")
-                        .with_pubkeys((config.key(), __pda_address)),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintSeeds,
+                )
+                .with_account_name("config")
+                .with_pubkeys((config.key(), __pda_address)));
             }
             Ok(CompressUserRecord {
                 user,
@@ -5621,66 +5036,53 @@ pub mod anchor_compressible_user_derived {
             fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                 Some(anchor_lang::idl::types::IdlTypeDef {
                     name: Self::get_full_path(),
-                    docs: <[_]>::into_vec(
-                        ::alloc::boxed::box_new([
-                            "Generated client accounts for [`CompressUserRecord`]."
-                                .into(),
-                        ]),
-                    ),
+                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                        "Generated client accounts for [`CompressUserRecord`].".into(),
+                    ])),
                     serialization: anchor_lang::idl::types::IdlSerialization::default(),
                     repr: None,
                     generics: ::alloc::vec::Vec::new(),
                     ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                        fields: Some(
-                            anchor_lang::idl::types::IdlDefinedFields::Named(
-                                <[_]>::into_vec(
-                                    ::alloc::boxed::box_new([
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "user".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "pda_account".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "system_program".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "config".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "The global config account".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "rent_recipient".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "Rent recipient - validated against config".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                    ]),
-                                ),
-                            ),
-                        ),
+                        fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(::alloc::boxed::box_new([
+                                anchor_lang::idl::types::IdlField {
+                                    name: "user".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "pda_account".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "system_program".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "config".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "The global config account".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "rent_recipient".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "Rent recipient - validated against config".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                            ])),
+                        )),
                     },
                 })
             }
             fn insert_types(
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
-            ) {}
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+            ) {
+            }
             fn get_full_path() -> String {
                 ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
@@ -5701,41 +5103,31 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.user,
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.pda_account,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.system_program,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.config,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.rent_recipient,
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.user, true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.pda_account,
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.system_program,
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.config,
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.rent_recipient,
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
@@ -5752,18 +5144,12 @@ pub mod anchor_compressible_user_derived {
         /// Generated CPI struct of the accounts for [`CompressUserRecord`].
         pub struct CompressUserRecord<'info> {
             pub user: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-            pub pda_account: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
-            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
+            pub pda_account: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             ///The global config account
             pub config: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             ///Rent recipient - validated against config
-            pub rent_recipient: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
+            pub rent_recipient: anchor_lang::solana_program::account_info::AccountInfo<'info>,
         }
         #[automatically_derived]
         impl<'info> anchor_lang::ToAccountMetas for CompressUserRecord<'info> {
@@ -5772,41 +5158,32 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.user),
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.pda_account),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.system_program),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.config),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.rent_recipient),
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.user),
+                    true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.pda_account),
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.system_program),
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.config),
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.rent_recipient),
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
@@ -5816,40 +5193,25 @@ pub mod anchor_compressible_user_derived {
                 &self,
             ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
                 let mut account_infos = ::alloc::vec::Vec::new();
-                account_infos
-                    .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.user));
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(&self.pda_account),
-                    );
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(
-                            &self.system_program,
-                        ),
-                    );
-                account_infos
-                    .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(
-                            &self.rent_recipient,
-                        ),
-                    );
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.user));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.pda_account,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.system_program,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.rent_recipient,
+                ));
                 account_infos
             }
         }
     }
     impl<'info> CompressUserRecord<'info> {
         pub fn __anchor_private_gen_idl_accounts(
-            accounts: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlAccount,
-            >,
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
             if let Some(ty) = <UserRecord>::create_type() {
                 let account = anchor_lang::idl::types::IdlAccount {
@@ -5860,9 +5222,9 @@ pub mod anchor_compressible_user_derived {
                 types.insert(ty.name.clone(), ty);
                 <UserRecord>::insert_types(types);
             }
-            <[_]>::into_vec(
-                ::alloc::boxed::box_new([
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+            <[_]>::into_vec(::alloc::boxed::box_new([
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "user".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -5871,8 +5233,10 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "pda_account".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -5881,8 +5245,10 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "system_program".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: false,
@@ -5891,35 +5257,37 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "config".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new(["The global config account".into()]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "The global config account".into(),
+                        ])),
                         writable: false,
                         signer: false,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "rent_recipient".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Rent recipient - validated against config".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Rent recipient - validated against config".into(),
+                        ])),
                         writable: false,
                         signer: false,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                ]),
-            )
+                    },
+                ),
+            ]))
         }
     }
     /// Compresses a #struct_name PDA using config values
@@ -5929,43 +5297,41 @@ pub mod anchor_compressible_user_derived {
         compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
     ) -> Result<()> {
         let config = light_sdk::compressible::CompressibleConfig::load_checked(
-                &ctx.accounts.config,
-                &crate::ID,
-            )
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+            &ctx.accounts.config,
+            &crate::ID,
+        )
+        .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
-            return Err(
-                anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
+            return Err(anchor_lang::error::Error::from(
+                anchor_lang::error::AnchorError {
                     error_name: ErrorCode::InvalidRentRecipient.name(),
                     error_code_number: ErrorCode::InvalidRentRecipient.into(),
                     error_msg: ErrorCode::InvalidRentRecipient.to_string(),
-                    error_origin: Some(
-                        anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
+                    error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                        anchor_lang::error::Source {
                             filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
                             line: 14u32,
-                        }),
-                    ),
+                        },
+                    )),
                     compared_values: None,
-                }),
-            );
+                },
+            ));
         }
         let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
             &ctx.accounts.user,
             &ctx.remaining_accounts[..],
             LIGHT_CPI_SIGNER,
         );
-        light_sdk::compressible::compress_pda::<
-            UserRecord,
-        >(
-                &ctx.accounts.pda_account.to_account_info(),
-                &compressed_account_meta,
-                proof,
-                cpi_accounts,
-                &crate::ID,
-                &ctx.accounts.rent_recipient,
-                &config.compression_delay,
-            )
-            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        light_sdk::compressible::compress_pda::<UserRecord>(
+            &ctx.accounts.pda_account.to_account_info(),
+            &compressed_account_meta,
+            proof,
+            cpi_accounts,
+            &crate::ID,
+            &ctx.accounts.rent_recipient,
+            &config.compression_delay,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
     }
     pub struct CompressGameSession<'info> {
@@ -5981,8 +5347,7 @@ pub mod anchor_compressible_user_derived {
         pub rent_recipient: AccountInfo<'info>,
     }
     #[automatically_derived]
-    impl<'info> anchor_lang::Accounts<'info, CompressGameSessionBumps>
-    for CompressGameSession<'info>
+    impl<'info> anchor_lang::Accounts<'info, CompressGameSessionBumps> for CompressGameSession<'info>
     where
         'info: 'info,
     {
@@ -5999,14 +5364,15 @@ pub mod anchor_compressible_user_derived {
             >,
         ) -> anchor_lang::Result<Self> {
             let user: Signer = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("user"))?;
-            let pda_account: anchor_lang::accounts::account::Account<GameSession> = anchor_lang::Accounts::try_accounts(
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("user"))?;
+            let pda_account: anchor_lang::accounts::account::Account<GameSession> =
+                anchor_lang::Accounts::try_accounts(
                     __program_id,
                     __accounts,
                     __ix_data,
@@ -6014,7 +5380,8 @@ pub mod anchor_compressible_user_derived {
                     __reallocs,
                 )
                 .map_err(|e| e.with_account_name("pda_account"))?;
-            let system_program: anchor_lang::accounts::program::Program<System> = anchor_lang::Accounts::try_accounts(
+            let system_program: anchor_lang::accounts::program::Program<System> =
+                anchor_lang::Accounts::try_accounts(
                     __program_id,
                     __accounts,
                     __ix_data,
@@ -6023,64 +5390,52 @@ pub mod anchor_compressible_user_derived {
                 )
                 .map_err(|e| e.with_account_name("system_program"))?;
             let config: AccountInfo = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("config"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("config"))?;
             let rent_recipient: AccountInfo = anchor_lang::Accounts::try_accounts(
-                    __program_id,
-                    __accounts,
-                    __ix_data,
-                    __bumps,
-                    __reallocs,
-                )
-                .map_err(|e| e.with_account_name("rent_recipient"))?;
+                __program_id,
+                __accounts,
+                __ix_data,
+                __bumps,
+                __reallocs,
+            )
+            .map_err(|e| e.with_account_name("rent_recipient"))?;
             if !AsRef::<AccountInfo>::as_ref(&user).is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("user"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("user"));
             }
-            let (__pda_address, __bump) = Pubkey::find_program_address(
-                &[b"user_record", user.key().as_ref()],
-                &__program_id,
-            );
+            let (__pda_address, __bump) =
+                Pubkey::find_program_address(&[b"user_record", user.key().as_ref()], &__program_id);
             __bumps.pda_account = __bump;
             if pda_account.key() != __pda_address {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintSeeds,
-                        )
-                        .with_account_name("pda_account")
-                        .with_pubkeys((pda_account.key(), __pda_address)),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintSeeds,
+                )
+                .with_account_name("pda_account")
+                .with_pubkeys((pda_account.key(), __pda_address)));
             }
             if !AsRef::<AccountInfo>::as_ref(&pda_account).is_writable {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintMut,
-                        )
-                        .with_account_name("pda_account"),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintMut,
+                )
+                .with_account_name("pda_account"));
             }
-            let (__pda_address, __bump) = Pubkey::find_program_address(
-                &[b"compressible_config"],
-                &__program_id,
-            );
+            let (__pda_address, __bump) =
+                Pubkey::find_program_address(&[b"compressible_config"], &__program_id);
             __bumps.config = __bump;
             if config.key() != __pda_address {
-                return Err(
-                    anchor_lang::error::Error::from(
-                            anchor_lang::error::ErrorCode::ConstraintSeeds,
-                        )
-                        .with_account_name("config")
-                        .with_pubkeys((config.key(), __pda_address)),
-                );
+                return Err(anchor_lang::error::Error::from(
+                    anchor_lang::error::ErrorCode::ConstraintSeeds,
+                )
+                .with_account_name("config")
+                .with_pubkeys((config.key(), __pda_address)));
             }
             Ok(CompressGameSession {
                 user,
@@ -6217,66 +5572,53 @@ pub mod anchor_compressible_user_derived {
             fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
                 Some(anchor_lang::idl::types::IdlTypeDef {
                     name: Self::get_full_path(),
-                    docs: <[_]>::into_vec(
-                        ::alloc::boxed::box_new([
-                            "Generated client accounts for [`CompressGameSession`]."
-                                .into(),
-                        ]),
-                    ),
+                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                        "Generated client accounts for [`CompressGameSession`].".into(),
+                    ])),
                     serialization: anchor_lang::idl::types::IdlSerialization::default(),
                     repr: None,
                     generics: ::alloc::vec::Vec::new(),
                     ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                        fields: Some(
-                            anchor_lang::idl::types::IdlDefinedFields::Named(
-                                <[_]>::into_vec(
-                                    ::alloc::boxed::box_new([
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "user".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "pda_account".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "system_program".into(),
-                                            docs: ::alloc::vec::Vec::new(),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "config".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "The global config account".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                        anchor_lang::idl::types::IdlField {
-                                            name: "rent_recipient".into(),
-                                            docs: <[_]>::into_vec(
-                                                ::alloc::boxed::box_new([
-                                                    "Rent recipient - validated against config".into(),
-                                                ]),
-                                            ),
-                                            ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                        },
-                                    ]),
-                                ),
-                            ),
-                        ),
+                        fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                            <[_]>::into_vec(::alloc::boxed::box_new([
+                                anchor_lang::idl::types::IdlField {
+                                    name: "user".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "pda_account".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "system_program".into(),
+                                    docs: ::alloc::vec::Vec::new(),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "config".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "The global config account".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                                anchor_lang::idl::types::IdlField {
+                                    name: "rent_recipient".into(),
+                                    docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                                        "Rent recipient - validated against config".into(),
+                                    ])),
+                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
+                                },
+                            ])),
+                        )),
                     },
                 })
             }
             fn insert_types(
-                types: &mut std::collections::BTreeMap<
-                    String,
-                    anchor_lang::idl::types::IdlTypeDef,
-                >,
-            ) {}
+                types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+            ) {
+            }
             fn get_full_path() -> String {
                 ::alloc::__export::must_use({
                     let res = ::alloc::fmt::format(
@@ -6297,41 +5639,31 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.user,
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            self.pda_account,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.system_program,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.config,
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            self.rent_recipient,
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.user, true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    self.pda_account,
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.system_program,
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.config,
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        self.rent_recipient,
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
@@ -6348,18 +5680,12 @@ pub mod anchor_compressible_user_derived {
         /// Generated CPI struct of the accounts for [`CompressGameSession`].
         pub struct CompressGameSession<'info> {
             pub user: anchor_lang::solana_program::account_info::AccountInfo<'info>,
-            pub pda_account: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
-            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
+            pub pda_account: anchor_lang::solana_program::account_info::AccountInfo<'info>,
+            pub system_program: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             ///The global config account
             pub config: anchor_lang::solana_program::account_info::AccountInfo<'info>,
             ///Rent recipient - validated against config
-            pub rent_recipient: anchor_lang::solana_program::account_info::AccountInfo<
-                'info,
-            >,
+            pub rent_recipient: anchor_lang::solana_program::account_info::AccountInfo<'info>,
         }
         #[automatically_derived]
         impl<'info> anchor_lang::ToAccountMetas for CompressGameSession<'info> {
@@ -6368,41 +5694,32 @@ pub mod anchor_compressible_user_derived {
                 is_signer: Option<bool>,
             ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
                 let mut account_metas = ::alloc::vec::Vec::new();
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.user),
-                            true,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new(
-                            anchor_lang::Key::key(&self.pda_account),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.system_program),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.config),
-                            false,
-                        ),
-                    );
-                account_metas
-                    .push(
-                        anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                            anchor_lang::Key::key(&self.rent_recipient),
-                            false,
-                        ),
-                    );
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.user),
+                    true,
+                ));
+                account_metas.push(anchor_lang::solana_program::instruction::AccountMeta::new(
+                    anchor_lang::Key::key(&self.pda_account),
+                    false,
+                ));
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.system_program),
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.config),
+                        false,
+                    ),
+                );
+                account_metas.push(
+                    anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
+                        anchor_lang::Key::key(&self.rent_recipient),
+                        false,
+                    ),
+                );
                 account_metas
             }
         }
@@ -6412,40 +5729,25 @@ pub mod anchor_compressible_user_derived {
                 &self,
             ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
                 let mut account_infos = ::alloc::vec::Vec::new();
-                account_infos
-                    .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.user));
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(&self.pda_account),
-                    );
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(
-                            &self.system_program,
-                        ),
-                    );
-                account_infos
-                    .extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
-                account_infos
-                    .extend(
-                        anchor_lang::ToAccountInfos::to_account_infos(
-                            &self.rent_recipient,
-                        ),
-                    );
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.user));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.pda_account,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.system_program,
+                ));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.config));
+                account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(
+                    &self.rent_recipient,
+                ));
                 account_infos
             }
         }
     }
     impl<'info> CompressGameSession<'info> {
         pub fn __anchor_private_gen_idl_accounts(
-            accounts: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlAccount,
-            >,
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
             if let Some(ty) = <GameSession>::create_type() {
                 let account = anchor_lang::idl::types::IdlAccount {
@@ -6456,9 +5758,9 @@ pub mod anchor_compressible_user_derived {
                 types.insert(ty.name.clone(), ty);
                 <GameSession>::insert_types(types);
             }
-            <[_]>::into_vec(
-                ::alloc::boxed::box_new([
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+            <[_]>::into_vec(::alloc::boxed::box_new([
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "user".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -6467,8 +5769,10 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "pda_account".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: true,
@@ -6477,8 +5781,10 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "system_program".into(),
                         docs: ::alloc::vec::Vec::new(),
                         writable: false,
@@ -6487,35 +5793,37 @@ pub mod anchor_compressible_user_derived {
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "config".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new(["The global config account".into()]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "The global config account".into(),
+                        ])),
                         writable: false,
                         signer: false,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                    anchor_lang::idl::types::IdlInstructionAccountItem::Single(anchor_lang::idl::types::IdlInstructionAccount {
+                    },
+                ),
+                anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                    anchor_lang::idl::types::IdlInstructionAccount {
                         name: "rent_recipient".into(),
-                        docs: <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                "Rent recipient - validated against config".into(),
-                            ]),
-                        ),
+                        docs: <[_]>::into_vec(::alloc::boxed::box_new([
+                            "Rent recipient - validated against config".into(),
+                        ])),
                         writable: false,
                         signer: false,
                         optional: false,
                         address: None,
                         pda: None,
                         relations: ::alloc::vec::Vec::new(),
-                    }),
-                ]),
-            )
+                    },
+                ),
+            ]))
         }
     }
     /// Compresses a #struct_name PDA using config values
@@ -6525,43 +5833,41 @@ pub mod anchor_compressible_user_derived {
         compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
     ) -> Result<()> {
         let config = light_sdk::compressible::CompressibleConfig::load_checked(
-                &ctx.accounts.config,
-                &crate::ID,
-            )
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+            &ctx.accounts.config,
+            &crate::ID,
+        )
+        .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
-            return Err(
-                anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
+            return Err(anchor_lang::error::Error::from(
+                anchor_lang::error::AnchorError {
                     error_name: ErrorCode::InvalidRentRecipient.name(),
                     error_code_number: ErrorCode::InvalidRentRecipient.into(),
                     error_msg: ErrorCode::InvalidRentRecipient.to_string(),
-                    error_origin: Some(
-                        anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
+                    error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                        anchor_lang::error::Source {
                             filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
                             line: 14u32,
-                        }),
-                    ),
+                        },
+                    )),
                     compared_values: None,
-                }),
-            );
+                },
+            ));
         }
         let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
             &ctx.accounts.user,
             &ctx.remaining_accounts[..],
             LIGHT_CPI_SIGNER,
         );
-        light_sdk::compressible::compress_pda::<
-            GameSession,
-        >(
-                &ctx.accounts.pda_account.to_account_info(),
-                &compressed_account_meta,
-                proof,
-                cpi_accounts,
-                &crate::ID,
-                &ctx.accounts.rent_recipient,
-                &config.compression_delay,
-            )
-            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        light_sdk::compressible::compress_pda::<GameSession>(
+            &ctx.accounts.pda_account.to_account_info(),
+            &compressed_account_meta,
+            proof,
+            cpi_accounts,
+            &crate::ID,
+            &ctx.accounts.rent_recipient,
+            &config.compression_delay,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         Ok(())
     }
 }
@@ -6604,49 +5910,40 @@ pub mod instruction {
                 repr: None,
                 generics: ::alloc::vec::Vec::new(),
                 ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                    fields: Some(
-                        anchor_lang::idl::types::IdlDefinedFields::Named(
-                            <[_]>::into_vec(
-                                ::alloc::boxed::box_new([
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "compression_delay".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::U32,
-                                    },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "rent_recipient".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                    },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "address_space".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Vec(
-                                            Box::new(anchor_lang::idl::types::IdlType::Pubkey),
-                                        ),
-                                    },
-                                ]),
-                            ),
-                        ),
-                    ),
+                    fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                        <[_]>::into_vec(::alloc::boxed::box_new([
+                            anchor_lang::idl::types::IdlField {
+                                name: "compression_delay".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::U32,
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "rent_recipient".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Pubkey,
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "address_space".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Vec(Box::new(
+                                    anchor_lang::idl::types::IdlType::Pubkey,
+                                )),
+                            },
+                        ])),
+                    )),
                 },
             })
         }
         fn insert_types(
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
-        ) {}
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+        ) {
+        }
         fn get_full_path() -> String {
             ::alloc::__export::must_use({
-                let res = ::alloc::fmt::format(
-                    format_args!(
-                        "{0}::{1}",
-                        "anchor_compressible_user_derived::instruction",
-                        "CreateCompressionConfig",
-                    ),
-                );
+                let res = ::alloc::fmt::format(format_args!(
+                    "{0}::{1}",
+                    "anchor_compressible_user_derived::instruction", "CreateCompressionConfig",
+                ));
                 res
             })
         }
@@ -6710,64 +6007,53 @@ pub mod instruction {
                 repr: None,
                 generics: ::alloc::vec::Vec::new(),
                 ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                    fields: Some(
-                        anchor_lang::idl::types::IdlDefinedFields::Named(
-                            <[_]>::into_vec(
-                                ::alloc::boxed::box_new([
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "new_compression_delay".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Option(
-                                            Box::new(anchor_lang::idl::types::IdlType::U32),
-                                        ),
-                                    },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "new_rent_recipient".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Option(
-                                            Box::new(anchor_lang::idl::types::IdlType::Pubkey),
-                                        ),
-                                    },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "new_address_space".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Option(
-                                            Box::new(
-                                                anchor_lang::idl::types::IdlType::Vec(
-                                                    Box::new(anchor_lang::idl::types::IdlType::Pubkey),
-                                                ),
-                                            ),
-                                        ),
-                                    },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "new_update_authority".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Option(
-                                            Box::new(anchor_lang::idl::types::IdlType::Pubkey),
-                                        ),
-                                    },
-                                ]),
-                            ),
-                        ),
-                    ),
+                    fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                        <[_]>::into_vec(::alloc::boxed::box_new([
+                            anchor_lang::idl::types::IdlField {
+                                name: "new_compression_delay".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Option(Box::new(
+                                    anchor_lang::idl::types::IdlType::U32,
+                                )),
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "new_rent_recipient".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Option(Box::new(
+                                    anchor_lang::idl::types::IdlType::Pubkey,
+                                )),
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "new_address_space".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Option(Box::new(
+                                    anchor_lang::idl::types::IdlType::Vec(Box::new(
+                                        anchor_lang::idl::types::IdlType::Pubkey,
+                                    )),
+                                )),
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "new_update_authority".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Option(Box::new(
+                                    anchor_lang::idl::types::IdlType::Pubkey,
+                                )),
+                            },
+                        ])),
+                    )),
                 },
             })
         }
         fn insert_types(
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
-        ) {}
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+        ) {
+        }
         fn get_full_path() -> String {
             ::alloc::__export::must_use({
-                let res = ::alloc::fmt::format(
-                    format_args!(
-                        "{0}::{1}",
-                        "anchor_compressible_user_derived::instruction",
-                        "UpdateCompressionConfig",
-                    ),
-                );
+                let res = ::alloc::fmt::format(format_args!(
+                    "{0}::{1}",
+                    "anchor_compressible_user_derived::instruction", "UpdateCompressionConfig",
+                ));
                 res
             })
         }
@@ -6783,14 +6069,10 @@ pub mod instruction {
             reader: &mut R,
         ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
             Ok(Self {
-                new_compression_delay: borsh::BorshDeserialize::deserialize_reader(
-                    reader,
-                )?,
+                new_compression_delay: borsh::BorshDeserialize::deserialize_reader(reader)?,
                 new_rent_recipient: borsh::BorshDeserialize::deserialize_reader(reader)?,
                 new_address_space: borsh::BorshDeserialize::deserialize_reader(reader)?,
-                new_update_authority: borsh::BorshDeserialize::deserialize_reader(
-                    reader,
-                )?,
+                new_update_authority: borsh::BorshDeserialize::deserialize_reader(reader)?,
             })
         }
     }
@@ -6804,13 +6086,13 @@ pub mod instruction {
         }
     }
     /// Instruction.
-    pub struct DecompressMultiplePdas {
+    pub struct DecompressMultipleAccountsIdempotent {
         pub proof: light_sdk::instruction::ValidityProof,
         pub compressed_accounts: Vec<CompressedAccountData>,
         pub bumps: Vec<u8>,
         pub system_accounts_offset: u8,
     }
-    impl borsh::ser::BorshSerialize for DecompressMultiplePdas
+    impl borsh::ser::BorshSerialize for DecompressMultipleAccountsIdempotent
     where
         light_sdk::instruction::ValidityProof: borsh::ser::BorshSerialize,
         Vec<CompressedAccountData>: borsh::ser::BorshSerialize,
@@ -6828,7 +6110,7 @@ pub mod instruction {
             Ok(())
         }
     }
-    impl anchor_lang::idl::build::IdlBuild for DecompressMultiplePdas {
+    impl anchor_lang::idl::build::IdlBuild for DecompressMultipleAccountsIdempotent {
         fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
             Some(anchor_lang::idl::types::IdlTypeDef {
                 name: Self::get_full_path(),
@@ -6837,57 +6119,46 @@ pub mod instruction {
                 repr: None,
                 generics: ::alloc::vec::Vec::new(),
                 ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                    fields: Some(
-                        anchor_lang::idl::types::IdlDefinedFields::Named(
-                            <[_]>::into_vec(
-                                ::alloc::boxed::box_new([
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "proof".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Defined {
-                                            name: <light_sdk::instruction::ValidityProof>::get_full_path(),
-                                            generics: ::alloc::vec::Vec::new(),
-                                        },
+                    fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                        <[_]>::into_vec(::alloc::boxed::box_new([
+                            anchor_lang::idl::types::IdlField {
+                                name: "proof".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Defined {
+                                    name: <light_sdk::instruction::ValidityProof>::get_full_path(),
+                                    generics: ::alloc::vec::Vec::new(),
+                                },
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "compressed_accounts".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Vec(Box::new(
+                                    anchor_lang::idl::types::IdlType::Defined {
+                                        name: <CompressedAccountData>::get_full_path(),
+                                        generics: ::alloc::vec::Vec::new(),
                                     },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "compressed_accounts".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Vec(
-                                            Box::new(anchor_lang::idl::types::IdlType::Defined {
-                                                name: <CompressedAccountData>::get_full_path(),
-                                                generics: ::alloc::vec::Vec::new(),
-                                            }),
-                                        ),
-                                    },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "bumps".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::Bytes,
-                                    },
-                                    anchor_lang::idl::types::IdlField {
-                                        name: "system_accounts_offset".into(),
-                                        docs: ::alloc::vec::Vec::new(),
-                                        ty: anchor_lang::idl::types::IdlType::U8,
-                                    },
-                                ]),
-                            ),
-                        ),
-                    ),
+                                )),
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "bumps".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::Bytes,
+                            },
+                            anchor_lang::idl::types::IdlField {
+                                name: "system_accounts_offset".into(),
+                                docs: ::alloc::vec::Vec::new(),
+                                ty: anchor_lang::idl::types::IdlType::U8,
+                            },
+                        ])),
+                    )),
                 },
             })
         }
         fn insert_types(
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) {
             if let Some(ty) = <light_sdk::instruction::ValidityProof>::create_type() {
-                types
-                    .insert(
-                        <light_sdk::instruction::ValidityProof>::get_full_path(),
-                        ty,
-                    );
+                types.insert(<light_sdk::instruction::ValidityProof>::get_full_path(), ty);
                 <light_sdk::instruction::ValidityProof>::insert_types(types);
             }
             if let Some(ty) = <CompressedAccountData>::create_type() {
@@ -6897,18 +6168,16 @@ pub mod instruction {
         }
         fn get_full_path() -> String {
             ::alloc::__export::must_use({
-                let res = ::alloc::fmt::format(
-                    format_args!(
-                        "{0}::{1}",
-                        "anchor_compressible_user_derived::instruction",
-                        "DecompressMultiplePdas",
-                    ),
-                );
+                let res = ::alloc::fmt::format(format_args!(
+                    "{0}::{1}",
+                    "anchor_compressible_user_derived::instruction",
+                    "DecompressMultipleAccountsIdempotent",
+                ));
                 res
             })
         }
     }
-    impl borsh::de::BorshDeserialize for DecompressMultiplePdas
+    impl borsh::de::BorshDeserialize for DecompressMultipleAccountsIdempotent
     where
         light_sdk::instruction::ValidityProof: borsh::BorshDeserialize,
         Vec<CompressedAccountData>: borsh::BorshDeserialize,
@@ -6920,21 +6189,17 @@ pub mod instruction {
         ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
             Ok(Self {
                 proof: borsh::BorshDeserialize::deserialize_reader(reader)?,
-                compressed_accounts: borsh::BorshDeserialize::deserialize_reader(
-                    reader,
-                )?,
+                compressed_accounts: borsh::BorshDeserialize::deserialize_reader(reader)?,
                 bumps: borsh::BorshDeserialize::deserialize_reader(reader)?,
-                system_accounts_offset: borsh::BorshDeserialize::deserialize_reader(
-                    reader,
-                )?,
+                system_accounts_offset: borsh::BorshDeserialize::deserialize_reader(reader)?,
             })
         }
     }
-    impl anchor_lang::Discriminator for DecompressMultiplePdas {
+    impl anchor_lang::Discriminator for DecompressMultipleAccountsIdempotent {
         const DISCRIMINATOR: &'static [u8] = &[94, 169, 150, 235, 138, 51, 254, 223];
     }
-    impl anchor_lang::InstructionData for DecompressMultiplePdas {}
-    impl anchor_lang::Owner for DecompressMultiplePdas {
+    impl anchor_lang::InstructionData for DecompressMultipleAccountsIdempotent {}
+    impl anchor_lang::Owner for DecompressMultipleAccountsIdempotent {
         fn owner() -> Pubkey {
             ID
         }
@@ -6942,12 +6207,14 @@ pub mod instruction {
     /// Instruction.
     pub struct CompressUserRecord {
         pub proof: light_sdk::instruction::ValidityProof,
-        pub compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
+        pub compressed_account_meta:
+            light_sdk_types::instruction::account_meta::CompressedAccountMeta,
     }
     impl borsh::ser::BorshSerialize for CompressUserRecord
     where
         light_sdk::instruction::ValidityProof: borsh::ser::BorshSerialize,
-        light_sdk_types::instruction::account_meta::CompressedAccountMeta: borsh::ser::BorshSerialize,
+        light_sdk_types::instruction::account_meta::CompressedAccountMeta:
+            borsh::ser::BorshSerialize,
     {
         fn serialize<W: borsh::maybestd::io::Write>(
             &self,
@@ -6995,20 +6262,15 @@ pub mod instruction {
             })
         }
         fn insert_types(
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) {
             if let Some(ty) = <light_sdk::instruction::ValidityProof>::create_type() {
-                types
-                    .insert(
-                        <light_sdk::instruction::ValidityProof>::get_full_path(),
-                        ty,
-                    );
+                types.insert(<light_sdk::instruction::ValidityProof>::get_full_path(), ty);
                 <light_sdk::instruction::ValidityProof>::insert_types(types);
             }
-            if let Some(ty) = <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::create_type() {
+            if let Some(ty) =
+                <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::create_type()
+            {
                 types
                     .insert(
                         <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::get_full_path(),
@@ -7021,13 +6283,10 @@ pub mod instruction {
         }
         fn get_full_path() -> String {
             ::alloc::__export::must_use({
-                let res = ::alloc::fmt::format(
-                    format_args!(
-                        "{0}::{1}",
-                        "anchor_compressible_user_derived::instruction",
-                        "CompressUserRecord",
-                    ),
-                );
+                let res = ::alloc::fmt::format(format_args!(
+                    "{0}::{1}",
+                    "anchor_compressible_user_derived::instruction", "CompressUserRecord",
+                ));
                 res
             })
         }
@@ -7042,9 +6301,7 @@ pub mod instruction {
         ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
             Ok(Self {
                 proof: borsh::BorshDeserialize::deserialize_reader(reader)?,
-                compressed_account_meta: borsh::BorshDeserialize::deserialize_reader(
-                    reader,
-                )?,
+                compressed_account_meta: borsh::BorshDeserialize::deserialize_reader(reader)?,
             })
         }
     }
@@ -7060,12 +6317,14 @@ pub mod instruction {
     /// Instruction.
     pub struct CompressGameSession {
         pub proof: light_sdk::instruction::ValidityProof,
-        pub compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
+        pub compressed_account_meta:
+            light_sdk_types::instruction::account_meta::CompressedAccountMeta,
     }
     impl borsh::ser::BorshSerialize for CompressGameSession
     where
         light_sdk::instruction::ValidityProof: borsh::ser::BorshSerialize,
-        light_sdk_types::instruction::account_meta::CompressedAccountMeta: borsh::ser::BorshSerialize,
+        light_sdk_types::instruction::account_meta::CompressedAccountMeta:
+            borsh::ser::BorshSerialize,
     {
         fn serialize<W: borsh::maybestd::io::Write>(
             &self,
@@ -7113,20 +6372,15 @@ pub mod instruction {
             })
         }
         fn insert_types(
-            types: &mut std::collections::BTreeMap<
-                String,
-                anchor_lang::idl::types::IdlTypeDef,
-            >,
+            types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
         ) {
             if let Some(ty) = <light_sdk::instruction::ValidityProof>::create_type() {
-                types
-                    .insert(
-                        <light_sdk::instruction::ValidityProof>::get_full_path(),
-                        ty,
-                    );
+                types.insert(<light_sdk::instruction::ValidityProof>::get_full_path(), ty);
                 <light_sdk::instruction::ValidityProof>::insert_types(types);
             }
-            if let Some(ty) = <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::create_type() {
+            if let Some(ty) =
+                <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::create_type()
+            {
                 types
                     .insert(
                         <light_sdk_types::instruction::account_meta::CompressedAccountMeta>::get_full_path(),
@@ -7139,13 +6393,10 @@ pub mod instruction {
         }
         fn get_full_path() -> String {
             ::alloc::__export::must_use({
-                let res = ::alloc::fmt::format(
-                    format_args!(
-                        "{0}::{1}",
-                        "anchor_compressible_user_derived::instruction",
-                        "CompressGameSession",
-                    ),
-                );
+                let res = ::alloc::fmt::format(format_args!(
+                    "{0}::{1}",
+                    "anchor_compressible_user_derived::instruction", "CompressGameSession",
+                ));
                 res
             })
         }
@@ -7160,9 +6411,7 @@ pub mod instruction {
         ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
             Ok(Self {
                 proof: borsh::BorshDeserialize::deserialize_reader(reader)?,
-                compressed_account_meta: borsh::BorshDeserialize::deserialize_reader(
-                    reader,
-                )?,
+                compressed_account_meta: borsh::BorshDeserialize::deserialize_reader(reader)?,
             })
         }
     }
@@ -7180,11 +6429,11 @@ pub mod instruction {
 /// mirroring the structs deriving `Accounts`, where each field is
 /// a `Pubkey`. This is useful for specifying accounts for a client.
 pub mod accounts {
-    pub use crate::__client_accounts_update_compressible_config::*;
-    pub use crate::__client_accounts_compress_user_record::*;
     pub use crate::__client_accounts_compress_game_session::*;
-    pub use crate::__client_accounts_decompress_multiple_pdas::*;
+    pub use crate::__client_accounts_compress_user_record::*;
     pub use crate::__client_accounts_create_compressible_config::*;
+    pub use crate::__client_accounts_decompress_multiple_pdas::*;
+    pub use crate::__client_accounts_update_compressible_config::*;
 }
 pub struct UserRecord {
     #[skip]
@@ -7223,45 +6472,38 @@ impl anchor_lang::idl::build::IdlBuild for UserRecord {
             repr: None,
             generics: ::alloc::vec::Vec::new(),
             ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                fields: Some(
-                    anchor_lang::idl::types::IdlDefinedFields::Named(
-                        <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                anchor_lang::idl::types::IdlField {
-                                    name: "compression_info".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::Defined {
-                                        name: <CompressionInfo>::get_full_path(),
-                                        generics: ::alloc::vec::Vec::new(),
-                                    },
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "owner".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "name".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::String,
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "score".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::U64,
-                                },
-                            ]),
-                        ),
-                    ),
-                ),
+                fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                    <[_]>::into_vec(::alloc::boxed::box_new([
+                        anchor_lang::idl::types::IdlField {
+                            name: "compression_info".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::Defined {
+                                name: <CompressionInfo>::get_full_path(),
+                                generics: ::alloc::vec::Vec::new(),
+                            },
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "owner".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::Pubkey,
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "name".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::String,
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "score".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::U64,
+                        },
+                    ])),
+                )),
             },
         })
     }
     fn insert_types(
-        types: &mut std::collections::BTreeMap<
-            String,
-            anchor_lang::idl::types::IdlTypeDef,
-        >,
+        types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
     ) {
         if let Some(ty) = <CompressionInfo>::create_type() {
             types.insert(<CompressionInfo>::get_full_path(), ty);
@@ -7270,13 +6512,10 @@ impl anchor_lang::idl::build::IdlBuild for UserRecord {
     }
     fn get_full_path() -> String {
         ::alloc::__export::must_use({
-            let res = ::alloc::fmt::format(
-                format_args!(
-                    "{0}::{1}",
-                    "anchor_compressible_user_derived",
-                    "UserRecord",
-                ),
-            );
+            let res = ::alloc::fmt::format(format_args!(
+                "{0}::{1}",
+                "anchor_compressible_user_derived", "UserRecord",
+            ));
             res
         })
     }
@@ -7313,10 +6552,7 @@ impl ::core::clone::Clone for UserRecord {
 }
 #[automatically_derived]
 impl anchor_lang::AccountSerialize for UserRecord {
-    fn try_serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> anchor_lang::Result<()> {
+    fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
         if writer.write_all(UserRecord::DISCRIMINATOR).is_err() {
             return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
         }
@@ -7330,29 +6566,26 @@ impl anchor_lang::AccountSerialize for UserRecord {
 impl anchor_lang::AccountDeserialize for UserRecord {
     fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
         if buf.len() < UserRecord::DISCRIMINATOR.len() {
-            return Err(
-                anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into(),
-            );
+            return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
         }
         let given_disc = &buf[..UserRecord::DISCRIMINATOR.len()];
         if UserRecord::DISCRIMINATOR != given_disc {
             return Err(
                 anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
-                        error_name: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                            .name(),
-                        error_code_number: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                            .into(),
-                        error_msg: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                            .to_string(),
-                        error_origin: Some(
-                            anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
-                                filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                line: 30u32,
-                            }),
-                        ),
-                        compared_values: None,
-                    })
-                    .with_account_name("UserRecord"),
+                    error_name: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.name(),
+                    error_code_number: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
+                        .into(),
+                    error_msg: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
+                        .to_string(),
+                    error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                        anchor_lang::error::Source {
+                            filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
+                            line: 30u32,
+                        },
+                    )),
+                    compared_values: None,
+                })
+                .with_account_name("UserRecord"),
             );
         }
         Self::try_deserialize_unchecked(buf)
@@ -7393,9 +6626,7 @@ impl ::core::fmt::Debug for UserRecord {
 }
 impl ::light_hasher::to_byte_array::ToByteArray for UserRecord {
     const NUM_FIELDS: usize = 4usize;
-    fn to_byte_array(
-        &self,
-    ) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+    fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
         ::light_hasher::DataHasher::hash::<::light_hasher::Poseidon>(self)
     }
 }
@@ -7404,39 +6635,34 @@ impl ::light_hasher::DataHasher for UserRecord {
     where
         H: ::light_hasher::Hasher,
     {
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::to_byte_array::ToByteArray;
         use ::light_hasher::DataHasher;
         use ::light_hasher::Hasher;
-        use ::light_hasher::to_byte_array::ToByteArray;
-        use ::light_hasher::hash_to_field_size::HashToFieldSize;
         #[cfg(debug_assertions)]
         {
             if std::env::var("RUST_BACKTRACE").is_ok() {
-                let debug_prints: Vec<[u8; 32]> = <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
-                            self.owner.as_ref(),
-                        ),
-                        self.name.hash_to_field_size()?,
-                        self.score.to_byte_array()?,
-                    ]),
-                );
+                let debug_prints: Vec<[u8; 32]> = <[_]>::into_vec(::alloc::boxed::box_new([
+                    ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
+                        self.owner.as_ref(),
+                    ),
+                    self.name.hash_to_field_size()?,
+                    self.score.to_byte_array()?,
+                ]));
                 {
-                    ::std::io::_print(
-                        format_args!("DataHasher::hash inputs {0:?}\n", debug_prints),
-                    );
+                    ::std::io::_print(format_args!(
+                        "DataHasher::hash inputs {0:?}\n",
+                        debug_prints
+                    ));
                 };
             }
         }
-        H::hashv(
-            &[
-                ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
-                        self.owner.as_ref(),
-                    )
-                    .as_slice(),
-                self.name.hash_to_field_size()?.as_slice(),
-                self.score.to_byte_array()?.as_slice(),
-            ],
-        )
+        H::hashv(&[
+            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.owner.as_ref())
+                .as_slice(),
+            self.name.hash_to_field_size()?.as_slice(),
+            self.score.to_byte_array()?.as_slice(),
+        ])
     }
 }
 impl LightDiscriminator for UserRecord {
@@ -7460,8 +6686,8 @@ impl ::core::default::Default for UserRecord {
 }
 #[automatically_derived]
 impl anchor_lang::Space for UserRecord {
-    const INIT_SPACE: usize = 0 + <CompressionInfo as anchor_lang::Space>::INIT_SPACE
-        + 32 + (4 + 32) + 8;
+    const INIT_SPACE: usize =
+        0 + <CompressionInfo as anchor_lang::Space>::INIT_SPACE + 32 + (4 + 32) + 8;
 }
 impl HasCompressionInfo for UserRecord {
     fn compression_info(&self) -> &CompressionInfo {
@@ -7517,62 +6743,55 @@ impl anchor_lang::idl::build::IdlBuild for GameSession {
             repr: None,
             generics: ::alloc::vec::Vec::new(),
             ty: anchor_lang::idl::types::IdlTypeDefTy::Struct {
-                fields: Some(
-                    anchor_lang::idl::types::IdlDefinedFields::Named(
-                        <[_]>::into_vec(
-                            ::alloc::boxed::box_new([
-                                anchor_lang::idl::types::IdlField {
-                                    name: "session_id".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::U64,
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "player".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::Pubkey,
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "game_type".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::String,
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "start_time".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::U64,
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "compression_info".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::Defined {
-                                        name: <CompressionInfo>::get_full_path(),
-                                        generics: ::alloc::vec::Vec::new(),
-                                    },
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "end_time".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::Option(
-                                        Box::new(anchor_lang::idl::types::IdlType::U64),
-                                    ),
-                                },
-                                anchor_lang::idl::types::IdlField {
-                                    name: "score".into(),
-                                    docs: ::alloc::vec::Vec::new(),
-                                    ty: anchor_lang::idl::types::IdlType::U64,
-                                },
-                            ]),
-                        ),
-                    ),
-                ),
+                fields: Some(anchor_lang::idl::types::IdlDefinedFields::Named(
+                    <[_]>::into_vec(::alloc::boxed::box_new([
+                        anchor_lang::idl::types::IdlField {
+                            name: "session_id".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::U64,
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "player".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::Pubkey,
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "game_type".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::String,
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "start_time".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::U64,
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "compression_info".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::Defined {
+                                name: <CompressionInfo>::get_full_path(),
+                                generics: ::alloc::vec::Vec::new(),
+                            },
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "end_time".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::Option(Box::new(
+                                anchor_lang::idl::types::IdlType::U64,
+                            )),
+                        },
+                        anchor_lang::idl::types::IdlField {
+                            name: "score".into(),
+                            docs: ::alloc::vec::Vec::new(),
+                            ty: anchor_lang::idl::types::IdlType::U64,
+                        },
+                    ])),
+                )),
             },
         })
     }
     fn insert_types(
-        types: &mut std::collections::BTreeMap<
-            String,
-            anchor_lang::idl::types::IdlTypeDef,
-        >,
+        types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
     ) {
         if let Some(ty) = <CompressionInfo>::create_type() {
             types.insert(<CompressionInfo>::get_full_path(), ty);
@@ -7581,13 +6800,10 @@ impl anchor_lang::idl::build::IdlBuild for GameSession {
     }
     fn get_full_path() -> String {
         ::alloc::__export::must_use({
-            let res = ::alloc::fmt::format(
-                format_args!(
-                    "{0}::{1}",
-                    "anchor_compressible_user_derived",
-                    "GameSession",
-                ),
-            );
+            let res = ::alloc::fmt::format(format_args!(
+                "{0}::{1}",
+                "anchor_compressible_user_derived", "GameSession",
+            ));
             res
         })
     }
@@ -7633,10 +6849,7 @@ impl ::core::clone::Clone for GameSession {
 }
 #[automatically_derived]
 impl anchor_lang::AccountSerialize for GameSession {
-    fn try_serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> anchor_lang::Result<()> {
+    fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
         if writer.write_all(GameSession::DISCRIMINATOR).is_err() {
             return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
         }
@@ -7650,29 +6863,26 @@ impl anchor_lang::AccountSerialize for GameSession {
 impl anchor_lang::AccountDeserialize for GameSession {
     fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
         if buf.len() < GameSession::DISCRIMINATOR.len() {
-            return Err(
-                anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into(),
-            );
+            return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
         }
         let given_disc = &buf[..GameSession::DISCRIMINATOR.len()];
         if GameSession::DISCRIMINATOR != given_disc {
             return Err(
                 anchor_lang::error::Error::from(anchor_lang::error::AnchorError {
-                        error_name: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                            .name(),
-                        error_code_number: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                            .into(),
-                        error_msg: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
-                            .to_string(),
-                        error_origin: Some(
-                            anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
-                                filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
-                                line: 53u32,
-                            }),
-                        ),
-                        compared_values: None,
-                    })
-                    .with_account_name("GameSession"),
+                    error_name: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.name(),
+                    error_code_number: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
+                        .into(),
+                    error_msg: anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch
+                        .to_string(),
+                    error_origin: Some(anchor_lang::error::ErrorOrigin::Source(
+                        anchor_lang::error::Source {
+                            filename: "program-tests/anchor-compressible-user-derived/src/lib.rs",
+                            line: 53u32,
+                        },
+                    )),
+                    compared_values: None,
+                })
+                .with_account_name("GameSession"),
             );
         }
         Self::try_deserialize_unchecked(buf)
@@ -7715,19 +6925,12 @@ impl ::core::fmt::Debug for GameSession {
             &self.end_time,
             &&self.score,
         ];
-        ::core::fmt::Formatter::debug_struct_fields_finish(
-            f,
-            "GameSession",
-            names,
-            values,
-        )
+        ::core::fmt::Formatter::debug_struct_fields_finish(f, "GameSession", names, values)
     }
 }
 impl ::light_hasher::to_byte_array::ToByteArray for GameSession {
     const NUM_FIELDS: usize = 7usize;
-    fn to_byte_array(
-        &self,
-    ) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+    fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
         ::light_hasher::DataHasher::hash::<::light_hasher::Poseidon>(self)
     }
 }
@@ -7736,45 +6939,40 @@ impl ::light_hasher::DataHasher for GameSession {
     where
         H: ::light_hasher::Hasher,
     {
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::to_byte_array::ToByteArray;
         use ::light_hasher::DataHasher;
         use ::light_hasher::Hasher;
-        use ::light_hasher::to_byte_array::ToByteArray;
-        use ::light_hasher::hash_to_field_size::HashToFieldSize;
         #[cfg(debug_assertions)]
         {
             if std::env::var("RUST_BACKTRACE").is_ok() {
-                let debug_prints: Vec<[u8; 32]> = <[_]>::into_vec(
-                    ::alloc::boxed::box_new([
-                        self.session_id.to_byte_array()?,
-                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
-                            self.player.as_ref(),
-                        ),
-                        self.game_type.hash_to_field_size()?,
-                        self.start_time.to_byte_array()?,
-                        self.end_time.to_byte_array()?,
-                        self.score.to_byte_array()?,
-                    ]),
-                );
+                let debug_prints: Vec<[u8; 32]> = <[_]>::into_vec(::alloc::boxed::box_new([
+                    self.session_id.to_byte_array()?,
+                    ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
+                        self.player.as_ref(),
+                    ),
+                    self.game_type.hash_to_field_size()?,
+                    self.start_time.to_byte_array()?,
+                    self.end_time.to_byte_array()?,
+                    self.score.to_byte_array()?,
+                ]));
                 {
-                    ::std::io::_print(
-                        format_args!("DataHasher::hash inputs {0:?}\n", debug_prints),
-                    );
+                    ::std::io::_print(format_args!(
+                        "DataHasher::hash inputs {0:?}\n",
+                        debug_prints
+                    ));
                 };
             }
         }
-        H::hashv(
-            &[
-                self.session_id.to_byte_array()?.as_slice(),
-                ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(
-                        self.player.as_ref(),
-                    )
-                    .as_slice(),
-                self.game_type.hash_to_field_size()?.as_slice(),
-                self.start_time.to_byte_array()?.as_slice(),
-                self.end_time.to_byte_array()?.as_slice(),
-                self.score.to_byte_array()?.as_slice(),
-            ],
-        )
+        H::hashv(&[
+            self.session_id.to_byte_array()?.as_slice(),
+            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.player.as_ref())
+                .as_slice(),
+            self.game_type.hash_to_field_size()?.as_slice(),
+            self.start_time.to_byte_array()?.as_slice(),
+            self.end_time.to_byte_array()?.as_slice(),
+            self.score.to_byte_array()?.as_slice(),
+        ])
     }
 }
 impl LightDiscriminator for GameSession {
@@ -7801,8 +6999,14 @@ impl ::core::default::Default for GameSession {
 }
 #[automatically_derived]
 impl anchor_lang::Space for GameSession {
-    const INIT_SPACE: usize = 0 + 8 + 32 + (4 + 32) + 8
-        + <CompressionInfo as anchor_lang::Space>::INIT_SPACE + (1 + 8) + 8;
+    const INIT_SPACE: usize = 0
+        + 8
+        + 32
+        + (4 + 32)
+        + 8
+        + <CompressionInfo as anchor_lang::Space>::INIT_SPACE
+        + (1 + 8)
+        + 8;
 }
 impl HasCompressionInfo for GameSession {
     fn compression_info(&self) -> &CompressionInfo {

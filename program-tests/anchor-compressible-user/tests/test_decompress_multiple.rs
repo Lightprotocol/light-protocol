@@ -3,22 +3,24 @@
 mod common;
 
 use anchor_compressible_user::{
-    CompressedAccountData, CompressedAccountVariant, GameSession, UserRecord, ADDRESS_SPACE,
-    RENT_RECIPIENT,
+     CompressedAccountVariant,GameSession, UserRecord, ADDRESS_SPACE, RENT_RECIPIENT,
 };
-use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
+use anchor_lang::{
+    AccountDeserialize, Discriminator, InstructionData, ToAccountMetas,
+};
 
+use light_client::compressible::CompressibleInstruction;
 use light_compressed_account::address::derive_address;
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::{
-    compressible::{CompressibleConfig, CompressibleInstruction, FromCompressedData},
+    compressible::{CompressibleConfig, FromCompressedData},
     instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
 };
 use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
+    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
@@ -449,17 +451,10 @@ async fn test_decompress_multiple_pdas(
         .unwrap()
         .value;
     let game_account_data = c_game_pda.data.as_ref().unwrap();
-    // let mut game_with_discriminator =
-    //     anchor_compressible_user::GameSession::discriminator().to_vec();
-    // game_with_discriminator.extend_from_slice(&game_account_data.data);
+
     let c_game_session =
         anchor_compressible_user::GameSession::from_compressed_data(&game_account_data.data)
             .unwrap();
-
-    // Setup remaining accounts for Light Protocol
-    let mut remaining_accounts = PackedAccounts::default();
-    let system_config = SystemAccountMetaConfig::new(*program_id);
-    remaining_accounts.add_system_accounts(system_config);
 
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
@@ -468,75 +463,26 @@ async fn test_decompress_multiple_pdas(
         .unwrap()
         .value;
 
-    // Pack tree infos
-    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
 
-    // c meta USER_RECORD
-    let user_compressed_meta = CompressedAccountMeta {
-        tree_info: packed_tree_infos
-            .state_trees
-            .as_ref()
-            .unwrap()
-            .packed_tree_infos[0],
-        address: c_user_pda.address.unwrap(),
-        output_state_tree_index: 0,
-    };
 
-    // c meta GAME_SESSION
-    let game_compressed_meta = CompressedAccountMeta {
-        tree_info: packed_tree_infos
-            .state_trees
-            .as_ref()
-            .unwrap()
-            .packed_tree_infos[1],
-        address: c_game_pda.address.unwrap(),
-        output_state_tree_index: 0,
-    };
+    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-    // c data GAME_SESSION
-    let compressed_accounts = vec![
-        CompressedAccountData {
-            meta: user_compressed_meta,
-            data: CompressedAccountVariant::UserRecord(c_user_record),
-        },
-        CompressedAccountData {
-            meta: game_compressed_meta,
-            data: CompressedAccountVariant::GameSession(c_game_session),
-        },
-    ];
-
-    // Build instruction accounts
-    let pda_accounts = vec![user_record_pda, game_session_pda];
-    let system_accounts_offset = pda_accounts.len() as u8;
-    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
-
-    // Prepare bumps for both PDAs
-    let bumps = vec![*user_record_bump, *game_bump];
-
-    let instruction_data = anchor_compressible_user::instruction::DecompressMultiplePdas {
-        proof: rpc_result.proof,
-        compressed_accounts,
-        bumps,
-        system_accounts_offset,
-    };
-
-    let instruction = Instruction {
-        program_id: *program_id,
-        accounts: [
-            vec![
-                AccountMeta::new(payer.pubkey(), true), // fee_payer
-                AccountMeta::new(payer.pubkey(), true), // rent_payer
-                AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+    // Use the new SDK helper function with typed data
+    let instruction =
+        light_client::compressible::CompressibleInstruction::decompress_multiple_accounts_idempotent(
+            program_id,
+            &payer.pubkey(),
+            &payer.pubkey(), // rent_payer can be the same as fee_payer
+            &[*user_record_pda, *game_session_pda],
+            &[
+                (c_user_pda, CompressedAccountVariant::UserRecord(c_user_record)),
+                (c_game_pda, CompressedAccountVariant::GameSession(c_game_session)),
             ],
-            pda_accounts
-                .iter()
-                .map(|&pda| AccountMeta::new(*pda, false))
-                .collect(),
-            system_accounts,
-        ]
-        .concat(),
-        data: instruction_data.data(),
-    };
+            &[*user_record_bump, *game_bump],
+            rpc_result,
+            output_state_tree_info,
+        )
+        .unwrap();
 
     // Verify PDAs are uninitialized before decompression
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
@@ -970,11 +916,6 @@ async fn test_decompress_single_user_record(
     let user_account_data = c_user_pda.data.as_ref().unwrap();
     let c_user_record = UserRecord::from_compressed_data(&user_account_data.data).unwrap();
 
-    // Setup remaining accounts for Light Protocol
-    let mut remaining_accounts = PackedAccounts::default();
-    let system_config = SystemAccountMetaConfig::new(*program_id);
-    remaining_accounts.add_system_accounts(system_config);
-
     // Get validity proof for the compressed account
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash], vec![], None)
@@ -982,58 +923,22 @@ async fn test_decompress_single_user_record(
         .unwrap()
         .value;
 
-    // Pack tree infos
-    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
-
-    // Create compressed account meta
-    let user_compressed_meta = CompressedAccountMeta {
-        tree_info: packed_tree_infos
-            .state_trees
-            .as_ref()
-            .unwrap()
-            .packed_tree_infos[0],
-        address: c_user_pda.address.unwrap(),
-        output_state_tree_index: 0,
-    };
-
-    // Create compressed account data
-    let compressed_accounts = vec![CompressedAccountData {
-        meta: user_compressed_meta,
-        data: CompressedAccountVariant::UserRecord(c_user_record),
-    }];
-
-    // Build instruction accounts
-    let pda_accounts = vec![user_record_pda];
-    let system_accounts_offset = pda_accounts.len() as u8;
-    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
-
-    // Prepare bump for the PDA
-    let bumps = vec![*user_record_bump];
-
-    let instruction_data = anchor_compressible_user::instruction::DecompressMultiplePdas {
-        proof: rpc_result.proof,
-        compressed_accounts,
-        bumps,
-        system_accounts_offset,
-    };
-
-    let instruction = Instruction {
-        program_id: *program_id,
-        accounts: [
-            vec![
-                AccountMeta::new(payer.pubkey(), true), // fee_payer
-                AccountMeta::new(payer.pubkey(), true), // rent_payer
-                AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
-            ],
-            pda_accounts
-                .iter()
-                .map(|&pda| AccountMeta::new(*pda, false))
-                .collect(),
-            system_accounts,
-        ]
-        .concat(),
-        data: instruction_data.data(),
-    };
+    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
+    // Use the new SDK helper function with typed data
+    let instruction = light_client::compressible::CompressibleInstruction::decompress_multiple_accounts_idempotent(
+        program_id,
+        &payer.pubkey(),
+        &payer.pubkey(), // rent_payer can be the same as fee_payer
+        &[*user_record_pda],
+        &[(
+            c_user_pda,
+            CompressedAccountVariant::UserRecord(c_user_record),
+        )],
+        &[*user_record_bump],
+        rpc_result,
+        output_state_tree_info,
+    )
+    .unwrap();
 
     // Verify PDA is uninitialized before decompression
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
