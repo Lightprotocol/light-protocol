@@ -3,16 +3,15 @@
 mod common;
 
 use anchor_compressible_user::{
-     CompressedAccountVariant,GameSession, UserRecord, ADDRESS_SPACE, RENT_RECIPIENT,
+    CompressedAccountVariant, GameSession, UserRecord, ADDRESS_SPACE, RENT_RECIPIENT,
 };
-use anchor_lang::{
-    AccountDeserialize, Discriminator, InstructionData, ToAccountMetas,
-};
+use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 
 use light_client::compressible::CompressibleInstruction;
 use light_compressed_account::address::derive_address;
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
+    utils::simulation::simulate_cu,
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::{
@@ -23,6 +22,7 @@ use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
+    transaction::{Transaction, VersionedTransaction},
 };
 
 #[tokio::test]
@@ -165,6 +165,7 @@ async fn test_create_decompress_compress_single_account() {
 
     rpc.warp_to_slot(100).unwrap();
 
+    println!("decompress single");
     test_decompress_single_user_record(
         &mut rpc,
         &payer,
@@ -178,6 +179,8 @@ async fn test_create_decompress_compress_single_account() {
 
     rpc.warp_to_slot(101).unwrap();
 
+    println!("compress record");
+
     let result =
         test_compress_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, true)
             .await;
@@ -190,7 +193,6 @@ async fn test_create_decompress_compress_single_account() {
             err_msg
         );
     }
-
     rpc.warp_to_slot(200).unwrap();
     let _result =
         test_compress_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, false)
@@ -270,6 +272,9 @@ async fn test_create_record_with_config(
         accounts: [accounts.to_account_metas(None), system_accounts].concat(),
         data: instruction_data.data(),
     };
+
+    let cu = simulate_cu(rpc, &payer, &instruction).await;
+    println!("CreateRecordWithConfig CU consumed: {}", cu);
 
     // Create and send transaction
     let result = rpc
@@ -463,8 +468,6 @@ async fn test_decompress_multiple_pdas(
         .unwrap()
         .value;
 
-
-
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
     // Use the new SDK helper function with typed data
@@ -498,6 +501,9 @@ async fn test_decompress_multiple_pdas(
         0,
         "Game PDA account data len must be 0 before decompression"
     );
+
+    let cu = simulate_cu(rpc, &payer, &instruction).await;
+    println!("decompress_multiple_pdas CU consumed: {}", cu);
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -671,7 +677,11 @@ async fn test_create_user_record_and_game_session_with_config(
         accounts: [accounts.to_account_metas(None), system_accounts].concat(),
         data: instruction_data.data(),
     };
-
+    let cu = simulate_cu(rpc, &user, &instruction).await;
+    println!(
+        "CreateUserRecordAndGameSessionWithConfig CU consumed: {}",
+        cu
+    );
     // Create and send transaction
     let result = rpc
         .create_and_send_transaction(&[instruction], &user.pubkey(), &[&user])
@@ -842,6 +852,11 @@ async fn test_compress_record_with_config(
             .unwrap(),
     );
 
+    if !should_fail {
+        let cu = simulate_cu(rpc, &payer, &instruction).await;
+        println!("CompressRecordWithConfig CU consumed: {}", cu);
+    }
+
     // Create and send transaction
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -947,6 +962,9 @@ async fn test_decompress_single_user_record(
         0,
         "User PDA account data len must be 0 before decompression"
     );
+
+    // let cu = simulate_cu(rpc, &payer, &instruction).await;
+    // println!("DecompressSingleUserRecord CU consumed: {}", cu);
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
