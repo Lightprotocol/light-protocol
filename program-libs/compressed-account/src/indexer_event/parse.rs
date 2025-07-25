@@ -527,7 +527,7 @@ fn create_batched_transaction_event(
             .iter()
             .map(|x| NewAddress {
                 address: x.address,
-                mt_pubkey: associated_instructions.accounts[x.tree_index as usize],
+                tree_pubkey: associated_instructions.accounts[x.tree_index as usize],
                 queue_index: u64::MAX,
             })
             .collect::<Vec<_>>(),
@@ -565,6 +565,7 @@ fn create_batched_transaction_event(
                                 .tx_hash,
                         )?
                     },
+                    tree_pubkey: associated_instructions.accounts[n.tree_index as usize],
                     nullifier_queue_index: u64::MAX,
                 })
             })

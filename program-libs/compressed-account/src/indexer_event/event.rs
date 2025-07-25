@@ -35,8 +35,8 @@ pub struct PublicTransactionEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NewAddress {
     pub address: [u8; 32],
-    pub mt_pubkey: Pubkey,
-    pub queue_index: u64,
+    pub tree_pubkey: Pubkey,
+    pub queue_index: u64, // u64::MAX for v1 addresses
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -45,6 +45,7 @@ pub struct BatchNullifyContext {
     pub account_hash: [u8; 32],
     pub nullifier: [u8; 32],
     pub nullifier_queue_index: u64,
+    pub tree_pubkey: Pubkey,
 }
 
 // Separate type because zerocopy::U64 doesn't implement BorshSerialize.

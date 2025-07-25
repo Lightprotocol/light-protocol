@@ -206,6 +206,7 @@ async fn parse_batched_event_functional() {
                 nullifier: create_nullifier(hash, x.merkle_context.leaf_index as u64, &tx_hash)
                     .unwrap(),
                 nullifier_queue_index: i as u64,
+                tree_pubkey: env.v2_state_trees[0].merkle_tree.into(),
             })
             .collect::<Vec<_>>();
 
@@ -256,7 +257,7 @@ async fn parse_batched_event_functional() {
                 .iter()
                 .map(|x| NewAddress {
                     address: *x,
-                    mt_pubkey: env.v1_address_trees[0].merkle_tree.into(),
+                    tree_pubkey: env.v1_address_trees[0].merkle_tree.into(),
                     queue_index: u64::MAX,
                 })
                 .collect(),
@@ -375,6 +376,7 @@ async fn parse_batched_event_functional() {
                 nullifier: create_nullifier(hash, x.merkle_context.leaf_index as u64, &tx_hash)
                     .unwrap(),
                 nullifier_queue_index: 8 + i as u64,
+                tree_pubkey: env.v2_state_trees[0].merkle_tree.into(),
             })
             .collect::<Vec<_>>();
 
@@ -430,7 +432,7 @@ async fn parse_batched_event_functional() {
                 .enumerate()
                 .map(|(i, x)| NewAddress {
                     address: *x,
-                    mt_pubkey: env.v2_address_trees[0].into(),
+                    tree_pubkey: env.v2_address_trees[0].into(),
                     queue_index: i as u64,
                 })
                 .collect(),
