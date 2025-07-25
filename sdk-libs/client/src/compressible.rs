@@ -1,11 +1,10 @@
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-// #[cfg(feature = "anchor")]
-// use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
-// #[cfg(not(feature = "anchor"))]
-// use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 
 use super::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
 use light_sdk::{
@@ -24,7 +23,7 @@ use light_sdk::instruction::ValidityProof;
 /// # Fields
 /// * `meta` - The compressed account metadata containing tree info, address, and output index
 /// * `data` - The program-specific account variant enum
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CompressedAccountData<T> {
     pub meta: CompressedAccountMeta,
     /// Program-specific account variant enum
@@ -33,7 +32,7 @@ pub struct CompressedAccountData<T> {
 
 /// Instruction data structure for decompress_multiple_accounts_idempotent
 /// This matches the exact format expected by Anchor programs
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct DecompressMultipleAccountsIdempotentData<T> {
     pub proof: ValidityProof,
     pub compressed_accounts: Vec<CompressedAccountData<T>>,
@@ -153,31 +152,66 @@ impl CompressibleInstruction {
     ///
     /// This is a generic helper that can be used by any program client to build
     /// a compress account instruction. The caller must provide the instruction
-    /// discriminator specific to their program and the system accounts.
+    /// discriminator specific to their program.
     ///
     /// # Arguments
     /// * `program_id` - The program that owns the compressible account
+    /// * `instruction_discriminator` - The 8-byte instruction discriminator for the program
     /// * `payer` - The account paying for the transaction
     /// * `pda_to_compress` - The PDA account to compress
     /// * `rent_recipient` - The account to receive the reclaimed rent
-    /// * `proof` - The validity proof from the indexer
-    /// * `compressed_account_meta` - The compressed account metadata
-    /// * `system_accounts` - The system accounts needed for the instruction
-    /// * `instruction_discriminator` - The 8-byte instruction discriminator for the program
+    /// * `compressed_account` - The compressed account to be nullified
+    /// * `validity_proof_with_context` - The validity proof with context from the indexer
+    /// * `output_state_tree_info` - The output state tree info
     ///
     /// # Returns
-    /// * `Instruction` - The complete instruction ready to be sent
+    /// * `Result<Instruction, Box<dyn std::error::Error>>` - The complete instruction ready to be sent
     pub fn compress_account(
         program_id: &Pubkey,
+        instruction_discriminator: &[u8; 8],
         payer: &Pubkey,
         pda_to_compress: &Pubkey,
         rent_recipient: &Pubkey,
-        proof: ValidityProof,
-        compressed_account_meta: CompressedAccountMeta,
-        system_accounts: Vec<AccountMeta>,
-        instruction_discriminator: &[u8; 8],
-    ) -> Instruction {
+        compressed_account: &CompressedAccount,
+        validity_proof_with_context: ValidityProofWithContext,
+        output_state_tree_info: TreeInfo,
+    ) -> Result<Instruction, Box<dyn std::error::Error>> {
         let config_pda = CompressibleConfig::derive_pda(program_id).0;
+
+        // Create system accounts internally (same pattern as decompress_multiple_accounts_idempotent)
+        let mut remaining_accounts = PackedAccounts::default();
+        let system_config = SystemAccountMetaConfig::new(*program_id);
+        remaining_accounts.add_system_accounts(system_config);
+
+        // Pack tree infos into remaining accounts
+        let packed_tree_infos = validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
+
+        // Get output state tree index
+        let output_state_tree_index = remaining_accounts.insert_or_get(output_state_tree_info.queue);
+
+        // Find the tree info index for this compressed account's queue
+        let queue_index = remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+
+        // Create compressed account meta
+        let compressed_account_meta = CompressedAccountMeta {
+            tree_info: packed_tree_infos
+                .state_trees
+                .as_ref()
+                .unwrap()
+                .packed_tree_infos
+                .iter()
+                .find(|pti| {
+                    pti.queue_pubkey_index == queue_index
+                        && pti.leaf_index == compressed_account.leaf_index
+                })
+                .copied()
+                .ok_or("Matching PackedStateTreeInfo (queue_pubkey_index + leaf_index) not found")?,
+            address: compressed_account.address.unwrap_or([0u8; 32]),
+            output_state_tree_index,
+        };
+
+        // Get system accounts for the instruction
+        let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
         // Create the instruction account metas
         let accounts = vec![
@@ -193,7 +227,7 @@ impl CompressibleInstruction {
 
         // Create instruction data
         let instruction_data = GenericCompressAccountInstruction {
-            proof,
+            proof: validity_proof_with_context.proof,
             compressed_account_meta,
         };
 
@@ -207,11 +241,11 @@ impl CompressibleInstruction {
         );
 
         // Build the instruction
-        Instruction {
+        Ok(Instruction {
             program_id: *program_id,
             accounts: [accounts, system_accounts].concat(),
             data,
-        }
+        })
     }
 
     /// Build a `decompress_multiple_accounts_idempotent` instruction for any program's compressed account variant.
@@ -222,7 +256,7 @@ impl CompressibleInstruction {
     /// - `pda_accounts`: PDAs to decompress into.
     /// - `compressed_accounts`: (meta, variant) pairs.
     /// - `bumps`: PDA bump seeds.
-    /// - `proof`: validity proof.
+    /// - `validity_proof_with_context`: validity proof with context.
     /// - `output_state_tree_info`: output state tree info.
     ///
     /// Returns `Ok(Instruction)` or error.
@@ -237,7 +271,7 @@ impl CompressibleInstruction {
         output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>>
     where
-        T: BorshSerialize + Clone + std::fmt::Debug,
+        T: AnchorSerialize + Clone + std::fmt::Debug,
     {
         // Setup remaining accounts to get tree infos
         let mut remaining_accounts = PackedAccounts::default();
@@ -332,7 +366,7 @@ impl CompressibleInstruction {
 
 /// Generic instruction data for initialize config
 /// Note: Real programs should use their specific instruction format
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize)]
 struct InitializeCompressionConfigData {
     compression_delay: u32,
     rent_recipient: Pubkey,
@@ -341,7 +375,7 @@ struct InitializeCompressionConfigData {
 
 /// Generic instruction data for update config
 /// Note: Real programs should use their specific instruction format  
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize)]
 struct UpdateConfigData {
     new_compression_delay: Option<u32>,
     new_rent_recipient: Option<Pubkey>,
@@ -351,7 +385,7 @@ struct UpdateConfigData {
 
 /// Generic instruction data for compress account
 /// This matches the expected format for compress account instructions
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct GenericCompressAccountInstruction {
     pub proof: ValidityProof,
     pub compressed_account_meta: CompressedAccountMeta,

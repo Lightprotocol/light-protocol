@@ -16,13 +16,12 @@ use light_program_test::{
 };
 use light_sdk::{
     compressible::{CompressibleConfig, FromCompressedData},
-    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
+    instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
-    transaction::{Transaction, VersionedTransaction},
 };
 
 #[tokio::test]
@@ -51,7 +50,7 @@ async fn test_create_and_decompress_two_accounts() {
     let (user_record_pda, user_record_bump) =
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
-    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda).await;
+    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
 
     let session_id = 12345u64;
     let (game_session_pda, game_bump) = Pubkey::find_program_address(
@@ -66,6 +65,7 @@ async fn test_create_and_decompress_two_accounts() {
         &config_pda,
         &game_session_pda,
         session_id,
+        None,
     )
     .await;
 
@@ -161,7 +161,7 @@ async fn test_create_decompress_compress_single_account() {
     let (user_record_pda, user_record_bump) =
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
-    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda).await;
+    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
 
     rpc.warp_to_slot(100).unwrap();
 
@@ -204,6 +204,7 @@ async fn test_create_record_with_config(
     payer: &Keypair,
     program_id: &Pubkey,
     user_record_pda: &Pubkey,
+    state_tree_queue: Option<Pubkey>,
 ) {
     let config_pda = CompressibleConfig::derive_pda(program_id).0;
     // Setup remaining accounts for Light Protocol
@@ -251,8 +252,9 @@ async fn test_create_record_with_config(
     let address_tree_info = packed_tree_infos.address_trees[0];
 
     // Get output state tree index
-    let output_state_tree_index =
-        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+    let output_state_tree_index = remaining_accounts.insert_or_get(
+        state_tree_queue.unwrap_or_else(|| rpc.get_random_state_tree_info().unwrap().queue),
+    );
 
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
@@ -305,6 +307,7 @@ async fn test_create_game_session_with_config(
     config_pda: &Pubkey,
     game_session_pda: &Pubkey,
     session_id: u64,
+    state_tree_queue: Option<Pubkey>,
 ) {
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
@@ -351,8 +354,9 @@ async fn test_create_game_session_with_config(
     let address_tree_info = packed_tree_infos.address_trees[0];
 
     // Get output state tree index
-    let output_state_tree_index =
-        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+    let output_state_tree_index = remaining_accounts.insert_or_get(
+        state_tree_queue.unwrap_or_else(|| rpc.get_random_state_tree_info().unwrap().queue),
+    );
 
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
@@ -813,44 +817,21 @@ async fn test_compress_record_with_config(
         .unwrap()
         .value;
 
-    // Build compressed account meta and system accounts
-    let mut remaining_accounts = PackedAccounts::default();
-    let system_config = SystemAccountMetaConfig::new(*program_id);
-    remaining_accounts.add_system_accounts(system_config);
-
-    // Pack tree infos into remaining accounts
-    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
-
-    // Get output state tree index
-    let output_state_tree_index =
-        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
-
-    // Create compressed account meta
-    let compressed_account_meta = CompressedAccountMeta {
-        tree_info: packed_tree_infos
-            .state_trees
-            .as_ref()
-            .unwrap()
-            .packed_tree_infos[0],
-        address: compressed_address,
-        output_state_tree_index,
-    };
-
-    // Get system accounts for the instruction
-    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
     let instruction = CompressibleInstruction::compress_account(
         program_id,
-        &payer.pubkey(),
-        user_record_pda,
-        &RENT_RECIPIENT,
-        rpc_result.proof,
-        compressed_account_meta,
-        system_accounts,
         &anchor_compressible_user::instruction::CompressRecordWithConfig::DISCRIMINATOR
             .try_into()
             .unwrap(),
-    );
+        &payer.pubkey(),
+        user_record_pda,
+        &RENT_RECIPIENT,        // rent_recipient
+        &compressed_account,    // compressed_account
+        rpc_result,             // validity_proof_with_context
+        output_state_tree_info, // output_state_tree_info
+    )
+    .unwrap();
 
     if !should_fail {
         let cu = simulate_cu(rpc, &payer, &instruction).await;
@@ -999,4 +980,199 @@ async fn test_decompress_single_user_record(
             .last_written_slot(),
         expected_slot
     );
+}
+
+#[tokio::test]
+async fn test_double_decompression_attack() {
+    let program_id = anchor_compressible_user::ID;
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    let result = common::initialize_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
+    assert!(result.is_ok(), "Initialize config should succeed");
+
+    let (user_record_pda, user_record_bump) =
+        Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
+
+    // Create and compress the account
+    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
+
+    rpc.warp_to_slot(100).unwrap();
+
+    // First decompression - should succeed
+    test_decompress_single_user_record(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &user_record_pda,
+        &user_record_bump,
+        "Test User",
+        100,
+    )
+    .await;
+
+    // Verify account is now decompressed
+    let user_pda_account = rpc.get_account(user_record_pda).await.unwrap();
+    assert!(
+        user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
+        "User PDA should be decompressed after first operation"
+    );
+
+    // Second decompression attempt - should be idempotent (skip already initialized account)
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let user_compressed_address = derive_address(
+        &user_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+
+    let c_user_pda = rpc
+        .get_compressed_account(user_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    let user_account_data = c_user_pda.data.as_ref().unwrap();
+    let c_user_record = UserRecord::from_compressed_data(&user_account_data.data).unwrap();
+
+    let rpc_result = rpc
+        .get_validity_proof(vec![c_user_pda.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
+
+    // Second decompression instruction - should still work (idempotent)
+    let instruction = light_client::compressible::CompressibleInstruction::decompress_multiple_accounts_idempotent(
+        &program_id,
+        &payer.pubkey(),
+        &payer.pubkey(),
+        &[user_record_pda],
+        &[(c_user_pda, CompressedAccountVariant::UserRecord(c_user_record))],
+        &[user_record_bump],
+        rpc_result,
+        output_state_tree_info,
+    ).unwrap();
+
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
+
+    // Should succeed due to idempotent behavior (skips already initialized accounts)
+    assert!(
+        result.is_ok(),
+        "Second decompression should succeed idempotently"
+    );
+
+    // Verify account state is still correct and not corrupted
+    let user_pda_account = rpc.get_account(user_record_pda).await.unwrap();
+    let user_pda_data = user_pda_account.unwrap().data;
+    let decompressed_user_record = UserRecord::try_deserialize(&mut &user_pda_data[..]).unwrap();
+
+    assert_eq!(decompressed_user_record.name, "Test User");
+    assert_eq!(decompressed_user_record.score, 11);
+    assert_eq!(decompressed_user_record.owner, payer.pubkey());
+    assert_eq!(
+        decompressed_user_record.compression_info.is_compressed(),
+        false
+    );
+}
+
+#[tokio::test]
+async fn test_create_and_decompress_accounts_with_different_state_trees() {
+    let program_id = anchor_compressible_user::ID;
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let config_pda = CompressibleConfig::derive_pda(&program_id).0;
+    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    let result = common::initialize_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        ADDRESS_SPACE.to_vec(),
+    )
+    .await;
+    assert!(result.is_ok(), "Initialize config should succeed");
+
+    let (user_record_pda, user_record_bump) =
+        Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
+
+    let session_id = 54321u64;
+    let (game_session_pda, game_bump) = Pubkey::find_program_address(
+        &[b"game_session", session_id.to_le_bytes().as_ref()],
+        &program_id,
+    );
+
+    // Get two different state trees
+    let first_state_tree = rpc.get_state_tree_infos()[0].queue;
+    // let second_state_tree = rpc.get_state_tree_infos()[1].queue;
+
+    println!("first_state_tree: {:?}", first_state_tree);
+
+    println!("state tree infos: {:?}", rpc.get_state_tree_infos());
+    println!("state tree infos: {:?}", rpc.test_accounts.v2_state_trees);
+    // println!("second_state_tree: {:?}", second_state_tree);
+
+    // Create user record using first state tree
+    test_create_record_with_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &user_record_pda,
+        Some(first_state_tree),
+    )
+    .await;
+
+    // Create game session using second state tree
+    test_create_game_session_with_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &game_session_pda,
+        session_id,
+        None,
+    )
+    .await;
+
+    rpc.warp_to_slot(100).unwrap();
+
+    // Now decompress both accounts together - they come from different state trees
+    // This should succeed and validate that our decompression can handle mixed state tree sources
+    test_decompress_multiple_pdas(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &user_record_pda,
+        &user_record_bump,
+        &game_session_pda,
+        &game_bump,
+        session_id,
+        "Test User",
+        "Battle Royale",
+        100,
+    )
+    .await;
 }

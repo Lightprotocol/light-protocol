@@ -1,13 +1,13 @@
 mod common;
 
 mod test_instruction_builders {
-    use super::common::*;
+
     use light_client::{
         compressible::{CompressibleConfig, CompressibleInstruction},
         indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext},
     };
-    use light_sdk::instruction::ValidityProof;
     use light_compressed_account::TreeType;
+    use light_sdk::instruction::ValidityProof;
     use solana_sdk::{pubkey::Pubkey, system_program};
 
     /// Test that our instruction builders follow Solana SDK patterns correctly
@@ -115,7 +115,7 @@ mod test_instruction_builders {
             cpi_context: None,
             next_tree_info: None,
         };
-        
+
         let compressed_account1 = CompressedAccount {
             address: Some([1u8; 32]),
             data: None,
@@ -128,7 +128,7 @@ mod test_instruction_builders {
             slot_created: 100,
             tree_info: tree_info.clone(),
         };
-        
+
         let compressed_account2 = CompressedAccount {
             address: Some([2u8; 32]),
             data: None,
@@ -175,7 +175,7 @@ mod test_instruction_builders {
         let validity_proof_with_context = ValidityProofWithContext {
             proof: ValidityProof::default(),
             accounts: account_proof_inputs, // Provide proper account proof inputs
-            addresses: vec![], // Mock address proof inputs
+            addresses: vec![],              // Mock address proof inputs
         };
 
         let output_state_tree_info = tree_info;
@@ -254,7 +254,7 @@ mod test_instruction_builders {
             slot_created: 100,
             tree_info: tree_info.clone(),
         };
-        
+
         let compressed_account2 = CompressedAccount {
             address: Some([2u8; 32]),
             data: None,
@@ -292,7 +292,10 @@ mod test_instruction_builders {
             tree_info,
         );
 
-        assert!(result.is_err(), "Should return error for mismatched accounts");
+        assert!(
+            result.is_err(),
+            "Should return error for mismatched accounts"
+        );
         assert!(result.unwrap_err().to_string().contains("same length"));
     }
 
@@ -349,4 +352,3 @@ mod test_instruction_builders {
         assert!(result.unwrap_err().to_string().contains("same length"));
     }
 }
-
