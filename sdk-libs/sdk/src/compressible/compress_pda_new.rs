@@ -47,6 +47,8 @@ where
         + std::fmt::Debug,
     A: AccountSerialize + AccountDeserialize,
 {
+    use solana_msg::msg;
+
     let mut pda_accounts: [&mut Account<'info, A>; 1] = [pda_account];
     let addresses: [[u8; 32]; 1] = [*address];
     let new_address_params: [PackedNewAddressParams; 1] = [*new_address_param];
@@ -65,6 +67,9 @@ where
 
     // Create CPI inputs with all compressed accounts and new addresses
     let cpi_inputs = CpiInputs::new_with_address(proof, compressed_infos, vec![*new_address_param]);
+
+    let tree_info = cpi_accounts.get_tree_account_info(output_state_tree_index as usize)?;
+    msg!("ONCHAIN output tree_info? {:?}", tree_info);
 
     // Invoke light system program to create all compressed accounts
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;

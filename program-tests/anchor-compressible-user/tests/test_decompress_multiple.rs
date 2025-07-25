@@ -350,6 +350,14 @@ async fn test_create_game_session_with_config(
     // Pack tree infos into remaining accounts
     let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
 
+    println!(
+        "create_game_session packed_tree_infos {:?}",
+        packed_tree_infos
+    );
+
+    let acc = rpc.get_account(state_tree_queue.unwrap()).await.unwrap();
+    println!("v2 queue {:?}", acc);
+
     // Get the packed address tree info
     let address_tree_info = packed_tree_infos.address_trees[0];
 
@@ -358,8 +366,12 @@ async fn test_create_game_session_with_config(
         state_tree_queue.unwrap_or_else(|| rpc.get_random_state_tree_info().unwrap().queue),
     );
 
+    println!("output_state_tree_index {:?}", output_state_tree_index);
+
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+
+    println!("system_accounts {:?}", system_accounts);
 
     // Create instruction data
     let instruction_data = anchor_compressible_user::instruction::CreateGameSessionWithConfig {
@@ -465,12 +477,17 @@ async fn test_decompress_multiple_pdas(
         anchor_compressible_user::GameSession::from_compressed_data(&game_account_data.data)
             .unwrap();
 
+    println!("c_user_pda {:?}", c_user_pda);
+    println!("c_game_pda {:?}", c_game_pda);
+
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash, c_game_pda.hash], vec![], None)
         .await
         .unwrap()
         .value;
+
+    println!("fetched rpc_result: {:?}", rpc_result);
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
@@ -1125,14 +1142,14 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     );
 
     // Get two different state trees
-    let first_state_tree = rpc.get_state_tree_infos()[0].queue;
-    // let second_state_tree = rpc.get_state_tree_infos()[1].queue;
+    let first_state_tree_info = rpc.get_state_tree_infos()[0];
+    let second_state_tree_info = rpc.get_state_tree_infos()[1];
 
-    println!("first_state_tree: {:?}", first_state_tree);
+    let rpc_test_accounts = rpc.test_accounts();
+    println!("rpc_test_accounts {:?}", rpc_test_accounts);
 
-    println!("state tree infos: {:?}", rpc.get_state_tree_infos());
-    println!("state tree infos: {:?}", rpc.test_accounts.v2_state_trees);
-    // println!("second_state_tree: {:?}", second_state_tree);
+    println!("first_state_tree_info: {:?}", first_state_tree_info);
+    println!("second_state_tree_info: {:?}", second_state_tree_info);
 
     // Create user record using first state tree
     test_create_record_with_config(
@@ -1140,7 +1157,7 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
         &payer,
         &program_id,
         &user_record_pda,
-        Some(first_state_tree),
+        Some(first_state_tree_info.queue),
     )
     .await;
 
@@ -1152,11 +1169,12 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
         &config_pda,
         &game_session_pda,
         session_id,
-        None,
+        Some(second_state_tree_info.queue),
     )
     .await;
 
     rpc.warp_to_slot(100).unwrap();
+    println!("created game session!, now decompressing...");
 
     // Now decompress both accounts together - they come from different state trees
     // This should succeed and validate that our decompression can handle mixed state tree sources

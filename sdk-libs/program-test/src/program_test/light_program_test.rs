@@ -75,7 +75,7 @@ impl LightProgramTest {
             if context.config.skip_startup_logs {
                 context.config.no_logs = true;
             }
-            initialize_accounts(&mut context, &config, &keypairs).await?;
+            context.test_accounts = initialize_accounts(&mut context, &config, &keypairs).await?;
             if context.config.skip_startup_logs {
                 context.config.no_logs = restore_logs;
             }
