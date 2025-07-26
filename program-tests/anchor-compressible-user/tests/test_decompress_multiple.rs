@@ -1066,7 +1066,6 @@ async fn test_double_decompression_attack() {
         .unwrap()
         .value;
 
-    let user_account_data = c_user_pda.data.as_ref().unwrap();
 
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash], vec![], None)

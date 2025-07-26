@@ -9,7 +9,6 @@ use light_compressed_account::{
 };
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
-use solana_clock::Clock;
 use solana_cpi::invoke_signed;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
@@ -69,9 +68,6 @@ where
         return Err(LightSdkError::ConstraintViolation);
     }
 
-    // Get current slot and rent once for all accounts
-    let clock = Clock::get().map_err(|_| LightSdkError::Borsh)?;
-    let current_slot = clock.slot;
     let rent = Rent::get().map_err(|_| LightSdkError::Borsh)?;
 
     let mut compressed_accounts_for_cpi = Vec::new();

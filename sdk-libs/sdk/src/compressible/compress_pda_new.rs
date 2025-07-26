@@ -8,8 +8,7 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
-#[cfg(feature = "anchor")]
-use solana_program_error::ProgramError;
+
 use solana_pubkey::Pubkey;
 
 use crate::{

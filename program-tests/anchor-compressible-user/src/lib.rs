@@ -158,7 +158,7 @@ pub mod anchor_compressible_user {
             .enumerate()
         {
             match compressed_data.data {
-                CompressedAccountVariant::UserRecord(mut data) => {
+                CompressedAccountVariant::UserRecord(data) => {
                     // Create LightAccount with correct UserRecord discriminator
                     let light_account = LightAccount::<'_, UserRecord>::new_mut(
                         &crate::ID,
@@ -189,7 +189,7 @@ pub mod anchor_compressible_user {
 
                     all_compressed_infos.extend(compressed_infos);
                 }
-                CompressedAccountVariant::GameSession(mut data) => {
+                CompressedAccountVariant::GameSession(data) => {
                     // Create LightAccount with correct GameSession discriminator
                     let light_account = LightAccount::<'_, GameSession>::new_mut(
                         &crate::ID,
