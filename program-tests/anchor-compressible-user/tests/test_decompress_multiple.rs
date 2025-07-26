@@ -1,12 +1,10 @@
 #![cfg(feature = "test-sbf")]
 
 mod common;
-
 use anchor_compressible_user::{
     CompressedAccountVariant, GameSession, UserRecord, ADDRESS_SPACE, RENT_RECIPIENT,
 };
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
-
 use light_client::compressible::CompressibleInstruction;
 use light_compressed_account::address::derive_address;
 use light_program_test::{
@@ -350,14 +348,6 @@ async fn test_create_game_session_with_config(
     // Pack tree infos into remaining accounts
     let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
 
-    println!(
-        "create_game_session packed_tree_infos {:?}",
-        packed_tree_infos
-    );
-
-    let acc = rpc.get_account(state_tree_queue.unwrap()).await.unwrap();
-    println!("v2 queue {:?}", acc);
-
     // Get the packed address tree info
     let address_tree_info = packed_tree_infos.address_trees[0];
 
@@ -366,12 +356,8 @@ async fn test_create_game_session_with_config(
         state_tree_queue.unwrap_or_else(|| rpc.get_random_state_tree_info().unwrap().queue),
     );
 
-    println!("output_state_tree_index {:?}", output_state_tree_index);
-
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
-
-    println!("system_accounts {:?}", system_accounts);
 
     // Create instruction data
     let instruction_data = anchor_compressible_user::instruction::CreateGameSessionWithConfig {
@@ -477,17 +463,12 @@ async fn test_decompress_multiple_pdas(
         anchor_compressible_user::GameSession::from_compressed_data(&game_account_data.data)
             .unwrap();
 
-    println!("c_user_pda {:?}", c_user_pda);
-    println!("c_game_pda {:?}", c_game_pda);
-
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash, c_game_pda.hash], vec![], None)
         .await
         .unwrap()
         .value;
-
-    println!("fetched rpc_result: {:?}", rpc_result);
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
@@ -961,8 +942,8 @@ async fn test_decompress_single_user_record(
         "User PDA account data len must be 0 before decompression"
     );
 
-    // let cu = simulate_cu(rpc, &payer, &instruction).await;
-    // println!("DecompressSingleUserRecord CU consumed: {}", cu);
+    let cu = simulate_cu(rpc, &payer, &instruction).await;
+    println!("DecompressSingleUserRecord CU consumed: {}", cu);
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])

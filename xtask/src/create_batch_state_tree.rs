@@ -146,9 +146,6 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
             read_keypair_file(format!("./target/nfq-{}", options.nfq_pubkey.unwrap())).unwrap();
         let cpi_keypair =
             read_keypair_file(format!("./target/cpi-{}", options.cpi_pubkey.unwrap())).unwrap();
-        println!("read mt: {:?}", mt_keypair.pubkey());
-        println!("read nfq: {:?}", nfq_keypair.pubkey());
-        println!("read cpi: {:?}", cpi_keypair.pubkey());
         mt_keypairs.push(mt_keypair);
         nfq_keypairs.push(nfq_keypair);
         cpi_keypairs.push(cpi_keypair);
@@ -164,7 +161,6 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
         read_keypair_file(keypair_path.clone())
             .unwrap_or_else(|_| panic!("Keypair not found in default path {:?}", keypair_path))
     };
-    println!("read payer: {:?}", payer.pubkey());
 
     let config = if let Some(config) = options.config {
         if config == "testnet" {
