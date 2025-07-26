@@ -1,6 +1,5 @@
 use anchor_compressed_token::ErrorCode;
 use arrayvec::ArrayVec;
-
 use light_ctoken_types::instructions::multi_transfer::{
     CompressionMode, ZCompression, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };

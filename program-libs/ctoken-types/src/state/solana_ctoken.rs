@@ -252,7 +252,7 @@ impl<'a> Deref for ZCompressedToken<'a> {
 }
 
 // TODO: add randomized tests
-impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
+impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
     fn eq(&self, other: &CompressedToken) -> bool {
         // Compare basic fields
         if self.mint.to_bytes() != other.mint.to_bytes()
@@ -349,9 +349,9 @@ impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
                             crate::state::extensions::ExtensionStruct::TokenMetadata(regular_tm),
                         ) => {
                             if zc_tm.mint.to_bytes() != regular_tm.mint.to_bytes()
-                                || &*zc_tm.metadata.name != regular_tm.metadata.name.as_slice()
-                                || &*zc_tm.metadata.symbol != regular_tm.metadata.symbol.as_slice()
-                                || &*zc_tm.metadata.uri != regular_tm.metadata.uri.as_slice()
+                                || zc_tm.metadata.name != regular_tm.metadata.name.as_slice()
+                                || zc_tm.metadata.symbol != regular_tm.metadata.symbol.as_slice()
+                                || zc_tm.metadata.uri != regular_tm.metadata.uri.as_slice()
                                 || zc_tm.version != regular_tm.version
                             {
                                 return false;
@@ -375,8 +375,8 @@ impl<'a> PartialEq<CompressedToken> for ZCompressedToken<'a> {
                                 .iter()
                                 .zip(regular_tm.additional_metadata.iter())
                             {
-                                if &*zc_meta.key != regular_meta.key.as_slice()
-                                    || &*zc_meta.value != regular_meta.value.as_slice()
+                                if zc_meta.key != regular_meta.key.as_slice()
+                                    || zc_meta.value != regular_meta.value.as_slice()
                                 {
                                     return false;
                                 }
@@ -414,7 +414,7 @@ impl<'a> Deref for ZCompressedTokenMut<'a> {
     }
 }
 
-impl<'a> DerefMut for ZCompressedTokenMut<'a> {
+impl DerefMut for ZCompressedTokenMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.__meta
     }
@@ -454,7 +454,7 @@ impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for CompressedToken {
     }
 }
 
-impl<'a> ZCompressedTokenMetaMut<'a> {
+impl ZCompressedTokenMetaMut<'_> {
     /// Set the delegate field by updating both the COption discriminator and value
     pub fn set_delegate(&mut self, delegate: Option<Pubkey>) -> Result<(), ZeroCopyError> {
         match (&mut self.delegate, delegate) {
@@ -463,11 +463,11 @@ impl<'a> ZCompressedTokenMetaMut<'a> {
             }
             (Some(delegate), None) => {
                 // Set discriminator to 0 (None)
-                self.delegate_option[0] = 0.into();
+                self.delegate_option[0] = 0;
                 **delegate = Pubkey::default();
             }
             (None, Some(new)) => {
-                self.delegate_option[0] = 1.into();
+                self.delegate_option[0] = 1;
                 let pubkey_bytes = unsafe {
                     std::slice::from_raw_parts_mut(self.delegate_option.as_mut_ptr().add(4), 32)
                 };

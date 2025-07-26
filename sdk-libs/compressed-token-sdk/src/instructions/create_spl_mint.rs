@@ -1,4 +1,3 @@
-use crate::{error::Result, AnchorSerialize};
 use light_compressed_token_types::{ValidityProof, CPI_AUTHORITY_PDA};
 use light_ctoken_types::{
     instructions::{
@@ -13,6 +12,8 @@ use light_sdk::constants::{
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+
+use crate::{error::Result, AnchorSerialize};
 
 pub const POOL_SEED: &[u8] = b"pool";
 

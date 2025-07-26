@@ -1,3 +1,6 @@
+use light_zero_copy::borsh::Deserialize;
+use zerocopy::little_endian::U16;
+
 use crate::{
     compressed_account::PackedMerkleContext,
     instruction_data::{
@@ -8,8 +11,6 @@ use crate::{
     },
     CompressedAccountError, Pubkey,
 };
-use light_zero_copy::borsh::Deserialize;
-use zerocopy::little_endian::U16;
 
 // TODO: unit test
 impl ZOutputCompressedAccountWithPackedContextMut<'_> {

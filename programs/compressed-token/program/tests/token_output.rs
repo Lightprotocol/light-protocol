@@ -1,4 +1,4 @@
-use anchor_compressed_token::token_data::TokenData as AnchorTokenData;
+use anchor_compressed_token::TokenData as AnchorTokenData;
 use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{
@@ -19,7 +19,7 @@ use light_compressed_token::{
         token_output::set_output_compressed_account,
     },
 };
-use light_ctoken_types::context::TokenContext;
+use light_ctoken_types::{context::TokenContext, state::AccountState};
 use light_zero_copy::ZeroCopyNew;
 
 #[test]
@@ -112,6 +112,7 @@ fn test_rnd_create_output_compressed_accounts() {
                 mint_pubkey,
                 &hashed_mint,
                 merkle_tree_indices[index],
+                2,
             )
             .unwrap();
         }
@@ -131,7 +132,7 @@ fn test_rnd_create_output_compressed_accounts() {
                 owner: owner_pubkeys[i].into(),
                 amount: amounts[i],
                 delegate: token_delegate.map(|d| d.into()),
-                state: anchor_compressed_token::token_data::AccountState::Initialized,
+                state: AccountState::Initialized,
                 tlv: None,
             };
             let data_hash = token_data.hash().unwrap();

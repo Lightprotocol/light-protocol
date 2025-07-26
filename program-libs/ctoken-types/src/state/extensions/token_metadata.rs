@@ -1,10 +1,11 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::Pubkey;
 use light_hasher::{
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, HasherError,
     Poseidon, Sha256,
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+
+use crate::{AnchorDeserialize, AnchorSerialize};
 
 // TODO: decide whether to keep Shaflat
 pub enum Version {

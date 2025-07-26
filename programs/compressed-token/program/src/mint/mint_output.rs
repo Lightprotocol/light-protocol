@@ -2,18 +2,23 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
-use light_ctoken_types::context::TokenContext;
-use light_ctoken_types::instructions::mint_to_compressed::ZCompressedMintInputs;
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::{
+        extensions::ZExtensionInstructionData, mint_to_compressed::ZCompressedMintInputs,
+    },
+    state::{CompressedMint, CompressedMintConfig},
+};
 use light_hasher::Poseidon;
 use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
 
-use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;
-use crate::extensions::processor::{
-    create_extension_hash_chain, extensions_state_in_output_compressed_account,
+use crate::{
+    constants::COMPRESSED_MINT_DISCRIMINATOR,
+    extensions::processor::{
+        create_extension_hash_chain, extensions_state_in_output_compressed_account,
+    },
 };
-use light_ctoken_types::instructions::extensions::ZExtensionInstructionData;
-use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
 
 /// Input struct for create_output_compressed_mint_account function
 /// Consolidates all parameters needed to create an output compressed mint account
@@ -95,10 +100,11 @@ pub fn create_output_compressed_mint_account(
             )?;
             let hashed_spl_mint = context.get_or_hash_mint(&mint_pda.into())?;
 
-            Some(
-                create_extension_hash_chain::<Poseidon>(extensions, &hashed_spl_mint, context)
-                    .map_err(ProgramError::from)?,
-            )
+            Some(create_extension_hash_chain::<Poseidon>(
+                extensions,
+                &hashed_spl_mint,
+                context,
+            )?)
         } else {
             None
         };

@@ -1,7 +1,8 @@
-use crate::error::CTokenError;
 use arrayvec::ArrayVec;
 use light_compressed_account::hash_to_bn254_field_size_be;
 use pinocchio::pubkey::Pubkey;
+
+use crate::error::CTokenError;
 
 /// Context for caching hashed values to avoid recomputation
 pub struct TokenContext {

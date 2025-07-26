@@ -13,14 +13,17 @@ use light_compressed_account::{
     },
     pubkey::AsPubkey,
 };
+use light_ctoken_types::state::{AccountState, TokenData};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
 use light_zero_copy::num_trait::ZeroCopyNumTrait;
 
 use crate::{
-    constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
+    constants::{
+        BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+        TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+    },
     spl_compression::process_compression_or_decompression,
-    token_data::{AccountState, TokenData},
     ErrorCode, TransferInstruction,
 };
 
@@ -229,10 +232,10 @@ pub fn create_output_compressed_accounts(
         let mut token_data_bytes = Vec::with_capacity(capacity);
         // 1,000 CU token data and serialize
         let token_data = TokenData {
-            mint: (mint_pubkey).to_anchor_pubkey(),
-            owner: (*owner).to_anchor_pubkey(),
+            mint: (mint_pubkey).to_anchor_pubkey().into(),
+            owner: (*owner).to_anchor_pubkey().into(),
             amount: (*amount).into(),
-            delegate,
+            delegate: delegate.map(|delegate_pubkey| delegate_pubkey.into()),
             state: AccountState::Initialized,
             tlv: None,
         };
@@ -273,8 +276,17 @@ pub fn create_output_compressed_accounts(
             &hashed_delegate,
         )
         .map_err(ProgramError::from)?;
+
+        let discriminator = match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            BATCHED_DISCRIMINATOR | OUTPUT_QUEUE_DISCRIMINATOR => {
+                TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR
+            }
+            _ => return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch),
+        };
+
         let data = CompressedAccountData {
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            discriminator,
             data: token_data_bytes,
             data_hash,
         };
@@ -678,11 +690,13 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             unimplemented!("Tlv is unimplemented.");
         }
         let token_data = TokenData {
-            mint: *mint,
-            owner,
+            mint: (*mint).into(),
+            owner: owner.into(),
             amount: input_token_data.amount,
             delegate: input_token_data.delegate_index.map(|_| {
-                remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
+                remaining_accounts[input_token_data.delegate_index.unwrap() as usize]
+                    .key()
+                    .into()
             }),
             state,
             tlv: None,
@@ -738,7 +752,7 @@ pub mod transfer_sdk {
         DelegatedTransfer, InputTokenDataWithContext, PackedTokenTransferOutputData,
         TokenTransferOutputData,
     };
-    use crate::{token_data::TokenData, CompressedTokenInstructionDataTransfer};
+    use crate::{CompressedTokenInstructionDataTransfer, TokenData};
 
     #[error_code]
     pub enum TransferSdkError {
@@ -923,7 +937,7 @@ pub mod transfer_sdk {
         if let Some(delegate) = delegate {
             additional_accounts.push(delegate);
             for account in input_token_data.iter() {
-                if account.delegate.is_some() && delegate != account.delegate.unwrap() {
+                if account.delegate.is_some() && delegate != account.delegate.unwrap().into() {
                     println!("delegate: {:?}", delegate);
                     println!("account.delegate: {:?}", account.delegate.unwrap());
                     panic!("Delegate is not the same as the signer");
@@ -950,7 +964,7 @@ pub mod transfer_sdk {
             );
         let delegated_transfer = if delegate.is_some() {
             let delegated_transfer = DelegatedTransfer {
-                owner: input_token_data[0].owner,
+                owner: input_token_data[0].owner.into(),
                 delegate_change_account_index,
             };
             Some(delegated_transfer)
@@ -1009,10 +1023,10 @@ pub mod transfer_sdk {
                 }
             };
             let delegate_index = match token_data.delegate {
-                Some(delegate) => match remaining_accounts.get(&delegate) {
+                Some(delegate) => match remaining_accounts.get(&delegate.into()) {
                     Some(delegate_index) => Some(*delegate_index as u8),
                     None => {
-                        remaining_accounts.insert(delegate, index);
+                        remaining_accounts.insert(delegate.into(), index);
                         index += 1;
                         Some((index - 1) as u8)
                     }
@@ -1109,8 +1123,9 @@ pub mod transfer_sdk {
 
 #[cfg(test)]
 mod test {
+    use light_ctoken_types::state::AccountState;
+
     use super::*;
-    use crate::token_data::AccountState;
 
     #[test]
     fn test_sum_check() {
@@ -1152,6 +1167,7 @@ mod test {
         compress_or_decompress_amount: Option<u64>,
         is_compress: bool,
     ) -> Result<()> {
+        use light_compressed_account::Pubkey;
         let mut inputs = Vec::new();
         for i in input_amounts.iter() {
             inputs.push(TokenData {

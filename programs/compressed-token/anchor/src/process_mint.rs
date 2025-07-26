@@ -851,11 +851,9 @@ mod test {
     };
 
     use super::*;
-    use crate::{
-        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-        token_data::{AccountState, TokenData},
-    };
-
+    use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+    use light_compressed_account::Pubkey;
+    use light_ctoken_types::state::{AccountState, TokenData};
     #[test]
     fn test_manual_ix_data_serialization_borsh_compat() {
         let pubkeys = [Pubkey::new_unique(), Pubkey::new_unique()];

@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::AnchorSerialize;
-use light_compressed_token::multi_transfer::{
-    sum_check::sum_check_multi_mint,
-};
+use light_compressed_token::multi_transfer::sum_check::sum_check_multi_mint;
 use light_ctoken_types::instructions::multi_transfer::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
@@ -16,7 +14,13 @@ type Result<T> = std::result::Result<T, ErrorCode>;
 fn test_multi_sum_check() {
     // SUCCEED: no relay fee, compression
     multi_sum_check_test(&[100, 50], &[150], None, CompressionMode::Decompress).unwrap();
-    multi_sum_check_test(&[75, 25, 25], &[25, 25, 25, 25, 12, 13], None, CompressionMode::Decompress).unwrap();
+    multi_sum_check_test(
+        &[75, 25, 25],
+        &[25, 25, 25, 25, 12, 13],
+        None,
+        CompressionMode::Decompress,
+    )
+    .unwrap();
 
     // FAIL: no relay fee, compression
     multi_sum_check_test(&[100, 50], &[150 + 1], None, CompressionMode::Decompress).unwrap_err();
@@ -177,7 +181,11 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
     for _ in 0..num_compressions {
         let mint = mint_ids[(next_rand() % num_mints as u64) as usize];
         let amount = 50 + (next_rand() % 500);
-        let compression_mode = if (next_rand() % 2) == 0 { CompressionMode::Compress } else { CompressionMode::Decompress };
+        let compression_mode = if (next_rand() % 2) == 0 {
+            CompressionMode::Compress
+        } else {
+            CompressionMode::Decompress
+        };
 
         compressions.push((mint, amount, compression_mode));
 
@@ -308,8 +316,8 @@ fn test_failing_cases() -> Result<()> {
 }
 
 fn test_multi_mint_scenario(
-    inputs: &[(u8, u64)],             // (mint, amount)
-    outputs: &[(u8, u64)],            // (mint, amount)
+    inputs: &[(u8, u64)],                        // (mint, amount)
+    outputs: &[(u8, u64)],                       // (mint, amount)
     compressions: &[(u8, u64, CompressionMode)], // (mint, amount, compression_mode)
 ) -> Result<()> {
     // Create input structures

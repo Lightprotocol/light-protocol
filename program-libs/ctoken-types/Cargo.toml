@@ -25,10 +25,11 @@ light-macros = { workspace = true }
 solana-sysvar = { workspace = true, optional = true }
 spl-pod = { workspace = true }
 spl-token-2022 = { workspace = true }
+
 [dev-dependencies]
 rand = { workspace = true }
-
-solana-pubkey = { workspace = true }
+num-bigint = { workspace = true }
+light-compressed-account = { workspace = true, features = ["new-unique"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

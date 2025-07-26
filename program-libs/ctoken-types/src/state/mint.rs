@@ -199,9 +199,10 @@ impl ZCompressedMintMut<'_> {
     }
 }
 // Implementation for zero-copy mutable CompressedMint
-impl<'a> ZCompressedMintMut<'a> {
+impl ZCompressedMintMut<'_> {
     /// Set all fields of the CompressedMint struct at once
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub fn set(
         &mut self,
         version: u8,

@@ -1,18 +1,11 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
-    account::CTokenAccount,
     account2::CTokenAccount2,
-    instructions::{
-        multi_transfer::{
-            account_metas::MultiTransferAccountsMetaConfig, create_multi_transfer_instruction_raw,
-            MultiTransferConfig, MultiTransferInputsRaw,
-        },
-        transfer::instruction::{
-            compress, transfer, CompressInputs, TransferConfig, TransferInputs,
-        },
+    instructions::multi_transfer::{
+        account_metas::MultiTransferAccountsMetaConfig, create_multi_transfer_instruction_raw,
+        MultiTransferConfig, MultiTransferInputsRaw,
     },
-    TokenAccountMeta,
 };
 use light_ctoken_types::instructions::multi_transfer::MultiInputTokenDataWithContext;
 use light_sdk::{cpi::CpiAccounts, instruction::ValidityProof as LightValidityProof};

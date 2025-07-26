@@ -39,6 +39,7 @@ impl CTokenAccount2 {
             merkle_tree: output_merkle_tree_index,
             delegate: 0, // Default delegate index
             mint: mint_index,
+            version: 2, // V2 for batched Merkle trees
         };
         Ok(Self {
             inputs: token_data,
@@ -58,6 +59,7 @@ impl CTokenAccount2 {
                 merkle_tree: output_merkle_tree_index,
                 delegate: 0, // Default delegate index
                 mint: mint_index,
+                version: 2, // V2 for batched Merkle trees
             },
             compression: None,
             delegate_is_set: false,
@@ -90,6 +92,7 @@ impl CTokenAccount2 {
                 merkle_tree: merkle_tree_index,
                 delegate: 0,
                 mint: self.output.mint,
+                version: self.output.version,
             },
             delegate_is_set: false,
             method_used: false,
@@ -127,6 +130,7 @@ impl CTokenAccount2 {
                 merkle_tree: merkle_tree_index,
                 delegate: delegate_index,
                 mint: self.output.mint,
+                version: self.output.version,
             },
             delegate_is_set: true,
             method_used: false,
@@ -198,7 +202,7 @@ impl CTokenAccount2 {
     }
 
     pub fn mint(&self, account_infos: &[AccountInfo]) -> Pubkey {
-        account_infos[self.mint as usize].key.clone()
+        *account_infos[self.mint as usize].key
     }
 
     pub fn compression_amount(&self) -> Option<u64> {
@@ -210,7 +214,7 @@ impl CTokenAccount2 {
     }
 
     pub fn owner(&self, account_infos: &[AccountInfo]) -> Pubkey {
-        account_infos[self.owner as usize].key.clone()
+        *account_infos[self.owner as usize].key
     }
     // TODO: make option and take from self
     //pub fn delegate_account<'b>(&self, account_infos: &'b [&'b AccountInfo]) -> &'b Pubkey {

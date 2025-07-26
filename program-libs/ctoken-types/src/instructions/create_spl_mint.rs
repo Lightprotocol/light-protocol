@@ -1,8 +1,9 @@
+use light_zero_copy::ZeroCopy;
+
 use crate::{
     instructions::create_compressed_mint::UpdateCompressedMintInstructionData, AnchorDeserialize,
     AnchorSerialize,
 };
-use light_zero_copy::ZeroCopy;
 
 #[derive(ZeroCopy, AnchorDeserialize, AnchorSerialize, Clone, Debug)]
 pub struct CreateSplMintInstructionData {

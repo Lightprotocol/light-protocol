@@ -5,9 +5,8 @@ use light_compressed_account::{
 use light_zero_copy::ZeroCopy;
 
 use crate::{
-    AnchorSerialize, AnchorDeserialize,
-    instructions::create_compressed_mint::UpdateCompressedMintInstructionData, 
-    state::CompressedMint
+    instructions::create_compressed_mint::UpdateCompressedMintInstructionData,
+    state::CompressedMint, AnchorDeserialize, AnchorSerialize,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
@@ -15,7 +14,7 @@ pub struct CompressedMintInputs {
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
     pub address: [u8; 32],
-    pub compressed_mint_input: CompressedMint,
+    pub compressed_mint_input: CompressedMint, //TODO: move supply and authority last so that we can send only the hash chain.
     pub output_merkle_tree_index: u8,
 }
 
@@ -27,6 +26,7 @@ pub struct Recipient {
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct MintToCompressedInstructionData {
+    pub token_account_version: u8,
     pub compressed_mint_inputs: UpdateCompressedMintInstructionData,
     pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,

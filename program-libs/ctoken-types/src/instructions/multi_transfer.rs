@@ -1,15 +1,43 @@
 use std::fmt::Debug;
 
-use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
-use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_compressed_account::instruction_data::{
-    compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+use light_compressed_account::{
+    compressed_account::PackedMerkleContext,
+    instruction_data::{compressed_proof::CompressedProof, cpi_context::CompressedCpiContext},
 };
-use light_zero_copy::borsh::Deserialize;
-use light_zero_copy::borsh_mut::DeserializeMut;
-use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
+use light_zero_copy::{
+    borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopy, ZeroCopyMut, ZeroCopyNew,
+};
 use spl_pod::solana_msg::msg;
 use zerocopy::Ref;
+
+use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
+// TODO: move to token data
+#[repr(u8)]
+pub enum TokenAccountVersion {
+    V1 = 1u8,
+    V2 = 2u8,
+}
+
+impl TokenAccountVersion {
+    pub fn discriminator(&self) -> [u8; 8] {
+        match self {
+            TokenAccountVersion::V1 => [2, 0, 0, 0, 0, 0, 0, 0], // 2 le
+            TokenAccountVersion::V2 => [0, 0, 0, 0, 0, 0, 0, 3], // 3 be
+        }
+    }
+}
+
+impl TryFrom<u8> for TokenAccountVersion {
+    type Error = crate::CTokenError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(TokenAccountVersion::V1),
+            2 => Ok(TokenAccountVersion::V2),
+            _ => Err(crate::CTokenError::InvalidTokenDataVersion),
+        }
+    }
+}
 
 #[derive(
     Debug, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
@@ -24,6 +52,7 @@ pub struct MultiInputTokenDataWithContext {
     pub with_delegate: bool,
     // Only used if with_delegate is true, we could also use 255 to indicate no delegate
     pub delegate: u8,
+    pub version: u8,
 }
 
 #[derive(
@@ -44,6 +73,7 @@ pub struct MultiTokenTransferOutputData {
     pub merkle_tree: u8,
     pub delegate: u8, // TODO: check whether we need delegate is set
     pub mint: u8,
+    pub version: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]

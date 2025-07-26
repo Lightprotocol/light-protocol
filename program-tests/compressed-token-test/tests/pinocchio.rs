@@ -12,9 +12,6 @@ use light_compressed_token_sdk::instructions::{
     derive_ctoken_ata, CreateCompressedMintInputs, CreateSplMintInputs, DecompressedMintConfig,
     MintToCompressedInputs,
 };
-use light_ctoken_types::state::solana_ctoken::CompressedToken;
-use light_ctoken_types::state::CompressibleExtension;
-use light_ctoken_types::COMPRESSED_MINT_SEED;
 use light_ctoken_types::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
@@ -22,9 +19,10 @@ use light_ctoken_types::{
     },
     state::{
         extensions::{AdditionalMetadata, ExtensionStruct, Metadata},
-        CompressedMint,
+        solana_ctoken::CompressedToken,
+        CompressedMint, CompressibleExtension,
     },
-    BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSED_MINT_SEED, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::Rpc;
@@ -1053,8 +1051,7 @@ async fn test_create_and_close_token_account() {
 
 #[tokio::test]
 async fn test_create_and_close_account_with_rent_authority() {
-    use solana_sdk::signature::Signer;
-    use solana_sdk::system_instruction;
+    use solana_sdk::{signature::Signer, system_instruction};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -1228,8 +1225,7 @@ async fn test_create_and_close_account_with_rent_authority() {
 #[tokio::test]
 async fn test_create_compressible_account_insufficient_size() {
     use light_test_utils::spl::create_mint_helper;
-    use solana_sdk::signature::Signer;
-    use solana_sdk::system_instruction;
+    use solana_sdk::{signature::Signer, system_instruction};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await

@@ -1,12 +1,12 @@
-use anchor_compressed_token::token_data::TokenData;
+use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::multi_transfer::{TokenAccountVersion, ZMultiInputTokenDataWithContext},
+};
 use pinocchio::account_info::AccountInfo;
-
-use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_ctoken_types::context::TokenContext;
-use light_ctoken_types::instructions::multi_transfer::ZMultiInputTokenDataWithContext;
 
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.
 ///
@@ -51,14 +51,24 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     };
 
     // Compute data hash using TokenContext for caching
-    let hashed_owner = context.get_or_hash_pubkey(&owner_account.key());
+    let hashed_owner = context.get_or_hash_pubkey(owner_account.key());
 
     // Get mint hash from context
     let mint_account = &accounts[input_token_data.mint as usize];
     let hashed_mint = context.get_or_hash_mint(mint_account.key())?;
 
     let mut amount_bytes = [0u8; 32];
-    amount_bytes[24..].copy_from_slice(input_token_data.amount.get().to_be_bytes().as_slice());
+    let version = TokenAccountVersion::try_from(input_token_data.version)?;
+    match version {
+        TokenAccountVersion::V1 => {
+            amount_bytes[24..]
+                .copy_from_slice(input_token_data.amount.get().to_le_bytes().as_slice());
+        }
+        TokenAccountVersion::V2 => {
+            amount_bytes[24..]
+                .copy_from_slice(input_token_data.amount.get().to_be_bytes().as_slice());
+        }
+    }
 
     // Use appropriate hash function based on frozen state
     let data_hash = if !IS_FROZEN {
@@ -81,7 +91,7 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
 
     input_compressed_account
         .set(
-            TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            version.discriminator(),
             data_hash,
             &input_token_data.merkle_context,
             *input_token_data.root_index,

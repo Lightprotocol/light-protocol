@@ -72,6 +72,9 @@ pub enum CTokenError {
     #[error("Output accounts lamports length mismatch")]
     OutputAccountsLamportsLengthMismatch,
 
+    #[error("Invalid token data version")]
+    InvalidTokenDataVersion,
+
     #[error("Instruction data expected mint authority")]
     InstructionDataExpectedMintAuthority,
 
@@ -120,6 +123,7 @@ impl From<CTokenError> for u32 {
             CTokenError::CompressedTokenAccountTlvUnimplemented => 18021,
             CTokenError::InputAccountsLamportsLengthMismatch => 18022,
             CTokenError::OutputAccountsLamportsLengthMismatch => 18023,
+            CTokenError::InvalidTokenDataVersion => 18028,
             CTokenError::InstructionDataExpectedMintAuthority => 18024,
             CTokenError::ZeroCopyExpectedMintAuthority => 18025,
             CTokenError::InstructionDataExpectedFreezeAuthority => 18026,
@@ -132,6 +136,7 @@ impl From<CTokenError> for u32 {
 }
 
 #[cfg(feature = "solana")]
+#[cfg(all(feature = "solana", not(feature = "anchor")))]
 impl From<CTokenError> for solana_program_error::ProgramError {
     fn from(e: CTokenError) -> Self {
         solana_program_error::ProgramError::Custom(e.into())

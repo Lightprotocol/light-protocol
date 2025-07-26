@@ -36,6 +36,7 @@ light-compressed-account = { workspace = true, features = ["anchor"] }
 spl-token-2022 = { workspace = true }
 light-zero-copy = { workspace = true }
 zerocopy = { workspace = true }
+light-ctoken-types = { workspace = true, features = ["anchor"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -44,6 +45,10 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 rand = { workspace = true }
 num-bigint = { workspace = true }
+light-compressed-account = { workspace = true, features = [
+    "anchor",
+    "new-unique",
+] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

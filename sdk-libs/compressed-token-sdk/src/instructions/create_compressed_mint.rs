@@ -1,7 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_ctoken_types::instructions::extensions::ExtensionInstructionData;
-use light_ctoken_types::{self, COMPRESSED_MINT_SEED};
+use light_ctoken_types::{
+    self, instructions::extensions::ExtensionInstructionData, COMPRESSED_MINT_SEED,
+};
 use light_sdk::constants::{ACCOUNT_COMPRESSION_AUTHORITY_PDA, REGISTERED_PROGRAM_PDA};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;

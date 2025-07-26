@@ -8,16 +8,18 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     },
 };
+use light_ctoken_types::state::AccountState;
 
 use crate::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+    constants::{
+        TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+    },
     process_transfer::{
         add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
         InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
     },
-    token_data::{AccountState, TokenData},
-    FreezeInstruction,
+    FreezeInstruction, TokenData,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -156,10 +158,10 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         };
         // 1,000 CU token data and serialize
         let token_data = TokenData {
-            mint: *mint,
-            owner: *owner,
+            mint: (*mint).into(),
+            owner: (*owner).into(),
             amount: token_data_with_context.amount,
-            delegate,
+            delegate: delegate.map(|k| k.into()),
             state,
             tlv: None,
         };
@@ -174,12 +176,18 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         let data_hash = match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash_legacy(),
             BATCHED_DISCRIMINATOR => token_data.hash(),
-            _ => panic!(),
+            _ => panic!(), // TODO: throw error
         }
         .map_err(ProgramError::from)?;
 
+        let discriminator = match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            BATCHED_DISCRIMINATOR => TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+            _ => panic!(),
+        };
+
         let data: CompressedAccountData = CompressedAccountData {
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            discriminator,
             data: token_data_bytes,
             data_hash,
         };
@@ -220,7 +228,7 @@ pub mod sdk {
         process_transfer::transfer_sdk::{
             create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
         },
-        token_data::TokenData,
+        TokenData,
     };
 
     pub struct CreateInstructionInputs {
@@ -254,7 +262,7 @@ pub mod sdk {
             input_token_data_with_context,
             cpi_context: None,
             outputs_merkle_tree_index: *outputs_merkle_tree_index as u8,
-            owner: inputs.input_token_data[0].owner,
+            owner: inputs.input_token_data[0].owner.into(),
         };
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut serialized_ix_data = Vec::new();
@@ -291,7 +299,7 @@ pub mod sdk {
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
             system_program: solana_sdk::system_program::ID,
-            mint: inputs.input_token_data[0].mint,
+            mint: inputs.input_token_data[0].mint.into(),
         };
 
         Ok(Instruction {
@@ -320,26 +328,26 @@ pub mod test_freeze {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::compressed_account::PackedMerkleContext;
+    use light_ctoken_types::state::AccountState;
     use rand::Rng;
 
     use super::*;
-    use crate::{
-        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, token_data::AccountState, TokenData,
-    };
+    use crate::{constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, TokenData};
+    use light_compressed_account::Pubkey;
 
     // TODO: add randomized and edge case tests
     #[test]
     fn test_freeze() {
-        let merkle_tree_pubkey = Pubkey::new_unique();
+        let merkle_tree_pubkey = anchor_lang::prelude::Pubkey::new_unique();
         let mut merkle_tree_account_lamports = 0;
         let mut merkle_tree_account_data = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
-        let nullifier_queue_pubkey = Pubkey::new_unique();
+        let nullifier_queue_pubkey = anchor_lang::prelude::Pubkey::new_unique();
         let mut nullifier_queue_account_lamports = 0;
         let mut nullifier_queue_account_data = Vec::new();
-        let delegate = Pubkey::new_unique();
+        let delegate = anchor_lang::prelude::Pubkey::new_unique();
         let mut delegate_account_lamports = 0;
         let mut delegate_account_data = Vec::new();
-        let merkle_tree_pubkey_1 = Pubkey::new_unique();
+        let merkle_tree_pubkey_1 = anchor_lang::prelude::Pubkey::new_unique();
         let mut merkle_tree_account_lamports_1 = 0;
         let mut merkle_tree_account_data_1 = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let remaining_accounts = vec![
@@ -421,7 +429,7 @@ pub mod test_freeze {
         {
             let inputs = CompressedTokenInstructionDataFreeze {
                 proof: CompressedProof::default(),
-                owner,
+                owner: owner.into(),
                 input_token_data_with_context: input_token_data_with_context.clone(),
                 cpi_context: None,
                 outputs_merkle_tree_index: 3,
@@ -429,7 +437,7 @@ pub mod test_freeze {
             let (compressed_input_accounts, output_compressed_accounts) =
                 create_input_and_output_accounts_freeze_or_thaw::<false, true>(
                     &inputs,
-                    &mint,
+                    &mint.into(),
                     &remaining_accounts,
                 )
                 .unwrap();
@@ -447,7 +455,7 @@ pub mod test_freeze {
                 mint,
                 owner,
                 amount: 101,
-                delegate: Some(delegate),
+                delegate: Some(delegate.into()),
                 state: AccountState::Frozen,
                 tlv: None,
             };
@@ -465,7 +473,7 @@ pub mod test_freeze {
         {
             let inputs = CompressedTokenInstructionDataFreeze {
                 proof: CompressedProof::default(),
-                owner,
+                owner: owner.into(),
                 input_token_data_with_context,
                 cpi_context: None,
                 outputs_merkle_tree_index: 3,
@@ -473,7 +481,7 @@ pub mod test_freeze {
             let (compressed_input_accounts, output_compressed_accounts) =
                 create_input_and_output_accounts_freeze_or_thaw::<true, false>(
                     &inputs,
-                    &mint,
+                    &mint.into(),
                     &remaining_accounts,
                 )
                 .unwrap();
@@ -491,7 +499,7 @@ pub mod test_freeze {
                 mint,
                 owner,
                 amount: 101,
-                delegate: Some(delegate),
+                delegate: Some(delegate.into()),
                 state: AccountState::Initialized,
                 tlv: None,
             };
@@ -558,9 +566,9 @@ pub mod test_freeze {
     }
     pub fn create_expected_input_accounts(
         input_token_data_with_context: &[InputTokenDataWithContext],
-        mint: &Pubkey,
-        owner: &Pubkey,
-        remaining_accounts: &[Pubkey],
+        mint: &anchor_lang::prelude::Pubkey,
+        owner: &anchor_lang::prelude::Pubkey,
+        remaining_accounts: &[anchor_lang::prelude::Pubkey],
     ) -> Vec<InAccount> {
         input_token_data_with_context
             .iter()
@@ -569,10 +577,10 @@ pub mod test_freeze {
                     .delegate_index
                     .map(|index| remaining_accounts[index as usize]);
                 let token_data = TokenData {
-                    mint: *mint,
-                    owner: *owner,
+                    mint: mint.into(),
+                    owner: owner.into(),
                     amount: x.amount,
-                    delegate,
+                    delegate: delegate.map(|d| d.into()),
                     state: AccountState::Initialized,
                     tlv: None,
                 };

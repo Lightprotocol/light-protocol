@@ -365,7 +365,6 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Create input data
         use light_compressed_account::compressed_account::PackedMerkleContext;
-
         use light_zero_copy::borsh::Deserialize;
 
         let input_compressed_mint = CompressedMintInputs {

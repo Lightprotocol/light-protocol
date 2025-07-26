@@ -1,4 +1,4 @@
-use anchor_compressed_token::token_data::TokenData as AnchorTokenData;
+use anchor_compressed_token::TokenData as AnchorTokenData;
 use anchor_lang::prelude::*;
 use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -17,6 +17,7 @@ use light_compressed_token::{
 };
 use light_ctoken_types::{
     context::TokenContext, instructions::multi_transfer::MultiInputTokenDataWithContext,
+    state::AccountState,
 };
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
@@ -62,6 +63,7 @@ fn test_rnd_create_input_compressed_account() {
             owner: 1, // owner is at index 1 in remaining_accounts
             with_delegate,
             delegate: if with_delegate { 2 } else { 0 }, // delegate at index 2 if present
+            version: 2,
         };
 
         // Serialize and get zero-copy reference
@@ -141,14 +143,14 @@ fn test_rnd_create_input_compressed_account() {
             };
 
             let expected_token_data = AnchorTokenData {
-                mint: mint_pubkey,
-                owner: expected_owner,
+                mint: mint_pubkey.into(),
+                owner: expected_owner.into(),
                 amount,
-                delegate: expected_delegate,
+                delegate: expected_delegate.map(|d| d.into()),
                 state: if is_frozen {
-                    anchor_compressed_token::token_data::AccountState::Frozen
+                    AccountState::Frozen
                 } else {
-                    anchor_compressed_token::token_data::AccountState::Initialized
+                    AccountState::Initialized
                 },
                 tlv: None,
             };

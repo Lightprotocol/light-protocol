@@ -13,8 +13,10 @@ use light_sdk::constants::{
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-use crate::error::{Result, TokenSdkError};
-use crate::AnchorSerialize;
+use crate::{
+    error::{Result, TokenSdkError},
+    AnchorSerialize,
+};
 
 /// Configuration for decompressed mint operations
 #[derive(Debug, Clone)]
@@ -77,6 +79,7 @@ pub fn create_mint_to_compressed_instruction(
 
     // Create mint_to_compressed instruction
     let mint_to_instruction_data = MintToCompressedInstructionData {
+        token_account_version: 2, // V2 for batched merkle trees
         compressed_mint_inputs: update_mint_data,
         lamports,
         recipients,

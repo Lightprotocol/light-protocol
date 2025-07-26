@@ -1,13 +1,13 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
+use light_ctoken_types::{
+    context::TokenContext,
+    instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer,
+};
 
 use crate::{
     multi_transfer::accounts::MultiTransferPackedAccounts,
     shared::token_output::set_output_compressed_account,
-};
-use light_ctoken_types::{
-    context::TokenContext,
-    instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer,
 };
 
 /// Process output compressed accounts and return total output lamports
@@ -65,6 +65,7 @@ pub fn set_output_compressed_accounts(
             mint_account.key().into(),
             &hashed_mint,
             output_data.merkle_tree,
+            output_data.version,
         )?;
     }
 

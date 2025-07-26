@@ -44,3 +44,4 @@ reqwest = { workspace = true }
 light-account-checks = { workspace = true }
 light-sparse-merkle-tree = { workspace = true }
 solana-banks-client = { workspace = true }
+light-ctoken-types = { workspace = true }

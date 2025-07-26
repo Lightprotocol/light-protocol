@@ -2,6 +2,10 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
 };
+use light_ctoken_types::{
+    context::TokenContext, instructions::mint_to_compressed::MintToCompressedInstructionData,
+    state::CompressedMintConfig,
+};
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
@@ -22,10 +26,6 @@ use crate::{
         token_output::set_output_compressed_account,
     },
     LIGHT_CPI_SIGNER,
-};
-use light_ctoken_types::state::CompressedMintConfig;
-use light_ctoken_types::{
-    context::TokenContext, instructions::mint_to_compressed::MintToCompressedInstructionData,
 };
 pub fn process_mint_to_compressed(
     accounts: &[AccountInfo],
@@ -216,6 +216,7 @@ fn create_output_compressed_token_accounts(
             mint,
             &hashed_mint,
             2,
+            parsed_instruction_data.token_account_version,
         )?;
     }
     Ok(())

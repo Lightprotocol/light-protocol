@@ -67,10 +67,10 @@ pub fn initialize_token_account(
                 use pinocchio::sysvars::Sysvar;
                 let current_slot = Clock::get().unwrap().slot;
                 compressible_extension.last_written_slot = current_slot.into();
-                compressible_extension.rent_authority = compressible_config.rent_authority.into();
-                compressible_extension.rent_recipient = compressible_config.rent_recipient.into();
+                compressible_extension.rent_authority = compressible_config.rent_authority;
+                compressible_extension.rent_recipient = compressible_config.rent_recipient;
                 compressible_extension.slots_until_compression =
-                    compressible_config.slots_until_compression.into();
+                    compressible_config.slots_until_compression;
             }
             _ => {
                 return Err(ProgramError::InvalidInstructionData);

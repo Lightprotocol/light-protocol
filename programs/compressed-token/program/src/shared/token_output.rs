@@ -1,5 +1,5 @@
 // Import the anchor TokenData for hash computation
-use anchor_compressed_token::{token_data::TokenData as AnchorTokenData, ErrorCode};
+use anchor_compressed_token::{ErrorCode, TokenData as AnchorTokenData};
 use anchor_lang::{
     prelude::{borsh, ProgramError},
     AnchorDeserialize, AnchorSerialize,
@@ -7,10 +7,10 @@ use anchor_lang::{
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
+use light_ctoken_types::{
+    context::TokenContext, instructions::multi_transfer::TokenAccountVersion,
+};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
-
-use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_ctoken_types::context::TokenContext;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
@@ -37,7 +37,7 @@ pub struct TokenData {
 }
 
 // Implementation for zero-copy mutable TokenData
-impl<'a> ZTokenDataMut<'a> {
+impl ZTokenDataMut<'_> {
     /// Set all fields of the TokenData struct at once
     #[inline]
     pub fn set(
@@ -77,7 +77,11 @@ pub fn set_output_compressed_account(
     mint_pubkey: Pubkey,
     hashed_mint: &[u8; 32],
     merkle_tree_index: u8,
+    version: u8,
 ) -> Result<(), ProgramError> {
+    // Parse token version first
+    let token_version = TokenAccountVersion::try_from(version)?;
+
     // Create TokenData using zero-copy to compute the data hash
     let data_hash = {
         // Get compressed account data from CPI struct to temporarily create TokenData
@@ -111,7 +115,14 @@ pub fn set_output_compressed_account(
         // Compute data hash using the anchor TokenData hash_with_hashed_values method
         let hashed_owner = context.get_or_hash_pubkey(&owner.into());
         let mut amount_bytes = [0u8; 32];
-        amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
+        match token_version {
+            TokenAccountVersion::V1 => {
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_le().as_slice());
+            }
+            TokenAccountVersion::V2 => {
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
+            }
+        }
 
         let hashed_delegate =
             delegate.map(|delegate_pubkey| context.get_or_hash_pubkey(&delegate_pubkey.into()));
@@ -132,7 +143,7 @@ pub fn set_output_compressed_account(
             lamports_value,
             None, // Token accounts don't have addresses
             merkle_tree_index,
-            TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            token_version.discriminator(),
             data_hash,
         )
         .map_err(ProgramError::from)?;

@@ -364,7 +364,7 @@ async fn create_compressed_escrow_pda(
 
     // Add system accounts configuration
     let config = SystemAccountMetaConfig::new(sdk_token_test::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     // Get address tree info and derive the PDA address
     let address_tree_info = rpc.get_address_tree_v1();

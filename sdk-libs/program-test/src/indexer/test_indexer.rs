@@ -1690,8 +1690,13 @@ impl TestIndexer {
             // new accounts are inserted in front so that the newest accounts are found first
             match compressed_account.compressed_account.data.as_ref() {
                 Some(data) => {
-                    if compressed_account.compressed_account.owner == light_compressed_token::ID.to_bytes()
-                        && data.discriminator == light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR
+                    // Check for both V1 and V2 token account discriminators
+                    let is_v1_token = data.discriminator == light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR; // [2, 0, 0, 0, 0, 0, 0, 0]
+                    let is_v2_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 3]; // V2 discriminator
+
+                    if compressed_account.compressed_account.owner
+                        == light_compressed_token::ID.to_bytes()
+                        && (is_v1_token || is_v2_token)
                     {
                         if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
                             let token_account = TokenDataWithMerkleContext {
@@ -1705,7 +1710,7 @@ impl TestIndexer {
                                         merkle_tree_pubkey: merkle_tree_pubkey.into(),
                                         queue_pubkey: nullifier_queue_pubkey.into(),
                                         prove_by_index: false,
-                                        tree_type:merkle_tree.tree_type,
+                                        tree_type: merkle_tree.tree_type,
                                     },
                                 },
                             };
@@ -1720,7 +1725,7 @@ impl TestIndexer {
                                 merkle_tree_pubkey: merkle_tree_pubkey.into(),
                                 queue_pubkey: nullifier_queue_pubkey.into(),
                                 prove_by_index: false,
-                                tree_type: merkle_tree.tree_type
+                                tree_type: merkle_tree.tree_type,
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());

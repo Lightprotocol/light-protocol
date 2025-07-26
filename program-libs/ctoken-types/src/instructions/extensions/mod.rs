@@ -3,10 +3,10 @@ pub mod compressible;
 //pub mod metadata_pointer;
 pub mod token_metadata;
 
-use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError};
-
 //pub use metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer};
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
+
+use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError};
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum ExtensionInstructionData {

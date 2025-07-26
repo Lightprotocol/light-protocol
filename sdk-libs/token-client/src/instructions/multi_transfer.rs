@@ -39,6 +39,7 @@ pub fn pack_input_token_account(
         owner: packed_accounts.insert_or_get_config(account.token.owner, true, false),
         with_delegate: account.token.delegate.is_some(),
         delegate: delegate_index,
+        version: 2, // V2 for batched Merkle trees
     }
 }
 
@@ -139,7 +140,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                                 }
                                 Ok(pack_input_token_account(
                                     account,
-                                    &rpc_account,
+                                    rpc_account,
                                     &mut packed_tree_accounts,
                                     &mut in_lamports,
                                 ))
@@ -177,7 +178,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                     .map(|(account, rpc_account)| {
                         pack_input_token_account(
                             account,
-                            &rpc_account,
+                            rpc_account,
                             &mut packed_tree_accounts,
                             &mut in_lamports,
                         )
@@ -220,7 +221,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                     .map(|(account, rpc_account)| {
                         pack_input_token_account(
                             account,
-                            &rpc_account,
+                            rpc_account,
                             &mut packed_tree_accounts,
                             &mut in_lamports,
                         )

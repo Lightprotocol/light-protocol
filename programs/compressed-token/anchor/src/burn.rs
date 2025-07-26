@@ -206,7 +206,7 @@ pub mod sdk {
             },
             DelegatedTransfer,
         },
-        token_data::TokenData,
+        TokenData,
     };
 
     pub struct CreateBurnInstructionInputs {
@@ -249,7 +249,7 @@ pub mod sdk {
             };
         let delegated_transfer = if inputs.signer_is_delegate {
             let delegated_transfer = DelegatedTransfer {
-                owner: inputs.input_token_data[0].owner,
+                owner: inputs.input_token_data[0].owner.into(),
                 delegate_change_account_index: Some(0),
             };
             Some(delegated_transfer)
@@ -326,9 +326,9 @@ mod test {
             create_expected_input_accounts, create_expected_token_output_accounts,
             get_rnd_input_token_data_with_contexts,
         },
-        token_data::AccountState,
         TokenData,
     };
+    use light_ctoken_types::state::AccountState;
 
     // TODO: add randomized and edge case tests
     #[test]
@@ -415,8 +415,8 @@ mod test {
             );
             if change_amount != 0 {
                 let expected_change_token_data = TokenData {
-                    mint,
-                    owner: authority,
+                    mint: mint.into(),
+                    owner: authority.into(),
                     amount: change_amount,
                     delegate: None,
                     state: AccountState::Initialized,
@@ -514,7 +514,7 @@ mod test {
                 &authority,
                 remaining_accounts
                     .iter()
-                    .map(|x| x.key)
+                    .map(|x| x.key.into())
                     .cloned()
                     .collect::<Vec<_>>()
                     .as_slice(),
@@ -523,8 +523,8 @@ mod test {
             assert_eq!(compressed_input_accounts.len(), num_inputs);
             assert_eq!(output_compressed_accounts.len(), 1);
             let expected_change_token_data = TokenData {
-                mint,
-                owner: authority,
+                mint: mint.into(),
+                owner: authority.into(),
                 amount: sum_inputs - burn_amount,
                 delegate: None,
                 state: AccountState::Initialized,
@@ -655,8 +655,8 @@ mod test {
             );
             assert_eq!(compressed_input_accounts, expected_input_accounts);
             let expected_change_token_data = TokenData {
-                mint,
-                owner: invalid_authority,
+                mint: mint.into(),
+                owner: invalid_authority.into(),
                 amount: 50,
                 delegate: None,
                 state: AccountState::Initialized,
@@ -706,8 +706,8 @@ mod test {
             );
             assert_eq!(compressed_input_accounts, expected_input_accounts);
             let expected_change_token_data = TokenData {
-                mint: invalid_mint,
-                owner: authority,
+                mint: invalid_mint.into(),
+                owner: authority.into(),
                 amount: 50,
                 delegate: None,
                 state: AccountState::Initialized,

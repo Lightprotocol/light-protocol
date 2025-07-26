@@ -26,4 +26,6 @@ pub use create_token_account::{
     create_compressible_token_account, create_token_account, CreateCompressibleTokenAccount,
 };
 pub use ctoken_accounts::*;
-pub use mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs, DecompressedMintConfig};
+pub use mint_to_compressed::{
+    create_mint_to_compressed_instruction, DecompressedMintConfig, MintToCompressedInputs,
+};

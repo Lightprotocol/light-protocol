@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use light_compressed_account::instruction_data::traits::InstructionData;
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 

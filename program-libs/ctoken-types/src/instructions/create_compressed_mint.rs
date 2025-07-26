@@ -1,12 +1,13 @@
-use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
+use light_compressed_account::{
+    compressed_account::PackedMerkleContext, instruction_data::compressed_proof::CompressedProof,
+    Pubkey,
+};
 use light_zero_copy::ZeroCopy;
 
-use crate::CTokenError;
 use crate::{
     instructions::extensions::ExtensionInstructionData,
     state::{CompressedMint, ExtensionStruct},
-    AnchorDeserialize, AnchorSerialize,
+    AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

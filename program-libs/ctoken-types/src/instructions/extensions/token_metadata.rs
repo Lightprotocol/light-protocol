@@ -1,3 +1,6 @@
+use light_compressed_account::Pubkey;
+use light_zero_copy::ZeroCopy;
+
 use crate::{
     context::TokenContext,
     state::{
@@ -5,8 +8,6 @@ use crate::{
     },
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
-use light_compressed_account::Pubkey;
-use light_zero_copy::ZeroCopy;
 
 // TODO: double check hashing scheme, add tests with partial data
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

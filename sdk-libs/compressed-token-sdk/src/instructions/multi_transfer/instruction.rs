@@ -1,12 +1,15 @@
-use light_compressed_token_types::constants::MULTI_TRANSFER;
-use light_compressed_token_types::{CompressedCpiContext, ValidityProof};
-use light_ctoken_types::instructions::multi_transfer::CompressedTokenInstructionDataMultiTransfer;
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_compressed_token_types::{
+    constants::MULTI_TRANSFER, CompressedCpiContext, ValidityProof,
+};
+use light_ctoken_types::{
+    instructions::multi_transfer::CompressedTokenInstructionDataMultiTransfer,
+    COMPRESSED_TOKEN_PROGRAM_ID,
+};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-use crate::account2::CTokenAccount2;
 use crate::{
+    account2::CTokenAccount2,
     error::{Result, TokenSdkError},
     instructions::multi_transfer::account_metas::{
         get_multi_transfer_instruction_account_metas, MultiTransferAccountsMetaConfig,

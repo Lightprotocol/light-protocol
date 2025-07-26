@@ -3,12 +3,12 @@ use anchor_lang::{
     solana_program::{rent::Rent, system_instruction},
 };
 use light_account_checks::AccountInfoTrait;
+use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::account_info::AccountInfo;
 
 use super::accounts::CreateAssociatedTokenAccountAccounts;
 use crate::shared::initialize_token_account::initialize_token_account;
-use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 
 /// Note:
 /// - we don't validate the mint because it would be very expensive with compressed mints

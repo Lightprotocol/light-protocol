@@ -1,9 +1,9 @@
 use anchor_lang::prelude::ProgramError;
+use light_ctoken_types::{context::TokenContext, state::ZExtensionStructMut};
 use light_hasher::Hasher;
 use pinocchio::pubkey::Pubkey;
 
 use crate::extensions::{token_metadata::create_output_token_metadata, ZExtensionInstructionData};
-use light_ctoken_types::{context::TokenContext, state::ZExtensionStructMut};
 
 /// Set extensions state in output compressed account.
 /// Compute extensions hash chain.
@@ -46,7 +46,7 @@ pub fn create_extension_hash_chain<H: Hasher>(
 ) -> Result<[u8; 32], ProgramError> {
     let mut extension_hashchain = [0u8; 32];
     for extension in extensions {
-        let extension_hash = extension.hash::<H>(&hashed_spl_mint, context)?;
+        let extension_hash = extension.hash::<H>(hashed_spl_mint, context)?;
         extension_hashchain =
             H::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
     }

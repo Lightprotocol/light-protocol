@@ -1,14 +1,14 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
-use light_hasher::{Hasher, Poseidon};
-
-use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR, extensions::processor::create_extension_hash_chain,
-};
 use light_ctoken_types::{
     context::TokenContext,
     instructions::create_compressed_mint::ZUpdateCompressedMintInstructionData,
     state::CompressedMint,
+};
+use light_hasher::{Hasher, Poseidon};
+
+use crate::{
+    constants::COMPRESSED_MINT_DISCRIMINATOR, extensions::processor::create_extension_hash_chain,
 };
 
 /// Creates and validates an input compressed mint account.

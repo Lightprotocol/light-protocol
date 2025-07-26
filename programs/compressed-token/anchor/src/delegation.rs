@@ -278,7 +278,7 @@ pub mod sdk {
                 create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
             },
         },
-        token_data::TokenData,
+        TokenData,
     };
 
     pub struct CreateApproveInstructionInputs {
@@ -450,12 +450,10 @@ mod test {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::compressed_account::PackedMerkleContext;
+    use light_ctoken_types::state::AccountState;
 
     use super::*;
-    use crate::{
-        freeze::test_freeze::create_expected_token_output_accounts, token_data::AccountState,
-        TokenData,
-    };
+    use crate::{freeze::test_freeze::create_expected_token_output_accounts, TokenData};
 
     // TODO: add randomized and edge case tests
     #[test]
@@ -549,18 +547,18 @@ mod test {
         assert_eq!(compressed_input_accounts.len(), 2);
         assert_eq!(output_compressed_accounts.len(), 2);
         let expected_change_token_data = TokenData {
-            mint,
-            owner: authority,
+            mint: mint.into(),
+            owner: authority.into(),
             amount: 151,
             delegate: None,
             state: AccountState::Initialized,
             tlv: None,
         };
         let expected_delegated_token_data = TokenData {
-            mint,
-            owner: authority,
+            mint: mint.into(),
+            owner: authority.into(),
             amount: 50,
-            delegate: Some(delegate),
+            delegate: Some(delegate.into()),
             state: AccountState::Initialized,
             tlv: None,
         };
@@ -664,8 +662,8 @@ mod test {
         assert_eq!(compressed_input_accounts.len(), 2);
         assert_eq!(output_compressed_accounts.len(), 1);
         let expected_change_token_data = TokenData {
-            mint,
-            owner: authority,
+            mint: mint.into(),
+            owner: authority.into(),
             amount: 201,
             delegate: None,
             state: AccountState::Initialized,
@@ -723,8 +721,8 @@ mod test {
         assert_eq!(compressed_input_accounts.len(), 2);
         assert_eq!(output_compressed_accounts.len(), 1);
         let expected_change_token_data = TokenData {
-            mint,
-            owner: authority,
+            mint: mint.into(),
+            owner: authority.into(),
             amount: 201,
             delegate: None,
             state: AccountState::Initialized,

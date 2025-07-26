@@ -13,7 +13,7 @@ pub struct CloseTokenAccountAccounts<'info> {
 impl<'info> CloseTokenAccountAccounts<'info> {
     pub fn validate_and_parse(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-        
+
         let token_account = iter.next_account()?;
         let destination = iter.next_account()?;
         let authority = iter.next_account()?;

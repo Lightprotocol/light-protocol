@@ -27,7 +27,7 @@ pub struct CreateEscrowInstructionInputs<'a> {
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
     pub root_indices: &'a [Option<u16>],
     pub proof: &'a Option<CompressedProof>,
-    pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
+    pub input_token_data: &'a [light_compressed_token::TokenData],
     pub input_compressed_accounts: &'a [CompressedAccount],
     pub mint: &'a Pubkey,
 }
