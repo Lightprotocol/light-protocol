@@ -1,17 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
-    compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
-    instruction_data::{
-        compressed_proof::CompressedProofConfig,
-        cpi_context::CompressedCpiContextConfig,
-        data::OutputCompressedAccountWithPackedContextConfig,
-        with_readonly::{
-            InstructionDataInvokeCpiWithReadOnly, InstructionDataInvokeCpiWithReadOnlyConfig,
-        },
-    },
-    Pubkey,
+    instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
 };
-use light_sdk_pinocchio::NewAddressParamsAssignedPackedConfig;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
@@ -19,16 +9,19 @@ use spl_token::solana_program::log::sol_log_compute_units;
 use crate::{
     mint::{
         accounts::CreateCompressedMintAccounts, mint_output::create_output_compressed_mint_account,
+        zero_copy_config::get_zero_copy_configs,
     },
     shared::{cpi::execute_cpi_invoke, cpi_bytes_size::allocate_invoke_with_read_only_cpi_bytes},
 };
 use light_ctoken_types::{
     context::TokenContext,
     instructions::create_compressed_mint::CreateCompressedMintInstructionData,
-    state::{CompressedMint, CompressedMintConfig},
     COMPRESSED_MINT_SEED,
 };
 
+/// Checks:
+/// 1. check mint_signer (compressed mint randomness) is signer
+/// 2.
 pub fn process_create_compressed_mint(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -42,8 +35,10 @@ pub fn process_create_compressed_mint(
     // Validate and parse accounts
     let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(accounts)?;
 
-    // 1. Create mint PDA using provided bump
-    let mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
+    // 1. Create spl mint PDA using provided bump
+    // - The compressed address is derived from the spl_mint_pda.
+    // - The spl mint pda is used as mint in compressed token accounts.
+    let spl_mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
         &[
             COMPRESSED_MINT_SEED,
             validated_accounts.mint_signer.key().as_slice(),
@@ -70,21 +65,22 @@ pub fn process_create_compressed_mint(
     )?;
 
     sol_log_compute_units();
-    // 1. Create NewAddressParams
+    // 2. Create NewAddressParams
     let address_merkle_tree_account_index = 0;
     let assigned_account_index = 0;
     cpi_instruction_struct.new_address_params[0].set(
-        mint_pda.to_bytes(),
+        spl_mint_pda.to_bytes(),
         *parsed_instruction_data.address_merkle_tree_root_index,
         Some(assigned_account_index),
         address_merkle_tree_account_index,
     );
-    // 2. Create compressed mint account data
+    // 3. Create compressed mint account data
     // TODO: add input struct, try to use CompressedMintInput
+    // TODO: bench performance input struct vs direct inputs.
     let mut token_context = TokenContext::new();
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
-        mint_pda,
+        spl_mint_pda,
         parsed_instruction_data.decimals,
         parsed_instruction_data.freeze_authority.map(|fa| *fa),
         Some(parsed_instruction_data.mint_authority),
@@ -106,54 +102,4 @@ pub fn process_create_compressed_mint(
         false, // no sol_pool_pda for create_compressed_mint
         None,  // no cpi_context_account for create_compressed_mint
     )
-}
-
-// TODO: unit test.
-pub fn get_zero_copy_configs(
-    parsed_instruction_data: &light_ctoken_types::instructions::create_compressed_mint::ZCreateCompressedMintInstructionData<'_>,
-) -> Result<
-    (
-        CompressedMintConfig,
-        InstructionDataInvokeCpiWithReadOnlyConfig,
-    ),
-    ProgramError,
-> {
-    let (compressed_mint_len, mint_size_config) = {
-        let (has_extensions, extensions_config, additional_mint_data_len) =
-            crate::extensions::process_extensions_config(
-                parsed_instruction_data.extensions.as_ref(),
-            )?;
-        let mint_size_config: <CompressedMint as ZeroCopyNew>::ZeroCopyConfig =
-            CompressedMintConfig {
-                mint_authority: (true, ()),
-                freeze_authority: (parsed_instruction_data.freeze_authority.is_some(), ()),
-                extensions: (has_extensions, extensions_config),
-            };
-        (
-            (CompressedMint::byte_len(&mint_size_config) + additional_mint_data_len) as u32,
-            mint_size_config,
-        )
-    };
-    let output_compressed_accounts = vec![OutputCompressedAccountWithPackedContextConfig {
-        compressed_account: CompressedAccountConfig {
-            address: (true, ()),
-            data: (
-                true,
-                CompressedAccountDataConfig {
-                    data: compressed_mint_len,
-                },
-            ),
-        },
-    }];
-    let new_address_params = vec![NewAddressParamsAssignedPackedConfig {}];
-    let config = InstructionDataInvokeCpiWithReadOnlyConfig {
-        cpi_context: CompressedCpiContextConfig {},
-        input_compressed_accounts: vec![],
-        proof: (true, CompressedProofConfig {}),
-        read_only_accounts: vec![],
-        read_only_addresses: vec![],
-        new_address_params,
-        output_compressed_accounts,
-    };
-    Ok((mint_size_config, config))
 }
