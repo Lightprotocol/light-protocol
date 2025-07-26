@@ -8,6 +8,8 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
+#[cfg(feature = "anchor")]
+use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -35,7 +37,7 @@ pub fn compress_account_on_init<'info, A>(
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
     proof: ValidityProof,
-) -> Result<(), LightSdkError>
+) -> Result<(), crate::ProgramError>
 where
     A: DataHasher
         + LightDiscriminator
@@ -101,7 +103,7 @@ pub fn prepare_accounts_for_compression_on_init<'info, A>(
     rent_recipient: &AccountInfo<'info>,
 ) -> Result<
     Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
-    LightSdkError,
+    crate::ProgramError,
 >
 where
     A: DataHasher
@@ -118,16 +120,17 @@ where
         || pda_accounts.len() != new_address_params.len()
         || pda_accounts.len() != output_state_tree_indices.len()
     {
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Address space validation
     for params in new_address_params {
         let tree = cpi_accounts
-            .get_tree_account_info(params.address_merkle_tree_account_index as usize)?
+            .get_tree_account_info(params.address_merkle_tree_account_index as usize)
+            .map_err(|_| LightSdkError::ConstraintViolation)?
             .pubkey();
         if !address_space.iter().any(|a| a == &tree) {
-            return Err(LightSdkError::ConstraintViolation);
+            return Err(LightSdkError::ConstraintViolation.into());
         }
     }
 
@@ -140,19 +143,23 @@ where
         .zip(output_state_tree_indices.iter())
     {
         // Ensure the account is marked as compressed
+        *pda_account.compression_info_mut_opt() = Some(super::CompressionInfo::new()?);
+
         pda_account.compression_info_mut().set_compressed();
 
         // Create the compressed account with the PDA data
         let mut compressed_account =
             LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
-        compressed_account.account = (***pda_account).clone();
+
+        // Clone the PDA data and set compression_info to None for compressed storage
+        let mut compressed_data = (***pda_account).clone();
+        compressed_data.set_compression_info_none();
+        compressed_account.account = compressed_data;
 
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Close both PDA accounts
-        pda_account
-            .close(rent_recipient.clone())
-            .map_err(|e| LightSdkError::ProgramError(e.into()))?;
+        pda_account.close(rent_recipient.clone())?;
     }
 
     Ok(compressed_account_infos)

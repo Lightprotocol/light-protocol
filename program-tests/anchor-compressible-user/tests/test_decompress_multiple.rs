@@ -4,8 +4,11 @@ mod common;
 use anchor_compressible_user::{
     CompressedAccountVariant, GameSession, UserRecord, ADDRESS_SPACE, RENT_RECIPIENT,
 };
-use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
+use anchor_lang::{
+    AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
+};
 use light_client::compressible::CompressibleInstruction;
+
 use light_compressed_account::address::derive_address;
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
@@ -13,7 +16,7 @@ use light_program_test::{
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::{
-    compressible::{CompressibleConfig, FromCompressedData},
+    compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use solana_sdk::{
@@ -40,7 +43,7 @@ async fn test_create_and_decompress_two_accounts() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -151,7 +154,7 @@ async fn test_create_decompress_compress_single_account() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -402,13 +405,14 @@ async fn test_create_game_session(
 
     let buf = compressed_game_session.data.unwrap().data;
 
-    let game_session = GameSession::from_compressed_data(&buf).unwrap();
+    let game_session = GameSession::deserialize(&mut &buf[..]).unwrap();
 
+    println!("COMPRESSED game_session: {:?}", game_session);
     assert_eq!(game_session.session_id, session_id);
     assert_eq!(game_session.game_type, "Battle Royale");
     assert_eq!(game_session.player, payer.pubkey());
     assert_eq!(game_session.score, 0);
-    assert_eq!(game_session.compression_info.is_compressed(), true);
+    assert_eq!(game_session.compression_info.is_none(), true);
 }
 
 async fn test_decompress_multiple_pdas(
@@ -441,7 +445,7 @@ async fn test_decompress_multiple_pdas(
 
     let user_account_data = c_user_pda.data.as_ref().unwrap();
 
-    let c_user_record = UserRecord::from_compressed_data(&user_account_data.data).unwrap();
+    let c_user_record = UserRecord::deserialize(&mut &user_account_data.data[..]).unwrap();
 
     // c pda GAME_SESSION
     let game_compressed_address = derive_address(
@@ -456,9 +460,7 @@ async fn test_decompress_multiple_pdas(
         .value;
     let game_account_data = c_game_pda.data.as_ref().unwrap();
 
-    let c_game_session =
-        anchor_compressible_user::GameSession::from_compressed_data(&game_account_data.data)
-            .unwrap();
+    let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
 
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
@@ -528,12 +530,18 @@ async fn test_decompress_multiple_pdas(
     assert_eq!(decompressed_user_record.score, 11);
     assert_eq!(decompressed_user_record.owner, payer.pubkey());
     assert_eq!(
-        decompressed_user_record.compression_info.is_compressed(),
+        decompressed_user_record
+            .compression_info
+            .as_ref()
+            .unwrap()
+            .is_compressed(),
         false
     );
     assert_eq!(
         decompressed_user_record
             .compression_info
+            .as_ref()
+            .unwrap()
             .last_written_slot(),
         expected_slot
     );
@@ -559,12 +567,18 @@ async fn test_decompress_multiple_pdas(
     assert_eq!(decompressed_game_session.player, payer.pubkey());
     assert_eq!(decompressed_game_session.score, 0);
     assert_eq!(
-        decompressed_game_session.compression_info.is_compressed(),
+        decompressed_game_session
+            .compression_info
+            .as_ref()
+            .unwrap()
+            .is_compressed(),
         false
     );
     assert_eq!(
         decompressed_game_session
             .compression_info
+            .as_ref()
+            .unwrap()
             .last_written_slot(),
         expected_slot
     );
@@ -732,7 +746,9 @@ async fn test_create_user_record_and_game_session(
     assert_eq!(compressed_user_record.data.is_some(), true);
 
     let user_buf = compressed_user_record.data.unwrap().data;
-    let user_record = UserRecord::from_compressed_data(&user_buf).unwrap();
+
+    let user_record = UserRecord::deserialize(&mut &user_buf[..]).unwrap();
+
     assert_eq!(user_record.name, "Combined User");
     assert_eq!(user_record.score, 11);
     assert_eq!(user_record.owner, user.pubkey());
@@ -750,7 +766,7 @@ async fn test_create_user_record_and_game_session(
     assert_eq!(compressed_game_session.data.is_some(), true);
 
     let game_buf = compressed_game_session.data.unwrap().data;
-    let game_session = GameSession::from_compressed_data(&game_buf).unwrap();
+    let game_session = GameSession::deserialize(&mut &game_buf[..]).unwrap();
     assert_eq!(game_session.session_id, session_id);
     assert_eq!(game_session.game_type, "Combined Game");
     assert_eq!(game_session.player, user.pubkey());
@@ -868,12 +884,12 @@ async fn test_compress_record(
     assert_eq!(compressed_user_record.data.is_some(), true);
 
     let buf = compressed_user_record.data.unwrap().data;
-    let user_record = UserRecord::from_compressed_data(&buf).unwrap();
+    let user_record: UserRecord = UserRecord::deserialize(&mut &buf[..]).unwrap();
 
     assert_eq!(user_record.name, "Test User");
     assert_eq!(user_record.score, 11);
     assert_eq!(user_record.owner, payer.pubkey());
-    assert_eq!(user_record.compression_info.is_compressed(), true);
+    assert_eq!(user_record.compression_info.is_none(), true);
     Ok(result.unwrap())
 }
 
@@ -901,7 +917,7 @@ async fn test_decompress_single_user_record(
         .value;
 
     let user_account_data = c_user_pda.data.as_ref().unwrap();
-    let c_user_record = UserRecord::from_compressed_data(&user_account_data.data).unwrap();
+    let c_user_record = UserRecord::deserialize(&mut &user_account_data.data[..]).unwrap();
 
     // Get validity proof for the compressed account
     let rpc_result = rpc
@@ -962,12 +978,18 @@ async fn test_decompress_single_user_record(
     assert_eq!(decompressed_user_record.score, 11);
     assert_eq!(decompressed_user_record.owner, payer.pubkey());
     assert_eq!(
-        decompressed_user_record.compression_info.is_compressed(),
+        decompressed_user_record
+            .compression_info
+            .as_ref()
+            .unwrap()
+            .is_compressed(),
         false
     );
     assert_eq!(
         decompressed_user_record
             .compression_info
+            .as_ref()
+            .unwrap()
             .last_written_slot(),
         expected_slot
     );
@@ -990,7 +1012,7 @@ async fn test_double_decompression_attack() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -1000,6 +1022,19 @@ async fn test_double_decompression_attack() {
 
     // Create and compress the account
     test_create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let user_compressed_address = derive_address(
+        &user_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+    let compressed_user_record = rpc
+        .get_compressed_account(user_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+    let c_user_record =
+        UserRecord::deserialize(&mut &compressed_user_record.data.unwrap().data[..]).unwrap();
 
     rpc.warp_to_slot(100).unwrap();
 
@@ -1023,12 +1058,6 @@ async fn test_double_decompression_attack() {
     );
 
     // Second decompression attempt - should be idempotent (skip already initialized account)
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
-    let user_compressed_address = derive_address(
-        &user_record_pda.to_bytes(),
-        &address_tree_pubkey.to_bytes(),
-        &program_id.to_bytes(),
-    );
 
     let c_user_pda = rpc
         .get_compressed_account(user_compressed_address, None)
@@ -1037,7 +1066,6 @@ async fn test_double_decompression_attack() {
         .value;
 
     let user_account_data = c_user_pda.data.as_ref().unwrap();
-    let c_user_record = UserRecord::from_compressed_data(&user_account_data.data).unwrap();
 
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash], vec![], None)
@@ -1078,7 +1106,11 @@ async fn test_double_decompression_attack() {
     assert_eq!(decompressed_user_record.score, 11);
     assert_eq!(decompressed_user_record.owner, payer.pubkey());
     assert_eq!(
-        decompressed_user_record.compression_info.is_compressed(),
+        decompressed_user_record
+            .compression_info
+            .as_ref()
+            .unwrap()
+            .is_compressed(),
         false
     );
 }
@@ -1101,7 +1133,7 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -1118,12 +1150,6 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     // Get two different state trees
     let first_state_tree_info = rpc.get_state_tree_infos()[0];
     let second_state_tree_info = rpc.get_state_tree_infos()[1];
-
-    let rpc_test_accounts = rpc.test_accounts();
-    println!("rpc_test_accounts {:?}", rpc_test_accounts);
-
-    println!("first_state_tree_info: {:?}", first_state_tree_info);
-    println!("second_state_tree_info: {:?}", second_state_tree_info);
 
     // Create user record using first state tree
     test_create_record(

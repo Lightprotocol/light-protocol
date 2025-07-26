@@ -47,7 +47,7 @@ pub fn compress_pda<'info, A>(
     owner_program: &Pubkey,
     rent_recipient: &AccountInfo<'info>,
     compression_delay: &u32,
-) -> Result<(), LightSdkError>
+) -> Result<(), crate::ProgramError>
 where
     A: DataHasher
         + LightDiscriminator
@@ -68,7 +68,7 @@ where
             "Cannot compress yet. {} slots remaining",
             (last_written_slot + *compression_delay as u64).saturating_sub(current_slot)
         );
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
     // ensure re-init attack is not possible
     pda_account.compression_info_mut().set_compressed();
@@ -77,7 +77,10 @@ where
     let mut compressed_account =
         LightAccount::<'_, A>::new_mut_without_data(owner_program, compressed_account_meta)?;
 
-    compressed_account.account = (**pda_account).clone();
+    let mut compressed_data = (**pda_account).clone();
+
+    compressed_data.set_compression_info_none();
+    compressed_account.account = compressed_data;
 
     // Create CPI inputs
     let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
@@ -88,10 +91,7 @@ where
     // Close the PDA account using Anchor's close method
     use anchor_lang::AccountsClose;
 
-    pda_account.close(rent_recipient.clone()).map_err(|err| {
-        msg!("Error closing PDA account: {:?}", err);
-        LightSdkError::ConstraintViolation
-    })?;
+    pda_account.close(rent_recipient.clone())?;
 
     Ok(())
 }

@@ -43,7 +43,7 @@ async fn test_initialize_compression_config() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -70,10 +70,49 @@ async fn test_config_validation() {
         &non_authority,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(result.is_err(), "Should fail with wrong authority");
+}
+
+#[tokio::test]
+async fn test_config_multiple_address_spaces_validation() {
+    // Fail: cannot init with multiple address spaces
+    let program_id = anchor_compressible_user::ID;
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    // Try to init with multiple address spaces - should fail
+    let multiple_address_spaces = vec![ADDRESS_SPACE[0], Pubkey::new_unique()];
+    let result = common::initialize_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        multiple_address_spaces,
+    )
+    .await;
+    assert!(result.is_err(), "Should fail with multiple address spaces");
+
+    // Try to init with empty address space - should also fail
+    let empty_address_space = vec![];
+    let result = common::initialize_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        empty_address_space,
+    )
+    .await;
+    assert!(result.is_err(), "Should fail with empty address space");
 }
 
 #[tokio::test]
@@ -109,7 +148,7 @@ async fn test_update_compression_config() {
         &payer,
         Some(200),
         Some(RENT_RECIPIENT),
-        Some(ADDRESS_SPACE.to_vec()),
+        Some(vec![ADDRESS_SPACE[0]]),
         None,
     )
     .await;
@@ -132,7 +171,7 @@ async fn test_config_reinit_attack_prevention() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(result.is_ok(), "First init should succeed");
@@ -143,7 +182,7 @@ async fn test_config_reinit_attack_prevention() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(reinit_result.is_err(), "Config reinit should fail");
@@ -174,7 +213,7 @@ async fn test_wrong_program_data_account() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
 
@@ -193,7 +232,7 @@ async fn test_update_remove_address_space() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let address_space_1 = ADDRESS_SPACE.to_vec();
+    let address_space_1 = vec![ADDRESS_SPACE[0]];
     let address_space_2 = vec![Pubkey::new_unique()];
     let init_result = common::initialize_compression_config(
         &mut rpc,
@@ -219,7 +258,7 @@ async fn test_update_remove_address_space() {
     .await;
     assert!(
         update_result.is_err(),
-        "Should fail when removing address space"
+        "Should fail when trying to replace address space"
     );
 }
 
@@ -243,7 +282,7 @@ async fn test_update_with_non_authority() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
@@ -283,7 +322,7 @@ async fn test_config_with_wrong_rent_recipient() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
@@ -335,7 +374,7 @@ async fn test_config_discriminator_attacks() {
         &payer,
         100,
         RENT_RECIPIENT,
-        ADDRESS_SPACE.to_vec(),
+        vec![ADDRESS_SPACE[0]],
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");

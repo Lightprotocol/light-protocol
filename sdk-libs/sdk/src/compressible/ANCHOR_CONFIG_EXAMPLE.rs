@@ -147,6 +147,49 @@ DEPLOYMENT BEST PRACTICES:
 3. Optionally transfer config update authority to a multisig or DAO
 4. Monitor the config for any changes
 
+ACCOUNT IMPLEMENTATION EXAMPLE:
+
+For accounts with compression support, use Option<CompressionInfo> and implement HasCompressionInfo:
+
+```rust
+use light_sdk::compressible::{CompressionInfo, HasCompressionInfo};
+
+#[derive(Default, Debug, LightHasher, LightDiscriminator, InitSpace)]
+#[account]
+pub struct MyCompressibleAccount {
+    #[skip]  // Skip hashing compression_info since it's metadata
+    pub compression_info: Option<CompressionInfo>,
+    #[hash]  // Hash the business data
+    pub owner: Pubkey,
+    #[max_len(32)]
+    pub name: String,
+    pub value: u64,
+}
+
+impl HasCompressionInfo for MyCompressibleAccount {
+    fn compression_info(&self) -> &CompressionInfo {
+        self.compression_info
+            .as_ref()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        self.compression_info
+            .as_mut()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    // CRITICAL: Override this method to set compression_info = None for compressed accounts
+    fn set_compression_info_none(&mut self) {
+        self.compression_info = None;
+    }
+}
+```
+
+This ensures:
+- On-chain PDAs: compression_info = Some(CompressionInfo)
+- Compressed accounts: compression_info = None
+
 Example deployment script:
 ```typescript
 // 1. Deploy program

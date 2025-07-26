@@ -9,7 +9,7 @@ use light_sdk::{
     cpi::CpiInputs,
 };
 use light_sdk::{
-    compressible::{CompressibleConfig, CompressionInfo, FromCompressedData, HasCompressionInfo},
+    compressible::{CompressibleConfig, CompressionInfo, HasCompressionInfo},
     cpi::CpiAccounts,
     derive_light_cpi_signer,
     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
@@ -40,22 +40,19 @@ pub mod anchor_compressible_user {
     ) -> Result<()> {
         let user_record = &mut ctx.accounts.user_record;
 
-        // Load config from the config account
-        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+        // 1. Load config from the config account
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
 
         user_record.owner = ctx.accounts.user.key();
         user_record.name = name;
         user_record.score = 11;
-        // Initialize compression info with current slot
-        user_record.compression_info = CompressionInfo::new()
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-        // Verify rent recipient matches config
+        // 2. Verify rent recipient matches config
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
             return err!(ErrorCode::InvalidRentRecipient);
         }
 
+        // 3. Create CPI accounts
         let cpi_accounts = CpiAccounts::new(
             &ctx.accounts.user,
             &ctx.remaining_accounts[..],
@@ -75,8 +72,7 @@ pub mod anchor_compressible_user {
             &config.address_space,
             &ctx.accounts.rent_recipient,
             proof,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        )?;
 
         Ok(())
     }
@@ -106,8 +102,7 @@ pub mod anchor_compressible_user {
             &ctx.accounts.payer.to_account_info(),
             &ctx.accounts.system_program.to_account_info(),
             &crate::ID,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        )?;
 
         Ok(())
     }
@@ -127,8 +122,7 @@ pub mod anchor_compressible_user {
             new_address_space,
             new_compression_delay,
             &crate::ID,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        )?;
 
         Ok(())
     }
@@ -164,14 +158,16 @@ pub mod anchor_compressible_user {
             .enumerate()
         {
             match compressed_data.data {
-                CompressedAccountVariant::UserRecord(data) => {
+                CompressedAccountVariant::UserRecord(mut data) => {
+                    // Set compression_info to Some for on-chain processing
+                    data.compression_info = Some(CompressionInfo::new()?);
+
                     // Create LightAccount with correct UserRecord discriminator
                     let light_account = LightAccount::<'_, UserRecord>::new_mut(
                         &crate::ID,
                         &compressed_data.meta,
                         data.clone(),
-                    )
-                    .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+                    )?;
 
                     // Build signer seeds with owned data
                     let user_record_seed = b"user_record".to_vec();
@@ -184,28 +180,28 @@ pub mod anchor_compressible_user {
                     ];
 
                     // Process this single UserRecord account
-                    let compressed_infos =
-                        prepare_accounts_for_decompress_idempotent::<UserRecord>(
-                            &[&pda_accounts[i]],
-                            vec![light_account],
-                            &[&seeds],
-                            &cpi_accounts,
-                            &crate::ID,
-                            &ctx.accounts.rent_payer,
-                            ADDRESS_SPACE[0],
-                        )
-                        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+                    let compressed_infos = prepare_accounts_for_decompress_idempotent::<UserRecord>(
+                        &[&pda_accounts[i]],
+                        vec![light_account],
+                        &[&seeds],
+                        &cpi_accounts,
+                        &crate::ID,
+                        &ctx.accounts.rent_payer,
+                        ADDRESS_SPACE[0],
+                    )?;
 
                     all_compressed_infos.extend(compressed_infos);
                 }
-                CompressedAccountVariant::GameSession(data) => {
+                CompressedAccountVariant::GameSession(mut data) => {
+                    // Set compression_info to Some for on-chain processing
+                    data.compression_info = Some(CompressionInfo::new()?);
+
                     // Create LightAccount with correct GameSession discriminator
                     let light_account = LightAccount::<'_, GameSession>::new_mut(
                         &crate::ID,
                         &compressed_data.meta,
                         data.clone(),
-                    )
-                    .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+                    )?;
 
                     // Build signer seeds with owned data
                     let game_session_seed = b"game_session".to_vec();
@@ -218,18 +214,15 @@ pub mod anchor_compressible_user {
                     ];
 
                     // Process this single GameSession account
-                    let compressed_infos =
-                        prepare_accounts_for_decompress_idempotent::<GameSession>(
-                            &[&pda_accounts[i]],
-                            vec![light_account],
-                            &[&seeds],
-                            &cpi_accounts,
-                            &crate::ID,
-                            &ctx.accounts.rent_payer,
-                            ADDRESS_SPACE[0],
-                        )
-                        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
+                    let compressed_infos = prepare_accounts_for_decompress_idempotent::<GameSession>(
+                        &[&pda_accounts[i]],
+                        vec![light_account],
+                        &[&seeds],
+                        &cpi_accounts,
+                        &crate::ID,
+                        &ctx.accounts.rent_payer,
+                        ADDRESS_SPACE[0],
+                    )?;
                     all_compressed_infos.extend(compressed_infos);
                 }
             }
@@ -237,9 +230,7 @@ pub mod anchor_compressible_user {
 
         if !all_compressed_infos.is_empty() {
             let cpi_inputs = CpiInputs::new(proof, all_compressed_infos);
-            cpi_inputs
-                .invoke_light_system_program(cpi_accounts)
-                .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+            cpi_inputs.invoke_light_system_program(cpi_accounts)?;
         }
 
         Ok(())
@@ -257,8 +248,7 @@ pub mod anchor_compressible_user {
         let game_session = &mut ctx.accounts.game_session;
 
         // Load config from the config account
-        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
 
         // Initialize game session data
         game_session.session_id = session_id;
@@ -269,8 +259,7 @@ pub mod anchor_compressible_user {
         game_session.score = 0;
 
         // Initialize compression info with current slot
-        game_session.compression_info = CompressionInfo::new()
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+        game_session.compression_info = Some(CompressionInfo::new()?);
 
         // Verify rent recipient matches config
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
@@ -296,13 +285,12 @@ pub mod anchor_compressible_user {
             &config.address_space,
             &ctx.accounts.rent_recipient,
             proof,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        )?;
 
         Ok(())
     }
 
-    /// Creates both a user record and game session and compresses them in a single transaction
+    /// Creates both a user record and game session and compresses them
     #[allow(clippy::too_many_arguments)]
     pub fn create_user_record_and_game_session<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateUserRecordAndGameSession<'info>>,
@@ -321,8 +309,7 @@ pub mod anchor_compressible_user {
         let game_session = &mut ctx.accounts.game_session;
 
         // Load config from the config account
-        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
 
         // Verify rent recipient matches config
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
@@ -333,8 +320,7 @@ pub mod anchor_compressible_user {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = user_name;
         user_record.score = 11;
-        user_record.compression_info = CompressionInfo::new()
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+        user_record.compression_info = Some(CompressionInfo::new()?);
 
         // Initialize game session data
         game_session.session_id = session_id;
@@ -343,8 +329,7 @@ pub mod anchor_compressible_user {
         game_session.start_time = Clock::get()?.unix_timestamp as u64;
         game_session.end_time = None;
         game_session.score = 0;
-        game_session.compression_info = CompressionInfo::new()
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+        game_session.compression_info = Some(CompressionInfo::new()?);
 
         let cpi_accounts = CpiAccounts::new(
             &ctx.accounts.user,
@@ -370,8 +355,7 @@ pub mod anchor_compressible_user {
             &crate::ID,
             &config.address_space,
             &ctx.accounts.rent_recipient,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        )?;
 
         all_compressed_infos.extend(user_compressed_infos);
 
@@ -385,9 +369,7 @@ pub mod anchor_compressible_user {
             &crate::ID,
             &config.address_space,
             &ctx.accounts.rent_recipient,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
+        )?;
         all_compressed_infos.extend(game_compressed_infos);
 
         // Create CPI inputs with all compressed accounts and new addresses
@@ -398,9 +380,7 @@ pub mod anchor_compressible_user {
         );
 
         // Invoke light system program to create all compressed accounts
-        cpi_inputs
-            .invoke_light_system_program(cpi_accounts)
-            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
         Ok(())
     }
@@ -413,8 +393,7 @@ pub mod anchor_compressible_user {
         let user_record = &mut ctx.accounts.pda_to_compress;
 
         // Load config from the config account
-        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
 
         // Verify rent recipient matches config
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
@@ -435,8 +414,7 @@ pub mod anchor_compressible_user {
             &crate::ID,
             &ctx.accounts.rent_recipient,
             &config.compression_delay,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+        )?;
 
         Ok(())
     }
@@ -638,6 +616,20 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::GameSession(data) => data.compression_info_mut(),
         }
     }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
+        match self {
+            Self::UserRecord(data) => data.compression_info_mut_opt(),
+            Self::GameSession(data) => data.compression_info_mut_opt(),
+        }
+    }
+
+    fn set_compression_info_none(&mut self) {
+        match self {
+            Self::UserRecord(data) => data.set_compression_info_none(),
+            Self::GameSession(data) => data.set_compression_info_none(),
+        }
+    }
 }
 
 /// Client-side data structures
@@ -651,7 +643,7 @@ pub struct CompressedAccountData {
 #[account]
 pub struct UserRecord {
     #[skip]
-    pub compression_info: CompressionInfo,
+    pub compression_info: Option<CompressionInfo>,
     #[hash]
     pub owner: Pubkey,
     #[max_len(32)]
@@ -661,11 +653,23 @@ pub struct UserRecord {
 
 impl HasCompressionInfo for UserRecord {
     fn compression_info(&self) -> &CompressionInfo {
-        &self.compression_info
+        self.compression_info
+            .as_ref()
+            .expect("CompressionInfo must be Some on-chain")
     }
 
     fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        self.compression_info
+            .as_mut()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
         &mut self.compression_info
+    }
+
+    fn set_compression_info_none(&mut self) {
+        self.compression_info = None;
     }
 }
 
@@ -673,7 +677,7 @@ impl HasCompressionInfo for UserRecord {
 #[account]
 pub struct GameSession {
     #[skip]
-    pub compression_info: CompressionInfo,
+    pub compression_info: Option<CompressionInfo>,
     pub session_id: u64,
     #[hash]
     pub player: Pubkey,
@@ -686,128 +690,23 @@ pub struct GameSession {
 
 impl HasCompressionInfo for GameSession {
     fn compression_info(&self) -> &CompressionInfo {
-        &self.compression_info
+        self.compression_info
+            .as_ref()
+            .expect("CompressionInfo must be Some on-chain")
     }
 
     fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        self.compression_info
+            .as_mut()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
         &mut self.compression_info
     }
-}
 
-// Helper structs for deserialization without compression_info
-#[derive(AnchorDeserialize)]
-struct UserRecordWithoutCompressionInfo {
-    pub owner: Pubkey,
-    pub name: String,
-    pub score: u64,
-}
-
-#[derive(AnchorDeserialize)]
-struct GameSessionWithoutCompressionInfo {
-    pub session_id: u64,
-    pub player: Pubkey,
-    pub game_type: String,
-    pub start_time: u64,
-    pub end_time: Option<u64>,
-    pub score: u64,
-}
-
-impl FromCompressedData<UserRecord> for UserRecord {
-    fn from_compressed_data(
-        data: &[u8],
-    ) -> std::result::Result<UserRecord, Box<dyn std::error::Error>> {
-        // Unless you have variable size structs, common serde should suffice!
-        match UserRecordWithoutCompressionInfo::deserialize(&mut &data[..]) {
-            Ok(temp) => Ok(UserRecord {
-                compression_info: CompressionInfo::default(),
-                owner: temp.owner,
-                name: temp.name,
-                score: temp.score,
-            }),
-            Err(_) => {
-                // Follow the same pattern as GameSession for proper padding
-                let anchor_disc = UserRecord::discriminator();
-
-                // UserRecord layout matches the account space definition:
-                // space = 8 + 32 + 4 + 32 + 8 + 9 (discriminator + owner + string len + name + score + compression_info)
-                // But we exclude discriminator (8) from the serialized data
-                // The compressed data already includes compression_info
-                let max_len = 9 + // compression_info (already in data)
-                    32 + // owner
-                    4 + // string_len
-                    32 + // name max_len
-                    8; // score
-
-                if data.len() > max_len {
-                    return Err("Data too big for struct".into());
-                }
-
-                // Pad with zeros at the end if data is too small
-                let mut padded_data = data.to_vec();
-                padded_data.resize(max_len, 0);
-
-                // Create the full account data with discriminator + padded data
-                // (compression_info is already in the padded_data)
-                let mut all_data_padded = anchor_disc.to_vec();
-                all_data_padded.extend_from_slice(&padded_data);
-
-                let temp = UserRecord::deserialize(&mut &all_data_padded[8..])?; // Skip discriminator
-                Ok(temp)
-            }
-        }
-    }
-}
-
-// Implement FromCompressedData for GameSession
-impl FromCompressedData<GameSession> for GameSession {
-    fn from_compressed_data(
-        data: &[u8],
-    ) -> std::result::Result<GameSession, Box<dyn std::error::Error>> {
-        // Try to deserialize directly (no discriminator/compression_info)
-        match GameSessionWithoutCompressionInfo::deserialize(&mut &data[..]) {
-            Ok(temp) => Ok(GameSession {
-                compression_info: CompressionInfo::default(),
-                session_id: temp.session_id,
-                player: temp.player,
-                game_type: temp.game_type,
-                start_time: temp.start_time,
-                end_time: temp.end_time,
-                score: temp.score,
-            }),
-            Err(_) => {
-                // Follow the same pattern as UserRecord for proper padding
-                let anchor_disc = GameSession::discriminator();
-
-                // GameSession layout matches the account space definition:
-                // space = 8 + 9 + 8 + 32 + 4 + 32 + 8 + 9 + 8
-                // But we exclude discriminator (8) from the serialized data
-                // The compressed data already includes compression_info
-                let max_len = 9 + // compression_info (already in data)
-                    8 + // session_id
-                    32 + // player
-                    4 + // string_len
-                    32 + // game_type max_len
-                    8 + // start_time
-                    9 + // end_time (Option<u64>)
-                    8; // score
-
-                if data.len() > max_len {
-                    return Err("Data too big for struct".into());
-                }
-
-                // Pad with zeros at the end if data is too small
-                let mut padded_data = data.to_vec();
-                padded_data.resize(max_len, 0);
-
-                // Create the full account data with discriminator + padded data
-                // (compression_info is already in the padded_data)
-                let mut all_data_padded = anchor_disc.to_vec();
-                all_data_padded.extend_from_slice(&padded_data);
-
-                let temp = GameSession::deserialize(&mut &all_data_padded[8..])?; // Skip discriminator
-                Ok(temp)
-            }
-        }
+    fn set_compression_info_none(&mut self) {
+        self.compression_info = None;
     }
 }
 

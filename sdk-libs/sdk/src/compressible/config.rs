@@ -15,7 +15,7 @@ use solana_sysvar::Sysvar;
 use crate::{error::LightSdkError, LightDiscriminator};
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
-pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 4;
+pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 1;
 
 /// BPF Loader Upgradeable Program ID
 /// BPFLoaderUpgradeab1e11111111111111111111111
@@ -39,7 +39,7 @@ pub struct CompressibleConfig {
     pub update_authority: Pubkey,
     /// Account that receives rent from compressed PDAs
     pub rent_recipient: Pubkey,
-    /// Address space for compressed accounts (1-4 address_treess allowed)
+    /// Address space for compressed accounts (exactly 1 address_tree allowed)
     pub address_space: Vec<Pubkey>,
     /// PDA bump seed
     pub bump: u8,
@@ -78,34 +78,37 @@ impl CompressibleConfig {
     }
 
     /// Validates the config account
-    pub fn validate(&self) -> Result<(), LightSdkError> {
+    pub fn validate(&self) -> Result<(), crate::ProgramError> {
         if self.discriminator != Self::LIGHT_DISCRIMINATOR {
             msg!("Invalid config discriminator");
-            return Err(LightSdkError::ConstraintViolation);
+            return Err(LightSdkError::ConstraintViolation.into());
         }
         if self.version != 1 {
             msg!("Unsupported config version: {}", self.version);
-            return Err(LightSdkError::ConstraintViolation);
+            return Err(LightSdkError::ConstraintViolation.into());
         }
-        if self.address_space.is_empty() || self.address_space.len() > MAX_ADDRESS_TREES_PER_SPACE {
+        if self.address_space.len() != 1 {
             msg!(
-                "Invalid number of address spaces: {}",
+                "Address space must contain exactly 1 pubkey, found: {}",
                 self.address_space.len()
             );
-            return Err(LightSdkError::ConstraintViolation);
+            return Err(LightSdkError::ConstraintViolation.into());
         }
         Ok(())
     }
 
     /// Loads and validates config from account, checking owner
-    pub fn load_checked(account: &AccountInfo, program_id: &Pubkey) -> Result<Self, LightSdkError> {
+    pub fn load_checked(
+        account: &AccountInfo,
+        program_id: &Pubkey,
+    ) -> Result<Self, crate::ProgramError> {
         if account.owner != program_id {
             msg!(
                 "Config account owner mismatch. Expected: {}. Found: {}.",
                 program_id,
                 account.owner
             );
-            return Err(LightSdkError::ConstraintViolation);
+            return Err(LightSdkError::ConstraintViolation.into());
         }
         let data = account.try_borrow_data()?;
         let config = Self::try_from_slice(&data).map_err(|_| LightSdkError::Borsh)?;
@@ -125,7 +128,7 @@ impl CompressibleConfig {
 /// * `config_account` - The config PDA account to initialize
 /// * `update_authority` - Authority that can update the config after creation
 /// * `rent_recipient` - Account that receives rent from compressed PDAs
-/// * `address_space` - Address spaces for compressed accounts (1-4 allowed)
+/// * `address_space` - Address spaces for compressed accounts (exactly 1 allowed)
 /// * `compression_delay` - Number of slots to wait before compression
 /// * `payer` - Account paying for the PDA creation
 /// * `system_program` - System program
@@ -138,7 +141,7 @@ impl CompressibleConfig {
 ///
 /// # Returns
 /// * `Ok(())` if config was created successfully
-/// * `Err(LightSdkError)` if there was an error
+/// * `Err(ProgramError)` if there was an error
 #[allow(clippy::too_many_arguments)]
 pub fn process_initialize_compression_config_unchecked<'info>(
     config_account: &AccountInfo<'info>,
@@ -149,37 +152,40 @@ pub fn process_initialize_compression_config_unchecked<'info>(
     payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
     program_id: &Pubkey,
-) -> Result<(), LightSdkError> {
+) -> Result<(), crate::ProgramError> {
     // Check if already initialized
     if config_account.data_len() > 0 {
         msg!("Config account already initialized");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Validate address spaces
-    if address_space.is_empty() || address_space.len() > MAX_ADDRESS_TREES_PER_SPACE {
-        msg!("Invalid number of address spaces: {}", address_space.len());
-        return Err(LightSdkError::ConstraintViolation);
+    if address_space.len() != 1 {
+        msg!(
+            "Address space must contain exactly 1 pubkey, found: {}",
+            address_space.len()
+        );
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Validate no duplicate pubkeys in address_space
-    validate_address_space_no_duplicates(&address_space)?;
+    validate_address_space_no_duplicates(&address_space).map_err(LightSdkError::from)?;
 
     // Verify update authority is signer
     if !update_authority.is_signer {
         msg!("Update authority must be signer for initial config creation");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Derive PDA and verify
     let (derived_pda, bump) = CompressibleConfig::derive_pda(program_id);
     if derived_pda != *config_account.key {
         msg!("Invalid config PDA");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Get rent for the exact size needed
-    let rent = Rent::get()?;
+    let rent = Rent::get().map_err(LightSdkError::from)?;
     let account_size = CompressibleConfig::size_for_address_spaces(address_space.len());
     let rent_lamports = rent.minimum_balance(account_size);
 
@@ -201,7 +207,8 @@ pub fn process_initialize_compression_config_unchecked<'info>(
             system_program.clone(),
         ],
         &[seeds],
-    )?;
+    )
+    .map_err(LightSdkError::from)?;
 
     // Initialize config data
     let config = CompressibleConfig {
@@ -215,7 +222,9 @@ pub fn process_initialize_compression_config_unchecked<'info>(
     };
 
     // Write to account
-    let mut data = config_account.try_borrow_mut_data()?;
+    let mut data = config_account
+        .try_borrow_mut_data()
+        .map_err(LightSdkError::from)?;
     config
         .serialize(&mut &mut data[..])
         .map_err(|_| LightSdkError::Borsh)?;
@@ -230,13 +239,13 @@ pub fn process_initialize_compression_config_unchecked<'info>(
 /// * `authority` - Current update authority (must match config)
 /// * `new_update_authority` - Optional new update authority
 /// * `new_rent_recipient` - Optional new rent recipient
-/// * `new_address_space` - Optional new address spaces (1-4 allowed)
+/// * `new_address_space` - Optional new address spaces (exactly 1 allowed)
 /// * `new_compression_delay` - Optional new compression delay
 /// * `owner_program_id` - The program that owns the config
 ///
 /// # Returns
 /// * `Ok(())` if config was updated successfully
-/// * `Err(LightSdkError)` if there was an error
+/// * `Err(ProgramError)` if there was an error
 pub fn process_update_compression_config<'info>(
     config_account: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
@@ -245,18 +254,18 @@ pub fn process_update_compression_config<'info>(
     new_address_space: Option<Vec<Pubkey>>,
     new_compression_delay: Option<u32>,
     owner_program_id: &Pubkey,
-) -> Result<(), LightSdkError> {
-    // Load and validate existing configtr
+) -> Result<(), crate::ProgramError> {
+    // Load and validate existing config
     let mut config = CompressibleConfig::load_checked(config_account, owner_program_id)?;
 
     // Check authority
     if !authority.is_signer {
         msg!("Update authority must be signer");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
     if *authority.key != config.update_authority {
         msg!("Invalid update authority");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Apply updates
@@ -267,16 +276,20 @@ pub fn process_update_compression_config<'info>(
         config.rent_recipient = *new_recipient;
     }
     if let Some(new_spaces) = new_address_space {
-        if new_spaces.is_empty() || new_spaces.len() > MAX_ADDRESS_TREES_PER_SPACE {
-            msg!("Invalid number of address spaces: {}", new_spaces.len());
-            return Err(LightSdkError::ConstraintViolation);
+        if new_spaces.len() != 1 {
+            msg!(
+                "Address space must contain exactly 1 pubkey, found: {}",
+                new_spaces.len()
+            );
+            return Err(LightSdkError::ConstraintViolation.into());
         }
 
         // Validate no duplicate pubkeys in new address_space
-        validate_address_space_no_duplicates(&new_spaces)?;
+        validate_address_space_no_duplicates(&new_spaces).map_err(LightSdkError::from)?;
 
         // Validate that we're only adding, not removing existing pubkeys
-        validate_address_space_only_adds(&config.address_space, &new_spaces)?;
+        validate_address_space_only_adds(&config.address_space, &new_spaces)
+            .map_err(LightSdkError::from)?;
 
         config.address_space = new_spaces;
     }
@@ -285,7 +298,9 @@ pub fn process_update_compression_config<'info>(
     }
 
     // Write updated config
-    let mut data = config_account.try_borrow_mut_data()?;
+    let mut data = config_account
+        .try_borrow_mut_data()
+        .map_err(LightSdkError::from)?;
     config
         .serialize(&mut &mut data[..])
         .map_err(|_| LightSdkError::Borsh)?;
@@ -307,13 +322,13 @@ pub fn verify_program_upgrade_authority(
     program_id: &Pubkey,
     program_data_account: &AccountInfo,
     authority: &AccountInfo,
-) -> Result<(), LightSdkError> {
+) -> Result<(), crate::ProgramError> {
     // Verify program data account PDA
     let (expected_program_data, _) =
         Pubkey::find_program_address(&[program_id.as_ref()], &BPF_LOADER_UPGRADEABLE_ID);
     if program_data_account.key != &expected_program_data {
         msg!("Invalid program data account");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Verify that the signer is the program's upgrade authority
@@ -323,21 +338,21 @@ pub fn verify_program_upgrade_authority(
     // 4 bytes discriminator + 8 bytes slot + 1 byte option + 32 bytes authority
     if data.len() < 45 {
         msg!("Program data account too small");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Check discriminator (should be 3 for ProgramData)
     let discriminator = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
     if discriminator != 3 {
         msg!("Invalid program data discriminator");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Skip slot (8 bytes) and check if authority exists (1 byte flag)
     let has_authority = data[12] == 1;
     if !has_authority {
         msg!("Program has no upgrade authority");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     // Read the upgrade authority pubkey (32 bytes)
@@ -348,12 +363,12 @@ pub fn verify_program_upgrade_authority(
     // Verify the signer matches the upgrade authority
     if !authority.is_signer {
         msg!("Authority must be signer");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     if *authority.key != upgrade_authority {
         msg!("Signer is not the program's upgrade authority");
-        return Err(LightSdkError::ConstraintViolation);
+        return Err(LightSdkError::ConstraintViolation.into());
     }
 
     Ok(())
@@ -371,7 +386,7 @@ pub fn verify_program_upgrade_authority(
 /// * `update_authority` - Must be the program's upgrade authority
 /// * `program_data_account` - The program's data account for validation
 /// * `rent_recipient` - Account that receives rent from compressed PDAs
-/// * `address_space` - Address spaces for compressed accounts (1-4 allowed)
+/// * `address_space` - Address spaces for compressed accounts (exactly 1 allowed)
 /// * `compression_delay` - Number of slots to wait before compression
 /// * `payer` - Account paying for the PDA creation
 /// * `system_program` - System program
@@ -379,7 +394,7 @@ pub fn verify_program_upgrade_authority(
 ///
 /// # Returns
 /// * `Ok(())` if config was created successfully
-/// * `Err(LightSdkError)` if there was an error or authority validation fails
+/// * `Err(ProgramError)` if there was an error or authority validation fails
 #[allow(clippy::too_many_arguments)]
 pub fn process_initialize_compression_config_checked<'info>(
     config_account: &AccountInfo<'info>,
@@ -391,7 +406,7 @@ pub fn process_initialize_compression_config_checked<'info>(
     payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
     program_id: &Pubkey,
-) -> Result<(), LightSdkError> {
+) -> Result<(), crate::ProgramError> {
     msg!(
         "create_compression_config_checked program_data_account: {:?}",
         program_data_account.key.log()

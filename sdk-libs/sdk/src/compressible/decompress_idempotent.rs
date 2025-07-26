@@ -138,6 +138,9 @@ where
 
         // Initialize PDA with decompressed data and update slot
         let mut decompressed_pda = compressed_account.account.clone();
+
+        *decompressed_pda.compression_info_mut_opt() = Some(super::CompressionInfo::new()?);
+
         decompressed_pda
             .compression_info_mut()
             .set_last_written_slot_value(current_slot);

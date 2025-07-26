@@ -5,12 +5,12 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_clock::Clock;
 use solana_sysvar::Sysvar;
 
-use crate::error::LightSdkError;
-
 /// Trait for accounts that contain CompressionInfo
 pub trait HasCompressionInfo {
     fn compression_info(&self) -> &CompressionInfo;
     fn compression_info_mut(&mut self) -> &mut CompressionInfo;
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo>;
+    fn set_compression_info_none(&mut self);
 }
 
 /// Information for compressible accounts that tracks when the account was last written
@@ -32,7 +32,7 @@ pub enum CompressionState {
 
 impl CompressionInfo {
     /// Creates new compression info with the current slot
-    pub fn new() -> Result<Self, LightSdkError> {
+    pub fn new() -> Result<Self, crate::ProgramError> {
         Ok(Self {
             last_written_slot: Clock::get()?.slot,
             state: CompressionState::Decompressed,
@@ -40,7 +40,7 @@ impl CompressionInfo {
     }
 
     /// Updates the last written slot to the current slot
-    pub fn set_last_written_slot(&mut self) -> Result<(), LightSdkError> {
+    pub fn set_last_written_slot(&mut self) -> Result<(), crate::ProgramError> {
         self.last_written_slot = Clock::get()?.slot;
         Ok(())
     }
@@ -56,13 +56,16 @@ impl CompressionInfo {
     }
 
     /// Checks if the account can be compressed based on the delay
-    pub fn can_compress(&self, compression_delay: u64) -> Result<bool, LightSdkError> {
+    pub fn can_compress(&self, compression_delay: u64) -> Result<bool, crate::ProgramError> {
         let current_slot = Clock::get()?.slot;
         Ok(current_slot >= self.last_written_slot + compression_delay)
     }
 
     /// Gets the number of slots remaining before compression is allowed
-    pub fn slots_until_compressible(&self, compression_delay: u64) -> Result<u64, LightSdkError> {
+    pub fn slots_until_compressible(
+        &self,
+        compression_delay: u64,
+    ) -> Result<u64, crate::ProgramError> {
         let current_slot = Clock::get()?.slot;
         Ok((self.last_written_slot + compression_delay).saturating_sub(current_slot))
     }
