@@ -23,8 +23,9 @@ use crate::{
 };
 
 #[cfg(feature = "anchor")]
-/// Wrapper to process a single onchain PDA for compression into a new compressed account.
-/// Calls `process_accounts_for_compression_on_init` with single-element slices and invokes the CPI.
+/// Wrapper to process a single onchain PDA for compression into a new
+/// compressed account. Calls `process_accounts_for_compression_on_init` with
+/// single-element slices and invokes the CPI.
 #[allow(clippy::too_many_arguments)]
 pub fn compress_account_on_init<'info, A>(
     pda_account: &mut Account<'info, A>,
@@ -72,17 +73,20 @@ where
 }
 
 #[cfg(feature = "anchor")]
-/// Helper function to process multiple onchain PDAs for compression into new compressed accounts.
+/// Helper function to process multiple onchain PDAs for compression into new
+/// compressed accounts.
 ///
-/// This function processes accounts of a single type and returns CompressedAccountInfo for CPI batching.
-/// It allows the caller to handle the CPI invocation separately, enabling batching of multiple
-/// different account types.
+/// This function processes accounts of a single type and returns
+/// CompressedAccountInfo for CPI batching. It allows the caller to handle the
+/// CPI invocation separately, enabling batching of multiple different account
+/// types.
 ///
 /// # Arguments
 /// * `pda_accounts` - The PDA accounts to compress
 /// * `addresses` - The addresses for the compressed accounts
 /// * `new_address_params` - Address parameters for the compressed accounts
-/// * `output_state_tree_indices` - Output state tree indices for the compressed accounts
+/// * `output_state_tree_indices` - Output state tree indices for the compressed
+///   accounts
 /// * `cpi_accounts` - Accounts needed for validation
 /// * `owner_program` - The program that will own the compressed accounts
 /// * `address_space` - The address space to validate uniqueness against
@@ -141,16 +145,18 @@ where
         .zip(new_address_params.iter())
         .zip(output_state_tree_indices.iter())
     {
-        // Ensure the account is marked as compressed
+        // Ensure the account is marked as compressed We need to init first
+        // because it's none. Setting to compressed prevents lamports funding
+        // attack.
         *pda_account.compression_info_mut_opt() = Some(super::CompressionInfo::new()?);
-
         pda_account.compression_info_mut().set_compressed();
 
         // Create the compressed account with the PDA data
         let mut compressed_account =
             LightAccount::<'_, A>::new_init(owner_program, Some(address), output_state_tree_index);
 
-        // Clone the PDA data and set compression_info to None for compressed storage
+        // Clone the PDA data and set compression_info to None for compressed
+        // storage
         let mut compressed_data = (***pda_account).clone();
         compressed_data.set_compression_info_none();
         compressed_account.account = compressed_data;
@@ -164,8 +170,9 @@ where
     Ok(compressed_account_infos)
 }
 
-// TODO: move.
-// /// Helper function to compress multiple onchain PDAs into new compressed accounts (native Solana).
+// // TODO: move.
+// /// Helper function to compress multiple onchain PDAs into new compressed
+// /// accounts (native Solana).
 // ///
 // /// This is the native Solana version that accepts pre-deserialized account data
 // /// to avoid double deserialization. Use this when you've already deserialized
@@ -176,7 +183,8 @@ where
 // /// * `pda_accounts_data` - The pre-deserialized PDA account data
 // /// * `addresses` - The addresses for the compressed accounts
 // /// * `new_address_params` - Address parameters for the compressed accounts
-// /// * `output_state_tree_indices` - Output state tree indices for the compressed accounts
+// /// * `output_state_tree_indices` - Output state tree indices for the compressed
+// ///   accounts
 // /// * `proof` - Single validity proof for all accounts
 // /// * `cpi_accounts` - Accounts needed for CPI
 // /// * `owner_program` - The program that will own the compressed accounts

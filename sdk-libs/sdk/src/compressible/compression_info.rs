@@ -13,7 +13,8 @@ pub trait HasCompressionInfo {
     fn set_compression_info_none(&mut self);
 }
 
-/// Information for compressible accounts that tracks when the account was last written
+/// Information for compressible accounts that tracks when the account was last
+/// written
 #[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
 pub struct CompressionInfo {
     /// The slot when this account was last written/decompressed

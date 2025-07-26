@@ -621,7 +621,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
     }
 }
 
-/// Client-side data structures
+// Ix data implemented for Variant.
 #[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedAccountData {
     pub meta: CompressedAccountMeta,

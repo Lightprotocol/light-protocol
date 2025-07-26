@@ -26,16 +26,19 @@ trait AnchorDiscriminatorShim {}
 #[cfg(not(feature = "anchor"))]
 impl<T> AnchorDiscriminatorShim for T {}
 
-/// Helper function to decompress multiple compressed accounts into PDAs idempotently with seeds.
-/// Does not invoke the zk compression CPI.
-/// This function processes accounts of a single type and returns CompressedAccountInfo for CPI batching.
-/// It's idempotent, meaning it can be called multiple times with the same compressed accounts
-/// and it will only decompress them once. If a PDA already exists and is initialized, it skips that account.
+/// Helper function to decompress multiple compressed accounts into PDAs
+/// idempotently with seeds. Does not invoke the zk compression CPI. This
+/// function processes accounts of a single type and returns
+/// CompressedAccountInfo for CPI batching. It's idempotent, meaning it can be
+/// called multiple times with the same compressed accounts and it will only
+/// decompress them once. If a PDA already exists and is initialized, it skips
+/// that account.
 ///
 /// # Arguments
 /// * `pda_accounts` - The PDA accounts to decompress into
 /// * `compressed_accounts` - The compressed accounts to decompress
-/// * `signer_seeds` - Signer seeds for each PDA including bump (standard Solana format)
+/// * `signer_seeds` - Signer seeds for each PDA including bump (standard Solana
+///   format)
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the PDAs
 /// * `rent_payer` - The account to pay for PDA rent

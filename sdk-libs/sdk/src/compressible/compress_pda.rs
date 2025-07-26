@@ -38,7 +38,8 @@ use crate::{
 /// * `cpi_accounts` - Accounts needed for CPI
 /// * `owner_program` - The program that will own the compressed account
 /// * `rent_recipient` - The account to receive the PDA's rent
-/// * `compression_delay` - The number of slots to wait before compression is allowed
+/// * `compression_delay` - The number of slots to wait before compression is
+///   allowed
 pub fn compress_pda<'info, A>(
     pda_account: &mut Account<'info, A>,
     compressed_account_meta: &CompressedAccountMeta,

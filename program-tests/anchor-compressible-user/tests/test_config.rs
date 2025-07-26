@@ -501,9 +501,11 @@ async fn test_config_discriminator_attacks() {
         let config_account = rpc.get_account(config_pda).await.unwrap().unwrap();
         let mut corrupted_data = config_account.data.clone();
 
-        // Find and corrupt address_space length (4 bytes after: discriminator + version + compression_delay + update_authority + rent_recipient)
-        // discriminator (8) + version (1) + compression_delay (4) + update_authority (32) + rent_recipient (32) = 77 bytes
-        // The address_space length is at byte 77
+        // Find and corrupt address_space length (4 bytes after: discriminator +
+        // version + compression_delay + update_authority + rent_recipient)
+        // discriminator (8) + version (1) + compression_delay (4) +
+        // update_authority (32) + rent_recipient (32) = 77 bytes The
+        // address_space length is at byte 77
         let address_space_len_offset = 8 + 1 + 4 + 32 + 32; // 77
         corrupted_data[address_space_len_offset] = 0; // Set length to 0
         corrupted_data[address_space_len_offset + 1] = 0;
