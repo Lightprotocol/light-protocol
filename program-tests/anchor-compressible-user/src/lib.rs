@@ -159,9 +159,6 @@ pub mod anchor_compressible_user {
         {
             match compressed_data.data {
                 CompressedAccountVariant::UserRecord(mut data) => {
-                    // Set compression_info to Some for on-chain processing
-                    data.compression_info = Some(CompressionInfo::new()?);
-
                     // Create LightAccount with correct UserRecord discriminator
                     let light_account = LightAccount::<'_, UserRecord>::new_mut(
                         &crate::ID,
@@ -193,9 +190,6 @@ pub mod anchor_compressible_user {
                     all_compressed_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::GameSession(mut data) => {
-                    // Set compression_info to Some for on-chain processing
-                    data.compression_info = Some(CompressionInfo::new()?);
-
                     // Create LightAccount with correct GameSession discriminator
                     let light_account = LightAccount::<'_, GameSession>::new_mut(
                         &crate::ID,
@@ -258,9 +252,6 @@ pub mod anchor_compressible_user {
         game_session.end_time = None;
         game_session.score = 0;
 
-        // Initialize compression info with current slot
-        game_session.compression_info = Some(CompressionInfo::new()?);
-
         // Verify rent recipient matches config
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {
             return err!(ErrorCode::InvalidRentRecipient);
@@ -320,7 +311,6 @@ pub mod anchor_compressible_user {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = user_name;
         user_record.score = 11;
-        user_record.compression_info = Some(CompressionInfo::new()?);
 
         // Initialize game session data
         game_session.session_id = session_id;
@@ -329,7 +319,6 @@ pub mod anchor_compressible_user {
         game_session.start_time = Clock::get()?.unix_timestamp as u64;
         game_session.end_time = None;
         game_session.score = 0;
-        game_session.compression_info = Some(CompressionInfo::new()?);
 
         let cpi_accounts = CpiAccounts::new(
             &ctx.accounts.user,

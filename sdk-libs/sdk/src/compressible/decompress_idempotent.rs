@@ -122,7 +122,7 @@ where
             rent_payer.key,
             pda_account.key,
             rent_minimum_balance,
-            space as u64,
+            (space + 100) as u64, // FIXME: use correct size
             owner_program,
         );
 
@@ -139,14 +139,15 @@ where
         // Initialize PDA with decompressed data and update slot
         let mut decompressed_pda = compressed_account.account.clone();
 
+        msg!(
+            "Initializing compression info for PDA {:?}",
+            pda_account.key
+        );
         *decompressed_pda.compression_info_mut_opt() = Some(super::CompressionInfo::new()?);
-
-        decompressed_pda
-            .compression_info_mut()
-            .set_last_written_slot_value(current_slot);
-
-        // set state to decompressed
-        decompressed_pda.compression_info_mut().set_decompressed();
+        msg!(
+            "decompressed_pda compression_info {:?}",
+            decompressed_pda.compression_info()
+        );
 
         #[cfg(feature = "anchor")]
         pda_account.try_borrow_mut_data()?[..8].copy_from_slice(T::DISCRIMINATOR);
@@ -156,7 +157,12 @@ where
 
         decompressed_pda
             .serialize(&mut &mut pda_account.try_borrow_mut_data()?[8..])
-            .map_err(|_| LightSdkError::Borsh)?;
+            .map_err(|err| {
+                msg!("Failed to serialize decompressed PDA: {:?}", err);
+                LightSdkError::Borsh
+            })?;
+
+        msg!("decompressed_pda serialized!");
 
         compressed_account.remove_data();
 

@@ -951,8 +951,9 @@ async fn test_decompress_single_user_record(
         "User PDA account data len must be 0 before decompression"
     );
 
-    let cu = simulate_cu(rpc, &payer, &instruction).await;
-    println!("DecompressSingleUserRecord CU consumed: {}", cu);
+    // let cu = simulate_cu(rpc, &payer, &instruction).await;
+    // println!("DecompressSingleUserRecord CU consumed: {}", cu);
+    println!("skipping cu sim");
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
