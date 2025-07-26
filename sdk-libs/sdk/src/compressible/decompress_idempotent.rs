@@ -22,9 +22,11 @@ use crate::{
 };
 
 #[cfg(not(feature = "anchor"))]
-trait AnchorDiscriminatorShim {}
+pub trait AnchorDiscriminatorShim {}
 #[cfg(not(feature = "anchor"))]
 impl<T> AnchorDiscriminatorShim for T {}
+
+
 
 /// Helper function to decompress multiple compressed accounts into PDAs
 /// idempotently with seeds. Does not invoke the zk compression CPI. This

@@ -1,7 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::instruction_data::data::ReadOnlyAddress;
 use light_sdk::{
-    compressible::{compress_pda_new_with_data, CompressibleConfig, CompressionInfo},
+    compressible::{compress_account_on_init_native, CompressibleConfig, CompressionInfo},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
@@ -17,7 +16,10 @@ pub fn create_dynamic_pda(
 ) -> Result<(), LightSdkError> {
     let mut instruction_data = instruction_data;
     let instruction_data = CreateDynamicPdaInstructionData::deserialize(&mut instruction_data)
-        .map_err(|_| LightSdkError::Borsh)?;
+        .map_err(|e| {
+            solana_program::msg!("Borsh deserialization error: {:?}", e);
+            LightSdkError::Borsh
+        })?;
 
     let fee_payer = &accounts[0];
     // UNCHECKED: ...caller program checks this.
@@ -44,25 +46,27 @@ pub fn create_dynamic_pda(
 
     // We do not have to serialize into the PDA account, it's closed at the end
     // of this invocation.
-    let mut pda_account_data = MyPdaAccount::try_from_slice(&pda_account.data.borrow())
-        .map_err(|_| LightSdkError::Borsh)?;
+    let mut pda_account_data =
+        MyPdaAccount::try_from_slice(&pda_account.data.borrow()).map_err(|e| {
+            solana_program::msg!("pda account  error: {:?}", e);
+            LightSdkError::Borsh
+        })?;
 
     // Initialize compression info with current slot and decompressed state
-    pda_account_data.compression_info = CompressionInfo::new()?;
+    pda_account_data.compression_info = Some(CompressionInfo::new()?);
 
     // Use the efficient native variant that accepts pre-deserialized data
-    compress_pda_new_with_data::<MyPdaAccount>(
+    compress_account_on_init_native::<MyPdaAccount>(
         pda_account,
         &mut pda_account_data,
-        instruction_data.compressed_address,
-        new_address_params,
+        &instruction_data.compressed_address,
+        &new_address_params,
         instruction_data.output_state_tree_index,
-        instruction_data.proof,
         cpi_accounts_struct,
         &crate::ID,
-        rent_recipient,
         &config.address_space,
-        instruction_data.read_only_addresses,
+        rent_recipient,
+        instruction_data.proof,
     )?;
 
     Ok(())
@@ -73,7 +77,5 @@ pub struct CreateDynamicPdaInstructionData {
     pub proof: ValidityProof,
     pub compressed_address: [u8; 32],
     pub address_tree_info: PackedAddressTreeInfo,
-    /// Optional read-only addresses for exclusion proofs (same address, different trees)
-    pub read_only_addresses: Option<Vec<ReadOnlyAddress>>,
     pub output_state_tree_index: u8,
 }

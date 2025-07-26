@@ -5503,7 +5503,9 @@ dependencies = [
 name = "sdk-test"
 version = "1.0.0"
 dependencies = [
+ "anchor-lang",
  "borsh 0.10.4",
+ "light-client",
  "light-compressed-account",
  "light-hasher",
  "light-macros",

@@ -92,7 +92,6 @@ async fn test_multi_address_space_compression() {
         proof: proof_result.proof.0.unwrap().into(),
         compressed_address,
         address_tree_info: packed_tree_infos.address_trees[0],
-        read_only_addresses: Some(read_only_addresses),
         output_state_tree_index: output_merkle_tree_index,
     };
 
@@ -152,7 +151,6 @@ async fn test_single_address_space_backward_compatibility() {
         proof: proof_result.proof.0.unwrap().into(),
         compressed_address,
         address_tree_info: packed_tree_infos.address_trees[0],
-        read_only_addresses: None, // No exclusion proofs
         output_state_tree_index: 0,
     };
 

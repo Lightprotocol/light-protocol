@@ -125,8 +125,8 @@ impl LightProgramTest {
         } else {
             config.prover_config
         };
-        if let Some(ref prover_config) = prover_config {
-            spawn_prover(prover_config.clone()).await;
+        if let Some(prover_config) = prover_config {
+            spawn_prover(prover_config).await;
         }
         Ok(context)
     }

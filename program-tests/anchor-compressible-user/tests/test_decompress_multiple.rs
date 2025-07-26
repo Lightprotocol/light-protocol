@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-mod common;
 use anchor_compressible_user::{
     CompressedAccountVariant, GameSession, UserRecord, ADDRESS_SPACE, RENT_RECIPIENT,
 };
@@ -11,7 +10,9 @@ use light_client::compressible::CompressibleInstruction;
 
 use light_compressed_account::address::derive_address;
 use light_program_test::{
+    initialize_compression_config,
     program_test::{LightProgramTest, TestRpc},
+    setup_mock_program_data,
     utils::simulation::simulate_cu,
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
@@ -34,9 +35,9 @@ async fn test_create_and_decompress_two_accounts() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id).0;
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -44,6 +45,7 @@ async fn test_create_and_decompress_two_accounts() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -145,9 +147,9 @@ async fn test_create_decompress_compress_single_account() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -155,6 +157,7 @@ async fn test_create_decompress_compress_single_account() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -475,6 +478,7 @@ async fn test_decompress_multiple_pdas(
     let instruction =
         light_client::compressible::CompressibleInstruction::decompress_multiple_accounts_idempotent(
             program_id,
+            &CompressibleInstruction::DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &payer.pubkey(),
             &payer.pubkey(), // rent_payer can be the same as fee_payer
             &[*user_record_pda, *game_session_pda],
@@ -828,9 +832,7 @@ async fn test_compress_record(
 
     let instruction = CompressibleInstruction::compress_account(
         program_id,
-        &anchor_compressible_user::instruction::CompressRecord::DISCRIMINATOR
-            .try_into()
-            .unwrap(),
+        &anchor_compressible_user::instruction::CompressRecord::DISCRIMINATOR,
         &payer.pubkey(),
         user_record_pda,
         &RENT_RECIPIENT,        // rent_recipient
@@ -930,6 +932,7 @@ async fn test_decompress_single_user_record(
     // Use the new SDK helper function with typed data
     let instruction = light_client::compressible::CompressibleInstruction::decompress_multiple_accounts_idempotent(
         program_id,
+        &CompressibleInstruction::DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
         &payer.pubkey(),
         &payer.pubkey(), // rent_payer can be the same as fee_payer
         &[*user_record_pda],
@@ -1004,9 +1007,9 @@ async fn test_double_decompression_attack() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -1014,6 +1017,7 @@ async fn test_double_decompression_attack() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -1066,7 +1070,6 @@ async fn test_double_decompression_attack() {
         .unwrap()
         .value;
 
-
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash], vec![], None)
         .await
@@ -1078,6 +1081,7 @@ async fn test_double_decompression_attack() {
     // Second decompression instruction - should still work (idempotent)
     let instruction = light_client::compressible::CompressibleInstruction::decompress_multiple_accounts_idempotent(
         &program_id,
+        &CompressibleInstruction::DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
         &payer.pubkey(),
         &payer.pubkey(),
         &[user_record_pda],
@@ -1124,9 +1128,9 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id).0;
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -1134,6 +1138,7 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");

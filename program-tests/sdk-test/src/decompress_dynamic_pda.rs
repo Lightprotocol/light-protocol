@@ -1,15 +1,14 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    compressible::{decompress_idempotent, CompressionInfo, HasCompressionInfo},
-    cpi::CpiAccounts,
+    compressible::{prepare_accounts_for_decompress_idempotent, CompressionInfo, HasCompressionInfo},
+    cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     LightDiscriminator, LightHasher,
 };
 use solana_program::account_info::AccountInfo;
 
-pub const COMPRESSION_DELAY: u64 = 100;
 
 /// Decompresses a compressed account into a PDA idempotently.
 pub fn decompress_dynamic_pda(
@@ -51,17 +50,27 @@ pub fn decompress_dynamic_pda(
         return Err(LightSdkError::ConstraintViolation);
     }
 
-    // Call decompress_idempotent with seeds - this should work whether PDA exists or not
+    // Use prepare_accounts_for_decompress_idempotent directly and handle CPI manually
     let signer_seeds: &[&[u8]] = &[b"test_pda", &account_data, &[bump]];
-    decompress_idempotent::<MyPdaAccount>(
-        pda_account,
-        compressed_account,
-        signer_seeds,
-        instruction_data.proof,
-        cpi_accounts,
+    
+    // For sdk-test, we'll use a hardcoded address space that matches the test setup
+    // In a real program, you'd get this from your config or define it as a constant
+    let address_space = light_macros::pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+    
+    let compressed_infos = prepare_accounts_for_decompress_idempotent::<MyPdaAccount>(
+        &[pda_account],
+        vec![compressed_account],
+        &[signer_seeds],
+        &cpi_accounts,
         &crate::ID,
         rent_payer,
+        address_space,
     )?;
+
+    if !compressed_infos.is_empty() {
+        let cpi_inputs = CpiInputs::new(instruction_data.proof, compressed_infos);
+        cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    }
 
     Ok(())
 }
@@ -71,7 +80,6 @@ pub fn decompress_multiple_dynamic_pdas(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
-    use light_sdk::compressible::decompress_multiple_idempotent;
 
     #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
     pub struct DecompressMultipleInstructionData {
@@ -143,16 +151,24 @@ pub fn decompress_multiple_dynamic_pdas(
         .map(|seeds| seeds.as_slice())
         .collect();
 
-    // Decompress all accounts in one CPI call
-    decompress_multiple_idempotent::<MyPdaAccount>(
+    // For sdk-test, we'll use a hardcoded address space that matches the test setup
+    let address_space = light_macros::pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+
+    // Use prepare_accounts_for_decompress_idempotent directly and handle CPI manually
+    let compressed_infos = prepare_accounts_for_decompress_idempotent::<MyPdaAccount>(
         &pda_account_refs,
         compressed_accounts,
         &signer_seeds_refs,
-        instruction_data.proof,
-        cpi_accounts,
+        &cpi_accounts,
         &crate::ID,
         rent_payer,
+        address_space,
     )?;
+
+    if !compressed_infos.is_empty() {
+        let cpi_inputs = CpiInputs::new(instruction_data.proof, compressed_infos);
+        cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    }
 
     Ok(())
 }
@@ -175,17 +191,30 @@ pub struct MyCompressedAccount {
 )]
 pub struct MyPdaAccount {
     #[skip]
-    pub compression_info: CompressionInfo,
+    pub compression_info: Option<CompressionInfo>,
     pub data: [u8; 31],
 }
+
 
 // Implement the HasCompressionInfo trait
 impl HasCompressionInfo for MyPdaAccount {
     fn compression_info(&self) -> &CompressionInfo {
-        &self.compression_info
+        self.compression_info
+            .as_ref()
+            .expect("CompressionInfo must be Some on-chain")
     }
 
     fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        self.compression_info
+            .as_mut()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
         &mut self.compression_info
+    }
+
+    fn set_compression_info_none(&mut self) {
+        self.compression_info = None;
     }
 }

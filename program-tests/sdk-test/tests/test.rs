@@ -14,7 +14,7 @@ use light_sdk::instruction::{
 use sdk_test::{
     create_pda::CreatePdaInstructionData,
     decompress_dynamic_pda::{
-        DecompressToPdaInstructionData, MyCompressedAccount, MyPdaAccount, COMPRESSION_DELAY,
+        DecompressToPdaInstructionData, MyCompressedAccount, MyPdaAccount,
     },
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
 };
@@ -246,7 +246,7 @@ pub async fn decompress_pda(
         compressed_account: MyCompressedAccount {
             meta,
             data: MyPdaAccount {
-                compression_info: light_sdk::compressible::CompressionInfo::default(),
+                compression_info: None,
                 data: compressed_account
                     .compressed_account
                     .data

@@ -46,22 +46,30 @@ pub struct CompressibleInstruction;
 
 impl CompressibleInstruction {
     pub const INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR: [u8; 8] =
-        [133, 228, 12, 169, 56, 76, 222, 61];
-
+    [133, 228, 12, 169, 56, 76, 222, 61];
     pub const UPDATE_COMPRESSION_CONFIG_DISCRIMINATOR: [u8; 8] =
-        [135, 215, 243, 81, 163, 146, 33, 70];
-
+    [135, 215, 243, 81, 163, 146, 33, 70];
     /// Hardcoded discriminator for the standardized decompress_multiple_accounts_idempotent instruction
     /// This is calculated as SHA256("global:decompress_multiple_accounts_idempotent")[..8] (Anchor format)
     pub const DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR: [u8; 8] =
-        [226, 55, 236, 26, 73, 174, 225, 131];
+    [226, 55, 236, 26, 73, 174, 225, 131];
 
     /// Creates an initialize_compression_config instruction
     ///
     /// Following Solana SDK patterns like system_instruction::transfer()
     /// Returns Instruction directly - errors surface at execution time
+    ///
+    /// # Arguments
+    /// * `program_id` - The program ID
+    /// * `discriminator` - The instruction discriminator bytes (flexible length)
+    /// * `payer` - The payer account
+    /// * `authority` - The authority account
+    /// * `compression_delay` - The compression delay
+    /// * `rent_recipient` - The rent recipient
+    /// * `address_space` - The address space
     pub fn initialize_compression_config(
         program_id: &Pubkey,
+        discriminator: &[u8],
         payer: &Pubkey,
         authority: &Pubkey,
         compression_delay: u32,
@@ -92,13 +100,20 @@ impl CompressibleInstruction {
         };
 
         // Prepend discriminator to serialized data, following Solana SDK pattern
-        let mut data = Vec::with_capacity(8 + instruction_data.try_to_vec().unwrap().len());
-        data.extend_from_slice(&Self::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR);
-        data.extend_from_slice(
-            &instruction_data
-                .try_to_vec()
-                .expect("Failed to serialize instruction data"),
-        );
+        let serialized_data = instruction_data
+            .try_to_vec()
+            .expect("Failed to serialize instruction data");
+
+        println!("serialized_data: {:?}", serialized_data.len());
+
+        println!("discriminator: {:?}", discriminator.len());
+        println!("discriminator: {:?}", discriminator);
+
+        let mut data = Vec::new();
+        data.extend_from_slice(discriminator);
+        data.extend_from_slice(&serialized_data);
+
+        println!("data: {:?}", data.len());
 
         Instruction {
             program_id: *program_id,
@@ -110,8 +125,18 @@ impl CompressibleInstruction {
     /// Creates an update config instruction
     ///
     /// Following Solana SDK patterns - returns Instruction directly
+    ///
+    /// # Arguments
+    /// * `program_id` - The program ID
+    /// * `discriminator` - The instruction discriminator bytes (flexible length)
+    /// * `authority` - The authority account
+    /// * `new_compression_delay` - Optional new compression delay
+    /// * `new_rent_recipient` - Optional new rent recipient
+    /// * `new_address_space` - Optional new address space
+    /// * `new_update_authority` - Optional new update authority
     pub fn update_compression_config(
         program_id: &Pubkey,
+        discriminator: &[u8],
         authority: &Pubkey,
         new_compression_delay: Option<u32>,
         new_rent_recipient: Option<Pubkey>,
@@ -125,7 +150,7 @@ impl CompressibleInstruction {
             AccountMeta::new_readonly(*authority, true), // authority
         ];
 
-        let instruction_data = UpdateConfigData {
+        let instruction_data = UpdateCompressionConfigData {
             new_compression_delay,
             new_rent_recipient,
             new_address_space,
@@ -133,13 +158,12 @@ impl CompressibleInstruction {
         };
 
         // Prepend discriminator to serialized data, following Solana SDK pattern
-        let mut data = Vec::with_capacity(8 + instruction_data.try_to_vec().unwrap().len());
-        data.extend_from_slice(&Self::UPDATE_COMPRESSION_CONFIG_DISCRIMINATOR);
-        data.extend_from_slice(
-            &instruction_data
-                .try_to_vec()
-                .expect("Failed to serialize instruction data"),
-        );
+        let serialized_data = instruction_data
+            .try_to_vec()
+            .expect("Failed to serialize instruction data");
+        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
+        data.extend_from_slice(discriminator);
+        data.extend_from_slice(&serialized_data);
 
         Instruction {
             program_id: *program_id,
@@ -156,7 +180,7 @@ impl CompressibleInstruction {
     ///
     /// # Arguments
     /// * `program_id` - The program that owns the compressible account
-    /// * `instruction_discriminator` - The 8-byte instruction discriminator for the program
+    /// * `discriminator` - The instruction discriminator bytes (flexible length)
     /// * `payer` - The account paying for the transaction
     /// * `pda_to_compress` - The PDA account to compress
     /// * `rent_recipient` - The account to receive the reclaimed rent
@@ -168,7 +192,7 @@ impl CompressibleInstruction {
     /// * `Result<Instruction, Box<dyn std::error::Error>>` - The complete instruction ready to be sent
     pub fn compress_account(
         program_id: &Pubkey,
-        instruction_discriminator: &[u8; 8],
+        discriminator: &[u8],
         payer: &Pubkey,
         pda_to_compress: &Pubkey,
         rent_recipient: &Pubkey,
@@ -232,13 +256,12 @@ impl CompressibleInstruction {
         };
 
         // Manually serialize instruction data with discriminator
-        let mut data = Vec::with_capacity(8 + instruction_data.try_to_vec().unwrap().len());
-        data.extend_from_slice(instruction_discriminator);
-        data.extend_from_slice(
-            &instruction_data
-                .try_to_vec()
-                .expect("Failed to serialize instruction data"),
-        );
+        let serialized_data = instruction_data
+            .try_to_vec()
+            .expect("Failed to serialize instruction data");
+        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
+        data.extend_from_slice(discriminator);
+        data.extend_from_slice(&serialized_data);
 
         // Build the instruction
         Ok(Instruction {
@@ -250,18 +273,21 @@ impl CompressibleInstruction {
 
     /// Build a `decompress_multiple_accounts_idempotent` instruction for any program's compressed account variant.
     ///
-    /// - `T`: program-specific compressed account enum.
-    /// - `program_id`: target program.
-    /// - `fee_payer`, `rent_payer`: signers.
-    /// - `pda_accounts`: PDAs to decompress into.
-    /// - `compressed_accounts`: (meta, variant) pairs.
-    /// - `bumps`: PDA bump seeds.
-    /// - `validity_proof_with_context`: validity proof with context.
-    /// - `output_state_tree_info`: output state tree info.
+    /// # Arguments
+    /// * `program_id` - Target program
+    /// * `discriminator` - The instruction discriminator bytes (flexible length)
+    /// * `fee_payer` - Fee payer signer
+    /// * `rent_payer` - Rent payer signer
+    /// * `pda_accounts` - PDAs to decompress into
+    /// * `compressed_accounts` - (meta, variant) pairs
+    /// * `bumps` - PDA bump seeds
+    /// * `validity_proof_with_context` - Validity proof with context
+    /// * `output_state_tree_info` - Output state tree info
     ///
     /// Returns `Ok(Instruction)` or error.
     pub fn decompress_multiple_accounts_idempotent<T>(
         program_id: &Pubkey,
+        discriminator: &[u8],
         fee_payer: &Pubkey,
         rent_payer: &Pubkey,
         pda_accounts: &[Pubkey],
@@ -353,8 +379,10 @@ impl CompressibleInstruction {
         };
 
         // Serialize instruction data with discriminator
-        let mut data = Self::DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR.to_vec();
-        data.extend(instruction_data.try_to_vec()?);
+        let serialized_data = instruction_data.try_to_vec()?;
+        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
+        data.extend_from_slice(discriminator);
+        data.extend_from_slice(&serialized_data);
 
         Ok(Instruction {
             program_id: *program_id,
@@ -367,20 +395,20 @@ impl CompressibleInstruction {
 /// Generic instruction data for initialize config
 /// Note: Real programs should use their specific instruction format
 #[derive(AnchorSerialize, AnchorDeserialize)]
-struct InitializeCompressionConfigData {
-    compression_delay: u32,
-    rent_recipient: Pubkey,
-    address_space: Vec<Pubkey>,
+pub struct InitializeCompressionConfigData {
+    pub compression_delay: u32,
+    pub rent_recipient: Pubkey,
+    pub address_space: Vec<Pubkey>,
 }
 
 /// Generic instruction data for update config
 /// Note: Real programs should use their specific instruction format  
 #[derive(AnchorSerialize, AnchorDeserialize)]
-struct UpdateConfigData {
-    new_compression_delay: Option<u32>,
-    new_rent_recipient: Option<Pubkey>,
-    new_address_space: Option<Vec<Pubkey>>,
-    new_update_authority: Option<Pubkey>,
+pub struct UpdateCompressionConfigData {
+    pub new_compression_delay: Option<u32>,
+    pub new_rent_recipient: Option<Pubkey>,
+    pub new_address_space: Option<Vec<Pubkey>>,
+    pub new_update_authority: Option<Pubkey>,
 }
 
 /// Generic instruction data for compress account

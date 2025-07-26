@@ -121,4 +121,10 @@ pub use light_client::{
     indexer::{AddressWithTree, Indexer},
     rpc::{Rpc, RpcError},
 };
-pub use program_test::{config::ProgramTestConfig, LightProgramTest};
+pub use program_test::{
+    config::ProgramTestConfig, 
+    LightProgramTest,
+    initialize_compression_config,
+    setup_mock_program_data,
+    update_compression_config,
+};

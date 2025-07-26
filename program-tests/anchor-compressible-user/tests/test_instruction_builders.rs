@@ -1,5 +1,3 @@
-mod common;
-
 mod test_instruction_builders {
 
     use light_client::{
@@ -25,6 +23,7 @@ mod test_instruction_builders {
         // Should return Instruction directly, not Result
         let instruction = CompressibleInstruction::initialize_compression_config(
             &program_id,
+            &[5u8],
             &payer,
             &authority,
             compression_delay,
@@ -70,6 +69,7 @@ mod test_instruction_builders {
         // Should return Instruction directly, following Solana SDK patterns
         let instruction = CompressibleInstruction::update_compression_config(
             &program_id,
+            &[6u8],
             &authority,
             new_compression_delay,
             new_rent_recipient,
@@ -183,6 +183,7 @@ mod test_instruction_builders {
         // Should return Result<Instruction, _> for the new API
         let result = CompressibleInstruction::decompress_multiple_accounts_idempotent(
             &program_id,
+            &[7u8],
             &fee_payer,
             &rent_payer,
             &pda_accounts,
@@ -217,10 +218,7 @@ mod test_instruction_builders {
 
         // Verify instruction data is present and starts with discriminator
         assert!(!instruction.data.is_empty());
-        assert_eq!(
-            &instruction.data[0..8],
-            &CompressibleInstruction::DECOMPRESS_MULTIPLE_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR
-        );
+        assert_eq!(&instruction.data[0..8], &[7, 0, 2, 0, 0, 0, 0, 0]);
 
         println!("✅ Decompress multiple accounts idempotent instruction builder follows Solana SDK patterns correctly!");
     }
@@ -283,6 +281,7 @@ mod test_instruction_builders {
 
         let result = CompressibleInstruction::decompress_multiple_accounts_idempotent(
             &program_id,
+            &[7u8],
             &fee_payer,
             &rent_payer,
             &pda_accounts,
@@ -339,6 +338,7 @@ mod test_instruction_builders {
 
         let result = CompressibleInstruction::decompress_multiple_accounts_idempotent(
             &program_id,
+            &[7u8],
             &fee_payer,
             &rent_payer,
             &pda_accounts,

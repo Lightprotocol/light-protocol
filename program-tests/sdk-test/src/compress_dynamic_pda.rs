@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
-    compressible::{compress_pda, CompressibleConfig},
+    compressible::{compress_pda_native, CompressibleConfig},
     cpi::CpiAccounts,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
@@ -40,8 +40,13 @@ pub fn compress_dynamic_pda(
         cpi_config,
     );
 
-    compress_pda::<MyPdaAccount>(
+    // Deserialize the PDA account data
+    let mut pda_data = MyPdaAccount::try_from_slice(&pda_account.data.borrow())
+        .map_err(|_| LightSdkError::Borsh)?;
+
+    compress_pda_native::<MyPdaAccount>(
         pda_account,
+        &mut pda_data,
         &instruction_data.compressed_account_meta,
         instruction_data.proof,
         cpi_accounts,

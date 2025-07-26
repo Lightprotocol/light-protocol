@@ -11,12 +11,13 @@
 //! - Rent recipient check
 #![cfg(feature = "test-sbf")]
 
-mod common;
 use anchor_compressible_user::{ADDRESS_SPACE, RENT_RECIPIENT};
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_client::compressible::CompressibleInstruction;
 use light_program_test::{
-    program_test::{LightProgramTest, TestRpc},
-    ProgramTestConfig, Rpc,
+    initialize_compression_config,
+    program_test::{create_mock_program_data, LightProgramTest, TestRpc},
+    setup_mock_program_data, update_compression_config, ProgramTestConfig, Rpc,
 };
 use light_sdk::compressible::CompressibleConfig;
 use solana_sdk::{
@@ -34,9 +35,9 @@ async fn test_initialize_compression_config() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -44,6 +45,7 @@ async fn test_initialize_compression_config() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
@@ -58,12 +60,12 @@ async fn test_config_validation() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let non_authority = Keypair::new();
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -71,6 +73,7 @@ async fn test_config_validation() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_err(), "Should fail with wrong authority");
@@ -84,11 +87,11 @@ async fn test_config_multiple_address_spaces_validation() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     // Try to init with multiple address spaces - should fail
     let multiple_address_spaces = vec![ADDRESS_SPACE[0], Pubkey::new_unique()];
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -96,13 +99,14 @@ async fn test_config_multiple_address_spaces_validation() {
         100,
         RENT_RECIPIENT,
         multiple_address_spaces,
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_err(), "Should fail with multiple address spaces");
 
     // Try to init with empty address space - should also fail
     let empty_address_space = vec![];
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -110,6 +114,7 @@ async fn test_config_multiple_address_spaces_validation() {
         100,
         RENT_RECIPIENT,
         empty_address_space,
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_err(), "Should fail with empty address space");
@@ -124,9 +129,9 @@ async fn test_update_compression_config() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    let _program_data_pda = common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let init_result = common::initialize_compression_config(
+    let init_result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -134,6 +139,7 @@ async fn test_update_compression_config() {
         100,
         RENT_RECIPIENT,
         ADDRESS_SPACE.to_vec(),
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
@@ -141,7 +147,7 @@ async fn test_update_compression_config() {
     assert!(config_account.is_some(), "Config account should exist");
 
     // Use the new mid-level helper - much cleaner!
-    let update_result = common::update_compression_config(
+    let update_result = update_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -150,6 +156,7 @@ async fn test_update_compression_config() {
         Some(RENT_RECIPIENT),
         Some(vec![ADDRESS_SPACE[0]]),
         None,
+        &CompressibleInstruction::UPDATE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(update_result.is_ok(), "Update config should succeed");
@@ -163,8 +170,8 @@ async fn test_config_reinit_attack_prevention() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let result = common::initialize_compression_config(
+    setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -172,10 +179,11 @@ async fn test_config_reinit_attack_prevention() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(result.is_ok(), "First init should succeed");
-    let reinit_result = common::initialize_compression_config(
+    let reinit_result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -183,6 +191,7 @@ async fn test_config_reinit_attack_prevention() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(reinit_result.is_err(), "Config reinit should fail");
@@ -197,7 +206,7 @@ async fn test_wrong_program_data_account() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let fake_program_data = Keypair::new();
-    let mock_data = common::create_mock_program_data(payer.pubkey());
+    let mock_data = create_mock_program_data(payer.pubkey());
     let mock_account = solana_sdk::account::Account {
         lamports: 1_000_000,
         data: mock_data,
@@ -206,7 +215,7 @@ async fn test_wrong_program_data_account() {
         rent_epoch: 0,
     };
     rpc.set_account(fake_program_data.pubkey(), mock_account);
-    let result = common::initialize_compression_config(
+    let result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -214,6 +223,7 @@ async fn test_wrong_program_data_account() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
 
@@ -231,10 +241,10 @@ async fn test_update_remove_address_space() {
         ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible_user", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    setup_mock_program_data(&mut rpc, &payer, &program_id);
     let address_space_1 = vec![ADDRESS_SPACE[0]];
     let address_space_2 = vec![Pubkey::new_unique()];
-    let init_result = common::initialize_compression_config(
+    let init_result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -242,10 +252,11 @@ async fn test_update_remove_address_space() {
         100,
         RENT_RECIPIENT,
         address_space_1,
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
-    let update_result = common::update_compression_config(
+    let update_result = update_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -254,6 +265,7 @@ async fn test_update_remove_address_space() {
         None,
         Some(address_space_2),
         None,
+        &CompressibleInstruction::UPDATE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(
@@ -274,8 +286,8 @@ async fn test_update_with_non_authority() {
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let init_result = common::initialize_compression_config(
+    setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let init_result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -283,12 +295,13 @@ async fn test_update_with_non_authority() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
 
     // Use the new mid-level helper to test non-authority update
-    let update_result = common::update_compression_config(
+    let update_result = update_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -297,6 +310,7 @@ async fn test_update_with_non_authority() {
         None,
         None,
         None,
+        &CompressibleInstruction::UPDATE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(
@@ -314,8 +328,8 @@ async fn test_config_with_wrong_rent_recipient() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
-    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
-    let init_result = common::initialize_compression_config(
+    setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let init_result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -323,6 +337,7 @@ async fn test_config_with_wrong_rent_recipient() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");
@@ -364,10 +379,10 @@ async fn test_config_discriminator_attacks() {
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id);
 
-    common::setup_mock_program_data(&mut rpc, &payer, &program_id);
+    setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     // First, create a valid config
-    let init_result = common::initialize_compression_config(
+    let init_result = initialize_compression_config(
         &mut rpc,
         &payer,
         &program_id,
@@ -375,6 +390,7 @@ async fn test_config_discriminator_attacks() {
         100,
         RENT_RECIPIENT,
         vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
     )
     .await;
     assert!(init_result.is_ok(), "Init should succeed");

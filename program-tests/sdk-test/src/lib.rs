@@ -24,9 +24,10 @@ pub enum InstructionType {
     UpdatePdaBorsh = 1,
     DecompressToPda = 2,
     CompressFromPda = 3,
-    CompressFromPdaNew = 4,
-    CreateConfig = 5,
-    UpdateConfig = 6,
+    CreateDynamicPda = 4,
+    InitializeCompressionConfig = 5,
+    UpdateCompressionConfig = 6,
+    DecompressMultipleAccountsIdempotent = 7,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -38,9 +39,10 @@ impl TryFrom<u8> for InstructionType {
             1 => Ok(InstructionType::UpdatePdaBorsh),
             2 => Ok(InstructionType::DecompressToPda),
             3 => Ok(InstructionType::CompressFromPda),
-            4 => Ok(InstructionType::CompressFromPdaNew),
-            5 => Ok(InstructionType::CreateConfig),
-            6 => Ok(InstructionType::UpdateConfig),
+            4 => Ok(InstructionType::CreateDynamicPda),
+            5 => Ok(InstructionType::InitializeCompressionConfig),
+            6 => Ok(InstructionType::UpdateCompressionConfig),
+            7 => Ok(InstructionType::DecompressMultipleAccountsIdempotent),
 
             _ => panic!("Invalid instruction discriminator."),
         }
@@ -66,18 +68,24 @@ pub fn process_instruction(
         InstructionType::CompressFromPda => {
             compress_dynamic_pda::compress_dynamic_pda(accounts, &instruction_data[1..])
         }
-        InstructionType::CompressFromPdaNew => {
+        InstructionType::CreateDynamicPda => {
             create_dynamic_pda::create_dynamic_pda(accounts, &instruction_data[1..])
         }
 
-        InstructionType::CreateConfig => {
+        InstructionType::InitializeCompressionConfig => {
             create_config::process_initialize_compression_config_checked(
                 accounts,
                 &instruction_data[1..],
             )
         }
-        InstructionType::UpdateConfig => {
+        InstructionType::UpdateCompressionConfig => {
             update_config::process_update_config(accounts, &instruction_data[1..])
+        }
+        InstructionType::DecompressMultipleAccountsIdempotent => {
+            decompress_dynamic_pda::decompress_multiple_dynamic_pdas(
+                accounts,
+                &instruction_data[1..],
+            )
         }
     }?;
     Ok(())
