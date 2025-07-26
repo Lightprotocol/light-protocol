@@ -48,7 +48,7 @@ async fn test_create_and_decompress_two_accounts() {
     let (user_record_pda, user_record_bump) =
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
-    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
+    test_create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
 
     let session_id = 12345u64;
     let (game_session_pda, game_bump) = Pubkey::find_program_address(
@@ -56,7 +56,7 @@ async fn test_create_and_decompress_two_accounts() {
         &program_id,
     );
 
-    test_create_game_session_with_config(
+    test_create_game_session(
         &mut rpc,
         &payer,
         &program_id,
@@ -105,7 +105,7 @@ async fn test_create_and_decompress_two_accounts() {
         &program_id,
     );
 
-    test_create_user_record_and_game_session_with_config(
+    test_create_user_record_and_game_session(
         &mut rpc,
         &combined_user,
         &program_id,
@@ -159,7 +159,7 @@ async fn test_create_decompress_compress_single_account() {
     let (user_record_pda, user_record_bump) =
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
-    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
+    test_create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
 
     rpc.warp_to_slot(100).unwrap();
 
@@ -179,9 +179,7 @@ async fn test_create_decompress_compress_single_account() {
 
     println!("compress record");
 
-    let result =
-        test_compress_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, true)
-            .await;
+    let result = test_compress_record(&mut rpc, &payer, &program_id, &user_record_pda, true).await;
     assert!(result.is_err(), "Compression should fail due to slot delay");
     if let Err(err) = result {
         let err_msg = format!("{:?}", err);
@@ -193,11 +191,10 @@ async fn test_create_decompress_compress_single_account() {
     }
     rpc.warp_to_slot(200).unwrap();
     let _result =
-        test_compress_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, false)
-            .await;
+        test_compress_record(&mut rpc, &payer, &program_id, &user_record_pda, false).await;
 }
 
-async fn test_create_record_with_config(
+async fn test_create_record(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     program_id: &Pubkey,
@@ -214,7 +211,7 @@ async fn test_create_record_with_config(
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
 
     // Create the instruction
-    let accounts = anchor_compressible_user::accounts::CreateRecordWithConfig {
+    let accounts = anchor_compressible_user::accounts::CreateRecord {
         user: payer.pubkey(),
         user_record: *user_record_pda,
         system_program: solana_sdk::system_program::ID,
@@ -258,7 +255,7 @@ async fn test_create_record_with_config(
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
     // Create instruction data
-    let instruction_data = anchor_compressible_user::instruction::CreateRecordWithConfig {
+    let instruction_data = anchor_compressible_user::instruction::CreateRecord {
         name: "Test User".to_string(),
         proof: rpc_result.proof,
         compressed_address,
@@ -274,7 +271,7 @@ async fn test_create_record_with_config(
     };
 
     let cu = simulate_cu(rpc, &payer, &instruction).await;
-    println!("CreateRecordWithConfig CU consumed: {}", cu);
+    println!("CreateRecord CU consumed: {}", cu);
 
     // Create and send transaction
     let result = rpc
@@ -298,7 +295,7 @@ async fn test_create_record_with_config(
     assert!(user_record_data.is_empty(), "Account data should be empty");
 }
 
-async fn test_create_game_session_with_config(
+async fn test_create_game_session(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     program_id: &Pubkey,
@@ -316,7 +313,7 @@ async fn test_create_game_session_with_config(
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
 
     // Create the instruction
-    let accounts = anchor_compressible_user::accounts::CreateGameSessionWithConfig {
+    let accounts = anchor_compressible_user::accounts::CreateGameSession {
         player: payer.pubkey(),
         game_session: *game_session_pda,
         system_program: solana_sdk::system_program::ID,
@@ -360,7 +357,7 @@ async fn test_create_game_session_with_config(
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
     // Create instruction data
-    let instruction_data = anchor_compressible_user::instruction::CreateGameSessionWithConfig {
+    let instruction_data = anchor_compressible_user::instruction::CreateGameSession {
         session_id,
         game_type: "Battle Royale".to_string(),
         proof: rpc_result.proof,
@@ -583,7 +580,7 @@ async fn test_decompress_multiple_pdas(
     assert_eq!(c_game_pda.data.unwrap().data.len(), 0);
 }
 
-async fn test_create_user_record_and_game_session_with_config(
+async fn test_create_user_record_and_game_session(
     rpc: &mut LightProgramTest,
     user: &Keypair,
     program_id: &Pubkey,
@@ -601,7 +598,7 @@ async fn test_create_user_record_and_game_session_with_config(
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
 
     // Create the instruction
-    let accounts = anchor_compressible_user::accounts::CreateUserRecordAndGameSessionWithConfig {
+    let accounts = anchor_compressible_user::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         user_record: *user_record_pda,
         game_session: *game_session_pda,
@@ -659,19 +656,18 @@ async fn test_create_user_record_and_game_session_with_config(
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
     // Create instruction data
-    let instruction_data =
-        anchor_compressible_user::instruction::CreateUserRecordAndGameSessionWithConfig {
-            user_name: "Combined User".to_string(),
-            session_id,
-            game_type: "Combined Game".to_string(),
-            proof: rpc_result.proof,
-            user_compressed_address,
-            user_address_tree_info,
-            user_output_state_tree_index,
-            game_compressed_address,
-            game_address_tree_info,
-            game_output_state_tree_index,
-        };
+    let instruction_data = anchor_compressible_user::instruction::CreateUserRecordAndGameSession {
+        user_name: "Combined User".to_string(),
+        session_id,
+        game_type: "Combined Game".to_string(),
+        proof: rpc_result.proof,
+        user_compressed_address,
+        user_address_tree_info,
+        user_output_state_tree_index,
+        game_compressed_address,
+        game_address_tree_info,
+        game_output_state_tree_index,
+    };
 
     // Build the instruction
     let instruction = Instruction {
@@ -680,10 +676,7 @@ async fn test_create_user_record_and_game_session_with_config(
         data: instruction_data.data(),
     };
     let cu = simulate_cu(rpc, &user, &instruction).await;
-    println!(
-        "CreateUserRecordAndGameSessionWithConfig CU consumed: {}",
-        cu
-    );
+    println!("CreateUserRecordAndGameSession CU consumed: {}", cu);
     // Create and send transaction
     let result = rpc
         .create_and_send_transaction(&[instruction], &user.pubkey(), &[&user])
@@ -764,7 +757,7 @@ async fn test_create_user_record_and_game_session_with_config(
     assert_eq!(game_session.score, 0);
 }
 
-async fn test_compress_record_with_config(
+async fn test_compress_record(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     program_id: &Pubkey,
@@ -819,7 +812,7 @@ async fn test_compress_record_with_config(
 
     let instruction = CompressibleInstruction::compress_account(
         program_id,
-        &anchor_compressible_user::instruction::CompressRecordWithConfig::DISCRIMINATOR
+        &anchor_compressible_user::instruction::CompressRecord::DISCRIMINATOR
             .try_into()
             .unwrap(),
         &payer.pubkey(),
@@ -833,7 +826,7 @@ async fn test_compress_record_with_config(
 
     if !should_fail {
         let cu = simulate_cu(rpc, &payer, &instruction).await;
-        println!("CompressRecordWithConfig CU consumed: {}", cu);
+        println!("CompressRecord CU consumed: {}", cu);
     }
 
     // Create and send transaction
@@ -1006,7 +999,7 @@ async fn test_double_decompression_attack() {
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
     // Create and compress the account
-    test_create_record_with_config(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
+    test_create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
 
     rpc.warp_to_slot(100).unwrap();
 
@@ -1133,7 +1126,7 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     println!("second_state_tree_info: {:?}", second_state_tree_info);
 
     // Create user record using first state tree
-    test_create_record_with_config(
+    test_create_record(
         &mut rpc,
         &payer,
         &program_id,
@@ -1143,7 +1136,7 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     .await;
 
     // Create game session using second state tree
-    test_create_game_session_with_config(
+    test_create_game_session(
         &mut rpc,
         &payer,
         &program_id,

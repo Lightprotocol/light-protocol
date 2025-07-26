@@ -46,7 +46,7 @@ Updates the config. **Can only be called by the config's update authority**.
 - `new_address_space`: New address space
 - `new_update_authority`: Transfer update authority to a new account
 
-### 3. `create_record_with_config`
+### 3. `create_record`
 
 Creates a compressed user record using config values.
 
@@ -55,7 +55,7 @@ Creates a compressed user record using config values.
 - `config`: Config PDA
 - `rent_recipient`: Must match the config's rent recipient
 
-### 4. `compress_record_with_config`
+### 4. `compress_record`
 
 Compresses a PDA using config values.
 

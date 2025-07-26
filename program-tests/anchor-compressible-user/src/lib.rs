@@ -1,5 +1,14 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
+    account::LightAccount,
+    compressible::{
+        compress_account_on_init, compress_pda, prepare_accounts_for_compression_on_init,
+        prepare_accounts_for_decompress_idempotent, process_initialize_compression_config_checked,
+        process_update_compression_config,
+    },
+    cpi::CpiInputs,
+};
+use light_sdk::{
     compressible::{CompressibleConfig, CompressionInfo, FromCompressedData, HasCompressionInfo},
     cpi::CpiAccounts,
     derive_light_cpi_signer,
@@ -19,68 +28,10 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 // Simple anchor program retrofitted with compressible accounts.
 #[program]
 pub mod anchor_compressible_user {
-
-    use light_sdk::{
-        account::LightAccount,
-        compressible::{
-            compress_account_on_init, compress_pda, prepare_accounts_for_compression_on_init,
-            prepare_accounts_for_decompress_idempotent,
-            process_initialize_compression_config_checked, process_update_compression_config,
-        },
-        cpi::CpiInputs,
-    };
-
     use super::*;
 
-    /// Initialize config - only callable by program upgrade authority
-    pub fn initialize_compression_config(
-        ctx: Context<InitializeCompressionConfig>,
-        compression_delay: u32,
-        rent_recipient: Pubkey,
-        address_space: Vec<Pubkey>,
-    ) -> Result<()> {
-        // The SDK's create_compression_config_checked validates that the signer is the program's upgrade authority
-        process_initialize_compression_config_checked(
-            &ctx.accounts.config.to_account_info(),
-            &ctx.accounts.authority.to_account_info(),
-            &ctx.accounts.program_data.to_account_info(),
-            &rent_recipient,
-            address_space,
-            compression_delay,
-            &ctx.accounts.payer.to_account_info(),
-            &ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
-        Ok(())
-    }
-
-    /// Update config - only callable by config's update authority
-    pub fn update_compression_config(
-        ctx: Context<UpdateCompressionConfig>,
-        new_compression_delay: Option<u32>,
-        new_rent_recipient: Option<Pubkey>,
-        new_address_space: Option<Vec<Pubkey>>,
-        new_update_authority: Option<Pubkey>,
-    ) -> Result<()> {
-        process_update_compression_config(
-            &ctx.accounts.config.to_account_info(),
-            &ctx.accounts.authority.to_account_info(),
-            new_update_authority.as_ref(),
-            new_rent_recipient.as_ref(),
-            new_address_space,
-            new_compression_delay,
-            &crate::ID,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
-        Ok(())
-    }
-
-    /// Creates a new compressed user record using global config.
-    pub fn create_record_with_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateRecordWithConfig<'info>>,
+    pub fn create_record<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateRecord<'info>>,
         name: String,
         proof: ValidityProof,
         compressed_address: [u8; 32],
@@ -130,51 +81,6 @@ pub mod anchor_compressible_user {
         Ok(())
     }
 
-    /// Creates a new compressed user record (legacy - uses hardcoded values).
-    pub fn create_record<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateRecord<'info>>,
-        name: String,
-        proof: ValidityProof,
-        compressed_address: [u8; 32],
-        address_tree_info: PackedAddressTreeInfo,
-        output_state_tree_index: u8,
-    ) -> Result<()> {
-        // msg!("Creating record");
-        let user_record = &mut ctx.accounts.user_record;
-
-        user_record.owner = ctx.accounts.user.key();
-        user_record.name = name;
-        user_record.score = 0;
-        // Initialize compression info with current slot
-        user_record.compression_info = CompressionInfo::new()
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
-
-        let cpi_accounts = CpiAccounts::new(
-            &ctx.accounts.user,
-            &ctx.remaining_accounts[..],
-            LIGHT_CPI_SIGNER,
-        );
-        let new_address_params =
-            address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
-
-        compress_account_on_init::<UserRecord>(
-            user_record,
-            &compressed_address,
-            &new_address_params,
-            output_state_tree_index,
-            cpi_accounts,
-            &crate::ID,
-            &ADDRESS_SPACE,
-            &ctx.accounts.rent_recipient,
-            proof,
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
-        Ok(())
-    }
-
-    /// Can be the same because the PDA will be decompressed in a separate instruction.
-    /// Updates an existing user record
     pub fn update_record(ctx: Context<UpdateRecord>, name: String, score: u64) -> Result<()> {
         let user_record = &mut ctx.accounts.user_record;
 
@@ -184,7 +90,49 @@ pub mod anchor_compressible_user {
         Ok(())
     }
 
-    /// Decompresses multiple compressed PDAs of any supported account type in a single transaction
+    pub fn initialize_compression_config(
+        ctx: Context<InitializeCompressionConfig>,
+        compression_delay: u32,
+        rent_recipient: Pubkey,
+        address_space: Vec<Pubkey>,
+    ) -> Result<()> {
+        process_initialize_compression_config_checked(
+            &ctx.accounts.config.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.accounts.program_data.to_account_info(),
+            &rent_recipient,
+            address_space,
+            compression_delay,
+            &ctx.accounts.payer.to_account_info(),
+            &ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        Ok(())
+    }
+
+    pub fn update_compression_config(
+        ctx: Context<UpdateCompressionConfig>,
+        new_compression_delay: Option<u32>,
+        new_rent_recipient: Option<Pubkey>,
+        new_address_space: Option<Vec<Pubkey>>,
+        new_update_authority: Option<Pubkey>,
+    ) -> Result<()> {
+        process_update_compression_config(
+            &ctx.accounts.config.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            new_update_authority.as_ref(),
+            new_rent_recipient.as_ref(),
+            new_address_space,
+            new_compression_delay,
+            &crate::ID,
+        )
+        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+        Ok(())
+    }
+
     pub fn decompress_multiple_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, DecompressMultipleAccountsIdempotent<'info>>,
         proof: ValidityProof,
@@ -297,9 +245,8 @@ pub mod anchor_compressible_user {
         Ok(())
     }
 
-    /// Creates a new compressed game session using global config.
-    pub fn create_game_session_with_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateGameSessionWithConfig<'info>>,
+    pub fn create_game_session<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateGameSession<'info>>,
         session_id: u64,
         game_type: String,
         proof: ValidityProof,
@@ -357,8 +304,8 @@ pub mod anchor_compressible_user {
 
     /// Creates both a user record and game session and compresses them in a single transaction
     #[allow(clippy::too_many_arguments)]
-    pub fn create_user_record_and_game_session_with_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateUserRecordAndGameSessionWithConfig<'info>>,
+    pub fn create_user_record_and_game_session<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateUserRecordAndGameSession<'info>>,
         user_name: String,
         session_id: u64,
         game_type: String,
@@ -463,32 +410,6 @@ pub mod anchor_compressible_user {
         proof: ValidityProof,
         compressed_account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let user_record = &mut ctx.accounts.user_record;
-
-        let cpi_accounts = CpiAccounts::new(
-            &ctx.accounts.user,
-            &ctx.remaining_accounts[..],
-            LIGHT_CPI_SIGNER,
-        );
-
-        compress_pda::<UserRecord>(
-            user_record,
-            &compressed_account_meta,
-            proof,
-            cpi_accounts,
-            &crate::ID,
-            &ctx.accounts.rent_recipient,
-            &COMPRESSION_DELAY, // Use the hardcoded value for legacy function
-        )
-        .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-        Ok(())
-    }
-
-    pub fn compress_record_with_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, CompressRecordWithConfig<'info>>,
-        proof: ValidityProof,
-        compressed_account_meta: CompressedAccountMeta,
-    ) -> Result<()> {
         let user_record = &mut ctx.accounts.pda_to_compress;
 
         // Load config from the config account
@@ -522,7 +443,7 @@ pub mod anchor_compressible_user {
 }
 
 #[derive(Accounts)]
-pub struct CreateRecordWithConfig<'info> {
+pub struct CreateRecord<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(
@@ -545,7 +466,7 @@ pub struct CreateRecordWithConfig<'info> {
 
 #[derive(Accounts)]
 #[instruction(user_name: String, session_id: u64)]
-pub struct CreateUserRecordAndGameSessionWithConfig<'info> {
+pub struct CreateUserRecordAndGameSession<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(
@@ -576,7 +497,7 @@ pub struct CreateUserRecordAndGameSessionWithConfig<'info> {
 
 #[derive(Accounts)]
 #[instruction(session_id: u64)]
-pub struct CreateGameSessionWithConfig<'info> {
+pub struct CreateGameSession<'info> {
     #[account(mut)]
     pub player: Signer<'info>,
     #[account(
@@ -598,24 +519,6 @@ pub struct CreateGameSessionWithConfig<'info> {
 }
 
 #[derive(Accounts)]
-pub struct CreateRecord<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
-    #[account(
-        init,
-        payer = user,
-        space = 8 + 32 + 4 + 32 + 8 + 9, // discriminator + owner + string len + name + score + compression_info
-        seeds = [b"user_record", user.key().as_ref()],
-        bump,
-    )]
-    pub user_record: Account<'info, UserRecord>,
-    pub system_program: Program<'info, System>,
-    /// CHECK: Rent recipient is a hardcoded address
-    #[account(address = RENT_RECIPIENT)]
-    pub rent_recipient: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
 pub struct UpdateRecord<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -629,7 +532,7 @@ pub struct UpdateRecord<'info> {
 }
 
 #[derive(Accounts)]
-pub struct CompressRecordWithConfig<'info> {
+pub struct CompressRecord<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(
@@ -645,24 +548,6 @@ pub struct CompressRecordWithConfig<'info> {
     pub config: AccountInfo<'info>,
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
-    #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct CompressRecord<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"user_record", user.key().as_ref()],
-        bump,
-        constraint = user_record.owner == user.key()
-    )]
-    pub user_record: Account<'info, UserRecord>,
-    pub system_program: Program<'info, System>,
-    /// CHECK: Rent recipient is a hardcoded address
-    #[account(address = RENT_RECIPIENT)]
     #[account(mut)]
     pub rent_recipient: AccountInfo<'info>,
 }

@@ -291,14 +291,14 @@ async fn test_config_with_wrong_rent_recipient() {
     let (user_record_pda, _bump) =
         Pubkey::find_program_address(&[b"user_record", user.pubkey().as_ref()], &program_id);
     let wrong_rent_recipient = Pubkey::new_unique();
-    let accounts = anchor_compressible_user::accounts::CreateRecordWithConfig {
+    let accounts = anchor_compressible_user::accounts::CreateRecord {
         user: user.pubkey(),
         user_record: user_record_pda,
         system_program: solana_sdk::system_program::ID,
         config: config_pda,
         rent_recipient: wrong_rent_recipient,
     };
-    let instruction_data = anchor_compressible_user::instruction::CreateRecordWithConfig {
+    let instruction_data = anchor_compressible_user::instruction::CreateRecord {
         name: "Test".to_string(),
         proof: light_sdk::instruction::ValidityProof::default(),
         compressed_address: [0u8; 32],
@@ -361,12 +361,12 @@ async fn test_config_discriminator_attacks() {
         // Set the corrupted account
         rpc.set_account(config_pda, corrupted_account);
 
-        // Try to use config with create_record_with_config - should fail
+        // Try to use config with create_record - should fail
         let user = rpc.get_payer().insecure_clone();
         let (user_record_pda, _bump) =
             Pubkey::find_program_address(&[b"user_record", user.pubkey().as_ref()], &program_id);
 
-        let accounts = anchor_compressible_user::accounts::CreateRecordWithConfig {
+        let accounts = anchor_compressible_user::accounts::CreateRecord {
             user: user.pubkey(),
             user_record: user_record_pda,
             system_program: solana_sdk::system_program::ID,
@@ -374,7 +374,7 @@ async fn test_config_discriminator_attacks() {
             rent_recipient: RENT_RECIPIENT,
         };
 
-        let instruction_data = anchor_compressible_user::instruction::CreateRecordWithConfig {
+        let instruction_data = anchor_compressible_user::instruction::CreateRecord {
             name: "Test".to_string(),
             proof: light_sdk::instruction::ValidityProof::default(),
             compressed_address: [0u8; 32],
@@ -428,7 +428,7 @@ async fn test_config_discriminator_attacks() {
         let (user_record_pda, _bump) =
             Pubkey::find_program_address(&[b"user_record", user.pubkey().as_ref()], &program_id);
 
-        let accounts = anchor_compressible_user::accounts::CreateRecordWithConfig {
+        let accounts = anchor_compressible_user::accounts::CreateRecord {
             user: user.pubkey(),
             user_record: user_record_pda,
             system_program: solana_sdk::system_program::ID,
@@ -436,7 +436,7 @@ async fn test_config_discriminator_attacks() {
             rent_recipient: RENT_RECIPIENT,
         };
 
-        let instruction_data = anchor_compressible_user::instruction::CreateRecordWithConfig {
+        let instruction_data = anchor_compressible_user::instruction::CreateRecord {
             name: "Test".to_string(),
             proof: light_sdk::instruction::ValidityProof::default(),
             compressed_address: [0u8; 32],
@@ -486,7 +486,7 @@ async fn test_config_discriminator_attacks() {
         let (user_record_pda, _bump) =
             Pubkey::find_program_address(&[b"user_record", user.pubkey().as_ref()], &program_id);
 
-        let accounts = anchor_compressible_user::accounts::CreateRecordWithConfig {
+        let accounts = anchor_compressible_user::accounts::CreateRecord {
             user: user.pubkey(),
             user_record: user_record_pda,
             system_program: solana_sdk::system_program::ID,
@@ -494,7 +494,7 @@ async fn test_config_discriminator_attacks() {
             rent_recipient: RENT_RECIPIENT,
         };
 
-        let instruction_data = anchor_compressible_user::instruction::CreateRecordWithConfig {
+        let instruction_data = anchor_compressible_user::instruction::CreateRecord {
             name: "Test".to_string(),
             proof: light_sdk::instruction::ValidityProof::default(),
             compressed_address: [0u8; 32],
@@ -535,7 +535,7 @@ async fn test_config_discriminator_attacks() {
         let (user_record_pda, _bump) =
             Pubkey::find_program_address(&[b"user_record", user.pubkey().as_ref()], &program_id);
 
-        let accounts = anchor_compressible_user::accounts::CreateRecordWithConfig {
+        let accounts = anchor_compressible_user::accounts::CreateRecord {
             user: user.pubkey(),
             user_record: user_record_pda,
             system_program: solana_sdk::system_program::ID,
@@ -543,7 +543,7 @@ async fn test_config_discriminator_attacks() {
             rent_recipient: RENT_RECIPIENT,
         };
 
-        let instruction_data = anchor_compressible_user::instruction::CreateRecordWithConfig {
+        let instruction_data = anchor_compressible_user::instruction::CreateRecord {
             name: "Test".to_string(),
             proof: light_sdk::instruction::ValidityProof::default(),
             compressed_address: [0u8; 32],
