@@ -11,7 +11,7 @@ mod process_create_compressed_account;
 mod process_create_escrow_pda;
 mod process_decompress_tokens;
 mod process_four_invokes;
-pub mod process_four_multi_transfer;
+pub mod process_four_transfer2;
 mod process_transfer_tokens;
 mod process_update_deposit;
 
@@ -23,7 +23,7 @@ use process_create_escrow_pda::process_create_escrow_pda;
 use process_decompress_tokens::process_decompress_tokens;
 use process_four_invokes::process_four_invokes;
 pub use process_four_invokes::{CompressParams, FourInvokesParams, TransferParams};
-use process_four_multi_transfer::process_four_multi_transfer;
+use process_four_transfer2::process_four_transfer2;
 use process_transfer_tokens::process_transfer_tokens;
 
 declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
@@ -48,8 +48,7 @@ pub struct PdaParams {
     pub existing_amount: u64,
 }
 use crate::{
-    process_create_compressed_account::deposit_tokens,
-    process_four_multi_transfer::FourMultiTransferParams,
+    process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
     process_update_deposit::process_update_deposit,
 };
 #[program]
@@ -212,22 +211,22 @@ pub mod sdk_token_test {
         )
     }
 
-    pub fn four_multi_transfer<'info>(
+    pub fn four_transfer2<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         output_tree_index: u8,
         proof: LightValidityProof,
         system_accounts_start_offset: u8,
         packed_accounts_start_offset: u8,
-        four_multi_transfer_params: FourMultiTransferParams,
+        four_transfer2_params: FourTransfer2Params,
         pda_params: PdaParams,
     ) -> Result<()> {
-        process_four_multi_transfer(
+        process_four_transfer2(
             ctx,
             output_tree_index,
             proof,
             system_accounts_start_offset,
             packed_accounts_start_offset,
-            four_multi_transfer_params,
+            four_transfer2_params,
             pda_params,
         )
     }

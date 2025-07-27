@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use light_ctoken_types::instructions::multi_transfer::{
+use light_ctoken_types::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use solana_account_info::AccountInfo;

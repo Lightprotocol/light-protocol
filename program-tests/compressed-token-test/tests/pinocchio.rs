@@ -26,9 +26,9 @@ use light_ctoken_types::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::Rpc;
-use light_token_client::instructions::multi_transfer::{
-    create_decompress_instruction, create_generic_multi_transfer_instruction, CompressInput,
-    DecompressInput, MultiTransferInstructionType, TransferInput,
+use light_token_client::instructions::transfer2::{
+    create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
+    DecompressInput, Transfer2InstructionType, TransferInput,
 };
 use light_zero_copy::borsh::Deserialize;
 use serial_test::serial;
@@ -402,9 +402,9 @@ async fn test_create_compressed_mint() {
     let new_recipient = new_recipient_keypair.pubkey();
     let transfer_amount = mint_amount; // Transfer all tokens (1000)
 
-    let multi_transfer_instruction = create_generic_multi_transfer_instruction(
+    let transfer2_instruction = create_generic_transfer2_instruction(
         &mut rpc,
-        vec![MultiTransferInstructionType::Transfer(TransferInput {
+        vec![Transfer2InstructionType::Transfer(TransferInput {
             compressed_token_account: &token_accounts,
             to: new_recipient,
             amount: transfer_amount,
@@ -415,11 +415,11 @@ async fn test_create_compressed_mint() {
     .unwrap();
     println!(
         "Multi-transfer instruction: {:?}",
-        multi_transfer_instruction.accounts
+        transfer2_instruction.accounts
     );
     // Execute the multi-transfer instruction
     rpc.create_and_send_transaction(
-        &[multi_transfer_instruction],
+        &[transfer2_instruction],
         &payer.pubkey(),
         &[&payer, &recipient_keypair], // Both payer and recipient need to sign
     )
@@ -561,9 +561,9 @@ async fn test_create_compressed_mint() {
     let compress_amount = 100u64; // Compress 100 tokens
 
     // Create compress instruction using the multi-transfer functionality
-    let compress_instruction = create_generic_multi_transfer_instruction(
+    let compress_instruction = create_generic_transfer2_instruction(
         &mut rpc,
-        vec![MultiTransferInstructionType::Compress(CompressInput {
+        vec![Transfer2InstructionType::Compress(CompressInput {
             compressed_token_account: None, // No existing compressed tokens
             solana_token_account: ctoken_ata_pubkey, // Source SPL token account
             to: compress_recipient.pubkey(), // New recipient for compressed tokens
@@ -643,9 +643,9 @@ async fn test_create_compressed_mint() {
     // Create completely fresh compressed tokens for the transfer operation to avoid double spending
     let transfer_source_recipient = Keypair::new();
     let transfer_compress_amount = 100u64;
-    let transfer_compress_instruction = create_generic_multi_transfer_instruction(
+    let transfer_compress_instruction = create_generic_transfer2_instruction(
         &mut rpc,
-        vec![MultiTransferInstructionType::Compress(CompressInput {
+        vec![Transfer2InstructionType::Compress(CompressInput {
             compressed_token_account: None,
             solana_token_account: ctoken_ata_pubkey,
             to: transfer_source_recipient.pubkey(),
@@ -677,9 +677,9 @@ async fn test_create_compressed_mint() {
     // Create new compressed tokens specifically for the multi-operation test to avoid double spending
     let multi_test_recipient = Keypair::new();
     let multi_compress_amount = 50u64;
-    let compress_for_multi_instruction = create_generic_multi_transfer_instruction(
+    let compress_for_multi_instruction = create_generic_transfer2_instruction(
         &mut rpc,
-        vec![MultiTransferInstructionType::Compress(CompressInput {
+        vec![Transfer2InstructionType::Compress(CompressInput {
             compressed_token_account: None,
             solana_token_account: ctoken_ata_pubkey,
             to: multi_test_recipient.pubkey(),
@@ -743,24 +743,24 @@ async fn test_create_compressed_mint() {
     let multi_output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Create the combined multi-transfer instruction
-    let multi_transfer_instruction = create_generic_multi_transfer_instruction(
+    let transfer2_instruction = create_generic_transfer2_instruction(
         &mut rpc,
         vec![
             // 1. Transfer compressed tokens to a new recipient
-            MultiTransferInstructionType::Transfer(TransferInput {
+            Transfer2InstructionType::Transfer(TransferInput {
                 compressed_token_account: &remaining_compressed_tokens,
                 to: transfer_recipient.pubkey(),
                 amount: transfer_amount,
             }),
             // 2. Decompress some compressed tokens to SPL tokens
-            MultiTransferInstructionType::Decompress(DecompressInput {
+            Transfer2InstructionType::Decompress(DecompressInput {
                 compressed_token_account: &compressed_tokens_for_compress,
                 decompress_amount,
                 solana_token_account: decompress_dest_ata,
                 amount: decompress_amount,
             }),
             // 3. Compress SPL tokens to compressed tokens
-            MultiTransferInstructionType::Compress(CompressInput {
+            Transfer2InstructionType::Compress(CompressInput {
                 compressed_token_account: None,
                 solana_token_account: compress_source_ata, // Use remaining SPL tokens
                 to: compress_from_spl_recipient.pubkey(),
@@ -777,7 +777,7 @@ async fn test_create_compressed_mint() {
     // Execute the combined instruction with multiple signers
     let tx_result = rpc
         .create_and_send_transaction(
-            &[multi_transfer_instruction],
+            &[transfer2_instruction],
             &payer.pubkey(),
             &[&payer, &transfer_source_recipient, &multi_test_recipient], // Both token owners need to sign
         )

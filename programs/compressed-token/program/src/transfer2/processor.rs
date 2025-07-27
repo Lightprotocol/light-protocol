@@ -3,22 +3,20 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     context::TokenContext,
-    instructions::multi_transfer::{
-        validate_instruction_data, CompressedTokenInstructionDataMultiTransfer,
-    },
+    instructions::transfer2::{validate_instruction_data, CompressedTokenInstructionDataTransfer2},
 };
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 
 use crate::{
-    multi_transfer::{
-        accounts::MultiTransferValidatedAccounts, change_account::process_change_lamports,
+    shared::cpi::execute_cpi_invoke,
+    transfer2::{
+        accounts::Transfer2ValidatedAccounts, change_account::process_change_lamports,
         cpi::allocate_cpi_bytes, native_compression::process_token_compression,
         sum_check::sum_check_multi_mint, token_inputs::set_input_compressed_accounts,
         token_outputs::set_output_compressed_accounts,
     },
-    shared::cpi::execute_cpi_invoke,
 };
 
 /// Process a token transfer instruction
@@ -33,12 +31,12 @@ use crate::{
 /// 5.  Serialize and add token_data data to in compressed_accounts.
 /// 6.  Invoke light_system_program::execute_compressed_transaction.
 #[inline(always)]
-pub fn process_multi_transfer(
+pub fn process_transfer2(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Parse instruction data first to determine optional accounts
-    let (inputs, _) = CompressedTokenInstructionDataMultiTransfer::zero_copy_at(instruction_data)
+    let (inputs, _) = CompressedTokenInstructionDataTransfer2::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 
     // Check CPI context validity (multi-transfer modifies Solana account state)
@@ -61,8 +59,8 @@ pub fn process_multi_transfer(
     let with_cpi_context = inputs.cpi_context.is_some();
 
     // Skip first account (light-system-program) and validate remaining accounts
-    let (validated_accounts, packed_accounts) = MultiTransferValidatedAccounts::validate_and_parse(
-        &accounts[MultiTransferValidatedAccounts::CPI_ACCOUNTS_OFFSET..],
+    let (validated_accounts, packed_accounts) = Transfer2ValidatedAccounts::validate_and_parse(
+        &accounts[Transfer2ValidatedAccounts::CPI_ACCOUNTS_OFFSET..],
         with_sol_pool,
         with_cpi_context,
     )?;

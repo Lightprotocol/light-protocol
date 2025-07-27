@@ -11,7 +11,7 @@ use light_compressed_token_sdk::{
 use light_ctoken_types::{
     instructions::{
         mint_to_compressed::{CompressedMintInputs, Recipient},
-        multi_transfer::MultiInputTokenDataWithContext,
+        transfer2::MultiInputTokenDataWithContext,
     },
     COMPRESSED_MINT_SEED,
 };
@@ -28,7 +28,7 @@ use solana_sdk::{
 };
 
 #[tokio::test]
-async fn test_4_multi_transfer() {
+async fn test_4_transfer2() {
     // Initialize the test environment
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
@@ -55,8 +55,8 @@ async fn test_4_multi_transfer() {
         escrow_address
     );
 
-    // Test the four_multi_transfer instruction
-    test_four_multi_transfer_instruction(
+    // Test the four_transfer2 instruction
+    test_four_transfer2_instruction(
         &mut rpc,
         &payer,
         mint1_pda,
@@ -69,7 +69,7 @@ async fn test_4_multi_transfer() {
     .await
     .unwrap();
 
-    println!("✅ Successfully executed four_multi_transfer instruction");
+    println!("✅ Successfully executed four_transfer2 instruction");
 }
 
 async fn create_compressed_mints_and_tokens(
@@ -124,7 +124,7 @@ async fn create_compressed_mints_and_tokens(
         .expect("Compressed token account for mint1 should exist");
 
     let decompress_instruction =
-        light_token_client::instructions::multi_transfer::create_decompress_instruction(
+        light_token_client::instructions::transfer2::create_decompress_instruction(
             rpc,
             std::slice::from_ref(mint1_token_account),
             decompress_amount,
@@ -333,7 +333,7 @@ async fn create_compressed_escrow_pda(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn test_four_multi_transfer_instruction(
+async fn test_four_transfer2_instruction(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     mint1: Pubkey,
@@ -362,7 +362,7 @@ async fn test_four_multi_transfer_instruction(
 
     // Check if CPI context is available, otherwise this instruction can't work
     if tree_info.cpi_context.is_none() {
-        panic!("CPI context account is required for four_multi_transfer instruction but not available in tree_info");
+        panic!("CPI context account is required for four_transfer2 instruction but not available in tree_info");
     }
 
     let config = SystemAccountMetaConfig::new_with_cpi_context(
@@ -433,36 +433,35 @@ async fn test_four_multi_transfer_instruction(
         .unwrap()
         .packed_tree_infos[2];
 
-    // Create FourMultiTransferParams
-    let four_multi_transfer_params =
-        sdk_token_test::process_four_multi_transfer::FourMultiTransferParams {
-            compress_1: sdk_token_test::process_four_multi_transfer::CompressParams {
-                mint: remaining_accounts.insert_or_get(mint1),
-                amount: 500,
-                recipient: remaining_accounts.insert_or_get(payer.pubkey()),
-                solana_token_account: remaining_accounts.insert_or_get(token_account_1),
-            },
-            transfer_2: sdk_token_test::process_four_multi_transfer::TransferParams {
-                transfer_amount: 300,
-                token_metas: vec![pack_input_token_account(
-                    &mint2_token_account,
-                    &mint2_tree_info,
-                    &mut remaining_accounts,
-                    &mut Vec::new(),
-                )],
-                recipient: remaining_accounts.insert_or_get(payer.pubkey()),
-            },
-            transfer_3: sdk_token_test::process_four_multi_transfer::TransferParams {
-                transfer_amount: 200,
-                token_metas: vec![pack_input_token_account(
-                    &mint3_token_account,
-                    &mint3_tree_info,
-                    &mut remaining_accounts,
-                    &mut Vec::new(),
-                )],
-                recipient: remaining_accounts.insert_or_get(payer.pubkey()),
-            },
-        };
+    // Create FourTransfer2Params
+    let four_transfer2_params = sdk_token_test::process_four_transfer2::FourTransfer2Params {
+        compress_1: sdk_token_test::process_four_transfer2::CompressParams {
+            mint: remaining_accounts.insert_or_get(mint1),
+            amount: 500,
+            recipient: remaining_accounts.insert_or_get(payer.pubkey()),
+            solana_token_account: remaining_accounts.insert_or_get(token_account_1),
+        },
+        transfer_2: sdk_token_test::process_four_transfer2::TransferParams {
+            transfer_amount: 300,
+            token_metas: vec![pack_input_token_account(
+                &mint2_token_account,
+                &mint2_tree_info,
+                &mut remaining_accounts,
+                &mut Vec::new(),
+            )],
+            recipient: remaining_accounts.insert_or_get(payer.pubkey()),
+        },
+        transfer_3: sdk_token_test::process_four_transfer2::TransferParams {
+            transfer_amount: 200,
+            token_metas: vec![pack_input_token_account(
+                &mint3_token_account,
+                &mint3_tree_info,
+                &mut remaining_accounts,
+                &mut Vec::new(),
+            )],
+            recipient: remaining_accounts.insert_or_get(payer.pubkey()),
+        },
+    };
 
     // Create PdaParams - escrow PDA uses tree info index 0
     let escrow_tree_info = packed_tree_info
@@ -502,12 +501,12 @@ async fn test_four_multi_transfer_instruction(
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
         accounts,
-        data: sdk_token_test::instruction::FourMultiTransfer {
+        data: sdk_token_test::instruction::FourTransfer2 {
             output_tree_index,
             proof: rpc_result.proof,
             system_accounts_start_offset: system_accounts_start_offset as u8,
             packed_accounts_start_offset: tree_accounts_start_offset as u8,
-            four_multi_transfer_params,
+            four_transfer2_params,
             pda_params,
         }
         .data(),

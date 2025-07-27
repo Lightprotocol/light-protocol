@@ -2,12 +2,12 @@ use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_token_sdk::{
     account2::CTokenAccount2,
     error::TokenSdkError,
-    instructions::multi_transfer::{
-        account_metas::MultiTransferAccountsMetaConfig, create_multi_transfer_instruction_raw,
-        MultiTransferConfig, MultiTransferInputsRaw,
+    instructions::transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction_raw,
+        Transfer2Config, Transfer2InputsRaw,
     },
 };
-use light_ctoken_types::instructions::multi_transfer::MultiInputTokenDataWithContext;
+use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -50,9 +50,9 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     solana_token_account: Pubkey,
     payer: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
-    create_generic_multi_transfer_instruction(
+    create_generic_transfer2_instruction(
         rpc,
-        vec![MultiTransferInstructionType::Decompress(DecompressInput {
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
             compressed_token_account,
             decompress_amount,
             solana_token_account,
@@ -82,26 +82,26 @@ pub struct CompressInput<'a> {
     pub amount: u64,
     pub output_queue: Pubkey,
 }
-pub enum MultiTransferInstructionType<'a> {
+pub enum Transfer2InstructionType<'a> {
     Compress(CompressInput<'a>),
     Decompress(DecompressInput<'a>),
     Transfer(TransferInput<'a>),
 }
 
 // Note doesn't support multiple signers.
-pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
+pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
-    actions: Vec<MultiTransferInstructionType<'_>>,
+    actions: Vec<Transfer2InstructionType<'_>>,
     payer: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     let mut hashes = Vec::new();
     actions.iter().for_each(|account| match account {
-        MultiTransferInstructionType::Compress(_) => {}
-        MultiTransferInstructionType::Decompress(input) => input
+        Transfer2InstructionType::Compress(_) => {}
+        Transfer2InstructionType::Decompress(input) => input
             .compressed_token_account
             .iter()
             .for_each(|account| hashes.push(account.account.hash)),
-        MultiTransferInstructionType::Transfer(input) => input
+        Transfer2InstructionType::Transfer(input) => input
             .compressed_token_account
             .iter()
             .for_each(|account| hashes.push(account.account.hash)),
@@ -121,7 +121,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
     let mut token_accounts = Vec::new();
     for action in actions {
         match action {
-            MultiTransferInstructionType::Compress(input) => {
+            Transfer2InstructionType::Compress(input) => {
                 let mut token_account =
                     if let Some(input_token_account) = input.compressed_token_account {
                         let token_data = input_token_account
@@ -163,7 +163,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
                 token_account.compress(input.amount, source_index)?;
                 token_accounts.push(token_account);
             }
-            MultiTransferInstructionType::Decompress(input) => {
+            Transfer2InstructionType::Decompress(input) => {
                 let token_data = input
                     .compressed_token_account
                     .iter()
@@ -206,7 +206,7 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
 
                 token_accounts.push(token_account);
             }
-            MultiTransferInstructionType::Transfer(input) => {
+            Transfer2InstructionType::Transfer(input) => {
                 let token_data = input
                     .compressed_token_account
                     .iter()
@@ -255,10 +255,10 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
         }
     }
     let packed_accounts = packed_tree_accounts.to_account_metas().0;
-    let inputs = MultiTransferInputsRaw {
+    let inputs = Transfer2InputsRaw {
         validity_proof: rpc_proof_result.proof,
-        transfer_config: MultiTransferConfig::default(),
-        meta_config: MultiTransferAccountsMetaConfig {
+        transfer_config: Transfer2Config::default(),
+        meta_config: Transfer2AccountsMetaConfig {
             fee_payer: Some(payer),
             packed_accounts: Some(packed_accounts),
             ..Default::default()
@@ -275,5 +275,5 @@ pub async fn create_generic_multi_transfer_instruction<R: Rpc + Indexer>(
         },
         token_accounts,
     };
-    create_multi_transfer_instruction_raw(inputs)
+    create_transfer2_instruction_raw(inputs)
 }

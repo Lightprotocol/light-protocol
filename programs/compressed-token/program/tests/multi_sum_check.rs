@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::AnchorSerialize;
-use light_compressed_token::multi_transfer::sum_check::sum_check_multi_mint;
-use light_ctoken_types::instructions::multi_transfer::{
+use light_compressed_token::transfer2::sum_check::sum_check_multi_mint;
+use light_ctoken_types::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use light_zero_copy::borsh::Deserialize;

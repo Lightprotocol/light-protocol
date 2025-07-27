@@ -7,7 +7,7 @@ use crate::instructions::CTokenDefaultAccounts;
 
 /// Account metadata configuration for compressed token multi-transfer instructions
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct MultiTransferAccountsMetaConfig {
+pub struct Transfer2AccountsMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub sol_pool_pda: Option<Pubkey>,
     pub sol_decompression_recipient: Option<Pubkey>,
@@ -17,8 +17,8 @@ pub struct MultiTransferAccountsMetaConfig {
 }
 
 /// Get the standard account metas for a compressed token multi-transfer instruction
-pub fn get_multi_transfer_instruction_account_metas(
-    config: MultiTransferAccountsMetaConfig,
+pub fn get_transfer2_instruction_account_metas(
+    config: Transfer2AccountsMetaConfig,
 ) -> Vec<AccountMeta> {
     let default_pubkeys = CTokenDefaultAccounts::default();
     let packed_accounts_len = if let Some(packed_accounts) = config.packed_accounts.as_ref() {
@@ -27,7 +27,7 @@ pub fn get_multi_transfer_instruction_account_metas(
         0
     };
 
-    // Build the account metas following the order expected by MultiTransferValidatedAccounts
+    // Build the account metas following the order expected by Transfer2ValidatedAccounts
     let mut metas = Vec::with_capacity(10 + packed_accounts_len);
     metas.push(AccountMeta::new_readonly(
         Pubkey::new_from_array(LIGHT_SYSTEM_PROGRAM_ID),

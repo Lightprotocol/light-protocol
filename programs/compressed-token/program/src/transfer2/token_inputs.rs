@@ -1,21 +1,19 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 use light_ctoken_types::{
-    context::TokenContext,
-    instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer,
+    context::TokenContext, instructions::transfer2::ZCompressedTokenInstructionDataTransfer2,
 };
 
 use crate::{
-    multi_transfer::accounts::MultiTransferPackedAccounts,
-    shared::token_input::set_input_compressed_account,
+    shared::token_input::set_input_compressed_account, transfer2::accounts::Transfer2PackedAccounts,
 };
 
 /// Process input compressed accounts and return total input lamports
 pub fn set_input_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     context: &mut TokenContext,
-    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
-    packed_accounts: &MultiTransferPackedAccounts,
+    inputs: &ZCompressedTokenInstructionDataTransfer2,
+    packed_accounts: &Transfer2PackedAccounts,
 ) -> Result<u64, ProgramError> {
     let mut total_input_lamports = 0u64;
 

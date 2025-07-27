@@ -16,7 +16,7 @@ use light_compressed_token::{
     },
 };
 use light_ctoken_types::{
-    context::TokenContext, instructions::multi_transfer::MultiInputTokenDataWithContext,
+    context::TokenContext, instructions::transfer2::MultiInputTokenDataWithContext,
     state::AccountState,
 };
 use light_sdk::instruction::PackedMerkleContext;

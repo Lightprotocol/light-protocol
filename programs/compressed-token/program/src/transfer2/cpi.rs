@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
-use light_ctoken_types::instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer;
+use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 
 use crate::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
@@ -8,7 +8,7 @@ use crate::shared::cpi_bytes_size::{
 
 /// Build CPI configuration from instruction data
 pub fn allocate_cpi_bytes(
-    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
+    inputs: &ZCompressedTokenInstructionDataTransfer2,
 ) -> (Vec<u8>, InstructionDataInvokeCpiWithReadOnlyConfig) {
     // Build CPI configuration based on delegate flags
     let mut input_delegate_flags = ArrayVec::new();
@@ -33,7 +33,7 @@ pub fn allocate_cpi_bytes(
         has_proof: inputs.proof.is_some(),
         compressed_mint: false,
         compressed_mint_with_freeze_authority: false,
-        extensions_config: vec![], // TODO: Add extensions support for multi_transfer
+        extensions_config: vec![], // TODO: Add extensions support for transfer2
     };
     let config = cpi_bytes_config(config_input);
     (allocate_invoke_with_read_only_cpi_bytes(&config), config)

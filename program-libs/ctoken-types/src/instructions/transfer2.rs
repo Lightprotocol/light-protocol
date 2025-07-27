@@ -222,7 +222,7 @@ impl ZCompression<'_> {
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
-pub struct CompressedTokenInstructionDataMultiTransfer {
+pub struct CompressedTokenInstructionDataTransfer2 {
     pub with_transaction_hash: bool,
     pub with_lamports_change_account_merkle_tree_index: bool,
     // Set zero if unused
@@ -244,7 +244,7 @@ pub struct CompressedTokenInstructionDataMultiTransfer {
 
 /// Validate instruction data consistency (lamports and TLV checks)
 pub fn validate_instruction_data(
-    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
+    inputs: &ZCompressedTokenInstructionDataTransfer2,
 ) -> Result<(), crate::CTokenError> {
     if let Some(ref in_lamports) = inputs.in_lamports {
         if in_lamports.len() != inputs.in_token_data.len() {

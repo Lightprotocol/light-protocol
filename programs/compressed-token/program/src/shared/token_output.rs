@@ -7,9 +7,7 @@ use anchor_lang::{
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
-use light_ctoken_types::{
-    context::TokenContext, instructions::multi_transfer::TokenAccountVersion,
-};
+use light_ctoken_types::{context::TokenContext, instructions::transfer2::TokenAccountVersion};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]

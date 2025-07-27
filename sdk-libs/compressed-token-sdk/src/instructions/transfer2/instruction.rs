@@ -1,9 +1,6 @@
-use light_compressed_token_types::{
-    constants::MULTI_TRANSFER, CompressedCpiContext, ValidityProof,
-};
+use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, ValidityProof};
 use light_ctoken_types::{
-    instructions::multi_transfer::CompressedTokenInstructionDataMultiTransfer,
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    instructions::transfer2::CompressedTokenInstructionDataTransfer2, COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -11,14 +8,14 @@ use solana_pubkey::Pubkey;
 use crate::{
     account2::CTokenAccount2,
     error::{Result, TokenSdkError},
-    instructions::multi_transfer::account_metas::{
-        get_multi_transfer_instruction_account_metas, MultiTransferAccountsMetaConfig,
+    instructions::transfer2::account_metas::{
+        get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
     },
     AnchorSerialize,
 };
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
-pub struct MultiTransferConfig {
+pub struct Transfer2Config {
     pub cpi_context_pubkey: Option<Pubkey>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub with_transaction_hash: bool,
@@ -27,7 +24,7 @@ pub struct MultiTransferConfig {
     pub filter_zero_amount_outputs: bool,
 }
 
-impl MultiTransferConfig {
+impl Transfer2Config {
     pub fn new() -> Self {
         Default::default()
     }
@@ -61,11 +58,11 @@ impl MultiTransferConfig {
 
 /// Multi-transfer input parameters
 #[derive(Debug, Clone, PartialEq)]
-pub struct MultiTransferInputsRaw {
+pub struct Transfer2InputsRaw {
     pub token_accounts: Vec<CTokenAccount2>,
     pub validity_proof: ValidityProof,
-    pub transfer_config: MultiTransferConfig,
-    pub meta_config: MultiTransferAccountsMetaConfig,
+    pub transfer_config: Transfer2Config,
+    pub meta_config: Transfer2AccountsMetaConfig,
     // pub tree_pubkeys: Vec<Pubkey>,
     // pub packed_pubkeys: Vec<Pubkey>, // Owners, Delegates, Mints
     pub in_lamports: Option<Vec<u64>>,
@@ -73,10 +70,8 @@ pub struct MultiTransferInputsRaw {
 }
 
 /// Create the instruction for compressed token multi-transfer operations
-pub fn create_multi_transfer_instruction_raw(
-    inputs: MultiTransferInputsRaw,
-) -> Result<Instruction> {
-    let MultiTransferInputsRaw {
+pub fn create_transfer2_instruction_raw(inputs: Transfer2InputsRaw) -> Result<Instruction> {
+    let Transfer2InputsRaw {
         token_accounts,
         validity_proof,
         transfer_config,
@@ -106,7 +101,7 @@ pub fn create_multi_transfer_instruction_raw(
     }
 
     // Create instruction data
-    let instruction_data = CompressedTokenInstructionDataMultiTransfer {
+    let instruction_data = CompressedTokenInstructionDataTransfer2 {
         with_transaction_hash: transfer_config.with_transaction_hash,
         with_lamports_change_account_merkle_tree_index: false, // TODO: support in future
         lamports_change_account_merkle_tree_index: 0,
@@ -137,11 +132,11 @@ pub fn create_multi_transfer_instruction_raw(
 
     // Build instruction data with discriminator
     let mut data = Vec::with_capacity(1 + serialized.len());
-    data.push(MULTI_TRANSFER);
+    data.push(TRANSFER2);
     data.extend(serialized);
 
     // Get account metas
-    let mut account_metas = get_multi_transfer_instruction_account_metas(meta_config);
+    let mut account_metas = get_transfer2_instruction_account_metas(meta_config);
 
     // Add CPI context account if configured
     if let Some(cpi_context_pubkey) = transfer_config.cpi_context_pubkey {
@@ -169,8 +164,8 @@ pub fn create_multi_transfer_instruction_raw(
 
 /*
 /// Create a multi-transfer instruction
-pub fn multi_transfer(inputs: MultiTransferInputs) -> Result<Instruction> {
-    let MultiTransferInputs {
+pub fn transfer2(inputs: Transfer2Inputs) -> Result<Instruction> {
+    let Transfer2Inputs {
         fee_payer,
         authority,
         validity_proof,
@@ -187,14 +182,14 @@ pub fn multi_transfer(inputs: MultiTransferInputs) -> Result<Instruction> {
     }
 
     let config = config.unwrap_or_default();
-    let meta_config = MultiTransferAccountsMetaConfig::new(fee_payer, authority)
+    let meta_config = Transfer2AccountsMetaConfig::new(fee_payer, authority)
         .with_sol_pool(
             config.sol_pool_pda.unwrap_or_default(),
             config.sol_decompression_recipient.unwrap_or_default(),
         )
         .with_cpi_context();
 
-    create_multi_transfer_instruction_raw(
+    create_transfer2_instruction_raw(
         token_accounts,
         validity_proof,
         config,

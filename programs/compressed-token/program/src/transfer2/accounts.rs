@@ -1,13 +1,13 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
-use light_ctoken_types::instructions::multi_transfer::ZCompressedTokenInstructionDataMultiTransfer;
+use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::shared::AccountIterator;
 
 /// Validated system accounts for multi-transfer instruction
 /// Accounts are ordered to match light-system-program CPI expectation
-pub struct MultiTransferValidatedAccounts<'info> {
+pub struct Transfer2ValidatedAccounts<'info> {
     /// Fee payer account (index 0) - signer, mutable
     pub fee_payer: &'info AccountInfo,
     /// CPI authority PDA (index 1) - signer (via CPI)
@@ -34,12 +34,12 @@ pub struct MultiTransferValidatedAccounts<'info> {
 
 /// Dynamic accounts slice for index-based access
 /// Contains mint, owner, delegate, merkle tree, and queue accounts
-pub struct MultiTransferPackedAccounts<'info> {
+pub struct Transfer2PackedAccounts<'info> {
     /// Packed accounts slice starting at index 11
     pub accounts: &'info [AccountInfo],
 }
 
-impl MultiTransferPackedAccounts<'_> {
+impl Transfer2PackedAccounts<'_> {
     /// Get account by index with bounds checking
     pub fn get(&self, index: usize) -> Result<&AccountInfo, ProgramError> {
         self.accounts
@@ -53,18 +53,18 @@ impl MultiTransferPackedAccounts<'_> {
     }
 }
 
-impl MultiTransferValidatedAccounts<'_> {
+impl Transfer2ValidatedAccounts<'_> {
     // The offset of 1 skips the light-system-program account (index 0)
     pub const CPI_ACCOUNTS_OFFSET: usize = 1;
 }
 
-impl<'info> MultiTransferValidatedAccounts<'info> {
+impl<'info> Transfer2ValidatedAccounts<'info> {
     /// Validate and parse accounts from the instruction accounts slice
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
         with_sol_pool: bool,
         with_cpi_context: bool,
-    ) -> Result<(Self, MultiTransferPackedAccounts<'info>), ProgramError> {
+    ) -> Result<(Self, Transfer2PackedAccounts<'info>), ProgramError> {
         // Parse system accounts from fixed positions
         let mut iter = AccountIterator::new(accounts);
         let fee_payer = iter.next_account()?;
@@ -102,7 +102,7 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
         // Extract remaining accounts slice for dynamic indexing
         let remaining_accounts = iter.remaining();
 
-        let validated_accounts = MultiTransferValidatedAccounts {
+        let validated_accounts = Transfer2ValidatedAccounts {
             fee_payer,
             authority,
             registered_program_pda,
@@ -116,7 +116,7 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
             cpi_context_account,
         };
 
-        let packed_accounts = MultiTransferPackedAccounts {
+        let packed_accounts = Transfer2PackedAccounts {
             accounts: remaining_accounts,
         };
 
@@ -139,8 +139,8 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
     pub fn cpi_accounts(
         &self,
         all_accounts: &'info [AccountInfo],
-        inputs: &ZCompressedTokenInstructionDataMultiTransfer,
-        packed_accounts: &'info MultiTransferPackedAccounts<'info>,
+        inputs: &ZCompressedTokenInstructionDataTransfer2,
+        packed_accounts: &'info Transfer2PackedAccounts<'info>,
     ) -> (&'info [AccountInfo], Vec<&'info Pubkey>) {
         // Extract tree accounts using highest index approach
         let (tree_accounts, tree_accounts_count) = extract_tree_accounts(inputs, packed_accounts);
@@ -160,8 +160,8 @@ impl<'info> MultiTransferValidatedAccounts<'info> {
 // TODO: unit test.
 /// Extract tree accounts by finding the highest tree index and using it as closing offset
 pub fn extract_tree_accounts<'info>(
-    inputs: &ZCompressedTokenInstructionDataMultiTransfer,
-    packed_accounts: &'info MultiTransferPackedAccounts<'info>,
+    inputs: &ZCompressedTokenInstructionDataTransfer2,
+    packed_accounts: &'info Transfer2PackedAccounts<'info>,
 ) -> (Vec<&'info Pubkey>, usize) {
     // Find highest tree index from input and output data to determine tree accounts range
     let mut highest_tree_index = 0u8;

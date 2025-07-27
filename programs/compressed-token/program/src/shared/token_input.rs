@@ -4,7 +4,7 @@ use light_account_checks::checks::check_signer;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
     context::TokenContext,
-    instructions::multi_transfer::{TokenAccountVersion, ZMultiInputTokenDataWithContext},
+    instructions::transfer2::{TokenAccountVersion, ZMultiInputTokenDataWithContext},
 };
 use pinocchio::account_info::AccountInfo;
 

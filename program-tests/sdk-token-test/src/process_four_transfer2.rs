@@ -2,12 +2,12 @@ use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
     account2::CTokenAccount2,
-    instructions::multi_transfer::{
-        account_metas::MultiTransferAccountsMetaConfig, create_multi_transfer_instruction_raw,
-        MultiTransferConfig, MultiTransferInputsRaw,
+    instructions::transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction_raw,
+        Transfer2Config, Transfer2InputsRaw,
     },
 };
-use light_ctoken_types::instructions::multi_transfer::MultiInputTokenDataWithContext;
+use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_sdk::{cpi::CpiAccounts, instruction::ValidityProof as LightValidityProof};
 use light_sdk_types::CpiAccountsConfig;
 
@@ -29,19 +29,19 @@ pub struct CompressParams {
 }
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct FourMultiTransferParams {
+pub struct FourTransfer2Params {
     pub compress_1: CompressParams,
     pub transfer_2: TransferParams,
     pub transfer_3: TransferParams,
 }
 
-pub fn process_four_multi_transfer<'info>(
+pub fn process_four_transfer2<'info>(
     ctx: Context<'_, '_, '_, 'info, crate::Generic<'info>>,
     output_tree_index: u8,
     proof: LightValidityProof,
     system_accounts_start_offset: u8,
     packed_accounts_start_offset: u8,
-    four_invokes_params: FourMultiTransferParams,
+    four_invokes_params: FourTransfer2Params,
     pda_params: PdaParams,
 ) -> Result<()> {
     // Debug prints for CPI struct values
@@ -196,9 +196,9 @@ pub fn process_four_multi_transfer<'info>(
         }
         msg!("packed_accounts {:?}", packed_accounts);
 
-        let inputs = MultiTransferInputsRaw {
+        let inputs = Transfer2InputsRaw {
             validity_proof: proof,
-            transfer_config: MultiTransferConfig {
+            transfer_config: Transfer2Config {
                 cpi_context: Some(CompressedCpiContext {
                     set_context: true,
                     first_set_context: true,
@@ -206,7 +206,7 @@ pub fn process_four_multi_transfer<'info>(
                 }),
                 ..Default::default()
             },
-            meta_config: MultiTransferAccountsMetaConfig {
+            meta_config: Transfer2AccountsMetaConfig {
                 fee_payer: Some(*ctx.accounts.signer.key),
                 packed_accounts: Some(packed_accounts), // TODO: test that if we were to set the cpi context we don't have to pass packed accounts. (only works with transfers)
                 cpi_context: Some(*cpi_accounts.cpi_context().unwrap().key),
@@ -222,8 +222,7 @@ pub fn process_four_multi_transfer<'info>(
                 transfer_recipient3,
             ],
         };
-        let instruction =
-            create_multi_transfer_instruction_raw(inputs).map_err(ProgramError::from)?;
+        let instruction = create_transfer2_instruction_raw(inputs).map_err(ProgramError::from)?;
 
         let account_infos = [
             &[cpi_accounts.fee_payer().clone()][..],
@@ -232,7 +231,7 @@ pub fn process_four_multi_transfer<'info>(
         .concat();
         invoke(&instruction, account_infos.as_slice())?;
     }
-    // TODO: reverse order to 1. process_update_escrow_pda, 2. create_multi_transfer_instruction_raw
+    // TODO: reverse order to 1. process_update_escrow_pda, 2. create_transfer2_instruction_raw
 
     // Invocation 4: Execute CPI context with system program
     process_update_escrow_pda(cpi_accounts, pda_params, proof, 0)?;

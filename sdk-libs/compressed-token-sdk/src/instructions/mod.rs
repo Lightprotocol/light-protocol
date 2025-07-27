@@ -7,8 +7,8 @@ mod create_spl_mint;
 pub mod create_token_account;
 pub mod ctoken_accounts;
 pub mod mint_to_compressed;
-pub mod multi_transfer;
 pub mod transfer;
+pub mod transfer2;
 
 // Re-export all instruction utilities
 pub use approve::{

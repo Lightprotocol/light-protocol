@@ -13,8 +13,8 @@ pub mod create_token_account;
 pub mod extensions;
 pub mod mint;
 pub mod mint_to_compressed;
-pub mod multi_transfer;
 pub mod shared;
+pub mod transfer2;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
@@ -40,7 +40,7 @@ pub enum InstructionType {
     MintToCompressed = 101,
     CreateSplMint = 102,
     CreateAssociatedTokenAccount = 103,
-    MultiTransfer = 104,
+    Transfer2 = 104,
     CreateTokenAccount = 18, // equivalen to SPL Token InitializeAccount3
     Other,
 }
@@ -54,7 +54,7 @@ impl From<u8> for InstructionType {
             101 => InstructionType::MintToCompressed,
             102 => InstructionType::CreateSplMint,
             103 => InstructionType::CreateAssociatedTokenAccount, // TODO: double check compatibility
-            104 => InstructionType::MultiTransfer,
+            104 => InstructionType::Transfer2,
             18 => InstructionType::CreateTokenAccount,
             _ => InstructionType::Other,
         }
@@ -65,7 +65,7 @@ impl From<u8> for InstructionType {
 use pinocchio::program_entrypoint;
 
 use crate::{
-    convert_account_infos::convert_account_infos, multi_transfer::processor::process_multi_transfer,
+    convert_account_infos::convert_account_infos, transfer2::processor::process_transfer2,
 };
 
 #[cfg(not(feature = "cpi"))]
@@ -118,9 +118,9 @@ pub fn process_instruction(
             anchor_lang::solana_program::msg!("CloseTokenAccount");
             process_close_token_account(accounts, &instruction_data[1..])?;
         }
-        InstructionType::MultiTransfer => {
-            anchor_lang::solana_program::msg!("MultiTransfer");
-            process_multi_transfer(accounts, &instruction_data[1..])?;
+        InstructionType::Transfer2 => {
+            anchor_lang::solana_program::msg!("Transfer2");
+            process_transfer2(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => {
