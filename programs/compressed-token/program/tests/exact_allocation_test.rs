@@ -274,7 +274,7 @@ fn test_allocation_with_various_metadata_sizes() {
             has_proof: false,
             compressed_mint: true,
             compressed_mint_with_freeze_authority: false,
-            extensions_config: extensions_config,
+            extensions_config,
         };
 
         let config = cpi_bytes_config(config_input);

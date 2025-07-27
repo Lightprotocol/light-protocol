@@ -51,7 +51,7 @@ pub fn process_update_escrow_pda(
             .map_err(ProgramError::from)?]),
         new_addresses: None,
         cpi_context: Some(CompressedCpiContext {
-            set_context: set_context,
+            set_context,
             first_set_context: set_context,
             // change to bool works well.
             cpi_context_account_index: 0, // seems to be useless. Seems to be unused.

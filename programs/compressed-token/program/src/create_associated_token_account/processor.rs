@@ -14,7 +14,7 @@ use crate::shared::initialize_token_account::initialize_token_account;
 /// - we don't validate the mint because it would be very expensive with compressed mints
 /// - it is possible to create an associated token account for non existing mints
 /// - accounts with non existing mints can never have a balance
-/// Process the create associated token account instruction
+///   Process the create associated token account instruction
 pub fn process_create_associated_token_account(
     account_infos: &[AccountInfo],
     instruction_data: &[u8],

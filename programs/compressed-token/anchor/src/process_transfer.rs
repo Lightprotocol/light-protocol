@@ -678,9 +678,8 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         }
 
         // Determine discriminator based on tree type
-        let discriminator_bytes = &remaining_accounts[input_token_data
-            .merkle_context
-            .merkle_tree_pubkey_index as usize]
+        let discriminator_bytes = &remaining_accounts
+            [input_token_data.merkle_context.merkle_tree_pubkey_index as usize]
             .try_borrow_data()?[0..8];
         let discriminator = get_token_account_discriminator(discriminator_bytes)?;
 

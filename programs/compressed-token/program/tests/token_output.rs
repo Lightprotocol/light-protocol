@@ -128,10 +128,10 @@ fn test_rnd_create_output_compressed_accounts() {
             let account_lamports = lamports_vec[i].unwrap_or(0);
 
             let token_data = AnchorTokenData {
-                mint: mint_pubkey.into(),
-                owner: owner_pubkeys[i].into(),
+                mint: mint_pubkey,
+                owner: owner_pubkeys[i],
                 amount: amounts[i],
-                delegate: token_delegate.map(|d| d.into()),
+                delegate: token_delegate,
                 state: AccountState::Initialized,
                 tlv: None,
             };

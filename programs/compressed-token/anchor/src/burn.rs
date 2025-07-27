@@ -318,6 +318,7 @@ mod test {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::compressed_account::PackedMerkleContext;
+    use light_ctoken_types::state::AccountState;
     use rand::Rng;
 
     use super::*;
@@ -328,7 +329,6 @@ mod test {
         },
         TokenData,
     };
-    use light_ctoken_types::state::AccountState;
 
     // TODO: add randomized and edge case tests
     #[test]
@@ -514,9 +514,8 @@ mod test {
                 &authority,
                 remaining_accounts
                     .iter()
-                    .map(|x| x.key.into())
-                    .cloned()
-                    .collect::<Vec<_>>()
+                    .map(|x| *x.key)
+                    .collect::<Vec<Pubkey>>()
                     .as_slice(),
             );
             assert_eq!(compressed_input_accounts, expected_input_accounts);

@@ -31,6 +31,7 @@ use light_zero_copy::ZeroCopyNew;
 use rand::Rng;
 
 // Function to create expected input account
+#[allow(clippy::too_many_arguments)]
 fn create_expected_input_account(
     mint_pda: Pubkey,
     input_supply: u64,
@@ -75,6 +76,7 @@ fn create_expected_input_account(
 }
 
 // Function to create expected output account
+#[allow(clippy::too_many_arguments)]
 fn create_expected_output_account(
     mint_pda: Pubkey,
     output_supply: u64,
@@ -270,7 +272,7 @@ fn test_rnd_create_compressed_mint_account() {
             None
         };
 
-        let mint_authority = Some(Pubkey::new_from_array(rng.gen::<[u8; 32]>()));
+        let mint_authority = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
 
         // Generate version for use in extensions
         let version = 0; // rng.gen_range(0..=255u8);
@@ -304,7 +306,7 @@ fn test_rnd_create_compressed_mint_account() {
             input_supply,
             decimals,
             is_decompressed,
-            mint_authority,
+            Some(mint_authority),
             freeze_authority,
             version,
             expected_extensions.clone(),
@@ -321,7 +323,7 @@ fn test_rnd_create_compressed_mint_account() {
             output_supply,
             decimals,
             is_decompressed,
-            mint_authority,
+            Some(mint_authority),
             freeze_authority,
             version,
             expected_extensions.clone(),
@@ -373,7 +375,7 @@ fn test_rnd_create_compressed_mint_account() {
                 supply: input_supply,
                 decimals,
                 is_decompressed,
-                mint_authority,
+                mint_authority: Some(mint_authority),
                 freeze_authority,
                 version,
                 extensions: expected_extensions.clone(),
@@ -410,7 +412,7 @@ fn test_rnd_create_compressed_mint_account() {
             light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData::zero_copy_at(&input_data).unwrap();
 
         let mut context = TokenContext::new();
-        let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.unwrap().into());
+        let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.into());
         light_compressed_token::mint::mint_input::create_input_compressed_mint_account(
             input_account,
             &mut context,
@@ -452,7 +454,7 @@ fn test_rnd_create_compressed_mint_account() {
             mint_pda,
             decimals,
             freeze_authority,
-            mint_authority,
+            Some(mint_authority),
             output_supply.into(),
             mint_config,
             compressed_account_address,

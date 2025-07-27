@@ -320,13 +320,12 @@ pub mod sdk {
 pub mod test_freeze {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
-    use light_compressed_account::compressed_account::PackedMerkleContext;
+    use light_compressed_account::{compressed_account::PackedMerkleContext, Pubkey};
     use light_ctoken_types::state::AccountState;
     use rand::Rng;
 
     use super::*;
     use crate::{constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, TokenData};
-    use light_compressed_account::Pubkey;
 
     // TODO: add randomized and edge case tests
     #[test]

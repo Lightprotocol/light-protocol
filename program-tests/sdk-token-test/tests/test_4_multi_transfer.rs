@@ -1,6 +1,4 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
-use light_compressed_account;
-use light_compressed_token;
 use light_compressed_token_sdk::{
     instructions::{
         create_compressed_mint, create_mint_to_compressed_instruction, CTokenDefaultAccounts,
@@ -444,7 +442,7 @@ async fn test_four_transfer2_instruction(
         transfer_2: sdk_token_test::process_four_transfer2::TransferParams {
             transfer_amount: 300,
             token_metas: vec![pack_input_token_account(
-                &mint2_token_account,
+                mint2_token_account,
                 &mint2_tree_info,
                 &mut remaining_accounts,
                 &mut Vec::new(),
@@ -454,7 +452,7 @@ async fn test_four_transfer2_instruction(
         transfer_3: sdk_token_test::process_four_transfer2::TransferParams {
             transfer_amount: 200,
             token_metas: vec![pack_input_token_account(
-                &mint3_token_account,
+                mint3_token_account,
                 &mint3_tree_info,
                 &mut remaining_accounts,
                 &mut Vec::new(),

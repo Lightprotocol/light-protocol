@@ -977,8 +977,8 @@ async fn test_create_and_close_token_account() {
         .expect("Failed to parse token account data");
 
     // Verify the token account fields
-    assert_eq!(Pubkey::from(pod_account.mint), mint_pubkey);
-    assert_eq!(Pubkey::from(pod_account.owner), owner_pubkey);
+    assert_eq!(pod_account.mint, mint_pubkey);
+    assert_eq!(pod_account.owner, owner_pubkey);
     assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
     assert_eq!(pod_account.state, AccountState::Initialized as u8);
 
@@ -1137,7 +1137,7 @@ async fn test_create_and_close_account_with_rent_authority() {
         token_account_info.data.len(),
         COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
     );
-    assert!(token_account_info.executable == false);
+    assert!(!token_account_info.executable);
     assert!(token_account_info.lamports > 0); // Should be rent-exempt
 
     let expected_token_account = CompressedToken {
@@ -1354,8 +1354,8 @@ async fn test_create_associated_token_account() {
             .expect("Failed to parse token account data");
 
         // Verify the token account fields
-        assert_eq!(Pubkey::from(pod_account.mint), mint_pubkey);
-        assert_eq!(Pubkey::from(pod_account.owner), owner_pubkey);
+        assert_eq!(pod_account.mint, mint_pubkey);
+        assert_eq!(pod_account.owner, owner_pubkey);
         assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
         assert_eq!(pod_account.state, AccountState::Initialized as u8);
 
@@ -1680,7 +1680,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
         assert_eq!(actual_compressed_mint.spl_mint, mint_pda);
         assert_eq!(actual_compressed_mint.supply, 0);
         assert_eq!(actual_compressed_mint.decimals, decimals);
-        assert_eq!(actual_compressed_mint.is_decompressed, false);
+        assert!(!actual_compressed_mint.is_decompressed);
         assert_eq!(
             actual_compressed_mint.mint_authority,
             Some(mint_authority.into())

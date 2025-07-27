@@ -306,7 +306,7 @@ fn test_compressed_token_equivalent_to_pod_account() {
         println!("Pod Account: {:?}", pod_account);
         assert!(compare_compressed_token_with_pod_account(
             &compressed_token,
-            &pod_account
+            pod_account
         ));
         {
             let account_data_clone = account_data.clone();
@@ -319,7 +319,7 @@ fn test_compressed_token_equivalent_to_pod_account() {
 
             assert!(compare_compressed_token_mut_with_pod_account(
                 &compressed_token_mut,
-                &pod_account
+                pod_account
             ));
 
             // Test mutation: modify every mutable field in the zero-copy struct
@@ -367,7 +367,7 @@ fn test_compressed_token_equivalent_to_pod_account() {
             // Use the comparison function to verify all modifications
             assert!(compare_compressed_token_with_pod_account(
                 &modified_compressed_token,
-                &modified_pod_account
+                modified_pod_account
             ));
         }
     }
