@@ -183,6 +183,17 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 pub const BATCHED_DISCRIMINATOR: &[u8] = b"BatchMta";
 pub const OUTPUT_QUEUE_DISCRIMINATOR: &[u8] = b"queueacc";
 
+/// Helper function to determine the appropriate token account discriminator based on tree type
+pub fn get_token_account_discriminator(tree_discriminator: &[u8]) -> Result<[u8; 8]> {
+    match tree_discriminator {
+        StateMerkleTreeAccount::DISCRIMINATOR => Ok(TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR),
+        BATCHED_DISCRIMINATOR | OUTPUT_QUEUE_DISCRIMINATOR => {
+            Ok(TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR)
+        }
+        _ => err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch),
+    }
+}
+
 /// Creates output compressed accounts.
 /// Steps:
 /// 1. Allocate memory for token data.
@@ -277,13 +288,7 @@ pub fn create_output_compressed_accounts(
         )
         .map_err(ProgramError::from)?;
 
-        let discriminator = match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-            BATCHED_DISCRIMINATOR | OUTPUT_QUEUE_DISCRIMINATOR => {
-                TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR
-            }
-            _ => return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch),
-        };
+        let discriminator = get_token_account_discriminator(discriminator_bytes)?;
 
         let data = CompressedAccountData {
             discriminator,
@@ -672,9 +677,16 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             return err!(ErrorCode::DelegateSignerCheckFailed);
         }
 
+        // Determine discriminator based on tree type
+        let discriminator_bytes = &remaining_accounts[input_token_data
+            .merkle_context
+            .merkle_tree_pubkey_index as usize]
+            .try_borrow_data()?[0..8];
+        let discriminator = get_token_account_discriminator(discriminator_bytes)?;
+
         let compressed_account = InAccount {
             lamports: input_token_data.lamports.unwrap_or_default(),
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            discriminator,
             merkle_context: input_token_data.merkle_context,
             root_index: input_token_data.root_index,
             data_hash: [0u8; 32],

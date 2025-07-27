@@ -11,13 +11,10 @@ use light_compressed_account::{
 use light_ctoken_types::state::AccountState;
 
 use crate::{
-    constants::{
-        TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
-    },
     process_transfer::{
         add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
-        InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
+        get_token_account_discriminator, InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
     },
     FreezeInstruction, TokenData,
 };
@@ -180,11 +177,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         }
         .map_err(ProgramError::from)?;
 
-        let discriminator = match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-            BATCHED_DISCRIMINATOR => TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
-            _ => panic!(),
-        };
+        let discriminator = get_token_account_discriminator(discriminator_bytes)?;
 
         let data: CompressedAccountData = CompressedAccountData {
             discriminator,

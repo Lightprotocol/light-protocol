@@ -112,6 +112,7 @@ pub fn set_output_compressed_account(
 
         // Compute data hash using the anchor TokenData hash_with_hashed_values method
         let hashed_owner = context.get_or_hash_pubkey(&owner.into());
+        // TODO: extract into function
         let mut amount_bytes = [0u8; 32];
         match token_version {
             TokenAccountVersion::V1 => {
