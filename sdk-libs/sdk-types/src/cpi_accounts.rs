@@ -9,7 +9,7 @@ use crate::{
     CpiSigner,
 };
 
-#[derive(Debug, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CpiAccountsConfig {
     pub cpi_context: bool,
     pub sol_compression_recipient: bool,
@@ -61,7 +61,7 @@ pub enum CompressionCpiAccountIndex {
 }
 
 pub const SYSTEM_ACCOUNTS_LEN: usize = 11;
-
+#[derive(Debug, Clone, PartialEq)]
 pub struct CpiAccounts<'a, T: AccountInfoTrait + Clone> {
     fee_payer: &'a T,
     accounts: &'a [T],

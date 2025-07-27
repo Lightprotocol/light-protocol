@@ -44,96 +44,98 @@ pub fn process_four_transfer2<'info>(
     four_invokes_params: FourTransfer2Params,
     pda_params: PdaParams,
 ) -> Result<()> {
-    // Debug prints for CPI struct values
-    msg!("=== PROGRAM DEBUG - CPI STRUCT VALUES ===");
-    msg!("output_tree_index: {}", output_tree_index);
-    msg!(
-        "system_accounts_start_offset: {}",
-        system_accounts_start_offset
-    );
-    msg!(
-        "packed_accounts_start_offset: {}",
-        packed_accounts_start_offset
-    );
-    msg!("signer: {}", ctx.accounts.signer.key());
-
-    msg!("compress_1.mint: {}", four_invokes_params.compress_1.mint);
-    msg!(
-        "compress_1.amount: {}",
-        four_invokes_params.compress_1.amount
-    );
-    msg!(
-        "compress_1.recipient: {}",
-        four_invokes_params.compress_1.recipient
-    );
-    msg!(
-        "compress_1.solana_token_account: {}",
-        four_invokes_params.compress_1.solana_token_account
-    );
-
-    msg!(
-        "transfer_2.transfer_amount: {}",
-        four_invokes_params.transfer_2.transfer_amount
-    );
-    msg!(
-        "transfer_2.recipient: {}",
-        four_invokes_params.transfer_2.recipient
-    );
-    msg!(
-        "transfer_2.token_metas len: {}",
-        four_invokes_params.transfer_2.token_metas.len()
-    );
-    for (i, meta) in four_invokes_params
-        .transfer_2
-        .token_metas
-        .iter()
-        .enumerate()
     {
-        msg!("  transfer_2.token_metas[{}].amount: {}", i, meta.amount);
+        // Debug prints for CPI struct values
+        msg!("=== PROGRAM DEBUG - CPI STRUCT VALUES ===");
+        msg!("output_tree_index: {}", output_tree_index);
         msg!(
-            "  transfer_2.token_metas[{}].merkle_context.merkle_tree_pubkey_index: {}",
-            i,
-            meta.merkle_context.merkle_tree_pubkey_index
+            "system_accounts_start_offset: {}",
+            system_accounts_start_offset
         );
-        msg!("  transfer_2.token_metas[{}].mint: {}", i, meta.mint);
-        msg!("  transfer_2.token_metas[{}].owner: {}", i, meta.owner);
-    }
-
-    msg!(
-        "transfer_3.transfer_amount: {}",
-        four_invokes_params.transfer_3.transfer_amount
-    );
-    msg!(
-        "transfer_3.recipient: {}",
-        four_invokes_params.transfer_3.recipient
-    );
-    msg!(
-        "transfer_3.token_metas len: {}",
-        four_invokes_params.transfer_3.token_metas.len()
-    );
-    for (i, meta) in four_invokes_params
-        .transfer_3
-        .token_metas
-        .iter()
-        .enumerate()
-    {
-        msg!("  transfer_3.token_metas[{}].amount: {}", i, meta.amount);
         msg!(
-            "  transfer_3.token_metas[{}].merkle_context.merkle_tree_pubkey_index: {}",
-            i,
-            meta.merkle_context.merkle_tree_pubkey_index
+            "packed_accounts_start_offset: {}",
+            packed_accounts_start_offset
         );
-        msg!("  transfer_3.token_metas[{}].mint: {}", i, meta.mint);
-        msg!("  transfer_3.token_metas[{}].owner: {}", i, meta.owner);
-    }
+        msg!("signer: {}", ctx.accounts.signer.key());
 
-    msg!("pda_params.account_meta: {:?}", pda_params.account_meta);
-    msg!("pda_params.existing_amount: {}", pda_params.existing_amount);
+        msg!("compress_1.mint: {}", four_invokes_params.compress_1.mint);
+        msg!(
+            "compress_1.amount: {}",
+            four_invokes_params.compress_1.amount
+        );
+        msg!(
+            "compress_1.recipient: {}",
+            four_invokes_params.compress_1.recipient
+        );
+        msg!(
+            "compress_1.solana_token_account: {}",
+            four_invokes_params.compress_1.solana_token_account
+        );
 
-    // Debug remaining accounts
-    msg!("=== REMAINING ACCOUNTS ===");
-    for (i, account) in ctx.remaining_accounts.iter().enumerate() {
-        msg!("  {}: {}", i, anchor_lang::Key::key(account));
+        msg!(
+            "transfer_2.transfer_amount: {}",
+            four_invokes_params.transfer_2.transfer_amount
+        );
+        msg!(
+            "transfer_2.recipient: {}",
+            four_invokes_params.transfer_2.recipient
+        );
+        msg!(
+            "transfer_2.token_metas len: {}",
+            four_invokes_params.transfer_2.token_metas.len()
+        );
+        for (i, meta) in four_invokes_params
+            .transfer_2
+            .token_metas
+            .iter()
+            .enumerate()
+        {
+            msg!("  transfer_2.token_metas[{}].amount: {}", i, meta.amount);
+            msg!(
+                "  transfer_2.token_metas[{}].merkle_context.merkle_tree_pubkey_index: {}",
+                i,
+                meta.merkle_context.merkle_tree_pubkey_index
+            );
+            msg!("  transfer_2.token_metas[{}].mint: {}", i, meta.mint);
+            msg!("  transfer_2.token_metas[{}].owner: {}", i, meta.owner);
+        }
+
+        msg!(
+            "transfer_3.transfer_amount: {}",
+            four_invokes_params.transfer_3.transfer_amount
+        );
+        msg!(
+            "transfer_3.recipient: {}",
+            four_invokes_params.transfer_3.recipient
+        );
+        msg!(
+            "transfer_3.token_metas len: {}",
+            four_invokes_params.transfer_3.token_metas.len()
+        );
+        for (i, meta) in four_invokes_params
+            .transfer_3
+            .token_metas
+            .iter()
+            .enumerate()
+        {
+            msg!("  transfer_3.token_metas[{}].amount: {}", i, meta.amount);
+            msg!(
+                "  transfer_3.token_metas[{}].merkle_context.merkle_tree_pubkey_index: {}",
+                i,
+                meta.merkle_context.merkle_tree_pubkey_index
+            );
+            msg!("  transfer_3.token_metas[{}].mint: {}", i, meta.mint);
+            msg!("  transfer_3.token_metas[{}].owner: {}", i, meta.owner);
+        }
+
+        msg!("pda_params.account_meta: {:?}", pda_params.account_meta);
+        msg!("pda_params.existing_amount: {}", pda_params.existing_amount);
+
+        // Debug remaining accounts
+        msg!("=== REMAINING ACCOUNTS ===");
+        for (i, account) in ctx.remaining_accounts.iter().enumerate() {
+            msg!("  {}: {}", i, anchor_lang::Key::key(account));
+        }
     }
     // Parse CPI accounts once for the final system program invocation
     let config = CpiAccountsConfig {
@@ -148,6 +150,11 @@ pub fn process_four_transfer2<'info>(
 
     let cpi_accounts =
         CpiAccounts::new_with_config(ctx.accounts.signer.as_ref(), system_account_infos, config);
+
+    // TODO: reverse order to 1. process_update_escrow_pda, 2. create_transfer2_instruction_raw
+
+    // Invocation 4: Execute CPI context with system program
+    process_update_escrow_pda(cpi_accounts.clone(), pda_params, proof, 0, true)?;
 
     {
         let mut token_account_compress = CTokenAccount2::new_empty(
@@ -200,8 +207,8 @@ pub fn process_four_transfer2<'info>(
             validity_proof: proof,
             transfer_config: Transfer2Config {
                 cpi_context: Some(CompressedCpiContext {
-                    set_context: true,
-                    first_set_context: true,
+                    set_context: false,
+                    first_set_context: false,
                     cpi_context_account_index: 0,
                 }),
                 ..Default::default()
@@ -231,10 +238,6 @@ pub fn process_four_transfer2<'info>(
         .concat();
         invoke(&instruction, account_infos.as_slice())?;
     }
-    // TODO: reverse order to 1. process_update_escrow_pda, 2. create_transfer2_instruction_raw
-
-    // Invocation 4: Execute CPI context with system program
-    process_update_escrow_pda(cpi_accounts, pda_params, proof, 0)?;
 
     Ok(())
 }

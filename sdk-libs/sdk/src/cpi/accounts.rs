@@ -5,7 +5,6 @@ use crate::{
     error::{LightSdkError, Result},
     AccountInfo, AccountMeta, Pubkey,
 };
-
 pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, AccountInfo<'info>>;
 
 pub fn to_account_metas(cpi_accounts: CpiAccounts<'_, '_>) -> Result<Vec<AccountMeta>> {

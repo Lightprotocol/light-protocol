@@ -30,6 +30,7 @@ pub fn process_update_escrow_pda(
     pda_params: PdaParams,
     proof: ValidityProof,
     deposit_amount: u64,
+    set_context: bool,
 ) -> Result<()> {
     let mut my_compressed_account = LightAccount::<'_, CompressedEscrowPda>::new_mut(
         &crate::ID,
@@ -50,8 +51,8 @@ pub fn process_update_escrow_pda(
             .map_err(ProgramError::from)?]),
         new_addresses: None,
         cpi_context: Some(CompressedCpiContext {
-            set_context: false,
-            first_set_context: false,
+            set_context: set_context,
+            first_set_context: set_context,
             // change to bool works well.
             cpi_context_account_index: 0, // seems to be useless. Seems to be unused.
                                           // TODO: unify the account meta generation on and offchain.
@@ -279,7 +280,13 @@ pub fn process_update_deposit<'info>(
 
     // 2. Update escrow pda balance
     // - settle tx 1 in the same instruction with the cpi context account
-    process_update_escrow_pda(cpi_accounts, pda_params, proof, token_params.deposit_amount)?;
+    process_update_escrow_pda(
+        cpi_accounts,
+        pda_params,
+        proof,
+        token_params.deposit_amount,
+        false,
+    )?;
 
     // 3. Merge the newly escrowed tokens into the existing escrow account.
     merge_escrow_token_accounts(

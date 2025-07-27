@@ -95,7 +95,7 @@ pub fn process_four_invokes<'info>(
     )?;
 
     // Invocation 4: Execute CPI context with system program
-    process_update_escrow_pda(cpi_accounts, pda_params, proof, 0)?;
+    process_update_escrow_pda(cpi_accounts, pda_params, proof, 0, false)?;
 
     Ok(())
 }
