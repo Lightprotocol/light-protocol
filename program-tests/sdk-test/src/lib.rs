@@ -22,12 +22,11 @@ entrypoint!(process_instruction);
 pub enum InstructionType {
     CreatePdaBorsh = 0,
     UpdatePdaBorsh = 1,
-    DecompressToPda = 2,
-    CompressFromPda = 3,
-    CreateDynamicPda = 4,
-    InitializeCompressionConfig = 5,
-    UpdateCompressionConfig = 6,
-    DecompressMultipleAccountsIdempotent = 7,
+    CompressDynamicPda = 2,
+    CreateDynamicPda = 3,
+    InitializeCompressionConfig = 4,
+    UpdateCompressionConfig = 5,
+    DecompressMultipleAccountsIdempotent = 6,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -37,12 +36,11 @@ impl TryFrom<u8> for InstructionType {
         match value {
             0 => Ok(InstructionType::CreatePdaBorsh),
             1 => Ok(InstructionType::UpdatePdaBorsh),
-            2 => Ok(InstructionType::DecompressToPda),
-            3 => Ok(InstructionType::CompressFromPda),
-            4 => Ok(InstructionType::CreateDynamicPda),
-            5 => Ok(InstructionType::InitializeCompressionConfig),
-            6 => Ok(InstructionType::UpdateCompressionConfig),
-            7 => Ok(InstructionType::DecompressMultipleAccountsIdempotent),
+            2 => Ok(InstructionType::CompressDynamicPda),
+            3 => Ok(InstructionType::CreateDynamicPda),
+            4 => Ok(InstructionType::InitializeCompressionConfig),
+            5 => Ok(InstructionType::UpdateCompressionConfig),
+            6 => Ok(InstructionType::DecompressMultipleAccountsIdempotent),
 
             _ => panic!("Invalid instruction discriminator."),
         }
@@ -62,10 +60,7 @@ pub fn process_instruction(
         InstructionType::UpdatePdaBorsh => {
             update_pda::update_pda::<false>(accounts, &instruction_data[1..])
         }
-        InstructionType::DecompressToPda => {
-            decompress_dynamic_pda::decompress_dynamic_pda(accounts, &instruction_data[1..])
-        }
-        InstructionType::CompressFromPda => {
+        InstructionType::CompressDynamicPda => {
             compress_dynamic_pda::compress_dynamic_pda(accounts, &instruction_data[1..])
         }
         InstructionType::CreateDynamicPda => {

@@ -106,6 +106,7 @@ mod test_instruction_builders {
         let pda1 = Pubkey::new_unique();
         let pda2 = Pubkey::new_unique();
         let pda_accounts = vec![pda1, pda2];
+        let config_pda = CompressibleConfig::derive_pda(&program_id).0;
 
         // Create mock compressed accounts with tree info
         let tree_info = TreeInfo {
@@ -212,7 +213,7 @@ mod test_instruction_builders {
         assert!(instruction.accounts[1].is_signer); // rent_payer signs
         assert!(instruction.accounts[1].is_writable); // rent_payer pays rent
 
-        assert_eq!(instruction.accounts[2].pubkey, system_program::ID);
+        assert_eq!(instruction.accounts[2].pubkey, config_pda);
         assert!(!instruction.accounts[2].is_signer); // system program doesn't sign
         assert!(!instruction.accounts[2].is_writable); // system program is read-only
 

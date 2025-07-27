@@ -1,5 +1,6 @@
 #[cfg(feature = "anchor")]
 use anchor_lang::AccountsClose;
+
 #[cfg(feature = "anchor")]
 use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize};
 #[cfg(feature = "anchor")]
@@ -8,9 +9,10 @@ use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as Bors
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
-
+use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
+use crate::error::Result;
 use crate::{
     account::LightAccount,
     address::PackedNewAddressParams,
@@ -37,7 +39,7 @@ pub fn compress_account_on_init<'info, A>(
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
     proof: ValidityProof,
-) -> Result<(), crate::ProgramError>
+) -> Result<()>
 where
     A: DataHasher
         + LightDiscriminator
@@ -104,10 +106,7 @@ pub fn prepare_accounts_for_compression_on_init<'info, A>(
     owner_program: &Pubkey,
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
-) -> Result<
-    Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
-    crate::ProgramError,
->
+) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
     A: DataHasher
         + LightDiscriminator
@@ -164,20 +163,23 @@ where
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Close both PDA accounts
-        pda_account.close(rent_recipient.clone())?;
+        pda_account
+            .close(rent_recipient.clone())
+            .map_err(|_| LightSdkError::ConstraintViolation)?;
+        msg!("hi10");
     }
 
     Ok(compressed_account_infos)
 }
 
 /// Native Solana variant of compress_account_on_init that works with AccountInfo and pre-deserialized data.
-/// 
+///
 /// Wrapper to process a single onchain PDA for compression into a new
 /// compressed account. Calls `prepare_accounts_for_compression_on_init_native` with
 /// single-element slices and invokes the CPI.
 #[allow(clippy::too_many_arguments)]
 pub fn compress_account_on_init_native<'info, A>(
-    pda_account_info: &AccountInfo<'info>,
+    pda_account_info: &mut AccountInfo<'info>,
     pda_account_data: &mut A,
     address: &[u8; 32],
     new_address_param: &PackedNewAddressParams,
@@ -187,7 +189,7 @@ pub fn compress_account_on_init_native<'info, A>(
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
     proof: ValidityProof,
-) -> Result<(), crate::ProgramError>
+) -> Result<()>
 where
     A: DataHasher
         + LightDiscriminator
@@ -198,14 +200,15 @@ where
         + HasCompressionInfo
         + std::fmt::Debug,
 {
-    let pda_accounts_info: [&AccountInfo<'info>; 1] = [pda_account_info];
+    // let pda_accounts_info:  = &[pda_account_info];
     let mut pda_accounts_data: [&mut A; 1] = [pda_account_data];
     let addresses: [[u8; 32]; 1] = [*address];
     let new_address_params: [PackedNewAddressParams; 1] = [*new_address_param];
     let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
 
+    msg!("0 hi?");
     let compressed_infos = prepare_accounts_for_compression_on_init_native(
-        &pda_accounts_info,
+        &mut [pda_account_info],
         &mut pda_accounts_data,
         &addresses,
         &new_address_params,
@@ -224,7 +227,7 @@ where
 }
 
 /// Native Solana variant of prepare_accounts_for_compression_on_init that works with AccountInfo and pre-deserialized data.
-/// 
+///
 /// Helper function to process multiple onchain PDAs for compression into new
 /// compressed accounts.
 ///
@@ -250,7 +253,7 @@ where
 /// * `Err(LightSdkError)` if there was an error
 #[allow(clippy::too_many_arguments)]
 pub fn prepare_accounts_for_compression_on_init_native<'info, A>(
-    pda_accounts_info: &[&AccountInfo<'info>],
+    pda_accounts_info: &mut [&mut AccountInfo<'info>],
     pda_accounts_data: &mut [&mut A],
     addresses: &[[u8; 32]],
     new_address_params: &[PackedNewAddressParams],
@@ -259,10 +262,7 @@ pub fn prepare_accounts_for_compression_on_init_native<'info, A>(
     owner_program: &Pubkey,
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
-) -> Result<
-    Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
-    crate::ProgramError,
->
+) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
     A: DataHasher
         + LightDiscriminator
@@ -278,6 +278,14 @@ where
         || pda_accounts_info.len() != new_address_params.len()
         || pda_accounts_info.len() != output_state_tree_indices.len()
     {
+        msg!("pda_accounts_info.len(): {:?}", pda_accounts_info.len());
+        msg!("pda_accounts_data.len(): {:?}", pda_accounts_data.len());
+        msg!("addresses.len(): {:?}", addresses.len());
+        msg!("new_address_params.len(): {:?}", new_address_params.len());
+        msg!(
+            "output_state_tree_indices.len(): {:?}",
+            output_state_tree_indices.len()
+        );
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
@@ -288,14 +296,19 @@ where
             .map_err(|_| LightSdkError::ConstraintViolation)?
             .pubkey();
         if !address_space.iter().any(|a| a == &tree) {
+            msg!("address tree: {:?}", tree);
+            msg!("expected address_space: {:?}", address_space);
             return Err(LightSdkError::ConstraintViolation.into());
         }
     }
 
     let mut compressed_account_infos = Vec::new();
 
-    for ((((pda_account_info, pda_account_data), &address), &_new_address_param), &output_state_tree_index) in pda_accounts_info
-        .iter()
+    for (
+        (((pda_account_info, pda_account_data), &address), &_new_address_param),
+        &output_state_tree_index,
+    ) in pda_accounts_info
+        .iter_mut()
         .zip(pda_accounts_data.iter_mut())
         .zip(addresses.iter())
         .zip(new_address_params.iter())
@@ -319,16 +332,42 @@ where
 
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
-        // Close PDA account manually (native Solana way)
-        let dest_starting_lamports = rent_recipient.lamports();
-        **rent_recipient.try_borrow_mut_lamports()? = dest_starting_lamports
-            .checked_add(pda_account_info.lamports())
-            .ok_or(LightSdkError::TransferIntegerOverflow)?;
-
-        // Zero out the PDA account
-        **pda_account_info.try_borrow_mut_lamports()? = 0;
-        pda_account_info.try_borrow_mut_data()?.fill(0);
+        // Close PDA account manually
+        close(pda_account_info, rent_recipient.clone())?;
     }
 
     Ok(compressed_account_infos)
+}
+
+// Proper native Solana account closing implementation
+pub fn close<'info>(
+    info: &mut AccountInfo<'info>,
+    sol_destination: AccountInfo<'info>,
+) -> Result<()> {
+    // Transfer all lamports from the account to the destination
+    let lamports_to_transfer = info.lamports();
+
+    // Use try_borrow_mut_lamports for proper borrow management
+    **info
+        .try_borrow_mut_lamports()
+        .map_err(|_| LightSdkError::ConstraintViolation)? = 0;
+
+    let dest_lamports = sol_destination.lamports();
+    **sol_destination
+        .try_borrow_mut_lamports()
+        .map_err(|_| LightSdkError::ConstraintViolation)? =
+        dest_lamports.checked_add(lamports_to_transfer).unwrap();
+
+    // Assign to system program first
+    let system_program_id = solana_pubkey::pubkey!("11111111111111111111111111111111");
+    info.assign(&system_program_id);
+
+    // Realloc to 0 size - this should work after assigning to system program
+    info.realloc(0, false).map_err(|e| {
+        msg!("Error during realloc: {:?}", e);
+        LightSdkError::ConstraintViolation
+    })?;
+
+    msg!("Account closed successfully");
+    Ok(())
 }

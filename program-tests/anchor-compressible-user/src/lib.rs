@@ -222,11 +222,12 @@ pub mod anchor_compressible_user {
             }
         }
 
-        if !all_compressed_infos.is_empty() {
+        if all_compressed_infos.is_empty() {
+            msg!("No compressed accounts to decompress");
+        } else {
             let cpi_inputs = CpiInputs::new(proof, all_compressed_infos);
             cpi_inputs.invoke_light_system_program(cpi_accounts)?;
         }
-
         Ok(())
     }
 
@@ -509,7 +510,7 @@ pub struct CompressRecord<'info> {
         constraint = pda_to_compress.owner == user.key()
     )]
     pub pda_to_compress: Account<'info, UserRecord>,
-    pub system_program: Program<'info, System>,
+    // pub system_program: Program<'info, System>,
     /// The global config account
     /// CHECK: Config is validated by the SDK's load_checked method
     pub config: AccountInfo<'info>,
@@ -525,7 +526,9 @@ pub struct DecompressMultipleAccountsIdempotent<'info> {
     pub fee_payer: Signer<'info>,
     #[account(mut)]
     pub rent_payer: Signer<'info>,
-    pub system_program: Program<'info, System>,
+    /// The global config account
+    /// CHECK: Config is validated by the SDK's load_checked method
+    pub config: AccountInfo<'info>,
     // Remaining accounts:
     // - First N accounts: PDA accounts to decompress into
     // - After system_accounts_offset: Light Protocol system accounts for CPI

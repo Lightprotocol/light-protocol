@@ -14,7 +14,6 @@ name = "light_sdk"
 default = ["borsh"]
 idl-build = ["anchor-lang/idl-build"]
 anchor = [
-    "anchor-lang",
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
 ]
@@ -34,7 +33,7 @@ solana-sysvar = { workspace = true }
 solana-rent = { workspace = true }
 
 
-anchor-lang = { workspace = true, optional = true }
+anchor-lang = { workspace = true }
 num-bigint = { workspace = true }
 
 # only needed with solana-program

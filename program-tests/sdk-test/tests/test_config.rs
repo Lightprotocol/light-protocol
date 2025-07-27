@@ -28,9 +28,6 @@ async fn test_create_and_update_config() {
     let (program_data_pda, _) =
         Pubkey::find_program_address(&[sdk_test::ID.as_ref()], &bpf_loader_upgradeable::ID);
 
-    // For testing, we'll use the payer as the upgrade authority
-    // In a real scenario, you'd get the actual upgrade authority from the program data account
-
     // Test create config
     let create_ix_data = CreateConfigInstructionData {
         rent_recipient: RENT_RECIPIENT,
@@ -100,7 +97,7 @@ async fn test_config_validation() {
         .unwrap();
 
     let result = rpc
-        .create_and_send_transaction(&[create_ix], &non_authority.pubkey(), &[&non_authority])
+        .create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &non_authority])
         .await;
 
     assert!(result.is_err(), "Should fail with wrong authority");

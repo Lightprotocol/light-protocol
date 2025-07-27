@@ -104,16 +104,9 @@ impl CompressibleInstruction {
             .try_to_vec()
             .expect("Failed to serialize instruction data");
 
-        println!("serialized_data: {:?}", serialized_data.len());
-
-        println!("discriminator: {:?}", discriminator.len());
-        println!("discriminator: {:?}", discriminator);
-
         let mut data = Vec::new();
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
-
-        println!("data: {:?}", data.len());
 
         Instruction {
             program_id: *program_id,
@@ -241,10 +234,10 @@ impl CompressibleInstruction {
         let accounts = vec![
             AccountMeta::new(*payer, true),            // user (signer)
             AccountMeta::new(*pda_to_compress, false), // pda_to_compress (writable)
-            AccountMeta::new_readonly(
-                solana_pubkey::pubkey!("11111111111111111111111111111111"),
-                false,
-            ), // system_program
+            // AccountMeta::new_readonly(
+            //     solana_pubkey::pubkey!("11111111111111111111111111111111"),
+            //     false,
+            // ), // system_program
             AccountMeta::new_readonly(config_pda, false), // config
             AccountMeta::new(*rent_recipient, false),  // rent_recipient (writable)
         ];
@@ -259,7 +252,7 @@ impl CompressibleInstruction {
         let serialized_data = instruction_data
             .try_to_vec()
             .expect("Failed to serialize instruction data");
-        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
+        let mut data = Vec::new();
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
 
@@ -323,14 +316,17 @@ impl CompressibleInstruction {
             return Err("PDA accounts and bumps must have the same length".into());
         }
 
+        let config_pda = CompressibleConfig::derive_pda(program_id).0;
+
         // Build instruction accounts
         let mut accounts = vec![
             AccountMeta::new(*fee_payer, true),  // fee_payer
             AccountMeta::new(*rent_payer, true), // rent_payer
-            AccountMeta::new_readonly(
-                solana_pubkey::pubkey!("11111111111111111111111111111111"),
-                false,
-            ), // system_program
+            // AccountMeta::new_readonly(
+            //     solana_pubkey::pubkey!("11111111111111111111111111111111"),
+            //     false,
+            // ), // system_program
+            AccountMeta::new_readonly(config_pda, false), // config
         ];
 
 
@@ -370,6 +366,7 @@ impl CompressibleInstruction {
             })
             .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
 
+    
         // Build instruction data
         let instruction_data = DecompressMultipleAccountsIdempotentData {
             proof: validity_proof_with_context.proof,
@@ -380,7 +377,7 @@ impl CompressibleInstruction {
 
         // Serialize instruction data with discriminator
         let serialized_data = instruction_data.try_to_vec()?;
-        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
+        let mut data = Vec::new();
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
 

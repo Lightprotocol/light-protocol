@@ -1,5 +1,4 @@
-#[cfg(feature = "anchor")]
-use anchor_lang::Discriminator as AnchorDiscriminatorShim;
+use anchor_lang::Discriminator;
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -21,12 +20,10 @@ use crate::{
     error::LightSdkError, LightDiscriminator,
 };
 
-#[cfg(not(feature = "anchor"))]
-pub trait AnchorDiscriminatorShim {}
-#[cfg(not(feature = "anchor"))]
-impl<T> AnchorDiscriminatorShim for T {}
-
-
+// #[cfg(not(feature = "anchor"))]
+// pub trait AnchorDiscriminatorShim {}
+// #[cfg(not(feature = "anchor"))]
+// impl<T> AnchorDiscriminatorShim for T {}
 
 /// Helper function to decompress multiple compressed accounts into PDAs
 /// idempotently with seeds. Does not invoke the zk compression CPI. This
@@ -66,7 +63,7 @@ where
         + Default
         + Clone
         + HasCompressionInfo
-        + AnchorDiscriminatorShim,
+        + Discriminator,
 {
     // Validate input lengths
     if pda_accounts.len() != compressed_accounts.len() || pda_accounts.len() != signer_seeds.len() {
@@ -82,6 +79,7 @@ where
         .zip(compressed_accounts.into_iter())
         .zip(signer_seeds.iter())
     {
+        msg!("pda_account: {:?}", pda_account);
         // Check if PDA is already initialized
         if !pda_account.data_is_empty() {
             msg!(
@@ -109,8 +107,8 @@ where
                 "cPDA {:?} does not match derived cPDA {:?} for PDA {:?} with address space {:?}",
                 c_pda,
                 derived_c_pda,
-                pda_account.key.log(),
-                address_space.log(),
+                pda_account.key,
+                address_space,
             );
             return Err(LightSdkError::ConstraintViolation);
         }
@@ -150,11 +148,11 @@ where
             decompressed_pda.compression_info()
         );
 
-        #[cfg(feature = "anchor")]
+        // #[cfg(feature = "anchor")]
         pda_account.try_borrow_mut_data()?[..8].copy_from_slice(T::DISCRIMINATOR);
         // TODO: test without anchor
-        #[cfg(not(feature = "anchor"))]
-        pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&T::discriminator());
+        // #[cfg(not(feature = "anchor"))]
+        // pda_account.try_borrow_mut_data()?[..8].copy_from_slice(&T::DISCRIMINATOR);
 
         decompressed_pda
             .serialize(&mut &mut pda_account.try_borrow_mut_data()?[8..])

@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use core::panic;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::compressible::CompressibleInstruction;
 use light_compressed_account::address::derive_address;
@@ -12,10 +14,9 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
+use sdk_test::InstructionType;
 use sdk_test::{
-    compress_dynamic_pda::CompressFromPdaInstructionData,
-    create_dynamic_pda::CreateDynamicPdaInstructionData,
-    decompress_dynamic_pda::{DecompressToPdaInstructionData, MyCompressedAccount, MyPdaAccount},
+    create_dynamic_pda::CreateDynamicPdaInstructionData, decompress_dynamic_pda::MyPdaAccount,
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -26,7 +27,7 @@ use solana_sdk::{
 // Test constants
 const RENT_RECIPIENT: Pubkey =
     light_macros::pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-const COMPRESSION_DELAY: u64 = 100;
+const COMPRESSION_DELAY: u64 = 200;
 
 #[tokio::test]
 async fn test_complete_compressible_flow() {
@@ -34,7 +35,7 @@ async fn test_complete_compressible_flow() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let config_pda = CompressibleConfig::derive_pda(&sdk_test::ID).0;
+    let _config_pda = CompressibleConfig::derive_pda(&sdk_test::ID).0;
     let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &sdk_test::ID);
 
     // Get address tree for the address space
@@ -45,52 +46,71 @@ async fn test_complete_compressible_flow() {
         &payer,
         &sdk_test::ID,
         &payer,
-        100,
+        200,
         RENT_RECIPIENT,
         vec![address_tree],
-        &[5u8],
+        &[InstructionType::InitializeCompressionConfig as u8],
     )
     .await;
     assert!(result.is_ok(), "Initialize config should succeed");
-    println!("Starting complete compressible flow test");
 
     // 1. Create and compress account on init
-    let test_data = [42u8; 31];
+    let test_data = [1u8; 31];
+
+    let seeds: &[&[u8]] = &[b"dynamic_pda"];
+    let (pda_pubkey, _bump) = Pubkey::find_program_address(seeds, &sdk_test::ID);
+
+    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+
+    let compressed_address = derive_address(
+        &pda_pubkey.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &sdk_test::ID.to_bytes(),
+    );
+
     let pda_pubkey = create_and_compress_account(&mut rpc, &payer, test_data).await;
-    println!("Created and compressed PDA: {}", pda_pubkey);
+
+    // get account
+    let account = rpc.get_account(pda_pubkey).await.unwrap();
+    assert!(account.is_some());
+    assert_eq!(account.unwrap().lamports, 0);
+
+    // get compressed account
+    let compressed_account = rpc.get_compressed_account(compressed_address, None).await;
+    assert!(compressed_account.is_ok());
 
     // 2. Wait for compression delay to pass
     rpc.warp_to_slot(COMPRESSION_DELAY + 1).unwrap();
-    println!("Warped to slot {}", COMPRESSION_DELAY + 1);
 
     // 3. Decompress the account
     decompress_account(&mut rpc, &payer, &pda_pubkey, test_data).await;
-    println!("Decompressed account");
+
+    // get account
+    let account = rpc.get_account(pda_pubkey).await.unwrap();
+    assert!(account.is_some());
+    assert!(account.unwrap().lamports > 0);
+    // assert_eq!(account.unwrap().data.len(), 31);
 
     // 4. Verify PDA is decompressed
-    verify_decompressed_account(&mut rpc, &pda_pubkey, test_data).await;
+    verify_decompressed_account(&mut rpc, &pda_pubkey, &compressed_address, test_data).await;
 
     // 5. Wait for compression delay to pass again
-    rpc.warp_to_slot(COMPRESSION_DELAY * 2 + 2).unwrap();
-    println!("Warped to slot {}", COMPRESSION_DELAY * 2 + 2);
+    rpc.warp_to_slot(COMPRESSION_DELAY * 2 + 1).unwrap();
 
     // 6. Compress the account again
     compress_existing_account(&mut rpc, &payer, &pda_pubkey).await;
-    println!("Compressed account again");
 
     // 7. Verify account is compressed again
     verify_compressed_account(&mut rpc, &pda_pubkey).await;
-
-    println!("Complete compressible flow test passed!");
 }
 
 async fn create_and_compress_account(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
-    test_data: [u8; 31],
+    _test_data: [u8; 31],
 ) -> Pubkey {
     // Derive PDA
-    let seeds: &[&[u8]] = &[b"test_pda", &test_data];
+    let seeds: &[&[u8]] = &[b"dynamic_pda"];
     let (pda_pubkey, _bump) = Pubkey::find_program_address(seeds, &sdk_test::ID);
 
     // Get address tree
@@ -140,24 +160,6 @@ async fn create_and_compress_account(
         output_state_tree_index,
     };
 
-    // Debug: log the proof and instruction data details
-    println!("Proof: {:?}", instruction_data.proof);
-    println!(
-        "Compressed address length: {}",
-        instruction_data.compressed_address.len()
-    );
-    println!(
-        "Address tree info: {:?}",
-        instruction_data.address_tree_info
-    );
-    println!(
-        "Output state tree index: {}",
-        instruction_data.output_state_tree_index
-    );
-
-    let serialized = instruction_data.try_to_vec().unwrap();
-    println!("Serialized instruction data length: {}", serialized.len());
-
     // Build instruction
     let instruction = Instruction {
         program_id: sdk_test::ID,
@@ -167,18 +169,27 @@ async fn create_and_compress_account(
                 AccountMeta::new(pda_pubkey, false),     // pda_account
                 AccountMeta::new(RENT_RECIPIENT, false), // rent_recipient
                 AccountMeta::new_readonly(CompressibleConfig::derive_pda(&sdk_test::ID).0, false), // config
+                AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
             ],
             system_accounts,
         ]
         .concat(),
-        data: [&[4u8][..], &instruction_data.try_to_vec().unwrap()[..]].concat(),
+        data: [
+            &[InstructionType::CreateDynamicPda as u8][..],
+            &instruction_data.try_to_vec().unwrap()[..],
+        ]
+        .concat(),
     };
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await;
 
-    assert!(result.is_ok(), "Create and compress failed");
+    assert!(
+        result.is_ok(),
+        "Create and compress failed error: {:?}",
+        result.err()
+    );
 
     pda_pubkey
 }
@@ -221,7 +232,7 @@ async fn decompress_account(
 
     let instruction = CompressibleInstruction::decompress_multiple_accounts_idempotent(
         &sdk_test::ID,
-        &[7u8], // Use sdk-test's DecompressMultipleAccountsIdempotent discriminator
+        &[InstructionType::DecompressMultipleAccountsIdempotent as u8], // Use sdk-test's DecompressMultipleAccountsIdempotent discriminator
         &payer.pubkey(),
         &payer.pubkey(),
         &[*pda_pubkey],
@@ -229,7 +240,7 @@ async fn decompress_account(
             compressed_account.clone(),
             my_pda_account.clone(), // MyPdaAccount implements required trait
         )],
-        &[Pubkey::find_program_address(&[pda_pubkey.as_ref()], &sdk_test::ID).1], // bump seed, adjust if needed
+        &[Pubkey::find_program_address(&[b"dynamic_pda"], &sdk_test::ID).1], // bump seed, must match the seeds used in create_dynamic_pda
         rpc_result,
         compressed_account.tree_info,
     )
@@ -239,10 +250,11 @@ async fn decompress_account(
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await;
 
-    match result {
-        Ok(_) => println!("Successfully decompressed account"),
-        Err(e) => println!("Decompress failed: {:?}", e),
-    }
+    assert!(
+        result.is_ok(),
+        "Decompress failed error: {:?}",
+        result.err()
+    );
 }
 
 async fn compress_existing_account(
@@ -257,6 +269,9 @@ async fn compress_existing_account(
         return;
     }
 
+    let account = account.unwrap();
+    assert!(account.lamports > 0, "PDA account should have lamports");
+
     // Get the compressed address
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
     let compressed_address = derive_address(
@@ -269,8 +284,7 @@ async fn compress_existing_account(
     let compressed_account_result = rpc.get_compressed_account(compressed_address, None).await;
 
     if compressed_account_result.is_err() {
-        println!("Could not get compressed account, skipping compress test");
-        return;
+        panic!("Could not get compressed account");
     }
 
     let compressed_account = compressed_account_result.unwrap().value;
@@ -282,74 +296,29 @@ async fn compress_existing_account(
         .unwrap()
         .value;
 
-    // Setup remaining accounts
-    let mut remaining_accounts = PackedAccounts::default();
-    let system_config = SystemAccountMetaConfig::new(sdk_test::ID);
-    remaining_accounts.add_system_accounts(system_config);
-
-    // Pack tree infos
-    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
-
-    // Get the tree info for the compressed account
-    let queue_index = remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
-    let tree_info = packed_tree_infos
-        .state_trees
-        .as_ref()
-        .unwrap()
-        .packed_tree_infos
-        .iter()
-        .find(|pti| {
-            pti.queue_pubkey_index == queue_index && pti.leaf_index == compressed_account.leaf_index
-        })
-        .copied()
-        .unwrap();
-
-    let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
-
-    // Create instruction data
-    let instruction_data = CompressFromPdaInstructionData {
-        proof: rpc_result.proof,
-        compressed_account_meta: light_sdk::instruction::account_meta::CompressedAccountMeta {
-            tree_info,
-            address: compressed_account.address.unwrap_or([0u8; 32]),
-            output_state_tree_index: packed_tree_infos
-                .state_trees
-                .as_ref()
-                .unwrap()
-                .output_tree_index,
-        },
-        system_accounts_offset: system_accounts_offset as u8,
-    };
-
-    // Build instruction
-    let instruction = Instruction {
-        program_id: sdk_test::ID,
-        accounts: [
-            vec![
-                AccountMeta::new(payer.pubkey(), true),  // user
-                AccountMeta::new(*pda_pubkey, false),    // pda_account
-                AccountMeta::new(RENT_RECIPIENT, false), // rent_recipient
-                AccountMeta::new_readonly(CompressibleConfig::derive_pda(&sdk_test::ID).0, false), // config
-            ],
-            system_accounts,
-        ]
-        .concat(),
-        data: [&[3u8][..], &instruction_data.try_to_vec().unwrap()[..]].concat(),
-    };
+    let instruction = CompressibleInstruction::compress_account(
+        &sdk_test::ID,
+        &[InstructionType::CompressDynamicPda as u8], // Use sdk-test's CompressFromPda discriminator
+        &payer.pubkey(),
+        pda_pubkey,
+        &RENT_RECIPIENT,
+        &compressed_account,
+        rpc_result,
+        compressed_account.tree_info,
+    )
+    .unwrap();
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await;
 
-    match result {
-        Ok(_) => println!("Successfully compressed existing account"),
-        Err(e) => println!("Compress existing account failed: {:?}", e),
-    }
+    assert!(result.is_ok(), "Compress failed error: {:?}", result.err());
 }
 
 async fn verify_decompressed_account(
     rpc: &mut LightProgramTest,
     pda_pubkey: &Pubkey,
+    compressed_address: &[u8; 32],
     expected_data: [u8; 31],
 ) {
     let account = rpc.get_account(*pda_pubkey).await.unwrap();
@@ -365,15 +334,35 @@ async fn verify_decompressed_account(
         "PDA account not properly decompressed (empty data)"
     );
 
-    // Try to deserialize the account data
-    let pda_account = MyPdaAccount::try_from_slice(&account.data[8..])
+    // Try to deserialize the account data (skip the 8-byte discriminator)
+    let pda_account = MyPdaAccount::deserialize(&mut &account.data[8..])
         .expect("Could not deserialize PDA account data");
-
-    assert_eq!(
-        pda_account.data, expected_data,
-        "PDA data does not match expected data"
+    assert!(pda_account.compression_info.is_some());
+    assert_eq!(pda_account.data, expected_data); // data matches the expected data
+    assert!(
+        !pda_account
+            .compression_info
+            .as_ref()
+            .unwrap()
+            .is_compressed(),
+        "PDA account should not be compressed"
     );
-    println!("PDA successfully decompressed with correct data");
+    // slot matches the slot of the last write
+    assert_eq!(
+        &pda_account.compression_info.unwrap().last_written_slot(),
+        &rpc.get_slot().await.unwrap()
+    );
+
+    let compressed_account = rpc.get_compressed_account(*compressed_address, None).await;
+    assert!(compressed_account.is_ok());
+    let compressed_account = compressed_account.unwrap().value;
+    // After decompression, the compressed account data should be cleared
+    // This is a known behavior - commenting out for now to see if test passes
+
+    assert!(
+        compressed_account.data.unwrap().data.as_slice().is_empty(),
+        "Compressed account data must be empty"
+    );
 }
 
 async fn verify_compressed_account(rpc: &mut LightProgramTest, pda_pubkey: &Pubkey) {
@@ -388,9 +377,7 @@ async fn verify_compressed_account(rpc: &mut LightProgramTest, pda_pubkey: &Pubk
             account.data.is_empty(),
             "PDA account should have empty data when compressed"
         );
-        println!("PDA successfully compressed (empty account)");
     } else {
-        // Account not found is also valid for compressed state
-        println!("PDA account not found (also valid compressed state)");
+        panic!("PDA account not found");
     }
 }

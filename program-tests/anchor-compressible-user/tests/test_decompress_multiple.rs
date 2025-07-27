@@ -517,6 +517,10 @@ async fn test_decompress_multiple_pdas(
 
     // Verify UserRecord PDA is decompressed
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    println!(
+        "user_pda_account after decompression: {:?}",
+        user_pda_account
+    );
     assert!(
         user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
         "User PDA account data len must be > 0 after decompression"
@@ -965,6 +969,10 @@ async fn test_decompress_single_user_record(
 
     // Verify UserRecord PDA is decompressed
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+    println!(
+        "user_pda_account after decompression: {:?}",
+        user_pda_account
+    );
     assert!(
         user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
         "User PDA account data len must be > 0 after decompression"

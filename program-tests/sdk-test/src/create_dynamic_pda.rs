@@ -5,7 +5,10 @@ use light_sdk::{
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
 };
-use solana_program::account_info::AccountInfo;
+use solana_program::{
+    account_info::AccountInfo, program::invoke_signed, pubkey::Pubkey, rent::Rent,
+    system_instruction, sysvar::Sysvar,
+};
 
 use crate::decompress_dynamic_pda::MyPdaAccount;
 
@@ -26,17 +29,85 @@ pub fn create_dynamic_pda(
     let pda_account = &accounts[1];
     let rent_recipient = &accounts[2];
     let config_account = &accounts[3];
+    let system_program = &accounts[4];
 
     // Load config
     let config = CompressibleConfig::load_checked(config_account, &crate::ID)?;
 
     // CHECK: rent recipient from config
     if rent_recipient.key != &config.rent_recipient {
+        solana_program::msg!(
+            "rent recipient mismatch {:?} != {:?}",
+            rent_recipient.key,
+            config.rent_recipient
+        );
         return Err(LightSdkError::ConstraintViolation);
     }
 
+    // Derive PDA with seeds and bump
+    // For this example, we'll use a simple seed pattern
+    let seed_data = b"dynamic_pda"; // You can customize this based on your needs
+    let (derived_pda, bump_seed) = Pubkey::find_program_address(&[seed_data], &crate::ID);
+
+    // Verify the PDA matches what was passed in
+    if derived_pda != *pda_account.key {
+        solana_program::msg!(
+            "PDA derivation mismatch. derived_pda: {:?} != pda_account.key: {:?}",
+            derived_pda,
+            pda_account.key
+        );
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Calculate space needed for MyPdaAccount
+    let account_space = std::mem::size_of::<MyPdaAccount>() + 8; // 8 bytes for discriminator
+
+    // Calculate rent
+    let rent = Rent::get()?;
+    let rent_lamports = rent.minimum_balance(account_space);
+
+    // Create the PDA account using system program
+    let create_account_ix = system_instruction::create_account(
+        fee_payer.key,
+        pda_account.key,
+        rent_lamports,
+        account_space as u64,
+        &crate::ID,
+    );
+
+    invoke_signed(
+        &create_account_ix,
+        &[
+            fee_payer.clone(),
+            pda_account.clone(),
+            system_program.clone(),
+        ],
+        &[&[seed_data, &[bump_seed]]],
+    )
+    .map_err(|e| {
+        solana_program::msg!("pda account create error: {:?}", e);
+        LightSdkError::Borsh
+    })?;
+
+    // Initialize the PDA account data
+    let mut pda_account_data = MyPdaAccount {
+        compression_info: Some(CompressionInfo::new()?),
+        data: [1; 31], // Initialize with default data
+    };
+
+    // Serialize the initial data into the account - use scope to ensure borrow is dropped
+    {
+        let mut account_data = pda_account.data.borrow_mut();
+        pda_account_data
+            .serialize(&mut &mut account_data[..])
+            .map_err(|e| {
+                solana_program::msg!("pda account serialization error: {:?}", e);
+                LightSdkError::Borsh
+            })?;
+    } // account_data borrow is dropped here
+
     // Cpi accounts
-    let cpi_accounts_struct = CpiAccounts::new(fee_payer, &accounts[4..], crate::LIGHT_CPI_SIGNER);
+    let cpi_accounts_struct = CpiAccounts::new(fee_payer, &accounts[5..], crate::LIGHT_CPI_SIGNER);
 
     // the onchain PDA is the seed for the cPDA. this way devs don't have to
     // change their onchain PDA checks.
@@ -44,20 +115,11 @@ pub fn create_dynamic_pda(
         .address_tree_info
         .into_new_address_params_packed(pda_account.key.to_bytes());
 
-    // We do not have to serialize into the PDA account, it's closed at the end
-    // of this invocation.
-    let mut pda_account_data =
-        MyPdaAccount::try_from_slice(&pda_account.data.borrow()).map_err(|e| {
-            solana_program::msg!("pda account  error: {:?}", e);
-            LightSdkError::Borsh
-        })?;
-
-    // Initialize compression info with current slot and decompressed state
-    pda_account_data.compression_info = Some(CompressionInfo::new()?);
+    solana_program::msg!("pda account data: {:?}", pda_account_data);
 
     // Use the efficient native variant that accepts pre-deserialized data
     compress_account_on_init_native::<MyPdaAccount>(
-        pda_account,
+        &mut pda_account.clone(),
         &mut pda_account_data,
         &instruction_data.compressed_address,
         &new_address_params,

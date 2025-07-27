@@ -11,6 +11,7 @@ use solana_msg::msg;
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
+use crate::compressible::compress_pda_new::close;
 use crate::{
     account::LightAccount,
     compressible::compression_info::HasCompressionInfo,
@@ -98,7 +99,7 @@ where
 }
 
 /// Native Solana variant of compress_pda that works with AccountInfo and pre-deserialized data.
-/// 
+///
 /// Helper function to compress a PDA and reclaim rent.
 ///
 /// 1. closes onchain PDA
@@ -120,7 +121,7 @@ where
 /// * `compression_delay` - The number of slots to wait before compression is
 ///   allowed
 pub fn compress_pda_native<'info, A>(
-    pda_account_info: &AccountInfo<'info>,
+    pda_account_info: &mut AccountInfo<'info>,
     pda_account_data: &mut A,
     compressed_account_meta: &CompressedAccountMeta,
     proof: ValidityProof,
@@ -136,8 +137,7 @@ where
         + BorshDeserialize
         + Default
         + Clone
-        + HasCompressionInfo
-        + std::fmt::Debug,
+        + HasCompressionInfo,
 {
     let current_slot = Clock::get()?.slot;
 
@@ -166,16 +166,7 @@ where
 
     // Invoke light system program to create the compressed account
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
-
-    // Close the PDA account manually (native Solana way)
-    let dest_starting_lamports = rent_recipient.lamports();
-    **rent_recipient.try_borrow_mut_lamports()? = dest_starting_lamports
-        .checked_add(pda_account_info.lamports())
-        .ok_or(LightSdkError::TransferIntegerOverflow)?;
-
-    // Zero out the PDA account
-    **pda_account_info.try_borrow_mut_lamports()? = 0;
-    pda_account_info.try_borrow_mut_data()?.fill(0);
-
+    // Close PDA account manually
+    close(pda_account_info, rent_recipient.clone())?;
     Ok(())
 }

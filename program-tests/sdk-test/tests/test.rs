@@ -1,6 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 use light_compressed_account::{
     address::derive_address, compressed_account::CompressedAccountWithMerkleContext,
     hashv_to_bn254_field_size_be,
@@ -13,9 +13,7 @@ use light_sdk::instruction::{
 };
 use sdk_test::{
     create_pda::CreatePdaInstructionData,
-    decompress_dynamic_pda::{
-        DecompressToPdaInstructionData, MyCompressedAccount, MyPdaAccount,
-    },
+    decompress_dynamic_pda::{DecompressToPdaInstructionData, MyCompressedAccount, MyPdaAccount},
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
 };
 use solana_sdk::{
@@ -33,12 +31,6 @@ async fn test_sdk_test() {
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
     let account_data = [1u8; 31];
 
-    // // V1 trees
-    // let (address, _) = light_sdk::address::derive_address(
-    //     &[b"compressed", &account_data],
-    //     &address_tree_info,
-    //     &sdk_test::ID,
-    // );
     // Batched trees
     let address_seed = hashv_to_bn254_field_size_be(&[b"compressed", account_data.as_slice()]);
     let address = derive_address(
@@ -76,8 +68,8 @@ async fn test_sdk_test() {
 #[tokio::test]
 async fn test_decompress_dynamic_pda() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
+    let rpc = LightProgramTest::new(config).await.unwrap();
+    let _payer = rpc.get_payer().insecure_clone();
 
     // For this test, let's create a compressed account and then decompress it
     // Since the existing create_pda creates MyCompressedAccount with just data field,
@@ -270,23 +262,4 @@ pub async fn decompress_pda(
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await?;
     Ok(())
-}
-
-pub async fn decompress_pda_with_seeds(
-    payer: &Keypair,
-    rpc: &mut LightProgramTest,
-    compressed_account: CompressedAccountWithMerkleContext,
-    pda_pubkey: Pubkey,
-    seeds: &[&[u8]],
-    bump: u8,
-) -> Result<(), RpcError> {
-    // First, we need to create a special instruction that will handle the PDA creation
-    // The program needs to be modified to support this, but for now let's try with the existing approach
-
-    // Create the PDA account first using a separate instruction
-    // This would typically be done by the program itself during decompression
-
-    // For now, let's use the existing decompress_pda function
-    // In a real implementation, the program would handle PDA creation during decompression
-    decompress_pda(payer, rpc, compressed_account, pda_pubkey).await
 }

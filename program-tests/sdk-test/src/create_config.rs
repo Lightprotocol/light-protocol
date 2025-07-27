@@ -15,7 +15,10 @@ pub fn process_initialize_compression_config_checked(
     msg!("instruction_data: {:?}", instruction_data.len());
     let instruction_data = InitializeCompressionConfigData::deserialize(&mut instruction_data)
         .map_err(|err| {
-            msg!("CreateConfigInstructionData::deserialize error: {:?}", err);
+            msg!(
+                "InitializeCompressionConfigData::deserialize error: {:?}",
+                err
+            );
             LightSdkError::Borsh
         })?;
 
