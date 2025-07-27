@@ -57,20 +57,9 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     let mint_account = &accounts[input_token_data.mint as usize];
     let hashed_mint = context.get_or_hash_mint(mint_account.key())?;
 
-    let mut amount_bytes = [0u8; 32];
     let version = TokenAccountVersion::try_from(input_token_data.version)?;
-    match version {
-        TokenAccountVersion::V1 => {
-            amount_bytes[24..]
-                .copy_from_slice(input_token_data.amount.get().to_le_bytes().as_slice());
-        }
-        TokenAccountVersion::V2 => {
-            amount_bytes[24..]
-                .copy_from_slice(input_token_data.amount.get().to_be_bytes().as_slice());
-        }
-    }
+    let amount_bytes = version.serialize_amount_bytes(input_token_data.amount.get());
 
-    // Use appropriate hash function based on frozen state
     let data_hash = if !IS_FROZEN {
         TokenData::hash_with_hashed_values(
             &hashed_mint,

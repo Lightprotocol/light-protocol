@@ -27,6 +27,7 @@ use crate::{
     },
     LIGHT_CPI_SIGNER,
 };
+
 pub fn process_mint_to_compressed(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -206,7 +207,7 @@ fn create_output_compressed_token_accounts(
         .zip(cpi_instruction_struct.output_compressed_accounts.iter_mut())
     {
         let output_delegate = None;
-        set_output_compressed_account(
+        set_output_compressed_account::<false>(
             output_account,
             context,
             recipient.recipient,

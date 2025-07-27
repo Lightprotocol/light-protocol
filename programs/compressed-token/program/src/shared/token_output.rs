@@ -64,8 +64,11 @@ impl ZTokenDataMut<'_> {
     }
 }
 
+/// 1. Set token account data
+/// 2. Create token account data hash
+/// 3. Set output compressed account
 #[allow(clippy::too_many_arguments)]
-pub fn set_output_compressed_account(
+pub fn set_output_compressed_account<const IS_FROZEN: bool>(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     context: &mut TokenContext,
     owner: Pubkey,
@@ -77,11 +80,8 @@ pub fn set_output_compressed_account(
     merkle_tree_index: u8,
     version: u8,
 ) -> Result<(), ProgramError> {
-    // Parse token version first
-    let token_version = TokenAccountVersion::try_from(version)?;
-
-    // Create TokenData using zero-copy to compute the data hash
-    let data_hash = {
+    // 1. Set token account data
+    {
         // Get compressed account data from CPI struct to temporarily create TokenData
         let compressed_account_data = output_compressed_account
             .compressed_account
@@ -99,7 +99,6 @@ pub fn set_output_compressed_account(
             TokenData::new_zero_copy(compressed_account_data.data, token_config)
                 .map_err(ProgramError::from)?;
 
-        // Convert ErrorCode to ProgramError explicitly
         token_data
             .set(
                 mint_pubkey,
@@ -109,32 +108,35 @@ pub fn set_output_compressed_account(
                 AccountState::Initialized,
             )
             .map_err(|e| ProgramError::Custom(e.into()))?;
-
-        // Compute data hash using the anchor TokenData hash_with_hashed_values method
+    }
+    let token_version = TokenAccountVersion::try_from(version)?;
+    // 2. Create TokenData using zero-copy to compute the data hash
+    let data_hash = {
         let hashed_owner = context.get_or_hash_pubkey(&owner.into());
-        // TODO: extract into function
-        let mut amount_bytes = [0u8; 32];
-        match token_version {
-            TokenAccountVersion::V1 => {
-                amount_bytes[24..].copy_from_slice(amount.to_bytes_le().as_slice());
-            }
-            TokenAccountVersion::V2 => {
-                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
-            }
-        }
+        let amount_bytes = token_version.serialize_amount_bytes(amount.into());
 
         let hashed_delegate =
             delegate.map(|delegate_pubkey| context.get_or_hash_pubkey(&delegate_pubkey.into()));
 
-        AnchorTokenData::hash_with_hashed_values(
-            hashed_mint,
-            &hashed_owner,
-            &amount_bytes,
-            &hashed_delegate.as_ref(),
-        )
-        .map_err(ProgramError::from)?
+        if !IS_FROZEN {
+            AnchorTokenData::hash_with_hashed_values(
+                &hashed_mint,
+                &hashed_owner,
+                &amount_bytes,
+                &hashed_delegate.as_ref(),
+            )
+            .map_err(ProgramError::from)?
+        } else {
+            AnchorTokenData::hash_frozen_with_hashed_values(
+                &hashed_mint,
+                &hashed_owner,
+                &amount_bytes,
+                &hashed_delegate.as_ref(),
+            )
+            .map_err(ProgramError::from)?
+        }
     };
-
+    // 3. Set output compressed account
     let lamports_value = lamports.unwrap_or(0u64.into()).into();
     output_compressed_account
         .set(

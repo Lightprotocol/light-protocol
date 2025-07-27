@@ -25,6 +25,21 @@ impl TokenAccountVersion {
             TokenAccountVersion::V2 => [0, 0, 0, 0, 0, 0, 0, 3], // 3 be
         }
     }
+
+    /// Serializes amount to bytes using version-specific endianness
+    /// V1: little-endian, V2: big-endian
+    pub fn serialize_amount_bytes(&self, amount: u64) -> [u8; 32] {
+        let mut amount_bytes = [0u8; 32];
+        match self {
+            TokenAccountVersion::V1 => {
+                amount_bytes[24..].copy_from_slice(&amount.to_le_bytes());
+            }
+            TokenAccountVersion::V2 => {
+                amount_bytes[24..].copy_from_slice(&amount.to_be_bytes());
+            }
+        }
+        amount_bytes
+    }
 }
 
 impl TryFrom<u8> for TokenAccountVersion {
