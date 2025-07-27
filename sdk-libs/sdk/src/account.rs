@@ -75,6 +75,7 @@ use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
 
 use crate::{
+    cpi::CpiAccounts,
     error::LightSdkError,
     light_hasher::{DataHasher, Poseidon},
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
@@ -88,6 +89,7 @@ pub struct LightAccount<
     owner: &'a Pubkey,
     pub account: A,
     account_info: CompressedAccountInfo,
+    empty_data: bool,
 }
 
 impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default>
@@ -111,6 +113,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: None,
                 output: Some(output_account_info),
             },
+            empty_data: false,
         }
     }
 
@@ -155,6 +158,53 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: Some(input_account_info),
                 output: Some(output_account_info),
             },
+            empty_data: false,
+        })
+    }
+
+    /// Create a new LightAccount for compression from an empty compressed account.
+    /// This is used when compressing a PDA - we know the compressed account exists
+    /// but is empty (data: [], data_hash: [1; 32]).
+    pub fn new_mut_without_data(
+        owner: &'a Pubkey,
+        input_account_meta: &impl CompressedAccountMetaTrait,
+    ) -> Result<Self, LightSdkError> {
+        let input_account_info = {
+            let tree_info = input_account_meta.get_tree_info();
+            InAccountInfo {
+                data_hash: [1; 32], // TODO: review security.
+                lamports: input_account_meta.get_lamports().unwrap_or_default(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                    queue_pubkey_index: tree_info.queue_pubkey_index,
+                    leaf_index: tree_info.leaf_index,
+                    prove_by_index: tree_info.prove_by_index,
+                },
+                root_index: input_account_meta.get_root_index().unwrap_or_default(),
+                discriminator: A::LIGHT_DISCRIMINATOR,
+            }
+        };
+        let output_account_info = {
+            let output_merkle_tree_index = input_account_meta
+                .get_output_state_tree_index()
+                .ok_or(LightSdkError::OutputStateTreeIndexIsNone)?;
+            OutAccountInfo {
+                lamports: input_account_meta.get_lamports().unwrap_or_default(),
+                output_merkle_tree_index,
+                discriminator: A::LIGHT_DISCRIMINATOR,
+                ..Default::default()
+            }
+        };
+
+        Ok(Self {
+            owner,
+            account: A::default(), // Start with default, will be filled with PDA data
+            account_info: CompressedAccountInfo {
+                address: input_account_meta.get_address(),
+                input: Some(input_account_info),
+                output: Some(output_account_info),
+            },
+            empty_data: false,
         })
     }
 
@@ -187,6 +237,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: Some(input_account_info),
                 output: None,
             },
+            empty_data: false,
         })
     }
 
@@ -230,6 +281,38 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
         &self.account_info.output
     }
 
+    /// Get the tree pubkey for this compressed account using the CpiAccounts
+    pub fn get_tree_pubkey<'info>(
+        &self,
+        cpi_accounts: &CpiAccounts<'_, 'info>,
+    ) -> Result<&'info solana_pubkey::Pubkey, LightSdkError> {
+        let merkle_tree_index = self
+            .in_account_info()
+            .as_ref()
+            .ok_or(LightSdkError::ConstraintViolation)?
+            .merkle_context
+            .merkle_tree_pubkey_index as usize;
+
+        Ok(cpi_accounts.get_tree_account_info(merkle_tree_index)?.key)
+    }
+
+    /// Calculate the size required for this account when stored on-chain.
+    /// This includes the 8-byte discriminator plus the serialized data size.
+    pub fn size(&self) -> Result<usize, LightSdkError> {
+        let data_size = self
+            .account
+            .try_to_vec()
+            .map_err(|_| LightSdkError::Borsh)?
+            .len();
+        Ok(8 + data_size) // 8 bytes for discriminator + data size
+    }
+
+    /// Remove the data from this account by setting it to default.
+    /// This is used when decompressing to ensure the compressed account is properly zeroed.
+    pub fn remove_data(&mut self) {
+        self.empty_data = true;
+    }
+
     /// 1. Serializes the account data and sets the output data hash.
     /// 2. Returns CompressedAccountInfo.
     ///
@@ -237,11 +320,18 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     /// that should only be called once per instruction.
     pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, LightSdkError> {
         if let Some(output) = self.account_info.output.as_mut() {
-            output.data_hash = self.account.hash::<Poseidon>()?;
-            output.data = self
-                .account
-                .try_to_vec()
-                .map_err(|_| LightSdkError::Borsh)?;
+            if self.empty_data {
+                // TODO: review security.
+                output.data = Vec::new();
+                output.output_merkle_tree_index = 1;
+                output.data_hash = [1; 32];
+            } else {
+                output.data_hash = self.account.hash::<Poseidon>()?;
+                output.data = self
+                    .account
+                    .try_to_vec()
+                    .map_err(|_| LightSdkError::Borsh)?;
+            }
         }
         Ok(self.account_info)
     }

@@ -30,6 +30,68 @@ pub struct Options {
     config: Option<String>,
 }
 
+pub async fn write_account_state_to_file(options: Options) -> anyhow::Result<()> {
+    use solana_sdk::pubkey::Pubkey;
+    use std::fs::File;
+    use std::io::Write;
+
+    let rpc_url = if let Some(network) = options.network {
+        if network == "local" {
+            String::from("http://127.0.0.1:8899")
+        } else if network == "devnet" {
+            String::from("https://api.devnet.solana.com")
+        } else if network == "mainnet" {
+            String::from("https://api.mainnet-beta.solana.com")
+        } else {
+            network.to_string()
+        }
+    } else {
+        String::from("https://api.mainnet-beta.solana.com")
+    };
+    let mut rpc = LightClient::new(LightClientConfig {
+        url: rpc_url,
+        photon_url: None,
+        commitment_config: None,
+        fetch_active_tree: false,
+        api_key: None,
+    })
+    .await
+    .unwrap();
+
+    let pubkey_options = [
+        ("mt", &options.mt_pubkey),
+        ("nfq", &options.nfq_pubkey),
+        ("cpi", &options.cpi_pubkey),
+    ];
+
+    for (label, pubkey_opt) in pubkey_options.iter() {
+        if let Some(pubkey_str) = pubkey_opt {
+            let pubkey = pubkey_str.parse::<Pubkey>()?;
+            let account = rpc.get_account(pubkey).await.unwrap().unwrap();
+            let out_path = format!("./target/{}-{}.json", label, pubkey);
+            let mut file = File::create(&out_path).unwrap();
+
+            // Serialize account data as base64, matching Solana RPC style
+            use serde_json::json;
+            let json = json!({
+                "pubkey": pubkey.to_string(),
+                "account": {
+                    "lamports": account.lamports,
+                    "data": [base64::encode(&account.data), "base64"],
+                    "owner": account.owner.to_string(),
+                    "executable": account.executable,
+                    "rentEpoch": account.rent_epoch,
+                    "space": account.data.len(),
+                }
+            });
+
+            let json_str = serde_json::to_string_pretty(&json).unwrap();
+            file.write_all(json_str.as_bytes()).unwrap();
+            println!("Fetched account data for {} into {}", pubkey, out_path);
+        }
+    }
+}
+
 pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
     let rpc_url = if let Some(network) = options.network {
         if network == "local" {
@@ -62,9 +124,6 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
         let mt_keypair = Keypair::new();
         let nfq_keypair = Keypair::new();
         let cpi_keypair = Keypair::new();
-        println!("new mt: {:?}", mt_keypair.pubkey());
-        println!("new nfq: {:?}", nfq_keypair.pubkey());
-        println!("new cpi: {:?}", cpi_keypair.pubkey());
 
         write_keypair_file(&mt_keypair, format!("./target/mt-{}", mt_keypair.pubkey())).unwrap();
         write_keypair_file(
@@ -81,12 +140,12 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
         nfq_keypairs.push(nfq_keypair);
         cpi_keypairs.push(cpi_keypair);
     } else {
-        let mt_keypair = read_keypair_file(options.mt_pubkey.unwrap()).unwrap();
-        let nfq_keypair = read_keypair_file(options.nfq_pubkey.unwrap()).unwrap();
-        let cpi_keypair = read_keypair_file(options.cpi_pubkey.unwrap()).unwrap();
-        println!("read mt: {:?}", mt_keypair.pubkey());
-        println!("read nfq: {:?}", nfq_keypair.pubkey());
-        println!("read cpi: {:?}", cpi_keypair.pubkey());
+        let mt_keypair =
+            read_keypair_file(format!("./target/mt-{}", options.mt_pubkey.unwrap())).unwrap();
+        let nfq_keypair =
+            read_keypair_file(format!("./target/nfq-{}", options.nfq_pubkey.unwrap())).unwrap();
+        let cpi_keypair =
+            read_keypair_file(format!("./target/cpi-{}", options.cpi_pubkey.unwrap())).unwrap();
         mt_keypairs.push(mt_keypair);
         nfq_keypairs.push(nfq_keypair);
         cpi_keypairs.push(cpi_keypair);
@@ -102,7 +161,6 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
         read_keypair_file(keypair_path.clone())
             .unwrap_or_else(|_| panic!("Keypair not found in default path {:?}", keypair_path))
     };
-    println!("read payer: {:?}", payer.pubkey());
 
     let config = if let Some(config) = options.config {
         if config == "testnet" {

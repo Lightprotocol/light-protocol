@@ -57,6 +57,9 @@ enum Command {
     InitNewDeployment(new_deployment::Options),
     /// cargo xtask create-update-protocol-config --slot-length <u64>
     CreateUpdateProtocolConfigIx(create_update_protocol_config_ix::Options),
+    /// Write existing account's state to file to use in cli.
+    /// cargo xtask write-account-state-to-file --mt-pubkey ./target/tree-keypairs/smtAvYA5UbTRyKAkAj5kHs1CmrA42t6WkVLi4c6mA1f.json --nfq-pubkey ./target/tree-keypairs/nfqAroCRkcZBgsAJDNkptKpsSWyM6cgB9XpWNNiCEC4.json --cpi-pubkey ./target/tree-keypairs/cpiAb2eNFf6MQeqMWEyEjSN3VJcD5hghujhmtdcMuZp.json --index 10 --network local
+    WriteAccountStateToFile(create_batch_state_tree::Options),
 }
 
 #[tokio::main]
@@ -88,6 +91,9 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::InitNewDeployment(opts) => new_deployment::init_new_deployment(opts).await,
         Command::CreateUpdateProtocolConfigIx(opts) => {
             create_update_protocol_config_ix::create_update_protocol_config_ix(opts).await
+        }
+        Command::WriteAccountStateToFile(opts) => {
+            create_batch_state_tree::write_account_state_to_file(opts).await
         }
     }
 }

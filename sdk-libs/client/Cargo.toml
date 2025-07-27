@@ -10,6 +10,7 @@ description = "Client library for Light Protocol"
 devenv = ["v2"]
 v2 = []
 program-test = ["solana-banks-client"]
+anchor = ["anchor-lang"]
 
 [dependencies]
 # Solana dependencies
@@ -35,6 +36,7 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bytemuck",
     "bincode",
 ] }
+anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 
 # Light Protocol dependencies
 light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
@@ -62,6 +64,8 @@ bytemuck = { workspace = true }
 tracing = { workspace = true }
 lazy_static = { workspace = true }
 rand = { workspace = true }
+
+
 
 # Tests are in program-tests/client-test/tests/light-client.rs
 # [dev-dependencies]

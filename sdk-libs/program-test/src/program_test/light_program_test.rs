@@ -75,7 +75,7 @@ impl LightProgramTest {
             if context.config.skip_startup_logs {
                 context.config.no_logs = true;
             }
-            initialize_accounts(&mut context, &config, &keypairs).await?;
+            context.test_accounts = initialize_accounts(&mut context, &config, &keypairs).await?;
             if context.config.skip_startup_logs {
                 context.config.no_logs = restore_logs;
             }
@@ -125,8 +125,8 @@ impl LightProgramTest {
         } else {
             config.prover_config
         };
-        if let Some(ref prover_config) = prover_config {
-            spawn_prover(prover_config.clone()).await;
+        if let Some(prover_config) = prover_config {
+            spawn_prover(prover_config).await;
         }
         Ok(context)
     }
