@@ -14,9 +14,9 @@ impl<'info> CloseTokenAccountAccounts<'info> {
     pub fn validate_and_parse(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
 
-        let token_account = iter.next_account()?;
-        let destination = iter.next_account()?;
-        let authority = iter.next_account()?;
+        let token_account = iter.next_account("token_account")?;
+        let destination = iter.next_account("destination")?;
+        let authority = iter.next_account("authority")?;
 
         // Basic validations using light_account_checks
         check_mut(token_account)?;

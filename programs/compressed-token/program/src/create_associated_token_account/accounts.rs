@@ -24,23 +24,10 @@ impl<'info> CreateAssociatedTokenAccountAccounts<'info> {
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
 
-        let fee_payer = iter.next_account()?;
-        let associated_token_account = iter.next_account()?;
+        let fee_payer = iter.next_account("fee_payer")?;
+        let associated_token_account = iter.next_account("associated_token_account")?;
         let mint_account = if mint_is_decompressed {
-            Some(iter.next_account()?)
-        } else {
-            None
-        };
-        let system_program = iter.next_account()?;
-
-        // Basic validations using light_account_checks
-        check_signer(fee_payer)?;
-        check_mut(fee_payer)?;
-        check_mut(associated_token_account)?;
-        check_non_mut(system_program)?;
-        // ata derivation is checked implicitly by cpi
-
-        if let Some(mint_account_info) = mint_account {
+            let mint_account_info = iter.next_account("mint_account")?;
             if AccountInfoTrait::key(mint_account_info) != *mint {
                 return Err(ProgramError::InvalidAccountData);
             }
@@ -61,7 +48,17 @@ impl<'info> CreateAssociatedTokenAccountAccounts<'info> {
             if !pod_mint.is_initialized() {
                 return Err(ProgramError::UninitializedAccount);
             }
-        }
+            Some(mint_account_info)
+        } else {
+            None
+        };
+        let system_program = iter.next_account("system_program")?;
+
+        // Basic validations using light_account_checks
+        check_signer(fee_payer)?;
+        check_mut(fee_payer)?;
+        check_mut(associated_token_account)?;
+        check_non_mut(system_program)?;
 
         Ok(CreateAssociatedTokenAccountAccounts {
             fee_payer,

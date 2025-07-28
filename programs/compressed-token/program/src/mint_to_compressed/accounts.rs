@@ -4,7 +4,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use pinocchio::account_info::AccountInfo;
 
-use crate::shared::{accounts::LightSystemAccounts, AccountIterator};
+use crate::shared::{accounts::{LightSystemAccounts, UpdateOneCompressedAccountTreeAccounts}, AccountIterator};
 
 pub struct MintToCompressedAccounts<'info> {
     pub authority: &'info AccountInfo,
@@ -14,9 +14,7 @@ pub struct MintToCompressedAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     pub system: LightSystemAccounts<'info>,
     pub sol_pool_pda: Option<&'info AccountInfo>,
-    pub mint_in_merkle_tree: &'info AccountInfo,
-    pub mint_in_queue: &'info AccountInfo,
-    pub mint_out_queue: &'info AccountInfo,
+    pub tree_accounts: UpdateOneCompressedAccountTreeAccounts<'info>,
     pub tokens_out_queue: &'info AccountInfo,
 }
 
@@ -34,51 +32,36 @@ impl<'info> MintToCompressedAccounts<'info> {
         with_lamports: bool,
         is_decompressed: bool,
     ) -> Result<Self, ProgramError> {
-        // Calculate minimum accounts needed
-        let mut base_accounts = 13;
-
-        if with_lamports {
-            base_accounts += 1;
-        };
-        if is_decompressed {
-            base_accounts += 3; // Add mint, token_pool_pda, token_program
-        };
-        if accounts.len() < base_accounts {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        }
-
         let mut iter = AccountIterator::new(accounts);
 
         // Static non-CPI accounts first
-        let authority = iter.next_account()?;
+        let authority = iter.next_account("authority")?;
 
         let (mint, token_pool_pda, token_program) = if is_decompressed {
             (
-                Some(iter.next_account()?),
-                Some(iter.next_account()?),
-                Some(iter.next_account()?),
+                Some(iter.next_account("mint")?),
+                Some(iter.next_account("token_pool_pda")?),
+                Some(iter.next_account("token_program")?),
             )
         } else {
             (None, None, None)
         };
 
-        let light_system_program = iter.next_account()?;
+        let light_system_program = iter.next_account("light_system_program")?;
 
         let system = LightSystemAccounts::validate_and_parse(&mut iter)?;
 
         let sol_pool_pda = if with_lamports {
-            Some(iter.next_account()?)
+            Some(iter.next_account("sol_pool_pda")?)
         } else {
             None
         };
 
-        let mint_in_merkle_tree = iter.next_account()?;
-        let mint_in_queue = iter.next_account()?;
-        let mint_out_queue = iter.next_account()?;
-        let tokens_out_queue = iter.next_account()?;
+        let tree_accounts = UpdateOneCompressedAccountTreeAccounts::validate_and_parse(&mut iter)?;
+        let tokens_out_queue = iter.next_account("tokens_out_queue")?;
 
         // Validate authority: must be signer
-        check_signer(authority).map_err(ProgramError::from)?;
+        check_signer(authority)?;
 
         Ok(MintToCompressedAccounts {
             authority,
@@ -88,9 +71,7 @@ impl<'info> MintToCompressedAccounts<'info> {
             light_system_program,
             system,
             sol_pool_pda,
-            mint_in_merkle_tree,
-            mint_in_queue,
-            mint_out_queue,
+            tree_accounts,
             tokens_out_queue,
         })
     }

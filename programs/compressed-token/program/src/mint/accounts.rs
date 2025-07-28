@@ -30,22 +30,18 @@ impl CreateCompressedMintAccounts<'_> {
 
 impl<'info> CreateCompressedMintAccounts<'info> {
     pub fn validate_and_parse(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
-        if accounts.len() != 12 {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        }
-
         let mut iter = AccountIterator::new(accounts);
 
         // Static non-CPI accounts first
-        let mint_signer = iter.next_account()?;
-        let light_system_program = iter.next_account()?;
+        let mint_signer = iter.next_account("mint_signer")?;
+        let light_system_program = iter.next_account("light_system_program")?;
 
         let system = LightSystemAccounts::validate_and_parse(&mut iter)?;
 
         let trees = CreateCompressedAccountTreeAccounts::validate_and_parse(&mut iter)?;
 
         // Validate mint_signer: must be signer
-        check_signer(mint_signer).map_err(ProgramError::from)?;
+        check_signer(mint_signer)?;
 
         Ok(CreateCompressedMintAccounts {
             mint_signer,

@@ -6,32 +6,5 @@ pub mod owner_validation;
 pub mod token_input;
 pub mod token_output;
 
-use anchor_lang::solana_program::program_error::ProgramError;
-use pinocchio::account_info::AccountInfo;
-
-pub struct AccountIterator<'info> {
-    accounts: &'info [AccountInfo],
-    position: usize,
-}
-
-impl<'info> AccountIterator<'info> {
-    pub fn new(accounts: &'info [AccountInfo]) -> Self {
-        Self {
-            accounts,
-            position: 0,
-        }
-    }
-
-    pub fn next_account(&mut self) -> Result<&'info AccountInfo, ProgramError> {
-        if self.position >= self.accounts.len() {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        }
-        let account = &self.accounts[self.position];
-        self.position += 1;
-        Ok(account)
-    }
-
-    pub fn remaining(&self) -> &'info [AccountInfo] {
-        &self.accounts[self.position..]
-    }
-}
+// Re-export AccountIterator from light-account-checks
+pub use light_account_checks::AccountIterator;

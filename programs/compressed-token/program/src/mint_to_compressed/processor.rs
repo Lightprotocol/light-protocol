@@ -141,9 +141,9 @@ pub fn process_mint_to_compressed(
 
     // Extract tree accounts for the generalized CPI call
     let tree_accounts = [
-        validated_accounts.mint_in_merkle_tree.key(),
-        validated_accounts.mint_in_queue.key(),
-        validated_accounts.mint_out_queue.key(),
+        validated_accounts.tree_accounts.in_merkle_tree.key(),
+        validated_accounts.tree_accounts.in_output_queue.key(),
+        validated_accounts.tree_accounts.out_output_queue.key(),
         validated_accounts.tokens_out_queue.key(),
     ];
     let start_index = if is_decompressed { 5 } else { 2 };

@@ -2,7 +2,6 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use spl_pod::solana_msg::msg;
 
 use crate::shared::AccountIterator;
 
@@ -68,57 +67,28 @@ impl<'info> Transfer2ValidatedAccounts<'info> {
     ) -> Result<(Self, Transfer2PackedAccounts<'info>), ProgramError> {
         // Parse system accounts from fixed positions
         let mut iter = AccountIterator::new(accounts);
-        let fee_payer = iter.next_account()?;
-        msg!(
-            "fee payer {:?}",
-            solana_pubkey::Pubkey::new_from_array(*fee_payer.key())
-        );
-        let authority = iter.next_account()?;
-        msg!(
-            "authority {:?}",
-            solana_pubkey::Pubkey::new_from_array(*authority.key())
-        );
-        let registered_program_pda = iter.next_account()?;
-        msg!(
-            "registered_program_pda {:?}",
-            solana_pubkey::Pubkey::new_from_array(*registered_program_pda.key())
-        );
-        let noop_program = iter.next_account()?;
-        msg!(
-            "noop_program {:?}",
-            solana_pubkey::Pubkey::new_from_array(*noop_program.key())
-        );
-        let account_compression_authority = iter.next_account()?;
-        msg!(
-            "account_compression_authority {:?}",
-            solana_pubkey::Pubkey::new_from_array(*account_compression_authority.key())
-        );
-        let account_compression_program = iter.next_account()?;
-        msg!(
-            "account_compression_program {:?}",
-            solana_pubkey::Pubkey::new_from_array(*account_compression_program.key())
-        );
-        let invoking_program = iter.next_account()?;
-        msg!(
-            "invoking_program {:?}",
-            solana_pubkey::Pubkey::new_from_array(*invoking_program.key())
-        );
-
+        let fee_payer = iter.next_account("fee_payer")?;
+        let authority = iter.next_account("authority")?;
+        let registered_program_pda = iter.next_account("registered_program_pda")?;
+        let noop_program = iter.next_account("noop_program")?;
+        let account_compression_authority = iter.next_account("account_compression_authority")?;
+        let account_compression_program = iter.next_account("account_compression_program")?;
+        let invoking_program = iter.next_account("invoking_program")?;
         let sol_pool_pda = if with_sol_pool {
-            Some(iter.next_account()?)
+            Some(iter.next_account("sol_pool_pda")?)
         } else {
             None
         };
 
         let sol_decompression_recipient = if with_sol_pool {
-            Some(iter.next_account()?)
+            Some(iter.next_account("sol_decompression_recipient")?)
         } else {
             None
         };
 
-        let system_program = iter.next_account()?;
+        let system_program = iter.next_account("system_program")?;
         let cpi_context_account = if with_cpi_context {
-            let cpi_context_account = iter.next_account()?;
+            let cpi_context_account = iter.next_account("cpi_context_account")?;
             check_mut(cpi_context_account)?;
             Some(cpi_context_account)
         } else {
@@ -129,7 +99,7 @@ impl<'info> Transfer2ValidatedAccounts<'info> {
         check_signer(fee_payer)?;
         check_mut(fee_payer)?;
         // Extract remaining accounts slice for dynamic indexing
-        let remaining_accounts = iter.remaining();
+        let remaining_accounts = iter.remaining()?;
 
         let validated_accounts = Transfer2ValidatedAccounts {
             fee_payer,

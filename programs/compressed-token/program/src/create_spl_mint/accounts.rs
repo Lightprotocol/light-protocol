@@ -44,20 +44,20 @@ impl<'info> CreateSplMintAccounts<'info> {
         let mut iter = AccountIterator::new(accounts);
 
         // Static non-CPI accounts first
-        let authority = iter.next_account()?;
-        let mint = iter.next_account()?;
-        let mint_signer = iter.next_account()?;
-        let token_pool_pda = iter.next_account()?;
-        let token_program = iter.next_account()?;
-        let light_system_program = iter.next_account()?;
+        let authority = iter.next_account("authority")?;
+        let mint = iter.next_account("mint")?;
+        let mint_signer = iter.next_account("mint_signer")?;
+        let token_pool_pda = iter.next_account("token_pool_pda")?;
+        let token_program = iter.next_account("token_program")?;
+        let light_system_program = iter.next_account("light_system_program")?;
 
         let system = LightSystemAccounts::validate_and_parse(&mut iter)?;
         let trees = UpdateOneCompressedAccountTreeAccounts::validate_and_parse(&mut iter)?;
 
         // Validate authority: must be signer
-        check_signer(authority).map_err(ProgramError::from)?;
+        check_signer(authority)?;
 
-        check_program(&spl_token_2022::ID.to_bytes(), token_program).map_err(ProgramError::from)?;
+        check_program(&spl_token_2022::ID.to_bytes(), token_program)?;
 
         Ok(CreateSplMintAccounts {
             authority,

@@ -16,21 +16,24 @@ pub struct LightSystemAccounts<'info> {
 }
 
 impl<'info> LightSystemAccounts<'info> {
-    pub fn validate_and_parse(iter: &mut AccountIterator<'info>) -> Result<Self, ProgramError> {
-        let fee_payer: &AccountInfo = iter.next_account()?;
+    #[track_caller]
+    pub fn validate_and_parse(
+        iter: &mut AccountIterator<'info, AccountInfo>,
+    ) -> Result<Self, ProgramError> {
+        let fee_payer: &AccountInfo = iter.next_account("fee_payer")?;
         // Validate fee_payer: must be signer and mutable
-        check_signer(fee_payer).map_err(ProgramError::from)?;
-        check_mut(fee_payer).map_err(ProgramError::from)?;
+        check_signer(fee_payer)?;
+        check_mut(fee_payer)?;
 
         Ok(Self {
             fee_payer,
-            cpi_authority_pda: iter.next_account()?,
-            registered_program_pda: iter.next_account()?,
-            noop_program: iter.next_account()?,
-            account_compression_authority: iter.next_account()?,
-            account_compression_program: iter.next_account()?,
-            system_program: iter.next_account()?,
-            self_program: iter.next_account()?,
+            cpi_authority_pda: iter.next_account("cpi_authority_pda")?,
+            registered_program_pda: iter.next_account("registered_program_pda")?,
+            noop_program: iter.next_account("noop_program")?,
+            account_compression_authority: iter.next_account("account_compression_authority")?,
+            account_compression_program: iter.next_account("account_compression_program")?,
+            system_program: iter.next_account("system_program")?,
+            self_program: iter.next_account("self_program")?,
         })
     }
 }
@@ -42,13 +45,16 @@ pub struct UpdateOneCompressedAccountTreeAccounts<'info> {
 }
 
 impl<'info> UpdateOneCompressedAccountTreeAccounts<'info> {
-    pub fn validate_and_parse(iter: &mut AccountIterator<'info>) -> Result<Self, ProgramError> {
-        let in_merkle_tree = iter.next_account()?;
-        let in_output_queue = iter.next_account()?;
-        let out_output_queue = iter.next_account()?;
-        check_mut(in_merkle_tree).map_err(ProgramError::from)?;
-        check_mut(in_output_queue).map_err(ProgramError::from)?;
-        check_mut(out_output_queue).map_err(ProgramError::from)?;
+    #[track_caller]
+    pub fn validate_and_parse(
+        iter: &mut AccountIterator<'info, AccountInfo>,
+    ) -> Result<Self, ProgramError> {
+        let in_merkle_tree = iter.next_account("in_merkle_tree")?;
+        let in_output_queue = iter.next_account("in_output_queue")?;
+        let out_output_queue = iter.next_account("out_output_queue")?;
+        check_mut(in_merkle_tree)?;
+        check_mut(in_output_queue)?;
+        check_mut(out_output_queue)?;
 
         Ok(Self {
             in_merkle_tree,
@@ -73,11 +79,14 @@ pub struct CreateCompressedAccountTreeAccounts<'info> {
 }
 
 impl<'info> CreateCompressedAccountTreeAccounts<'info> {
-    pub fn validate_and_parse(iter: &mut AccountIterator<'info>) -> Result<Self, ProgramError> {
-        let address_merkle_tree = iter.next_account()?;
-        let out_output_queue = iter.next_account()?;
-        check_mut(address_merkle_tree).map_err(ProgramError::from)?;
-        check_mut(out_output_queue).map_err(ProgramError::from)?;
+    #[track_caller]
+    pub fn validate_and_parse(
+        iter: &mut AccountIterator<'info, AccountInfo>,
+    ) -> Result<Self, ProgramError> {
+        let address_merkle_tree = iter.next_account("address_merkle_tree")?;
+        let out_output_queue = iter.next_account("out_output_queue")?;
+        check_mut(address_merkle_tree)?;
+        check_mut(out_output_queue)?;
 
         Ok(Self {
             address_merkle_tree,
