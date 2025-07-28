@@ -3,8 +3,8 @@ use light_compressed_account::instruction_data::cpi_context::CompressedCpiContex
 use light_compressed_token_sdk::{
     account2::CTokenAccount2,
     instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction_raw,
-        Transfer2Config, Transfer2InputsRaw,
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
     },
 };
 use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
@@ -152,8 +152,6 @@ pub fn process_four_transfer2<'info>(
     let cpi_accounts =
         CpiAccounts::new_with_config(ctx.accounts.signer.as_ref(), system_account_infos, config);
 
-    // TODO: reverse order to 1. process_update_escrow_pda, 2. create_transfer2_instruction_raw
-
     // Invocation 4: Execute CPI context with system program
     process_update_escrow_pda(cpi_accounts.clone(), pda_params, proof, 0, true)?;
 
@@ -205,7 +203,7 @@ pub fn process_four_transfer2<'info>(
         }
         msg!("packed_accounts {:?}", packed_accounts);
 
-        let inputs = Transfer2InputsRaw {
+        let inputs = Transfer2Inputs {
             validity_proof: proof,
             transfer_config: Transfer2Config {
                 cpi_context: Some(CompressedCpiContext {
@@ -231,7 +229,7 @@ pub fn process_four_transfer2<'info>(
                 transfer_recipient3,
             ],
         };
-        let instruction = create_transfer2_instruction_raw(inputs).map_err(ProgramError::from)?;
+        let instruction = create_transfer2_instruction(inputs).map_err(ProgramError::from)?;
 
         let account_infos = [
             &[cpi_accounts.fee_payer().clone()][..],

@@ -256,7 +256,7 @@ async fn test_compress_full_and_close() {
     let close_recipient_index = remaining_accounts.insert_or_get(close_recipient_pubkey); // Close recipient
 
     // Get remaining accounts and create instruction
-    let (account_metas, system_accounts_offset, packed_accounts_offset) =
+    let (account_metas, system_accounts_offset, _packed_accounts_offset) =
         remaining_accounts.to_account_metas();
 
     let instruction_data = instruction::CompressFullAndClose {
@@ -266,7 +266,6 @@ async fn test_compress_full_and_close() {
         source_index,
         authority_index,
         close_recipient_index,
-        packed_accounts_offset: packed_accounts_offset as u8,
         system_accounts_offset: system_accounts_offset as u8,
     };
     rpc.airdrop_lamports(&recipient_keypair.pubkey(), 1_000_000_000)

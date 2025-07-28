@@ -3,8 +3,8 @@ use light_compressed_token_sdk::{
     account2::CTokenAccount2,
     error::TokenSdkError,
     instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction_raw,
-        Transfer2Config, Transfer2InputsRaw,
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
     },
 };
 use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
@@ -258,7 +258,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         }
     }
     let packed_accounts = packed_tree_accounts.to_account_metas().0;
-    let inputs = Transfer2InputsRaw {
+    let inputs = Transfer2Inputs {
         validity_proof: rpc_proof_result.proof,
         transfer_config: Transfer2Config::default(),
         meta_config: Transfer2AccountsMetaConfig {
@@ -278,5 +278,5 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         },
         token_accounts,
     };
-    create_transfer2_instruction_raw(inputs)
+    create_transfer2_instruction(inputs)
 }

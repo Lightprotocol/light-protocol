@@ -79,7 +79,6 @@ pub mod sdk_token_test {
         authority_index: u8,
         close_recipient_index: u8,
         system_accounts_offset: u8,
-        packed_accounts_offset: u8,
     ) -> Result<()> {
         process_compress_full_and_close(
             ctx,
@@ -90,7 +89,6 @@ pub mod sdk_token_test {
             authority_index,
             close_recipient_index,
             system_accounts_offset,
-            packed_accounts_offset,
         )
     }
 

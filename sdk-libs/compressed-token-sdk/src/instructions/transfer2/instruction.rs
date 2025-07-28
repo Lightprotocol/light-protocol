@@ -58,7 +58,7 @@ impl Transfer2Config {
 
 /// Multi-transfer input parameters
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Transfer2InputsRaw {
+pub struct Transfer2Inputs {
     pub token_accounts: Vec<CTokenAccount2>,
     pub validity_proof: ValidityProof,
     pub transfer_config: Transfer2Config,
@@ -70,8 +70,8 @@ pub struct Transfer2InputsRaw {
 }
 
 /// Create the instruction for compressed token multi-transfer operations
-pub fn create_transfer2_instruction_raw(inputs: Transfer2InputsRaw) -> Result<Instruction> {
-    let Transfer2InputsRaw {
+pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instruction> {
+    let Transfer2Inputs {
         token_accounts,
         validity_proof,
         transfer_config,
@@ -164,8 +164,8 @@ pub fn create_transfer2_instruction_raw(inputs: Transfer2InputsRaw) -> Result<In
 
 /*
 /// Create a multi-transfer instruction
-pub fn transfer2(inputs: Transfer2Inputs) -> Result<Instruction> {
-    let Transfer2Inputs {
+pub fn transfer2(inputs: create_transfer2_instruction) -> Result<Instruction> {
+    let create_transfer2_instruction {
         fee_payer,
         authority,
         validity_proof,
@@ -189,7 +189,7 @@ pub fn transfer2(inputs: Transfer2Inputs) -> Result<Instruction> {
         )
         .with_cpi_context();
 
-    create_transfer2_instruction_raw(
+    create_transfer2_instruction(
         token_accounts,
         validity_proof,
         config,
