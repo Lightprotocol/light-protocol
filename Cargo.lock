@@ -3889,8 +3889,13 @@ dependencies = [
  "light-ctoken-types",
  "light-sdk",
  "solana-instruction",
+ "solana-keypair",
  "solana-msg",
  "solana-pubkey",
+ "solana-signature",
+ "solana-signer",
+ "spl-pod",
+ "spl-token-2022 7.0.0",
 ]
 
 [[package]]

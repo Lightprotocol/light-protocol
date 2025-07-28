@@ -26,9 +26,12 @@ use light_ctoken_types::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::Rpc;
-use light_token_client::instructions::transfer2::{
-    create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
-    DecompressInput, Transfer2InstructionType, TransferInput,
+use light_token_client::{
+    actions::transfer2,
+    instructions::transfer2::{
+        create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
+        DecompressInput, Transfer2InstructionType, TransferInput,
+    },
 };
 use light_zero_copy::borsh::Deserialize;
 use serial_test::serial;
@@ -401,27 +404,13 @@ async fn test_create_compressed_mint() {
     let new_recipient_keypair = Keypair::new();
     let new_recipient = new_recipient_keypair.pubkey();
     let transfer_amount = mint_amount; // Transfer all tokens (1000)
-
-    let transfer2_instruction = create_generic_transfer2_instruction(
+    transfer2::transfer(
         &mut rpc,
-        vec![Transfer2InstructionType::Transfer(TransferInput {
-            compressed_token_account: &token_accounts,
-            to: new_recipient,
-            amount: transfer_amount,
-        })],
-        payer.pubkey(),
-    )
-    .await
-    .unwrap();
-    println!(
-        "Multi-transfer instruction: {:?}",
-        transfer2_instruction.accounts
-    );
-    // Execute the multi-transfer instruction
-    rpc.create_and_send_transaction(
-        &[transfer2_instruction],
-        &payer.pubkey(),
-        &[&payer, &recipient_keypair], // Both payer and recipient need to sign
+        &compressed_token_accounts,
+        new_recipient,
+        transfer_amount,
+        &recipient_keypair,
+        &payer,
     )
     .await
     .unwrap();

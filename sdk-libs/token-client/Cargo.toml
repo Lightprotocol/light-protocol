@@ -18,3 +18,8 @@ light-compressed-token-sdk = { workspace = true }
 solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }
 solana-instruction = { workspace = true }
 solana-msg = { workspace = true }
+solana-keypair = { workspace = true }
+solana-signer = { workspace = true }
+solana-signature = { workspace = true }
+spl-token-2022 = { workspace = true }
+spl-pod = { workspace = true }

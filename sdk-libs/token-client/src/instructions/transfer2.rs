@@ -1,4 +1,7 @@
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::{
+    indexer::{CompressedTokenAccount, Indexer},
+    rpc::Rpc,
+};
 use light_compressed_token_sdk::{
     account2::CTokenAccount2,
     error::TokenSdkError,
@@ -13,7 +16,7 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 pub fn pack_input_token_account(
-    account: &light_client::indexer::CompressedTokenAccount,
+    account: &CompressedTokenAccount,
     tree_info: &PackedStateTreeInfo,
     packed_accounts: &mut PackedAccounts,
     in_lamports: &mut Vec<u64>,
@@ -45,7 +48,7 @@ pub fn pack_input_token_account(
 
 pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
-    compressed_token_account: &[light_client::indexer::CompressedTokenAccount],
+    compressed_token_account: &[CompressedTokenAccount],
     decompress_amount: u64,
     solana_token_account: Pubkey,
     payer: Pubkey,
@@ -64,18 +67,20 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
 }
 
 pub struct TransferInput<'a> {
-    pub compressed_token_account: &'a [light_client::indexer::CompressedTokenAccount],
+    pub compressed_token_account: &'a [CompressedTokenAccount],
     pub to: Pubkey,
     pub amount: u64,
 }
+
 pub struct DecompressInput<'a> {
-    pub compressed_token_account: &'a [light_client::indexer::CompressedTokenAccount],
+    pub compressed_token_account: &'a [CompressedTokenAccount],
     pub decompress_amount: u64,
     pub solana_token_account: Pubkey,
     pub amount: u64,
 }
+
 pub struct CompressInput<'a> {
-    pub compressed_token_account: Option<&'a [light_client::indexer::CompressedTokenAccount]>,
+    pub compressed_token_account: Option<&'a [CompressedTokenAccount]>,
     pub solana_token_account: Pubkey,
     pub to: Pubkey,
     pub mint: Pubkey,
@@ -83,6 +88,7 @@ pub struct CompressInput<'a> {
     pub authority: Pubkey,
     pub output_queue: Pubkey,
 }
+
 pub enum Transfer2InstructionType<'a> {
     Compress(CompressInput<'a>),
     Decompress(DecompressInput<'a>),
