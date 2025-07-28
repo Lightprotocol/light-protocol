@@ -8,7 +8,6 @@ use light_ctoken_types::{
 };
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 use zerocopy::little_endian::U64;
 
@@ -71,7 +70,6 @@ pub fn process_mint_to_compressed(
     let hashed_mint_authority = context.get_or_hash_pubkey(validated_accounts.authority.key());
 
     {
-        msg!("pre create_input_compressed_mint_account");
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
@@ -79,7 +77,6 @@ pub fn process_mint_to_compressed(
             &parsed_instruction_data.compressed_mint_inputs,
             &hashed_mint_authority,
         )?;
-        msg!("post create_input_compressed_mint_account");
 
         let mint_inputs = &parsed_instruction_data.compressed_mint_inputs.mint;
         let decimals = mint_inputs.decimals;
@@ -125,7 +122,6 @@ pub fn process_mint_to_compressed(
             mint_inputs.extensions.as_deref(),
             &mut context,
         )?;
-        msg!("post create_output_compressed_mint_account");
     }
 
     let is_decompressed = parsed_instruction_data

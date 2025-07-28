@@ -57,7 +57,6 @@ fn process_native_compressions(
     token_account_info: &AccountInfo,
     packed_accounts: &Transfer2PackedAccounts,
 ) -> Result<(), ProgramError> {
-    msg!("process_native_compressions");
 
     let mode = compression.mode;
 
@@ -76,7 +75,6 @@ fn process_native_compressions(
     // Use zero-copy PodAccount to access the token account
     let pod_account = pod_from_bytes_mut::<PodAccount>(&mut token_account_data)
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-    msg!(format!("pod_account {:?}", pod_account).as_str());
 
     // Get current balance
     let current_balance: u64 = pod_account.amount.into();

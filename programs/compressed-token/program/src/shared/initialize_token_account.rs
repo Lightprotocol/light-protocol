@@ -44,7 +44,6 @@ pub fn initialize_token_account(
         );
         return Err(ProgramError::InvalidAccountData);
     }
-    msg!("config {:?}", config);
 
     // Use zero-copy new to initialize the token account
     let (mut compressed_token, _) = CompressedToken::new_zero_copy(&mut token_account_data, config)

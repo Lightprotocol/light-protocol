@@ -84,25 +84,11 @@ pub fn execute_cpi_invoke(
     } else {
         AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)
     }); // cpi_context_account
-    msg!(
-        "tree_accounts {:?}",
-        tree_accounts
-            .iter()
-            .map(|meta| solana_pubkey::Pubkey::new_from_array(**meta))
-            .collect::<Vec<_>>()
-    );
-    msg!("tree_accounts {:?}", tree_accounts);
+
     // Append dynamic tree accounts (merkle trees, queues, etc.) as mutable accounts
     for tree_account in tree_accounts {
         account_metas.push(AccountMeta::new(tree_account, true, false));
     }
-    msg!(
-        "account_metas {:?}",
-        account_metas
-            .iter()
-            .map(|meta| solana_pubkey::Pubkey::new_from_array(*meta.pubkey))
-            .collect::<Vec<_>>()
-    );
     let instruction = Instruction {
         program_id: &LIGHT_SYSTEM_PROGRAM_ID,
         accounts: account_metas.as_slice(),

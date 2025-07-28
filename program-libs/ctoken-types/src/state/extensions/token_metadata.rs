@@ -4,6 +4,7 @@ use light_hasher::{
     Poseidon, Sha256,
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use pinocchio::msg;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
@@ -55,8 +56,14 @@ pub struct TokenMetadata {
 impl TokenMetadata {
     pub fn hash(&self) -> Result<[u8; 32], HasherError> {
         match Version::try_from(self.version)? {
-            Version::Poseidon => <Self as DataHasher>::hash::<Poseidon>(self),
-            Version::Sha256 => <Self as DataHasher>::hash::<Sha256>(self),
+            Version::Poseidon => {
+                msg!("poseidon");
+                <Self as DataHasher>::hash::<Poseidon>(self)
+            }
+            Version::Sha256 => {
+                msg!("sha256");
+                <Self as DataHasher>::hash::<Sha256>(self)
+            }
             _ => unimplemented!("TokenMetadata hash version not supported {}", self.version),
             // Version::Keccak256 => <Self as DataHasher>::hash::<Keccak>(self),
             // Version::Sha256Flat => self.sha_flat(),

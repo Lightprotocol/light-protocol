@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::traits::InstructionData;
-use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 pub use crate::Result;
 use crate::{
@@ -35,7 +35,6 @@ pub fn process_invoke_cpi<
         accounts.get_authority().key(),
         &instruction_data,
     )?;
-    msg!(format!("instruction_data {:?}", instruction_data.cpi_context()).as_str());
 
     let (cpi_context_inputs_len, instruction_data) = match process_cpi_context(
         instruction_data,

@@ -1,12 +1,15 @@
-use light_hasher::Hasher;
+use light_hasher::{Hasher, Poseidon, Sha256};
 pub mod compressible;
 //pub mod metadata_pointer;
 pub mod token_metadata;
-
+use pinocchio::log::sol_log_compute_units;
+use solana_msg::msg;
 //pub use metadata_pointer::{InitMetadataPointer, ZInitMetadataPointer};
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
-use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError};
+use crate::{
+    context::TokenContext, state::Version, AnchorDeserialize, AnchorSerialize, CTokenError,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum ExtensionInstructionData {
@@ -85,7 +88,37 @@ impl ZExtensionInstructionData<'_> {
                 metadata_pointer.hash_metadata_pointer::<H>(context)
             }*/
             ZExtensionInstructionData::TokenMetadata(token_metadata) => {
-                token_metadata.hash_token_metadata::<H>(hashed_mint, context)
+                match Version::try_from(token_metadata.version)? {
+                    Version::Poseidon => {
+                        // TODO: cleanup other hashing code
+                        msg!("poseidon");
+                        sol_log_compute_units();
+                        let hash =
+                            token_metadata.hash_token_metadata::<Poseidon>(hashed_mint, context);
+                        sol_log_compute_units();
+                        hash
+                    }
+                    Version::Sha256 => {
+                        msg!("sha256");
+                        sol_log_compute_units();
+                        let mut hash =
+                            token_metadata.hash_token_metadata::<Sha256>(hashed_mint, context)?;
+                        sol_log_compute_units();
+                        hash[0] = 0;
+                        Ok(hash)
+                    }
+                    _ => {
+                        msg!(
+                            "TokenMetadata hash version not supported {} (0 Poseidon, 1 Sha256 are supported).",
+                            token_metadata.version
+                        );
+                        unimplemented!(
+                            "TokenMetadata hash version not supported {}",
+                            token_metadata.version
+                        )
+                    } // Version::Keccak256 => <Self as DataHasher>::hash::<Keccak>(self),
+                      // Version::Sha256Flat => self.sha_flat(),
+                }
             }
             _ => Err(CTokenError::UnsupportedExtension),
         }

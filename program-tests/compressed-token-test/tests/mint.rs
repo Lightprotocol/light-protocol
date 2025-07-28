@@ -299,7 +299,6 @@ async fn test_create_compressed_mint() {
 
     // 6. Compress SPL tokens to compressed tokens
     // Test compressing tokens to a new account
-    println!("Testing compression of SPL tokens to compressed tokens...");
 
     let compress_recipient = Keypair::new();
     let compress_amount = 100u64; // Compress 100 tokens
@@ -325,7 +324,7 @@ async fn test_create_compressed_mint() {
     )
     .await
     .unwrap();
-
+    println!("Compress 0 in 1 out");
     // Execute compression
     rpc.create_and_send_transaction(
         &[compress_instruction],
@@ -369,7 +368,7 @@ async fn test_create_compressed_mint() {
     )
     .await
     .unwrap();
-
+    println!("Compress 0 in 1 out");
     rpc.create_and_send_transaction(
         &[transfer_compress_instruction],
         &payer.pubkey(),
@@ -405,7 +404,7 @@ async fn test_create_compressed_mint() {
     )
     .await
     .unwrap();
-
+    println!("Compress 0 in 1 out");
     rpc.create_and_send_transaction(
         &[compress_for_multi_instruction],
         &payer.pubkey(),
@@ -440,6 +439,7 @@ async fn test_create_compressed_mint() {
         spl_mint_pda,
     )
     .unwrap();
+
     rpc.create_and_send_transaction(
         &[create_decompress_ata_instruction],
         &payer.pubkey(),
@@ -501,6 +501,11 @@ async fn test_create_compressed_mint() {
         .unwrap();
 
         // Execute the combined instruction with multiple signers
+        println!(
+            "Transfer {} in 2 out, compress 0 in 1 out, decompress {} in 1 out",
+            remaining_compressed_tokens.len(),
+            compressed_tokens_for_compress.len()
+        );
         rpc.create_and_send_transaction(
             &[transfer2_instruction],
             &payer.pubkey(),
@@ -529,9 +534,7 @@ async fn test_create_compressed_mint() {
 /// 3. mint tokens with compressed mint
 #[tokio::test]
 #[serial]
-async fn test_create_compressed_mint_with_token_metadata() {
-    use light_compressed_account::Pubkey as LightPubkey;
-
+async fn test_create_compressed_mint_with_token_metadata_poseidon() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
         .unwrap();
@@ -565,7 +568,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     ];
 
     let token_metadata = TokenMetadataInstructionData {
-        update_authority: Some(LightPubkey::from(mint_authority.to_bytes())),
+        update_authority: None,
         metadata: Metadata {
             name: b"Test Token".to_vec(),
             symbol: b"TEST".to_vec(),
@@ -635,9 +638,14 @@ async fn test_create_compressed_mint_with_token_metadata() {
     // 3. Mint to compressed
     {
         // Get pre-token pool account state for decompressed mint
-        let (token_pool_pda, _) = light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(&spl_mint_pda, 0);
+        let (token_pool_pda, _) =
+            light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
+                &spl_mint_pda,
+                0,
+            );
         let pre_pool_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
-        let pre_token_pool_account = spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
+        let pre_token_pool_account =
+            spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
 
         let mint_amount = 100_000u64; // Mint 100,000 tokens
         let recipient_keypair = Keypair::new();
@@ -680,7 +688,172 @@ async fn test_create_compressed_mint_with_token_metadata() {
             spl_mint_pda,
             recipient,
             mint_amount,
-            mint_amount, // Expected total supply after minting
+            mint_amount,                  // Expected total supply after minting
+            Some(pre_token_pool_account), // Pass pre-token pool account for decompressed mint validation
+            pre_compressed_mint,
+            Some(pre_spl_mint),
+        )
+        .await;
+    }
+}
+
+#[tokio::test]
+#[serial]
+async fn test_create_compressed_mint_with_token_metadata_sha() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test parameters
+    let decimals = 6u8;
+    let mint_authority_keypair = Keypair::new();
+    let mint_authority = mint_authority_keypair.pubkey();
+    let freeze_authority = Pubkey::new_unique();
+    let mint_seed = Keypair::new();
+
+    // Get address tree for creating compressed mint address
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    // 1. Create compressed mint with metadata
+
+    // Create token metadata extension with additional metadata
+    let additional_metadata = vec![
+        AdditionalMetadata {
+            key: b"website".to_vec(),
+            value: b"https://mytoken.com".to_vec(),
+        },
+        AdditionalMetadata {
+            key: b"category".to_vec(),
+            value: b"DeFi".to_vec(),
+        },
+        AdditionalMetadata {
+            key: b"creator".to_vec(),
+            value: b"TokenMaker Inc.".to_vec(),
+        },
+    ];
+
+    let token_metadata = TokenMetadataInstructionData {
+        update_authority: None,
+        metadata: Metadata {
+            name: b"Test Token".to_vec(),
+            symbol: b"TEST".to_vec(),
+            uri: b"https://example.com/token.json".to_vec(),
+        },
+        additional_metadata: Some(additional_metadata.clone()),
+        version: 1, // Sha hash version
+    };
+    light_token_client::actions::create_mint(
+        &mut rpc,
+        &mint_seed,
+        decimals,
+        mint_authority,
+        Some(freeze_authority),
+        Some(token_metadata.clone()),
+        &payer,
+    )
+    .await
+    .unwrap();
+    let (spl_mint_pda, _) = Pubkey::find_program_address(
+        &[COMPRESSED_MINT_SEED, mint_seed.pubkey().as_ref()],
+        &light_compressed_token::ID,
+    );
+    let compressed_mint_address = light_compressed_token_sdk::instructions::create_compressed_mint::derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+
+    // Verify the compressed mint was created
+    let compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert_compressed_mint_account(
+        &compressed_mint_account,
+        compressed_mint_address,
+        spl_mint_pda,
+        decimals,
+        mint_authority,
+        freeze_authority,
+        Some(token_metadata.clone()),
+    );
+
+    // 2. Create SPL mint
+    {
+        // Get compressed mint data before creating SPL mint
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
+        create_spl_mint(
+            &mut rpc,
+            compressed_mint_address,
+            &mint_seed,
+            &mint_authority_keypair,
+            &payer,
+        )
+        .await
+        .unwrap();
+
+        // Verify SPL mint was created using our assertion helper
+        assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
+    }
+    // 3. Mint to compressed
+    {
+        // Get pre-token pool account state for decompressed mint
+        let (token_pool_pda, _) =
+            light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
+                &spl_mint_pda,
+                0,
+            );
+        let pre_pool_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+        let pre_token_pool_account =
+            spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
+
+        let mint_amount = 100_000u64; // Mint 100,000 tokens
+        let recipient_keypair = Keypair::new();
+        let recipient = recipient_keypair.pubkey();
+
+        // Use our mint_to_compressed action helper (automatically handles decompressed mint config)
+        mint_to_compressed(
+            &mut rpc,
+            spl_mint_pda,
+            vec![Recipient {
+                recipient: recipient.into(),
+                amount: mint_amount,
+            }],
+            &mint_authority_keypair,
+            &payer,
+            None, // No lamports
+        )
+        .await
+        .unwrap();
+
+        // Get pre-compressed mint and pre-spl mint for assertion
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
+        let pre_spl_mint = spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
+
+        // Verify minted tokens using our assertion helper
+        assert_mint_to_compressed_one(
+            &mut rpc,
+            spl_mint_pda,
+            recipient,
+            mint_amount,
+            mint_amount,                  // Expected total supply after minting
             Some(pre_token_pool_account), // Pass pre-token pool account for decompressed mint validation
             pre_compressed_mint,
             Some(pre_spl_mint),

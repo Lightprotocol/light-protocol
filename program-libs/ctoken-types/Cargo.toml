@@ -25,6 +25,7 @@ light-macros = { workspace = true }
 solana-sysvar = { workspace = true, optional = true }
 spl-pod = { workspace = true }
 spl-token-2022 = { workspace = true }
+solana-msg = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

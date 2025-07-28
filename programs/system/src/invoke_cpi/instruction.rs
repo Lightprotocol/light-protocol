@@ -1,4 +1,4 @@
-use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
     accounts::{
@@ -41,45 +41,27 @@ impl<'info> InvokeCpiInstruction<'info> {
     pub fn from_account_infos(
         account_infos: &'info [AccountInfo],
     ) -> Result<(Self, &'info [AccountInfo])> {
-        msg!("here");
         let (accounts, remaining_accounts) = account_infos.split_at(11);
-        msg!("here");
         let mut accounts = accounts.iter();
-        msg!("here");
         let fee_payer = check_fee_payer(accounts.next())?;
-        msg!("here");
 
         let authority = check_authority(accounts.next())?;
-        msg!("here");
-
         let registered_program_pda = check_non_mut_account_info(accounts.next())?;
-        msg!("here");
-
-        // Unchecked since unused.
         let _noop_program = accounts.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
-
-        msg!("here");
         let account_compression_authority = check_non_mut_account_info(accounts.next())?;
 
-        msg!("here");
         let account_compression_program = check_account_compression_program(accounts.next())?;
 
-        msg!("here");
         let invoking_program = accounts.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-        msg!("here");
         let sol_pool_pda = check_anchor_option_sol_pool_pda(accounts.next())?;
-        msg!("here");
 
         let decompression_recipient = anchor_option_account_info(accounts.next())?;
-        msg!("system_program");
 
         let system_program = check_system_program(accounts.next())?;
 
-        msg!("cpi_context_account");
         let cpi_context_account = check_anchor_option_cpi_context_account(accounts.next())?;
         assert!(accounts.next().is_none());
-        msg!("post cpi_context_account");
 
         Ok((
             Self {

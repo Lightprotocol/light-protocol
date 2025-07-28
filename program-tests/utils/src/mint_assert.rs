@@ -3,6 +3,7 @@ use light_ctoken_types::{
     instructions::extensions::TokenMetadataInstructionData,
     state::{CompressedMint, ExtensionStruct},
 };
+use light_hasher::Poseidon;
 use solana_sdk::pubkey::Pubkey;
 
 #[track_caller]
@@ -56,9 +57,15 @@ pub fn assert_compressed_mint_account(
     );
 
     // Deserialize and verify the CompressedMint struct matches expected
-    let actual_compressed_mint: CompressedMint =
+    let compressed_mint: CompressedMint =
         BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
-
-    assert_eq!(actual_compressed_mint, expected_compressed_mint);
+    println!("Compressed Mint: {:?}", compressed_mint);
+    assert_eq!(compressed_mint, expected_compressed_mint);
+    if let Some(extensions) = compressed_mint.extensions {
+        println!(
+            "Compressed Mint extension hash: {:?}",
+            extensions[0].hash::<Poseidon>()
+        );
+    }
     expected_compressed_mint
 }

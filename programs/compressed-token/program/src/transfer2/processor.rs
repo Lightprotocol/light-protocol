@@ -55,7 +55,6 @@ pub fn process_transfer2(
 
     // Determine optional account flags from instruction data
     let with_sol_pool = total_input_lamports != total_output_lamports;
-    msg!("with_sol_pool {}", with_sol_pool);
     let with_cpi_context = inputs.cpi_context.is_some();
 
     // Skip first account (light-system-program) and validate remaining accounts
@@ -64,10 +63,8 @@ pub fn process_transfer2(
         with_sol_pool,
         with_cpi_context,
     )?;
-    use anchor_lang::solana_program::msg;
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
-    msg!("validate_instruction_data");
     bench_sbf_start!("t_context_and_check_sig");
     // anchor_lang::solana_program::log::msg!("inputs {:?}", inputs);
 
@@ -87,7 +84,6 @@ pub fn process_transfer2(
         inputs.cpi_context,
     )?;
 
-    msg!("pre set_input_compressed_accounts");
 
     // Process input compressed accounts
     set_input_compressed_accounts(
@@ -107,7 +103,6 @@ pub fn process_transfer2(
     bench_sbf_end!("t_create_output_compressed_accounts");
     //msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
 
-    msg!("pre process_change_lamports");
     process_change_lamports(
         &inputs,
         &packed_accounts,
@@ -118,7 +113,6 @@ pub fn process_transfer2(
     // Process token compressions/decompressions
     // TODO: support spl
     process_token_compression(&inputs, &packed_accounts)?;
-    msg!("pre sum_check_multi_mint");
     bench_sbf_end!("t_context_and_check_sig");
     bench_sbf_start!("t_sum_check");
     sum_check_multi_mint(
@@ -128,23 +122,20 @@ pub fn process_transfer2(
     )
     .map_err(|e| ProgramError::Custom(e as u32))?;
     bench_sbf_end!("t_sum_check");
-    msg!("pre set_output_compressed_accounts");
 
     // Get CPI accounts slice and tree accounts for light-system-program invocation
     let (cpi_accounts, tree_pubkeys) =
         validated_accounts.cpi_accounts(accounts, &inputs, &packed_accounts);
     // Debug prints keep for now.
     {
-        let solana_tree_accounts = tree_pubkeys
+        let _solana_tree_accounts = tree_pubkeys
             .iter()
             .map(|&x| solana_pubkey::Pubkey::new_from_array(*x))
             .collect::<Vec<_>>();
-        msg!("solana_tree_accounts {:?}", solana_tree_accounts);
         let _cpi_accounts = cpi_accounts
             .iter()
             .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
             .collect::<Vec<_>>();
-        msg!("cpi_accounts {:?}", _cpi_accounts);
     }
     // Execute CPI call to light-system-program
     execute_cpi_invoke(
