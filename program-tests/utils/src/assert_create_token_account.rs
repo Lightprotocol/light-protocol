@@ -1,5 +1,6 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
+use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
 use light_ctoken_types::{
     state::{extensions::CompressibleExtension, solana_ctoken::CompressedToken},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
@@ -112,14 +113,7 @@ pub async fn assert_create_associated_token_account<R: Rpc>(
     compressible_data: Option<CompressibleData>,
 ) {
     // Derive the associated token account address
-    let (ata_pubkey, _bump) = Pubkey::find_program_address(
-        &[
-            owner_pubkey.as_ref(),
-            light_compressed_token::ID.as_ref(),
-            mint_pubkey.as_ref(),
-        ],
-        &light_compressed_token::ID,
-    );
+    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &mint_pubkey);
 
     // Use the main assertion function
     assert_create_token_account(

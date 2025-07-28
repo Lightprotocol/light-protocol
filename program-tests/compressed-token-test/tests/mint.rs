@@ -114,7 +114,7 @@ async fn test_create_compressed_mint() {
     .unwrap();
 
     // Verify minted tokens using our assertion helper
-    let _token_account = assert_mint_to_compressed_one(
+    assert_mint_to_compressed_one(
         &mut rpc,
         spl_mint_pda,
         recipient,
@@ -122,6 +122,19 @@ async fn test_create_compressed_mint() {
         expected_supply,
     )
     .await;
+
+    // Get compressed mint data before creating SPL mint
+    let pre_compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+    let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+    )
+    .unwrap();
 
     // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
     create_spl_mint(
@@ -135,7 +148,7 @@ async fn test_create_compressed_mint() {
     .unwrap();
 
     // Verify SPL mint was created using our assertion helper
-    assert_spl_mint(&mut rpc, mint_seed.pubkey()).await;
+    assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
 
     // Test decompression functionality
     println!("Testing token decompression...");
@@ -769,6 +782,12 @@ async fn test_create_compressed_mint_with_token_metadata() {
         Some(token_metadata.clone()),
     );
 
+    // Get compressed mint data before creating SPL mint
+    let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut compressed_mint_account.data.unwrap().data.as_slice(),
+    )
+    .unwrap();
+
     // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
     create_spl_mint(
         &mut rpc,
@@ -781,7 +800,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     .unwrap();
 
     // Verify SPL mint was created using our assertion helper
-    assert_spl_mint(&mut rpc, mint_seed.pubkey()).await;
+    assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
 
     // Additional verification: Check that extensions are preserved
     let final_compressed_mint_account = rpc
@@ -822,35 +841,6 @@ async fn test_create_compressed_mint_with_token_metadata() {
     let mint_amount = 100_000u64; // Mint 100,000 tokens
     let recipient_keypair = Keypair::new();
     let recipient = recipient_keypair.pubkey();
-
-    // Get the updated compressed mint account after decompression (with is_decompressed = true)
-    let address_array = final_compressed_mint_account.address.unwrap();
-    let updated_compressed_mint_account = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(address_array, None)
-        .await
-        .unwrap()
-        .value;
-    println!(
-        "updated_compressed_mint_account {:?}",
-        updated_compressed_mint_account
-    );
-    let updated_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-        &mut updated_compressed_mint_account
-            .data
-            .as_ref()
-            .unwrap()
-            .data
-            .as_slice(),
-    )
-    .unwrap();
-
-    // Verify the mint is now marked as decompressed
-    assert!(
-        updated_compressed_mint.is_decompressed,
-        "Compressed mint should be marked as decompressed"
-    );
 
     // Use our mint_to_compressed action helper (automatically handles decompressed mint config)
     mint_to_compressed(

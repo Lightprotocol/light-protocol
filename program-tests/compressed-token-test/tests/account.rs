@@ -1,11 +1,12 @@
 // #![cfg(feature = "test-sbf")]
 
-use std::assert_eq;
-
-use light_compressed_token_sdk::instructions::{close::close_account, create_token_account};
+use light_compressed_token_sdk::instructions::{
+    close::close_account, create_associated_token_account::derive_ctoken_ata, create_token_account,
+};
 use light_ctoken_types::{BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
+    assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
         assert_create_associated_token_account, assert_create_token_account, CompressibleData,
     },
@@ -50,17 +51,13 @@ async fn test_create_and_close_token_account() {
         create_token_account(token_account_pubkey, mint_pubkey, owner_pubkey).unwrap();
     initialize_account_ix.data.push(0);
     // Execute both instructions in one transaction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+    rpc.create_and_send_transaction(
         &[create_account_system_ix, initialize_account_ix],
-        Some(&payer_pubkey),
+        &payer.pubkey(),
         &[&payer, &token_account_keypair],
-        blockhash,
-    );
-
-    rpc.process_transaction(transaction.clone())
-        .await
-        .expect("Failed to create token account using SPL SDK");
+    )
+    .await
+    .expect("Failed to create token account using SPL SDK");
 
     // Verify the token account was created correctly
     assert_create_token_account(
@@ -79,13 +76,7 @@ async fn test_create_and_close_token_account() {
     // Airdrop some lamports to destination account so it exists
     rpc.context.airdrop(&destination_pubkey, 1_000_000).unwrap();
 
-    // Get initial lamports before closing
-    let initial_token_account_lamports = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
+    // Get initial destination lamports before closing
     let initial_destination_lamports = rpc
         .get_account(destination_pubkey)
         .await
@@ -101,42 +92,23 @@ async fn test_create_and_close_token_account() {
         &owner_pubkey,
     );
 
-    // Execute the close instruction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+    rpc.create_and_send_transaction(
         &[close_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &owner_keypair], // Need owner to sign
-        blockhash,
-    );
+        &payer.pubkey(),
+        &[&payer, &owner_keypair],
+    )
+    .await
+    .expect("Failed to close token account using SPL SDK");
 
-    rpc.process_transaction(close_transaction)
-        .await
-        .expect("Failed to close token account using SPL SDK");
-
-    // Verify the account was closed (data should be cleared, lamports should be 0)
-    let closed_account = rpc.get_account(token_account_pubkey).await.unwrap();
-    if let Some(account) = closed_account {
-        // Account still exists, but should have 0 lamports and cleared data
-        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
-        assert!(
-            account.data.iter().all(|&b| b == 0),
-            "Closed account data should be cleared"
-        );
-    }
-
-    // Verify lamports were transferred to destination
-    let final_destination_lamports = rpc
-        .get_account(destination_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    assert_eq!(
-        final_destination_lamports,
-        initial_destination_lamports + initial_token_account_lamports,
-        "Destination should receive all lamports from closed account"
-    );
+    // Verify the account was closed correctly
+    assert_close_token_account(
+        &mut rpc,
+        token_account_pubkey,
+        None,
+        destination_pubkey,
+        initial_destination_lamports,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -201,18 +173,13 @@ async fn test_create_and_close_account_with_rent_authority() {
         )
         .unwrap();
 
-    // Execute account creation
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let create_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
+    rpc.create_and_send_transaction(
         &[create_account_ix, create_token_account_ix],
-        Some(&payer_pubkey),
+        &payer.pubkey(),
         &[&payer, &token_account_keypair],
-        blockhash,
-    );
-
-    rpc.process_transaction(create_transaction)
-        .await
-        .expect("Failed to create token account");
+    )
+    .await
+    .expect("Failed to create token account");
 
     // Verify the account was created correctly
     assert_create_token_account(
@@ -228,13 +195,7 @@ async fn test_create_and_close_account_with_rent_authority() {
     )
     .await;
 
-    // Get initial lamports before closing
-    let initial_token_account_lamports = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
+    // Get initial recipient lamports before closing
     let initial_recipient_lamports = rpc
         .get_account(rent_recipient_pubkey)
         .await
@@ -250,38 +211,31 @@ async fn test_create_and_close_account_with_rent_authority() {
         &rent_authority_pubkey, // Use rent authority as authority
     );
 
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[close_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &rent_authority_keypair], // Sign with rent authority, not owner
-        blockhash,
-    );
-
-    rpc.process_transaction(close_transaction).await.unwrap();
-
-    // Verify the account was closed (should have 0 lamports and cleared data)
-    let closed_account = rpc.get_account(token_account_pubkey).await.unwrap();
-    if let Some(account) = closed_account {
-        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
-        assert!(
-            account.data.iter().all(|&b| b == 0),
-            "Closed account data should be cleared"
-        );
-    }
-
-    // Verify lamports were transferred to rent recipient
-    let final_recipient_lamports = rpc
-        .get_account(rent_recipient_pubkey)
+    // Get account data before closing for assertion
+    let account_data_before_close = rpc
+        .get_account(token_account_pubkey)
         .await
         .unwrap()
         .unwrap()
-        .lamports;
-    assert_eq!(
-        final_recipient_lamports,
-        initial_recipient_lamports + initial_token_account_lamports,
-        "Rent recipient should receive all lamports from closed account"
-    );
+        .data;
+
+    rpc.create_and_send_transaction(
+        &[close_account_ix],
+        &payer.pubkey(),
+        &[&payer, &rent_authority_keypair],
+    )
+    .await
+    .unwrap();
+
+    // Verify the account was closed correctly
+    assert_close_token_account(
+        &mut rpc,
+        token_account_pubkey,
+        Some(&account_data_before_close),
+        rent_recipient_pubkey,
+        initial_recipient_lamports,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -339,15 +293,13 @@ async fn test_create_compressible_account_insufficient_size() {
         .unwrap();
 
     // Execute account creation - this should fail with account size error
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let create_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[create_account_ix, create_token_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &token_account_keypair],
-        blockhash,
-    );
-
-    let result = rpc.process_transaction(create_transaction).await;
+    let result = rpc
+        .create_and_send_transaction(
+            &[create_account_ix, create_token_account_ix],
+            &payer.pubkey(),
+            &[&payer, &token_account_keypair],
+        )
+        .await;
     assert!(
         result.is_err(),
         "Expected account creation to fail due to insufficient account size"
@@ -380,15 +332,7 @@ async fn test_create_associated_token_account() {
     .unwrap();
 
     // Execute the instruction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        blockhash,
-    );
-
-    rpc.process_transaction(transaction.clone())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .expect("Failed to create associated token account");
 
@@ -425,16 +369,7 @@ async fn test_create_associated_token_account() {
         }
     ).unwrap();
 
-    // Execute the compressible instruction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let compressible_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[compressible_instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        blockhash,
-    );
-
-    rpc.process_transaction(compressible_transaction)
+    rpc.create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
         .await
         .expect("Failed to create compressible associated token account");
 
@@ -453,21 +388,9 @@ async fn test_create_associated_token_account() {
 
     // Test that we can close the compressible account using rent authority
     // Re-derive the ATA address for closing test
-    let (expected_compressible_ata_pubkey, _) = Pubkey::find_program_address(
-        &[
-            compressible_owner_pubkey.as_ref(),
-            light_compressed_token::ID.as_ref(),
-            mint_pubkey.as_ref(),
-        ],
-        &light_compressed_token::ID,
-    );
+    let (expected_compressible_ata_pubkey, _) =
+        derive_ctoken_ata(&compressible_owner_pubkey, &mint_pubkey);
 
-    let initial_compressible_lamports = rpc
-        .get_account(expected_compressible_ata_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
     let initial_recipient_lamports = rpc
         .get_account(rent_recipient_pubkey)
         .await
@@ -483,36 +406,31 @@ async fn test_create_associated_token_account() {
         &rent_authority_pubkey,
     );
 
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[close_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &rent_authority_keypair],
-        blockhash,
-    );
-
-    rpc.process_transaction(close_transaction).await.unwrap();
-
-    // Verify the compressible account was closed and lamports transferred
-    let closed_compressible_account = rpc
+    // Get account data before closing for assertion
+    let account_data_before_close = rpc
         .get_account(expected_compressible_ata_pubkey)
         .await
-        .unwrap();
-    if let Some(account) = closed_compressible_account {
-        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
-    }
+        .unwrap()
+        .unwrap()
+        .data;
 
-    let final_recipient_lamports = rpc
-        .get_account(rent_recipient_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    assert_eq!(
-        final_recipient_lamports,
-        initial_recipient_lamports + initial_compressible_lamports,
-        "Rent recipient should receive all lamports from closed compressible account"
-    );
+    rpc.create_and_send_transaction(
+        &[close_account_ix],
+        &payer.pubkey(),
+        &[&payer, &rent_authority_keypair],
+    )
+    .await
+    .unwrap();
+
+    // Verify the compressible account was closed correctly
+    assert_close_token_account(
+        &mut rpc,
+        expected_compressible_ata_pubkey,
+        Some(&account_data_before_close),
+        rent_recipient_pubkey,
+        initial_recipient_lamports,
+    )
+    .await;
 
     println!("✅ Both basic and compressible associated token accounts work correctly!");
 }

@@ -11,10 +11,14 @@ use light_ctoken_types::state::CompressedMint;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 /// Assert that:
-/// 1. compressed mint is marked as decompressed
+/// 1. compressed mint is marked as decompressed and didn't change otherwise
 /// 2. spl mint is initialized and equivalent with the compressed mint
 /// 3. if supply exists has been minted to the token pool
-pub async fn assert_spl_mint<R: Rpc + Indexer>(rpc: &mut R, seed: Pubkey) {
+pub async fn assert_spl_mint<R: Rpc + Indexer>(
+    rpc: &mut R,
+    seed: Pubkey,
+    pre_compressed_mint: &CompressedMint,
+) {
     // Derive all necessary addresses from the seed
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address = derive_compressed_mint_address(&seed, &address_tree_pubkey);
@@ -37,38 +41,32 @@ pub async fn assert_spl_mint<R: Rpc + Indexer>(rpc: &mut R, seed: Pubkey) {
     )
     .expect("Failed to deserialize compressed mint");
 
-    // 1. Assert compressed mint is marked as decompressed
-    assert!(
-        compressed_mint.is_decompressed,
-        "Compressed mint should be marked as decompressed"
-    );
-    assert_eq!(
-        compressed_mint.spl_mint,
-        light_compressed_account::Pubkey::from(spl_mint_pda.to_bytes()),
-        "Compressed mint should reference correct SPL mint PDA"
-    );
+    let mut expected_compressed_mint = (*pre_compressed_mint).clone();
+    expected_compressed_mint.is_decompressed = true;
+    assert_eq!(compressed_mint, expected_compressed_mint);
 
     // 2. Assert SPL mint is initialized and equivalent with compressed mint
-    let mint_account_data = rpc
-        .get_account(spl_mint_pda)
-        .await
-        .expect("Failed to get SPL mint account")
-        .expect("SPL mint account should exist");
+    {
+        let mint_account_data = rpc
+            .get_account(spl_mint_pda)
+            .await
+            .expect("Failed to get SPL mint account")
+            .expect("SPL mint account should exist");
 
-    let actual_spl_mint = spl_token_2022::state::Mint::unpack(&mint_account_data.data)
-        .expect("Failed to unpack SPL mint data");
+        let actual_spl_mint = spl_token_2022::state::Mint::unpack(&mint_account_data.data)
+            .expect("Failed to unpack SPL mint data");
 
-    // Create expected SPL mint struct
-    let expected_spl_mint = spl_token_2022::state::Mint {
-        mint_authority: actual_spl_mint.mint_authority, // Copy the actual COption value
-        supply: compressed_mint.supply,
-        decimals: compressed_mint.decimals,
-        is_initialized: true,
-        freeze_authority: actual_spl_mint.freeze_authority, // Copy the actual COption value
-    };
+        // Create expected SPL mint struct
+        let expected_spl_mint = spl_token_2022::state::Mint {
+            mint_authority: actual_spl_mint.mint_authority, // Copy the actual COption value
+            supply: compressed_mint.supply,
+            decimals: compressed_mint.decimals,
+            is_initialized: true,
+            freeze_authority: actual_spl_mint.freeze_authority, // Copy the actual COption value
+        };
 
-    assert_eq!(actual_spl_mint, expected_spl_mint);
-
+        assert_eq!(actual_spl_mint, expected_spl_mint);
+    }
     // 3. If supply > 0, assert token pool has the supply
     if compressed_mint.supply > 0 {
         let (token_pool_pda, _) = find_token_pool_pda_with_index(&spl_mint_pda, 0);
