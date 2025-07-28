@@ -22,6 +22,7 @@ pub mod assert_compressed_tx;
 pub mod assert_epoch;
 pub mod assert_merkle_tree;
 pub mod assert_mint_to_compressed;
+pub mod assert_spl_mint;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;

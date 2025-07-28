@@ -3,6 +3,7 @@ use light_concurrent_merkle_tree::ConcurrentMerkleTree;
 use light_hasher::Hasher;
 use light_merkle_tree_metadata::{merkle_tree::MerkleTreeMetadata, queue::QueueMetadata};
 
+#[track_caller]
 pub fn assert_rolledover_merkle_trees<H, const HEIGHT: usize>(
     old_merkle_tree: &ConcurrentMerkleTree<H, HEIGHT>,
     new_merkle_tree: &ConcurrentMerkleTree<H, HEIGHT>,
