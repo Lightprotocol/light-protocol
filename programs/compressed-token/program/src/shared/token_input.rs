@@ -29,9 +29,10 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     } else {
         None
     };
-    
+
     let verified_delegate = verify_owner_or_delegate_signer(owner_account, delegate_account)?;
-    let hashed_delegate = verified_delegate.map(|delegate| context.get_or_hash_pubkey(delegate.key()));
+    let hashed_delegate =
+        verified_delegate.map(|delegate| context.get_or_hash_pubkey(delegate.key()));
 
     // Compute data hash using TokenContext for caching
     let hashed_owner = context.get_or_hash_pubkey(owner_account.key());

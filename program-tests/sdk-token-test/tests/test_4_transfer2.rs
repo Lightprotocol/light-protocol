@@ -155,9 +155,11 @@ async fn create_compressed_mint_helper(
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Find mint PDA
+    let compressed_token_program_id =
+        Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
     let (mint_pda, mint_bump) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
-        &light_compressed_token::ID,
+        &compressed_token_program_id,
     );
 
     // Derive compressed mint address
@@ -165,7 +167,7 @@ async fn create_compressed_mint_helper(
     let compressed_mint_address = light_compressed_account::address::derive_address(
         &address_seed,
         &address_tree_pubkey.to_bytes(),
-        &light_compressed_token::ID.to_bytes(),
+        &compressed_token_program_id.to_bytes(),
     );
 
     // Get validity proof
@@ -438,6 +440,7 @@ async fn test_four_transfer2_instruction(
             amount: 500,
             recipient: remaining_accounts.insert_or_get(payer.pubkey()),
             solana_token_account: remaining_accounts.insert_or_get(token_account_1),
+            authority: remaining_accounts.insert_or_get(payer.pubkey()), // Payer is the authority for compression
         },
         transfer_2: sdk_token_test::process_four_transfer2::TransferParams {
             transfer_amount: 300,

@@ -5557,7 +5557,6 @@ dependencies = [
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",
- "light-compressed-token",
  "light-compressed-token-sdk",
  "light-ctoken-types",
  "light-hasher",

@@ -120,7 +120,7 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
 
         if !IS_FROZEN {
             AnchorTokenData::hash_with_hashed_values(
-                &hashed_mint,
+                hashed_mint,
                 &hashed_owner,
                 &amount_bytes,
                 &hashed_delegate.as_ref(),
@@ -128,7 +128,7 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
             .map_err(ProgramError::from)?
         } else {
             AnchorTokenData::hash_frozen_with_hashed_values(
-                &hashed_mint,
+                hashed_mint,
                 &hashed_owner,
                 &amount_bytes,
                 &hashed_delegate.as_ref(),

@@ -13,7 +13,20 @@ pub struct Transfer2AccountsMetaConfig {
     pub sol_decompression_recipient: Option<Pubkey>,
     pub cpi_context: Option<Pubkey>,
     pub with_sol_pool: bool,
-    pub packed_accounts: Option<Vec<AccountMeta>>,
+    pub packed_accounts: Option<Vec<AccountMeta>>, // TODO: check whether this can ever be None
+}
+
+impl Transfer2AccountsMetaConfig {
+    pub fn new(fee_payer: Pubkey, packed_accounts: Vec<AccountMeta>) -> Self {
+        Self {
+            fee_payer: Some(fee_payer),
+            sol_pool_pda: None,
+            sol_decompression_recipient: None,
+            cpi_context: None,
+            with_sol_pool: false,
+            packed_accounts: Some(packed_accounts),
+        }
+    }
 }
 
 /// Get the standard account metas for a compressed token multi-transfer instruction

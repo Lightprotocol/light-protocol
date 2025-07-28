@@ -6,6 +6,7 @@ use light_compressed_token_sdk::{instructions::Recipient, TokenAccountMeta, Vali
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
 
 mod process_batch_compress_tokens;
+mod process_compress_full_and_close;
 mod process_compress_tokens;
 mod process_create_compressed_account;
 mod process_create_escrow_pda;
@@ -17,6 +18,7 @@ mod process_update_deposit;
 
 use light_sdk::{cpi::CpiAccounts, instruction::account_meta::CompressedAccountMeta};
 use process_batch_compress_tokens::process_batch_compress_tokens;
+use process_compress_full_and_close::process_compress_full_and_close;
 use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
 use process_create_escrow_pda::process_create_escrow_pda;
@@ -66,6 +68,30 @@ pub mod sdk_token_test {
         amount: u64,
     ) -> Result<()> {
         process_compress_tokens(ctx, output_tree_index, recipient, mint, amount)
+    }
+
+    pub fn compress_full_and_close<'info>(
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        output_tree_index: u8,
+        recipient_index: u8,
+        mint_index: u8,
+        source_index: u8,
+        authority_index: u8,
+        close_recipient_index: u8,
+        system_accounts_offset: u8,
+        packed_accounts_offset: u8,
+    ) -> Result<()> {
+        process_compress_full_and_close(
+            ctx,
+            output_tree_index,
+            recipient_index,
+            mint_index,
+            source_index,
+            authority_index,
+            close_recipient_index,
+            system_accounts_offset,
+            packed_accounts_offset,
+        )
     }
 
     pub fn transfer_tokens<'info>(

@@ -2,6 +2,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::{check_mut, check_signer};
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_pod::solana_msg::msg;
 
 use crate::shared::AccountIterator;
 
@@ -68,12 +69,40 @@ impl<'info> Transfer2ValidatedAccounts<'info> {
         // Parse system accounts from fixed positions
         let mut iter = AccountIterator::new(accounts);
         let fee_payer = iter.next_account()?;
+        msg!(
+            "fee payer {:?}",
+            solana_pubkey::Pubkey::new_from_array(*fee_payer.key())
+        );
         let authority = iter.next_account()?;
+        msg!(
+            "authority {:?}",
+            solana_pubkey::Pubkey::new_from_array(*authority.key())
+        );
         let registered_program_pda = iter.next_account()?;
+        msg!(
+            "registered_program_pda {:?}",
+            solana_pubkey::Pubkey::new_from_array(*registered_program_pda.key())
+        );
         let noop_program = iter.next_account()?;
+        msg!(
+            "noop_program {:?}",
+            solana_pubkey::Pubkey::new_from_array(*noop_program.key())
+        );
         let account_compression_authority = iter.next_account()?;
+        msg!(
+            "account_compression_authority {:?}",
+            solana_pubkey::Pubkey::new_from_array(*account_compression_authority.key())
+        );
         let account_compression_program = iter.next_account()?;
+        msg!(
+            "account_compression_program {:?}",
+            solana_pubkey::Pubkey::new_from_array(*account_compression_program.key())
+        );
         let invoking_program = iter.next_account()?;
+        msg!(
+            "invoking_program {:?}",
+            solana_pubkey::Pubkey::new_from_array(*invoking_program.key())
+        );
 
         let sol_pool_pda = if with_sol_pool {
             Some(iter.next_account()?)

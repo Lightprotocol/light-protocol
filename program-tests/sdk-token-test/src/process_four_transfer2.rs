@@ -26,6 +26,7 @@ pub struct CompressParams {
     pub amount: u64,
     pub recipient: u8,
     pub solana_token_account: u8,
+    pub authority: u8,
 }
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
@@ -166,6 +167,7 @@ pub fn process_four_transfer2<'info>(
             .compress(
                 four_invokes_params.compress_1.amount,
                 four_invokes_params.compress_1.solana_token_account,
+                four_invokes_params.compress_1.authority,
             )
             .map_err(ProgramError::from)?;
 

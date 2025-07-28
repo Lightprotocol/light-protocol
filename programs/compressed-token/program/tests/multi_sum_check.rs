@@ -79,6 +79,7 @@ fn multi_sum_check_test(
             mode: compression_mode,
             mint: 0, // Same mint
             source_or_recipient: 0,
+            authority: 0,
         }]
     });
 
@@ -341,6 +342,7 @@ fn test_multi_mint_scenario(
         .collect();
 
     // Create compression structures
+
     let compression_structs: Vec<_> = compressions
         .iter()
         .map(|&(mint, amount, mode)| Compression {
@@ -348,6 +350,7 @@ fn test_multi_mint_scenario(
             mode,
             mint,
             source_or_recipient: 0,
+            authority: 0,
         })
         .collect();
 

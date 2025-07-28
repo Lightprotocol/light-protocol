@@ -57,7 +57,7 @@ impl Transfer2Config {
 }
 
 /// Multi-transfer input parameters
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Transfer2InputsRaw {
     pub token_accounts: Vec<CTokenAccount2>,
     pub validity_proof: ValidityProof,
