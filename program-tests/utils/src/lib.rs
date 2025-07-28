@@ -21,6 +21,7 @@ pub mod address_tree_rollover;
 pub mod assert_close_token_account;
 pub mod assert_compressed_tx;
 pub mod assert_create_token_account;
+pub mod assert_transfer2;
 pub mod assert_epoch;
 pub mod assert_merkle_tree;
 pub mod assert_mint_to_compressed;

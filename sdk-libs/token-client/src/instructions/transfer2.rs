@@ -65,13 +65,14 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     )
     .await
 }
-
+#[derive(Debug, Clone, PartialEq)]
 pub struct TransferInput<'a> {
     pub compressed_token_account: &'a [CompressedTokenAccount],
     pub to: Pubkey,
     pub amount: u64,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DecompressInput<'a> {
     pub compressed_token_account: &'a [CompressedTokenAccount],
     pub decompress_amount: u64,
@@ -79,6 +80,7 @@ pub struct DecompressInput<'a> {
     pub amount: u64,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct CompressInput<'a> {
     pub compressed_token_account: Option<&'a [CompressedTokenAccount]>,
     pub solana_token_account: Pubkey,
@@ -89,6 +91,7 @@ pub struct CompressInput<'a> {
     pub output_queue: Pubkey,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Transfer2InstructionType<'a> {
     Compress(CompressInput<'a>),
     Decompress(DecompressInput<'a>),

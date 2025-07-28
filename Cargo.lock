@@ -3867,6 +3867,7 @@ dependencies = [
  "light-sdk",
  "light-sparse-merkle-tree",
  "light-system-program-anchor",
+ "light-token-client",
  "light-zero-copy",
  "log",
  "num-bigint 0.4.6",
