@@ -23,6 +23,7 @@ use crate::{
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
+        mint_to_token_pool,
         token_output::set_output_compressed_account,
     },
     LIGHT_CPI_SIGNER,
@@ -131,6 +132,34 @@ pub fn process_mint_to_compressed(
         .compressed_mint_inputs
         .mint
         .is_decompressed();
+
+    // If mint is decompressed, mint tokens to the token pool to maintain SPL mint supply consistency
+    if is_decompressed {
+        let sum_amounts: u64 = parsed_instruction_data
+            .recipients
+            .iter()
+            .map(|x| u64::from(x.amount))
+            .sum();
+
+        let mint_account = validated_accounts
+            .mint
+            .ok_or(ProgramError::InvalidAccountData)?;
+        let token_pool_account = validated_accounts
+            .token_pool_pda
+            .ok_or(ProgramError::InvalidAccountData)?;
+        let token_program = validated_accounts
+            .token_program
+            .ok_or(ProgramError::InvalidAccountData)?;
+
+        mint_to_token_pool(
+            mint_account,
+            token_pool_account,
+            token_program,
+            validated_accounts.cpi_authority_pda,
+            sum_amounts,
+        )?;
+    }
+
     // Create output token accounts
     create_output_compressed_token_accounts(
         parsed_instruction_data,
@@ -157,6 +186,7 @@ pub fn process_mint_to_compressed(
     )?;
     Ok(())
 }
+
 
 fn get_zero_copy_configs(parsed_instruction_data: &light_ctoken_types::instructions::mint_to_compressed::ZMintToCompressedInstructionData<'_>) -> Result<(light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig, Vec<u8>), ProgramError>{
     // Build configuration for CPI instruction data using the generalized function

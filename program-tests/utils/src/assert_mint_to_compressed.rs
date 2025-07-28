@@ -1,17 +1,22 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
+use anchor_spl::token_2022::spl_token_2022;
 use light_client::{
     indexer::{CompressedTokenAccount, Indexer},
     rpc::Rpc,
 };
+use light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index;
 use light_compressed_token_sdk::instructions::derive_compressed_mint_from_spl_mint;
-use light_ctoken_types::{instructions::mint_to_compressed::Recipient, state::CompressedMint};
-use solana_sdk::pubkey::Pubkey;
+use light_ctoken_types::{instructions::mint_to_compressed::Recipient, state::CompressedMint, COMPRESSED_TOKEN_PROGRAM_ID};
+use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
     rpc: &mut R,
     spl_mint_pda: Pubkey,
     recipients: &[Recipient],
     expected_total_supply: u64,
+    pre_token_pool_account: Option<spl_token_2022::state::Account>,
+    pre_compressed_mint: CompressedMint,
+    pre_spl_mint: Option<spl_token_2022::state::Mint>,
 ) -> Vec<CompressedTokenAccount> {
     // Derive compressed mint address from SPL mint PDA (same as instruction)
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
@@ -33,47 +38,34 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
             .items;
 
         // Find the token account for this specific mint
-        let matching_accounts: Vec<_> = token_accounts
+        let matching_account = token_accounts
             .iter()
-            .filter(|account| account.token.mint == spl_mint_pda)
-            .collect();
+            .find(|account| account.token.mint == spl_mint_pda && account.token.amount == recipient.amount)
+            .expect(&format!(
+                "Recipient {} should have a token account with {} tokens for mint {}",
+                recipient_pubkey, recipient.amount, spl_mint_pda
+            ));
 
-        assert!(
-            !matching_accounts.is_empty(),
-            "Recipient {} should have at least one token account for mint {}",
-            recipient_pubkey,
-            spl_mint_pda
+        // Create expected token data
+        let expected_token_data = light_sdk::token::TokenData {
+            mint: spl_mint_pda,
+            owner: recipient_pubkey,
+            amount: recipient.amount,
+            delegate: None,
+            state: light_sdk::token::AccountState::Initialized,
+            tlv: None,
+        };
+
+        // Assert complete token account matches expected
+        assert_eq!(
+            matching_account.token, expected_token_data,
+            "Recipient token account should match expected"
         );
-
-        // Verify the recipient has the correct total amount for this mint
-        let recipient_total: u64 = matching_accounts
-            .iter()
-            .map(|account| account.token.amount)
-            .sum();
-
-        assert!(
-            recipient_total >= recipient.amount,
-            "Recipient {} should have at least {} tokens, but has {}",
-            recipient_pubkey,
-            recipient.amount,
-            recipient_total
+        assert_eq!(
+            matching_account.account.owner.to_bytes(),
+            COMPRESSED_TOKEN_PROGRAM_ID,
+            "Recipient token account should have correct program owner"
         );
-
-        // Verify token account properties
-        for account in &matching_accounts {
-            assert_eq!(
-                account.token.mint, spl_mint_pda,
-                "Token account should have correct mint"
-            );
-            assert_eq!(
-                account.token.owner, recipient_pubkey,
-                "Token account should have correct owner"
-            );
-            assert!(
-                account.token.amount > 0,
-                "Token account should have non-zero amount"
-            );
-        }
 
         // Add to total minted amount
         total_minted += recipient.amount;
@@ -89,7 +81,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
         .expect("Failed to get compressed mint account")
         .value;
 
-    let updated_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+    let actual_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
         &mut updated_compressed_mint_account
             .data
             .unwrap()
@@ -98,25 +90,66 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
     )
     .expect("Failed to deserialize compressed mint");
 
-    assert_eq!(
-        updated_compressed_mint.supply, expected_total_supply,
-        "Compressed mint supply should be updated to expected total supply"
-    );
+    // Create expected compressed mint by mutating the pre-mint
+    let mut expected_compressed_mint = pre_compressed_mint;
+    expected_compressed_mint.supply = expected_total_supply;
 
     assert_eq!(
-        updated_compressed_mint.spl_mint,
-        light_compressed_account::Pubkey::from(spl_mint_pda.to_bytes()),
-        "Compressed mint should reference correct SPL mint PDA"
+        actual_compressed_mint, expected_compressed_mint,
+        "Compressed mint should match expected state after mint"
     );
 
-    println!(" mint_to_compressed assertions passed:");
-    println!("   - Recipients: {}", recipients.len());
-    println!("   - Total minted: {}", total_minted);
-    println!(
-        "   - Updated mint supply: {}",
-        updated_compressed_mint.supply
-    );
-    println!("   - Token accounts created: {}", all_token_accounts.len());
+    // If mint is decompressed and pre_token_pool_account is provided, validate SPL mint and token pool
+    if actual_compressed_mint.is_decompressed {
+        if let Some(pre_pool_account) = pre_token_pool_account {
+            // Validate SPL mint supply
+            let spl_mint_data = rpc
+                .get_account(spl_mint_pda)
+                .await
+                .expect("Failed to get SPL mint account")
+                .expect("SPL mint should exist when decompressed");
+
+            let actual_spl_mint = spl_token_2022::state::Mint::unpack(&spl_mint_data.data)
+                .expect("Failed to unpack SPL mint data");
+
+            // Validate SPL mint using mutation pattern if pre_spl_mint is provided
+            if let Some(pre_spl_mint_account) = pre_spl_mint {
+                let mut expected_spl_mint = pre_spl_mint_account;
+                expected_spl_mint.supply = expected_total_supply;
+
+                assert_eq!(
+                    actual_spl_mint, expected_spl_mint,
+                    "SPL mint should match expected state after mint"
+                );
+            } else {
+                // Fallback validation if no pre_spl_mint provided
+                assert_eq!(
+                    actual_spl_mint.supply, expected_total_supply,
+                    "SPL mint supply should be updated to expected total supply when decompressed"
+                );
+            }
+
+            // Validate token pool balance increase
+            let (token_pool_pda, _) = find_token_pool_pda_with_index(&spl_mint_pda, 0);
+            let token_pool_data = rpc
+                .get_account(token_pool_pda)
+                .await
+                .expect("Failed to get token pool account")
+                .expect("Token pool should exist when decompressed");
+
+            let actual_token_pool = spl_token_2022::state::Account::unpack(&token_pool_data.data)
+                .expect("Failed to unpack token pool data");
+
+            // Create expected token pool account by mutating the pre-account
+            let mut expected_token_pool = pre_pool_account;
+            expected_token_pool.amount += total_minted;
+
+            assert_eq!(
+                actual_token_pool, expected_token_pool,
+                "Token pool should match expected state after mint"
+            );
+        }
+    }
 
     all_token_accounts
 }
@@ -127,14 +160,25 @@ pub async fn assert_mint_to_compressed_one<R: Rpc + Indexer>(
     recipient: Pubkey,
     expected_amount: u64,
     expected_total_supply: u64,
+    pre_token_pool_account: Option<spl_token_2022::state::Account>,
+    pre_compressed_mint: CompressedMint,
+    pre_spl_mint: Option<spl_token_2022::state::Mint>,
 ) -> light_client::indexer::CompressedTokenAccount {
     let recipients = vec![Recipient {
         recipient: recipient.into(),
         amount: expected_amount,
     }];
 
-    let token_accounts =
-        assert_mint_to_compressed(rpc, spl_mint_pda, &recipients, expected_total_supply).await;
+    let token_accounts = assert_mint_to_compressed(
+        rpc,
+        spl_mint_pda,
+        &recipients,
+        expected_total_supply,
+        pre_token_pool_account,
+        pre_compressed_mint,
+        pre_spl_mint,
+    )
+    .await;
 
     // Return the first token account for the recipient
     token_accounts

@@ -9,17 +9,15 @@ use light_ctoken_types::{
     state::{CompressedMint, CompressedMintConfig},
     COMPRESSED_MINT_SEED,
 };
-use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopyNew};
-use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-};
+use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
-    constants::POOL_SEED, create_spl_mint::accounts::CreateSplMintAccounts,
-    shared::cpi::execute_cpi_invoke, LIGHT_CPI_SIGNER,
+    constants::POOL_SEED,
+    create_spl_mint::accounts::CreateSplMintAccounts,
+    shared::{cpi::execute_cpi_invoke, mint_to_token_pool},
+    LIGHT_CPI_SIGNER,
 };
 
 // TODO: add test which asserts spl mint and compressed mint equivalence.
@@ -64,7 +62,13 @@ pub fn process_create_spl_mint(
 
     // Mint the existing supply to the token pool if there's any supply
     if parsed_instruction_data.mint.mint.supply > 0 {
-        mint_existing_supply_to_pool(&validated_accounts, &parsed_instruction_data)?;
+        mint_to_token_pool(
+            validated_accounts.mint,
+            validated_accounts.token_pool_pda,
+            validated_accounts.token_program,
+            validated_accounts.cpi_authority_pda,
+            parsed_instruction_data.mint.mint.supply.into(),
+        )?;
     }
     if parsed_instruction_data.mint_authority_is_none() {
         // TODO: remove mint authority from spl mint.
@@ -416,58 +420,6 @@ fn initialize_token_pool_account(accounts: &CreateSplMintAccounts<'_>) -> Result
     match pinocchio::program::invoke(
         &initialize_account_ix,
         &[accounts.token_pool_pda, accounts.mint],
-    ) {
-        Ok(()) => {}
-        Err(e) => {
-            return Err(ProgramError::Custom(u64::from(e) as u32));
-        }
-    }
-    Ok(())
-}
-
-/// Mints the existing supply from compressed mint to the token pool
-/// - LIGHT_CPI_SIGNER.cpi_signer is the mint authority.
-fn mint_existing_supply_to_pool(
-    accounts: &CreateSplMintAccounts<'_>,
-    instruction_data: &ZCreateSplMintInstructionData,
-) -> Result<(), ProgramError> {
-    let supply = instruction_data.mint.mint.supply;
-
-    // Create SPL mint_to instruction and use its account structure
-    let spl_mint_to_ix = spl_token_2022::instruction::mint_to(
-        &solana_pubkey::Pubkey::new_from_array(*accounts.token_program.key()),
-        &solana_pubkey::Pubkey::new_from_array(*accounts.mint.key()),
-        &solana_pubkey::Pubkey::new_from_array(*accounts.token_pool_pda.key()),
-        &solana_pubkey::Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer),
-        &[],
-        supply.into(),
-    )?;
-
-    // Mint tokens to the pool
-    let mint_to_ix = pinocchio::instruction::Instruction {
-        program_id: accounts.token_program.key(),
-        accounts: &[
-            pinocchio::instruction::AccountMeta::new(accounts.mint.key(), true, false), // writable
-            pinocchio::instruction::AccountMeta::new(accounts.token_pool_pda.key(), true, false), // writable
-            pinocchio::instruction::AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true), // signer
-        ],
-        data: &spl_mint_to_ix.data,
-    };
-    let bump_seed = [LIGHT_CPI_SIGNER.bump];
-    let seed_array = [
-        Seed::from(CPI_AUTHORITY_PDA_SEED),
-        Seed::from(bump_seed.as_slice()),
-    ];
-    let signer = Signer::from(&seed_array);
-
-    match pinocchio::program::invoke_signed(
-        &mint_to_ix,
-        &[
-            accounts.mint,
-            accounts.token_pool_pda,
-            accounts.cpi_authority_pda,
-        ],
-        &[signer],
     ) {
         Ok(()) => {}
         Err(e) => {

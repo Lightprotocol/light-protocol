@@ -128,6 +128,19 @@ async fn test_create_compressed_mint() {
         .await
         .unwrap();
 
+        // Get pre-compressed mint for assertion
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
         // Verify minted tokens using our assertion helper
         assert_mint_to_compressed_one(
             &mut rpc,
@@ -135,6 +148,9 @@ async fn test_create_compressed_mint() {
             recipient,
             mint_amount,
             expected_supply,
+            None, // No pre-token pool account for compressed mint
+            pre_compressed_mint,
+            None, // No pre-spl mint for compressed mint
         )
         .await;
     }
@@ -618,6 +634,11 @@ async fn test_create_compressed_mint_with_token_metadata() {
     }
     // 3. Mint to compressed
     {
+        // Get pre-token pool account state for decompressed mint
+        let (token_pool_pda, _) = light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(&spl_mint_pda, 0);
+        let pre_pool_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+        let pre_token_pool_account = spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
+
         let mint_amount = 100_000u64; // Mint 100,000 tokens
         let recipient_keypair = Keypair::new();
         let recipient = recipient_keypair.pubkey();
@@ -637,6 +658,22 @@ async fn test_create_compressed_mint_with_token_metadata() {
         .await
         .unwrap();
 
+        // Get pre-compressed mint and pre-spl mint for assertion
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
+        let pre_spl_mint = spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
+
         // Verify minted tokens using our assertion helper
         assert_mint_to_compressed_one(
             &mut rpc,
@@ -644,6 +681,9 @@ async fn test_create_compressed_mint_with_token_metadata() {
             recipient,
             mint_amount,
             mint_amount, // Expected total supply after minting
+            Some(pre_token_pool_account), // Pass pre-token pool account for decompressed mint validation
+            pre_compressed_mint,
+            Some(pre_spl_mint),
         )
         .await;
     }
