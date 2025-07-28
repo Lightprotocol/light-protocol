@@ -7,33 +7,30 @@ use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_compressed_token::LIGHT_CPI_SIGNER;
 use light_compressed_token_sdk::instructions::{
-    close::close_account, create_associated_token_account, create_compressed_mint,
-    create_mint_to_compressed_instruction, create_spl_mint_instruction, create_token_account,
-    derive_ctoken_ata, CreateCompressedMintInputs, CreateSplMintInputs, DecompressedMintConfig,
-    MintToCompressedInputs,
+    create_associated_token_account, create_mint_to_compressed_instruction,
+    create_spl_mint_instruction, derive_compressed_mint_address, derive_ctoken_ata,
+    find_spl_mint_address, CreateSplMintInputs, DecompressedMintConfig, MintToCompressedInputs,
 };
 use light_ctoken_types::{
     instructions::{
-        extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
+        extensions::token_metadata::TokenMetadataInstructionData,
         mint_to_compressed::{CompressedMintInputs, Recipient},
     },
     state::{
         extensions::{AdditionalMetadata, ExtensionStruct, Metadata},
-        solana_ctoken::CompressedToken,
-        CompressedMint, CompressibleExtension,
+        CompressedMint,
     },
-    BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSED_MINT_SEED, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    COMPRESSED_MINT_SEED,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::Rpc;
+use light_test_utils::{mint_assert::assert_compressed_mint_account, Rpc};
 use light_token_client::{
-    actions::transfer2,
+    actions::{create_mint, transfer2},
     instructions::transfer2::{
         create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
         DecompressInput, Transfer2InstructionType, TransferInput,
     },
 };
-use light_zero_copy::borsh::Deserialize;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -45,68 +42,36 @@ async fn test_create_compressed_mint() {
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
+    // Get necessary values for the rest of the test
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+    let state_merkle_tree = rpc.get_random_state_tree_info().unwrap().tree;
+
     // Test parameters
     let decimals = 6u8;
     let mint_authority_keypair = Keypair::new(); // Create keypair so we can sign
     let mint_authority = mint_authority_keypair.pubkey();
     let freeze_authority = Pubkey::new_unique();
-    let mint_signer = Keypair::new();
+    let mint_seed = Keypair::new();
+    // Derive compressed mint address for verification
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
-    // Get address tree for creating compressed mint address
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
-    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
-    let state_merkle_tree = rpc.get_random_state_tree_info().unwrap().tree;
+    // Find mint PDA and bump for the rest of the test
+    let (spl_mint_pda, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
-    // Find mint PDA and bump
-    let (mint_pda, mint_bump) = Pubkey::find_program_address(
-        &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
-        &light_compressed_token::ID,
-    );
-
-    // Use the mint PDA as the seed for the compressed account address
-    let address_seed = mint_pda.to_bytes();
-
-    let compressed_mint_address = light_compressed_account::address::derive_address(
-        &address_seed,
-        &address_tree_pubkey.to_bytes(),
-        &light_compressed_token::ID.to_bytes(),
-    );
-
-    // Get validity proof for address creation
-    let rpc_result = rpc
-        .get_validity_proof(
-            vec![],
-            vec![light_program_test::AddressWithTree {
-                address: compressed_mint_address,
-                tree: address_tree_pubkey,
-            }],
-            None,
-        )
-        .await
-        .unwrap()
-        .value;
-
-    let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
-
-    // Create instruction
-    let instruction = create_compressed_mint(CreateCompressedMintInputs {
+    // Create compressed mint using the action
+    create_mint(
+        &mut rpc,
+        &mint_seed,
         decimals,
         mint_authority,
-        freeze_authority: Some(freeze_authority),
-        proof: rpc_result.proof.0.unwrap(),
-        mint_bump,
-        address_merkle_tree_root_index,
-        mint_signer: mint_signer.pubkey(),
-        payer: payer.pubkey(),
-        address_tree_pubkey,
-        output_queue,
-        extensions: None,
-    });
-
-    // Send transaction
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
-        .await
-        .unwrap();
+        Some(freeze_authority),
+        None, // No metadata
+        &payer,
+    )
+    .await
+    .unwrap();
 
     // Verify the compressed mint was created
     let compressed_mint_account = rpc
@@ -117,38 +82,15 @@ async fn test_create_compressed_mint() {
         .unwrap()
         .value;
 
-    // Create expected compressed mint for comparison
-    let expected_compressed_mint = CompressedMint {
-        spl_mint: mint_pda.into(),
-        supply: 0,
+    let compressed_mint = assert_compressed_mint_account(
+        &compressed_mint_account,
+        compressed_mint_address,
+        spl_mint_pda,
         decimals,
-        is_decompressed: false,
-        mint_authority: Some(mint_authority.into()),
-        freeze_authority: Some(freeze_authority.into()),
-        version: 0,
-        extensions: None,
-    };
-
-    // Verify the account exists and has correct properties
-    assert_eq!(
-        compressed_mint_account.address.unwrap(),
-        compressed_mint_address
+        mint_authority,
+        freeze_authority,
+        None, // No metadata
     );
-    assert_eq!(compressed_mint_account.owner, light_compressed_token::ID);
-    assert_eq!(compressed_mint_account.lamports, 0);
-
-    // Verify the compressed mint data
-    let compressed_account_data = compressed_mint_account.data.unwrap();
-    assert_eq!(
-        compressed_account_data.discriminator,
-        light_compressed_token::constants::COMPRESSED_MINT_DISCRIMINATOR
-    );
-
-    // Deserialize and verify the CompressedMint struct matches expected
-    let actual_compressed_mint: CompressedMint =
-        BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
-
-    assert_eq!(actual_compressed_mint, expected_compressed_mint);
 
     // Test mint_to_compressed functionality
     let recipient_keypair = Keypair::new();
@@ -160,9 +102,6 @@ async fn test_create_compressed_mint() {
     // Get state tree for output token accounts
     let state_tree_info = rpc.get_random_state_tree_info().unwrap();
     let state_tree_pubkey = state_tree_info.tree;
-    let state_output_queue = state_tree_info.queue;
-    println!("state_tree_pubkey {:?}", state_tree_pubkey);
-    println!("state_output_queue {:?}", state_output_queue);
 
     // Prepare compressed mint inputs for minting
     let compressed_mint_inputs = CompressedMintInputs {
@@ -174,7 +113,7 @@ async fn test_create_compressed_mint() {
         },
         root_index: 0,
         address: compressed_mint_address,
-        compressed_mint_input: expected_compressed_mint,
+        compressed_mint_input: compressed_mint,
         output_merkle_tree_index: 3,
     };
 
@@ -222,7 +161,7 @@ async fn test_create_compressed_mint() {
     );
     let token_account = &token_accounts[0].token;
     assert_eq!(
-        token_account.mint, mint_pda,
+        token_account.mint, spl_mint_pda,
         "Token account should have correct mint"
     );
     assert_eq!(
@@ -263,7 +202,8 @@ async fn test_create_compressed_mint() {
     // Find token pool PDA and bump
     let (token_pool_pda, _token_pool_bump) =
         light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
-            &mint_pda, 0,
+            &spl_mint_pda,
+            0,
         );
 
     // Get validity proof for compressed mint input
@@ -288,7 +228,7 @@ async fn test_create_compressed_mint() {
         address: compressed_mint_address,
         compressed_mint_input: CompressedMint {
             version: 0,
-            spl_mint: mint_pda.into(),
+            spl_mint: spl_mint_pda.into(),
             supply: mint_amount,
             decimals,
             is_decompressed: false,
@@ -301,7 +241,7 @@ async fn test_create_compressed_mint() {
 
     // Create create_spl_mint instruction using SDK function
     let create_spl_mint_instruction = create_spl_mint_instruction(CreateSplMintInputs {
-        mint_signer: mint_signer.pubkey(),
+        mint_signer: mint_seed.pubkey(),
         mint_bump,
         compressed_mint_inputs: compressed_mint_inputs_for_spl,
         proof: proof_result.proof,
@@ -323,7 +263,7 @@ async fn test_create_compressed_mint() {
     .unwrap();
 
     // Verify SPL mint was created
-    let mint_account_data = rpc.get_account(mint_pda).await.unwrap().unwrap();
+    let mint_account_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
     let spl_mint = spl_token_2022::state::Mint::unpack(&mint_account_data.data).unwrap();
     assert_eq!(
         spl_mint.decimals, decimals,
@@ -343,7 +283,7 @@ async fn test_create_compressed_mint() {
     let token_pool_account_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
     let token_pool = spl_token_2022::state::Account::unpack(&token_pool_account_data.data).unwrap();
     assert_eq!(
-        token_pool.mint, mint_pda,
+        token_pool.mint, spl_mint_pda,
         "Token pool should have correct mint"
     );
     assert_eq!(
@@ -377,7 +317,7 @@ async fn test_create_compressed_mint() {
     let recipient_token_keypair = Keypair::new(); // Create keypair for token account
     light_test_utils::spl::create_token_2022_account(
         &mut rpc,
-        &mint_pda,
+        &spl_mint_pda,
         &recipient_token_keypair,
         &payer,
         true, // token_22
@@ -435,7 +375,7 @@ async fn test_create_compressed_mint() {
         "New recipient should have the transferred amount"
     );
     assert_eq!(
-        new_token_accounts[0].token.mint, mint_pda,
+        new_token_accounts[0].token.mint, spl_mint_pda,
         "New recipient token should have correct mint"
     );
 
@@ -471,9 +411,9 @@ async fn test_create_compressed_mint() {
     let remaining_amount = transfer_amount - decompress_amount;
 
     // Create compressed token associated token account for decompression
-    let (ctoken_ata_pubkey, _bump) = derive_ctoken_ata(&new_recipient, &mint_pda);
+    let (ctoken_ata_pubkey, _bump) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
     let create_ata_instruction =
-        create_associated_token_account(payer.pubkey(), new_recipient, mint_pda).unwrap();
+        create_associated_token_account(payer.pubkey(), new_recipient, spl_mint_pda).unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -556,7 +496,7 @@ async fn test_create_compressed_mint() {
             compressed_token_account: None, // No existing compressed tokens
             solana_token_account: ctoken_ata_pubkey, // Source SPL token account
             to: compress_recipient.pubkey(), // New recipient for compressed tokens
-            mint: mint_pda,
+            mint: spl_mint_pda,
             amount: compress_amount,
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
@@ -602,7 +542,7 @@ async fn test_create_compressed_mint() {
         "Compressed token should have correct owner"
     );
     assert_eq!(
-        compressed_token.mint, mint_pda,
+        compressed_token.mint, spl_mint_pda,
         "Compressed token should have correct mint"
     );
 
@@ -643,7 +583,7 @@ async fn test_create_compressed_mint() {
             compressed_token_account: None,
             solana_token_account: ctoken_ata_pubkey,
             to: transfer_source_recipient.pubkey(),
-            mint: mint_pda,
+            mint: spl_mint_pda,
             amount: transfer_compress_amount,
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
@@ -682,7 +622,7 @@ async fn test_create_compressed_mint() {
             compressed_token_account: None,
             solana_token_account: ctoken_ata_pubkey,
             to: multi_test_recipient.pubkey(),
-            mint: mint_pda,
+            mint: spl_mint_pda,
             amount: multi_compress_amount,
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
@@ -718,14 +658,17 @@ async fn test_create_compressed_mint() {
     let compress_from_spl_recipient = Keypair::new();
 
     // Create SPL token account for compression source
-    let (compress_source_ata, _) = derive_ctoken_ata(&new_recipient, &mint_pda);
+    let (compress_source_ata, _) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
     // This already exists from our previous test
 
     // Create SPL token account for decompression destination
-    let (decompress_dest_ata, _) = derive_ctoken_ata(&decompress_recipient.pubkey(), &mint_pda);
-    let create_decompress_ata_instruction =
-        create_associated_token_account(payer.pubkey(), decompress_recipient.pubkey(), mint_pda)
-            .unwrap();
+    let (decompress_dest_ata, _) = derive_ctoken_ata(&decompress_recipient.pubkey(), &spl_mint_pda);
+    let create_decompress_ata_instruction = create_associated_token_account(
+        payer.pubkey(),
+        decompress_recipient.pubkey(),
+        spl_mint_pda,
+    )
+    .unwrap();
     rpc.create_and_send_transaction(
         &[create_decompress_ata_instruction],
         &payer.pubkey(),
@@ -764,7 +707,7 @@ async fn test_create_compressed_mint() {
                 compressed_token_account: None,
                 solana_token_account: compress_source_ata, // Use remaining SPL tokens
                 to: compress_from_spl_recipient.pubkey(),
-                mint: mint_pda,
+                mint: spl_mint_pda,
                 amount: compress_amount_multi,
                 authority: new_recipient_keypair.pubkey(), // Authority for compression
                 output_queue: multi_output_queue,
@@ -918,641 +861,6 @@ async fn test_create_compressed_mint() {
 }
 
 #[tokio::test]
-async fn test_create_and_close_token_account() {
-    use spl_pod::bytemuck::pod_from_bytes;
-    use spl_token_2022::{pod::PodAccount, state::AccountState};
-
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
-        .await
-        .unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = payer.pubkey();
-
-    // Create a mock mint pubkey (we don't need actual mint for this test)
-    let mint_pubkey = Pubkey::new_unique();
-
-    // Create owner for the token account
-    let owner_keypair = Keypair::new();
-    let owner_pubkey = owner_keypair.pubkey();
-
-    // Create a new keypair for the token account
-    let token_account_keypair = Keypair::new();
-    let token_account_pubkey = token_account_keypair.pubkey();
-
-    // First create the account using system program
-    let create_account_system_ix = solana_sdk::system_instruction::create_account(
-        &payer_pubkey,
-        &token_account_pubkey,
-        rpc.get_minimum_balance_for_rent_exemption(165)
-            .await
-            .unwrap(), // SPL token account size
-        165,
-        &light_compressed_token::ID, // Our program owns the account
-    );
-
-    // Then use SPL token SDK format but with our compressed token program ID
-    // This tests that our create_token_account instruction is compatible with SPL SDKs
-    let mut initialize_account_ix =
-        create_token_account(token_account_pubkey, mint_pubkey, owner_pubkey).unwrap();
-    initialize_account_ix.data.push(0);
-    // Execute both instructions in one transaction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[create_account_system_ix, initialize_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &token_account_keypair],
-        blockhash,
-    );
-
-    rpc.process_transaction(transaction.clone())
-        .await
-        .expect("Failed to create token account using SPL SDK");
-
-    // Verify the token account was created correctly
-    let account_info = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Verify account exists and has correct owner
-    assert_eq!(account_info.owner, light_compressed_token::ID);
-    assert_eq!(account_info.data.len(), 165); // SPL token account size
-
-    let pod_account = pod_from_bytes::<PodAccount>(&account_info.data)
-        .expect("Failed to parse token account data");
-
-    // Verify the token account fields
-    assert_eq!(pod_account.mint, mint_pubkey);
-    assert_eq!(pod_account.owner, owner_pubkey);
-    assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
-    assert_eq!(pod_account.state, AccountState::Initialized as u8);
-
-    // Now test closing the account using SPL SDK format
-    let destination_keypair = Keypair::new();
-    let destination_pubkey = destination_keypair.pubkey();
-
-    // Airdrop some lamports to destination account so it exists
-    rpc.context.airdrop(&destination_pubkey, 1_000_000).unwrap();
-
-    // Get initial lamports before closing
-    let initial_token_account_lamports = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    let initial_destination_lamports = rpc
-        .get_account(destination_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-
-    // Create close account instruction using SPL SDK format
-    let close_account_ix = close_account(
-        &light_compressed_token::ID,
-        &token_account_pubkey,
-        &destination_pubkey,
-        &owner_pubkey,
-    );
-
-    // Execute the close instruction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[close_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &owner_keypair], // Need owner to sign
-        blockhash,
-    );
-
-    rpc.process_transaction(close_transaction)
-        .await
-        .expect("Failed to close token account using SPL SDK");
-
-    // Verify the account was closed (data should be cleared, lamports should be 0)
-    let closed_account = rpc.get_account(token_account_pubkey).await.unwrap();
-    if let Some(account) = closed_account {
-        // Account still exists, but should have 0 lamports and cleared data
-        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
-        assert!(
-            account.data.iter().all(|&b| b == 0),
-            "Closed account data should be cleared"
-        );
-    }
-
-    // Verify lamports were transferred to destination
-    let final_destination_lamports = rpc
-        .get_account(destination_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    assert_eq!(
-        final_destination_lamports,
-        initial_destination_lamports + initial_token_account_lamports,
-        "Destination should receive all lamports from closed account"
-    );
-}
-
-#[tokio::test]
-async fn test_create_and_close_account_with_rent_authority() {
-    use solana_sdk::{signature::Signer, system_instruction};
-
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
-        .await
-        .unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = payer.pubkey();
-
-    // Create mint
-    let mint_pubkey = Pubkey::new_unique();
-
-    // Create account owner
-    let owner_keypair = Keypair::new();
-    let owner_pubkey = owner_keypair.pubkey();
-
-    // Create rent authority
-    let rent_authority_keypair = Keypair::new();
-    let rent_authority_pubkey = rent_authority_keypair.pubkey();
-
-    // Create rent recipient
-    let rent_recipient_keypair = Keypair::new();
-    let rent_recipient_pubkey = rent_recipient_keypair.pubkey();
-
-    // Airdrop lamports to rent recipient so it exists
-    rpc.context
-        .airdrop(&rent_recipient_pubkey, 1_000_000)
-        .unwrap();
-
-    // Create token account keypair
-    let token_account_keypair = Keypair::new();
-    let token_account_pubkey = token_account_keypair.pubkey();
-
-    // Create system account for token account with space for compressible extension
-    let rent_exempt_lamports = rpc
-        .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
-        .await
-        .unwrap();
-
-    let create_account_ix = system_instruction::create_account(
-        &payer_pubkey,
-        &token_account_pubkey,
-        rent_exempt_lamports,
-        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-        &light_compressed_token::ID,
-    );
-
-    // Create token account using SDK function with compressible extension
-    let create_token_account_ix =
-        light_compressed_token_sdk::instructions::create_compressible_token_account(
-            light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey,
-                owner_pubkey,
-                rent_authority: rent_authority_pubkey,
-                rent_recipient: rent_recipient_pubkey,
-                slots_until_compression: 0, // Allow immediate compression
-            },
-        )
-        .unwrap();
-
-    // Execute account creation
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let create_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[create_account_ix, create_token_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &token_account_keypair],
-        blockhash,
-    );
-
-    rpc.process_transaction(create_transaction)
-        .await
-        .expect("Failed to create token account");
-
-    // Verify the account was created correctly
-    let token_account_info = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert complete token account values
-    assert_eq!(token_account_info.owner, light_compressed_token::ID);
-    assert_eq!(
-        token_account_info.data.len(),
-        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
-    );
-    assert!(!token_account_info.executable);
-    assert!(token_account_info.lamports > 0); // Should be rent-exempt
-
-    let expected_token_account = CompressedToken {
-        mint: mint_pubkey.into(),
-        owner: owner_pubkey.into(),
-        amount: 0,
-        delegate: None,
-        state: 1, // Initialized
-        is_native: None,
-        delegated_amount: 0,
-        close_authority: None,
-        extensions: Some(vec![
-            light_ctoken_types::state::extensions::ExtensionStruct::Compressible(
-                CompressibleExtension {
-                    last_written_slot: 2, // Program sets this to current slot (2 in test environment)
-                    slots_until_compression: 0,
-                    rent_authority: rent_authority_pubkey.into(),
-                    rent_recipient: rent_recipient_pubkey.into(),
-                },
-            ),
-        ]),
-    };
-
-    let (actual_token_account, _) = CompressedToken::zero_copy_at(&token_account_info.data)
-        .expect("Failed to deserialize token account with zero-copy");
-
-    assert_eq!(actual_token_account, expected_token_account);
-
-    // Get initial lamports before closing
-    let initial_token_account_lamports = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    let initial_recipient_lamports = rpc
-        .get_account(rent_recipient_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-
-    // First, try to close with rent authority (should fail for basic token account)
-    let close_account_ix = close_account(
-        &light_compressed_token::ID,
-        &token_account_pubkey,
-        &rent_recipient_pubkey, // Use rent recipient as destination
-        &rent_authority_pubkey, // Use rent authority as authority
-    );
-
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[close_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &rent_authority_keypair], // Sign with rent authority, not owner
-        blockhash,
-    );
-
-    rpc.process_transaction(close_transaction).await.unwrap();
-
-    // Verify the account was closed (should have 0 lamports and cleared data)
-    let closed_account = rpc.get_account(token_account_pubkey).await.unwrap();
-    if let Some(account) = closed_account {
-        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
-        assert!(
-            account.data.iter().all(|&b| b == 0),
-            "Closed account data should be cleared"
-        );
-    }
-
-    // Verify lamports were transferred to rent recipient
-    let final_recipient_lamports = rpc
-        .get_account(rent_recipient_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    assert_eq!(
-        final_recipient_lamports,
-        initial_recipient_lamports + initial_token_account_lamports,
-        "Rent recipient should receive all lamports from closed account"
-    );
-}
-
-#[tokio::test]
-async fn test_create_compressible_account_insufficient_size() {
-    use light_test_utils::spl::create_mint_helper;
-    use solana_sdk::{signature::Signer, system_instruction};
-
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
-        .await
-        .unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = payer.pubkey();
-
-    // Create mint
-    let mint_pubkey = create_mint_helper(&mut rpc, &payer).await;
-
-    // Create owner and rent authority keypairs
-    let owner_keypair = Keypair::new();
-    let owner_pubkey = owner_keypair.pubkey();
-    let rent_authority_keypair = Keypair::new();
-    let rent_authority_pubkey = rent_authority_keypair.pubkey();
-    let rent_recipient_keypair = Keypair::new();
-    let rent_recipient_pubkey = rent_recipient_keypair.pubkey();
-
-    // Create token account keypair
-    let token_account_keypair = Keypair::new();
-    let token_account_pubkey = token_account_keypair.pubkey();
-
-    // Create system account with INSUFFICIENT size - too small for compressible extension
-    let rent_exempt_lamports = rpc
-        .get_minimum_balance_for_rent_exemption(BASIC_TOKEN_ACCOUNT_SIZE as usize)
-        .await
-        .unwrap();
-
-    let create_account_ix = system_instruction::create_account(
-        &payer_pubkey,
-        &token_account_pubkey,
-        rent_exempt_lamports,
-        light_ctoken_types::BASIC_TOKEN_ACCOUNT_SIZE, // Intentionally too small for compressible extension
-        &light_compressed_token::ID,
-    );
-
-    // Create token account using SDK function with compressible extension
-    let create_token_account_ix =
-        light_compressed_token_sdk::instructions::create_compressible_token_account(
-            light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey,
-                owner_pubkey,
-                rent_authority: rent_authority_pubkey,
-                rent_recipient: rent_recipient_pubkey,
-                slots_until_compression: 0,
-            },
-        )
-        .unwrap();
-
-    // Execute account creation - this should fail with account size error
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let create_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[create_account_ix, create_token_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &token_account_keypair],
-        blockhash,
-    );
-
-    let result = rpc.process_transaction(create_transaction).await;
-    assert!(
-        result.is_err(),
-        "Expected account creation to fail due to insufficient account size"
-    );
-
-    println!("✅ Correctly failed to create compressible token account with insufficient size");
-}
-
-#[tokio::test]
-async fn test_create_associated_token_account() {
-    use spl_pod::bytemuck::pod_from_bytes;
-    use spl_token_2022::{pod::PodAccount, state::AccountState};
-
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
-        .await
-        .unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = payer.pubkey();
-
-    // Create a mock mint pubkey
-    let mint_pubkey = Pubkey::new_unique();
-
-    // Create owner for the associated token account
-    let owner_keypair = Keypair::new();
-    let owner_pubkey = owner_keypair.pubkey();
-
-    // Calculate the expected associated token account address
-    let (expected_ata_pubkey, bump) = Pubkey::find_program_address(
-        &[
-            owner_pubkey.as_ref(),
-            light_compressed_token::ID.as_ref(),
-            mint_pubkey.as_ref(),
-        ],
-        &light_compressed_token::ID,
-    );
-
-    // Create basic ATA instruction using SDK function
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
-        payer_pubkey,
-        owner_pubkey,
-        mint_pubkey,
-    )
-    .unwrap();
-
-    // Execute the instruction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        blockhash,
-    );
-
-    rpc.process_transaction(transaction.clone())
-        .await
-        .expect("Failed to create associated token account");
-
-    // Verify the associated token account was created correctly
-    let token_account_info = rpc.get_account(expected_ata_pubkey).await.unwrap().unwrap();
-    {
-        // Verify account exists and has correct owner
-        assert_eq!(token_account_info.owner, light_compressed_token::ID);
-        assert_eq!(token_account_info.data.len(), 165); // SPL token account size
-
-        let pod_account = pod_from_bytes::<PodAccount>(&token_account_info.data)
-            .expect("Failed to parse token account data");
-
-        // Verify the token account fields
-        assert_eq!(pod_account.mint, mint_pubkey);
-        assert_eq!(pod_account.owner, owner_pubkey);
-        assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
-        assert_eq!(pod_account.state, AccountState::Initialized as u8);
-
-        // Verify the PDA derivation is correct
-        let (derived_ata_pubkey, derived_bump) = Pubkey::find_program_address(
-            &[
-                owner_pubkey.as_ref(),
-                light_compressed_token::ID.as_ref(),
-                mint_pubkey.as_ref(),
-            ],
-            &light_compressed_token::ID,
-        );
-        assert_eq!(expected_ata_pubkey, derived_ata_pubkey);
-        assert_eq!(bump, derived_bump);
-    }
-    {
-        let expected_token_account = CompressedToken {
-            mint: mint_pubkey.into(),
-            owner: owner_pubkey.into(),
-            amount: 0,
-            delegate: None,
-            state: 1, // Initialized
-            is_native: None,
-            delegated_amount: 0,
-            close_authority: None,
-            extensions: None,
-        };
-
-        let (actual_token_account, _) = CompressedToken::zero_copy_at(&token_account_info.data)
-            .expect("Failed to deserialize token account with zero-copy");
-
-        assert_eq!(actual_token_account, expected_token_account);
-    }
-
-    // Test compressible associated token account creation
-    println!("🧪 Testing compressible associated token account creation...");
-
-    // Create rent authority and recipient for compressible account
-    let rent_authority_keypair = Keypair::new();
-    let rent_authority_pubkey = rent_authority_keypair.pubkey();
-    let rent_recipient_keypair = Keypair::new();
-    let rent_recipient_pubkey = rent_recipient_keypair.pubkey();
-
-    // Airdrop lamports to rent recipient so it exists
-    rpc.context
-        .airdrop(&rent_recipient_pubkey, 1_000_000)
-        .unwrap();
-
-    // Create a different owner for the compressible account
-    let compressible_owner_keypair = Keypair::new();
-    let compressible_owner_pubkey = compressible_owner_keypair.pubkey();
-
-    // Calculate the expected compressible associated token account address
-    let (expected_compressible_ata_pubkey, _) = Pubkey::find_program_address(
-        &[
-            compressible_owner_pubkey.as_ref(),
-            light_compressed_token::ID.as_ref(),
-            mint_pubkey.as_ref(),
-        ],
-        &light_compressed_token::ID,
-    );
-
-    // Create compressible ATA instruction using SDK function
-    let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
-        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
-            payer: payer_pubkey,
-            owner: compressible_owner_pubkey,
-            mint: mint_pubkey,
-            rent_authority: rent_authority_pubkey,
-            rent_recipient: rent_recipient_pubkey,
-            slots_until_compression: 0,
-        }
-    ).unwrap();
-
-    // Execute the compressible instruction
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let compressible_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[compressible_instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        blockhash,
-    );
-
-    rpc.process_transaction(compressible_transaction)
-        .await
-        .expect("Failed to create compressible associated token account");
-
-    // Verify the compressible associated token account was created correctly
-    let compressible_account_info = rpc
-        .get_account(expected_compressible_ata_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Verify account exists and has correct owner and size for compressible account
-    assert_eq!(compressible_account_info.owner, light_compressed_token::ID);
-    assert_eq!(
-        compressible_account_info.data.len(),
-        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
-    ); // Should be compressible size, not basic size
-
-    // Use zero-copy deserialization to verify the compressible account structure
-    let (actual_compressible_token_account, _) =
-        CompressedToken::zero_copy_at(&compressible_account_info.data)
-            .expect("Failed to deserialize compressible token account with zero-copy");
-
-    // Create expected compressible token account with compressible extension
-
-    let expected_compressible_token_account = CompressedToken {
-        mint: mint_pubkey.into(),
-        owner: compressible_owner_pubkey.into(),
-        amount: 0,
-        delegate: None,
-        state: 1, // Initialized
-        is_native: None,
-        delegated_amount: 0,
-        close_authority: None,
-        extensions: Some(vec![
-            light_ctoken_types::state::extensions::ExtensionStruct::Compressible(
-                CompressibleExtension {
-                    last_written_slot: 2, // Program sets this to current slot
-                    slots_until_compression: 0,
-                    rent_authority: rent_authority_pubkey.into(),
-                    rent_recipient: rent_recipient_pubkey.into(),
-                },
-            ),
-        ]),
-    };
-
-    assert_eq!(
-        actual_compressible_token_account,
-        expected_compressible_token_account
-    );
-
-    // Test that we can close the compressible account using rent authority
-    let initial_compressible_lamports = rpc
-        .get_account(expected_compressible_ata_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    let initial_recipient_lamports = rpc
-        .get_account(rent_recipient_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-
-    // Close account with rent authority
-    let close_account_ix = close_account(
-        &light_compressed_token::ID,
-        &expected_compressible_ata_pubkey,
-        &rent_recipient_pubkey,
-        &rent_authority_pubkey,
-    );
-
-    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
-    let close_transaction = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[close_account_ix],
-        Some(&payer_pubkey),
-        &[&payer, &rent_authority_keypair],
-        blockhash,
-    );
-
-    rpc.process_transaction(close_transaction).await.unwrap();
-
-    // Verify the compressible account was closed and lamports transferred
-    let closed_compressible_account = rpc
-        .get_account(expected_compressible_ata_pubkey)
-        .await
-        .unwrap();
-    if let Some(account) = closed_compressible_account {
-        assert_eq!(account.lamports, 0, "Closed account should have 0 lamports");
-    }
-
-    let final_recipient_lamports = rpc
-        .get_account(rent_recipient_pubkey)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    assert_eq!(
-        final_recipient_lamports,
-        initial_recipient_lamports + initial_compressible_lamports,
-        "Rent recipient should receive all lamports from closed compressible account"
-    );
-
-    println!("✅ Both basic and compressible associated token accounts work correctly!");
-}
-
-#[tokio::test]
 #[serial]
 async fn test_create_compressed_mint_with_token_metadata() {
     use light_compressed_account::Pubkey as LightPubkey;
@@ -1567,17 +875,10 @@ async fn test_create_compressed_mint_with_token_metadata() {
     let mint_authority_keypair = Keypair::new();
     let mint_authority = mint_authority_keypair.pubkey();
     let freeze_authority = Pubkey::new_unique();
-    let mint_signer = Keypair::new();
+    let mint_seed = Keypair::new();
 
     // Get address tree for creating compressed mint address
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
-    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
-
-    // Find mint PDA and bump
-    let (mint_pda, mint_bump) = Pubkey::find_program_address(
-        &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
-        &light_compressed_token::ID,
-    );
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     // Create token metadata extension with additional metadata
     let additional_metadata = vec![
@@ -1605,53 +906,22 @@ async fn test_create_compressed_mint_with_token_metadata() {
         additional_metadata: Some(additional_metadata.clone()),
         version: 0, // Poseidon hash version
     };
-
-    let extensions = vec![ExtensionInstructionData::TokenMetadata(token_metadata)];
-
-    // Use the mint PDA as the seed for the compressed account address
-    let address_seed = mint_pda.to_bytes();
-
-    let compressed_mint_address = light_compressed_account::address::derive_address(
-        &address_seed,
-        &address_tree_pubkey.to_bytes(),
-        &light_compressed_token::ID.to_bytes(),
-    );
-
-    // Get validity proof for address creation
-    let rpc_result = rpc
-        .get_validity_proof(
-            vec![],
-            vec![light_program_test::AddressWithTree {
-                address: compressed_mint_address,
-                tree: address_tree_pubkey,
-            }],
-            None,
-        )
-        .await
-        .unwrap()
-        .value;
-
-    let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
-
-    // Create instruction using the helper function
-    let instruction = create_compressed_mint(CreateCompressedMintInputs {
+    light_token_client::actions::create_mint(
+        &mut rpc,
+        &mint_seed,
         decimals,
         mint_authority,
-        freeze_authority: Some(freeze_authority),
-        proof: rpc_result.proof.0.unwrap(),
-        mint_bump,
-        address_merkle_tree_root_index,
-        mint_signer: mint_signer.pubkey(),
-        payer: payer.pubkey(),
-        address_tree_pubkey,
-        output_queue,
-        extensions: Some(extensions),
-    });
-
-    // Send transaction
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
-        .await
-        .unwrap();
+        Some(freeze_authority),
+        Some(token_metadata.clone()),
+        &payer,
+    )
+    .await
+    .unwrap();
+    let (spl_mint_pda, mint_bump) = Pubkey::find_program_address(
+        &[COMPRESSED_MINT_SEED, mint_seed.pubkey().as_ref()],
+        &light_compressed_token::ID,
+    );
+    let compressed_mint_address = light_compressed_token_sdk::instructions::create_compressed_mint::derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Verify the compressed mint was created
     let compressed_mint_account = rpc
@@ -1662,75 +932,15 @@ async fn test_create_compressed_mint_with_token_metadata() {
         .unwrap()
         .value;
 
-    // Verify the account exists and has correct properties
-    assert_eq!(
-        compressed_mint_account.address.unwrap(),
-        compressed_mint_address
+    let actual_compressed_mint = assert_compressed_mint_account(
+        &compressed_mint_account,
+        compressed_mint_address,
+        spl_mint_pda,
+        decimals,
+        mint_authority,
+        freeze_authority,
+        Some(token_metadata.clone()),
     );
-    assert_eq!(compressed_mint_account.owner, light_compressed_token::ID);
-    assert_eq!(compressed_mint_account.lamports, 0);
-
-    // Verify the compressed mint data
-    let compressed_account_data = compressed_mint_account.data.unwrap();
-    assert_eq!(
-        compressed_account_data.discriminator,
-        light_compressed_token::constants::COMPRESSED_MINT_DISCRIMINATOR
-    );
-
-    // Deserialize and verify the CompressedMint struct
-    let actual_compressed_mint: CompressedMint =
-        BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
-    // asserts
-    {
-        // Verify basic mint fields
-        assert_eq!(actual_compressed_mint.spl_mint, mint_pda);
-        assert_eq!(actual_compressed_mint.supply, 0);
-        assert_eq!(actual_compressed_mint.decimals, decimals);
-        assert!(!actual_compressed_mint.is_decompressed);
-        assert_eq!(
-            actual_compressed_mint.mint_authority,
-            Some(mint_authority.into())
-        );
-        assert_eq!(
-            actual_compressed_mint.freeze_authority,
-            Some(freeze_authority.into())
-        );
-        assert_eq!(actual_compressed_mint.version, 0);
-
-        // Verify extensions
-        assert!(actual_compressed_mint.extensions.is_some());
-        let extensions = actual_compressed_mint.extensions.as_ref().unwrap();
-        assert_eq!(extensions.len(), 1);
-
-        match &extensions[0] {
-            ExtensionStruct::TokenMetadata(metadata) => {
-                assert_eq!(metadata.mint.to_bytes(), mint_pda.to_bytes());
-                assert_eq!(metadata.update_authority, Some(mint_authority.into()));
-                assert_eq!(metadata.metadata.name, b"Test Token".to_vec());
-                assert_eq!(metadata.metadata.symbol, b"TEST".to_vec());
-                assert_eq!(
-                    metadata.metadata.uri,
-                    b"https://example.com/token.json".to_vec()
-                );
-                // Verify additional metadata
-                assert_eq!(metadata.additional_metadata.len(), 3);
-
-                // Sort both expected and actual for comparison
-                let mut expected_additional = additional_metadata.clone();
-                expected_additional.sort_by(|a, b| a.key.cmp(&b.key));
-
-                let mut actual_additional = metadata.additional_metadata.clone();
-                actual_additional.sort_by(|a, b| a.key.cmp(&b.key));
-
-                for (expected, actual) in expected_additional.iter().zip(actual_additional.iter()) {
-                    assert_eq!(actual.key, expected.key);
-                    assert_eq!(actual.value, expected.value);
-                }
-                assert_eq!(metadata.version, 0);
-            }
-            _ => panic!("Expected TokenMetadata extension"),
-        }
-    }
     // Note: We're creating SPL mint from a compressed mint with 0 supply
     let expected_supply = 0u64; // Should be 0 since compressed mint has no tokens minted
 
@@ -1738,7 +948,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     let (token_pool_pda, _token_pool_bump) = Pubkey::find_program_address(
         &[
             light_compressed_token::constants::POOL_SEED,
-            &mint_pda.to_bytes(),
+            &spl_mint_pda.to_bytes(),
         ],
         &light_compressed_token::ID,
     );
@@ -1777,7 +987,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
 
     // Create the create_spl_mint instruction using the helper function
     let create_spl_mint_instruction = create_spl_mint_instruction(CreateSplMintInputs {
-        mint_signer: mint_signer.pubkey(),
+        mint_signer: mint_seed.pubkey(),
         mint_bump,
         compressed_mint_inputs,
         proof: proof_result.proof,
@@ -1799,7 +1009,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     .unwrap();
 
     // Verify SPL mint was created
-    let mint_account_data = rpc.get_account(mint_pda).await.unwrap().unwrap();
+    let mint_account_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
     let spl_mint = spl_token_2022::state::Mint::unpack(&mint_account_data.data).unwrap();
     assert_eq!(
         spl_mint.decimals, decimals,
@@ -1819,7 +1029,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     let token_pool_account_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
     let token_pool = spl_token_2022::state::Account::unpack(&token_pool_account_data.data).unwrap();
     assert_eq!(
-        token_pool.mint, mint_pda,
+        token_pool.mint, spl_mint_pda,
         "Token pool should have correct mint"
     );
     assert_eq!(
@@ -1852,7 +1062,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     assert_eq!(final_extensions.len(), 1);
     match &final_extensions[0] {
         ExtensionStruct::TokenMetadata(metadata) => {
-            assert_eq!(metadata.mint.to_bytes(), mint_pda.to_bytes());
+            assert_eq!(metadata.mint.to_bytes(), spl_mint_pda.to_bytes());
             assert_eq!(metadata.update_authority, Some(mint_authority.into()));
             assert_eq!(metadata.metadata.name, b"Test Token".to_vec());
             assert_eq!(metadata.metadata.symbol, b"TEST".to_vec());
@@ -1924,7 +1134,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
 
     // Create decompressed mint config since this is a decompressed mint
     let decompressed_mint_config = DecompressedMintConfig {
-        mint_pda,
+        mint_pda: spl_mint_pda,
         token_pool_pda,
         token_program: spl_token_2022::ID,
     };

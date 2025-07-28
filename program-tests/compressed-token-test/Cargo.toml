@@ -19,7 +19,7 @@ default = ["custom-heap"]
 
 [dev-dependencies]
 forester-utils = { workspace = true }
-light-client = { workspace = true, features = ["devenv"] }
+light-client = { workspace = true, features = ["devenv", "v2"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-verifier = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }

@@ -104,19 +104,21 @@ pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Instruction 
     create_compressed_mint_cpi(input, mint_address)
 }
 
-/// Derives the compressed mint address from the mint signer and address tree
+/// Derives the compressed mint address from the mint seed and address tree
 pub fn derive_compressed_mint_address(
-    mint_signer: &Pubkey,
+    mint_seed: &Pubkey,
     address_tree_pubkey: &Pubkey,
 ) -> [u8; 32] {
     light_compressed_account::address::derive_address(
-        &Pubkey::find_program_address(
-            &[COMPRESSED_MINT_SEED, mint_signer.as_ref()],
-            &solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
-        )
-        .0
-        .to_bytes(),
+        &find_spl_mint_address(mint_seed).0.to_bytes(),
         &address_tree_pubkey.to_bytes(),
         &light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+    )
+}
+
+pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
+        &solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
     )
 }

@@ -11,7 +11,7 @@ light-compressed-token-types = { workspace = true }
 light-compressed-account = { workspace = true }
 light-ctoken-types = { workspace = true }
 light-sdk = { workspace = true }
-light-client = { workspace = true }
+light-client = { workspace = true, features = ["v2"] }
 light-compressed-token-sdk = { workspace = true }
 
 # Solana dependencies
