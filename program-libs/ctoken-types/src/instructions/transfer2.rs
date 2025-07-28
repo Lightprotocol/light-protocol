@@ -96,14 +96,14 @@ pub struct MultiTokenTransferOutputData {
 pub enum CompressionMode {
     Compress = COMPRESS,
     Decompress = DECOMPRESS,
-    CompressFull = COMPRESS_FULL, // Ignores the amount, we keep the amount for efficient zero copy
-    CompressAndClose = COMPRESS_AND_CLOSE, // Compresses the token and closes the account
+    // CompressFull = COMPRESS_FULL, // Ignores the amount, we keep the amount for efficient zero copy
+    //CompressAndClose = COMPRESS_AND_CLOSE, // Compresses the token and closes the account
 }
 
 pub const COMPRESS: u8 = 0u8;
 pub const DECOMPRESS: u8 = 1u8;
-pub const COMPRESS_FULL: u8 = 2u8;
-pub const COMPRESS_AND_CLOSE: u8 = 3u8;
+//pub const COMPRESS_FULL: u8 = 2u8;
+//pub const COMPRESS_AND_CLOSE: u8 = 3u8;
 
 impl Deserialize<'_> for CompressionMode {
     type Output = CompressionMode;
@@ -114,7 +114,7 @@ impl Deserialize<'_> for CompressionMode {
         let enm = match mode[0] {
             COMPRESS => Ok(CompressionMode::Compress),
             DECOMPRESS => Ok(CompressionMode::Decompress),
-            // COMPRESS_FULL => Ok(CompressionMode::Full),
+            // COMPRESS_FULL => Ok(CompressionMode::CompressFull),
             // COMPRESS_AND_CLOSE => Ok(CompressionMode::CompressAndClose),
             // TODO: add enum error
             _ => Err(light_zero_copy::errors::ZeroCopyError::IterFromOutOfBounds),
@@ -156,10 +156,32 @@ impl<'a> ZeroCopyNew<'a> for CompressionMode {
     Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
 pub struct Compression {
-    pub amount: u64,
     pub mode: CompressionMode,
+    pub amount: u64,
     pub mint: u8,
     pub source_or_recipient: u8,
+    pub authority: u8, // Index of owner or delegate account
+}
+
+impl Compression {
+    pub fn compress(amount: u64, mint: u8, source_or_recipient: u8, authority: u8) -> Self {
+        Compression {
+            amount,
+            mode: CompressionMode::Compress,
+            mint,
+            source_or_recipient,
+            authority,
+        }
+    }
+    pub fn decompress(amount: u64, mint: u8, source_or_recipient: u8) -> Self {
+        Compression {
+            amount,
+            mode: CompressionMode::Decompress,
+            mint,
+            source_or_recipient,
+            authority: 0,
+        }
+    }
 }
 
 impl ZCompressionMut<'_> {
@@ -180,27 +202,26 @@ impl ZCompression<'_> {
             CompressionMode::Compress => {
                 // Compress: add to balance (tokens are being added to compressed pool)
                 current_balance
-                    .checked_add(self.amount.into())
+                    .checked_add((*self.amount).into())
                     .ok_or(CTokenError::ArithmeticOverflow)
             }
             CompressionMode::Decompress => {
                 // Decompress: subtract from balance (tokens are being removed from compressed pool)
                 current_balance
-                    .checked_sub(self.amount.into())
+                    .checked_sub((*self.amount).into())
                     .ok_or(CTokenError::CompressInsufficientFunds)
-            }
-            CompressionMode::CompressFull => {
-                // Full: add entire current balance (all tokens are being compressed)
-                current_balance
-                    .checked_add(self.amount.into())
-                    .ok_or(CTokenError::ArithmeticOverflow)
-            }
-            CompressionMode::CompressAndClose => {
-                // CompressAndClose: add to balance (tokens are being compressed to pool)
-                current_balance
-                    .checked_sub(self.amount.into())
-                    .ok_or(CTokenError::ArithmeticOverflow)
-            }
+            } //   CompressionMode::CompressFull => {
+              //       // CompressFull: add entire amount to compressed pool (amount will be set to actual balance in preprocessing)
+              //       current_balance
+              //            .checked_add((*self.amount).into())
+              //            .ok_or(CTokenError::ArithmeticOverflow)
+              //    }
+              // CompressionMode::CompressAndClose => {
+              //      // CompressAndClose: add entire amount to compressed pool (amount will be set to actual balance in preprocessing)
+              //     current_balance
+              //          .checked_add((*self.amount).into())
+              //          .ok_or(CTokenError::ArithmeticOverflow)
+              //  }
         }?;
         Ok(new_balance)
     }
@@ -210,27 +231,26 @@ impl ZCompression<'_> {
             CompressionMode::Compress => {
                 // Compress: add to balance (tokens are being added to compressed pool)
                 current_balance
-                    .checked_sub(self.amount.into())
+                    .checked_sub((*self.amount).into())
                     .ok_or(CTokenError::ArithmeticOverflow)
             }
             CompressionMode::Decompress => {
                 // Decompress: subtract from balance (tokens are being removed from compressed pool)
                 current_balance
-                    .checked_add(self.amount.into())
+                    .checked_add((*self.amount).into())
                     .ok_or(CTokenError::CompressInsufficientFunds)
-            }
-            CompressionMode::CompressFull => {
-                // Full: add entire current balance (all tokens are being compressed)
-                current_balance
-                    .checked_sub(self.amount.into())
-                    .ok_or(CTokenError::ArithmeticOverflow)
-            }
-            CompressionMode::CompressAndClose => {
-                // CompressAndClose: add to balance (tokens are being compressed to pool)
-                current_balance
-                    .checked_sub(self.amount.into())
-                    .ok_or(CTokenError::ArithmeticOverflow)
-            }
+            } //     CompressionMode::CompressFull => {
+              //        // CompressFull: subtract entire amount from solana account (amount will be set to actual balance in preprocessing)
+              //        current_balance
+              ////            .checked_sub((*self.amount).into())
+              //             .ok_or(CTokenError::ArithmeticOverflow)
+              //     }
+              //    CompressionMode::CompressAndClose => {
+              //       // CompressAndClose: subtract entire amount from solana account (amount will be set to actual balance in preprocessing)
+              //         current_balance
+              //             .checked_sub((*self.amount).into())
+              //             .ok_or(CTokenError::ArithmeticOverflow)
+              //       }
         }?;
         Ok(new_balance)
     }

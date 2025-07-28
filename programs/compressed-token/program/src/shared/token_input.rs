@@ -1,12 +1,13 @@
 use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::check_signer;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
     context::TokenContext,
     instructions::transfer2::{TokenAccountVersion, ZMultiInputTokenDataWithContext},
 };
 use pinocchio::account_info::AccountInfo;
+
+use crate::shared::owner_validation::verify_owner_or_delegate_signer;
 
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.
 ///
@@ -22,33 +23,15 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     // Get owner from remaining accounts using the owner index
     let owner_account = &accounts[input_token_data.owner as usize];
 
-    // Verify signer authorization using light-account-checks
-    let hashed_delegate = if input_token_data.with_delegate() {
-        // If delegate is used, delegate must be signer
-        let delegate_account = &accounts[input_token_data.delegate as usize];
-
-        check_signer(delegate_account).map_err(|e| {
-            anchor_lang::solana_program::msg!(
-                "Delegate signer: {:?}",
-                solana_pubkey::Pubkey::new_from_array(*delegate_account.key())
-            );
-            anchor_lang::solana_program::msg!("Delegate signer check failed: {:?}", e);
-            ProgramError::from(e)
-        })?;
-        Some(context.get_or_hash_pubkey(delegate_account.key()))
+    // Verify signer authorization using shared function
+    let delegate_account = if input_token_data.with_delegate() {
+        Some(&accounts[input_token_data.delegate as usize])
     } else {
-        // If no delegate, owner must be signer
-
-        check_signer(owner_account).map_err(|e| {
-            anchor_lang::solana_program::msg!(
-                "Checking owner signer: {:?}",
-                solana_pubkey::Pubkey::new_from_array(*owner_account.key())
-            );
-            anchor_lang::solana_program::msg!("Owner signer check failed: {:?}", e);
-            ProgramError::from(e)
-        })?;
         None
     };
+    
+    let verified_delegate = verify_owner_or_delegate_signer(owner_account, delegate_account)?;
+    let hashed_delegate = verified_delegate.map(|delegate| context.get_or_hash_pubkey(delegate.key()));
 
     // Compute data hash using TokenContext for caching
     let hashed_owner = context.get_or_hash_pubkey(owner_account.key());

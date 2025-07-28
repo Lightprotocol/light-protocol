@@ -3439,6 +3439,7 @@ dependencies = [
  "solana-msg",
  "solana-program-error",
  "solana-pubkey",
+ "spl-pod",
  "spl-token-2022 7.0.0",
  "thiserror 2.0.12",
 ]

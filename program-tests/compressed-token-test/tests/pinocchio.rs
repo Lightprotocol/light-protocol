@@ -569,6 +569,7 @@ async fn test_create_compressed_mint() {
             to: compress_recipient.pubkey(), // New recipient for compressed tokens
             mint: mint_pda,
             amount: compress_amount,
+            authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
         })],
         payer.pubkey(),
@@ -577,9 +578,13 @@ async fn test_create_compressed_mint() {
     .unwrap();
     println!("compress_instruction {:?}", compress_instruction);
     // Execute compression
-    rpc.create_and_send_transaction(&[compress_instruction], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
+    rpc.create_and_send_transaction(
+        &[compress_instruction],
+        &payer.pubkey(),
+        &[&payer, &new_recipient_keypair],
+    )
+    .await
+    .unwrap();
 
     // Verify compressed tokens were created for the new recipient
     let compressed_tokens = rpc
@@ -651,6 +656,7 @@ async fn test_create_compressed_mint() {
             to: transfer_source_recipient.pubkey(),
             mint: mint_pda,
             amount: transfer_compress_amount,
+            authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
         })],
         payer.pubkey(),
@@ -658,9 +664,13 @@ async fn test_create_compressed_mint() {
     .await
     .unwrap();
 
-    rpc.create_and_send_transaction(&[transfer_compress_instruction], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
+    rpc.create_and_send_transaction(
+        &[transfer_compress_instruction],
+        &payer.pubkey(),
+        &[&payer, &new_recipient_keypair],
+    )
+    .await
+    .unwrap();
 
     let remaining_compressed_tokens = rpc
         .indexer()
@@ -685,6 +695,7 @@ async fn test_create_compressed_mint() {
             to: multi_test_recipient.pubkey(),
             mint: mint_pda,
             amount: multi_compress_amount,
+            authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
         })],
         payer.pubkey(),
@@ -695,7 +706,7 @@ async fn test_create_compressed_mint() {
     rpc.create_and_send_transaction(
         &[compress_for_multi_instruction],
         &payer.pubkey(),
-        &[&payer],
+        &[&payer, &new_recipient_keypair],
     )
     .await
     .unwrap();
@@ -766,6 +777,7 @@ async fn test_create_compressed_mint() {
                 to: compress_from_spl_recipient.pubkey(),
                 mint: mint_pda,
                 amount: compress_amount_multi,
+                authority: new_recipient_keypair.pubkey(), // Authority for compression
                 output_queue: multi_output_queue,
             }),
         ],
@@ -779,7 +791,12 @@ async fn test_create_compressed_mint() {
         .create_and_send_transaction(
             &[transfer2_instruction],
             &payer.pubkey(),
-            &[&payer, &transfer_source_recipient, &multi_test_recipient], // Both token owners need to sign
+            &[
+                &payer,
+                &transfer_source_recipient,
+                &multi_test_recipient,
+                &new_recipient_keypair,
+            ], // Both token owners need to sign
         )
         .await;
 

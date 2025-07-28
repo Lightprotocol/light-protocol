@@ -80,6 +80,7 @@ pub struct CompressInput<'a> {
     pub to: Pubkey,
     pub mint: Pubkey,
     pub amount: u64,
+    pub authority: Pubkey,
     pub output_queue: Pubkey,
 }
 pub enum Transfer2InstructionType<'a> {
@@ -160,7 +161,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     };
 
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_token_account);
-                token_account.compress(input.amount, source_index)?;
+                let authority_index =
+                    packed_tree_accounts.insert_or_get_config(input.authority, true, false);
+                token_account.compress(input.amount, source_index, authority_index)?;
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Decompress(input) => {

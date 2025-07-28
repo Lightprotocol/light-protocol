@@ -26,6 +26,7 @@ solana-cpi = { workspace = true }
 solana-program-error = { workspace = true }
 arrayvec = { workspace = true }
 spl-token-2022 = { workspace = true }
+spl-pod = { workspace = true }
 # Optional Anchor dependency
 anchor-lang = { workspace = true, optional = true }
 

@@ -6,7 +6,7 @@ use light_ctoken_types::instructions::transfer2::{
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
-use crate::error::TokenSdkError;
+use crate::{error::TokenSdkError, utils::get_token_account_balance};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount2 {
@@ -142,21 +142,20 @@ impl CTokenAccount2 {
         &mut self,
         amount: u64,
         source_or_recipient_index: u8,
+        authority: u8,
     ) -> Result<(), TokenSdkError> {
-        // Check if there's already a compression with different mode
-        if let Some(compression) = &self.compression {
-            if compression.mode != CompressionMode::Compress {
-                return Err(TokenSdkError::CannotCompressAndDecompress);
-            }
+        // Check if there's already a compression set
+        if self.compression.is_some() {
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         self.output.amount += amount;
-        self.compression = Some(Compression {
+        self.compression = Some(Compression::compress(
             amount,
-            mode: CompressionMode::Compress,
-            mint: self.output.mint,
-            source_or_recipient: source_or_recipient_index,
-        });
+            self.output.mint,
+            source_or_recipient_index,
+            authority,
+        ));
         self.method_used = true;
 
         Ok(())
@@ -164,11 +163,9 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
     pub fn decompress(&mut self, amount: u64, source_index: u8) -> Result<(), TokenSdkError> {
-        // Check if there's already a compression with different mode
-        if let Some(compression) = &self.compression {
-            if compression.mode != CompressionMode::Decompress {
-                return Err(TokenSdkError::CannotCompressAndDecompress);
-            }
+        // Check if there's already a compression set
+        if self.compression.is_some() {
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         if self.output.amount < amount {
@@ -176,11 +173,40 @@ impl CTokenAccount2 {
         }
         self.output.amount -= amount;
 
-        self.compression = Some(Compression {
+        self.compression = Some(Compression::decompress(
             amount,
-            mode: CompressionMode::Decompress,
+            self.output.mint,
+            source_index,
+        ));
+        self.method_used = true;
+
+        Ok(())
+    }
+
+    pub fn compress_full(
+        &mut self,
+        source_or_recipient_index: u8,
+        authority: u8,
+        token_account_info: &AccountInfo,
+    ) -> Result<(), TokenSdkError> {
+        // Check if there's already a compression set
+        if self.compression.is_some() {
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
+        }
+
+        // Get the actual token account balance to add to output
+        let token_balance = get_token_account_balance(token_account_info)?;
+
+        // Add the full token balance to the output amount
+        self.output.amount += token_balance;
+
+        // For compress_full, set amount to the actual balance for instruction data
+        self.compression = Some(Compression {
+            amount: token_balance,
+            mode: CompressionMode::Compress, // Use regular compress mode with actual amount
             mint: self.output.mint,
-            source_or_recipient: source_index,
+            source_or_recipient: source_or_recipient_index,
+            authority,
         });
         self.method_used = true;
 

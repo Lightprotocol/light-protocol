@@ -3,6 +3,7 @@ pub mod account2;
 pub mod error;
 pub mod instructions;
 pub mod token_pool;
+pub mod utils;
 
 // Conditional anchor re-exports
 #[cfg(feature = "anchor")]

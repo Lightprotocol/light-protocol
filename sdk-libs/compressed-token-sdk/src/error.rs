@@ -15,6 +15,8 @@ pub enum TokenSdkError {
     CpiError(String),
     #[error("Cannot compress and decompress")]
     CannotCompressAndDecompress,
+    #[error("Compression cannot be set twice")]
+    CompressionCannotBeSetTwice,
     #[error("Inconsistent compress/decompress state")]
     InconsistentCompressDecompressState,
     #[error("Both compress and decompress specified")]
@@ -27,6 +29,10 @@ pub enum TokenSdkError {
     DecompressedMintConfigRequired,
     #[error("Invalid compress input owner")]
     InvalidCompressInputOwner,
+    #[error("Account borrow failed")]
+    AccountBorrowFailed,
+    #[error("Invalid account data")]
+    InvalidAccountData,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -46,12 +52,15 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::SerializationError => 17002,
             TokenSdkError::CpiError(_) => 17003,
             TokenSdkError::CannotCompressAndDecompress => 17004,
-            TokenSdkError::InconsistentCompressDecompressState => 17005,
-            TokenSdkError::BothCompressAndDecompress => 17006,
-            TokenSdkError::InvalidCompressDecompressAmount => 17007,
-            TokenSdkError::MethodUsed => 17008,
-            TokenSdkError::DecompressedMintConfigRequired => 17009,
-            TokenSdkError::InvalidCompressInputOwner => 17010,
+            TokenSdkError::CompressionCannotBeSetTwice => 17005,
+            TokenSdkError::InconsistentCompressDecompressState => 17006,
+            TokenSdkError::BothCompressAndDecompress => 17007,
+            TokenSdkError::InvalidCompressDecompressAmount => 17008,
+            TokenSdkError::MethodUsed => 17009,
+            TokenSdkError::DecompressedMintConfigRequired => 17010,
+            TokenSdkError::InvalidCompressInputOwner => 17011,
+            TokenSdkError::AccountBorrowFailed => 17012,
+            TokenSdkError::InvalidAccountData => 17013,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
         }

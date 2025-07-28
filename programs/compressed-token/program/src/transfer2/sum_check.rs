@@ -57,7 +57,7 @@ fn sum_compressions(
                 if mint_sums.is_full() {
                     return Err(ErrorCode::TooManyMints);
                 }
-                mint_sums.push((mint_index, compression.amount.into()));
+                mint_sums.push((mint_index, (*compression.amount).into()));
             } else {
                 // Cannot decompress if no balance exists
                 return Err(ErrorCode::SumCheckFailed);

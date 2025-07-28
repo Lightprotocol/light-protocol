@@ -1,12 +1,15 @@
 use anchor_lang::prelude::ProgramError;
 use light_ctoken_types::instructions::transfer2::{
-    ZCompressedTokenInstructionDataTransfer2, ZCompression,
+    CompressionMode, ZCompressedTokenInstructionDataTransfer2, ZCompression,
 };
 use pinocchio::{account_info::AccountInfo, msg};
 use spl_pod::bytemuck::pod_from_bytes_mut;
 use spl_token_2022::pod::PodAccount;
 
-use crate::{transfer2::accounts::Transfer2PackedAccounts, LIGHT_CPI_SIGNER};
+use crate::{
+    shared::owner_validation::verify_and_update_token_account_authority_with_pod,
+    transfer2::accounts::Transfer2PackedAccounts, LIGHT_CPI_SIGNER,
+};
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 /// Process native compressions/decompressions with token accounts
 pub fn process_token_compression(
@@ -16,19 +19,10 @@ pub fn process_token_compression(
     if let Some(compressions) = inputs.compressions.as_ref() {
         for compression in compressions {
             let source_or_recipient = packed_accounts.get_u8(compression.source_or_recipient)?;
-            use anchor_lang::solana_program::log::msg;
-            msg!(
-                "source_or_recipient: {:?}",
-                solana_pubkey::Pubkey::new_from_array(*source_or_recipient.key())
-            );
-            msg!(
-                "source_or_recipient: {:?}",
-                solana_pubkey::Pubkey::new_from_array(unsafe { *source_or_recipient.owner() })
-            );
 
             match unsafe { source_or_recipient.owner() } {
                 ID => {
-                    process_native_compressions(compression, source_or_recipient)?;
+                    process_native_compressions(compression, source_or_recipient, packed_accounts)?;
                 }
                 _ => return Err(ProgramError::InvalidInstructionData),
             }
@@ -37,18 +31,48 @@ pub fn process_token_compression(
     Ok(())
 }
 
+/// Validate compression fields based on compression mode
+fn validate_compression_mode_fields(compression: &ZCompression) -> Result<(), ProgramError> {
+    let mode = compression.mode;
+
+    match mode {
+        CompressionMode::Decompress => {
+            // Decompress must have authority = 0
+            if compression.authority != 0 {
+                msg!("authority must be 0 for Decompress mode");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+        }
+        CompressionMode::Compress => {
+            // No additional validation needed for regular compress
+        }
+    }
+
+    Ok(())
+}
+
 /// Process compression/decompression for token accounts using zero-copy PodAccount
 fn process_native_compressions(
     compression: &ZCompression,
     token_account_info: &AccountInfo,
+    packed_accounts: &Transfer2PackedAccounts,
 ) -> Result<(), ProgramError> {
     msg!("process_native_compressions");
+
+    let mode = compression.mode;
+
+    // Validate compression fields for the given mode
+    validate_compression_mode_fields(compression)?;
+
+    // Get authority account and effective compression amount
+    let authority_account = packed_accounts.get_u8(compression.authority)?;
+    let effective_amount = u64::from(*compression.amount);
 
     // Access token account data as mutable bytes
     let mut token_account_data = token_account_info
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
-    msg!("pre pod");
+
     // Use zero-copy PodAccount to access the token account
     let pod_account = pod_from_bytes_mut::<PodAccount>(&mut token_account_data)
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
@@ -57,8 +81,28 @@ fn process_native_compressions(
     // Get current balance
     let current_balance: u64 = pod_account.amount.into();
 
-    // Update balance based on compression type
-    let new_balance = compression.new_balance_solana_account(current_balance)?;
+    // Calculate new balance using effective amount
+    let new_balance = match mode {
+        CompressionMode::Compress => {
+            // Verify authority for compression operations and update delegated amount if needed
+            verify_and_update_token_account_authority_with_pod(
+                pod_account,
+                authority_account,
+                effective_amount,
+            )?;
+
+            // Compress: subtract from solana account
+            current_balance
+                .checked_sub(effective_amount)
+                .ok_or(ProgramError::ArithmeticOverflow)?
+        }
+        CompressionMode::Decompress => {
+            // Decompress: add to solana account
+            current_balance
+                .checked_add(effective_amount)
+                .ok_or(ProgramError::ArithmeticOverflow)?
+        }
+    };
 
     // Update the balance in the pod account
     pod_account.amount = new_balance.into();

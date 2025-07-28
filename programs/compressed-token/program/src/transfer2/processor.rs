@@ -96,17 +96,6 @@ pub fn process_transfer2(
         &inputs,
         &packed_accounts,
     )?;
-    msg!("pre sum_check_multi_mint");
-    bench_sbf_end!("t_context_and_check_sig");
-    bench_sbf_start!("t_sum_check");
-    sum_check_multi_mint(
-        &inputs.in_token_data,
-        &inputs.out_token_data,
-        inputs.compressions.as_deref(),
-    )
-    .map_err(|e| ProgramError::Custom(e as u32))?;
-    bench_sbf_end!("t_sum_check");
-    msg!("pre set_output_compressed_accounts");
 
     // Process output compressed accounts
     set_output_compressed_accounts(
@@ -129,6 +118,17 @@ pub fn process_transfer2(
     // Process token compressions/decompressions
     // TODO: support spl
     process_token_compression(&inputs, &packed_accounts)?;
+    msg!("pre sum_check_multi_mint");
+    bench_sbf_end!("t_context_and_check_sig");
+    bench_sbf_start!("t_sum_check");
+    sum_check_multi_mint(
+        &inputs.in_token_data,
+        &inputs.out_token_data,
+        inputs.compressions.as_deref(),
+    )
+    .map_err(|e| ProgramError::Custom(e as u32))?;
+    bench_sbf_end!("t_sum_check");
+    msg!("pre set_output_compressed_accounts");
 
     // Get CPI accounts slice and tree accounts for light-system-program invocation
     let (cpi_accounts, tree_pubkeys) =
