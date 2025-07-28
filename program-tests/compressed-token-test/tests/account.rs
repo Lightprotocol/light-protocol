@@ -2,19 +2,17 @@
 
 use std::assert_eq;
 
-use anchor_spl::token_2022::spl_token_2022;
 use light_compressed_token_sdk::instructions::{close::close_account, create_token_account};
-use light_ctoken_types::{
-    state::{solana_ctoken::CompressedToken, CompressibleExtension},
-    BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-};
+use light_ctoken_types::{BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::Rpc;
+use light_test_utils::{
+    assert_create_token_account::{
+        assert_create_associated_token_account, assert_create_token_account, CompressibleData,
+    },
+    Rpc,
+};
 
-use light_zero_copy::borsh::Deserialize;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
-use spl_pod::bytemuck::pod_from_bytes;
-use spl_token_2022::{pod::PodAccount, state::AccountState};
 
 #[tokio::test]
 async fn test_create_and_close_token_account() {
@@ -65,24 +63,14 @@ async fn test_create_and_close_token_account() {
         .expect("Failed to create token account using SPL SDK");
 
     // Verify the token account was created correctly
-    let account_info = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Verify account exists and has correct owner
-    assert_eq!(account_info.owner, light_compressed_token::ID);
-    assert_eq!(account_info.data.len(), 165); // SPL token account size
-
-    let pod_account = pod_from_bytes::<PodAccount>(&account_info.data)
-        .expect("Failed to parse token account data");
-
-    // Verify the token account fields
-    assert_eq!(pod_account.mint, mint_pubkey);
-    assert_eq!(pod_account.owner, owner_pubkey);
-    assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
-    assert_eq!(pod_account.state, AccountState::Initialized as u8);
+    assert_create_token_account(
+        &mut rpc,
+        token_account_pubkey,
+        mint_pubkey,
+        owner_pubkey,
+        None, // Basic token account
+    )
+    .await;
 
     // Now test closing the account using SPL SDK format
     let destination_keypair = Keypair::new();
@@ -227,46 +215,18 @@ async fn test_create_and_close_account_with_rent_authority() {
         .expect("Failed to create token account");
 
     // Verify the account was created correctly
-    let token_account_info = rpc
-        .get_account(token_account_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert complete token account values
-    assert_eq!(token_account_info.owner, light_compressed_token::ID);
-    assert_eq!(
-        token_account_info.data.len(),
-        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
-    );
-    assert!(!token_account_info.executable);
-    assert!(token_account_info.lamports > 0); // Should be rent-exempt
-
-    let expected_token_account = CompressedToken {
-        mint: mint_pubkey.into(),
-        owner: owner_pubkey.into(),
-        amount: 0,
-        delegate: None,
-        state: 1, // Initialized
-        is_native: None,
-        delegated_amount: 0,
-        close_authority: None,
-        extensions: Some(vec![
-            light_ctoken_types::state::extensions::ExtensionStruct::Compressible(
-                CompressibleExtension {
-                    last_written_slot: 2, // Program sets this to current slot (2 in test environment)
-                    slots_until_compression: 0,
-                    rent_authority: rent_authority_pubkey.into(),
-                    rent_recipient: rent_recipient_pubkey.into(),
-                },
-            ),
-        ]),
-    };
-
-    let (actual_token_account, _) = CompressedToken::zero_copy_at(&token_account_info.data)
-        .expect("Failed to deserialize token account with zero-copy");
-
-    assert_eq!(actual_token_account, expected_token_account);
+    assert_create_token_account(
+        &mut rpc,
+        token_account_pubkey,
+        mint_pubkey,
+        owner_pubkey,
+        Some(CompressibleData {
+            rent_authority: rent_authority_pubkey,
+            rent_recipient: rent_recipient_pubkey,
+            slots_until_compression: 0,
+        }),
+    )
+    .await;
 
     // Get initial lamports before closing
     let initial_token_account_lamports = rpc
@@ -398,9 +358,6 @@ async fn test_create_compressible_account_insufficient_size() {
 
 #[tokio::test]
 async fn test_create_associated_token_account() {
-    use spl_pod::bytemuck::pod_from_bytes;
-    use spl_token_2022::{pod::PodAccount, state::AccountState};
-
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
         .unwrap();
@@ -413,16 +370,6 @@ async fn test_create_associated_token_account() {
     // Create owner for the associated token account
     let owner_keypair = Keypair::new();
     let owner_pubkey = owner_keypair.pubkey();
-
-    // Calculate the expected associated token account address
-    let (expected_ata_pubkey, bump) = Pubkey::find_program_address(
-        &[
-            owner_pubkey.as_ref(),
-            light_compressed_token::ID.as_ref(),
-            mint_pubkey.as_ref(),
-        ],
-        &light_compressed_token::ID,
-    );
 
     // Create basic ATA instruction using SDK function
     let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
@@ -446,51 +393,7 @@ async fn test_create_associated_token_account() {
         .expect("Failed to create associated token account");
 
     // Verify the associated token account was created correctly
-    let token_account_info = rpc.get_account(expected_ata_pubkey).await.unwrap().unwrap();
-    {
-        // Verify account exists and has correct owner
-        assert_eq!(token_account_info.owner, light_compressed_token::ID);
-        assert_eq!(token_account_info.data.len(), 165); // SPL token account size
-
-        let pod_account = pod_from_bytes::<PodAccount>(&token_account_info.data)
-            .expect("Failed to parse token account data");
-
-        // Verify the token account fields
-        assert_eq!(pod_account.mint, mint_pubkey);
-        assert_eq!(pod_account.owner, owner_pubkey);
-        assert_eq!(u64::from(pod_account.amount), 0); // Should start with zero balance
-        assert_eq!(pod_account.state, AccountState::Initialized as u8);
-
-        // Verify the PDA derivation is correct
-        let (derived_ata_pubkey, derived_bump) = Pubkey::find_program_address(
-            &[
-                owner_pubkey.as_ref(),
-                light_compressed_token::ID.as_ref(),
-                mint_pubkey.as_ref(),
-            ],
-            &light_compressed_token::ID,
-        );
-        assert_eq!(expected_ata_pubkey, derived_ata_pubkey);
-        assert_eq!(bump, derived_bump);
-    }
-    {
-        let expected_token_account = CompressedToken {
-            mint: mint_pubkey.into(),
-            owner: owner_pubkey.into(),
-            amount: 0,
-            delegate: None,
-            state: 1, // Initialized
-            is_native: None,
-            delegated_amount: 0,
-            close_authority: None,
-            extensions: None,
-        };
-
-        let (actual_token_account, _) = CompressedToken::zero_copy_at(&token_account_info.data)
-            .expect("Failed to deserialize token account with zero-copy");
-
-        assert_eq!(actual_token_account, expected_token_account);
-    }
+    assert_create_associated_token_account(&mut rpc, owner_pubkey, mint_pubkey, None).await;
 
     // Test compressible associated token account creation
     println!("🧪 Testing compressible associated token account creation...");
@@ -509,16 +412,6 @@ async fn test_create_associated_token_account() {
     // Create a different owner for the compressible account
     let compressible_owner_keypair = Keypair::new();
     let compressible_owner_pubkey = compressible_owner_keypair.pubkey();
-
-    // Calculate the expected compressible associated token account address
-    let (expected_compressible_ata_pubkey, _) = Pubkey::find_program_address(
-        &[
-            compressible_owner_pubkey.as_ref(),
-            light_compressed_token::ID.as_ref(),
-            mint_pubkey.as_ref(),
-        ],
-        &light_compressed_token::ID,
-    );
 
     // Create compressible ATA instruction using SDK function
     let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
@@ -546,53 +439,29 @@ async fn test_create_associated_token_account() {
         .expect("Failed to create compressible associated token account");
 
     // Verify the compressible associated token account was created correctly
-    let compressible_account_info = rpc
-        .get_account(expected_compressible_ata_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Verify account exists and has correct owner and size for compressible account
-    assert_eq!(compressible_account_info.owner, light_compressed_token::ID);
-    assert_eq!(
-        compressible_account_info.data.len(),
-        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
-    ); // Should be compressible size, not basic size
-
-    // Use zero-copy deserialization to verify the compressible account structure
-    let (actual_compressible_token_account, _) =
-        CompressedToken::zero_copy_at(&compressible_account_info.data)
-            .expect("Failed to deserialize compressible token account with zero-copy");
-
-    // Create expected compressible token account with compressible extension
-
-    let expected_compressible_token_account = CompressedToken {
-        mint: mint_pubkey.into(),
-        owner: compressible_owner_pubkey.into(),
-        amount: 0,
-        delegate: None,
-        state: 1, // Initialized
-        is_native: None,
-        delegated_amount: 0,
-        close_authority: None,
-        extensions: Some(vec![
-            light_ctoken_types::state::extensions::ExtensionStruct::Compressible(
-                CompressibleExtension {
-                    last_written_slot: 2, // Program sets this to current slot
-                    slots_until_compression: 0,
-                    rent_authority: rent_authority_pubkey.into(),
-                    rent_recipient: rent_recipient_pubkey.into(),
-                },
-            ),
-        ]),
-    };
-
-    assert_eq!(
-        actual_compressible_token_account,
-        expected_compressible_token_account
-    );
+    assert_create_associated_token_account(
+        &mut rpc,
+        compressible_owner_pubkey,
+        mint_pubkey,
+        Some(CompressibleData {
+            rent_authority: rent_authority_pubkey,
+            rent_recipient: rent_recipient_pubkey,
+            slots_until_compression: 0,
+        }),
+    )
+    .await;
 
     // Test that we can close the compressible account using rent authority
+    // Re-derive the ATA address for closing test
+    let (expected_compressible_ata_pubkey, _) = Pubkey::find_program_address(
+        &[
+            compressible_owner_pubkey.as_ref(),
+            light_compressed_token::ID.as_ref(),
+            mint_pubkey.as_ref(),
+        ],
+        &light_compressed_token::ID,
+    );
+
     let initial_compressible_lamports = rpc
         .get_account(expected_compressible_ata_pubkey)
         .await

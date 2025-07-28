@@ -123,8 +123,6 @@ async fn test_create_compressed_mint() {
     )
     .await;
 
-    // Test create_spl_mint functionality using our helper
-
     // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
     create_spl_mint(
         &mut rpc,
