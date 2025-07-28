@@ -116,6 +116,17 @@ pub fn derive_compressed_mint_address(
     )
 }
 
+pub fn derive_compressed_mint_from_spl_mint(
+    spl_mint: &Pubkey,
+    address_tree_pubkey: &Pubkey,
+) -> [u8; 32] {
+    light_compressed_account::address::derive_address(
+        &spl_mint.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+    )
+}
+
 pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],

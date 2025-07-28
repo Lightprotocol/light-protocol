@@ -3853,6 +3853,7 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-compressed-token-sdk",
  "light-concurrent-merkle-tree",
  "light-ctoken-types",
  "light-hasher",
@@ -3882,6 +3883,7 @@ dependencies = [
 name = "light-token-client"
 version = "0.1.0"
 dependencies = [
+ "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
  "light-compressed-token-sdk",

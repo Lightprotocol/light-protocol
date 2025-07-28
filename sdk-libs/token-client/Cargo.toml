@@ -23,3 +23,4 @@ solana-signer = { workspace = true }
 solana-signature = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
+borsh = { workspace = true }
