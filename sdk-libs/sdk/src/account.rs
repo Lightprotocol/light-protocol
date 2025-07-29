@@ -83,8 +83,6 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
-const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
-
 pub trait Size {
     fn size(&self) -> usize;
 }
@@ -175,6 +173,53 @@ impl<
         Ok(Self {
             owner,
             account: input_account,
+            account_info: CompressedAccountInfo {
+                address: input_account_meta.get_address(),
+                input: Some(input_account_info),
+                output: Some(output_account_info),
+            },
+            should_remove_data: false,
+            _hasher: PhantomData,
+        })
+    }
+
+    /// Create a new LightAccount for compression from an empty compressed account.
+    /// This is used when compressing a PDA - we know the compressed account exists
+    /// but is empty (data: [], data_hash: [1; 32]).
+    pub fn new_mut_without_data(
+        owner: &'a Pubkey,
+        input_account_meta: &impl CompressedAccountMetaTrait,
+    ) -> Result<Self, LightSdkError> {
+        let input_account_info = {
+            let tree_info = input_account_meta.get_tree_info();
+            InAccountInfo {
+                data_hash: DEFAULT_DATA_HASH, // TODO: review security.
+                lamports: input_account_meta.get_lamports().unwrap_or_default(),
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                    queue_pubkey_index: tree_info.queue_pubkey_index,
+                    leaf_index: tree_info.leaf_index,
+                    prove_by_index: tree_info.prove_by_index,
+                },
+                root_index: input_account_meta.get_root_index().unwrap_or_default(),
+                discriminator: A::LIGHT_DISCRIMINATOR,
+            }
+        };
+        let output_account_info = {
+            let output_merkle_tree_index = input_account_meta
+                .get_output_state_tree_index()
+                .ok_or(LightSdkError::OutputStateTreeIndexIsNone)?;
+            OutAccountInfo {
+                lamports: input_account_meta.get_lamports().unwrap_or_default(),
+                output_merkle_tree_index,
+                discriminator: A::LIGHT_DISCRIMINATOR,
+                ..Default::default()
+            }
+        };
+
+        Ok(Self {
+            owner,
+            account: A::default(), // Start with default, will be filled with PDA data
             account_info: CompressedAccountInfo {
                 address: input_account_meta.get_address(),
                 input: Some(input_account_info),
