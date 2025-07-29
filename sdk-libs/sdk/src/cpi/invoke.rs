@@ -137,12 +137,7 @@ where
     data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
     data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
     data.extend(inputs);
-<<<<<<< HEAD
-    let account_info_refs = cpi_accounts.to_account_infos();
-    let account_infos: Vec<AccountInfo> = account_info_refs.into_iter().cloned().collect();
-=======
-    let account_infos = light_system_accounts.to_account_infos();
->>>>>>> 37c039ad1 (feat: zero-copy-derive)
+    let account_infos = cpi_accounts.to_account_infos();
 
     let bump = cpi_accounts.bump();
     let config = CpiInstructionConfig::try_from(&cpi_accounts)?;

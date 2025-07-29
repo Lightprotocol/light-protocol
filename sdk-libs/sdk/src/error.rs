@@ -86,8 +86,6 @@ pub enum LightSdkError {
     ZeroCopy(#[from] ZeroCopyError),
     #[error("Program error: {0}")]
     ProgramError(#[from] ProgramError),
-    #[error(transparent)]
-    AccountError(#[from] AccountError),
 }
 
 impl From<LightSdkError> for ProgramError {

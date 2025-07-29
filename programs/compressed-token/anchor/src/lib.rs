@@ -280,30 +280,21 @@ pub enum ErrorCode {
     NoMatchingBumpFound,
     NoAmount,
     AmountsAndAmountProvided,
-<<<<<<< HEAD:programs/compressed-token/src/lib.rs
     #[msg("Cpi context set and set first is not usable with burn, compression(transfer ix) or decompress(transfer).")]
     CpiContextSetNotUsable,
-=======
     MintIsNone,
     InvalidMintPda,
     InputsOutOfOrder,
     TooManyMints,
     InvalidExtensionType,
-    #[msg("Cpi context set and set first is not usable with burn, compression(transfer ix) or decompress(transfer).")]
-    CpiContextSetNotUsable,
     InstructionDataExpectedDelegate,
     ZeroCopyExpectedDelegate,
     TokenDataTlvUnimplemented,
->>>>>>> 37c039ad1 (feat: zero-copy-derive):programs/compressed-token/anchor/src/lib.rs
 }
 
 /// Checks if CPI context usage is valid for the current instruction
 /// Throws an error if cpi_context is Some and (set_context OR first_set_context is true)
-<<<<<<< HEAD:programs/compressed-token/src/lib.rs
-fn check_cpi_context(cpi_context: &Option<CompressedCpiContext>) -> Result<()> {
-=======
 pub fn check_cpi_context(cpi_context: &Option<CompressedCpiContext>) -> Result<()> {
->>>>>>> 37c039ad1 (feat: zero-copy-derive):programs/compressed-token/anchor/src/lib.rs
     if let Some(ctx) = cpi_context {
         if ctx.set_context || ctx.first_set_context {
             return Err(ErrorCode::CpiContextSetNotUsable.into());

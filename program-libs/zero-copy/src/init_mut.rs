@@ -12,11 +12,7 @@ where
     Self: Sized,
 {
     /// Configuration type needed to initialize this type
-<<<<<<< HEAD
-    type Config;
-=======
     type ZeroCopyConfig;
->>>>>>> 37c039ad1 (feat: zero-copy-derive)
 
     /// Output type - the mutable zero-copy view of this type
     type Output;
@@ -24,11 +20,7 @@ where
     /// Calculate the byte length needed for this type with the given configuration
     ///
     /// This is essential for allocating the correct buffer size before calling new_zero_copy
-<<<<<<< HEAD
-    fn byte_len(config: &Self::Config) -> usize;
-=======
     fn byte_len(config: &Self::ZeroCopyConfig) -> usize;
->>>>>>> 37c039ad1 (feat: zero-copy-derive)
 
     /// Initialize this type in a mutable byte slice with the given configuration
     ///
