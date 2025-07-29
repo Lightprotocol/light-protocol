@@ -6,7 +6,9 @@ use light_client::{
 };
 use light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index;
 use light_compressed_token_sdk::instructions::derive_compressed_mint_from_spl_mint;
-use light_ctoken_types::{instructions::mint_to_compressed::Recipient, state::CompressedMint, COMPRESSED_TOKEN_PROGRAM_ID};
+use light_ctoken_types::{
+    instructions::mint_to_compressed::Recipient, state::CompressedMint, COMPRESSED_TOKEN_PROGRAM_ID,
+};
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
@@ -40,7 +42,9 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
         // Find the token account for this specific mint
         let matching_account = token_accounts
             .iter()
-            .find(|account| account.token.mint == spl_mint_pda && account.token.amount == recipient.amount)
+            .find(|account| {
+                account.token.mint == spl_mint_pda && account.token.amount == recipient.amount
+            })
             .expect(&format!(
                 "Recipient {} should have a token account with {} tokens for mint {}",
                 recipient_pubkey, recipient.amount, spl_mint_pda

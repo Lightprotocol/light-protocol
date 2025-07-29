@@ -12,7 +12,6 @@ use light_test_utils::{
     },
     Rpc,
 };
-
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 #[tokio::test]

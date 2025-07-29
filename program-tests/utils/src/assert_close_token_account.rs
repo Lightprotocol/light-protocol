@@ -41,7 +41,9 @@ pub async fn assert_close_token_account<R: Rpc>(
             .expect("Compressible account should have extensions")
             .iter()
             .find_map(|ext| match ext {
-                light_ctoken_types::state::extensions::ZExtensionStruct::Compressible(comp) => Some(comp),
+                light_ctoken_types::state::extensions::ZExtensionStruct::Compressible(comp) => {
+                    Some(comp)
+                }
                 _ => None,
             })
             .expect("Should have compressible extension");

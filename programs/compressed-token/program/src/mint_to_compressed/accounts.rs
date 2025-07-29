@@ -4,7 +4,10 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use pinocchio::account_info::AccountInfo;
 
-use crate::shared::{accounts::{LightSystemAccounts, UpdateOneCompressedAccountTreeAccounts}, AccountIterator};
+use crate::shared::{
+    accounts::{LightSystemAccounts, UpdateOneCompressedAccountTreeAccounts},
+    AccountIterator,
+};
 
 pub struct MintToCompressedAccounts<'info> {
     pub authority: &'info AccountInfo,

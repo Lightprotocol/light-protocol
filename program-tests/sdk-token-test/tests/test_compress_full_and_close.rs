@@ -40,7 +40,7 @@ async fn test_compress_full_and_close() {
     let freeze_authority = Pubkey::new_unique();
     let mint_signer = Keypair::new();
 
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     let compressed_token_program_id =

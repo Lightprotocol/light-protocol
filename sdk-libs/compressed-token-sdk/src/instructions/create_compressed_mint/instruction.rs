@@ -1,11 +1,17 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_ctoken_types::{
     self, instructions::extensions::ExtensionInstructionData, COMPRESSED_MINT_SEED,
 };
-use light_sdk::constants::{ACCOUNT_COMPRESSION_AUTHORITY_PDA, REGISTERED_PROGRAM_PDA};
-use solana_instruction::{AccountMeta, Instruction};
+use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
+
+use crate::{
+    error::{Result, TokenSdkError},
+    instructions::create_compressed_mint::account_metas::{
+        get_create_compressed_mint_instruction_account_metas, CreateCompressedMintMetaConfig,
+    },
+    AnchorDeserialize, AnchorSerialize,
+};
 
 pub const CREATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 100;
 
@@ -29,7 +35,7 @@ pub struct CreateCompressedMintInputs {
 pub fn create_compressed_mint_cpi(
     input: CreateCompressedMintInputs,
     mint_address: [u8; 32],
-) -> Instruction {
+) -> Result<Instruction> {
     use light_ctoken_types::instructions::create_compressed_mint::CreateCompressedMintInstructionData;
 
     let instruction_data = CreateCompressedMintInstructionData {
@@ -44,61 +50,31 @@ pub fn create_compressed_mint_cpi(
         version: 0,
     };
 
-    let accounts = vec![
-        // Static non-CPI accounts first
-        AccountMeta::new_readonly(input.mint_signer, true), // 0: mint_signer (signer)
-        AccountMeta::new_readonly(
-            solana_pubkey::Pubkey::new_from_array(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
-            false,
-        ), // light system program
-        // CPI accounts in exact order expected by execute_cpi_invoke
-        AccountMeta::new(input.payer, true), // 1: fee_payer (signer, mutable)
-        AccountMeta::new_readonly(
-            solana_pubkey::Pubkey::new_from_array(light_ctoken_types::CPI_AUTHORITY),
-            false,
-        ), // 2: cpi_authority_pda
-        AccountMeta::new_readonly(
-            solana_pubkey::Pubkey::new_from_array(REGISTERED_PROGRAM_PDA),
-            false,
-        ), // 3: registered_program_pda
-        AccountMeta::new_readonly(
-            solana_pubkey::Pubkey::new_from_array(light_sdk::constants::NOOP_PROGRAM_ID),
-            false,
-        ), // 4: noop_program
-        AccountMeta::new_readonly(
-            solana_pubkey::Pubkey::new_from_array(ACCOUNT_COMPRESSION_AUTHORITY_PDA),
-            false,
-        ), // 5: account_compression_authority
-        AccountMeta::new_readonly(
-            solana_pubkey::Pubkey::new_from_array(
-                light_sdk::constants::ACCOUNT_COMPRESSION_PROGRAM_ID,
-            ),
-            false,
-        ), // 6: account_compression_program
-        AccountMeta::new_readonly(
-            solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
-            false,
-        ), // 7: invoking_program (self_program)
-        AccountMeta::new_readonly(solana_pubkey::Pubkey::default(), false), // 10: system_program
-        AccountMeta::new(input.address_tree_pubkey, false), // 12: address_merkle_tree (mutable)
-        AccountMeta::new(input.output_queue, false), // 13: output_queue (mutable)
-    ];
+    // Create account meta config for create_compressed_mint
+    let meta_config = CreateCompressedMintMetaConfig {
+        fee_payer: Some(input.payer),
+        mint_signer: Some(input.mint_signer),
+        address_tree_pubkey: input.address_tree_pubkey,
+        output_queue: input.output_queue,
+    };
 
-    Instruction {
-        program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
-        ),
+    // Get account metas
+    let accounts = get_create_compressed_mint_instruction_account_metas(meta_config);
+
+    // Serialize instruction data
+    let data_vec = instruction_data
+        .try_to_vec()
+        .map_err(|_| TokenSdkError::SerializationError)?;
+
+    Ok(Instruction {
+        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts,
-        data: [
-            vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR],
-            instruction_data.try_to_vec().unwrap(),
-        ]
-        .concat(),
-    }
+        data: [vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR], data_vec].concat(),
+    })
 }
 
 /// Creates a compressed mint instruction with automatic mint address derivation
-pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Instruction {
+pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Result<Instruction> {
     let mint_address =
         derive_compressed_mint_address(&input.mint_signer, &input.address_tree_pubkey);
     create_compressed_mint_cpi(input, mint_address)
@@ -130,6 +106,6 @@ pub fn derive_compressed_mint_from_spl_mint(
 pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
-        &solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        &Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
     )
 }

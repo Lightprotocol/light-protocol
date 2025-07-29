@@ -1,5 +1,6 @@
-use crate::{AccountError, AccountInfoTrait};
 use std::panic::Location;
+
+use crate::{AccountError, AccountInfoTrait};
 
 /// Iterator over accounts that provides detailed error messages when accounts are missing.
 ///

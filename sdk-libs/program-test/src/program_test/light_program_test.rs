@@ -152,7 +152,6 @@ impl LightProgramTest {
         self.test_accounts.v1_address_trees[0]
     }
 
-
     pub async fn add_indexer(
         &mut self,
         test_accounts: &TestAccounts,

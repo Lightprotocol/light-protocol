@@ -11,7 +11,7 @@ use solana_signer::Signer;
 use crate::instructions::mint_to_compressed::mint_to_compressed_instruction;
 
 /// Mints compressed tokens to recipients using a higher-level action
-/// 
+///
 /// # Arguments
 /// * `rpc` - RPC client with indexer access
 /// * `spl_mint_pda` - The SPL mint PDA for the compressed mint

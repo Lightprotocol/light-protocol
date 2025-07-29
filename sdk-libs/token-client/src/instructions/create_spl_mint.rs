@@ -4,29 +4,32 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::instructions::{
-    create_spl_mint_instruction as sdk_create_spl_mint_instruction, find_spl_mint_address, CreateSplMintInputs,
+    create_spl_mint_instruction as sdk_create_spl_mint_instruction, find_spl_mint_address,
+    CreateSplMintInputs,
 };
-use light_ctoken_types::{instructions::mint_to_compressed::CompressedMintInputs, state::CompressedMint};
+use light_ctoken_types::{
+    instructions::mint_to_compressed::CompressedMintInputs, state::CompressedMint,
+};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 /// Creates a create_spl_mint instruction with automatic RPC integration
-/// 
+///
 /// This function automatically:
 /// - Fetches the compressed mint account data
 /// - Gets validity proof for the compressed mint
 /// - Derives the necessary PDAs and tree information
 /// - Constructs the complete instruction
-/// 
+///
 /// # Arguments
 /// * `rpc` - RPC client with indexer access
 /// * `compressed_mint_address` - Address of the compressed mint to convert to SPL mint
 /// * `mint_seed` - Keypair used as seed for the SPL mint PDA
 /// * `mint_authority` - Authority that can mint tokens
 /// * `payer` - Transaction fee payer
-/// 
+///
 /// # Returns
 /// Returns a configured `Instruction` ready for transaction execution
 pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
@@ -47,7 +50,9 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
         &mut compressed_mint_account
             .data
             .as_ref()
-            .ok_or_else(|| RpcError::CustomError("Compressed mint account has no data".to_string()))?
+            .ok_or_else(|| {
+                RpcError::CustomError("Compressed mint account has no data".to_string())
+            })?
             .data
             .as_slice(),
     )
@@ -65,7 +70,7 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
     // Get tree and queue information
     let input_tree = compressed_mint_account.tree_info.tree;
     let input_queue = compressed_mint_account.tree_info.queue;
-    
+
     // Get a separate output queue for the new compressed mint state
     let output_tree_info = rpc.get_random_state_tree_info()?;
     let output_queue = output_tree_info.queue;

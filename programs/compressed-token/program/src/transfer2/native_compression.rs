@@ -57,7 +57,6 @@ fn process_native_compressions(
     token_account_info: &AccountInfo,
     packed_accounts: &Transfer2PackedAccounts,
 ) -> Result<(), ProgramError> {
-
     let mode = compression.mode;
 
     // Validate compression fields for the given mode

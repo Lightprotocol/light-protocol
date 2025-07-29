@@ -7,7 +7,9 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::transfer2::{create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType};
+use crate::instructions::transfer2::{
+    create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
 
 /// Decompress compressed tokens to SPL tokens and send the transaction.
 ///
@@ -46,7 +48,7 @@ pub async fn decompress<R: Rpc + Indexer>(
     if authority.pubkey() != payer.pubkey() {
         signers.push(authority);
     }
-    
+
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
         .await
 }

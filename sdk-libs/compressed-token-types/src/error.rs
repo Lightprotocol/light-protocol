@@ -14,6 +14,10 @@ pub enum LightTokenSdkTypeError {
     SolPoolPdaUndefined,
     #[error("Mint is undefined for batch compress")]
     MintUndefinedForBatchCompress,
+    #[error("Token pool PDA is undefined for compressed")]
+    TokenPoolUndefinedForCompressed,
+    #[error("Token program is undefined for compressed")]
+    TokenProgramUndefinedForCompressed,
 }
 
 impl From<LightTokenSdkTypeError> for u32 {
@@ -24,6 +28,8 @@ impl From<LightTokenSdkTypeError> for u32 {
             LightTokenSdkTypeError::DecompressionRecipientTokenAccountDoesOnlyExistInDecompressedMode => 18003,
             LightTokenSdkTypeError::SolPoolPdaUndefined => 18004,
             LightTokenSdkTypeError::MintUndefinedForBatchCompress => 18005,
+            LightTokenSdkTypeError::TokenPoolUndefinedForCompressed => 18006,
+            LightTokenSdkTypeError::TokenProgramUndefinedForCompressed => 18007,
         }
     }
 }

@@ -84,7 +84,6 @@ pub fn process_transfer2(
         inputs.cpi_context,
     )?;
 
-
     // Process input compressed accounts
     set_input_compressed_accounts(
         &mut cpi_instruction_struct,
