@@ -2,11 +2,9 @@ use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    visit_mut, Attribute, Expr, Field, Ident, Item, ItemEnum, ItemFn, ItemMod, ItemStruct, Result,
-    Token, UseTree,
+    Expr, Ident, Item, ItemEnum, ItemFn, ItemMod, ItemStruct, Result, Token,
 };
 
 /// Parse a comma-separated list of identifiers
@@ -22,761 +20,11 @@ impl Parse for IdentList {
     }
 }
 
-/// Information about seeds extracted from an account struct
+/// Information about seeds extracted from registry functions
 #[derive(Debug, Clone)]
 struct SeedInfo {
     seeds: Vec<Expr>,
     bump_field: Option<Ident>,
-}
-
-/// Information about imported items from use statements
-#[derive(Debug, Clone)]
-struct ImportInfo {
-    /// Map from local name to full path
-    imports: std::collections::HashMap<String, String>,
-    /// Track glob imports from modules (module_name -> true)
-    glob_imports: std::collections::HashSet<String>,
-    /// Track potential account structs that might be re-exported
-    potential_account_structs: std::collections::HashSet<String>,
-}
-
-impl ImportInfo {
-    fn new() -> Self {
-        Self {
-            imports: std::collections::HashMap::new(),
-            glob_imports: std::collections::HashSet::new(),
-            potential_account_structs: std::collections::HashSet::new(),
-        }
-    }
-
-    fn add_import(&mut self, local_name: String, full_path: String) {
-        self.imports.insert(local_name, full_path);
-    }
-
-    fn add_glob_import(&mut self, module_path: String) {
-        self.glob_imports.insert(module_path);
-    }
-
-    fn add_potential_account_struct(&mut self, local_name: String) {
-        self.potential_account_structs.insert(local_name);
-    }
-
-    fn resolve_type(&self, type_name: &str) -> Option<&String> {
-        // First check direct imports
-        self.imports.get(type_name)
-    }
-
-    fn could_be_from_glob_import(&self, _type_name: &str) -> bool {
-        // Check if this type could potentially be imported via glob imports
-        !self.glob_imports.is_empty()
-    }
-
-    fn get_glob_import_modules(&self) -> &std::collections::HashSet<String> {
-        &self.glob_imports
-    }
-
-    fn is_potential_account_struct(&self, type_name: &str) -> bool {
-        self.potential_account_structs.contains(type_name)
-    }
-
-    fn get_potential_account_structs(&self) -> &std::collections::HashSet<String> {
-        &self.potential_account_structs
-    }
-}
-
-/// Parse use statements to understand imported items, including module re-exports
-fn parse_use_statements(module_items: &[Item]) -> ImportInfo {
-    let mut import_info = ImportInfo::new();
-
-    for item in module_items {
-        match item {
-            Item::Use(item_use) => {
-                extract_imports_from_use_tree(&item_use.tree, &mut import_info, String::new());
-            }
-            Item::Mod(item_mod) => {
-                // Handle inline modules - if content is available, parse their use statements too
-                if let Some((_, ref mod_items)) = &item_mod.content {
-                    let mod_name = item_mod.ident.to_string();
-                    // Recursively parse use statements from inline modules
-                    let mod_import_info = parse_use_statements(mod_items);
-
-                    // Merge module imports with prefixed paths
-                    for (local_name, full_path) in mod_import_info.imports {
-                        if local_name == "*" {
-                            // Handle glob re-exports from submodules
-                            import_info.add_import(
-                                "*".to_string(),
-                                format!("{}::{}", mod_name, full_path),
-                            );
-                        } else {
-                            import_info
-                                .add_import(local_name, format!("{}::{}", mod_name, full_path));
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    import_info
-}
-
-/// Recursively extract imports from a use tree
-fn extract_imports_from_use_tree(
-    use_tree: &UseTree,
-    import_info: &mut ImportInfo,
-    base_path: String,
-) {
-    match use_tree {
-        UseTree::Path(use_path) => {
-            let new_base = if base_path.is_empty() {
-                use_path.ident.to_string()
-            } else {
-                format!("{}::{}", base_path, use_path.ident)
-            };
-            extract_imports_from_use_tree(&use_path.tree, import_info, new_base);
-        }
-        UseTree::Name(use_name) => {
-            let local_name = use_name.ident.to_string();
-            let full_path = if base_path.is_empty() {
-                local_name.clone()
-            } else {
-                format!("{}::{}", base_path, local_name)
-            };
-            import_info.add_import(local_name.clone(), full_path);
-
-            // Special handling for account struct imports
-            // If this looks like an account struct import (contains "initialize", "create", etc.)
-            // and the name ends with common account struct patterns, mark it as a potential account struct
-            let potential_account_patterns = [
-                "Initialize",
-                "Create",
-                "Update",
-                "Deposit",
-                "Withdraw",
-                "Swap",
-            ];
-            if potential_account_patterns
-                .iter()
-                .any(|&pattern| local_name.contains(pattern))
-            {
-                import_info.add_potential_account_struct(local_name);
-            }
-        }
-        UseTree::Rename(use_rename) => {
-            let local_name = use_rename.rename.to_string();
-            let full_path = if base_path.is_empty() {
-                use_rename.ident.to_string()
-            } else {
-                format!("{}::{}", base_path, use_rename.ident)
-            };
-            import_info.add_import(local_name.clone(), full_path);
-
-            // Also check renamed imports for account struct patterns
-            let potential_account_patterns = [
-                "Initialize",
-                "Create",
-                "Update",
-                "Deposit",
-                "Withdraw",
-                "Swap",
-            ];
-            if potential_account_patterns
-                .iter()
-                .any(|&pattern| local_name.contains(pattern))
-            {
-                import_info.add_potential_account_struct(local_name);
-            }
-        }
-        UseTree::Glob(_) => {
-            // For glob imports, we can't easily resolve specific items
-            // In this case, we'll add a special marker for the base path
-            import_info.add_glob_import(base_path);
-        }
-        UseTree::Group(use_group) => {
-            for tree in &use_group.items {
-                extract_imports_from_use_tree(tree, import_info, base_path.clone());
-            }
-        }
-    }
-}
-
-/// Extract instruction parameter names from #[instruction(...)] attribute
-fn extract_instruction_param_names(attrs: &[Attribute]) -> Vec<String> {
-    for attr in attrs {
-        if attr.path().is_ident("instruction") {
-            let mut param_names = Vec::new();
-            let _ = attr.parse_nested_meta(|meta| {
-                // Extract the parameter name from the path
-                if let Some(ident) = meta.path.get_ident() {
-                    param_names.push(ident.to_string());
-                }
-                // Skip the type if present (after colon)
-                if meta.input.peek(Token![:]) {
-                    meta.input.parse::<Token![:]>()?;
-                    meta.input.parse::<syn::Type>()?;
-                }
-                Ok(())
-            });
-            if !param_names.is_empty() {
-                return param_names;
-            }
-        }
-    }
-    vec!["account_data".to_string()] // Default fallback
-}
-
-/// Check if a struct has the Accounts derive using proper AST parsing
-fn has_accounts_derive(attrs: &[Attribute]) -> bool {
-    attrs.iter().any(|attr| {
-        if attr.path().is_ident("derive") {
-            let mut has_accounts = false;
-            let _ = attr.parse_nested_meta(|meta| {
-                // Check if this derive item is "Accounts" or ends with "::Accounts"
-                if let Some(ident) = meta.path.get_ident() {
-                    if ident == "Accounts" {
-                        has_accounts = true;
-                    }
-                } else if let Some(last_segment) = meta.path.segments.last() {
-                    if last_segment.ident == "Accounts" {
-                        has_accounts = true;
-                    }
-                }
-                Ok(())
-            });
-            has_accounts
-        } else {
-            false
-        }
-    })
-}
-
-/// Enhanced function to find seeds that can handle imports, re-exports, and inline modules
-fn find_account_seeds_for_type_enhanced(
-    module_items: &[Item],
-    account_type: &Ident,
-    import_info: &ImportInfo,
-) -> Result<Option<SeedInfo>> {
-    // First, try the original approach (look for directly defined structs)
-    if let Some(seeds_info) = find_account_seeds_for_type_original(module_items, account_type)? {
-        return Ok(Some(seeds_info));
-    }
-
-    // Then, try to find imported or re-exported structs in inline modules
-    for item in module_items {
-        match item {
-            Item::Struct(item_struct) => {
-                if has_accounts_derive(&item_struct.attrs) {
-                    if let syn::Fields::Named(fields) = &item_struct.fields {
-                        for field in &fields.named {
-                            // Try to match field types with account_type, considering imports
-                            if let Some(seeds_info) =
-                                extract_seeds_from_field_enhanced(field, account_type, import_info)?
-                            {
-                                return Ok(Some(seeds_info));
-                            }
-                        }
-                    }
-                }
-            }
-            Item::Mod(item_mod) => {
-                // Search in inline modules recursively
-                if let Some((_, ref mod_items)) = &item_mod.content {
-                    // Create new import info for the module context
-                    let mut mod_import_info = parse_use_statements(mod_items);
-
-                    // Also inherit parent imports
-                    for (local_name, full_path) in &import_info.imports {
-                        mod_import_info.add_import(local_name.clone(), full_path.clone());
-                    }
-
-                    if let Some(seeds_info) = find_account_seeds_for_type_enhanced(
-                        mod_items,
-                        account_type,
-                        &mod_import_info,
-                    )? {
-                        return Ok(Some(seeds_info));
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    // NEW: Fallback for external file modules
-    // If we have potential account structs imported and we're looking for a specific account type,
-    // try to infer seeds from common patterns
-    if !import_info.get_potential_account_structs().is_empty() {
-        if let Some(seeds_info) = try_infer_seeds_from_imports(account_type, import_info)? {
-            return Ok(Some(seeds_info));
-        }
-    }
-
-    Ok(None)
-}
-
-/// Try to infer seeds for external file modules based on import patterns and common conventions
-fn try_infer_seeds_from_imports(
-    account_type: &Ident,
-    import_info: &ImportInfo,
-) -> Result<Option<SeedInfo>> {
-    let account_type_str = account_type.to_string();
-
-    // Check if we have an Initialize struct imported and we're looking for PoolState
-    if account_type_str == "PoolState" && import_info.is_potential_account_struct("Initialize") {
-        // This is a common pattern for AMM/DEX programs
-        // Infer common PoolState seeds pattern
-        let seeds = vec![
-            syn::parse_quote!(POOL_SEED.as_bytes()),
-            syn::parse_quote!(solana_account.amm_config.key().as_ref()),
-            syn::parse_quote!(solana_account.token_0_mint.key().as_ref()),
-            syn::parse_quote!(solana_account.token_1_mint.key().as_ref()),
-        ];
-
-        return Ok(Some(SeedInfo {
-            seeds,
-            bump_field: Some(format_ident!("bump")),
-        }));
-    }
-
-    // Add more common patterns as needed
-    // For other account types, you could add similar inference logic
-
-    Ok(None)
-}
-
-/// Original seed finding function that also searches inline modules
-fn find_account_seeds_for_type_original(
-    module_items: &[Item],
-    account_type: &Ident,
-) -> Result<Option<SeedInfo>> {
-    for item in module_items {
-        match item {
-            Item::Struct(item_struct) => {
-                // Check if this struct has Accounts derive
-                let has_accounts_derive = has_accounts_derive(&item_struct.attrs);
-
-                if !has_accounts_derive {
-                    continue;
-                }
-
-                // Get instruction parameter names from this struct
-                let _param_names = extract_instruction_param_names(&item_struct.attrs);
-
-                // Look for a field of our target account type with init constraint
-                if let syn::Fields::Named(fields) = &item_struct.fields {
-                    for field in &fields.named {
-                        if let Some(seeds_info) = extract_seeds_from_field(field, account_type)? {
-                            return Ok(Some(seeds_info));
-                        }
-                    }
-                }
-            }
-            Item::Mod(item_mod) => {
-                // Search in inline modules recursively
-                if let Some((_, ref mod_items)) = &item_mod.content {
-                    if let Some(seeds_info) =
-                        find_account_seeds_for_type_original(mod_items, account_type)?
-                    {
-                        return Ok(Some(seeds_info));
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    Ok(None)
-}
-
-/// Check if a type matches Account<'info, TargetType> with robust handling of wrapper types and paths
-/// Returns true if the type contains an Account-like wrapper around the target type
-fn matches_account_type(ty: &syn::Type, target_type: &Ident) -> bool {
-    matches_account_type_with_depth(ty, target_type, 0)
-}
-
-/// Internal function with depth tracking to prevent infinite recursion
-fn matches_account_type_with_depth(ty: &syn::Type, target_type: &Ident, depth: usize) -> bool {
-    // Prevent infinite recursion - reasonable limit for nested generics
-    if depth > 10 {
-        return false;
-    }
-
-    match ty {
-        syn::Type::Path(type_path) => {
-            if let Some(last_segment) = type_path.path.segments.last() {
-                let segment_name = last_segment.ident.to_string();
-
-                // Handle direct Account wrapper types (any path ending in these)
-                let account_type_names = ["Account", "AccountLoader", "InterfaceAccount"];
-                if account_type_names.iter().any(|&name| {
-                    segment_name == name
-                        || type_path.path.segments.iter().any(|seg| seg.ident == name)
-                }) {
-                    if let syn::PathArguments::AngleBracketed(args) = &last_segment.arguments {
-                        // Look for the account type in generic arguments (usually second after lifetime)
-                        for arg in &args.args {
-                            if let syn::GenericArgument::Type(syn::Type::Path(inner_type)) = arg {
-                                // Check if this type path matches our target (any segment, not just last)
-                                if inner_type
-                                    .path
-                                    .segments
-                                    .iter()
-                                    .any(|seg| seg.ident == *target_type)
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Handle container types - comprehensive list based on common Rust patterns
-                let container_type_names = [
-                    "Box", "Arc", "Rc", "Pin", // Smart pointers
-                    "Option", "Some", // Optional types
-                    "Vec", "VecDeque", // Collections (rare but possible)
-                    "Cell", "RefCell", // Interior mutability
-                    "Mutex", "RwLock", // Thread safety (rare in Solana)
-                ];
-
-                if container_type_names.contains(&&*segment_name) {
-                    if let syn::PathArguments::AngleBracketed(args) = &last_segment.arguments {
-                        // Recursively check the inner type with incremented depth
-                        for arg in &args.args {
-                            if let syn::GenericArgument::Type(inner_type) = arg {
-                                if matches_account_type_with_depth(
-                                    inner_type,
-                                    target_type,
-                                    depth + 1,
-                                ) {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            false
-        }
-        syn::Type::Reference(type_ref) => {
-            // Handle &Account<...> or &mut Account<...>
-            matches_account_type_with_depth(&type_ref.elem, target_type, depth + 1)
-        }
-        syn::Type::Ptr(type_ptr) => {
-            // Handle *const Account<...> or *mut Account<...> (rare but complete)
-            matches_account_type_with_depth(&type_ptr.elem, target_type, depth + 1)
-        }
-        _ => false,
-    }
-}
-
-/// Enhanced type matching that considers imports with robust wrapper type handling
-fn matches_account_type_enhanced(
-    ty: &syn::Type,
-    target_type: &Ident,
-    import_info: &ImportInfo,
-) -> bool {
-    matches_account_type_enhanced_with_depth(ty, target_type, import_info, 0)
-}
-
-/// Enhanced type matching with depth tracking and import resolution
-fn matches_account_type_enhanced_with_depth(
-    ty: &syn::Type,
-    target_type: &Ident,
-    import_info: &ImportInfo,
-    depth: usize,
-) -> bool {
-    // First try the basic approach
-    if matches_account_type_with_depth(ty, target_type, depth) {
-        return true;
-    }
-
-    // Prevent infinite recursion
-    if depth > 10 {
-        return false;
-    }
-
-    // Then try with import resolution
-    match ty {
-        syn::Type::Path(type_path) => {
-            if let Some(last_segment) = type_path.path.segments.last() {
-                let segment_name = last_segment.ident.to_string();
-
-                // Handle direct account wrapper types with import resolution
-                let account_type_names = ["Account", "AccountLoader", "InterfaceAccount"];
-                if account_type_names.iter().any(|&name| {
-                    segment_name == name
-                        || type_path.path.segments.iter().any(|seg| seg.ident == name)
-                }) {
-                    if let syn::PathArguments::AngleBracketed(args) = &last_segment.arguments {
-                        for arg in &args.args {
-                            if let syn::GenericArgument::Type(syn::Type::Path(inner_type)) = arg {
-                                // Try to resolve the inner type through imports
-                                for inner_segment in &inner_type.path.segments {
-                                    let inner_type_name = inner_segment.ident.to_string();
-
-                                    // Direct match
-                                    if inner_segment.ident == *target_type {
-                                        return true;
-                                    }
-
-                                    // Check if it matches through imports
-                                    if let Some(resolved_path) =
-                                        import_info.resolve_type(&inner_type_name)
-                                    {
-                                        if resolved_path.ends_with(&target_type.to_string()) {
-                                            return true;
-                                        }
-                                    }
-
-                                    // Check if target_type matches through imports
-                                    let target_type_name = target_type.to_string();
-                                    if let Some(resolved_target) =
-                                        import_info.resolve_type(&target_type_name)
-                                    {
-                                        if resolved_target.ends_with(&inner_type_name) {
-                                            return true;
-                                        }
-                                    }
-
-                                    // Check if this could be from a glob import (pub use module::*)
-                                    if import_info.could_be_from_glob_import(&inner_type_name)
-                                        || import_info.could_be_from_glob_import(&target_type_name)
-                                    {
-                                        // If we have glob imports, be more permissive in matching
-                                        // This handles cases like `pub use initialize::*;` where Initialize struct is re-exported
-                                        for module_path in import_info.get_glob_import_modules() {
-                                            if module_path.is_empty()
-                                                || module_path.contains(&inner_type_name)
-                                                || module_path.contains(&target_type_name)
-                                                || inner_type_name == target_type_name
-                                            {
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Handle container types with import resolution
-                let container_type_names = [
-                    "Box", "Arc", "Rc", "Pin", // Smart pointers
-                    "Option", "Some", // Optional types
-                    "Vec", "VecDeque", // Collections (rare but possible)
-                    "Cell", "RefCell", // Interior mutability
-                    "Mutex", "RwLock", // Thread safety (rare in Solana)
-                ];
-
-                if container_type_names.contains(&&*segment_name) {
-                    if let syn::PathArguments::AngleBracketed(args) = &last_segment.arguments {
-                        // Recursively check the inner type with import resolution
-                        for arg in &args.args {
-                            if let syn::GenericArgument::Type(inner_type) = arg {
-                                if matches_account_type_enhanced_with_depth(
-                                    inner_type,
-                                    target_type,
-                                    import_info,
-                                    depth + 1,
-                                ) {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            false
-        }
-        syn::Type::Reference(type_ref) => {
-            // Handle &Account<...> or &mut Account<...> with import resolution
-            matches_account_type_enhanced_with_depth(
-                &type_ref.elem,
-                target_type,
-                import_info,
-                depth + 1,
-            )
-        }
-        syn::Type::Ptr(type_ptr) => {
-            // Handle *const Account<...> or *mut Account<...> with import resolution
-            matches_account_type_enhanced_with_depth(
-                &type_ptr.elem,
-                target_type,
-                import_info,
-                depth + 1,
-            )
-        }
-        _ => false,
-    }
-}
-
-/// Parse account attribute to extract init, seeds, and bump information using proper AST parsing
-fn parse_account_attribute(attr: &Attribute) -> Result<Option<(bool, Vec<Expr>, bool)>> {
-    if !attr.path().is_ident("account") {
-        return Ok(None);
-    }
-
-    let mut has_init = false;
-    let mut seeds = Vec::new();
-    let mut has_bump = false;
-
-    // Parse the attribute content
-    attr.parse_nested_meta(|meta| {
-        if meta.path.is_ident("init") {
-            has_init = true;
-            Ok(())
-        } else if meta.path.is_ident("bump") {
-            has_bump = true;
-            Ok(())
-        } else if meta.path.is_ident("seeds") {
-            // Parse seeds = [...]
-            if meta.input.peek(Token![=]) {
-                meta.input.parse::<Token![=]>()?; // Consume the equals sign
-                let content;
-                bracketed!(content in meta.input);
-                let seed_exprs: Punctuated<Expr, Token![,]> =
-                    content.parse_terminated(Expr::parse, Token![,])?;
-                seeds = seed_exprs.into_iter().collect();
-            }
-            Ok(())
-        } else {
-            // Skip other attributes like payer, space, etc.
-            if meta.input.peek(Token![=]) {
-                meta.input.parse::<Token![=]>()?;
-                meta.input.parse::<Expr>()?;
-            }
-            Ok(())
-        }
-    })?;
-
-    Ok(Some((has_init, seeds, has_bump)))
-}
-
-/// Convert instruction parameter references in seeds to account field references
-fn convert_seed_parameters(seeds: Vec<Expr>, target_type: &Ident) -> Result<Vec<Expr>> {
-    let mut converted_seeds = Vec::new();
-
-    for seed in seeds {
-        let converted = convert_single_seed_parameter(seed, target_type)?;
-        converted_seeds.push(converted);
-    }
-
-    Ok(converted_seeds)
-}
-
-/// Convert a single seed expression from instruction parameter to account field reference
-fn convert_single_seed_parameter(seed: Expr, _target_type: &Ident) -> Result<Expr> {
-    // Use visitor pattern to find and replace parameter references
-    struct ParameterConverter {
-        converted: bool,
-    }
-
-    impl visit_mut::VisitMut for ParameterConverter {
-        fn visit_expr_field_mut(&mut self, field_expr: &mut syn::ExprField) {
-            // Look for expressions like account_data.field or similar parameter patterns
-            if let syn::Expr::Path(base_path) = field_expr.base.as_ref() {
-                if let Some(ident) = base_path.path.get_ident() {
-                    let ident_str = ident.to_string();
-                    // Check for various parameter naming patterns
-                    if ident_str.ends_with("_data")
-                        || ident_str == "account_data"
-                        || ident_str == "params"
-                    {
-                        // Replace with solana_account
-                        *field_expr.base = syn::parse_quote!(solana_account);
-                        self.converted = true;
-                    }
-                }
-            }
-
-            // Continue visiting nested expressions
-            visit_mut::visit_expr_field_mut(self, field_expr);
-        }
-    }
-
-    let mut seed_copy = seed;
-    let mut converter = ParameterConverter { converted: false };
-    visit_mut::visit_expr_mut(&mut converter, &mut seed_copy);
-
-    Ok(seed_copy)
-}
-
-/// Extract seeds from a field's account attribute if it matches the target type and has init constraint
-fn extract_seeds_from_field(field: &Field, target_type: &Ident) -> Result<Option<SeedInfo>> {
-    // Check if field type matches target type
-    let field_type_matches = matches_account_type(&field.ty, target_type);
-
-    if !field_type_matches {
-        return Ok(None);
-    }
-
-    // Look for account attribute with init and seeds
-    for attr in &field.attrs {
-        if let Some((has_init, seeds, has_bump)) = parse_account_attribute(attr)? {
-            if has_init && !seeds.is_empty() {
-                let bump_field = if has_bump {
-                    Some(format_ident!("bump"))
-                } else {
-                    None
-                };
-
-                // Convert instruction parameter references to account field references
-                let converted_seeds = convert_seed_parameters(seeds, target_type)?;
-
-                return Ok(Some(SeedInfo {
-                    seeds: converted_seeds,
-                    bump_field,
-                }));
-            }
-        }
-    }
-
-    Ok(None)
-}
-
-/// Enhanced version of extract_seeds_from_field that handles imports
-fn extract_seeds_from_field_enhanced(
-    field: &Field,
-    target_type: &Ident,
-    import_info: &ImportInfo,
-) -> Result<Option<SeedInfo>> {
-    // First try the original approach
-    if let Some(seeds_info) = extract_seeds_from_field(field, target_type)? {
-        return Ok(Some(seeds_info));
-    }
-
-    // Then try with import resolution
-    let field_type_matches = matches_account_type_enhanced(&field.ty, target_type, import_info);
-
-    if !field_type_matches {
-        return Ok(None);
-    }
-
-    // Look for account attribute with init and seeds
-    for attr in &field.attrs {
-        if let Some((has_init, seeds, has_bump)) = parse_account_attribute(attr)? {
-            if has_init && !seeds.is_empty() {
-                let bump_field = if has_bump {
-                    Some(format_ident!("bump"))
-                } else {
-                    None
-                };
-
-                // Convert instruction parameter references to account field references
-                let converted_seeds = convert_seed_parameters(seeds, target_type)?;
-
-                return Ok(Some(SeedInfo {
-                    seeds: converted_seeds,
-                    bump_field,
-                }));
-            }
-        }
-    }
-
-    Ok(None)
 }
 
 /// Generate compress instructions for the specified account types (Anchor version)
@@ -793,9 +41,6 @@ pub(crate) fn add_compressible_instructions(
 
     // Get the module content
     let content = module.content.as_mut().unwrap();
-
-    // Parse import information to handle multi-file structures
-    let import_info = parse_use_statements(&content.1);
 
     // Collect all struct names for the enum
     let struct_names: Vec<_> = ident_list.idents.iter().cloned().collect();
@@ -1117,50 +362,16 @@ pub(crate) fn add_compressible_instructions(
     content.1.push(Item::Fn(decompress_instruction));
     content.1.push(error_code);
 
-    // Generate compress instructions for each struct (NOT create instructions - those need custom logic)
+    // Generate compress instructions for each struct
     for struct_name in ident_list.idents {
         let compress_fn_name =
             format_ident!("compress_{}", struct_name.to_string().to_snake_case());
         let compress_accounts_name = format_ident!("Compress{}", struct_name);
 
-        // Find seeds for this account type from existing account structs
-        let seeds_info = find_account_seeds_for_type_enhanced(&content.1, &struct_name, &import_info)?
+        // Look for registry module generated by derive(Compressible)
+        let seeds_info = find_seeds_from_registry_in_module(&struct_name, &content.1)?
             .ok_or_else(|| {
-                // Generate a detailed error message with specific guidance
-                let mut error_msg = format!(
-                    "No account struct found with 'init' constraint and seeds for type '{}'.\n\n", 
-                    struct_name
-                );
-
-                // Check if we have imported account structs - provide different guidance
-                if !import_info.get_potential_account_structs().is_empty() {
-                    error_msg.push_str("DETECTED IMPORTED ACCOUNT STRUCTS:\n");
-                    for account_struct in import_info.get_potential_account_structs() {
-                        error_msg.push_str(&format!("  - {}\n", account_struct));
-                    }
-                    error_msg.push_str("EXTERNAL FILE MODULE SOLUTIONS:\n");
-                    error_msg.push_str("1. ADD EXPLICIT SEEDS STRUCT: Create a minimal seed definition in the same module:\n");
-                    error_msg.push_str(&format!("   #[derive(Accounts)]\n   pub struct {}Seeds<'info> {{\n       #[account(\n           init,\n           seeds = [\n               POOL_SEED.as_bytes(),\n               amm_config.key().as_ref(),\n               token_0_mint.key().as_ref(),\n               token_1_mint.key().as_ref(),\n           ],\n           bump\n       )]\n       pub {}: Box<Account<'info, {}>>,\n       pub amm_config: AccountInfo<'info>,\n       pub token_0_mint: AccountInfo<'info>,\n       pub token_1_mint: AccountInfo<'info>,\n   }}\n\n", struct_name, struct_name.to_string().to_snake_case(), struct_name));
-
-                    error_msg.push_str("2. CONVERT TO INLINE MODULE: Move your account struct to an inline module:\n");
-                    error_msg.push_str(&format!("   pub mod instructions {{\n       use super::*;\n       #[derive(Accounts)]\n       pub struct Initialize<'info> {{\n           #[account(\n               init,\n               seeds = [...],\n               bump\n           )]\n           pub {}: Box<Account<'info, {}>>,\n           // ... other fields\n       }}\n   }}\n   pub use instructions::*;\n\n", struct_name.to_string().to_snake_case(), struct_name));
-                } else {
-                    error_msg.push_str("COMMON SOLUTIONS:\n");
-                    error_msg.push_str("1. INLINE MODULE DEFINITION: Define your account struct in an inline module within the same file:\n");
-                    error_msg.push_str(&format!("   pub mod initialize {{\n       use super::*;\n       #[derive(Accounts)]\n       pub struct Initialize<'info> {{\n           #[account(\n               init,\n               seeds = [...],\n               bump\n           )]\n           pub {}: Box<Account<'info, {}>>,\n           // ... other fields\n       }}\n   }}\n   pub use initialize::*;\n\n", struct_name.to_string().to_snake_case(), struct_name));
-
-                    error_msg.push_str("2. MOVE TO SAME MODULE: Move your account struct to the same module where #[add_compressible_instructions] is applied:\n");
-                    error_msg.push_str(&format!("   #[derive(Accounts)]\n   pub struct Initialize<'info> {{\n       #[account(\n           init,\n           seeds = [...],\n           bump\n       )]\n       pub {}: Box<Account<'info, {}>>,\n       // ... other fields\n   }}\n\n", struct_name.to_string().to_snake_case(), struct_name));
-
-                    error_msg.push_str("3. CREATE A MINIMAL SEED STRUCT: If you can't move the existing struct, create a minimal one:\n");
-                    error_msg.push_str(&format!("   #[derive(Accounts)]\n   pub struct {}Seeds<'info> {{\n       #[account(\n           init,\n           seeds = [/* your seeds here */],\n           bump\n       )]\n       pub {}: Box<Account<'info, {}>>,\n   }}\n\n", struct_name, struct_name.to_string().to_snake_case(), struct_name));
-                }
-
-                error_msg.push_str("TECHNICAL INFO:\n");
-                error_msg.push_str("✓ Wrapper types supported: Account, Box<Account>, Option<Account>, Arc<Account>\n");
-                error_msg.push_str("✓ Required attributes: #[account(init, seeds = [...], bump)] and #[derive(Accounts)]\n");
-                error_msg.push_str("✓ External file modules require explicit seed definitions due to proc macro limitations\n");
-                syn::Error::new_spanned(&struct_name, error_msg)
+                generate_helpful_error_message(&struct_name)
             })?;
 
         let seeds_expr = &seeds_info.seeds;
@@ -1247,6 +458,132 @@ pub(crate) fn add_compressible_instructions(
     Ok(quote! {
         #module
     })
+}
+
+/// Find seeds from registry functions generated by derive(Compressible)
+fn find_seeds_from_registry(account_type: &Ident) -> Result<Option<SeedInfo>> {
+    // For now, return a placeholder - we'll implement the actual registry lookup later
+    // The registry approach needs access to the module content to scan for generated modules
+    
+    // Return None for now - this will trigger the error message
+    // We need to pass the module content to this function to make it work
+    Ok(None)
+}
+
+/// Find seeds from registry by scanning module content for generated seed modules
+fn find_seeds_from_registry_in_module(account_type: &Ident, module_items: &[Item]) -> Result<Option<SeedInfo>> {
+    let expected_module_name = format!("__compressible_seeds_{}", account_type.to_string().to_lowercase());
+    
+    // Look for the generated seed module
+    for item in module_items {
+        if let Item::Mod(item_mod) = item {
+            if item_mod.ident.to_string() == expected_module_name {
+                // Found the seed module! Parse its contents
+                if let Some((_, ref mod_items)) = &item_mod.content {
+                    return parse_seed_module_contents(mod_items);
+                }
+            }
+        }
+    }
+    
+    Ok(None)
+}
+
+/// Parse the contents of a generated seed module to extract seed information
+fn parse_seed_module_contents(module_items: &[Item]) -> Result<Option<SeedInfo>> {
+    let mut has_bump = false;
+    let mut seeds = Vec::new();
+    
+    // Look for the HAS_BUMP constant and get_seeds function
+    for item in module_items {
+        match item {
+            Item::Const(item_const) => {
+                if item_const.ident == "HAS_BUMP" {
+                    // Parse the boolean value
+                    if let syn::Expr::Lit(expr_lit) = &*item_const.expr {
+                        if let syn::Lit::Bool(lit_bool) = &expr_lit.lit {
+                            has_bump = lit_bool.value;
+                        }
+                    }
+                }
+            }
+            Item::Fn(item_fn) => {
+                if item_fn.sig.ident == "get_seeds" {
+                    // Parse the function body to extract seed expressions
+                    seeds = extract_seeds_from_function_body(&item_fn.block)?;
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    if seeds.is_empty() {
+        return Ok(None);
+    }
+    
+    Ok(Some(SeedInfo {
+        seeds,
+        bump_field: if has_bump { Some(format_ident!("bump")) } else { None },
+    }))
+}
+
+/// Extract seed expressions from the get_seeds function body
+fn extract_seeds_from_function_body(block: &syn::Block) -> Result<Vec<Expr>> {
+    // Look for the pattern: let _ = vec![seed1, seed2, ...];
+    for stmt in &block.stmts {
+        if let syn::Stmt::Local(local) = stmt {
+            if let Some(init) = &local.init {
+                if let syn::Expr::Macro(expr_macro) = &*init.expr {
+                    // Check if this is a vec![] macro
+                    if expr_macro.mac.path.is_ident("vec") {
+                        // Parse the vec![] contents as a bracketed list
+                        let seeds_tokens = &expr_macro.mac.tokens;
+                        
+                        // Use syn::parse::ParseBuffer to parse the comma-separated expressions
+                        let parsed_seeds = syn::parse::Parser::parse2(
+                            syn::punctuated::Punctuated::<Expr, syn::Token![,]>::parse_terminated,
+                            seeds_tokens.clone()
+                        )?;
+                        
+                        return Ok(parsed_seeds.into_iter().collect());
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(Vec::new())
+}
+
+/// Generate a helpful error message for missing seeds
+fn generate_helpful_error_message(struct_name: &Ident) -> syn::Error {
+    let error_msg = format!(
+        "No seed registry found for type '{}'.\n\n\
+        To use this type with #[add_compressible_instructions], you need to:\n\n\
+        1. Apply #[derive(Compressible)] to an instruction struct that initializes this account type:\n\n\
+        #[derive(Accounts, Compressible)]\n\
+        pub struct Initialize<'info> {{\n\
+            #[account(\n\
+                init,\n\
+                seeds = [\n\
+                    // Your seeds here\n\
+                    b\"my_seed\",\n\
+                    authority.key().as_ref(),\n\
+                ],\n\
+                bump\n\
+            )]\n\
+            pub {}: Account<'info, {}>,\n\
+            pub authority: Signer<'info>,\n\
+        }}\n\n\
+        2. Make sure the instruction struct is imported in the same module where #[add_compressible_instructions] is used:\n\n\
+        pub use crate::instructions::initialize::Initialize;\n\n\
+        The derive(Compressible) macro will generate a seed registry that this macro can automatically discover.",
+        struct_name,
+        struct_name.to_string().to_snake_case(),
+        struct_name
+    );
+
+    syn::Error::new_spanned(struct_name, error_msg)
 }
 
 /// Generates HasCompressionInfo trait implementation for a struct with compression_info field
