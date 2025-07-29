@@ -3,7 +3,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext,
+        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
         invoke_cpi::InstructionDataInvokeCpi,
         traits::{InputAccount, InstructionData, NewAddress, OutputAccount},
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
@@ -370,9 +370,17 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
                 .output_compressed_accounts
                 .push(output_account);
         }
-
-        if !self.instruction_data.new_addresses().is_empty() {
-            unimplemented!("Address assignment cannot be guaranteed with cpi context.");
+        for address in self.instruction_data.new_addresses() {
+            let new_address_params = NewAddressParamsPacked {
+                seed: address.seed(),
+                address_merkle_tree_account_index: address.address_merkle_tree_account_index(),
+                address_merkle_tree_root_index: address.address_merkle_tree_root_index(),
+                address_queue_account_index: address.address_queue_index(),
+            };
+            if address.assigned_compressed_account_index().is_some() {
+                unimplemented!("Implement logic for assigned compressed account index");
+            }
+            cpi_account_data.new_address_params.push(new_address_params);
         }
     }
 
