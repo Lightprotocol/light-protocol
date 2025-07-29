@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_ctoken_types::{
     self, instructions::extensions::ExtensionInstructionData, COMPRESSED_MINT_SEED,
@@ -10,7 +10,7 @@ use solana_pubkey::Pubkey;
 pub const CREATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 100;
 
 /// Input struct for creating a compressed mint instruction
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CreateCompressedMintInputs {
     pub decimals: u8,
     pub mint_authority: Pubkey,
