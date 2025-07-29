@@ -1131,38 +1131,35 @@ pub(crate) fn add_compressible_instructions(
                     "No account struct found with 'init' constraint and seeds for type '{}'.\n\n", 
                     struct_name
                 );
-                
+
                 // Check if we have imported account structs - provide different guidance
                 if !import_info.get_potential_account_structs().is_empty() {
                     error_msg.push_str("DETECTED IMPORTED ACCOUNT STRUCTS:\n");
                     for account_struct in import_info.get_potential_account_structs() {
                         error_msg.push_str(&format!("  - {}\n", account_struct));
                     }
-                    error_msg.push_str("\n");
-                    
                     error_msg.push_str("EXTERNAL FILE MODULE SOLUTIONS:\n");
                     error_msg.push_str("1. ADD EXPLICIT SEEDS STRUCT: Create a minimal seed definition in the same module:\n");
                     error_msg.push_str(&format!("   #[derive(Accounts)]\n   pub struct {}Seeds<'info> {{\n       #[account(\n           init,\n           seeds = [\n               POOL_SEED.as_bytes(),\n               amm_config.key().as_ref(),\n               token_0_mint.key().as_ref(),\n               token_1_mint.key().as_ref(),\n           ],\n           bump\n       )]\n       pub {}: Box<Account<'info, {}>>,\n       pub amm_config: AccountInfo<'info>,\n       pub token_0_mint: AccountInfo<'info>,\n       pub token_1_mint: AccountInfo<'info>,\n   }}\n\n", struct_name, struct_name.to_string().to_snake_case(), struct_name));
-                    
+
                     error_msg.push_str("2. CONVERT TO INLINE MODULE: Move your account struct to an inline module:\n");
                     error_msg.push_str(&format!("   pub mod instructions {{\n       use super::*;\n       #[derive(Accounts)]\n       pub struct Initialize<'info> {{\n           #[account(\n               init,\n               seeds = [...],\n               bump\n           )]\n           pub {}: Box<Account<'info, {}>>,\n           // ... other fields\n       }}\n   }}\n   pub use instructions::*;\n\n", struct_name.to_string().to_snake_case(), struct_name));
                 } else {
                     error_msg.push_str("COMMON SOLUTIONS:\n");
                     error_msg.push_str("1. INLINE MODULE DEFINITION: Define your account struct in an inline module within the same file:\n");
                     error_msg.push_str(&format!("   pub mod initialize {{\n       use super::*;\n       #[derive(Accounts)]\n       pub struct Initialize<'info> {{\n           #[account(\n               init,\n               seeds = [...],\n               bump\n           )]\n           pub {}: Box<Account<'info, {}>>,\n           // ... other fields\n       }}\n   }}\n   pub use initialize::*;\n\n", struct_name.to_string().to_snake_case(), struct_name));
-                    
+
                     error_msg.push_str("2. MOVE TO SAME MODULE: Move your account struct to the same module where #[add_compressible_instructions] is applied:\n");
                     error_msg.push_str(&format!("   #[derive(Accounts)]\n   pub struct Initialize<'info> {{\n       #[account(\n           init,\n           seeds = [...],\n           bump\n       )]\n       pub {}: Box<Account<'info, {}>>,\n       // ... other fields\n   }}\n\n", struct_name.to_string().to_snake_case(), struct_name));
-                    
+
                     error_msg.push_str("3. CREATE A MINIMAL SEED STRUCT: If you can't move the existing struct, create a minimal one:\n");
                     error_msg.push_str(&format!("   #[derive(Accounts)]\n   pub struct {}Seeds<'info> {{\n       #[account(\n           init,\n           seeds = [/* your seeds here */],\n           bump\n       )]\n       pub {}: Box<Account<'info, {}>>,\n   }}\n\n", struct_name, struct_name.to_string().to_snake_case(), struct_name));
                 }
-                
+
                 error_msg.push_str("TECHNICAL INFO:\n");
                 error_msg.push_str("✓ Wrapper types supported: Account, Box<Account>, Option<Account>, Arc<Account>\n");
                 error_msg.push_str("✓ Required attributes: #[account(init, seeds = [...], bump)] and #[derive(Accounts)]\n");
                 error_msg.push_str("✓ External file modules require explicit seed definitions due to proc macro limitations\n");
-                
                 syn::Error::new_spanned(&struct_name, error_msg)
             })?;
 
