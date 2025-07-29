@@ -65,7 +65,10 @@
 //! ```
 // TODO: add example for manual hashing
 
-use std::ops::{Deref, DerefMut};
+use std::{
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
 
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
@@ -76,22 +79,42 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     error::LightSdkError,
-    light_hasher::{DataHasher, Poseidon},
+    light_hasher::{DataHasher, Hasher, Poseidon, Sha256},
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
+const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
+
+pub trait Size {
+    fn size(&self) -> usize;
+}
+
+pub type LightAccount<'a, A> = LightAccountInner<'a, Poseidon, A>;
+
+pub mod sha {
+    use super::*;
+    /// LightAccount variant that uses SHA256 hashing
+    pub type LightAccount<'a, A> = super::LightAccountInner<'a, Sha256, A>;
+}
+
 #[derive(Debug, PartialEq)]
-pub struct LightAccount<
+pub struct LightAccountInner<
     'a,
+    H: Hasher,
     A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
 > {
     owner: &'a Pubkey,
     pub account: A,
     account_info: CompressedAccountInfo,
+    should_remove_data: bool,
+    _hasher: PhantomData<H>,
 }
 
-impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default>
-    LightAccount<'a, A>
+impl<
+        'a,
+        H: Hasher,
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
+    > LightAccountInner<'a, H, A>
 {
     pub fn new_init(
         owner: &'a Pubkey,
@@ -111,6 +134,8 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: None,
                 output: Some(output_account_info),
             },
+            should_remove_data: false,
+            _hasher: PhantomData,
         }
     }
 
@@ -120,7 +145,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
         input_account: A,
     ) -> Result<Self, LightSdkError> {
         let input_account_info = {
-            let input_data_hash = input_account.hash::<Poseidon>()?;
+            let input_data_hash = input_account.hash::<H>()?;
             let tree_info = input_account_meta.get_tree_info();
             InAccountInfo {
                 data_hash: input_data_hash,
@@ -155,6 +180,8 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: Some(input_account_info),
                 output: Some(output_account_info),
             },
+            should_remove_data: false,
+            _hasher: PhantomData,
         })
     }
 
@@ -164,7 +191,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
         input_account: A,
     ) -> Result<Self, LightSdkError> {
         let input_account_info = {
-            let input_data_hash = input_account.hash::<Poseidon>()?;
+            let input_data_hash = input_account.hash::<H>()?;
             let tree_info = input_account_meta.get_tree_info();
             InAccountInfo {
                 data_hash: input_data_hash,
@@ -179,6 +206,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 discriminator: A::LIGHT_DISCRIMINATOR,
             }
         };
+
         Ok(Self {
             owner,
             account: input_account,
@@ -187,6 +215,8 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
                 input: Some(input_account_info),
                 output: None,
             },
+            should_remove_data: false,
+            _hasher: PhantomData,
         })
     }
 
@@ -237,18 +267,28 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     /// that should only be called once per instruction.
     pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, LightSdkError> {
         if let Some(output) = self.account_info.output.as_mut() {
-            output.data_hash = self.account.hash::<Poseidon>()?;
-            output.data = self
-                .account
-                .try_to_vec()
-                .map_err(|_| LightSdkError::Borsh)?;
+            if self.should_remove_data {
+                // TODO: review security.
+                output.data_hash = DEFAULT_DATA_HASH;
+            } else {
+                output.data_hash = self.account.hash::<H>()?;
+                if H::ID != 0 {
+                    output.data_hash[0] = 0;
+                }
+                output.data = self
+                    .account
+                    .try_to_vec()
+                    .map_err(|_| LightSdkError::Borsh)?;
+            }
         }
         Ok(self.account_info)
     }
 }
 
-impl<A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default> Deref
-    for LightAccount<'_, A>
+impl<
+        H: Hasher,
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
+    > Deref for LightAccountInner<'_, H, A>
 {
     type Target = A;
 
@@ -257,8 +297,10 @@ impl<A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + 
     }
 }
 
-impl<A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default> DerefMut
-    for LightAccount<'_, A>
+impl<
+        H: Hasher,
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
+    > DerefMut for LightAccountInner<'_, H, A>
 {
     fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
         &mut self.account
