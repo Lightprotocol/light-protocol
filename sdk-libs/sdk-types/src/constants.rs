@@ -39,4 +39,6 @@ pub const CPI_CONTEXT_ACCOUNT_DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 20
 pub const SOL_POOL_PDA: [u8; 32] = pubkey_array!("CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1");
 
 // For input accounts with empty data.
-pub const DEFAULT_DATA_HASH: [u8; 32] = [1; 32];
+pub const DEFAULT_DATA_HASH: [u8; 32] = [
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+];
