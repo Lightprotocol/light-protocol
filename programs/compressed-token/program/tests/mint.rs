@@ -380,19 +380,15 @@ fn test_rnd_create_compressed_mint_account() {
                 version,
                 extensions: expected_extensions.clone(),
             },
-            merkle_context: PackedMerkleContext {
-                merkle_tree_pubkey_index,
-                queue_pubkey_index,
-                leaf_index,
-                prove_by_index,
-            },
+            leaf_index,
+            prove_by_index,
             root_index,
             address: compressed_account_address,
-            output_merkle_tree_index,
         };
 
         let update_instruction_data = light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData {
-            merkle_context: input_compressed_mint.merkle_context,
+            leaf_index: input_compressed_mint.leaf_index,
+            prove_by_index: input_compressed_mint.prove_by_index,
             root_index: input_compressed_mint.root_index,
             address: input_compressed_mint.address,
             proof: None,
@@ -418,6 +414,12 @@ fn test_rnd_create_compressed_mint_account() {
             &mut context,
             &z_update_instruction_data,
             &hashed_mint_authority,
+            PackedMerkleContext {
+                merkle_tree_pubkey_index: input_account.merkle_context.merkle_tree_pubkey_index,
+                queue_pubkey_index: input_account.merkle_context.queue_pubkey_index,
+                leaf_index: input_account.merkle_context.leaf_index.into(),
+                prove_by_index: input_account.merkle_context.prove_by_index(),
+            },
         )
         .unwrap();
 

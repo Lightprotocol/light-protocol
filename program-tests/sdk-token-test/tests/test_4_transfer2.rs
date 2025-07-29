@@ -151,7 +151,7 @@ async fn create_compressed_mint_helper(
 ) -> (Pubkey, Pubkey) {
     let mint_authority = payer.pubkey();
     let mint_signer = Keypair::new();
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Find mint PDA
@@ -186,6 +186,7 @@ async fn create_compressed_mint_helper(
 
     // Create compressed mint
     let instruction = create_compressed_mint(CreateCompressedMintInputs {
+        version: 0,
         decimals,
         mint_authority,
         freeze_authority: None,
@@ -197,7 +198,8 @@ async fn create_compressed_mint_helper(
         address_tree_pubkey,
         output_queue,
         extensions: None,
-    });
+    })
+    .unwrap();
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, &mint_signer])
         .await
@@ -239,16 +241,11 @@ async fn mint_compressed_tokens(
 
     let mint_to_instruction = create_mint_to_compressed_instruction(MintToCompressedInputs {
         compressed_mint_inputs: CompressedMintInputs {
-            merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
-                merkle_tree_pubkey_index: 0,
-                queue_pubkey_index: 1,
-                leaf_index: compressed_mint_account.leaf_index,
-                prove_by_index: true,
-            },
+            prove_by_index: true,
+            leaf_index: compressed_mint_account.leaf_index,
             root_index: 0,
             address: compressed_mint_account.address.unwrap(),
             compressed_mint_input: expected_compressed_mint,
-            output_merkle_tree_index: 3,
         },
         recipients: vec![Recipient {
             recipient: payer.pubkey().into(),

@@ -73,6 +73,7 @@ async fn test_compress_full_and_close() {
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
     let instruction = create_compressed_mint(CreateCompressedMintInputs {
+        version: 0,
         decimals,
         mint_authority,
         freeze_authority: Some(freeze_authority),
@@ -84,7 +85,8 @@ async fn test_compress_full_and_close() {
         address_tree_pubkey,
         output_queue,
         extensions: None,
-    });
+    })
+    .unwrap();
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
         .await
@@ -121,16 +123,11 @@ async fn test_compress_full_and_close() {
     let state_output_queue = state_tree_info.queue;
 
     let compressed_mint_inputs = CompressedMintInputs {
-        merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
-            merkle_tree_pubkey_index: 0,
-            queue_pubkey_index: 1,
-            leaf_index: compressed_mint_account.leaf_index,
-            prove_by_index: true,
-        },
+        prove_by_index: true,
+        leaf_index: compressed_mint_account.leaf_index,
         root_index: 0,
         address: compressed_mint_address,
         compressed_mint_input: expected_compressed_mint,
-        output_merkle_tree_index: 3,
     };
 
     let mint_instruction = create_mint_to_compressed_instruction(MintToCompressedInputs {

@@ -2,32 +2,43 @@ use light_account_checks::AccountInfoTrait;
 
 use crate::error::{LightTokenSdkTypeError, Result};
 
+/// Configuration for decompressed mint operations
+#[derive(Debug, Clone)]
+pub struct DecompressedMintConfig<T> {
+    /// SPL mint account
+    pub mint_pda: T,
+    /// Token pool PDA
+    pub token_pool_pda: T,
+    /// Token program (typically spl_token_2022::ID)
+    pub token_program: T,
+}
+
 #[repr(usize)]
 pub enum MintToCompressedAccountInfosIndex {
     // Static non-CPI accounts first
-    Authority = 0,
+    //  Authority = 0,
     // Optional decompressed accounts (if is_decompressed = true)
-    Mint = 1,               // Only present if is_decompressed
-    TokenPoolPda = 2,       // Only present if is_decompressed
-    TokenProgram = 3,       // Only present if is_decompressed
-    LightSystemProgram = 4, // Always present (index adjusted based on decompressed)
+    Mint = 0,               // Only present if is_decompressed
+    TokenPoolPda = 1,       // Only present if is_decompressed
+    TokenProgram = 2,       // Only present if is_decompressed
+    LightSystemProgram = 3, // Always present (index adjusted based on decompressed)
     // LightSystemAccounts (7 accounts)
-    FeePayer = 5, // (index adjusted based on decompressed)
-    CpiAuthorityPda = 6,
-    RegisteredProgramPda = 7,
-    NoopProgram = 8,
-    AccountCompressionAuthority = 9,
-    AccountCompressionProgram = 10,
-    SystemProgram = 11,
-    SelfProgram = 12,
+    //  FeePayer = 5, // (index adjusted based on decompressed)
+    CpiAuthorityPda = 4,
+    RegisteredProgramPda = 5,
+    NoopProgram = 6,
+    AccountCompressionAuthority = 7,
+    AccountCompressionProgram = 8,
+    SystemProgram = 9,
+    SelfProgram = 10,
     // Optional sol pool
-    SolPoolPda = 13, // Only present if with_lamports
+    SolPoolPda = 11, // Only present if with_lamports
     // UpdateOneCompressedAccountTreeAccounts (3 accounts)
-    InMerkleTree = 14, // (index adjusted based on sol_pool_pda)
-    InOutputQueue = 15,
-    OutOutputQueue = 16,
+    InMerkleTree = 12, // (index adjusted based on sol_pool_pda)
+    InOutputQueue = 13,
+    OutOutputQueue = 14,
     // Final account
-    TokensOutQueue = 17,
+    TokensOutQueue = 15,
 }
 
 pub struct MintToCompressedAccountInfos<'a, T: AccountInfoTrait + Clone> {
@@ -54,6 +65,22 @@ impl MintToCompressedAccountInfosConfig {
 
 impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
     pub fn new(
+        fee_payer: &'a T,
+        authority: &'a T,
+        accounts: &'a [T],
+        config: MintToCompressedAccountInfosConfig,
+    ) -> Self {
+        Self {
+            fee_payer,
+            authority,
+            accounts,
+            config,
+        }
+    }
+
+    /// Create MintToCompressedAccountInfos for CPI use where authority and payer are provided separately
+    /// The accounts slice should not include authority or payer as they're handled by the caller
+    pub fn new_cpi(
         fee_payer: &'a T,
         authority: &'a T,
         accounts: &'a [T],
@@ -244,12 +271,10 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
     }
 
     pub fn to_account_infos(&self) -> Vec<T> {
-        [
-            vec![self.fee_payer.clone()],
-            vec![self.authority.clone()],
-            self.accounts.to_vec(),
-        ]
-        .concat()
+        let mut vec = self.accounts.to_vec();
+        vec.insert(0, self.authority.clone());
+        vec.insert(5, self.fee_payer.clone());
+        vec
     }
 
     pub fn account_infos(&self) -> &'a [T] {
@@ -272,5 +297,24 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
         }
 
         len
+    }
+
+    /// Creates a DecompressedMintConfig if the mint is decompressed
+    pub fn get_decompressed_mint_config(
+        &self,
+    ) -> Result<Option<DecompressedMintConfig<T::Pubkey>>> {
+        if !self.config.is_decompressed {
+            return Ok(None);
+        }
+
+        let mint_pda = self.mint()?.pubkey();
+        let token_pool_pda = self.token_pool_pda()?.pubkey();
+        let token_program = self.token_program()?.pubkey();
+
+        Ok(Some(DecompressedMintConfig {
+            mint_pda,
+            token_pool_pda,
+            token_program,
+        }))
     }
 }

@@ -4,7 +4,7 @@ mod config;
 mod create_compressed_mint;
 mod freeze;
 mod mint_to;
-mod mint_to_compressed;
+pub mod mint_to_compressed;
 mod transfer;
 pub use batch_compress::*;
 pub use burn::*;
