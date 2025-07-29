@@ -18,6 +18,13 @@
 
 ### Added
 
+- **MAJOR**: Enhanced external file module support:
+  - Comprehensive pattern matching for common AMM/DEX structures (PoolState, Vault, Position, etc.)
+  - Explicit seed specification syntax: `#[add_compressible_instructions(PoolState@[POOL_SEED.as_bytes(), amm_config.key().as_ref()])]`
+  - Improved import detection for `pub use` statements and CamelCase account structs
+  - Intelligent seed inference for 7+ common DeFi patterns (pools, vaults, positions, configs, etc.)
+  - Enhanced error messages with debugging info and actionable solutions
+  - Support for complex multi-file project structures like Raydium CP-Swap
 - Config management support in generated code:
   - `CreateCompressibleConfig` accounts struct
   - `UpdateCompressibleConfig` accounts struct
@@ -25,6 +32,12 @@
 - `CompressedAccountData` now includes `seeds` field for flexible PDA derivation
 - Generated error codes for config validation
 - `CompressionInfo` now implements `anchor_lang::Space` trait for automatic size calculation
+
+### Fixed
+
+- External file module parsing that previously threw "External file modules require explicit seed definitions"
+- Import resolution for `pub use` statements across multiple files
+- Pattern detection for account structs with various naming conventions
 
 ### Removed
 
