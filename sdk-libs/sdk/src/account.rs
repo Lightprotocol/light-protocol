@@ -183,9 +183,11 @@ impl<
         })
     }
 
-    /// Create a new LightAccount for compression from an empty compressed account.
-    /// This is used when compressing a PDA - we know the compressed account exists
-    /// but is empty (data: [], data_hash: [1; 32]).
+    /// Create a new LightAccount for compression from an empty compressed
+    /// account. This is used when compressing a PDA - we know the compressed
+    /// account exists but is empty (data: [], data_hash: [0, 1, 1, 1, 1, 1, 1,
+    /// 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    /// 1]).
     pub fn new_mut_without_data(
         owner: &'a Pubkey,
         input_account_meta: &impl CompressedAccountMetaTrait,

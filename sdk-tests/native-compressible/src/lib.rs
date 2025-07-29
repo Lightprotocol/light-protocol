@@ -138,9 +138,10 @@ impl Size for MyPdaAccount {
 
 #[cfg(test)]
 mod test_sha_hasher {
-    use super::*;
     use light_hasher::{to_byte_array::ToByteArray, DataHasher, Sha256};
     use light_sdk::sha::LightHasher;
+
+    use super::*;
 
     #[derive(
         Clone, Debug, Default, LightDiscriminator, BorshDeserialize, BorshSerialize, LightHasher,
