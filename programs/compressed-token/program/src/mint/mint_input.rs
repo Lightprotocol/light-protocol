@@ -6,6 +6,7 @@ use light_ctoken_types::{
     state::CompressedMint,
 };
 use light_hasher::{Hasher, Poseidon};
+use light_sdk::instruction::PackedMerkleContext;
 
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR, extensions::processor::create_extension_hash_chain,
@@ -25,6 +26,7 @@ pub fn create_input_compressed_mint_account(
     context: &mut TokenContext,
     compressed_mint_inputs: &ZUpdateCompressedMintInstructionData,
     hashed_mint_authority: &[u8; 32],
+    merkle_context: PackedMerkleContext,
 ) -> Result<(), ProgramError> {
     // 2. Extract and validate compressed mint data
     let compressed_mint_input = &compressed_mint_inputs.mint;
@@ -75,8 +77,8 @@ pub fn create_input_compressed_mint_account(
     input_compressed_account.set(
         COMPRESSED_MINT_DISCRIMINATOR,
         data_hash,
-        &compressed_mint_inputs.merkle_context,
-        *compressed_mint_inputs.root_index,
+        &merkle_context,
+        compressed_mint_inputs.root_index,
         0,
         Some(compressed_mint_inputs.address.as_ref()),
     )?;

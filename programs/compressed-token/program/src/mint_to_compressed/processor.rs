@@ -6,6 +6,7 @@ use light_ctoken_types::{
     context::TokenContext, instructions::mint_to_compressed::MintToCompressedInstructionData,
     state::CompressedMintConfig,
 };
+use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
@@ -76,6 +77,17 @@ pub fn process_mint_to_compressed(
             &mut context,
             &parsed_instruction_data.compressed_mint_inputs,
             &hashed_mint_authority,
+            PackedMerkleContext {
+                merkle_tree_pubkey_index: 0,
+                queue_pubkey_index: 1,
+                leaf_index: parsed_instruction_data
+                    .compressed_mint_inputs
+                    .leaf_index
+                    .into(),
+                prove_by_index: parsed_instruction_data
+                    .compressed_mint_inputs
+                    .prove_by_index(),
+            },
         )?;
 
         let mint_inputs = &parsed_instruction_data.compressed_mint_inputs.mint;
@@ -112,7 +124,7 @@ pub fn process_mint_to_compressed(
             Some(Pubkey::from(*validated_accounts.authority.key())),
             supply,
             mint_config,
-            *parsed_instruction_data.compressed_mint_inputs.address,
+            parsed_instruction_data.compressed_mint_inputs.address,
             2,
             parsed_instruction_data.compressed_mint_inputs.mint.version,
             parsed_instruction_data

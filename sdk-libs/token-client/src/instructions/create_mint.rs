@@ -84,7 +84,9 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         address_tree_pubkey,
         output_queue,
         extensions,
+        version: 0,
     };
 
-    create_compressed_mint(inputs).map_err(|e| RpcError::CustomError(format!("Token SDK error: {:?}", e)))
+    create_compressed_mint(inputs)
+        .map_err(|e| RpcError::CustomError(format!("Token SDK error: {:?}", e)))
 }

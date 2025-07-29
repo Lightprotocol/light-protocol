@@ -70,7 +70,8 @@ pub fn create_mint_to_compressed_instruction(
 
     // Create UpdateCompressedMintInstructionData from CompressedMintInputs
     let update_mint_data = UpdateCompressedMintInstructionData {
-        merkle_context: compressed_mint_inputs.merkle_context,
+        leaf_index: compressed_mint_inputs.leaf_index.into(),
+        prove_by_index: compressed_mint_inputs.prove_by_index.into(),
         root_index: compressed_mint_inputs.root_index,
         address: compressed_mint_inputs.address,
         proof: None, // No proof needed for this test

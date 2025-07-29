@@ -1,7 +1,4 @@
-use light_compressed_account::{
-    compressed_account::PackedMerkleContext, instruction_data::compressed_proof::CompressedProof,
-    Pubkey,
-};
+use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_zero_copy::ZeroCopy;
 
 use crate::{
@@ -26,7 +23,9 @@ pub struct CreateCompressedMintInstructionData {
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct UpdateCompressedMintInstructionData {
-    pub merkle_context: PackedMerkleContext,
+    // pub merkle_context: PackedMerkleContext,
+    pub leaf_index: u32,
+    pub prove_by_index: bool,
     pub root_index: u16,
     pub address: [u8; 32],
     pub proof: Option<CompressedProof>,

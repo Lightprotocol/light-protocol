@@ -44,46 +44,16 @@ pub struct MintToCompressedAccountInfosConfig {
 }
 
 impl MintToCompressedAccountInfosConfig {
-    pub const fn new() -> Self {
+    pub const fn new(is_decompressed: bool, has_sol_pool_pda: bool) -> Self {
         Self {
-            is_decompressed: false,
-            has_sol_pool_pda: false,
-        }
-    }
-
-    pub const fn new_decompressed() -> Self {
-        Self {
-            is_decompressed: true,
-            has_sol_pool_pda: false,
-        }
-    }
-
-    pub const fn new_with_sol_pool() -> Self {
-        Self {
-            is_decompressed: false,
-            has_sol_pool_pda: true,
-        }
-    }
-
-    pub const fn new_decompressed_with_sol_pool() -> Self {
-        Self {
-            is_decompressed: true,
-            has_sol_pool_pda: true,
+            is_decompressed,
+            has_sol_pool_pda,
         }
     }
 }
 
 impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
-    pub fn new(fee_payer: &'a T, authority: &'a T, accounts: &'a [T]) -> Self {
-        Self {
-            fee_payer,
-            authority,
-            accounts,
-            config: MintToCompressedAccountInfosConfig::new(),
-        }
-    }
-
-    pub fn new_with_config(
+    pub fn new(
         fee_payer: &'a T,
         authority: &'a T,
         accounts: &'a [T],

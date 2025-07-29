@@ -29,6 +29,7 @@ pub struct CreateCompressedMintInputs {
     pub address_tree_pubkey: Pubkey,
     pub output_queue: Pubkey,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
+    pub version: u8,
 }
 
 /// Creates a compressed mint instruction with a pre-computed mint address
@@ -47,7 +48,7 @@ pub fn create_compressed_mint_cpi(
         address_merkle_tree_root_index: input.address_merkle_tree_root_index,
         extensions: input.extensions,
         mint_address,
-        version: 0,
+        version: input.version,
     };
 
     // Create account meta config for create_compressed_mint

@@ -9,6 +9,7 @@ use light_ctoken_types::{
     state::{CompressedMint, CompressedMintConfig},
     COMPRESSED_MINT_SEED,
 };
+use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_token::solana_program::log::sol_log_compute_units;
@@ -85,9 +86,8 @@ pub fn process_create_spl_mint(
     Ok(())
 }
 
-// TODO: remove tree indices from instructiond data we hardcode the order.
-//const IN_TREE: u8 = 0;
-//const IN_OUTPUT_QUEUE: u8 = 1;
+const IN_TREE: u8 = 0;
+const IN_OUTPUT_QUEUE: u8 = 1;
 
 const OUT_OUTPUT_QUEUE: u8 = 2;
 
@@ -146,6 +146,12 @@ fn update_compressed_mint_to_decompressed<'info>(
             &mut context,
             &instruction_data.mint,
             &hashed_mint_authority,
+            PackedMerkleContext {
+                leaf_index: instruction_data.mint.leaf_index.into(),
+                prove_by_index: instruction_data.mint.prove_by_index(),
+                merkle_tree_pubkey_index: IN_TREE,
+                queue_pubkey_index: IN_OUTPUT_QUEUE,
+            },
         )?;
 
         // Process output compressed mint account (with is_decompressed = true)
@@ -181,7 +187,7 @@ fn update_compressed_mint_to_decompressed<'info>(
             mint_authority,
             mint_inputs.supply,
             mint_config,
-            *instruction_data.mint.address,
+            instruction_data.mint.address,
             OUT_OUTPUT_QUEUE,
             instruction_data.mint.mint.version,
             true, // Set is_decompressed = true for create_spl_mint

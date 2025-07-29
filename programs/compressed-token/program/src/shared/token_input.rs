@@ -63,7 +63,7 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     };
 
     input_compressed_account
-        .set(
+        .set_z(
             version.discriminator(),
             data_hash,
             &input_token_data.merkle_context,

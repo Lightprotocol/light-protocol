@@ -8,17 +8,17 @@ pub enum CreateCompressedMintAccountInfosIndex {
     MintSigner = 0,
     LightSystemProgram = 1,
     // LightSystemAccounts (7 accounts)
-    FeePayer = 2,
-    CpiAuthorityPda = 3,
-    RegisteredProgramPda = 4,
-    NoopProgram = 5,
-    AccountCompressionAuthority = 6,
-    AccountCompressionProgram = 7,
-    SystemProgram = 8,
-    SelfProgram = 9,
+    // FeePayer = 2, this is not ideal, if we put the fee payer in this position we don't have to copy account infos at all.
+    CpiAuthorityPda = 2,
+    RegisteredProgramPda = 3,
+    NoopProgram = 4,
+    AccountCompressionAuthority = 5,
+    AccountCompressionProgram = 6,
+    SystemProgram = 7,
+    SelfProgram = 8,
     // CreateCompressedAccountTreeAccounts (2 accounts)
-    AddressMerkleTree = 10,
-    OutOutputQueue = 11,
+    AddressMerkleTree = 9,
+    OutOutputQueue = 10,
 }
 
 pub struct CreateCompressedMintAccountInfos<'a, T: AccountInfoTrait + Clone> {
@@ -27,6 +27,7 @@ pub struct CreateCompressedMintAccountInfos<'a, T: AccountInfoTrait + Clone> {
 }
 
 impl<'a, T: AccountInfoTrait + Clone> CreateCompressedMintAccountInfos<'a, T> {
+    // Idea new_with_fee_payer and new
     pub fn new(fee_payer: &'a T, accounts: &'a [T]) -> Self {
         Self {
             fee_payer,

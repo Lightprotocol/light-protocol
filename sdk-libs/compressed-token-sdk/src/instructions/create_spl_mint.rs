@@ -72,7 +72,8 @@ pub fn create_spl_mint_instruction_with_bump(
         .is_none();
     // Create UpdateCompressedMintInstructionData from the compressed mint inputs
     let update_mint_data = UpdateCompressedMintInstructionData {
-        merkle_context: compressed_mint_inputs.merkle_context,
+        leaf_index: compressed_mint_inputs.leaf_index.into(),
+        prove_by_index: compressed_mint_inputs.prove_by_index,
         root_index: compressed_mint_inputs.root_index,
         address: compressed_mint_inputs.address,
         proof: proof.into(),

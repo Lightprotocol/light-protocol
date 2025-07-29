@@ -61,16 +61,11 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
 
     // Prepare compressed mint inputs
     let compressed_mint_inputs = CompressedMintInputs {
-        merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
-            merkle_tree_pubkey_index: 0,
-            queue_pubkey_index: 1,
-            leaf_index: compressed_mint_account.leaf_index,
-            prove_by_index: true,
-        },
+        prove_by_index: true,
+        leaf_index: compressed_mint_account.leaf_index,
         root_index: 0,
         address: compressed_mint_address,
         compressed_mint_input: compressed_mint,
-        output_merkle_tree_index: 3,
     };
 
     // Create the instruction

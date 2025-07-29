@@ -1,7 +1,4 @@
-use light_compressed_account::{
-    compressed_account::PackedMerkleContext, instruction_data::compressed_proof::CompressedProof,
-    Pubkey,
-};
+use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_zero_copy::ZeroCopy;
 
 use crate::{
@@ -11,11 +8,11 @@ use crate::{
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInputs {
-    pub merkle_context: PackedMerkleContext,
+    pub leaf_index: u32,
+    pub prove_by_index: bool,
     pub root_index: u16,
     pub address: [u8; 32],
     pub compressed_mint_input: CompressedMint, //TODO: move supply and authority last so that we can send only the hash chain.
-    pub output_merkle_tree_index: u8,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

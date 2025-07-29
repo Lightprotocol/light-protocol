@@ -29,10 +29,14 @@ impl CreateCompressedMintMetaConfig {
     }
 
     /// Create a new CreateCompressedMintMetaConfig for client-side (CPI) usage
-    pub fn new_client(address_tree_pubkey: Pubkey, output_queue: Pubkey) -> Self {
+    pub fn new_client(
+        mint_seed: Pubkey,
+        address_tree_pubkey: Pubkey,
+        output_queue: Pubkey,
+    ) -> Self {
         Self {
             fee_payer: None,
-            mint_signer: None,
+            mint_signer: Some(mint_seed),
             address_tree_pubkey,
             output_queue,
         }

@@ -50,7 +50,7 @@ impl ZOutputCompressedAccountWithPackedContextMut<'_> {
 // TODO: unit test
 impl ZInAccountMut<'_> {
     #[inline]
-    pub fn set(
+    pub fn set_z(
         &mut self,
         discriminator: [u8; 8],
         data_hash: [u8; 32],
@@ -67,6 +67,39 @@ impl ZInAccountMut<'_> {
             .leaf_index
             .set(merkle_context.leaf_index.get());
         self.merkle_context.prove_by_index = merkle_context.prove_by_index() as u8;
+        *self.root_index = root_index;
+        self.data_hash = data_hash;
+        *self.lamports = lamports.into();
+        if let Some(address) = address {
+            self.address
+                .as_mut()
+                .ok_or(CompressedAccountError::InstructionDataExpectedAddress)?
+                .copy_from_slice(address);
+        }
+        if self.address.is_some() && address.is_none() {
+            return Err(CompressedAccountError::ZeroCopyExpectedAddress);
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn set(
+        &mut self,
+        discriminator: [u8; 8],
+        data_hash: [u8; 32],
+        merkle_context: &PackedMerkleContext,
+        root_index: U16,
+        lamports: u64,
+        address: Option<&[u8]>,
+    ) -> Result<(), CompressedAccountError> {
+        self.discriminator = discriminator;
+        // Set merkle context fields manually due to mutability constraints
+        self.merkle_context.merkle_tree_pubkey_index = merkle_context.merkle_tree_pubkey_index;
+        self.merkle_context.queue_pubkey_index = merkle_context.queue_pubkey_index;
+        self.merkle_context
+            .leaf_index
+            .set(merkle_context.leaf_index);
+        self.merkle_context.prove_by_index = merkle_context.prove_by_index as u8;
         *self.root_index = root_index;
         self.data_hash = data_hash;
         *self.lamports = lamports.into();
