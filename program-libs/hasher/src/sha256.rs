@@ -9,6 +9,7 @@ use crate::{
 pub struct Sha256;
 
 impl Hasher for Sha256 {
+    const ID: u8 = 1;
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
         Self::hashv(&[val])
     }
