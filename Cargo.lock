@@ -3694,6 +3694,7 @@ name = "light-sdk-macros"
 version = "0.13.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-account-checks",
  "light-compressed-account",
  "light-hasher",
  "light-macros",

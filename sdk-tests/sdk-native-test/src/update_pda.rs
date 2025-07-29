@@ -1,9 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
-    account::LightAccount,
     cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
+    LightAccount,
 };
 use solana_program::{account_info::AccountInfo, log::sol_log_compute_units};
 
