@@ -1,15 +1,19 @@
 extern crate proc_macro;
 use accounts::{process_light_accounts, process_light_system_accounts};
-use hasher::derive_light_hasher;
+use discriminator::{discriminator, discriminator_sha};
+use hasher::{derive_light_hasher, derive_light_hasher_sha};
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemMod, ItemStruct};
+use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use traits::process_light_traits;
 
 mod account;
 mod accounts;
+mod compressible;
+mod compressible_derive;
 mod cpi_signer;
 mod discriminator;
 mod hasher;
+mod native_compressible;
 mod program;
 mod traits;
 
@@ -135,7 +139,35 @@ pub fn light_traits_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LightDiscriminator)]
 pub fn light_discriminator(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    discriminator::discriminator(input)
+    discriminator(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// SHA256 variant of the LightDiscriminator derive macro.
+///
+/// This derive macro provides the same discriminator functionality as LightDiscriminator
+/// but is designed to be used with SHA256-based hashing for consistency.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::sha::{LightHasher, LightDiscriminator};
+///
+/// #[derive(LightHasher, LightDiscriminator)]
+/// pub struct LargeGameState {
+///     pub field1: u64, pub field2: u64, pub field3: u64, pub field4: u64,
+///     pub field5: u64, pub field6: u64, pub field7: u64, pub field8: u64,
+///     pub field9: u64, pub field10: u64, pub field11: u64, pub field12: u64,
+///     pub field13: u64, pub field14: u64, pub field15: u64,
+///     pub owner: Pubkey,
+///     pub authority: Pubkey,
+/// }
+/// ```
+#[proc_macro_derive(LightDiscriminatorSha)]
+pub fn light_discriminator_sha(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    discriminator_sha(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -152,106 +184,67 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 /// `AsByteVec` trait. The trait is implemented by default for the most of
 /// standard Rust types (primitives, `String`, arrays and options carrying the
 /// former). If there is a field of a type not implementing the trait, there
-/// are two options:
+/// will be a compilation error.
 ///
-/// 1. The most recommended one - annotating that type with the `light_hasher`
-///    macro as well.
-/// 2. Manually implementing the `AsByteVec` trait.
-///
-/// # Attributes
-///
-/// - `skip` - skips the given field, it doesn't get included neither in
-///   `AsByteVec` nor `DataHasher` implementation.
-/// - `hash` - makes sure that the byte value does not exceed the BN254
-///   prime field modulus, by hashing it (with Keccak) and truncating it to 31
-///   bytes. It's generally a good idea to use it on any field which is
-///   expected to output more than 31 bytes.
-///
-/// # Examples
-///
-/// Compressed account with only primitive types as fields:
+/// ## Example
 ///
 /// ```ignore
+/// use light_sdk::LightHasher;
+/// use solana_pubkey::Pubkey;
+///
 /// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64,
-///     b: Option<u64>,
+/// pub struct UserRecord {
+///     pub owner: Pubkey,
+///     pub name: String,
+///     pub score: u64,
 /// }
 /// ```
 ///
-/// Compressed account with fields which might exceed the BN254 prime field:
+/// ## Hash attribute
+///
+/// Fields marked with `#[hash]` will be hashed to field size (31 bytes) before
+/// being included in the main hash calculation. This is useful for fields that
+/// exceed the field size limit (like Pubkeys which are 32 bytes).
 ///
 /// ```ignore
 /// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
+/// pub struct GameState {
 ///     #[hash]
-///     c: [u8; 32],
-///     #[hash]
-///     d: String,
+///     pub player: Pubkey,  // Will be hashed to 31 bytes
+///     pub level: u32,
 /// }
 /// ```
-///
-/// Compressed account with fields we want to skip:
-///
-/// ```ignore
-/// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
-///     #[skip]
-///     c: [u8; 32],
-/// }
-/// ```
-///
-/// Compressed account with a nested struct:
-///
-/// ```ignore
-/// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
-///     c: MyStruct,
-/// }
-///
-/// #[derive(LightHasher)]
-/// pub struct MyStruct {
-///     a: i32
-///     b: u32,
-/// }
-/// ```
-///
-/// Compressed account with a type with a custom `AsByteVec` implementation:
-///
-/// ```ignore
-/// #[derive(LightHasher)]
-/// pub struct MyCompressedAccount {
-///     a: i64
-///     b: Option<u64>,
-///     c: RData,
-/// }
-///
-/// pub enum RData {
-///     A(Ipv4Addr),
-///     AAAA(Ipv6Addr),
-///     CName(String),
-/// }
-///
-/// impl AsByteVec for RData {
-///     fn as_byte_vec(&self) -> Vec<Vec<u8>> {
-///         match self {
-///             Self::A(ipv4_addr) => vec![ipv4_addr.octets().to_vec()],
-///             Self::AAAA(ipv6_addr) => vec![ipv6_addr.octets().to_vec()],
-///             Self::CName(cname) => cname.as_byte_vec(),
-///         }
-///     }
-/// }
-/// ```
-#[proc_macro_derive(LightHasher, attributes(skip, hash))]
+#[proc_macro_derive(LightHasher, attributes(hash, skip))]
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
+
     derive_light_hasher(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// SHA256 variant of the LightHasher derive macro.
+///
+/// This derive macro automatically implements the `DataHasher` and `ToByteArray` traits
+/// for structs, using SHA256 as the hashing algorithm instead of Poseidon.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::sha::LightHasher;
+///
+/// #[derive(LightHasher)]
+/// pub struct GameState {
+///     #[hash]
+///     pub player: Pubkey,  // Will be hashed to 31 bytes
+///     pub level: u32,
+/// }
+/// ```
+#[proc_macro_derive(LightHasherSha, attributes(hash, skip))]
+pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    derive_light_hasher_sha(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -260,70 +253,182 @@ pub fn light_hasher(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(DataHasher, attributes(skip, hash))]
 pub fn data_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    derive_light_hasher(input)
+
+    derive_light_hasher_sha(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Automatically implements the HasCompressionInfo trait for structs that have a
+/// `compression_info: Option<CompressionInfo>` field.
+///
+/// This derive macro generates the required trait methods for managing compression
+/// information in compressible account structs.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::compressible::{CompressionInfo, HasCompressionInfo};
+///
+/// #[derive(HasCompressionInfo)]
+/// pub struct UserRecord {
+///     #[skip]
+///     pub compression_info: Option<CompressionInfo>,
+///     pub owner: Pubkey,
+///     pub name: String,
+///     pub score: u64,
+/// }
+/// ```
+///
+/// ## Requirements
+///
+/// The struct must have exactly one field named `compression_info` of type
+/// `Option<CompressionInfo>`. The field should be marked with `#[skip]` to
+/// exclude it from hashing.
+#[proc_macro_derive(HasCompressionInfo)]
+pub fn has_compression_info(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    compressible::derive_has_compression_info(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Adds compress instructions for the specified account types (Anchor version)
+///
+/// This macro must be placed BEFORE the #[program] attribute to ensure
+/// the generated instructions are visible to Anchor's macro processing.
+///
+/// ## Usage
+/// ```
+/// #[add_compressible_instructions(UserRecord, GameSession)]
+/// #[program]
+/// pub mod my_program {
+///     // Your regular instructions here
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::ItemMod);
+
+    compressible::add_compressible_instructions(args.into(), input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Adds native compressible instructions for the specified account types
+///
+/// This macro generates thin wrapper processor functions that you dispatch manually.
+///
+/// ## Usage
+/// ```
+/// #[add_native_compressible_instructions(MyPdaAccount, AnotherAccount)]
+/// pub mod compression {}
+/// ```
+///
+/// This generates:
+/// - Unified data structures (CompressedAccountVariant enum, etc.)
+/// - Instruction data structs (CreateCompressionConfigData, etc.)
+/// - Processor functions (create_compression_config, compress_my_pda_account, etc.)
+///
+/// You then dispatch these in your process_instruction function.
+#[proc_macro_attribute]
+pub fn add_native_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::ItemMod);
+
+    native_compressible::add_native_compressible_instructions(args.into(), input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 
 #[proc_macro_attribute]
-pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
+pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
+
     account::account(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 
+/// Derive the CPI signer from the program ID. The program ID must be a string
+/// literal.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::derive_light_cpi_signer;
+///
+/// pub const LIGHT_CPI_SIGNER: CpiSigner =
+///     derive_light_cpi_signer!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
+/// ```
+#[proc_macro]
+pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
+    cpi_signer::derive_light_cpi_signer(input)
+}
+
+/// Generates a Light program for the given module.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::light_program;
+///
+/// #[light_program]
+/// pub mod my_program {
+///     pub fn my_instruction(ctx: Context<MyInstruction>) -> Result<()> {
+///         // Your instruction logic here
+///         Ok(())
+///     }
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemMod);
+    let input = parse_macro_input!(input as syn::ItemMod);
+
     program::program(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
 
-/// Derives a Light Protocol CPI signer address at compile time
-///
-/// This macro computes the CPI signer PDA using the "cpi_authority" seed
-/// for the given program ID at compile time.
-///
+/// Derive seed registry for compressible accounts.
+/// 
+/// This derive macro should be applied to Anchor instruction structs that initialize
+/// compressible accounts. It extracts seed information and makes it available to
+/// the `#[add_compressible_instructions]` macro.
+/// 
 /// ## Usage
-///
+/// 
+/// ```ignore
+/// #[derive(Accounts, Compressible)]
+/// pub struct Initialize<'info> {
+///     #[account(
+///         init,
+///         seeds = [
+///             POOL_SEED.as_bytes(),
+///             amm_config.key().as_ref(),
+///             token_0_mint.key().as_ref(),
+///             token_1_mint.key().as_ref(),
+///         ],
+///         bump
+///     )]
+///     pub pool_state: Box<Account<'info, PoolState>>,
+///     pub amm_config: AccountInfo<'info>,
+///     pub token_0_mint: AccountInfo<'info>,
+///     pub token_1_mint: AccountInfo<'info>,
+/// }
 /// ```
-/// use light_sdk_macros::derive_light_cpi_signer_pda;
-/// // Derive CPI signer for your program
-/// const CPI_SIGNER_DATA: ([u8; 32], u8) = derive_light_cpi_signer_pda!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
-/// const CPI_SIGNER: [u8; 32] = CPI_SIGNER_DATA.0;
-/// const CPI_SIGNER_BUMP: u8 = CPI_SIGNER_DATA.1;
-/// ```
-///
-/// This macro computes the PDA during compile time and returns a tuple of ([u8; 32], bump).
-#[proc_macro]
-pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
-    cpi_signer::derive_light_cpi_signer_pda(input)
-}
-
-/// Derives a complete Light Protocol CPI configuration at compile time
-///
-/// This macro computes the program ID, CPI signer PDA, and bump seed
-/// for the given program ID at compile time.
-///
-/// ## Usage
-///
-/// ```
-/// use light_sdk_macros::derive_light_cpi_signer;
-/// use light_sdk_types::CpiSigner;
-/// // Derive complete CPI signer for your program
-/// const LIGHT_CPI_SIGNER: CpiSigner = derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
-///
-/// // Access individual fields:
-/// const PROGRAM_ID: [u8; 32] = LIGHT_CPI_SIGNER.program_id;
-/// const CPI_SIGNER: [u8; 32] = LIGHT_CPI_SIGNER.cpi_signer;
-/// const BUMP: u8 = LIGHT_CPI_SIGNER.bump;
-/// ```
-///
-/// This macro computes all values during compile time and returns a CpiSigner struct
-/// containing the program ID, CPI signer address, and bump seed.
-#[proc_macro]
-pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
-    cpi_signer::derive_light_cpi_signer(input)
+/// 
+/// This generates seed registry functions that `#[add_compressible_instructions(PoolState)]`
+/// can automatically discover and use.
+/// 
+/// ## Requirements
+/// 
+/// - Must be applied alongside `#[derive(Accounts)]`
+/// - At least one field must have `#[account(init, seeds = [...], bump)]`
+/// - The account type in the field must match the type used in `#[add_compressible_instructions]`
+#[proc_macro_derive(Compressible)]
+pub fn compressible_derive(input: TokenStream) -> TokenStream {
+    compressible_derive::derive_compressible(syn::parse_macro_input!(input))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }

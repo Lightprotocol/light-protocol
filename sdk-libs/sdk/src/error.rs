@@ -92,6 +92,14 @@ impl From<LightSdkError> for ProgramError {
     }
 }
 
+#[cfg(feature = "anchor")]
+impl From<LightSdkError> for anchor_lang::error::Error {
+    fn from(e: LightSdkError) -> Self {
+        let error_code = u32::from(e);
+        anchor_lang::error::Error::from(anchor_lang::prelude::ProgramError::Custom(error_code))
+    }
+}
+
 impl From<LightSdkTypesError> for LightSdkError {
     fn from(e: LightSdkTypesError) -> Self {
         match e {

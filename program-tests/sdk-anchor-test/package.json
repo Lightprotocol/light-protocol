@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "cargo test-sbf -p sdk-test"
+    "test": "cargo test-sbf -p sdk-anchor-test"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0"
