@@ -21,7 +21,7 @@
 //!    Deploy on devnet and mainnet only without v2 features enabled.
 //!
 //! ### Example Solana program code to create a compressed account
-//! ```ignore
+//! ```rust, compile_fail
 //! use anchor_lang::{prelude::*, Discriminator};
 //! use light_sdk::{
 //!     account::LightAccount,
@@ -93,9 +93,8 @@
 //!    pub fee_payer: Signer<'info>,
 //! }
 //!
-//! #[derive(Clone, Debug, Default, LightHasher, LightDiscriminator)]
+//! #[derive(Clone, Debug, Default, LightDiscriminator)]
 //!pub struct CounterAccount {
-//!    #[hash]
 //!    pub owner: Pubkey,
 //!    pub counter: u64
 //!}
@@ -103,6 +102,15 @@
 
 /// Compressed account abstraction similar to anchor Account.
 pub mod account;
+pub use account::sha::LightAccount;
+
+/// SHA256-based variants
+pub mod sha {
+    pub use light_sdk_macros::LightHasherSha as LightHasher;
+
+    pub use crate::account::sha::LightAccount;
+}
+
 /// Functions to derive compressed account addresses.
 pub mod address;
 /// Utilities to invoke the light-system-program via cpi.
@@ -123,7 +131,8 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 pub use light_hasher;
 pub use light_sdk_macros::{
-    derive_light_cpi_signer, light_system_accounts, LightDiscriminator, LightHasher, LightTraits,
+    derive_light_cpi_signer, light_system_accounts, LightDiscriminator, LightHasher,
+    LightHasherSha, LightTraits,
 };
 pub use light_sdk_types::constants;
 use solana_account_info::AccountInfo;
