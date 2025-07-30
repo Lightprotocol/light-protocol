@@ -31,7 +31,7 @@ solana-clock = { workspace = true }
 solana-sysvar = { workspace = true }
 
 [dev-dependencies]
-light-program-test = { workspace = true, features = ["devenv"], default-features = false }
+light-program-test = { workspace = true, features = ["v2"], default-features = false }
 light-client = { workspace = true }
 light-compressible-client = { workspace = true }
 tokio = { workspace = true }

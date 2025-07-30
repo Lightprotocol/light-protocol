@@ -1,6 +1,8 @@
 #![cfg(feature = "test-sbf")]
 
-use anchor_compressible_derived::{CompressedAccountVariant, GameSession, UserRecord};
+use anchor_compressible_derived::anchor_compressible_derived::CompressedAccountVariant;
+
+use anchor_compressible_derived::{GameSession, UserRecord};
 use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
@@ -182,7 +184,7 @@ async fn test_create_record(
     remaining_accounts.add_system_accounts(system_config);
 
     // Get address tree info
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     // Create the instruction
     let accounts = anchor_compressible_derived::accounts::CreateRecord {
@@ -284,7 +286,7 @@ async fn test_decompress_multiple_pdas(
     expected_game_type: &str,
     expected_slot: u64,
 ) {
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     // c pda USER_RECORD
     let user_compressed_address = derive_address(
@@ -474,10 +476,10 @@ async fn test_create_user_record_and_game_session(
     remaining_accounts.add_system_accounts(system_config);
 
     // Get address tree info
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     // Create the instruction
-    let accounts = anchor_compressible_derived::accounts::CreateRecordAndSession {
+    let accounts = anchor_compressible_derived::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         user_record: *user_record_pda,
         game_session: *game_session_pda,
@@ -535,22 +537,23 @@ async fn test_create_user_record_and_game_session(
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
     // Create instruction data
-    let instruction_data = anchor_compressible_derived::instruction::CreateRecordAndSession {
-        account_data: anchor_compressible_derived::AccountCreationData {
-            user_name: "Combined User".to_string(),
-            session_id,
-            game_type: "Combined Game".to_string(),
-        },
-        compression_params: anchor_compressible_derived::CompressionParams {
-            proof: rpc_result.proof,
-            user_compressed_address,
-            user_address_tree_info,
-            user_output_state_tree_index,
-            game_compressed_address,
-            game_address_tree_info,
-            game_output_state_tree_index,
-        },
-    };
+    let instruction_data =
+        anchor_compressible_derived::instruction::CreateUserRecordAndGameSession {
+            account_data: anchor_compressible_derived::AccountCreationData {
+                user_name: "Combined User".to_string(),
+                session_id,
+                game_type: "Combined Game".to_string(),
+            },
+            compression_params: anchor_compressible_derived::CompressionParams {
+                proof: rpc_result.proof,
+                user_compressed_address,
+                user_address_tree_info,
+                user_output_state_tree_index,
+                game_compressed_address,
+                game_address_tree_info,
+                game_output_state_tree_index,
+            },
+        };
 
     // Build the instruction
     let instruction = Instruction {
@@ -671,7 +674,7 @@ async fn test_compress_record(
     remaining_accounts.add_system_accounts(system_config);
 
     // Get address tree info
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     let address = derive_address(
         &user_record_pda.to_bytes(),
@@ -769,7 +772,7 @@ async fn test_decompress_single_user_record(
     expected_user_name: &str,
     expected_slot: u64,
 ) {
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     // Get compressed user record
     let user_compressed_address = derive_address(
@@ -894,7 +897,7 @@ async fn test_double_decompression_attack() {
 
     // Create and compress the account
     test_create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
     let user_compressed_address = derive_address(
         &user_record_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),

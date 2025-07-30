@@ -9,7 +9,6 @@ use traits::process_light_traits;
 mod account;
 mod accounts;
 mod compressible;
-mod compressible_derive;
 mod cpi_signer;
 mod discriminator;
 mod hasher;
@@ -387,48 +386,5 @@ pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
 
     program::program(input)
         .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// Derive seed registry for compressible accounts.
-/// 
-/// This derive macro should be applied to Anchor instruction structs that initialize
-/// compressible accounts. It extracts seed information and makes it available to
-/// the `#[add_compressible_instructions]` macro.
-/// 
-/// ## Usage
-/// 
-/// ```ignore
-/// #[derive(Accounts, Compressible)]
-/// pub struct Initialize<'info> {
-///     #[account(
-///         init,
-///         seeds = [
-///             POOL_SEED.as_bytes(),
-///             amm_config.key().as_ref(),
-///             token_0_mint.key().as_ref(),
-///             token_1_mint.key().as_ref(),
-///         ],
-///         bump
-///     )]
-///     pub pool_state: Box<Account<'info, PoolState>>,
-///     pub amm_config: AccountInfo<'info>,
-///     pub token_0_mint: AccountInfo<'info>,
-///     pub token_1_mint: AccountInfo<'info>,
-/// }
-/// ```
-/// 
-/// This generates seed registry functions that `#[add_compressible_instructions(PoolState)]`
-/// can automatically discover and use.
-/// 
-/// ## Requirements
-/// 
-/// - Must be applied alongside `#[derive(Accounts)]`
-/// - At least one field must have `#[account(init, seeds = [...], bump)]`
-/// - The account type in the field must match the type used in `#[add_compressible_instructions]`
-#[proc_macro_derive(Compressible)]
-pub fn compressible_derive(input: TokenStream) -> TokenStream {
-    compressible_derive::derive_compressible(syn::parse_macro_input!(input))
-        .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
