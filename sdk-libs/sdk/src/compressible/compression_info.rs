@@ -11,6 +11,58 @@ pub trait HasCompressionInfo {
     fn set_compression_info_none(&mut self);
 }
 
+/// Trait for accounts that want to customize their compressed state
+/// instead of just copying the current onchain state
+pub trait CompressAs {
+    /// The type that will be stored in the compressed state.
+    /// Can be `Self` or a different type entirely for maximum flexibility.
+    type Output: crate::AnchorSerialize
+        + crate::AnchorDeserialize
+        + crate::LightDiscriminator
+        + crate::account::Size
+        + HasCompressionInfo
+        + Default
+        + std::fmt::Debug;
+
+    /// Returns the data that should be stored in the compressed state.
+    /// This allows developers to reset some fields while keeping others,
+    /// or even return a completely different type.
+    ///
+    /// # Example - Same Type (most common)
+    /// ```rust
+    /// impl CompressAs for Oracle {
+    ///     type Output = Self;
+    ///     
+    ///     fn compress_as(&self) -> Self::Output {
+    ///         Self {
+    ///             initialized: false,        // reset to false
+    ///             observation_index: 0,      // reset to 0
+    ///             pool_id: self.pool_id,     // keep current value
+    ///             observations: None,        // reset to None
+    ///             compression_info: self.compression_info.clone(),
+    ///             padding: self.padding,
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Example - Different Type (advanced)
+    /// ```rust
+    /// impl CompressAs for LargeGameState {
+    ///     type Output = CompactGameState;
+    ///     
+    ///     fn compress_as(&self) -> Self::Output {
+    ///         CompactGameState {
+    ///             player_id: self.player_id,
+    ///             level: self.level,
+    ///             // Skip large arrays, temporary state, etc.
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn compress_as(&self) -> Self::Output;
+}
+
 /// Information for compressible accounts that tracks when the account was last
 /// written
 #[derive(Clone, Debug, Default, AnchorSerialize, AnchorDeserialize)]
