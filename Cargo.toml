@@ -41,11 +41,7 @@ members = [
     "program-tests/system-cpi-v2-test",
     "program-tests/system-test",
     "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
-<<<<<<< HEAD
-    "program-tests/sdk-test",
     "program-tests/sdk-token-test",
-=======
->>>>>>> 05746a1b0 (wip)
     "program-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",

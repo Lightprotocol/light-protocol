@@ -41,7 +41,7 @@ async fn test_complete_compressible_flow() {
     let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &native_compressible::ID);
 
     // Get address tree for the address space
-    let address_tree = rpc.get_address_merkle_tree_v2();
+    let address_tree = rpc.get_address_tree_v2().queue;
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -63,7 +63,7 @@ async fn test_complete_compressible_flow() {
     let seeds: &[&[u8]] = &[b"dynamic_pda"];
     let (pda_pubkey, _bump) = Pubkey::find_program_address(seeds, &native_compressible::ID);
 
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     let compressed_address = derive_address(
         &pda_pubkey.to_bytes(),
@@ -117,7 +117,7 @@ async fn create_and_compress_account(
     let (pda_pubkey, _bump) = Pubkey::find_program_address(seeds, &native_compressible::ID);
 
     // Get address tree
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     // Derive compressed address
     let compressed_address = derive_address(
@@ -207,7 +207,7 @@ async fn decompress_account(
     test_data: [u8; 31],
 ) {
     // Get the compressed address
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
     let compressed_address = derive_address(
         &pda_pubkey.to_bytes(),
         &address_tree_pubkey.to_bytes(),
@@ -280,7 +280,7 @@ async fn compress_existing_account(
     assert!(account.lamports > 0, "PDA account should have lamports");
 
     // Get the compressed address
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
     let compressed_address = derive_address(
         &pda_pubkey.to_bytes(),
         &address_tree_pubkey.to_bytes(),
