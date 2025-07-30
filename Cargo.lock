@@ -309,6 +309,7 @@ dependencies = [
  "light-sdk-macros",
  "light-sdk-types",
  "light-test-utils",
+ "solana-logger",
  "solana-program",
  "solana-sdk",
  "tokio",
@@ -3525,6 +3526,7 @@ dependencies = [
  "light-macros",
  "light-sdk-types",
  "solana-msg",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -5659,22 +5661,6 @@ dependencies = [
  "light-sdk-pinocchio",
  "light-sdk-types",
  "pinocchio",
- "solana-sdk",
- "tokio",
-]
-
-[[package]]
-name = "sdk-test"
-version = "1.0.0"
-dependencies = [
- "borsh 0.10.4",
- "light-compressed-account",
- "light-hasher",
- "light-macros",
- "light-program-test",
- "light-sdk",
- "light-sdk-types",
- "solana-program",
  "solana-sdk",
  "tokio",
 ]

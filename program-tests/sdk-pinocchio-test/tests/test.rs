@@ -32,7 +32,7 @@ async fn test_sdk_test() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
     let account_data = [1u8; 31];
 
     // // V1 trees
