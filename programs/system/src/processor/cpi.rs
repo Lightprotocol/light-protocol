@@ -29,8 +29,8 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
     remaining_accounts: &'info [AccountInfo],
 ) -> Result<(SystemContext<'info>, Vec<u8>)> {
     let account_infos = vec![
-        ctx.get_account_compression_authority(),
-        ctx.get_registered_program_pda(),
+        ctx.get_account_compression_authority()?,
+        ctx.get_registered_program_pda()?,
     ];
     let accounts = vec![
         AccountMeta::new(account_infos[0].key(), false, true),
