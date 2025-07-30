@@ -8,6 +8,7 @@ use traits::process_light_traits;
 
 mod account;
 mod accounts;
+mod compress_as;
 mod compressible;
 mod cpi_signer;
 mod discriminator;
@@ -289,6 +290,59 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
     compressible::derive_has_compression_info(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Automatically implements the CompressAs trait for structs with custom compression logic.
+///
+/// This derive macro allows you to specify which fields should be reset/overridden
+/// during compression while keeping other fields as-is. Only the specified fields
+/// are modified; all others retain their current values.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::compressible::{CompressAs, CompressionInfo, HasCompressionInfo};
+/// use light_sdk_macros::{CompressAs, HasCompressionInfo};
+///
+/// #[derive(CompressAs, HasCompressionInfo)]
+/// #[compressible_as(
+///     start_time = 0,
+///     end_time = None,
+///     score = 0
+///     // All other fields (session_id, player, game_type, compression_info)
+///     // are kept as-is automatically
+/// )]
+/// pub struct GameSession {
+///     #[skip]
+///     pub compression_info: Option<CompressionInfo>,
+///     pub session_id: u64,
+///     pub player: Pubkey,
+///     pub game_type: String,
+///     pub start_time: u64,
+///     pub end_time: Option<u64>,
+///     pub score: u64,
+/// }
+/// ```
+///
+/// ## Usage with add_compressible_instructions
+///
+/// When a struct implements CompressAs (via this derive), the `add_compressible_instructions`
+/// macro will ONLY generate the custom compression instruction (`compress_mystruct_with_custom_data`).
+/// The regular compression instruction (`compress_mystruct`) will NOT be generated.
+///
+/// ## Requirements
+///
+/// - The struct must have named fields
+/// - All overridden field values must be valid expressions for the field types
+/// - The struct should also derive `HasCompressionInfo` for full compatibility
+/// - Must include `#[compressible_as(...)]` attribute with field overrides
+#[proc_macro_derive(CompressAs, attributes(compressible_as))]
+pub fn compress_as(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    compress_as::derive_compress_as(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

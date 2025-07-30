@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator, LightHasher};
-use light_sdk_macros::HasCompressionInfo;
+use light_sdk_macros::{CompressAs, HasCompressionInfo};
 
 #[derive(Debug, LightHasher, LightDiscriminator, HasCompressionInfo, Default, InitSpace)]
 #[account]
@@ -15,7 +15,15 @@ pub struct UserRecord {
     pub score: u64,
 }
 
-#[derive(Debug, LightHasher, LightDiscriminator, Default, InitSpace, HasCompressionInfo)]
+#[derive(
+    Debug, LightHasher, LightDiscriminator, Default, InitSpace, HasCompressionInfo, CompressAs,
+)]
+#[compressible_as(
+    start_time = 0,
+    end_time = None,
+    score = 0
+    // session_id, player, game_type, compression_info are kept as-is
+)]
 #[account]
 pub struct GameSession {
     #[skip]

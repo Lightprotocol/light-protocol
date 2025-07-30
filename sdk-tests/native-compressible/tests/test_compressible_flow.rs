@@ -143,7 +143,7 @@ async fn create_and_compress_account(
     // Setup remaining accounts
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(native_compressible::ID);
-    remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts(system_config);
 
     // Pack tree infos
     let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);

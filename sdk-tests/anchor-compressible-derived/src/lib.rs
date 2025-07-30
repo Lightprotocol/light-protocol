@@ -1,12 +1,11 @@
-
-pub mod state;
 pub mod instructions;
+pub mod state;
 
 pub use crate::state::{GameSession, UserRecord};
 
-use instructions::*;
 pub use crate::instructions::create_record::CreateRecord;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use instructions::*;
 use light_sdk::{
     compressible::{
         compress_account_on_init, prepare_accounts_for_compression_on_init, CompressibleConfig,
@@ -26,7 +25,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 // Simple anchor program retrofitted with compressible accounts.
 
-#[add_compressible_instructions(UserRecord, GameSession)]
+#[add_compressible_instructions(UserRecord, custom(GameSession))]
 #[program]
 pub mod anchor_compressible_derived {
 
