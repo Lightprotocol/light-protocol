@@ -83,6 +83,12 @@ impl Hasher for Poseidon {
     }
 
     fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
+        for val in vals {
+            if val.len() != 32 {
+                return Err(HasherError::InvalidInputLength(32, val.len()));
+            }
+        }
+
         // Perform the calculation inline, calling this from within a program is
         // not supported.
         #[cfg(not(target_os = "solana"))]
@@ -99,13 +105,6 @@ impl Hasher for Poseidon {
         #[cfg(target_os = "solana")]
         {
             use crate::HASH_BYTES;
-            // TODO: reenable once LightHasher refactor is merged
-            // solana_program::msg!("remove len check onchain.");
-            // for val in vals {
-            //     if val.len() != 32 {
-            //         return Err(HasherError::InvalidInputLength(val.len()));
-            //     }
-            // }
             let mut hash_result = [0; HASH_BYTES];
             let result = unsafe {
                 crate::syscalls::sol_poseidon(

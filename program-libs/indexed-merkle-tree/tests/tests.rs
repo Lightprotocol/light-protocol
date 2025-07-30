@@ -639,18 +639,18 @@ pub fn functional_non_inclusion_test() {
     assert_eq!(
         leaf_0,
         Poseidon::hashv(&[
-            &0_u32.to_biguint().unwrap().to_bytes_be(),
-            &1_u32.to_biguint().unwrap().to_bytes_be(),
-            &30_u32.to_biguint().unwrap().to_bytes_be()
+            &bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap()).unwrap(),
+            &bigint_to_be_bytes_array::<32>(&1_u32.to_biguint().unwrap()).unwrap(),
+            &bigint_to_be_bytes_array::<32>(&30_u32.to_biguint().unwrap()).unwrap()
         ])
         .unwrap()
     );
     assert_eq!(
         leaf_1,
         Poseidon::hashv(&[
-            &30_u32.to_biguint().unwrap().to_bytes_be(),
-            &0_u32.to_biguint().unwrap().to_bytes_be(),
-            &0_u32.to_biguint().unwrap().to_bytes_be()
+            &bigint_to_be_bytes_array::<32>(&30_u32.to_biguint().unwrap()).unwrap(),
+            &bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap()).unwrap(),
+            &bigint_to_be_bytes_array::<32>(&0_u32.to_biguint().unwrap()).unwrap()
         ])
         .unwrap()
     );
