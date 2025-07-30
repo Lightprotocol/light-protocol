@@ -359,6 +359,10 @@ pub(crate) fn add_compressible_instructions(
     for struct_name in ident_list.idents {
         let compress_fn_name =
             format_ident!("compress_{}", struct_name.to_string().to_snake_case());
+        let compress_custom_fn_name = format_ident!(
+            "compress_{}_with_custom_data",
+            struct_name.to_string().to_snake_case()
+        );
         let compress_accounts_name = format_ident!("Compress{}", struct_name);
 
         // Generate the compress accounts struct - generic without seeds constraints
@@ -379,9 +383,9 @@ pub(crate) fn add_compressible_instructions(
             }
         };
 
-        // Generate the compress instruction function
+        // Generate the standard compress instruction function
         let compress_instruction_fn: ItemFn = syn::parse_quote! {
-            /// Compresses a #struct_name PDA using config values
+            /// Compresses a #struct_name PDA using config values (copies current onchain state)
             pub fn #compress_fn_name<'info>(
                 ctx: Context<'_, '_, '_, 'info, #compress_accounts_name<'info>>,
                 proof: light_sdk::instruction::ValidityProof,
@@ -418,6 +422,47 @@ pub(crate) fn add_compressible_instructions(
             }
         };
 
+        // Generate the custom compress instruction function
+        let compress_custom_instruction_fn: ItemFn = syn::parse_quote! {
+            /// Compresses a #struct_name PDA using config values with custom compressed data.
+            /// The account type must implement CompressAs trait.
+            /// This allows resetting some fields while keeping others during compression.
+            pub fn #compress_custom_fn_name<'info>(
+                ctx: Context<'_, '_, '_, 'info, #compress_accounts_name<'info>>,
+                proof: light_sdk::instruction::ValidityProof,
+                compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
+            ) -> anchor_lang::Result<()> {
+                // Load config from AccountInfo
+                let config = light_sdk::compressible::CompressibleConfig::load_checked(
+                    &ctx.accounts.config,
+                    &super::ID
+                ).map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+                // Verify rent recipient matches config
+                if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+                    return err!(ErrorCode::InvalidRentRecipient);
+                }
+
+                let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
+                    &ctx.accounts.user,
+                    &ctx.remaining_accounts[..],
+                    LIGHT_CPI_SIGNER,
+                );
+
+                light_sdk::compressible::compress_account_with_custom_data::<#struct_name>(
+                    &mut ctx.accounts.pda_to_compress,
+                    &compressed_account_meta,
+                    proof,
+                    cpi_accounts,
+                    &ctx.accounts.rent_recipient,
+                    &config.compression_delay,
+                )
+                .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+                Ok(())
+            }
+        };
+
         // Generate Size implementation for the struct
         let size_impl: Item = syn::parse_quote! {
             impl light_sdk::Size for #struct_name {
@@ -430,6 +475,7 @@ pub(crate) fn add_compressible_instructions(
         // Add the generated items to the module
         content.1.push(Item::Struct(compress_accounts_struct));
         content.1.push(Item::Fn(compress_instruction_fn));
+        content.1.push(Item::Fn(compress_custom_instruction_fn));
         content.1.push(size_impl);
     }
 

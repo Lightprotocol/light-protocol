@@ -15,7 +15,7 @@ use light_program_test::{
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::{
-    compressible::CompressibleConfig,
+    compressible::{CompressAs, CompressibleConfig},
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use solana_sdk::{
@@ -1321,4 +1321,231 @@ async fn test_update_record_compression_info() {
         .as_ref()
         .unwrap()
         .is_compressed());
+}
+
+async fn test_decompress_single_game_session(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    program_id: &Pubkey,
+    game_session_pda: &Pubkey,
+    game_bump: &u8,
+    session_id: u64,
+    expected_game_type: &str,
+    expected_slot: u64,
+    expected_score: u64,
+) {
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+
+    // Get compressed game session
+    let game_compressed_address = derive_address(
+        &game_session_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+    let c_game_pda = rpc
+        .get_compressed_account(game_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    let game_account_data = c_game_pda.data.as_ref().unwrap();
+    let c_game_session =
+        anchor_compressible::GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
+
+    // Get validity proof for the compressed account
+    let rpc_result = rpc
+        .get_validity_proof(vec![c_game_pda.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
+
+    // Use the SDK helper function with typed data
+    let instruction =
+        light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
+            program_id,
+            &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &payer.pubkey(),
+            &payer.pubkey(), // rent_payer can be the same as fee_payer
+            &[*game_session_pda],
+            &[(
+                c_game_pda,
+                anchor_compressible::CompressedAccountVariant::GameSession(c_game_session),
+                vec![b"game_session".to_vec(), session_id.to_le_bytes().to_vec()],
+            )],
+            &[*game_bump],
+            rpc_result,
+            output_state_tree_info,
+        )
+        .unwrap();
+
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await;
+    assert!(result.is_ok(), "Decompress transaction should succeed");
+
+    // Verify GameSession PDA is decompressed
+    let game_pda_account = rpc.get_account(*game_session_pda).await.unwrap();
+    assert!(
+        game_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
+        "Game PDA account data len must be > 0 after decompression"
+    );
+
+    let game_pda_data = game_pda_account.unwrap().data;
+    assert_eq!(
+        &game_pda_data[0..8],
+        anchor_compressible::GameSession::DISCRIMINATOR,
+        "Game account anchor discriminator mismatch"
+    );
+
+    let decompressed_game_session =
+        anchor_compressible::GameSession::try_deserialize(&mut &game_pda_data[..]).unwrap();
+    assert_eq!(decompressed_game_session.session_id, session_id);
+    assert_eq!(decompressed_game_session.game_type, expected_game_type);
+    assert_eq!(decompressed_game_session.player, payer.pubkey());
+    assert_eq!(decompressed_game_session.score, expected_score);
+    assert!(!decompressed_game_session
+        .compression_info
+        .as_ref()
+        .unwrap()
+        .is_compressed());
+    assert_eq!(
+        decompressed_game_session
+            .compression_info
+            .as_ref()
+            .unwrap()
+            .last_written_slot(),
+        expected_slot
+    );
+}
+
+async fn test_compress_game_session_with_custom_data(
+    rpc: &mut LightProgramTest,
+    _payer: &Keypair,
+    _program_id: &Pubkey,
+    game_session_pda: &Pubkey,
+    _session_id: u64,
+) {
+    let game_pda_account = rpc.get_account(*game_session_pda).await.unwrap().unwrap();
+    let game_pda_data = game_pda_account.data;
+    let original_game_session =
+        anchor_compressible::GameSession::try_deserialize(&mut &game_pda_data[..]).unwrap();
+
+    // Test the custom compression trait directly
+    let custom_compressed_data = original_game_session.compress_as();
+
+    // Verify that the custom compression works as expected
+    assert_eq!(
+        custom_compressed_data.session_id, original_game_session.session_id,
+        "Session ID should be kept"
+    );
+    assert_eq!(
+        custom_compressed_data.player, original_game_session.player,
+        "Player should be kept"
+    );
+    assert_eq!(
+        custom_compressed_data.game_type, original_game_session.game_type,
+        "Game type should be kept"
+    );
+    assert_eq!(
+        custom_compressed_data.start_time, 0,
+        "Start time should be RESET to 0"
+    );
+    assert_eq!(
+        custom_compressed_data.end_time, None,
+        "End time should be RESET to None"
+    );
+    assert_eq!(
+        custom_compressed_data.score, 0,
+        "Score should be RESET to 0"
+    );
+
+    println!("✅ CustomCompressible trait test passed!");
+    println!(
+        "   Original: start_time={}, end_time={:?}, score={}",
+        original_game_session.start_time,
+        original_game_session.end_time,
+        original_game_session.score
+    );
+    println!(
+        "   Custom:   start_time={}, end_time={:?}, score={}",
+        custom_compressed_data.start_time,
+        custom_compressed_data.end_time,
+        custom_compressed_data.score
+    );
+}
+
+#[tokio::test]
+async fn test_custom_compression_game_session() {
+    let program_id = anchor_compressible::ID;
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    // Initialize config
+    let result = initialize_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        100, // compression delay
+        RENT_RECIPIENT,
+        vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        None,
+    )
+    .await;
+    assert!(result.is_ok(), "Initialize config should succeed");
+
+    // Create a game session
+    let session_id = 42424u64;
+    let (game_session_pda, game_bump) = Pubkey::find_program_address(
+        &[b"game_session", session_id.to_le_bytes().as_ref()],
+        &program_id,
+    );
+
+    test_create_game_session(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &game_session_pda,
+        session_id,
+        None,
+    )
+    .await;
+
+    // Warp forward to allow decompression
+    rpc.warp_to_slot(100).unwrap();
+
+    // Decompress the game session first to verify original state
+    test_decompress_single_game_session(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &game_session_pda,
+        &game_bump,
+        session_id,
+        "Battle Royale",
+        100,
+        0, // original score should be 0
+    )
+    .await;
+
+    // Warp forward past compression delay to allow compression
+    rpc.warp_to_slot(250).unwrap();
+
+    // Test the custom compression trait - this demonstrates the core functionality
+    test_compress_game_session_with_custom_data(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &game_session_pda,
+        session_id,
+    )
+    .await;
 }

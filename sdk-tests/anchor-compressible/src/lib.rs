@@ -2,9 +2,10 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_sdk::{
     account::Size,
     compressible::{
-        compress_account, compress_account_on_init, prepare_accounts_for_compression_on_init,
-        prepare_accounts_for_decompress_idempotent, process_initialize_compression_config_checked,
-        process_update_compression_config, CompressibleConfig, CompressionInfo, HasCompressionInfo,
+        compress_account, compress_account_on_init, compress_account_with_custom_data,
+        prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
+        process_initialize_compression_config_checked, process_update_compression_config,
+        CompressAs, CompressibleConfig, CompressionInfo, HasCompressionInfo,
     },
     cpi::{CpiAccounts, CpiInputs},
     derive_light_cpi_signer,
@@ -76,6 +77,24 @@ pub mod anchor_compressible {
 
         // 1. Must manually set compression info
         user_record.compression_info_mut().set_last_written_slot()?;
+
+        Ok(())
+    }
+
+    pub fn update_game_session(
+        ctx: Context<UpdateGameSession>,
+        _session_id: u64,
+        new_score: u64,
+    ) -> Result<()> {
+        let game_session = &mut ctx.accounts.game_session;
+
+        game_session.score = new_score;
+        game_session.end_time = Some(Clock::get()?.unix_timestamp as u64);
+
+        // Must manually set compression info
+        game_session
+            .compression_info_mut()
+            .set_last_written_slot()?;
 
         Ok(())
     }
@@ -414,6 +433,43 @@ pub mod anchor_compressible {
 
         Ok(())
     }
+
+    /// Compresses a GameSession PDA with custom data using config values.
+    /// This demonstrates the custom compression feature which allows resetting
+    /// some fields (start_time, end_time, score) while keeping others (session_id, player, game_type).
+    pub fn compress_game_session_with_custom_data<'info>(
+        ctx: Context<'_, '_, '_, 'info, CompressGameSession<'info>>,
+        _session_id: u64,
+        proof: ValidityProof,
+        compressed_account_meta: CompressedAccountMeta,
+    ) -> Result<()> {
+        let game_session = &mut ctx.accounts.pda_to_compress;
+
+        // Load config from the config account
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
+
+        // Verify rent recipient matches config
+        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+            return err!(ErrorCode::InvalidRentRecipient);
+        }
+
+        let cpi_accounts = CpiAccounts::new(
+            &ctx.accounts.player,
+            ctx.remaining_accounts,
+            LIGHT_CPI_SIGNER,
+        );
+
+        compress_account_with_custom_data::<GameSession>(
+            game_session,
+            &compressed_account_meta,
+            proof,
+            cpi_accounts,
+            &ctx.accounts.rent_recipient,
+            &config.compression_delay,
+        )?;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -516,6 +572,20 @@ pub struct UpdateRecord<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(session_id: u64)]
+pub struct UpdateGameSession<'info> {
+    #[account(mut)]
+    pub player: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"game_session", session_id.to_le_bytes().as_ref()],
+        bump,
+        constraint = game_session.player == player.key()
+    )]
+    pub game_session: Account<'info, GameSession>,
+}
+
+#[derive(Accounts)]
 pub struct CompressRecord<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -527,6 +597,27 @@ pub struct CompressRecord<'info> {
     )]
     pub pda_to_compress: Account<'info, UserRecord>,
     // pub system_program: Program<'info, System>,
+    /// The global config account
+    /// CHECK: Config is validated by the SDK's load_checked method
+    pub config: AccountInfo<'info>,
+    /// Rent recipient - must match config
+    /// CHECK: Rent recipient is validated against the config
+    #[account(mut)]
+    pub rent_recipient: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(session_id: u64)]
+pub struct CompressGameSession<'info> {
+    #[account(mut)]
+    pub player: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"game_session", session_id.to_le_bytes().as_ref()],
+        bump,
+        constraint = pda_to_compress.player == player.key()
+    )]
+    pub pda_to_compress: Account<'info, GameSession>,
     /// The global config account
     /// CHECK: Config is validated by the SDK's load_checked method
     pub config: AccountInfo<'info>,
@@ -741,6 +832,22 @@ impl HasCompressionInfo for GameSession {
 impl Size for GameSession {
     fn size(&self) -> usize {
         Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE
+    }
+}
+
+impl CompressAs for GameSession {
+    type Output = Self;
+
+    fn compress_as(&self) -> Self::Output {
+        Self {
+            compression_info: self.compression_info.clone(), // Keep for internal use
+            session_id: self.session_id,                     // KEEP - identifier
+            player: self.player,                             // KEEP - identifier
+            game_type: self.game_type.clone(),               // KEEP - core property
+            start_time: 0,                                   // RESET - clear timing
+            end_time: None,                                  // RESET - clear timing
+            score: 0,                                        // RESET - clear progress
+        }
     }
 }
 
