@@ -203,7 +203,7 @@ impl CompressibleInstruction {
         // Create system accounts internally (same pattern as decompress_accounts_idempotent)
         let mut remaining_accounts = PackedAccounts::default();
         let system_config = SystemAccountMetaConfig::new(*program_id);
-        remaining_accounts.add_system_accounts(system_config);
+        let _ = remaining_accounts.add_system_accounts(system_config);
 
         // Pack tree infos into remaining accounts
         let packed_tree_infos =
@@ -301,7 +301,7 @@ impl CompressibleInstruction {
         // Setup remaining accounts to get tree infos
         let mut remaining_accounts = PackedAccounts::default();
         let system_config = SystemAccountMetaConfig::new(*program_id);
-        remaining_accounts.add_system_accounts(system_config);
+        let _ = remaining_accounts.add_system_accounts(system_config);
 
         for pda in solana_accounts {
             remaining_accounts.add_pre_accounts_meta(AccountMeta::new(*pda, false));

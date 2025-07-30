@@ -6,11 +6,14 @@ use solana_clock::Clock;
 use solana_msg::msg;
 use solana_sysvar::Sysvar;
 
+#[cfg(feature = "anchor")]
+use crate::compressible::compression_info::CompressAs;
+
 use crate::{
     account::sha::LightAccount,
     compressible::{
         compress_account_on_init::close,
-        compression_info::{CompressAs, HasCompressionInfo},
+        compression_info::{HasCompressionInfo},
     },
     cpi::{CpiAccounts, CpiInputs},
     error::LightSdkError,
