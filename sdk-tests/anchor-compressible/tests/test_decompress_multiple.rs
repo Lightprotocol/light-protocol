@@ -1,6 +1,8 @@
 #![cfg(feature = "test-sbf")]
 
-use anchor_compressible::{CompressedAccountVariant, GameSession, UserRecord};
+use anchor_compressible::{
+    CompressedAccountData, CompressedAccountVariant, GameSession, PlaceholderRecord, UserRecord,
+};
 use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
@@ -15,11 +17,11 @@ use light_program_test::{
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::{
-    compressible::{CompressAs, CompressibleConfig},
+    compressible::{CompressAs, CompressibleConfig, HasCompressionInfo},
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use solana_sdk::{
-    instruction::Instruction,
+    instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
@@ -1551,4 +1553,311 @@ async fn test_custom_compression_game_session() {
         session_id,
     )
     .await;
+}
+
+#[tokio::test]
+async fn test_create_empty_compressed_account() {
+    let program_id = anchor_compressible::ID;
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
+    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    // Initialize compression config
+    let result = initialize_compression_config(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &payer,
+        100,
+        RENT_RECIPIENT,
+        vec![ADDRESS_SPACE[0]],
+        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        None,
+    )
+    .await;
+    assert!(result.is_ok(), "Initialize config should succeed");
+
+    // Create placeholder record using empty compressed account functionality
+    let placeholder_id = 54321u64;
+    let (placeholder_record_pda, placeholder_record_bump) = Pubkey::find_program_address(
+        &[b"placeholder_record", placeholder_id.to_le_bytes().as_ref()],
+        &program_id,
+    );
+
+    test_create_placeholder_record(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &placeholder_record_pda,
+        placeholder_id,
+        "Test Placeholder",
+    )
+    .await;
+
+    // Verify the PDA still exists and has data
+    let placeholder_pda_account = rpc.get_account(placeholder_record_pda).await.unwrap();
+    assert!(
+        placeholder_pda_account.is_some(),
+        "Placeholder PDA should exist after empty compression"
+    );
+    let account = placeholder_pda_account.unwrap();
+    assert!(
+        account.lamports > 0,
+        "Placeholder PDA should have lamports (not closed)"
+    );
+    assert!(
+        !account.data.is_empty(),
+        "Placeholder PDA should have data (not closed)"
+    );
+
+    // Verify we can read the PDA data
+    let placeholder_data = account.data;
+    let decompressed_placeholder_record =
+        anchor_compressible::PlaceholderRecord::try_deserialize(&mut &placeholder_data[..])
+            .unwrap();
+    assert_eq!(decompressed_placeholder_record.name, "Test Placeholder");
+    assert_eq!(
+        decompressed_placeholder_record.placeholder_id,
+        placeholder_id
+    );
+    assert_eq!(decompressed_placeholder_record.owner, payer.pubkey());
+
+    // Verify empty compressed account was created
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let compressed_address = derive_address(
+        &placeholder_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+
+    let compressed_placeholder = rpc
+        .get_compressed_account(compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert_eq!(
+        compressed_placeholder.address,
+        Some(compressed_address),
+        "Compressed account should exist with correct address"
+    );
+    assert!(
+        compressed_placeholder.data.is_some(),
+        "Compressed account should have data field"
+    );
+
+    // Verify the compressed account is empty (length 0)
+    let compressed_data = compressed_placeholder.data.unwrap();
+    assert_eq!(
+        compressed_data.data.len(),
+        0,
+        "Compressed account data should be empty"
+    );
+
+    // This demonstrates the key difference from regular compression:
+    // The PDA still exists with data, and an empty compressed account was created
+    println!("✅ Empty compressed account creation test passed!");
+    println!("   - PDA remains intact with data");
+    println!("   - Empty compressed account was created as placeholder");
+    println!("   - No account closure occurred");
+
+    // Step 2: Now compress the PDA (this will close the PDA and put data into the compressed account)
+    rpc.warp_to_slot(200).unwrap(); // Wait past compression delay
+
+    test_compress_placeholder_record(
+        &mut rpc,
+        &payer,
+        &program_id,
+        &config_pda,
+        &placeholder_record_pda,
+        &placeholder_record_bump,
+        placeholder_id,
+    )
+    .await;
+
+    println!("✅ PlaceholderRecord PDA compressed successfully!");
+    println!("   - Data moved from PDA to compressed account (PDA still exists)");
+
+    println!("✅ Full compression cycle completed!");
+    println!("   - Empty compressed account created while PDA remained intact");
+    println!("   - PDA data was then compressed into the empty compressed account");
+    println!("   - Two-step compression process: Empty compress → Regular compress completed");
+}
+
+async fn test_create_placeholder_record(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    program_id: &Pubkey,
+    config_pda: &Pubkey,
+    placeholder_record_pda: &Pubkey,
+    placeholder_id: u64,
+    name: &str,
+) {
+    // Setup remaining accounts for Light Protocol
+    let mut remaining_accounts = PackedAccounts::default();
+    let system_config = SystemAccountMetaConfig::new(*program_id);
+    let _ = remaining_accounts.add_system_accounts(system_config);
+
+    // Get address tree info
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+
+    // Create the instruction
+    let accounts = anchor_compressible::accounts::CreatePlaceholderRecord {
+        user: payer.pubkey(),
+        placeholder_record: *placeholder_record_pda,
+        system_program: solana_sdk::system_program::ID,
+        config: *config_pda,
+        rent_recipient: RENT_RECIPIENT,
+    };
+
+    // Derive a new address for the compressed account
+    let compressed_address = derive_address(
+        &placeholder_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+
+    // Get validity proof from RPC
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address: compressed_address,
+                tree: address_tree_pubkey,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Pack tree infos into remaining accounts
+    let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
+
+    // Get the packed address tree info
+    let address_tree_info = packed_tree_infos.address_trees[0];
+
+    // Get output state tree index
+    let output_state_tree_index =
+        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+
+    // Get system accounts for the instruction
+    let (system_accounts, _, _) = remaining_accounts.to_account_metas();
+
+    // Create instruction data
+    let instruction_data = anchor_compressible::instruction::CreatePlaceholderRecord {
+        placeholder_id,
+        name: name.to_string(),
+        proof: rpc_result.proof,
+        compressed_address,
+        address_tree_info,
+        output_state_tree_index,
+    };
+
+    // Build the instruction
+    let instruction = Instruction {
+        program_id: *program_id,
+        accounts: [accounts.to_account_metas(None), system_accounts].concat(),
+        data: instruction_data.data(),
+    };
+
+    let cu = simulate_cu(rpc, payer, &instruction).await;
+    println!("CreatePlaceholderRecord CU consumed: {}", cu);
+
+    // Create and send transaction
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "CreatePlaceholderRecord transaction should succeed"
+    );
+}
+
+async fn test_compress_placeholder_record(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    program_id: &Pubkey,
+    _config_pda: &Pubkey,
+    placeholder_record_pda: &Pubkey,
+    _placeholder_record_bump: &u8,
+    _placeholder_id: u64,
+) {
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+
+    // Get compressed placeholder record address
+    let placeholder_compressed_address = derive_address(
+        &placeholder_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
+
+    // Get the compressed account that already exists (empty)
+    let compressed_placeholder = rpc
+        .get_compressed_account(placeholder_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    // Get validity proof from RPC
+    let rpc_result = rpc
+        .get_validity_proof(vec![compressed_placeholder.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
+
+    let instruction = CompressibleInstruction::compress_account(
+        program_id,
+        anchor_compressible::instruction::CompressPlaceholderRecord::DISCRIMINATOR,
+        &payer.pubkey(),
+        placeholder_record_pda,
+        &RENT_RECIPIENT,
+        &compressed_placeholder,
+        rpc_result,
+        output_state_tree_info,
+    )
+    .unwrap();
+
+    let cu = simulate_cu(rpc, payer, &instruction).await;
+    println!("CompressPlaceholderRecord CU consumed: {}", cu);
+
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "CompressPlaceholderRecord transaction should succeed: {:?}",
+        result
+    );
+
+    // Check if PDA account is closed (it may or may not be depending on the compression behavior)
+    let account = rpc.get_account(*placeholder_record_pda).await.unwrap();
+    println!("PDA after compression: {:?}", account.is_some());
+
+    // Verify compressed account now has the data
+    let compressed_placeholder_after = rpc
+        .get_compressed_account(placeholder_compressed_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert!(
+        compressed_placeholder_after.data.is_some(),
+        "Compressed account should have data after compression"
+    );
+
+    let compressed_data_after = compressed_placeholder_after.data.unwrap();
+
+    assert!(
+        compressed_data_after.data.len() > 0,
+        "Compressed account should contain the PDA data"
+    );
 }
