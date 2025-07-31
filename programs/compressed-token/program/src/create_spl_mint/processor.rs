@@ -2,10 +2,15 @@ use anchor_lang::solana_program::{
     program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
 };
 use arrayvec::ArrayVec;
-use light_compressed_account::pubkey::AsPubkey;
+use light_compressed_account::{
+    instruction_data::cpi_context::CompressedCpiContext, pubkey::AsPubkey,
+};
 use light_ctoken_types::{
     context::TokenContext,
-    instructions::create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
+    instructions::{
+        create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
+        mint_to_compressed::CpiContext,
+    },
     state::{CompressedMint, CompressedMintConfig},
     COMPRESSED_MINT_SEED,
 };
@@ -136,7 +141,7 @@ fn update_compressed_mint_to_decompressed<'info>(
             crate::LIGHT_CPI_SIGNER.bump,
             &crate::LIGHT_CPI_SIGNER.program_id.into(),
             instruction_data.mint.proof,
-            None,
+            &Option::<CompressedCpiContext>::None,
         )?;
 
         let mut context = TokenContext::new();

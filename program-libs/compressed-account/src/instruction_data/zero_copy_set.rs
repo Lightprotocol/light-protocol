@@ -117,6 +117,11 @@ impl ZInAccountMut<'_> {
     }
 }
 
+pub trait CompressedCpiContextTrait {
+    fn set_context(&self) -> u8;
+    fn first_set_context(&self) -> u8;
+}
+
 impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
     #[inline]
     pub fn initialize(
@@ -124,7 +129,7 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
         bump: u8,
         invoking_program_id: &Pubkey,
         input_proof: Option<<CompressedProof as Deserialize>::Output>,
-        cpi_context: Option<CompressedCpiContext>,
+        cpi_context: &Option<impl CompressedCpiContextTrait>,
     ) -> Result<(), CompressedAccountError> {
         self.mode = 1; // Small ix mode
         self.bump = bump;
@@ -141,9 +146,9 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
         }
         if let Some(cpi_context) = cpi_context {
             self.with_cpi_context = 1;
-            self.cpi_context.cpi_context_account_index = cpi_context.cpi_context_account_index;
-            self.cpi_context.first_set_context = cpi_context.first_set_context as u8;
-            self.cpi_context.set_context = cpi_context.set_context as u8;
+            self.cpi_context.cpi_context_account_index = 0;
+            self.cpi_context.first_set_context = cpi_context.first_set_context();
+            self.cpi_context.set_context = cpi_context.set_context();
         }
 
         Ok(())

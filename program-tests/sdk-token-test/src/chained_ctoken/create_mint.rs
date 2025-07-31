@@ -8,8 +8,9 @@ use super::CreateCompressedMint;
 use crate::LIGHT_CPI_SIGNER;
 use light_compressed_token_sdk::instructions::create_compressed_mint::CpiContextWriteAccounts;
 use light_compressed_token_sdk::CompressedCpiContext;
-use light_ctoken_types::instructions::extensions::{
-    ExtensionInstructionData, TokenMetadataInstructionData,
+use light_ctoken_types::instructions::{
+    create_compressed_mint::CpiContext,
+    extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
 };
 use light_sdk_types::CpiAccountsSmall;
 
@@ -50,10 +51,11 @@ pub fn create_compressed_mint<'a, 'b, 'c, 'info>(
         mint_signer: *ctx.accounts.mint_seed.key,
         payer: ctx.accounts.payer.key(),
         mint_address: input.compressed_mint_address,
-        cpi_context: CompressedCpiContext {
+        cpi_context: CpiContext {
             set_context: false,
             first_set_context: true,
-            cpi_context_account_index: 0,
+            address_tree_index: 0,
+            out_queue_index: 1,
         },
         cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
     };

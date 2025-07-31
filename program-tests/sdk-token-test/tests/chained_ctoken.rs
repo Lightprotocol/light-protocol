@@ -15,6 +15,7 @@ use light_ctoken_types::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 
+use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{
     create_mint::CreateCompressedMintInstructionData, mint_to::MintToCompressedInstructionData, ID,
@@ -100,15 +101,30 @@ pub async fn create_mint<R: Rpc + Indexer>(
 
     // Find mint bump for the instruction
     let (_spl_mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
-
+    let pda_address_seed = hash_to_bn254_field_size_be(
+        [b"escrow", payer.pubkey().to_bytes().as_ref()]
+            .concat()
+            .as_slice(),
+    );
+    let pda_address = derive_address(
+        &pda_address_seed,
+        &address_tree_pubkey.to_bytes(),
+        &ID.to_bytes(),
+    );
     // Get validity proof for address creation
     let rpc_result = rpc
         .get_validity_proof(
             vec![],
-            vec![light_client::indexer::AddressWithTree {
-                address: compressed_mint_address,
-                tree: address_tree_pubkey,
-            }],
+            vec![
+                light_client::indexer::AddressWithTree {
+                    address: pda_address, // is first, because we execute the cpi context with this ix
+                    tree: address_tree_pubkey,
+                },
+                light_client::indexer::AddressWithTree {
+                    address: compressed_mint_address,
+                    tree: address_tree_pubkey,
+                },
+            ],
             None,
         )
         .await?
@@ -134,22 +150,6 @@ pub async fn create_mint<R: Rpc + Indexer>(
 
     // Create mint_to_compressed instruction data
     let mint_inputs = MintToCompressedInstructionData {
-        compressed_mint_inputs: CompressedMintInputs {
-            compressed_mint_input: light_ctoken_types::state::CompressedMint {
-                version: 0, // TODO: use onchain
-                spl_mint: find_spl_mint_address(&mint_seed.pubkey()).0.into(),
-                supply: 0,
-                decimals,
-                is_decompressed: false,
-                mint_authority: Some(mint_authority.pubkey().into()),
-                freeze_authority: freeze_authority.map(|fa| fa.into()),
-                extensions: None,
-            },
-            leaf_index: 0,
-            prove_by_index: false,
-            root_index: 0,
-            address: compressed_mint_address,
-        },
         recipients: vec![Recipient {
             recipient: payer.pubkey().into(),
             amount: 1000u64, // Mint 1000 tokens
@@ -165,13 +165,31 @@ pub async fn create_mint<R: Rpc + Indexer>(
         ctoken_program: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
         ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
     };
+
+    // Create PDA parameters
+    let pda_amount = 100u64;
+
+    let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {
+        seed: pda_address_seed,
+        address_queue_account_index: 0,
+        address_merkle_tree_account_index: 0,
+        address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
+        assigned_account_index: 0,
+        assigned_to_account: true,
+    };
+    let output_tree_index = packed_accounts.insert_or_get(tree_info.get_output_pubkey().unwrap());
+    assert_eq!(output_tree_index, 1);
     let remaining_accounts = packed_accounts.to_account_metas().0;
 
     // Create the instruction
     let instruction_data = sdk_token_test::instruction::ChainedCtoken {
         inputs,
         mint_inputs,
-        compressed_proof: rpc_result.proof.0.unwrap(),
+        pda_proof: rpc_result.proof,
+        output_tree_index,
+        amount: pda_amount,
+        address: pda_address,
+        new_address_params: pda_new_address_params,
     };
     let ix = solana_sdk::instruction::Instruction {
         program_id: ID,

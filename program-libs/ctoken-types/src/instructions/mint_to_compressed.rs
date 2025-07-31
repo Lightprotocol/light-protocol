@@ -1,8 +1,10 @@
 use light_compressed_account::{
-    instruction_data::{compressed_proof::CompressedProof, cpi_context::CompressedCpiContext},
+    instruction_data::{
+        compressed_proof::CompressedProof, zero_copy_set::CompressedCpiContextTrait,
+    },
     Pubkey,
 };
-use light_zero_copy::ZeroCopy;
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
     instructions::create_compressed_mint::UpdateCompressedMintInstructionData,
@@ -31,5 +33,24 @@ pub struct MintToCompressedInstructionData {
     pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
     pub proof: Option<CompressedProof>,
-    pub cpi_context: Option<CompressedCpiContext>,
+    pub cpi_context: Option<CpiContext>,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
+pub struct CpiContext {
+    pub set_context: bool,
+    pub first_set_context: bool,
+    pub in_tree_index: u8,
+    pub in_queue_index: u8,
+    pub out_queue_index: u8,
+    pub token_out_queue_index: u8,
+}
+impl CompressedCpiContextTrait for ZCpiContext<'_> {
+    fn first_set_context(&self) -> u8 {
+        self.first_set_context() as u8
+    }
+
+    fn set_context(&self) -> u8 {
+        self.set_context() as u8
+    }
 }

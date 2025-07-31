@@ -1,7 +1,8 @@
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_compressed_token_types::CompressedCpiContext;
 use light_ctoken_types::{
-    self, instructions::extensions::ExtensionInstructionData, COMPRESSED_MINT_SEED,
+    self,
+    instructions::{create_compressed_mint::CpiContext, extensions::ExtensionInstructionData},
+    COMPRESSED_MINT_SEED,
 };
 use solana_instruction::Instruction;
 use solana_msg::msg;
@@ -44,7 +45,7 @@ pub struct CreateCompressedMintInputs {
 pub fn create_compressed_mint_cpi(
     input: CreateCompressedMintInputs,
     mint_address: [u8; 32],
-    cpi_context: Option<CompressedCpiContext>,
+    cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
     use light_ctoken_types::instructions::create_compressed_mint::CreateCompressedMintInstructionData;
 
@@ -95,7 +96,7 @@ pub struct CreateCompressedMintInputsCpiWrite {
     pub mint_signer: Pubkey,
     pub payer: Pubkey,
     pub mint_address: [u8; 32],
-    pub cpi_context: CompressedCpiContext,
+    pub cpi_context: CpiContext,
     pub cpi_context_pubkey: Pubkey,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub version: u8,

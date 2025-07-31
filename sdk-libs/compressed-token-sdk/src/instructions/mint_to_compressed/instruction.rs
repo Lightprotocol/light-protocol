@@ -1,8 +1,9 @@
-use light_compressed_token_types::CompressedCpiContext;
 use light_ctoken_types::{
     instructions::{
         create_compressed_mint::UpdateCompressedMintInstructionData,
-        mint_to_compressed::{CompressedMintInputs, MintToCompressedInstructionData, Recipient},
+        mint_to_compressed::{
+            CompressedMintInputs, CpiContext, MintToCompressedInstructionData, Recipient,
+        },
     },
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
@@ -12,8 +13,9 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::{Result, TokenSdkError},
     instructions::mint_to_compressed::account_metas::{
-        get_mint_to_compressed_instruction_account_metas, get_mint_to_compressed_instruction_account_metas_cpi_write,
-        MintToCompressedMetaConfig, MintToCompressedMetaConfigCpiWrite,
+        get_mint_to_compressed_instruction_account_metas,
+        get_mint_to_compressed_instruction_account_metas_cpi_write, MintToCompressedMetaConfig,
+        MintToCompressedMetaConfigCpiWrite,
     },
     AnchorSerialize,
 };
@@ -40,7 +42,7 @@ pub struct MintToCompressedInputs {
 /// Create a mint_to_compressed instruction
 pub fn create_mint_to_compressed_instruction(
     inputs: MintToCompressedInputs,
-    cpi_context: Option<CompressedCpiContext>,
+    cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
     let MintToCompressedInputs {
         compressed_mint_inputs,
@@ -136,7 +138,7 @@ pub struct MintToCompressedInputsCpiWrite {
     pub recipients: Vec<Recipient>,
     pub mint_authority: Pubkey,
     pub payer: Pubkey,
-    pub cpi_context: CompressedCpiContext,
+    pub cpi_context: CpiContext,
     pub cpi_context_pubkey: Pubkey,
     pub version: u8,
 }

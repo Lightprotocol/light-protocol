@@ -53,14 +53,15 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         };
         let (mut cpi_context_account, outputs_offsets) =
             deserialize_cpi_context_account(cpi_context_account_info)?;
-
+        // TODO: fix, we use an output you don't pass a Merkle tree but cpi context is always associated with a merkle tree
+        /*
         if !cpi_context.first_set_context && !cpi_context.set_context {
             validate_cpi_context_associated_with_merkle_tree(
                 &instruction_data,
                 &cpi_context_account,
                 remaining_accounts,
             )?;
-        }
+        }*/
         if cpi_context.set_context || cpi_context.first_set_context {
             set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
             return Ok(None);

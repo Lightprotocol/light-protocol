@@ -59,7 +59,6 @@ use crate::{
     process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
     process_update_deposit::process_update_deposit,
 };
-use light_compressed_token_sdk::CompressedProof;
 use light_sdk::address::v1::derive_address;
 use light_sdk_types::CpiAccountsConfig;
 
@@ -285,9 +284,13 @@ pub mod sdk_token_test {
         ctx: Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
         inputs: CreateCompressedMintInstructionData,
         mint_inputs: MintToCompressedInstructionData,
-        compressed_proof: CompressedProof,
+        pda_proof: light_compressed_token_sdk::ValidityProof,
+        output_tree_index: u8,
+        amount: u64,
+        address: [u8; 32],
+        new_address_params: light_sdk::address::NewAddressParamsAssignedPacked,
     ) -> Result<()> {
-        process_chained_ctoken(ctx, inputs, mint_inputs, compressed_proof)
+        process_chained_ctoken(ctx, inputs, mint_inputs, pda_proof, output_tree_index, amount, address, new_address_params)
     }
 }
 

@@ -52,7 +52,7 @@ pub fn process_mint_to_compressed(
     let write_to_cpi_context = parsed_instruction_data
         .cpi_context
         .as_ref()
-        .map(|x| x.first_set_context || x.set_context)
+        .map(|x| x.first_set_context() || x.set_context())
         .unwrap_or_default();
     msg!("write_to_cpi_context: {}", write_to_cpi_context);
     // Validate and parse accounts
@@ -74,7 +74,7 @@ pub fn process_mint_to_compressed(
         LIGHT_CPI_SIGNER.bump,
         &LIGHT_CPI_SIGNER.program_id.into(),
         parsed_instruction_data.proof,
-        parsed_instruction_data.cpi_context,
+        &parsed_instruction_data.cpi_context,
     )?;
 
     if let Some(lamports) = parsed_instruction_data.lamports {
@@ -89,6 +89,18 @@ pub fn process_mint_to_compressed(
     let hashed_mint_authority = context.get_or_hash_pubkey(validated_accounts.authority.key());
 
     {
+        let merkle_tree_pubkey_index =
+            if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
+                cpi_context.in_tree_index
+            } else {
+                0
+            };
+        let queue_pubkey_index =
+            if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
+                cpi_context.in_queue_index
+            } else {
+                1
+            };
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
@@ -96,8 +108,8 @@ pub fn process_mint_to_compressed(
             &parsed_instruction_data.compressed_mint_inputs,
             &hashed_mint_authority,
             PackedMerkleContext {
-                merkle_tree_pubkey_index: 0,
-                queue_pubkey_index: 1,
+                merkle_tree_pubkey_index,
+                queue_pubkey_index,
                 leaf_index: parsed_instruction_data
                     .compressed_mint_inputs
                     .leaf_index
@@ -131,7 +143,12 @@ pub fn process_mint_to_compressed(
             .sum::<u64>()
             .into();
         let supply = mint_inputs.supply + sum_amounts;
-
+        let queue_pubkey_index =
+            if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
+                cpi_context.out_queue_index
+            } else {
+                2
+            };
         // Compressed mint account is the last output
         create_output_compressed_mint_account(
             &mut cpi_instruction_struct.output_compressed_accounts
@@ -143,7 +160,7 @@ pub fn process_mint_to_compressed(
             supply,
             mint_config,
             parsed_instruction_data.compressed_mint_inputs.address,
-            2,
+            queue_pubkey_index,
             parsed_instruction_data.compressed_mint_inputs.mint.version,
             parsed_instruction_data
                 .compressed_mint_inputs
@@ -299,7 +316,12 @@ fn create_output_compressed_token_accounts(
     mint: Pubkey,
 ) -> Result<(), ProgramError> {
     let hashed_mint = context.get_or_hash_mint(&mint.to_bytes())?;
-
+    let queue_pubkey_index = if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref()
+    {
+        cpi_context.token_out_queue_index
+    } else {
+        3
+    };
     let lamports = parsed_instruction_data
         .lamports
         .map(|lamports| u64::from(*lamports));
@@ -318,7 +340,7 @@ fn create_output_compressed_token_accounts(
             lamports,
             mint,
             &hashed_mint,
-            2,
+            queue_pubkey_index,
             parsed_instruction_data.token_account_version,
         )?;
     }

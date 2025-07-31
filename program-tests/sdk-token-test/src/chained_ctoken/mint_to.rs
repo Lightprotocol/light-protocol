@@ -5,7 +5,9 @@ use light_compressed_token_sdk::instructions::mint_to_compressed::{
     MintToCompressedInputsCpiWrite,
 };
 use light_compressed_token_sdk::CompressedCpiContext;
-use light_ctoken_types::instructions::mint_to_compressed::{CompressedMintInputs, Recipient};
+use light_ctoken_types::instructions::mint_to_compressed::{
+    CompressedMintInputs, CpiContext, Recipient,
+};
 use light_sdk_types::CpiAccountsSmall;
 
 use super::CreateCompressedMint;
@@ -13,7 +15,7 @@ use crate::LIGHT_CPI_SIGNER;
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct MintToCompressedInstructionData {
-    pub compressed_mint_inputs: CompressedMintInputs,
+    // pub compressed_mint_inputs: CompressedMintInputs,
     pub recipients: Vec<Recipient>,
     pub lamports: Option<u64>,
     pub version: u8,
@@ -22,6 +24,7 @@ pub struct MintToCompressedInstructionData {
 pub fn mint_to_compressed<'a, 'b, 'c, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
     input: MintToCompressedInstructionData,
+    compressed_mint_inputs: CompressedMintInputs,
     cpi_accounts: &CpiAccountsSmall<'a, AccountInfo<'info>>,
 ) -> Result<()> {
     let cpi_context_account_info = MintToCompressedCpiContextWriteAccounts {
@@ -35,15 +38,18 @@ pub fn mint_to_compressed<'a, 'b, 'c, 'info>(
     msg!(" cpi_context_account_info {:?}", cpi_context_account_info);
 
     let mint_to_inputs = MintToCompressedInputsCpiWrite {
-        compressed_mint_inputs: input.compressed_mint_inputs,
+        compressed_mint_inputs,
         lamports: input.lamports,
         recipients: input.recipients,
         mint_authority: ctx.accounts.mint_authority.key(),
         payer: ctx.accounts.payer.key(),
-        cpi_context: CompressedCpiContext {
+        cpi_context: CpiContext {
             set_context: true,
             first_set_context: false,
-            cpi_context_account_index: 0,
+            in_tree_index: 0,
+            in_queue_index: 1,
+            out_queue_index: 1,
+            token_out_queue_index: 1,
         },
         cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
         version: input.version,

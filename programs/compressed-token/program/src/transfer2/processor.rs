@@ -91,7 +91,7 @@ pub fn process_transfer2(
         crate::LIGHT_CPI_SIGNER.bump,
         &crate::LIGHT_CPI_SIGNER.program_id.into(),
         inputs.proof,
-        inputs.cpi_context,
+        &inputs.cpi_context,
     )?;
 
     // Process input compressed accounts

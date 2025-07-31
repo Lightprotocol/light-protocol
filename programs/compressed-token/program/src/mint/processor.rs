@@ -37,7 +37,7 @@ pub fn process_create_compressed_mint(
     let write_to_cpi_context = parsed_instruction_data
         .cpi_context
         .as_ref()
-        .map(|x| x.first_set_context || x.set_context)
+        .map(|x| x.first_set_context() || x.set_context())
         .unwrap_or_default();
     // Validate and parse
     let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(
@@ -76,7 +76,7 @@ pub fn process_create_compressed_mint(
         crate::LIGHT_CPI_SIGNER.bump,
         &crate::LIGHT_CPI_SIGNER.program_id.into(),
         parsed_instruction_data.proof,
-        parsed_instruction_data.cpi_context,
+        &parsed_instruction_data.cpi_context,
     )?;
 
     if !write_to_cpi_context && !parsed_instruction_data.proof.is_none() {
@@ -86,8 +86,12 @@ pub fn process_create_compressed_mint(
 
     sol_log_compute_units();
     // 2. Create NewAddressParams
-    let address_merkle_tree_account_index = 0;
-    let assigned_account_index = 0;
+    let address_merkle_tree_account_index =
+        if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
+            cpi_context.address_tree_index
+        } else {
+            0
+        };
     cpi_instruction_struct.new_address_params[0].set(
         spl_mint_pda.to_bytes(),
         parsed_instruction_data
@@ -99,6 +103,12 @@ pub fn process_create_compressed_mint(
     // 3. Create compressed mint account data
     // TODO: add input struct, try to use CompressedMintInput
     // TODO: bench performance input struct vs direct inputs.
+    let output_queue_index = if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref()
+    {
+        cpi_context.out_queue_index
+    } else {
+        1
+    };
     let mut token_context = TokenContext::new();
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
@@ -109,7 +119,7 @@ pub fn process_create_compressed_mint(
         0.into(),
         mint_size_config,
         parsed_instruction_data.mint_address,
-        1,
+        output_queue_index,
         parsed_instruction_data.version,
         false, // Set is_decompressed = false for new mint creation
         parsed_instruction_data.extensions.as_deref(),

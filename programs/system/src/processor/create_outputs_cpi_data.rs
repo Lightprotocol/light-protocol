@@ -47,8 +47,10 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     cpi_ix_data.start_output_appends = context.account_indices.len() as u8;
     let mut index_merkle_tree_account_account = cpi_ix_data.start_output_appends;
     let mut index_merkle_tree_account = 0;
+    msg!("here:");
     let number_of_merkle_trees =
         inputs.output_accounts().last().unwrap().merkle_tree_index() as usize + 1;
+    msg!("here1");
     let mut merkle_tree_pubkeys =
         Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
@@ -56,6 +58,13 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     let mut is_batched = true;
 
     for (j, account) in inputs.output_accounts().enumerate() {
+        msg!(format!("here j {}", j).as_str());
+        msg!(format!(
+            "account.merkle_tree_index()  {}",
+            account.merkle_tree_index()
+        )
+        .as_str());
+
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]
@@ -63,13 +72,18 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             // Do nothing, but it is the most common case.
         } else if account.merkle_tree_index() as i16 > current_index {
             current_index = account.merkle_tree_index().into();
+            msg!("current_index");
+            msg!(format!("accounts len {}", accounts.len()).as_str());
 
             let pubkey = match &accounts[current_index as usize] {
                 AcpAccount::OutputQueue(output_queue) => {
+                    msg!("here33");
                     context.set_network_fee(
                         output_queue.metadata.rollover_metadata.network_fee,
                         current_index as u8,
                     );
+                    msg!("here2");
+
                     hashed_merkle_tree = output_queue.hashed_merkle_tree_pubkey;
                     rollover_fee = output_queue.metadata.rollover_metadata.rollover_fee;
                     mt_next_index = output_queue.batch_metadata.next_index as u32;
@@ -84,6 +98,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                     *output_queue.pubkey()
                 }
                 AcpAccount::StateTree((pubkey, tree)) => {
+                    msg!("here31");
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
                             tree_pubkey: *pubkey,
@@ -91,9 +106,11 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                             tree_type: (TreeType::StateV1 as u64).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),
                         };
+                    msg!("here3");
                     let merkle_context = context
                         .get_legacy_merkle_context(current_index as u8)
                         .unwrap();
+                    msg!("here5");
                     hashed_merkle_tree = merkle_context.hashed_pubkey;
                     rollover_fee = merkle_context.rollover_fee;
                     mt_next_index = tree.next_index() as u32;
@@ -101,6 +118,8 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                     *pubkey
                 }
                 _ => {
+                    msg!("here4");
+
                     return Err(
                         SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
                     );
@@ -128,6 +147,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
 
         // Check 3.
         if let Some(address) = account.address() {
+            msg!(format!("Address: {:?}", address).as_str());
             if let Some(position) = context
                 .addresses
                 .iter()
@@ -136,9 +156,11 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             {
                 context.addresses.remove(position);
             } else {
+                msg!(format!("context.addresses: {:?}", context.addresses).as_str());
                 return Err(SystemProgramError::InvalidAddress.into());
             }
         }
+        msg!("post Address:");
 
         cpi_ix_data.output_leaf_indices[j] = (mt_next_index + num_leaves_in_tree).into();
         num_leaves_in_tree += 1;
@@ -199,11 +221,19 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
             let output_account = inputs
                 .get_output_account(assigned_account_index)
                 .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;
+            msg!(format!("index {}", assigned_account_index).as_str());
+
             if derived_addresses.address
                 != output_account
                     .address()
                     .ok_or(SystemProgramError::AddressIsNone)?
             {
+                msg!(format!(
+                    "derived_addresses.address {:?} != account address {:?}",
+                    derived_addresses.address,
+                    output_account.address()
+                )
+                .as_str());
                 return Err(SystemProgramError::AddressDoesNotMatch);
             }
         }
