@@ -7,11 +7,10 @@ use syn::{
     Ident, Item, ItemEnum, ItemFn, ItemMod, ItemStruct, Result, Token,
 };
 
-/// Parse a comma-separated list of identifiers or custom(...) groups
+/// Parse a comma-separated list of identifiers
 #[derive(Clone)]
 enum CompressibleType {
     Regular(Ident),
-    Custom(Ident),
 }
 
 struct CompressibleTypeList {
@@ -20,20 +19,8 @@ struct CompressibleTypeList {
 
 impl Parse for CompressibleType {
     fn parse(input: ParseStream) -> Result<Self> {
-        if input.peek(syn::Ident) && input.peek2(syn::token::Paren) {
-            let func_name: Ident = input.parse()?;
-            if func_name == "custom" {
-                let content;
-                syn::parenthesized!(content in input);
-                let type_name: Ident = content.parse()?;
-                return Ok(CompressibleType::Custom(type_name));
-            } else {
-                return Ok(CompressibleType::Regular(func_name));
-            }
-        } else {
-            let ident: Ident = input.parse()?;
-            Ok(CompressibleType::Regular(ident))
-        }
+        let ident: Ident = input.parse()?;
+        Ok(CompressibleType::Regular(ident))
     }
 }
 
@@ -57,23 +44,18 @@ pub(crate) fn add_compressible_instructions(
         return Err(syn::Error::new_spanned(&module, "Module must have a body"));
     }
 
-    // Separate regular and custom types
-    let mut regular_types = Vec::new();
-    let mut custom_types = Vec::new();
+    // Collect all struct names
     let mut all_struct_names = Vec::new();
 
     for compressible_type in &type_list.types {
         match compressible_type {
             CompressibleType::Regular(ident) => {
-                regular_types.push(ident.clone());
-                all_struct_names.push(ident.clone());
-            }
-            CompressibleType::Custom(ident) => {
-                custom_types.push(ident.clone());
                 all_struct_names.push(ident.clone());
             }
         }
     }
+
+    // Note: All account types must implement CompressAs trait
 
     // Get the module content
     let content = module.content.as_mut().unwrap();
@@ -400,17 +382,12 @@ pub(crate) fn add_compressible_instructions(
 
     // Generate compress instructions for each struct
     for compressible_type in type_list.types {
-        let (struct_name, is_custom) = match compressible_type {
-            CompressibleType::Regular(ident) => (ident, false),
-            CompressibleType::Custom(ident) => (ident, true),
+        let struct_name = match compressible_type {
+            CompressibleType::Regular(ident) => ident,
         };
 
         let compress_fn_name =
             format_ident!("compress_{}", struct_name.to_string().to_snake_case());
-        let compress_custom_fn_name = format_ident!(
-            "compress_{}_with_custom_data",
-            struct_name.to_string().to_snake_case()
-        );
         let compress_accounts_name = format_ident!("Compress{}", struct_name);
 
         // Generate the compress accounts struct - generic without seeds constraints
@@ -431,104 +408,52 @@ pub(crate) fn add_compressible_instructions(
             }
         };
 
-        // Generate Size implementation for the struct
-        let size_impl: Item = syn::parse_quote! {
-            impl light_sdk::Size for #struct_name {
-                fn size(&self) -> usize {
-                    Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE
+        // Add the compress accounts struct
+        content.1.push(Item::Struct(compress_accounts_struct));
+
+        // Generate compress instruction that uses CompressAs trait
+        let compress_instruction_fn: ItemFn = syn::parse_quote! {
+            /// Compresses a #struct_name PDA using the CompressAs trait implementation.
+            /// The account type must implement CompressAs to specify compression behavior.
+            /// For simple cases, implement CompressAs with type Output = Self and return self.clone().
+            /// For custom compression, you can reset specific fields or use a different output type.
+            pub fn #compress_fn_name<'info>(
+                ctx: Context<'_, '_, '_, 'info, #compress_accounts_name<'info>>,
+                proof: light_sdk::instruction::ValidityProof,
+                compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
+            ) -> anchor_lang::Result<()> {
+                // Load config from AccountInfo
+                let config = light_sdk::compressible::CompressibleConfig::load_checked(
+                    &ctx.accounts.config,
+                    &super::ID
+                ).map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+                // Verify rent recipient matches config
+                if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+                    return err!(ErrorCode::InvalidRentRecipient);
                 }
+
+                let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
+                    &ctx.accounts.user,
+                    &ctx.remaining_accounts[..],
+                    LIGHT_CPI_SIGNER,
+                );
+
+                light_sdk::compressible::compress_account::<#struct_name>(
+                    &mut ctx.accounts.pda_to_compress,
+                    &compressed_account_meta,
+                    proof,
+                    cpi_accounts,
+                    &ctx.accounts.rent_recipient,
+                    &config.compression_delay,
+                )
+                .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
+
+                Ok(())
             }
         };
 
-        // Add the compress accounts struct and size impl
-        content.1.push(Item::Struct(compress_accounts_struct));
-        content.1.push(size_impl);
-
-        if is_custom {
-            // Only generate the custom compress instruction
-            let compress_custom_instruction_fn: ItemFn = syn::parse_quote! {
-                /// Compresses a #struct_name PDA using config values with custom compressed data.
-                /// The account type implements CompressAs trait to specify custom compression behavior.
-                /// This allows resetting some fields while keeping others during compression.
-                pub fn #compress_custom_fn_name<'info>(
-                    ctx: Context<'_, '_, '_, 'info, #compress_accounts_name<'info>>,
-                    proof: light_sdk::instruction::ValidityProof,
-                    compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
-                ) -> anchor_lang::Result<()> {
-                    // Load config from AccountInfo
-                    let config = light_sdk::compressible::CompressibleConfig::load_checked(
-                        &ctx.accounts.config,
-                        &super::ID
-                    ).map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
-
-                    // Verify rent recipient matches config
-                    if ctx.accounts.rent_recipient.key() != config.rent_recipient {
-                        return err!(ErrorCode::InvalidRentRecipient);
-                    }
-
-                    let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
-                        &ctx.accounts.user,
-                        &ctx.remaining_accounts[..],
-                        LIGHT_CPI_SIGNER,
-                    );
-
-                    light_sdk::compressible::compress_account_with_custom_data::<#struct_name>(
-                        &mut ctx.accounts.pda_to_compress,
-                        &compressed_account_meta,
-                        proof,
-                        cpi_accounts,
-                        &ctx.accounts.rent_recipient,
-                        &config.compression_delay,
-                    )
-                    .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
-                    Ok(())
-                }
-            };
-
-            content.1.push(Item::Fn(compress_custom_instruction_fn));
-        } else {
-            // Generate only the standard compress instruction (backward compatibility)
-            let compress_instruction_fn: ItemFn = syn::parse_quote! {
-                /// Compresses a #struct_name PDA using config values (copies current onchain state)
-                pub fn #compress_fn_name<'info>(
-                    ctx: Context<'_, '_, '_, 'info, #compress_accounts_name<'info>>,
-                    proof: light_sdk::instruction::ValidityProof,
-                    compressed_account_meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
-                ) -> anchor_lang::Result<()> {
-                    // Load config from AccountInfo
-                    let config = light_sdk::compressible::CompressibleConfig::load_checked(
-                        &ctx.accounts.config,
-                        &super::ID
-                    ).map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
-
-                    // Verify rent recipient matches config
-                    if ctx.accounts.rent_recipient.key() != config.rent_recipient {
-                        return err!(ErrorCode::InvalidRentRecipient);
-                    }
-
-                    let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
-                        &ctx.accounts.user,
-                        &ctx.remaining_accounts[..],
-                        LIGHT_CPI_SIGNER,
-                    );
-
-                    light_sdk::compressible::compress_account::<#struct_name>(
-                        &mut ctx.accounts.pda_to_compress,
-                        &compressed_account_meta,
-                        proof,
-                        cpi_accounts,
-                        &ctx.accounts.rent_recipient,
-                        &config.compression_delay,
-                    )
-                    .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
-
-                    Ok(())
-                }
-            };
-
-            content.1.push(Item::Fn(compress_instruction_fn));
-        }
+        content.1.push(Item::Fn(compress_instruction_fn));
     }
 
     Ok(quote! {
