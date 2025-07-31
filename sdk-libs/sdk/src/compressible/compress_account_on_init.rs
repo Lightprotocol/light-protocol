@@ -473,6 +473,159 @@ where
     Ok(compressed_account_infos)
 }
 
+/// Native Solana variant to create an EMPTY compressed account from a PDA.
+///
+/// This creates an empty compressed account without closing the source PDA,
+/// similar to decompress_idempotent behavior. The PDA remains intact with its data.
+///
+/// # Arguments
+/// * `pda_account_info` - The PDA AccountInfo (will NOT be closed)
+/// * `pda_account_data` - The pre-deserialized PDA account data  
+/// * `address` - The address for the compressed account
+/// * `new_address_param` - Address parameters for the compressed account
+/// * `output_state_tree_index` - Output state tree index for the compressed account
+/// * `cpi_accounts` - Accounts needed for validation
+/// * `address_space` - The address space to validate uniqueness against
+/// * `proof` - Validity proof for the address tree operation
+#[allow(clippy::too_many_arguments)]
+pub fn compress_empty_account_on_init_native<'info, A>(
+    pda_account_info: &mut AccountInfo<'info>,
+    pda_account_data: &mut A,
+    address: &[u8; 32],
+    new_address_param: &PackedNewAddressParams,
+    output_state_tree_index: u8,
+    cpi_accounts: CpiAccounts<'_, 'info>,
+    address_space: &[Pubkey],
+    proof: ValidityProof,
+) -> Result<()>
+where
+    A: DataHasher
+        + LightDiscriminator
+        + AnchorSerialize
+        + AnchorDeserialize
+        + Default
+        + Clone
+        + HasCompressionInfo,
+{
+    let mut pda_accounts_data: [&mut A; 1] = [pda_account_data];
+    let addresses: [[u8; 32]; 1] = [*address];
+    let new_address_params: [PackedNewAddressParams; 1] = [*new_address_param];
+    let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
+
+    let compressed_infos = prepare_empty_compressed_accounts_on_init_native(
+        &mut [pda_account_info],
+        &mut pda_accounts_data,
+        &addresses,
+        &new_address_params,
+        &output_state_tree_indices,
+        &cpi_accounts,
+        address_space,
+    )?;
+
+    let cpi_inputs = CpiInputs::new_with_address(proof, compressed_infos, vec![*new_address_param]);
+
+    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+
+    Ok(())
+}
+
+/// Native Solana variant to create EMPTY compressed accounts from PDAs.
+///
+/// This creates empty compressed accounts without closing the source PDAs.
+/// The PDAs remain intact with their data, similar to decompress_idempotent behavior.
+///
+/// # Arguments
+/// * `pda_accounts_info` - The PDA AccountInfos (will NOT be closed)
+/// * `pda_accounts_data` - The pre-deserialized PDA account data
+/// * `addresses` - The addresses for the compressed accounts
+/// * `new_address_params` - Address parameters for the compressed accounts
+/// * `output_state_tree_indices` - Output state tree indices for the compressed accounts
+/// * `cpi_accounts` - Accounts needed for validation
+/// * `address_space` - The address space to validate uniqueness against
+///
+/// # Returns
+/// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
+/// * `Err(LightSdkError)` if there was an error
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_empty_compressed_accounts_on_init_native<'info, A>(
+    _pda_accounts_info: &mut [&mut AccountInfo<'info>],
+    pda_accounts_data: &mut [&mut A],
+    addresses: &[[u8; 32]],
+    new_address_params: &[PackedNewAddressParams],
+    output_state_tree_indices: &[u8],
+    cpi_accounts: &CpiAccounts<'_, 'info>,
+    address_space: &[Pubkey],
+) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
+where
+    A: DataHasher
+        + LightDiscriminator
+        + AnchorSerialize
+        + AnchorDeserialize
+        + Default
+        + Clone
+        + HasCompressionInfo,
+{
+    if pda_accounts_data.len() != addresses.len()
+        || pda_accounts_data.len() != new_address_params.len()
+        || pda_accounts_data.len() != output_state_tree_indices.len()
+    {
+        msg!("pda_accounts_data.len(): {:?}", pda_accounts_data.len());
+        msg!("addresses.len(): {:?}", addresses.len());
+        msg!("new_address_params.len(): {:?}", new_address_params.len());
+        msg!(
+            "output_state_tree_indices.len(): {:?}",
+            output_state_tree_indices.len()
+        );
+        return Err(LightSdkError::ConstraintViolation);
+    }
+
+    // Address space validation
+    for params in new_address_params {
+        let tree = cpi_accounts
+            .get_tree_account_info(params.address_merkle_tree_account_index as usize)
+            .map_err(|_| LightSdkError::ConstraintViolation)?
+            .pubkey();
+        if !address_space.iter().any(|a| a == &tree) {
+            msg!("address tree: {:?}", tree);
+            msg!("expected address_space: {:?}", address_space);
+            return Err(LightSdkError::ConstraintViolation);
+        }
+    }
+
+    let mut compressed_account_infos = Vec::new();
+
+    for (((pda_account_data, &address), &_new_address_param), &output_state_tree_index) in
+        pda_accounts_data
+            .iter_mut()
+            .zip(addresses.iter())
+            .zip(new_address_params.iter())
+            .zip(output_state_tree_indices.iter())
+    {
+        // Initialize compression_info for the PDA (but don't set it as compressed)
+        *pda_account_data.compression_info_mut_opt() =
+            Some(super::CompressionInfo::new_decompressed()?);
+        pda_account_data
+            .compression_info_mut()
+            .set_last_written_slot()?;
+
+        // Create an empty compressed account with the specified address
+        let owner_program_id = cpi_accounts.self_program_id();
+        let mut light_account = LightAccount::<'_, A>::new_init(
+            &owner_program_id,
+            Some(address),
+            output_state_tree_index,
+        );
+        light_account.remove_data(); // This makes the account "empty"
+
+        compressed_account_infos.push(light_account.to_account_info()?);
+
+        // Key difference: DO NOT close the PDA account - it remains intact
+        msg!("Empty compressed account created, PDA remains intact");
+    }
+
+    Ok(compressed_account_infos)
+}
+
 // Proper native Solana account closing implementation
 pub fn close<'info>(
     info: &mut AccountInfo<'info>,

@@ -18,19 +18,19 @@ pub struct CompressedAccountData<T> {
     /// PDA seeds (without bump) used to derive the PDA address
     pub seeds: Vec<Vec<u8>>,
 }
+
+#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
+pub struct DecompressMultipleInstructionData {
+    pub proof: ValidityProof,
+    pub compressed_accounts: Vec<CompressedAccountData<MyPdaAccount>>,
+    pub bumps: Vec<u8>,
+    pub system_accounts_offset: u8,
+}
 /// Example: Decompresses multiple compressed accounts into PDAs in a single transaction.
 pub fn decompress_multiple_dynamic_pdas(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
-    #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
-    pub struct DecompressMultipleInstructionData {
-        pub proof: ValidityProof,
-        pub compressed_accounts: Vec<CompressedAccountData<MyPdaAccount>>,
-        pub bumps: Vec<u8>,
-        pub system_accounts_offset: u8,
-    }
-
     let mut instruction_data = instruction_data;
     let instruction_data = DecompressMultipleInstructionData::deserialize(&mut instruction_data)
         .map_err(|e| {
@@ -92,10 +92,14 @@ pub fn decompress_multiple_dynamic_pdas(
 
         let bump = stored_bumps[i];
 
-        // Derive PDA for verification using the provided bump
-        let seeds: Vec<&[u8]> = vec![b"dynamic_pda"];
+        // Derive PDA for verification using the seeds from instruction data
+        let seeds_refs: Vec<&[u8]> = compressed_account_data
+            .seeds
+            .iter()
+            .map(|s| s.as_slice())
+            .collect();
         let (derived_pda, expected_bump) =
-            solana_program::pubkey::Pubkey::find_program_address(&seeds, &crate::ID);
+            solana_program::pubkey::Pubkey::find_program_address(&seeds_refs, &crate::ID);
 
         // Verify the PDA matches
         if derived_pda != *solana_accounts[i].key {
@@ -104,6 +108,7 @@ pub fn decompress_multiple_dynamic_pdas(
                 derived_pda,
                 solana_accounts[i].key
             );
+            msg!("seeds used: {:?}", compressed_account_data.seeds);
             return Err(LightSdkError::ConstraintViolation);
         }
 
