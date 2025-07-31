@@ -6,51 +6,49 @@ use syn::{
     Expr, Ident, ItemStruct, Result, Token,
 };
 
-/// Parse the compressible_as attribute content
-struct CompressibleAsFields {
-    fields: Punctuated<CompressibleAsField, Token![,]>,
+/// Parse the compress_as attribute content
+struct CompressAsFields {
+    fields: Punctuated<CompressAsField, Token![,]>,
 }
 
-struct CompressibleAsField {
+struct CompressAsField {
     name: Ident,
     value: Expr,
 }
 
-impl Parse for CompressibleAsField {
+impl Parse for CompressAsField {
     fn parse(input: ParseStream) -> Result<Self> {
         let name: Ident = input.parse()?;
         input.parse::<Token![=]>()?;
         let value: Expr = input.parse()?;
-        Ok(CompressibleAsField { name, value })
+        Ok(CompressAsField { name, value })
     }
 }
 
-impl Parse for CompressibleAsFields {
+impl Parse for CompressAsFields {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(CompressibleAsFields {
+        Ok(CompressAsFields {
             fields: Punctuated::parse_terminated(input)?,
         })
     }
 }
 
-/// Generates CompressAs trait implementation for a struct with compressible_as attribute
+/// Generates CompressAs trait implementation for a struct with optional compress_as attribute
 pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
     let struct_name = &input.ident;
 
-    // Find the compressible_as attribute
-    let compressible_as_attr = input
+    // Find the compress_as attribute (optional)
+    let compress_as_attr = input
         .attrs
         .iter()
-        .find(|attr| attr.path().is_ident("compressible_as"))
-        .ok_or_else(|| {
-            syn::Error::new_spanned(
-                &input,
-                "CompressAs derive requires #[compressible_as(...)] attribute",
-            )
-        })?;
+        .find(|attr| attr.path().is_ident("compress_as"));
 
-    // Parse the attribute content
-    let compressible_fields: CompressibleAsFields = compressible_as_attr.parse_args()?;
+    // Parse the attribute content if it exists
+    let compress_as_fields = if let Some(attr) = compress_as_attr {
+        Some(attr.parse_args::<CompressAsFields>()?)
+    } else {
+        None
+    };
 
     // Get all struct fields
     let struct_fields = match &input.fields {
@@ -67,12 +65,17 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
     let field_assignments = struct_fields.iter().map(|field| {
         let field_name = field.ident.as_ref().unwrap();
 
-        // Check if this field is overridden in the compressible_as attribute
-        if let Some(override_field) = compressible_fields
-            .fields
-            .iter()
-            .find(|f| f.name == *field_name)
-        {
+        // ALWAYS set compression_info to None - this is required for compressed storage
+        if field_name == "compression_info" {
+            return quote! { #field_name: None };
+        }
+
+        // Check if this field is overridden in the compress_as attribute
+        let override_field = compress_as_fields
+            .as_ref()
+            .and_then(|fields| fields.fields.iter().find(|f| f.name == *field_name));
+
+        if let Some(override_field) = override_field {
             let override_value = &override_field.value;
             quote! { #field_name: #override_value }
         } else {
@@ -86,14 +89,40 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
         }
     });
 
+    // Determine if we need custom compression (any fields specified in compress_as attribute)
+    let has_custom_fields = compress_as_fields.is_some();
+
+    let compress_as_impl = if has_custom_fields {
+        // Custom compression - return Cow::Owned with modified fields
+        quote! {
+            fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
+                std::borrow::Cow::Owned(Self {
+                    #(#field_assignments,)*
+                })
+            }
+        }
+    } else {
+        // Simple case - return Cow::Owned with compression_info = None
+        // We can't return Cow::Borrowed because compression_info must be None
+        quote! {
+            fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
+                std::borrow::Cow::Owned(Self {
+                    #(#field_assignments,)*
+                })
+            }
+        }
+    };
+
     let expanded = quote! {
         impl light_sdk::compressible::CompressAs for #struct_name {
             type Output = Self;
 
-            fn compress_as(&self) -> Self::Output {
-                Self {
-                    #(#field_assignments,)*
-                }
+            #compress_as_impl
+        }
+
+        impl light_sdk::Size for #struct_name {
+            fn size(&self) -> usize {
+                Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE
             }
         }
     };

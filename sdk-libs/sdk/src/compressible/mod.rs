@@ -6,9 +6,9 @@ pub mod compression_info;
 pub mod config;
 pub mod decompress_idempotent;
 
-pub use compress_account::compress_pda_native;
 #[cfg(feature = "anchor")]
-pub use compress_account::{compress_account, compress_account_with_custom_data};
+pub use compress_account::compress_account;
+pub use compress_account::compress_pda_native;
 #[cfg(feature = "anchor")]
 pub use compress_account_on_init::{
     compress_account_on_init, prepare_accounts_for_compression_on_init,

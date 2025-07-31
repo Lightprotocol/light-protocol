@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator, LightHasher};
 use light_sdk_macros::{CompressAs, HasCompressionInfo};
 
-#[derive(Debug, LightHasher, LightDiscriminator, HasCompressionInfo, Default, InitSpace)]
+#[derive(Debug, LightHasher, LightDiscriminator, HasCompressionInfo, CompressAs, Default, InitSpace)]
 #[account]
 pub struct UserRecord {
     #[skip]
@@ -18,7 +18,7 @@ pub struct UserRecord {
 #[derive(
     Debug, LightHasher, LightDiscriminator, Default, InitSpace, HasCompressionInfo, CompressAs,
 )]
-#[compressible_as(
+#[compress_as(
     start_time = 0,
     end_time = None,
     score = 0
