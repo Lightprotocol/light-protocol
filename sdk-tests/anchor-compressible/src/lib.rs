@@ -2,10 +2,10 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_sdk::{
     account::Size,
     compressible::{
-        compress_account, compress_account_on_init, compress_account_with_custom_data,
-        prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
-        process_initialize_compression_config_checked, process_update_compression_config,
-        CompressAs, CompressibleConfig, CompressionInfo, HasCompressionInfo,
+        compress_account, compress_account_on_init, prepare_accounts_for_compression_on_init,
+        prepare_accounts_for_decompress_idempotent, process_initialize_compression_config_checked,
+        process_update_compression_config, CompressAs, CompressibleConfig, CompressionInfo,
+        HasCompressionInfo,
     },
     cpi::{CpiAccounts, CpiInputs},
     derive_light_cpi_signer,
@@ -459,7 +459,7 @@ pub mod anchor_compressible {
             LIGHT_CPI_SIGNER,
         );
 
-        compress_account_with_custom_data::<GameSession>(
+        compress_account::<GameSession>(
             game_session,
             &compressed_account_meta,
             proof,
@@ -784,6 +784,21 @@ impl Size for UserRecord {
     }
 }
 
+impl CompressAs for UserRecord {
+    type Output = Self;
+
+    fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
+        // Simple case: return owned data with compression_info = None
+        // We can't return Cow::Borrowed because compression_info must always be None for compressed storage
+        std::borrow::Cow::Owned(Self {
+            compression_info: None, // ALWAYS None for compressed storage
+            owner: self.owner,
+            name: self.name.clone(),
+            score: self.score,
+        })
+    }
+}
+
 // Your existing account structs must be manually extended:
 // 1. Add compression_info field to the struct, with type
 //    Option<CompressionInfo>.
@@ -838,16 +853,17 @@ impl Size for GameSession {
 impl CompressAs for GameSession {
     type Output = Self;
 
-    fn compress_as(&self) -> Self::Output {
-        Self {
-            compression_info: self.compression_info.clone(), // Keep for internal use
-            session_id: self.session_id,                     // KEEP - identifier
-            player: self.player,                             // KEEP - identifier
-            game_type: self.game_type.clone(),               // KEEP - core property
-            start_time: 0,                                   // RESET - clear timing
-            end_time: None,                                  // RESET - clear timing
-            score: 0,                                        // RESET - clear progress
-        }
+    fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
+        // Custom compression: return owned data with modified fields
+        std::borrow::Cow::Owned(Self {
+            compression_info: None,            // ALWAYS None for compressed storage
+            session_id: self.session_id,       // KEEP - identifier
+            player: self.player,               // KEEP - identifier
+            game_type: self.game_type.clone(), // KEEP - core property
+            start_time: 0,                     // RESET - clear timing
+            end_time: None,                    // RESET - clear timing
+            score: 0,                          // RESET - clear progress
+        })
     }
 }
 

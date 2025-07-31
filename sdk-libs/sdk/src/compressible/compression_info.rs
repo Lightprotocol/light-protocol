@@ -1,5 +1,6 @@
 use solana_clock::Clock;
 use solana_sysvar::Sysvar;
+use std::borrow::Cow;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
@@ -22,26 +23,49 @@ pub trait CompressAs {
         + crate::account::Size
         + HasCompressionInfo
         + Default
+        + Clone
         + std::fmt::Debug;
 
     /// Returns the data that should be stored in the compressed state.
     /// This allows developers to reset some fields while keeping others,
     /// or even return a completely different type.
     ///
-    /// # Example - Same Type (most common)
+    /// **IMPORTANT**: compression_info must ALWAYS be None in the returned data.
+    /// This eliminates the need for mutation after calling compress_as().
+    ///
+    /// Uses Cow (Clone on Write) for performance - typically returns owned data
+    /// since compression_info must be None (different from onchain state).
+    ///
+    /// # Example - Simple Case (no custom fields, but compression_info = None)
+    /// ```rust
+    /// impl CompressAs for UserRecord {
+    ///     type Output = Self;
+    ///     
+    ///     fn compress_as(&self) -> Cow<'_, Self::Output> {
+    ///         Cow::Owned(Self {
+    ///             compression_info: None,     // ALWAYS None for compressed storage
+    ///             owner: self.owner,
+    ///             name: self.name.clone(),
+    ///             score: self.score,
+    ///         })
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Example - Custom Compression (returns owned data with resets)
     /// ```rust
     /// impl CompressAs for Oracle {
     ///     type Output = Self;
     ///     
-    ///     fn compress_as(&self) -> Self::Output {
-    ///         Self {
-    ///             initialized: false,        // reset to false
-    ///             observation_index: 0,      // reset to 0
-    ///             pool_id: self.pool_id,     // keep current value
-    ///             observations: None,        // reset to None
-    ///             compression_info: self.compression_info.clone(),
+    ///     fn compress_as(&self) -> Cow<'_, Self::Output> {
+    ///         Cow::Owned(Self {
+    ///             compression_info: None,     // ALWAYS None for compressed storage
+    ///             initialized: false,         // reset to false
+    ///             observation_index: 0,       // reset to 0
+    ///             pool_id: self.pool_id,      // keep current value
+    ///             observations: None,         // reset to None
     ///             padding: self.padding,
-    ///         }
+    ///         })
     ///     }
     /// }
     /// ```
@@ -51,16 +75,17 @@ pub trait CompressAs {
     /// impl CompressAs for LargeGameState {
     ///     type Output = CompactGameState;
     ///     
-    ///     fn compress_as(&self) -> Self::Output {
-    ///         CompactGameState {
+    ///     fn compress_as(&self) -> Cow<'_, Self::Output> {
+    ///         Cow::Owned(CompactGameState {
+    ///             compression_info: None,     // ALWAYS None for compressed storage
     ///             player_id: self.player_id,
     ///             level: self.level,
     ///             // Skip large arrays, temporary state, etc.
-    ///         }
+    ///         })
     ///     }
     /// }
     /// ```
-    fn compress_as(&self) -> Self::Output;
+    fn compress_as(&self) -> Cow<'_, Self::Output>;
 }
 
 /// Information for compressible accounts that tracks when the account was last

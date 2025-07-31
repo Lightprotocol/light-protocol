@@ -337,8 +337,8 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 /// - The struct must have named fields
 /// - All overridden field values must be valid expressions for the field types
 /// - The struct should also derive `HasCompressionInfo` for full compatibility
-/// - Must include `#[compressible_as(...)]` attribute with field overrides
-#[proc_macro_derive(CompressAs, attributes(compressible_as))]
+/// - Must include `#[compress_as(...)]` attribute with field overrides
+#[proc_macro_derive(CompressAs, attributes(compress_as))]
 pub fn compress_as(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 

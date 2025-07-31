@@ -1433,7 +1433,10 @@ async fn test_compress_game_session_with_custom_data(
         anchor_compressible::GameSession::try_deserialize(&mut &game_pda_data[..]).unwrap();
 
     // Test the custom compression trait directly
-    let custom_compressed_data = original_game_session.compress_as();
+    let custom_compressed_data = match original_game_session.compress_as() {
+        std::borrow::Cow::Borrowed(data) => data.clone(), // Should never happen since compression_info must be None
+        std::borrow::Cow::Owned(data) => data,            // Use owned data directly
+    };
 
     // Verify that the custom compression works as expected
     assert_eq!(

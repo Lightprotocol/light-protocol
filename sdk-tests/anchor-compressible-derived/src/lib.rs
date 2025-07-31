@@ -25,7 +25,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 // Simple anchor program retrofitted with compressible accounts.
 
-#[add_compressible_instructions(UserRecord, custom(GameSession))]
+#[add_compressible_instructions(UserRecord, GameSession)]
 #[program]
 pub mod anchor_compressible_derived {
 
