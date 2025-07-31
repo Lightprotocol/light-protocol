@@ -113,6 +113,31 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
         }
     };
 
+    // Generate HasCompressionInfo implementation (automatically included with Compressible)
+    let has_compression_info_impl = quote! {
+        impl light_sdk::compressible::HasCompressionInfo for #struct_name {
+            fn compression_info(&self) -> &light_sdk::compressible::CompressionInfo {
+                self.compression_info
+                    .as_ref()
+                    .expect("CompressionInfo must be Some on-chain")
+            }
+
+            fn compression_info_mut(&mut self) -> &mut light_sdk::compressible::CompressionInfo {
+                self.compression_info
+                    .as_mut()
+                    .expect("CompressionInfo must be Some on-chain")
+            }
+
+            fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::compressible::CompressionInfo> {
+                &mut self.compression_info
+            }
+
+            fn set_compression_info_none(&mut self) {
+                self.compression_info = None;
+            }
+        }
+    };
+
     let expanded = quote! {
         impl light_sdk::compressible::CompressAs for #struct_name {
             type Output = Self;
@@ -125,6 +150,9 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
                 Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE
             }
         }
+
+        // Automatically derive HasCompressionInfo when using Compressible
+        #has_compression_info_impl
     };
 
     Ok(expanded)

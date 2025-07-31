@@ -304,10 +304,10 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// use light_sdk::compressible::{CompressAs, CompressionInfo, HasCompressionInfo};
-/// use light_sdk_macros::{CompressAs, HasCompressionInfo};
+/// use light_sdk_macros::Compressible;
 ///
-/// #[derive(CompressAs, HasCompressionInfo)]
-/// #[compressible_as(
+/// #[derive(Compressible)]  // Automatically derives HasCompressionInfo too!
+/// #[compress_as(
 ///     start_time = 0,
 ///     end_time = None,
 ///     score = 0
@@ -335,11 +335,15 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 /// ## Requirements
 ///
 /// - The struct must have named fields
+/// - The struct must have a `compression_info: Option<CompressionInfo>` field
 /// - All overridden field values must be valid expressions for the field types
-/// - The struct should also derive `HasCompressionInfo` for full compatibility
-/// - Must include `#[compress_as(...)]` attribute with field overrides
-#[proc_macro_derive(CompressAs, attributes(compress_as))]
-pub fn compress_as(input: TokenStream) -> TokenStream {
+/// - Optionally include `#[compress_as(...)]` attribute with field overrides
+///
+/// ## Note
+///
+/// This macro automatically derives `HasCompressionInfo` - no need to derive it manually!
+#[proc_macro_derive(Compressible, attributes(compress_as))]
+pub fn compressible(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
     compress_as::derive_compress_as(input)

@@ -1292,7 +1292,7 @@ async fn test_compress_game_session_with_custom_data_derived(
     println!("  end_time: {:?}", original_game_session.end_time);
     println!("  score: {}", original_game_session.score);
 
-    // Test the custom compression trait directly using the derived CompressAs
+    // Test the custom compression trait directly using the derived Compressible
     let custom_compressed_data =
         light_sdk::compressible::CompressAs::compress_as(&original_game_session);
 
@@ -1324,7 +1324,7 @@ async fn test_compress_game_session_with_custom_data_derived(
     // CompressionInfo field is kept as-is (not specified in macro)
     // We don't compare it directly since CompressionInfo doesn't implement PartialEq
 
-    println!("✅ Derived CompressAs macro test passed!");
+    println!("✅ Derived Compressible macro test passed!");
     println!(
         "   Original: start_time={}, end_time={:?}, score={}",
         original_game_session.start_time,
@@ -1421,5 +1421,5 @@ async fn test_derived_custom_compression_game_session() {
     )
     .await;
 
-    println!("✅ Derived CompressAs macro test completed successfully!");
+    println!("Derived Compressible macro test completed successfully!");
 }
