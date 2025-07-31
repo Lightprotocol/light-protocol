@@ -23,8 +23,7 @@ pub trait CompressAs {
         + crate::account::Size
         + HasCompressionInfo
         + Default
-        + Clone
-        + std::fmt::Debug;
+        + Clone;
 
     /// Returns the data that should be stored in the compressed state.
     /// This allows developers to reset some fields while keeping others,
@@ -90,7 +89,7 @@ pub trait CompressAs {
 
 /// Information for compressible accounts that tracks when the account was last
 /// written
-#[derive(Clone, Debug, Default, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressionInfo {
     /// The slot when this account was last written/decompressed
     pub last_written_slot: u64,
@@ -98,7 +97,7 @@ pub struct CompressionInfo {
     pub state: CompressionState,
 }
 
-#[derive(Clone, Default, Debug, AnchorSerialize, AnchorDeserialize, PartialEq)]
+#[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub enum CompressionState {
     #[default]
     Uninitialized,

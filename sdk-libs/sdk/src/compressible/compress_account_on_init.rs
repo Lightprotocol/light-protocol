@@ -39,11 +39,11 @@ where
         + LightDiscriminator
         + AnchorSerialize
         + AnchorDeserialize
+        + AccountSerialize
+        + AccountDeserialize
         + Default
         + Clone
-        + HasCompressionInfo
-        + std::fmt::Debug,
-    A: AccountSerialize + AccountDeserialize,
+        + HasCompressionInfo,
 {
     let mut solana_accounts: [&mut Account<'info, A>; 1] = [solana_account];
     let addresses: [[u8; 32]; 1] = [*address];
@@ -104,11 +104,11 @@ where
         + LightDiscriminator
         + AnchorSerialize
         + AnchorDeserialize
+        + AccountSerialize
+        + AccountDeserialize
         + Default
         + Clone
-        + HasCompressionInfo
-        + std::fmt::Debug,
-    A: AccountSerialize + AccountDeserialize,
+        + HasCompressionInfo,
 {
     if solana_accounts.len() != addresses.len()
         || solana_accounts.len() != new_address_params.len()
@@ -194,8 +194,7 @@ where
         + AnchorDeserialize
         + Default
         + Clone
-        + HasCompressionInfo
-        + std::fmt::Debug,
+        + HasCompressionInfo,
 {
     // let pda_accounts_info:  = &[pda_account_info];
     let mut pda_accounts_data: [&mut A; 1] = [pda_account_data];
@@ -265,8 +264,7 @@ where
         + AnchorDeserialize
         + Default
         + Clone
-        + HasCompressionInfo
-        + std::fmt::Debug,
+        + HasCompressionInfo,
 {
     if pda_accounts_info.len() != pda_accounts_data.len()
         || pda_accounts_info.len() != addresses.len()
