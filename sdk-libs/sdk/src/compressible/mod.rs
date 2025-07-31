@@ -11,7 +11,8 @@ pub use compress_account::compress_account;
 pub use compress_account::compress_pda_native;
 #[cfg(feature = "anchor")]
 pub use compress_account_on_init::{
-    compress_account_on_init, prepare_accounts_for_compression_on_init,
+    compress_account_on_init, compress_empty_account_on_init,
+    prepare_accounts_for_compression_on_init, prepare_empty_compressed_accounts_on_init,
 };
 pub use compress_account_on_init::{
     compress_account_on_init_native, prepare_accounts_for_compression_on_init_native,
