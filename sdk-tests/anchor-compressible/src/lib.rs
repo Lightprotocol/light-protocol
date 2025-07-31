@@ -2,10 +2,10 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_sdk::{
     account::Size,
     compressible::{
-        compress_account, compress_account_on_init, prepare_accounts_for_compression_on_init,
-        prepare_accounts_for_decompress_idempotent, process_initialize_compression_config_checked,
-        process_update_compression_config, CompressAs, CompressibleConfig, CompressionInfo,
-        HasCompressionInfo,
+        compress_account, compress_account_on_init, compress_empty_account_on_init,
+        prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
+        process_initialize_compression_config_checked, process_update_compression_config,
+        CompressAs, CompressibleConfig, CompressionInfo, HasCompressionInfo,
     },
     cpi::{CpiAccounts, CpiInputs},
     derive_light_cpi_signer,
@@ -236,6 +236,33 @@ pub mod anchor_compressible {
                         &ctx.accounts.rent_payer,
                         address_space,
                     )?;
+                    all_compressed_infos.extend(compressed_infos);
+                }
+                CompressedAccountVariant::PlaceholderRecord(data) => {
+                    let mut seeds_refs = Vec::with_capacity(compressed_data.seeds.len() + 1);
+                    for seed in &compressed_data.seeds {
+                        seeds_refs.push(seed.as_slice());
+                    }
+                    seeds_refs.push(&bump_slice);
+
+                    // Create sha::LightAccount with correct PlaceholderRecord discriminator
+                    let light_account = LightAccount::<'_, PlaceholderRecord>::new_mut(
+                        &crate::ID,
+                        &compressed_data.meta,
+                        data,
+                    )?;
+
+                    // Process this single PlaceholderRecord account
+                    let compressed_infos =
+                        prepare_accounts_for_decompress_idempotent::<PlaceholderRecord>(
+                            &[&solana_accounts[i]],
+                            vec![light_account],
+                            &[seeds_refs.as_slice()],
+                            &cpi_accounts,
+                            &ctx.accounts.rent_payer,
+                            address_space,
+                        )?;
+
                     all_compressed_infos.extend(compressed_infos);
                 }
             }
@@ -470,6 +497,91 @@ pub mod anchor_compressible {
 
         Ok(())
     }
+
+    /// Creates an empty compressed account while keeping the PDA intact.
+    /// This demonstrates the compress_empty_account_on_init functionality.
+    pub fn create_placeholder_record<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreatePlaceholderRecord<'info>>,
+        placeholder_id: u64,
+        name: String,
+        proof: ValidityProof,
+        compressed_address: [u8; 32],
+        address_tree_info: PackedAddressTreeInfo,
+        output_state_tree_index: u8,
+    ) -> Result<()> {
+        let placeholder_record = &mut ctx.accounts.placeholder_record;
+
+        // Load config from the config account
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
+
+        placeholder_record.owner = ctx.accounts.user.key();
+        placeholder_record.name = name;
+        placeholder_record.placeholder_id = placeholder_id;
+
+        // Initialize compression_info for the PDA
+        *placeholder_record.compression_info_mut_opt() =
+            Some(super::CompressionInfo::new_decompressed()?);
+        placeholder_record
+            .compression_info_mut()
+            .set_last_written_slot()?;
+
+        // Verify rent recipient matches config
+        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+            return err!(ErrorCode::InvalidRentRecipient);
+        }
+
+        // Create CPI accounts
+        let cpi_accounts =
+            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+
+        let new_address_params =
+            address_tree_info.into_new_address_params_packed(placeholder_record.key().to_bytes());
+
+        // Use the new compress_empty_account_on_init function
+        // This creates an empty compressed account but does NOT close the PDA
+        compress_empty_account_on_init::<PlaceholderRecord>(
+            placeholder_record,
+            &compressed_address,
+            &new_address_params,
+            output_state_tree_index,
+            cpi_accounts,
+            &config.address_space,
+            proof,
+        )?;
+
+        Ok(())
+    }
+
+    /// Compresses a PlaceholderRecord PDA using config values.
+    pub fn compress_placeholder_record<'info>(
+        ctx: Context<'_, '_, '_, 'info, CompressPlaceholderRecord<'info>>,
+        proof: ValidityProof,
+        compressed_account_meta: CompressedAccountMeta,
+    ) -> Result<()> {
+        let placeholder_record = &mut ctx.accounts.pda_to_compress;
+
+        // Load config from the config account
+        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
+
+        // Verify rent recipient matches config
+        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+            return err!(ErrorCode::InvalidRentRecipient);
+        }
+
+        let cpi_accounts =
+            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+
+        compress_account::<PlaceholderRecord>(
+            placeholder_record,
+            &compressed_account_meta,
+            proof,
+            cpi_accounts,
+            &ctx.accounts.rent_recipient,
+            &config.compression_delay,
+        )?;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -487,6 +599,31 @@ pub struct CreateRecord<'info> {
         bump,
     )]
     pub user_record: Account<'info, UserRecord>,
+    /// Needs to be here for the init anchor macro to work.
+    pub system_program: Program<'info, System>,
+    /// The global config account
+    /// CHECK: Config is validated by the SDK's load_checked method
+    pub config: AccountInfo<'info>,
+    /// Rent recipient - must match config
+    /// CHECK: Rent recipient is validated against the config
+    #[account(mut)]
+    pub rent_recipient: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(placeholder_id: u64)]
+pub struct CreatePlaceholderRecord<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        init,
+        payer = user,
+        // discriminator + compression_info + owner + string len + name + placeholder_id
+        space = 8 + 10 + 32 + 4 + 32 + 8,
+        seeds = [b"placeholder_record", placeholder_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub placeholder_record: Account<'info, PlaceholderRecord>,
     /// Needs to be here for the init anchor macro to work.
     pub system_program: Program<'info, System>,
     /// The global config account
@@ -628,6 +765,24 @@ pub struct CompressGameSession<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CompressPlaceholderRecord<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        mut,
+        constraint = pda_to_compress.owner == user.key()
+    )]
+    pub pda_to_compress: Account<'info, PlaceholderRecord>,
+    /// The global config account
+    /// CHECK: Config is validated by the SDK's load_checked method
+    pub config: AccountInfo<'info>,
+    /// Rent recipient - must match config
+    /// CHECK: Rent recipient is validated against the config
+    #[account(mut)]
+    pub rent_recipient: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct DecompressAccountsIdempotent<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
@@ -674,6 +829,7 @@ pub struct UpdateCompressionConfig<'info> {
 pub enum CompressedAccountVariant {
     UserRecord(UserRecord),
     GameSession(GameSession),
+    PlaceholderRecord(PlaceholderRecord),
 }
 
 impl Default for CompressedAccountVariant {
@@ -687,6 +843,7 @@ impl DataHasher for CompressedAccountVariant {
         match self {
             Self::UserRecord(data) => data.hash::<H>(),
             Self::GameSession(data) => data.hash::<H>(),
+            Self::PlaceholderRecord(data) => data.hash::<H>(),
         }
     }
 }
@@ -701,6 +858,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
         match self {
             Self::UserRecord(data) => data.compression_info(),
             Self::GameSession(data) => data.compression_info(),
+            Self::PlaceholderRecord(data) => data.compression_info(),
         }
     }
 
@@ -708,6 +866,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
         match self {
             Self::UserRecord(data) => data.compression_info_mut(),
             Self::GameSession(data) => data.compression_info_mut(),
+            Self::PlaceholderRecord(data) => data.compression_info_mut(),
         }
     }
 
@@ -715,6 +874,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
         match self {
             Self::UserRecord(data) => data.compression_info_mut_opt(),
             Self::GameSession(data) => data.compression_info_mut_opt(),
+            Self::PlaceholderRecord(data) => data.compression_info_mut_opt(),
         }
     }
 
@@ -722,6 +882,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
         match self {
             Self::UserRecord(data) => data.set_compression_info_none(),
             Self::GameSession(data) => data.set_compression_info_none(),
+            Self::PlaceholderRecord(data) => data.set_compression_info_none(),
         }
     }
 }
@@ -731,6 +892,7 @@ impl Size for CompressedAccountVariant {
         match self {
             Self::UserRecord(data) => data.size(),
             Self::GameSession(data) => data.size(),
+            Self::PlaceholderRecord(data) => data.size(),
         }
     }
 }
@@ -863,6 +1025,61 @@ impl CompressAs for GameSession {
             start_time: 0,                     // RESET - clear timing
             end_time: None,                    // RESET - clear timing
             score: 0,                          // RESET - clear progress
+        })
+    }
+}
+
+// PlaceholderRecord - demonstrates empty compressed account creation
+// The PDA remains intact while an empty compressed account is created
+#[derive(Default, Debug, LightHasher, LightDiscriminator, InitSpace)]
+#[account]
+pub struct PlaceholderRecord {
+    #[skip]
+    pub compression_info: Option<CompressionInfo>,
+    #[hash]
+    pub owner: Pubkey,
+    #[max_len(32)]
+    pub name: String,
+    pub placeholder_id: u64,
+}
+
+impl HasCompressionInfo for PlaceholderRecord {
+    fn compression_info(&self) -> &CompressionInfo {
+        self.compression_info
+            .as_ref()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        self.compression_info
+            .as_mut()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
+        &mut self.compression_info
+    }
+
+    fn set_compression_info_none(&mut self) {
+        self.compression_info = None;
+    }
+}
+
+impl Size for PlaceholderRecord {
+    fn size(&self) -> usize {
+        Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE
+    }
+}
+
+impl CompressAs for PlaceholderRecord {
+    type Output = Self;
+
+    fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
+        std::borrow::Cow::Owned(Self {
+            compression_info: None,
+            owner: self.owner,
+            name: self.name.clone(),
+            placeholder_id: self.placeholder_id,
         })
     }
 }
