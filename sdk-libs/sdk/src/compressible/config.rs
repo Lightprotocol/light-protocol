@@ -16,7 +16,7 @@ const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
     Pubkey::from_str_const("BPFLoaderUpgradeab1e11111111111111111111111");
 
 /// Global configuration for compressible accounts
-#[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize)]
+#[derive(Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressibleConfig {
     /// Config version for future upgrades
     pub version: u8,

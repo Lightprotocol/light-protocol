@@ -56,19 +56,18 @@ where
         + LightDiscriminator
         + AnchorSerialize
         + AnchorDeserialize
+        + AccountSerialize
+        + AccountDeserialize
         + Default
         + Clone
         + HasCompressionInfo
-        + CompressAs
-        + std::fmt::Debug,
-    A: AccountSerialize + AccountDeserialize,
+        + CompressAs,
     A::Output: DataHasher
         + LightDiscriminator
         + AnchorSerialize
         + AnchorDeserialize
         + HasCompressionInfo
-        + Default
-        + std::fmt::Debug,
+        + Default,
 {
     let current_slot = Clock::get()?.slot;
 
