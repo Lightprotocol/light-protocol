@@ -14,8 +14,10 @@ use solana_program::{
 };
 
 pub mod compress_dynamic_pda;
+pub mod compress_empty_compressed_pda;
 pub mod create_config;
 pub mod create_dynamic_pda;
+pub mod create_empty_compressed_pda;
 pub mod create_pda;
 pub mod decompress_dynamic_pda;
 pub mod update_config;
@@ -36,6 +38,8 @@ pub enum InstructionType {
     InitializeCompressionConfig = 4,
     UpdateCompressionConfig = 5,
     DecompressAccountsIdempotent = 6,
+    CreateEmptyCompressedPda = 7,
+    CompressEmptyCompressedPda = 8,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -50,6 +54,8 @@ impl TryFrom<u8> for InstructionType {
             4 => Ok(InstructionType::InitializeCompressionConfig),
             5 => Ok(InstructionType::UpdateCompressionConfig),
             6 => Ok(InstructionType::DecompressAccountsIdempotent),
+            7 => Ok(InstructionType::CreateEmptyCompressedPda),
+            8 => Ok(InstructionType::CompressEmptyCompressedPda),
 
             _ => panic!("Invalid instruction discriminator."),
         }
@@ -89,6 +95,18 @@ pub fn process_instruction(
         }
         InstructionType::DecompressAccountsIdempotent => {
             decompress_dynamic_pda::decompress_multiple_dynamic_pdas(
+                accounts,
+                &instruction_data[1..],
+            )
+        }
+        InstructionType::CreateEmptyCompressedPda => {
+            create_empty_compressed_pda::create_empty_compressed_pda(
+                accounts,
+                &instruction_data[1..],
+            )
+        }
+        InstructionType::CompressEmptyCompressedPda => {
+            compress_empty_compressed_pda::compress_empty_compressed_pda(
                 accounts,
                 &instruction_data[1..],
             )
