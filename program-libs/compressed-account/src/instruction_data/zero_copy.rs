@@ -712,8 +712,8 @@ impl<'a> Deserialize<'a> for ZInstructionDataInvokeCpi<'a> {
 impl Deserialize<'_> for CompressedCpiContext {
     type Output = Self;
     fn zero_copy_at(bytes: &[u8]) -> Result<(Self, &[u8]), ZeroCopyError> {
-        let (first_set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (set_context, bytes) = u8::zero_copy_at(bytes)?;
+        let (first_set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (cpi_context_account_index, bytes) = u8::zero_copy_at(bytes)?;
 
         Ok((

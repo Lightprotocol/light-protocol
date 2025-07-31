@@ -28,8 +28,9 @@ arrayvec = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 # Optional Anchor dependency
-anchor-lang = { workspace = true, optional = true }
+light-account-checks = { workspace = true, features = ["solana"] }
 
+anchor-lang = { workspace = true, optional = true }
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "solana"] }
 anchor-lang = { workspace = true }

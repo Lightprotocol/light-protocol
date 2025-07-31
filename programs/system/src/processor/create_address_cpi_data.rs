@@ -83,17 +83,20 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                 ))
             }
         };
-        if !ADDRESS_ASSIGNMENT {
-            // We are inserting addresses into two vectors to avoid unwrapping
-            // the option in following functions.
-            context.addresses.push(Some(address));
-        } else if new_address_params
-            .assigned_compressed_account_index()
-            .is_some()
-        {
-            // Only addresses assigned to output accounts can be used in output accounts.
-            context.addresses.push(Some(address));
-        }
+        //if !ADDRESS_ASSIGNMENT {
+        // We are inserting addresses into two vectors to avoid unwrapping
+        // the option in following functions.
+        context.addresses.push(Some(address));
+        // commented because too strict for usage with cpi context.
+        // Either keep it commented or create v2 cpi context.
+        // TODO: create v2 cpi context. We can resize existing ones.
+        //  } else if new_address_params
+        //     .assigned_compressed_account_index()
+        //     .is_some()
+        // {
+        // Only addresses assigned to output accounts can be used in output accounts.
+        //     context.addresses.push(Some(address));
+        // }
         cpi_ix_data.addresses[i].address = address;
 
         context.set_rollover_fee(new_address_params.address_queue_index(), rollover_fee);

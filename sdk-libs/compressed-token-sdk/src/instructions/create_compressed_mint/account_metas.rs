@@ -51,7 +51,7 @@ pub fn get_create_compressed_mint_instruction_account_metas(
 
     // Calculate capacity based on configuration
     // Static accounts: mint_signer + light_system_program (2)
-    // LightSystemAccounts: fee_payer + cpi_authority_pda + registered_program_pda + 
+    // LightSystemAccounts: fee_payer + cpi_authority_pda + registered_program_pda +
     //                      account_compression_authority + account_compression_program + system_program (6)
     // Tree accounts: address_merkle_tree + output_queue (2)
     let base_capacity = 9; // 2 static + 5 LightSystemAccounts (excluding fee_payer since it's counted separately) + 2 tree
@@ -119,4 +119,23 @@ pub fn get_create_compressed_mint_instruction_account_metas(
     metas.push(AccountMeta::new(config.output_queue, false));
 
     metas
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct CreateCompressedMintMetaConfigCpiWrite {
+    pub fee_payer: Pubkey,
+    pub mint_signer: Pubkey,
+    pub cpi_context: Pubkey,
+}
+pub fn get_create_compressed_mint_instruction_account_metas_cpi_write(
+    config: CreateCompressedMintMetaConfigCpiWrite,
+) -> [AccountMeta; 5] {
+    let default_pubkeys = CTokenDefaultAccounts::default();
+    [
+        AccountMeta::new_readonly(config.mint_signer, true),
+        AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
+        AccountMeta::new(config.fee_payer, true),
+        AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
+        AccountMeta::new(config.cpi_context, false),
+    ]
 }

@@ -1,4 +1,5 @@
 use light_zero_copy::borsh::Deserialize;
+use solana_msg::msg;
 use zerocopy::little_endian::U16;
 
 use crate::{
@@ -139,6 +140,7 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
             return Err(CompressedAccountError::ZeroCopyExpectedProof);
         }
         if let Some(cpi_context) = cpi_context {
+            msg!("Initializing CPI context {:?}", cpi_context);
             self.with_cpi_context = 1;
             self.cpi_context.cpi_context_account_index = cpi_context.cpi_context_account_index;
             self.cpi_context.first_set_context = cpi_context.first_set_context as u8;

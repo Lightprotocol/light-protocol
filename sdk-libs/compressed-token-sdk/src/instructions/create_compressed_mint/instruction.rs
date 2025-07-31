@@ -4,12 +4,19 @@ use light_ctoken_types::{
     self, instructions::extensions::ExtensionInstructionData, COMPRESSED_MINT_SEED,
 };
 use solana_instruction::Instruction;
+use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
     error::{Result, TokenSdkError},
-    instructions::create_compressed_mint::account_metas::{
-        get_create_compressed_mint_instruction_account_metas, CreateCompressedMintMetaConfig,
+    instructions::{
+        account_metas::{
+            get_create_compressed_mint_instruction_account_metas_cpi_write,
+            CreateCompressedMintMetaConfigCpiWrite,
+        },
+        create_compressed_mint::account_metas::{
+            get_create_compressed_mint_instruction_account_metas, CreateCompressedMintMetaConfig,
+        },
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -59,7 +66,7 @@ pub fn create_compressed_mint_cpi(
         fee_payer: Some(input.payer),
         mint_signer: Some(input.mint_signer),
         address_tree_pubkey: input.address_tree_pubkey,
-        output_queue: input.output_queue,
+        output_queue: input.output_queue, // TODO: add cpi context
     };
 
     // Get account metas
@@ -73,6 +80,70 @@ pub fn create_compressed_mint_cpi(
     Ok(Instruction {
         program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts,
+        data: [vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR], data_vec].concat(),
+    })
+}
+
+/// Input struct for creating a compressed mint instruction
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+pub struct CreateCompressedMintInputsCpiWrite {
+    pub decimals: u8,
+    pub mint_authority: Pubkey,
+    pub freeze_authority: Option<Pubkey>,
+    pub proof: CompressedProof,
+    pub mint_bump: u8,
+    pub address_merkle_tree_root_index: u16,
+    pub mint_signer: Pubkey,
+    pub payer: Pubkey,
+    pub mint_address: [u8; 32],
+    pub cpi_context: CompressedCpiContext,
+    pub cpi_context_pubkey: Pubkey,
+    pub extensions: Option<Vec<ExtensionInstructionData>>,
+    pub version: u8,
+}
+pub fn create_compressed_mint_cpi_write(
+    input: CreateCompressedMintInputsCpiWrite,
+) -> Result<Instruction> {
+    use light_ctoken_types::instructions::create_compressed_mint::CreateCompressedMintInstructionData;
+    if !input.cpi_context.first_set_context && !input.cpi_context.set_context {
+        msg!(
+            "Invalid CPI context first cpi set or set context must be true {:?}",
+            input.cpi_context
+        );
+        return Err(TokenSdkError::InvalidAccountData);
+    }
+
+    let instruction_data = CreateCompressedMintInstructionData {
+        decimals: input.decimals,
+        mint_authority: input.mint_authority.to_bytes().into(),
+        freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
+        proof: input.proof,
+        mint_bump: input.mint_bump,
+        address_merkle_tree_root_index: input.address_merkle_tree_root_index,
+        extensions: input.extensions,
+        mint_address: input.mint_address,
+        version: input.version,
+        cpi_context: Some(input.cpi_context),
+    };
+
+    // Create account meta config for create_compressed_mint
+    let meta_config = CreateCompressedMintMetaConfigCpiWrite {
+        fee_payer: input.payer,
+        mint_signer: input.mint_signer,
+        cpi_context: input.cpi_context_pubkey,
+    };
+
+    // Get account metas
+    let accounts = get_create_compressed_mint_instruction_account_metas_cpi_write(meta_config);
+
+    // Serialize instruction data
+    let data_vec = instruction_data
+        .try_to_vec()
+        .map_err(|_| TokenSdkError::SerializationError)?;
+
+    Ok(Instruction {
+        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: accounts.to_vec(),
         data: [vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR], data_vec].concat(),
     })
 }

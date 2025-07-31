@@ -96,8 +96,7 @@ pub fn execute_cpi_invoke(
         for tree_account in tree_accounts {
             account_metas.push(AccountMeta::new(tree_account, true, false));
         }
-    }
-    if write_to_cpi_context {
+    } else {
         // Optional CPI context account (for both execution and context writing modes)
         if let Some(cpi_context) = cpi_context_account.as_ref() {
             account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account

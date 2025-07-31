@@ -166,7 +166,7 @@ pub fn process<
             .new_addresses()
             .any(|x| x.assigned_compressed_account_index().is_some())
         {
-            return Err(SystemProgramError::InvalidAddress.into());
+            //return Err(SystemProgramError::InvalidAddress.into());
         }
     }
 

@@ -9,7 +9,7 @@ use light_compressed_account::{
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey};
 
 use crate::{
     errors::SystemProgramError, invoke_cpi::account::ZCpiContextAccount,
@@ -378,7 +378,8 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
                 address_queue_account_index: address.address_queue_index(),
             };
             if address.assigned_compressed_account_index().is_some() {
-                unimplemented!("Implement logic for assigned compressed account index");
+                msg!("Assigned compressed account index is not supported");
+                unimplemented!();
             }
             cpi_account_data.new_address_params.push(new_address_params);
         }

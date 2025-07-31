@@ -9,6 +9,7 @@ use light_ctoken_types::{
 };
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
@@ -38,7 +39,8 @@ pub fn process_create_compressed_mint(
         .as_ref()
         .map(|x| x.first_set_context || x.set_context)
         .unwrap_or_default();
-
+    msg!("Parsed instruction data: {:?}", parsed_instruction_data);
+    msg!("write_to_cpi_context: {}", write_to_cpi_context);
     // Validate and parse accounts
     let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(
         accounts,
@@ -59,6 +61,7 @@ pub fn process_create_compressed_mint(
         &crate::ID,
     )?
     .into();
+    // TODO: hash the address instead of
 
     let (mint_size_config, config) = get_zero_copy_configs(&parsed_instruction_data)?;
 
@@ -73,7 +76,7 @@ pub fn process_create_compressed_mint(
         crate::LIGHT_CPI_SIGNER.bump,
         &crate::LIGHT_CPI_SIGNER.program_id.into(),
         Some(parsed_instruction_data.proof),
-        None,
+        parsed_instruction_data.cpi_context,
     )?;
 
     sol_log_compute_units();
@@ -83,7 +86,7 @@ pub fn process_create_compressed_mint(
     cpi_instruction_struct.new_address_params[0].set(
         spl_mint_pda.to_bytes(),
         *parsed_instruction_data.address_merkle_tree_root_index,
-        Some(assigned_account_index),
+        None,
         address_merkle_tree_account_index,
     );
     // 3. Create compressed mint account data
@@ -114,7 +117,12 @@ pub fn process_create_compressed_mint(
             trees.pubkeys().as_slice(),
             false, // no sol_pool_pda for create_compressed_mint
             None,
-            None,  // no cpi_context_account for create_compressed_mint
+            validated_accounts
+                .system
+                .as_ref()
+                .unwrap()
+                .cpi_context
+                .map(|x| *x.key()),
             false, // write to cpi context account
         )
     } else {
@@ -124,7 +132,10 @@ pub fn process_create_compressed_mint(
             &[],
             false, // no sol_pool_pda for create_compressed_mint
             None,
-            None, // no cpi_context_account for create_compressed_mint
+            validated_accounts
+                .cpi_context_light_system_accounts
+                .as_ref()
+                .map(|x| *x.cpi_context.key()),
             true,
         )
     }

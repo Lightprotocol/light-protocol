@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 use light_compressed_token_sdk::{instructions::Recipient, TokenAccountMeta, ValidityProof};
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
 
+mod chained_ctoken;
 mod process_batch_compress_tokens;
 mod process_compress_full_and_close;
 mod process_compress_tokens;
@@ -16,6 +17,7 @@ pub mod process_four_transfer2;
 mod process_transfer_tokens;
 mod process_update_deposit;
 
+pub use chained_ctoken::*;
 use light_sdk::{cpi::CpiAccounts, instruction::account_meta::CompressedAccountMeta};
 use process_batch_compress_tokens::process_batch_compress_tokens;
 use process_compress_full_and_close::process_compress_full_and_close;
@@ -49,10 +51,12 @@ pub struct PdaParams {
     pub account_meta: CompressedAccountMeta,
     pub existing_amount: u64,
 }
+use crate::{create_mint::CreateCompressedMintInstructionData, processor::process_chained_ctoken};
 use crate::{
     process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
     process_update_deposit::process_update_deposit,
 };
+
 #[program]
 pub mod sdk_token_test {
     use light_sdk::address::v1::derive_address;
@@ -271,6 +275,13 @@ pub mod sdk_token_test {
             address,
             new_address_params,
         )
+    }
+
+    pub fn chained_ctoken<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
+        inputs: CreateCompressedMintInstructionData,
+    ) -> Result<()> {
+        process_chained_ctoken(ctx, inputs)
     }
 }
 
