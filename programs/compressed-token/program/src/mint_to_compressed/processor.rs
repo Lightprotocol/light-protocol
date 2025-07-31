@@ -182,7 +182,7 @@ pub fn process_mint_to_compressed(
             )?;
         }
     }
-    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
+
     // Create output token accounts
     create_output_compressed_token_accounts(
         parsed_instruction_data,
@@ -223,14 +223,28 @@ pub fn process_mint_to_compressed(
         )?;
     } else if let Some(system_accounts) = validated_accounts.write_to_cpi_context_system.as_ref() {
         if with_sol_pool {
+            msg!("with sol pool");
             unimplemented!("")
         }
         if is_decompressed {
+            msg!("is decompressed");
             unimplemented!("")
         }
+        msg!("accounts len {}", accounts.len());
+        {
+            let _cpi_accounts = accounts
+                .iter()
+                .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
+                .collect::<Vec<_>>();
+            msg!("account infos {:?}", _cpi_accounts);
+        }
+        msg!(
+            "*system_accounts.cpi_context.key() {:?}",
+            solana_pubkey::Pubkey::new_from_array(*system_accounts.cpi_context.key())
+        );
         // Execute CPI call to light-system-program
         execute_cpi_invoke(
-            &accounts[3..6],
+            &accounts[2..],
             cpi_bytes,
             &[],
             false,
@@ -239,6 +253,7 @@ pub fn process_mint_to_compressed(
             true, // write to cpi context account
         )?;
     } else {
+        msg!("no system accounts");
         unreachable!()
     }
     Ok(())

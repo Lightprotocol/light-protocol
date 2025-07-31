@@ -53,7 +53,10 @@ pub fn get_zero_copy_configs(
         cpi_context: CompressedCpiContextConfig {},
         input_compressed_accounts: vec![],
         // We always need a proof to create the compressed address.
-        proof: (true, CompressedProofConfig {}),
+        proof: (
+            parsed_instruction_data.proof.is_some(),
+            CompressedProofConfig {},
+        ),
         read_only_accounts: vec![],
         read_only_addresses: vec![],
         new_address_params,

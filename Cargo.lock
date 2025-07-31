@@ -3265,7 +3265,7 @@ name = "light-account-checks"
 version = "0.3.0"
 dependencies = [
  "borsh 0.10.4",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-account-info",
  "solana-msg",
@@ -3292,7 +3292,7 @@ dependencies = [
  "light-test-utils",
  "light-verifier",
  "light-zero-copy",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "serial_test",
  "solana-account-info",
@@ -3312,7 +3312,7 @@ dependencies = [
  "bitvec",
  "light-hasher",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-nostd-keccak",
  "solana-program-error",
@@ -3390,7 +3390,7 @@ dependencies = [
  "light-poseidon 0.3.0",
  "light-zero-copy",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-msg",
  "solana-program-error",
@@ -3419,7 +3419,7 @@ dependencies = [
  "light-system-program-anchor",
  "light-zero-copy",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-pubkey",
  "solana-security-txt",
@@ -3482,7 +3482,7 @@ dependencies = [
  "memoffset",
  "num-bigint 0.4.6",
  "num-traits",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-program-error",
  "thiserror 2.0.12",
@@ -3501,7 +3501,7 @@ dependencies = [
  "light-macros",
  "light-zero-copy",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-msg",
  "solana-program-error",
@@ -3537,7 +3537,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "sha2 0.10.9",
  "sha3",
@@ -3577,7 +3577,7 @@ dependencies = [
  "light-merkle-tree-reference",
  "num-bigint 0.4.6",
  "num-traits",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-program-error",
  "thiserror 2.0.12",
@@ -3601,7 +3601,7 @@ dependencies = [
  "borsh 0.10.4",
  "bytemuck",
  "light-compressed-account",
- "pinocchio",
+ "pinocchio 0.8.4",
  "solana-msg",
  "solana-program-error",
  "solana-sysvar",
@@ -3777,7 +3777,7 @@ dependencies = [
  "light-sdk-macros",
  "light-sdk-types",
  "light-zero-copy",
- "pinocchio",
+ "pinocchio 0.8.4",
  "solana-pubkey",
  "thiserror 2.0.12",
 ]
@@ -3840,7 +3840,8 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-verifier",
  "light-zero-copy",
- "pinocchio",
+ "pinocchio 0.8.4",
+ "pinocchio-pubkey 0.3.0",
  "pinocchio-system",
  "rand 0.8.5",
  "solana-pubkey",
@@ -3918,7 +3919,7 @@ version = "2.1.0"
 dependencies = [
  "groth16-solana",
  "light-compressed-account",
- "pinocchio",
+ "pinocchio 0.8.4",
  "solana-msg",
  "solana-program-error",
  "thiserror 2.0.12",
@@ -3930,7 +3931,7 @@ version = "0.2.0"
 dependencies = [
  "borsh 0.10.4",
  "light-zero-copy-derive",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-program-error",
  "thiserror 2.0.12",
@@ -4611,13 +4612,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c33b58567c11b07749cefbb8320ac023f3387c57807aeb8e3b1262501b6e9f0"
 
 [[package]]
+name = "pinocchio"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5123fe61ac87a327d434d530eaddaaf65069a37e33e5c9f798feaed29e4974c8"
+
+[[package]]
 name = "pinocchio-pubkey"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c6b20fcebc172c3cd3f54114b0241b48fa8e30893ced2eb4927aaba5e3a0ba5"
 dependencies = [
  "five8_const",
- "pinocchio",
+ "pinocchio 0.8.4",
+]
+
+[[package]]
+name = "pinocchio-pubkey"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb0225638cadcbebae8932cb7f49cb5da7c15c21beb19f048f05a5ca7d93f065"
+dependencies = [
+ "five8_const",
+ "pinocchio 0.9.0",
+ "sha2-const-stable",
 ]
 
 [[package]]
@@ -4626,8 +4644,8 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f75423420ae70aa748cf611cab14cfd00af08d0d2d3d258cb0cf5e2880ec19c"
 dependencies = [
- "pinocchio",
- "pinocchio-pubkey",
+ "pinocchio 0.8.4",
+ "pinocchio-pubkey 0.2.4",
 ]
 
 [[package]]
@@ -5546,7 +5564,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-pinocchio",
  "light-sdk-types",
- "pinocchio",
+ "pinocchio 0.8.4",
  "solana-sdk",
  "tokio",
 ]
@@ -5806,6 +5824,12 @@ dependencies = [
  "cpufeatures",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "sha2-const-stable"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f179d4e11094a893b82fff208f74d448a7512f99f5a0acbd5c679b705f83ed9"
 
 [[package]]
 name = "sha3"

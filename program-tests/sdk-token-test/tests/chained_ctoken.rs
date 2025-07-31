@@ -6,14 +6,19 @@ use light_compressed_token_sdk::{
 };
 
 use light_ctoken_types::{
-    instructions::extensions::token_metadata::TokenMetadataInstructionData,
+    instructions::{
+        extensions::token_metadata::TokenMetadataInstructionData,
+        mint_to_compressed::{CompressedMintInputs, Recipient},
+    },
     state::extensions::{AdditionalMetadata, Metadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use sdk_token_test::{create_mint::CreateCompressedMintInstructionData, ID};
+use sdk_token_test::{
+    create_mint::CreateCompressedMintInstructionData, mint_to::MintToCompressedInstructionData, ID,
+};
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
@@ -62,7 +67,7 @@ async fn test_ctoken_minter() {
     };
 
     // Create the compressed mint
-    let compressed_mint_address = create_mint(
+    let _compressed_mint_address = create_mint(
         &mut rpc,
         &mint_seed,
         decimals,
@@ -120,12 +125,37 @@ pub async fn create_mint<R: Rpc + Indexer>(
     let inputs = CreateCompressedMintInstructionData {
         decimals,
         freeze_authority,
-        proof: rpc_result.proof.0.unwrap(),
         mint_bump,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         version: 0,
         metadata,
         compressed_mint_address,
+    };
+
+    // Create mint_to_compressed instruction data
+    let mint_inputs = MintToCompressedInstructionData {
+        compressed_mint_inputs: CompressedMintInputs {
+            compressed_mint_input: light_ctoken_types::state::CompressedMint {
+                version: 0, // TODO: use onchain
+                spl_mint: find_spl_mint_address(&mint_seed.pubkey()).0.into(),
+                supply: 0,
+                decimals,
+                is_decompressed: false,
+                mint_authority: Some(mint_authority.pubkey().into()),
+                freeze_authority: freeze_authority.map(|fa| fa.into()),
+                extensions: None,
+            },
+            leaf_index: 0,
+            prove_by_index: false,
+            root_index: 0,
+            address: compressed_mint_address,
+        },
+        recipients: vec![Recipient {
+            recipient: payer.pubkey().into(),
+            amount: 1000u64, // Mint 1000 tokens
+        }],
+        lamports: None,
+        version: 2,
     };
     // Create Anchor accounts struct
     let accounts = sdk_token_test::accounts::CreateCompressedMint {
@@ -138,7 +168,11 @@ pub async fn create_mint<R: Rpc + Indexer>(
     let remaining_accounts = packed_accounts.to_account_metas().0;
 
     // Create the instruction
-    let instruction_data = sdk_token_test::instruction::ChainedCtoken { inputs };
+    let instruction_data = sdk_token_test::instruction::ChainedCtoken {
+        inputs,
+        mint_inputs,
+        compressed_proof: rpc_result.proof.0.unwrap(),
+    };
     let ix = solana_sdk::instruction::Instruction {
         program_id: ID,
         accounts: [accounts.to_account_metas(None), remaining_accounts].concat(),

@@ -11,8 +11,7 @@ pub use instruction::{
     CREATE_COMPRESSED_MINT_DISCRIMINATOR,
 };
 use light_account_checks::AccountInfoTrait;
-use light_compressed_token_types::CPI_AUTHORITY_PDA;
-use light_sdk::{constants::LIGHT_SYSTEM_PROGRAM_ID, cpi::CpiSigner};
+use light_sdk::cpi::CpiSigner;
 
 #[derive(Clone, Debug)]
 pub struct CpiContextWriteAccounts<'a, T: AccountInfoTrait + Clone> {

@@ -185,7 +185,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
                 accounts,
                 inputs.account_option_config(),
             )?;
-            msg!("deserialized");
+
             process_invoke_cpi::<true, InvokeCpiInstructionSmall, T>(
                 invoking_program,
                 ctx,

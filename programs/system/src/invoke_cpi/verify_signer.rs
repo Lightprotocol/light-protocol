@@ -38,13 +38,8 @@ pub fn cpi_signer_check(
     bump: Option<u8>,
 ) -> Result<()> {
     let derived_signer = if let Some(bump) = bump {
-        let seeds = [CPI_AUTHORITY_PDA_SEED, &[bump][..]];
-        solana_pubkey::Pubkey::create_program_address(
-            &seeds,
-            &solana_pubkey::Pubkey::new_from_array(*invoking_program),
-        )
-        .map_err(|_| ProgramError::from(SystemProgramError::CpiSignerCheckFailed))?
-        .to_bytes()
+        let seeds = [CPI_AUTHORITY_PDA_SEED];
+        pinocchio_pubkey::derive_address(&seeds, Some(bump), invoking_program)
     } else {
         // Kept for backwards compatibility with instructions, invoke, and invoke cpi.
         let seeds = [CPI_AUTHORITY_PDA_SEED];

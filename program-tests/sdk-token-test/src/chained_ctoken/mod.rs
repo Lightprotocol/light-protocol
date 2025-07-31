@@ -1,4 +1,5 @@
 pub mod create_mint;
+pub mod mint_to;
 pub mod processor;
 
 use anchor_lang::prelude::*;

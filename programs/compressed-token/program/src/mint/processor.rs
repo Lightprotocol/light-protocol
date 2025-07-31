@@ -39,9 +39,7 @@ pub fn process_create_compressed_mint(
         .as_ref()
         .map(|x| x.first_set_context || x.set_context)
         .unwrap_or_default();
-    msg!("Parsed instruction data: {:?}", parsed_instruction_data);
-    msg!("write_to_cpi_context: {}", write_to_cpi_context);
-    // Validate and parse accounts
+    // Validate and parse
     let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(
         accounts,
         with_cpi_context,
@@ -52,6 +50,8 @@ pub fn process_create_compressed_mint(
     // 1. Create spl mint PDA using provided bump
     // - The compressed address is derived from the spl_mint_pda.
     // - The spl mint pda is used as mint in compressed token accounts.
+    // Note: we cant use pinocchio_pubkey::derive_address because don't use the mint_pda in this ix.
+    //  The pda would be unvalidated and an invalid bump could be used.
     let spl_mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
         &[
             COMPRESSED_MINT_SEED,
@@ -75,9 +75,14 @@ pub fn process_create_compressed_mint(
     cpi_instruction_struct.initialize(
         crate::LIGHT_CPI_SIGNER.bump,
         &crate::LIGHT_CPI_SIGNER.program_id.into(),
-        Some(parsed_instruction_data.proof),
+        parsed_instruction_data.proof,
         parsed_instruction_data.cpi_context,
     )?;
+
+    if !write_to_cpi_context && !parsed_instruction_data.proof.is_none() {
+        msg!("Proof missing");
+        return Err(ProgramError::InvalidInstructionData);
+    }
 
     sol_log_compute_units();
     // 2. Create NewAddressParams
@@ -85,7 +90,9 @@ pub fn process_create_compressed_mint(
     let assigned_account_index = 0;
     cpi_instruction_struct.new_address_params[0].set(
         spl_mint_pda.to_bytes(),
-        *parsed_instruction_data.address_merkle_tree_root_index,
+        parsed_instruction_data
+            .address_merkle_tree_root_index
+            .into(),
         None,
         address_merkle_tree_account_index,
     );
@@ -101,7 +108,7 @@ pub fn process_create_compressed_mint(
         Some(parsed_instruction_data.mint_authority),
         0.into(),
         mint_size_config,
-        *parsed_instruction_data.mint_address,
+        parsed_instruction_data.mint_address,
         1,
         parsed_instruction_data.version,
         false, // Set is_decompressed = false for new mint creation
@@ -109,6 +116,7 @@ pub fn process_create_compressed_mint(
         &mut token_context,
     )?;
     sol_log_compute_units();
+
     if let Some(trees) = validated_accounts.trees.as_ref() {
         // 4. Execute CPI to light-system-program
         execute_cpi_invoke(

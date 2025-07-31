@@ -104,6 +104,26 @@ impl MintToCompressedMetaConfig {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct MintToCompressedMetaConfigCpiWrite {
+    pub fee_payer: Pubkey,
+    pub mint_authority: Pubkey,
+    pub cpi_context: Pubkey,
+}
+
+pub fn get_mint_to_compressed_instruction_account_metas_cpi_write(
+    config: MintToCompressedMetaConfigCpiWrite,
+) -> [AccountMeta; 5] {
+    let default_pubkeys = CTokenDefaultAccounts::default();
+    [
+        AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
+        AccountMeta::new_readonly(config.mint_authority, true),
+        AccountMeta::new(config.fee_payer, true),
+        AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
+        AccountMeta::new(config.cpi_context, false),
+    ]
+}
+
 /// Get the standard account metas for a mint_to_compressed instruction
 pub fn get_mint_to_compressed_instruction_account_metas(
     config: MintToCompressedMetaConfig,

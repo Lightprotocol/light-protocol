@@ -1,84 +1,62 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke;
-use light_compressed_token_sdk::account_infos::{
-    MintToCompressedAccountInfos, MintToCompressedAccountInfosConfig,
+use light_compressed_token_sdk::instructions::mint_to_compressed::{
+    create_mint_to_compressed_cpi_write, MintToCompressedCpiContextWriteAccounts,
+    MintToCompressedInputsCpiWrite,
 };
-use light_compressed_token_sdk::instructions::{
-    create_mint_to_compressed_instruction, MintToCompressedInputs,
-};
-use light_compressed_token_sdk::ValidityProof;
+use light_compressed_token_sdk::CompressedCpiContext;
 use light_ctoken_types::instructions::mint_to_compressed::{CompressedMintInputs, Recipient};
+use light_sdk_types::CpiAccountsSmall;
 
-#[derive(Accounts)]
-pub struct MintCompressedTokens<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub mint_authority: Signer<'info>,
-}
+use super::CreateCompressedMint;
+use crate::LIGHT_CPI_SIGNER;
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
-pub struct MintCompressedTokensInstructionData {
+pub struct MintToCompressedInstructionData {
     pub compressed_mint_inputs: CompressedMintInputs,
     pub recipients: Vec<Recipient>,
     pub lamports: Option<u64>,
-    pub validity_proof: ValidityProof,
+    pub version: u8,
 }
 
-pub fn mint_compressed_tokens<'info>(
-    ctx: Context<'_, '_, '_, 'info, MintCompressedTokens<'info>>,
-    input: MintCompressedTokensInstructionData,
+pub fn mint_to_compressed<'a, 'b, 'c, 'info>(
+    ctx: &Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
+    input: MintToCompressedInstructionData,
+    cpi_accounts: &CpiAccountsSmall<'a, AccountInfo<'info>>,
 ) -> Result<()> {
-    // Determine if SOL pool is needed based on lamports
-    let with_sol_pool = input.lamports.is_some();
+    let cpi_context_account_info = MintToCompressedCpiContextWriteAccounts {
+        mint_authority: ctx.accounts.mint_authority.as_ref(),
+        light_system_program: cpi_accounts.system_program().unwrap(),
+        fee_payer: ctx.accounts.payer.as_ref(),
+        cpi_authority_pda: ctx.accounts.ctoken_cpi_authority.as_ref(),
+        cpi_context: cpi_accounts.cpi_context().unwrap(),
+        cpi_signer: LIGHT_CPI_SIGNER,
+    };
+    msg!(" cpi_context_account_info {:?}", cpi_context_account_info);
 
-    // Create the account infos configuration based on input flags
-    let account_config = MintToCompressedAccountInfosConfig::new(
-        input
-            .compressed_mint_inputs
-            .compressed_mint_input
-            .is_decompressed,
-        with_sol_pool,
-    );
-
-    // Create the account infos wrapper for CPI use
-    let mint_cpi_account_infos = MintToCompressedAccountInfos::new_cpi(
-        ctx.accounts.payer.as_ref(),
-        ctx.accounts.mint_authority.as_ref(),
-        ctx.remaining_accounts,
-        account_config,
-    );
-
-    // Create decompressed mint config if needed
-    let decompressed_mint_config = mint_cpi_account_infos
-        .get_decompressed_mint_config()
-        .unwrap();
-
-    let mint_to_inputs = MintToCompressedInputs {
+    let mint_to_inputs = MintToCompressedInputsCpiWrite {
         compressed_mint_inputs: input.compressed_mint_inputs,
         lamports: input.lamports,
         recipients: input.recipients,
         mint_authority: ctx.accounts.mint_authority.key(),
         payer: ctx.accounts.payer.key(),
-        state_merkle_tree: *mint_cpi_account_infos.in_merkle_tree().unwrap().key,
-        output_queue: *mint_cpi_account_infos.out_output_queue().unwrap().key,
-        state_tree_pubkey: *mint_cpi_account_infos.tokens_out_queue().unwrap().key,
-        decompressed_mint_config,
+        cpi_context: CompressedCpiContext {
+            set_context: true,
+            first_set_context: false,
+            cpi_context_account_index: 0,
+        },
+        cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
+        version: input.version,
     };
 
-    let mint_instruction =
-        create_mint_to_compressed_instruction(mint_to_inputs).map_err(ProgramError::from)?;
-
+    let mint_to_instruction =
+        create_mint_to_compressed_cpi_write(mint_to_inputs).map_err(ProgramError::from)?;
+    msg!(" mint_to_instruction {:?}", mint_to_instruction);
     // Execute the CPI call to mint compressed tokens
     invoke(
-        &mint_instruction,
-        mint_cpi_account_infos.to_account_infos().as_ref(),
+        &mint_to_instruction,
+        &cpi_context_account_info.to_account_infos(),
     )?;
 
     Ok(())
-}
-
-#[error_code]
-pub enum MintCompressedTokensErrorCode {
-    #[msg("Invalid account configuration")]
-    InvalidAccountConfiguration,
 }

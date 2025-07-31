@@ -14,7 +14,6 @@ use crate::{
 pub struct CreateCompressedMintInstructionData {
     pub decimals: u8,
     pub mint_authority: Pubkey,
-    pub proof: CompressedProof,
     pub mint_bump: u8,
     pub address_merkle_tree_root_index: u16,
     // compressed address TODO: make a type CompressedAddress (not straight forward because of AnchorSerialize)
@@ -23,6 +22,7 @@ pub struct CreateCompressedMintInstructionData {
     pub version: u8,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub cpi_context: Option<CompressedCpiContext>,
+    pub proof: Option<CompressedProof>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
