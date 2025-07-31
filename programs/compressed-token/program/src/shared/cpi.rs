@@ -1,6 +1,5 @@
 use std::mem::MaybeUninit;
 
-use account_compression::utils::constants::NOOP_PUBKEY;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA_SEED,
@@ -16,16 +15,16 @@ use pinocchio::{
 
 use crate::LIGHT_CPI_SIGNER;
 
-/// Generalized CPI function for invoking light-system-program
+/// Executes CPI to light-system-program using the new InvokeCpiInstructionSmall format
 ///
-/// This function builds the standard account meta structure for light-system-program CPI
-/// and appends dynamic tree accounts (merkle trees, queues, etc.) to the account metas.
+/// This function follows the same pattern as the system program's InvokeCpiInstructionSmall
+/// and properly handles AccountOptions for determining execution vs context writing.
 ///
 /// # Arguments
 /// * `accounts` - All account infos passed to the instruction
 /// * `cpi_bytes` - The CPI instruction data bytes
 /// * `tree_accounts` - Slice of tree account pubkeys to append (will be marked as mutable)
-/// * `sol_pool_pda` - Optional sol pool PDA pubkey
+/// * `with_sol_pool` - Whether SOL pool is being used
 /// * `cpi_context_account` - Optional CPI context account pubkey
 ///
 /// # Returns
@@ -35,60 +34,80 @@ pub fn execute_cpi_invoke(
     cpi_bytes: Vec<u8>,
     tree_accounts: &[&Pubkey],
     with_sol_pool: bool,
+    decompress_sol: Option<&Pubkey>,
     cpi_context_account: Option<Pubkey>,
+    write_to_cpi_context: bool,
 ) -> Result<(), ProgramError> {
     if cpi_bytes[9] == 0 {
         msg!("Bump not set in cpi struct.");
         return Err(ProgramError::InvalidInstructionData);
     }
-    // Build account metas with capacity for standard accounts + dynamic tree accounts
-    let capacity = 11 + tree_accounts.len(); // 11 standard accounts + dynamic tree accounts
-                                             // TODO: investigate why array vec is not working
-                                             // let mut account_metas = ArrayVec::<AccountMeta, 15>::new();
-    let mut account_metas = Vec::with_capacity(capacity);
 
-    // Standard account metas for light-system-program CPI
-    // Account order must match light-system program's InvokeCpiInstruction expectation:
-    // 0: fee_payer, 1: authority, 2: registered_program_pda, 3: noop_program,
-    // 4: account_compression_authority, 5: account_compression_program, 6: invoking_program,
-    // 7: sol_pool_pda (optional), 8: decompression_recipient (optional), 9: system_program,
-    // 10: cpi_context_account (optional), then remaining accounts (merkle trees, etc.)
-    const INNER_POOL: [u8; 32] =
-        solana_pubkey::pubkey!("CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1").to_bytes();
-    let sol_pool_pda = if with_sol_pool {
-        AccountMeta::new(&INNER_POOL, true, false)
+    // Build account metas following InvokeCpiInstructionSmall format
+    let base_capacity = if write_to_cpi_context {
+        3
     } else {
-        AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)
+        8 + tree_accounts.len()
     };
-    // Add accounts one by one since extend_from_slice is private
-    account_metas.push(AccountMeta::new(accounts[0].key(), true, true)); // 0 fee_payer (signer, mutable)
-    account_metas.push(AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true)); // 1 authority (cpi_authority_pda)
-    account_metas.push(AccountMeta::new(&REGISTERED_PROGRAM_PDA, false, false)); // 2 registered_program_pda
-    account_metas.push(AccountMeta::new(&NOOP_PUBKEY, false, false)); // 3 noop_program
-    account_metas.push(AccountMeta::new(
-        &ACCOUNT_COMPRESSION_AUTHORITY_PDA,
-        false,
-        false,
-    )); // 4 account_compression_authority
-    account_metas.push(AccountMeta::new(
-        &ACCOUNT_COMPRESSION_PROGRAM_ID,
-        false,
-        false,
-    )); // 5 account_compression_program
-    account_metas.push(AccountMeta::new(&LIGHT_CPI_SIGNER.program_id, false, false)); // 6 invoking_program (self_program)
-    account_metas.push(sol_pool_pda); // 7 sol_pool_pda
-    account_metas.push(AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)); // 8 decompression_recipient (None, using default)
-    account_metas.push(AccountMeta::new(&[0u8; 32], false, false)); // system_program
-    account_metas.push(if let Some(cpi_context) = cpi_context_account.as_ref() {
-        AccountMeta::new(cpi_context, true, false)
-    } else {
-        AccountMeta::new(&LIGHT_SYSTEM_PROGRAM_ID, false, false)
-    }); // cpi_context_account
+    let mut sol_pool_capacity = if with_sol_pool { 1 } else { 0 };
+    if decompress_sol.is_some() {
+        sol_pool_capacity += 1
+    };
+    let cpi_context_capacity = if cpi_context_account.is_some() { 1 } else { 0 };
+    let total_capacity = base_capacity + sol_pool_capacity + cpi_context_capacity;
 
-    // Append dynamic tree accounts (merkle trees, queues, etc.) as mutable accounts
-    for tree_account in tree_accounts {
-        account_metas.push(AccountMeta::new(tree_account, true, false));
+    let mut account_metas = Vec::with_capacity(total_capacity);
+
+    // Always include: fee_payer and authority
+    account_metas.push(AccountMeta::new(accounts[0].key(), true, true)); // fee_payer (signer, mutable)
+    account_metas.push(AccountMeta::new(&LIGHT_CPI_SIGNER.cpi_signer, false, true)); // authority (cpi_authority_pda, signer)
+
+    if !write_to_cpi_context {
+        // Execution mode - include all execution accounts
+        account_metas.push(AccountMeta::new(&REGISTERED_PROGRAM_PDA, false, false)); // registered_program_pda
+        account_metas.push(AccountMeta::new(
+            &ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+            false,
+            false,
+        )); // account_compression_authority
+        account_metas.push(AccountMeta::new(
+            &ACCOUNT_COMPRESSION_PROGRAM_ID,
+            false,
+            false,
+        )); // account_compression_program
+        account_metas.push(AccountMeta::new(&[0u8; 32], false, false)); // system_program
+
+        // Optional SOL pool
+        if with_sol_pool {
+            const INNER_POOL: [u8; 32] =
+                solana_pubkey::pubkey!("CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1").to_bytes();
+            account_metas.push(AccountMeta::new(&INNER_POOL, true, false)); // sol_pool_pda
+        }
+
+        // No decompression_recipient for compressed token operations
+        if let Some(decompress_sol) = decompress_sol {
+            account_metas.push(AccountMeta::new(decompress_sol, true, false));
+        }
+        // Optional CPI context account (for both execution and context writing modes)
+        if let Some(cpi_context) = cpi_context_account.as_ref() {
+            account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account
+        }
+        // Append dynamic tree accounts (merkle trees, queues, etc.)
+        for tree_account in tree_accounts {
+            account_metas.push(AccountMeta::new(tree_account, true, false));
+        }
     }
+    if write_to_cpi_context {
+        // Optional CPI context account (for both execution and context writing modes)
+        if let Some(cpi_context) = cpi_context_account.as_ref() {
+            account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account
+        }
+    }
+    let _cpi_accounts = account_metas
+        .iter()
+        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.pubkey))
+        .collect::<Vec<_>>();
+    msg!("account metas {:?}", _cpi_accounts);
     let instruction = Instruction {
         program_id: &LIGHT_SYSTEM_PROGRAM_ID,
         accounts: account_metas.as_slice(),
@@ -122,6 +141,11 @@ pub fn slice_invoke_signed(
 ) -> pinocchio::ProgramResult {
     use pinocchio::program_error::ProgramError;
     if instruction.accounts.len() < account_infos.len() {
+        msg!(
+            "instruction.accounts.len() account metas {}< account_infos.len() account infos {}",
+            instruction.accounts.len(),
+            account_infos.len()
+        );
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 

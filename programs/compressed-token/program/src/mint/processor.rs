@@ -31,9 +31,21 @@ pub fn process_create_compressed_mint(
         CreateCompressedMintInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
     sol_log_compute_units();
+    // TODO: refactor cpi context struct we don't need the index in the struct.
+    let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
+    let write_to_cpi_context = parsed_instruction_data
+        .cpi_context
+        .as_ref()
+        .map(|x| x.first_set_context || x.set_context)
+        .unwrap_or_default();
 
     // Validate and parse accounts
-    let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(accounts)?;
+    let validated_accounts = CreateCompressedMintAccounts::validate_and_parse(
+        accounts,
+        with_cpi_context,
+        write_to_cpi_context,
+    )?;
+    sol_log_compute_units();
 
     // 1. Create spl mint PDA using provided bump
     // - The compressed address is derived from the spl_mint_pda.
@@ -94,12 +106,26 @@ pub fn process_create_compressed_mint(
         &mut token_context,
     )?;
     sol_log_compute_units();
-    // 4. Execute CPI to light-system-program
-    execute_cpi_invoke(
-        &accounts[CreateCompressedMintAccounts::CPI_ACCOUNTS_OFFSET..],
-        cpi_bytes,
-        validated_accounts.tree_pubkeys().as_slice(),
-        false, // no sol_pool_pda for create_compressed_mint
-        None,  // no cpi_context_account for create_compressed_mint
-    )
+    if let Some(trees) = validated_accounts.trees.as_ref() {
+        // 4. Execute CPI to light-system-program
+        execute_cpi_invoke(
+            &accounts[CreateCompressedMintAccounts::CPI_ACCOUNTS_OFFSET..],
+            cpi_bytes,
+            trees.pubkeys().as_slice(),
+            false, // no sol_pool_pda for create_compressed_mint
+            None,
+            None,  // no cpi_context_account for create_compressed_mint
+            false, // write to cpi context account
+        )
+    } else {
+        execute_cpi_invoke(
+            &accounts[CreateCompressedMintAccounts::CPI_ACCOUNTS_OFFSET..],
+            cpi_bytes,
+            &[],
+            false, // no sol_pool_pda for create_compressed_mint
+            None,
+            None, // no cpi_context_account for create_compressed_mint
+            true,
+        )
+    }
 }

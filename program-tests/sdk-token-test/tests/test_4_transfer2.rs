@@ -239,26 +239,29 @@ async fn mint_compressed_tokens(
         extensions: None,
     };
 
-    let mint_to_instruction = create_mint_to_compressed_instruction(MintToCompressedInputs {
-        compressed_mint_inputs: CompressedMintInputs {
-            prove_by_index: true,
-            leaf_index: compressed_mint_account.leaf_index,
-            root_index: 0,
-            address: compressed_mint_account.address.unwrap(),
-            compressed_mint_input: expected_compressed_mint,
+    let mint_to_instruction = create_mint_to_compressed_instruction(
+        MintToCompressedInputs {
+            compressed_mint_inputs: CompressedMintInputs {
+                prove_by_index: true,
+                leaf_index: compressed_mint_account.leaf_index,
+                root_index: 0,
+                address: compressed_mint_account.address.unwrap(),
+                compressed_mint_input: expected_compressed_mint,
+            },
+            recipients: vec![Recipient {
+                recipient: payer.pubkey().into(),
+                amount,
+            }],
+            mint_authority: payer.pubkey(),
+            payer: payer.pubkey(),
+            state_merkle_tree,
+            output_queue,
+            state_tree_pubkey: state_merkle_tree,
+            decompressed_mint_config: None,
+            lamports: None,
         },
-        recipients: vec![Recipient {
-            recipient: payer.pubkey().into(),
-            amount,
-        }],
-        mint_authority: payer.pubkey(),
-        payer: payer.pubkey(),
-        state_merkle_tree,
-        output_queue,
-        state_tree_pubkey: state_merkle_tree,
-        decompressed_mint_config: None,
-        lamports: None,
-    })
+        None,
+    )
     .unwrap();
 
     rpc.create_and_send_transaction(&[mint_to_instruction], &payer.pubkey(), &[payer])
@@ -366,7 +369,9 @@ async fn test_four_transfer2_instruction(
         sdk_token_test::ID,
         tree_info.cpi_context.unwrap(),
     );
-    remaining_accounts.add_system_accounts(config).unwrap();
+    remaining_accounts
+        .add_system_accounts_small(config)
+        .unwrap();
     println!("next index {}", remaining_accounts.packed_pubkeys().len());
 
     // Get validity proof - need to prove the escrow PDA and compressed token accounts

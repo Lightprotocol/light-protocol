@@ -1,3 +1,4 @@
+use light_compressed_token_types::CompressedCpiContext;
 use light_ctoken_types::{
     instructions::{
         create_compressed_mint::UpdateCompressedMintInstructionData,
@@ -38,6 +39,7 @@ pub struct MintToCompressedInputs {
 /// Create a mint_to_compressed instruction
 pub fn create_mint_to_compressed_instruction(
     inputs: MintToCompressedInputs,
+    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<Instruction> {
     let MintToCompressedInputs {
         compressed_mint_inputs,
@@ -53,7 +55,7 @@ pub fn create_mint_to_compressed_instruction(
 
     // Store decompressed flag before moving the compressed_mint_input
     let is_decompressed = compressed_mint_inputs.compressed_mint_input.is_decompressed;
-    
+
     // Validate that decompressed_mint_config is provided when the mint is decompressed
     if is_decompressed && decompressed_mint_config.is_none() {
         return Err(TokenSdkError::DecompressedMintConfigRequired);
@@ -76,11 +78,12 @@ pub fn create_mint_to_compressed_instruction(
         lamports,
         recipients,
         proof: None, // No proof needed for this test
+        cpi_context,
     };
 
     // Create account meta config
     let has_sol_pool = lamports.is_some();
-    
+
     let meta_config = if is_decompressed {
         let decompressed_config = decompressed_mint_config.unwrap();
         MintToCompressedMetaConfig::new_decompressed(

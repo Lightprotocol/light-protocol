@@ -69,17 +69,20 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     };
 
     // Create the instruction
-    create_mint_to_compressed_instruction(MintToCompressedInputs {
-        compressed_mint_inputs,
-        lamports,
-        recipients,
-        mint_authority,
-        payer,
-        state_merkle_tree: compressed_mint_account.tree_info.tree,
-        output_queue: compressed_mint_account.tree_info.queue,
-        state_tree_pubkey: state_tree_info.tree,
-        decompressed_mint_config,
-    })
+    create_mint_to_compressed_instruction(
+        MintToCompressedInputs {
+            compressed_mint_inputs,
+            lamports,
+            recipients,
+            mint_authority,
+            payer,
+            state_merkle_tree: compressed_mint_account.tree_info.tree,
+            output_queue: compressed_mint_account.tree_info.queue,
+            state_tree_pubkey: state_tree_info.tree,
+            decompressed_mint_config,
+        },
+        None,
+    )
     .map_err(|e| {
         RpcError::CustomError(format!(
             "Failed to create mint_to_compressed instruction: {:?}",

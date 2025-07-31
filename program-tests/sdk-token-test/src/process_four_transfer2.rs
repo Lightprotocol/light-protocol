@@ -8,10 +8,14 @@ use light_compressed_token_sdk::{
     },
 };
 use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
-use light_sdk::{cpi::CpiAccounts, instruction::ValidityProof as LightValidityProof};
-use light_sdk_types::CpiAccountsConfig;
+use light_sdk::{
+    account::LightAccount,
+    cpi::{CpiAccountsSmall, CpiInputs},
+    instruction::ValidityProof,
+};
+use light_sdk_types::{cpi_context_write::CpiContextWriteAccounts, CpiAccountsConfig};
 
-use crate::{process_update_deposit::process_update_escrow_pda, PdaParams};
+use crate::{process_update_deposit::CompressedEscrowPda, PdaParams, LIGHT_CPI_SIGNER};
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct TransferParams {
@@ -39,7 +43,7 @@ pub struct FourTransfer2Params {
 pub fn process_four_transfer2<'info>(
     ctx: Context<'_, '_, '_, 'info, crate::Generic<'info>>,
     output_tree_index: u8,
-    proof: LightValidityProof,
+    proof: ValidityProof,
     system_accounts_start_offset: u8,
     packed_accounts_start_offset: u8,
     four_invokes_params: FourTransfer2Params,
@@ -149,11 +153,24 @@ pub fn process_four_transfer2<'info>(
         .remaining_accounts
         .split_at(system_accounts_start_offset as usize);
 
-    let cpi_accounts =
-        CpiAccounts::new_with_config(ctx.accounts.signer.as_ref(), system_account_infos, config);
+    let cpi_accounts = CpiAccountsSmall::new_with_config(
+        ctx.accounts.signer.as_ref(),
+        system_account_infos,
+        config,
+    );
+    msg!("cpi_accounts fee_payer {:?}", cpi_accounts.fee_payer());
+    msg!("cpi_accounts authority {:?}", cpi_accounts.authority());
+    msg!("cpi_accounts cpi_context {:?}", cpi_accounts.cpi_context());
+
+    let cpi_context_account_info = CpiContextWriteAccounts {
+        fee_payer: ctx.accounts.signer.as_ref(),
+        authority: cpi_accounts.authority().unwrap(),
+        cpi_context: cpi_accounts.cpi_context().unwrap(),
+        cpi_signer: LIGHT_CPI_SIGNER,
+    };
 
     // Invocation 4: Execute CPI context with system program
-    process_update_escrow_pda(cpi_accounts.clone(), pda_params, proof, 0, true)?;
+    process_update_escrow_pda(cpi_context_account_info, pda_params, proof, 0, true)?;
 
     {
         let mut token_account_compress = CTokenAccount2::new_empty(
@@ -249,4 +266,46 @@ pub fn account_meta_from_account_info(account_info: &AccountInfo) -> AccountMeta
         is_signer: account_info.is_signer,
         is_writable: account_info.is_writable,
     }
+}
+
+pub fn process_update_escrow_pda(
+    cpi_accounts: CpiContextWriteAccounts<AccountInfo>,
+    pda_params: PdaParams,
+    proof: ValidityProof,
+    deposit_amount: u64,
+    set_context: bool,
+) -> Result<()> {
+    let mut my_compressed_account = LightAccount::<'_, CompressedEscrowPda>::new_mut(
+        &crate::ID,
+        &pda_params.account_meta,
+        CompressedEscrowPda {
+            owner: *cpi_accounts.fee_payer.key,
+            amount: pda_params.existing_amount,
+        },
+    )
+    .unwrap();
+
+    my_compressed_account.amount += deposit_amount;
+
+    let cpi_inputs = CpiInputs {
+        proof,
+        account_infos: Some(vec![my_compressed_account
+            .to_account_info()
+            .map_err(ProgramError::from)?]),
+        new_addresses: None,
+        cpi_context: Some(CompressedCpiContext {
+            set_context,
+            first_set_context: set_context,
+            // change to bool works well.
+            cpi_context_account_index: 0, // seems to be useless. Seems to be unused.
+                                          // TODO: unify the account meta generation on and offchain.
+        }),
+        ..Default::default()
+    };
+
+    cpi_inputs
+        .invoke_light_system_program_cpi_context(cpi_accounts)
+        .map_err(ProgramError::from)?;
+
+    Ok(())
 }

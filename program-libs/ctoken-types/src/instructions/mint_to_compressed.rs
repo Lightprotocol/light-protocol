@@ -1,4 +1,7 @@
-use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
+use light_compressed_account::{
+    instruction_data::{compressed_proof::CompressedProof, cpi_context::CompressedCpiContext},
+    Pubkey,
+};
 use light_zero_copy::ZeroCopy;
 
 use crate::{
@@ -28,4 +31,5 @@ pub struct MintToCompressedInstructionData {
     pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
     pub proof: Option<CompressedProof>,
+    pub cpi_context: Option<CompressedCpiContext>,
 }

@@ -1,32 +1,27 @@
-use std::ops::Deref;
-
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::check_signer;
 use pinocchio::account_info::AccountInfo;
 
 use crate::shared::{
-    accounts::{LightSystemAccounts, UpdateOneCompressedAccountTreeAccounts},
+    accounts::{
+        CpiContextLightSystemAccounts, LightSystemAccounts, UpdateOneCompressedAccountTreeAccounts,
+    },
     AccountIterator,
 };
 
 pub struct MintToCompressedAccounts<'info> {
+    pub light_system_program: &'info AccountInfo,
     pub authority: &'info AccountInfo,
+    pub executing: Option<ExecutingAccounts<'info>>,
+    pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
+}
+
+pub struct ExecutingAccounts<'info> {
     pub mint: Option<&'info AccountInfo>,
     pub token_pool_pda: Option<&'info AccountInfo>,
     pub token_program: Option<&'info AccountInfo>,
-    pub light_system_program: &'info AccountInfo,
     pub system: LightSystemAccounts<'info>,
-    pub sol_pool_pda: Option<&'info AccountInfo>,
     pub tree_accounts: UpdateOneCompressedAccountTreeAccounts<'info>,
     pub tokens_out_queue: &'info AccountInfo,
-}
-
-impl<'info> Deref for MintToCompressedAccounts<'info> {
-    type Target = LightSystemAccounts<'info>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.system
-    }
 }
 
 impl<'info> MintToCompressedAccounts<'info> {
@@ -34,48 +29,63 @@ impl<'info> MintToCompressedAccounts<'info> {
         accounts: &'info [AccountInfo],
         with_lamports: bool,
         is_decompressed: bool,
+        with_cpi_context: bool,
+        write_to_cpi_context: bool,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-
-        // Static non-CPI accounts first
-        let authority = iter.next_account("authority")?;
-
-        let (mint, token_pool_pda, token_program) = if is_decompressed {
-            (
-                Some(iter.next_account("mint")?),
-                Some(iter.next_account("token_pool_pda")?),
-                Some(iter.next_account("token_program")?),
-            )
-        } else {
-            (None, None, None)
-        };
-
         let light_system_program = iter.next_account("light_system_program")?;
-
-        let system = LightSystemAccounts::validate_and_parse(&mut iter)?;
-
-        let sol_pool_pda = if with_lamports {
-            Some(iter.next_account("sol_pool_pda")?)
+        // Static non-CPI accounts first
+        let authority = iter.next_signer("authority")?;
+        if write_to_cpi_context {
+            Ok(MintToCompressedAccounts {
+                light_system_program,
+                authority,
+                executing: None,
+                write_to_cpi_context_system: Some(
+                    CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?,
+                ),
+            })
         } else {
-            None
-        };
+            let mint = iter.next_option_mut("mint", is_decompressed)?;
+            let token_pool_pda = iter.next_option_mut("token_pool_pda", is_decompressed)?;
+            let token_program = iter.next_option("token_program", is_decompressed)?;
 
-        let tree_accounts = UpdateOneCompressedAccountTreeAccounts::validate_and_parse(&mut iter)?;
-        let tokens_out_queue = iter.next_account("tokens_out_queue")?;
+            let system = LightSystemAccounts::validate_and_parse(
+                &mut iter,
+                with_lamports,
+                false,
+                with_cpi_context,
+            )?;
 
-        // Validate authority: must be signer
-        check_signer(authority)?;
+            let tree_accounts =
+                UpdateOneCompressedAccountTreeAccounts::validate_and_parse(&mut iter)?;
+            let tokens_out_queue = iter.next_account("tokens_out_queue")?;
 
-        Ok(MintToCompressedAccounts {
-            authority,
-            mint,
-            token_pool_pda,
-            token_program,
-            light_system_program,
-            system,
-            sol_pool_pda,
-            tree_accounts,
-            tokens_out_queue,
-        })
+            Ok(MintToCompressedAccounts {
+                light_system_program,
+                authority,
+                executing: Some(ExecutingAccounts {
+                    mint,
+                    token_pool_pda,
+                    token_program,
+                    system,
+                    tree_accounts,
+                    tokens_out_queue,
+                }),
+                write_to_cpi_context_system: None,
+            })
+        }
+    }
+
+    pub fn cpi_authority(&self) -> Result<&AccountInfo, ProgramError> {
+        if let Some(executing) = &self.executing {
+            Ok(executing.system.cpi_authority_pda)
+        } else {
+            let cpi_system = self
+                .write_to_cpi_context_system
+                .as_ref()
+                .ok_or(ProgramError::InvalidInstructionData)?; // TODO: better error
+            Ok(cpi_system.cpi_authority_pda)
+        }
     }
 }

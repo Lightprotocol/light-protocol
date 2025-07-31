@@ -66,11 +66,7 @@ pub mod system_cpi_test {
             use light_sdk::cpi::CpiAccountsSmall;
             let cpi_accounts =
                 CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config);
-            let account_infos = cpi_accounts
-                .to_account_infos()
-                .into_iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas = to_account_metas_small(cpi_accounts)
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;

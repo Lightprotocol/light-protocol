@@ -9,6 +9,7 @@ use light_ctoken_types::{
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 use zerocopy::little_endian::U64;
 
@@ -41,15 +42,26 @@ pub fn process_mint_to_compressed(
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     sol_log_compute_units();
-
+    let with_sol_pool = parsed_instruction_data.lamports.is_some();
+    msg!(" with sol pool: {}", with_sol_pool);
+    let is_decompressed = parsed_instruction_data
+        .compressed_mint_inputs
+        .mint
+        .is_decompressed();
+    msg!("is_decompressed: {}", is_decompressed);
+    let write_to_cpi_context = parsed_instruction_data
+        .cpi_context
+        .as_ref()
+        .map(|x| x.first_set_context || x.set_context)
+        .unwrap_or_default();
+    msg!("write_to_cpi_context: {}", write_to_cpi_context);
     // Validate and parse accounts
     let validated_accounts = MintToCompressedAccounts::validate_and_parse(
         accounts,
-        parsed_instruction_data.lamports.is_some(),
-        parsed_instruction_data
-            .compressed_mint_inputs
-            .mint
-            .is_decompressed(),
+        with_sol_pool,
+        is_decompressed,
+        parsed_instruction_data.cpi_context.is_some(),
+        write_to_cpi_context,
     )?;
     let (config, mut cpi_bytes) = get_zero_copy_configs(&parsed_instruction_data)?;
 
@@ -57,8 +69,14 @@ pub fn process_mint_to_compressed(
     let (mut cpi_instruction_struct, _) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
-    cpi_instruction_struct.bump = LIGHT_CPI_SIGNER.bump;
-    cpi_instruction_struct.invoking_program_id = LIGHT_CPI_SIGNER.program_id.into();
+
+    cpi_instruction_struct.initialize(
+        LIGHT_CPI_SIGNER.bump,
+        &LIGHT_CPI_SIGNER.program_id.into(),
+        parsed_instruction_data.proof,
+        parsed_instruction_data.cpi_context,
+    )?;
+
     if let Some(lamports) = parsed_instruction_data.lamports {
         cpi_instruction_struct.compress_or_decompress_lamports =
             U64::from(parsed_instruction_data.recipients.len() as u64) * *lamports;
@@ -136,38 +154,35 @@ pub fn process_mint_to_compressed(
         )?;
     }
 
-    let is_decompressed = parsed_instruction_data
-        .compressed_mint_inputs
-        .mint
-        .is_decompressed();
+    if let Some(system_accounts) = validated_accounts.executing.as_ref() {
+        // If mint is decompressed, mint tokens to the token pool to maintain SPL mint supply consistency
+        if is_decompressed {
+            let sum_amounts: u64 = parsed_instruction_data
+                .recipients
+                .iter()
+                .map(|x| u64::from(x.amount))
+                .sum();
 
-    // If mint is decompressed, mint tokens to the token pool to maintain SPL mint supply consistency
-    if is_decompressed {
-        let sum_amounts: u64 = parsed_instruction_data
-            .recipients
-            .iter()
-            .map(|x| u64::from(x.amount))
-            .sum();
+            let mint_account = system_accounts
+                .mint
+                .ok_or(ProgramError::InvalidAccountData)?;
+            let token_pool_account = system_accounts
+                .token_pool_pda
+                .ok_or(ProgramError::InvalidAccountData)?;
+            let token_program = system_accounts
+                .token_program
+                .ok_or(ProgramError::InvalidAccountData)?;
 
-        let mint_account = validated_accounts
-            .mint
-            .ok_or(ProgramError::InvalidAccountData)?;
-        let token_pool_account = validated_accounts
-            .token_pool_pda
-            .ok_or(ProgramError::InvalidAccountData)?;
-        let token_program = validated_accounts
-            .token_program
-            .ok_or(ProgramError::InvalidAccountData)?;
-
-        mint_to_token_pool(
-            mint_account,
-            token_pool_account,
-            token_program,
-            validated_accounts.cpi_authority_pda,
-            sum_amounts,
-        )?;
+            mint_to_token_pool(
+                mint_account,
+                token_pool_account,
+                token_program,
+                validated_accounts.cpi_authority()?,
+                sum_amounts,
+            )?;
+        }
     }
-
+    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
     // Create output token accounts
     create_output_compressed_token_accounts(
         parsed_instruction_data,
@@ -176,22 +191,56 @@ pub fn process_mint_to_compressed(
         mint_pda,
     )?;
 
-    // Extract tree accounts for the generalized CPI call
-    let tree_accounts = [
-        validated_accounts.tree_accounts.in_merkle_tree.key(),
-        validated_accounts.tree_accounts.in_output_queue.key(),
-        validated_accounts.tree_accounts.out_output_queue.key(),
-        validated_accounts.tokens_out_queue.key(),
-    ];
-    let start_index = if is_decompressed { 5 } else { 2 };
-
-    execute_cpi_invoke(
-        &accounts[start_index..], // Skip first 5 non-CPI accounts (authority, mint, token_pool_pda, token_program, light_system_program)
-        cpi_bytes,
-        tree_accounts.as_slice(),
-        validated_accounts.sol_pool_pda.is_some(),
-        None, // no cpi_context_account for mint_to_compressed
-    )?;
+    if let Some(system_accounts) = validated_accounts.executing {
+        // Extract tree accounts for the generalized CPI call
+        let tree_accounts = [
+            system_accounts.tree_accounts.in_merkle_tree.key(),
+            system_accounts.tree_accounts.in_output_queue.key(),
+            system_accounts.tree_accounts.out_output_queue.key(),
+            system_accounts.tokens_out_queue.key(),
+        ];
+        let start_index = if is_decompressed { 5 } else { 2 };
+        msg!("start_index: {}", start_index);
+        msg!(
+            " system_accounts.system.sol_pool_pda.is_some(): {}",
+            system_accounts.system.sol_pool_pda.is_some()
+        );
+        msg!(
+            "accounts {:?}",
+            &accounts
+                .iter()
+                .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
+                .collect::<Vec<_>>()
+        );
+        execute_cpi_invoke(
+            &accounts[start_index..], // Skip first 5 non-CPI accounts (authority, mint, token_pool_pda, token_program, light_system_program)
+            cpi_bytes,
+            tree_accounts.as_slice(),
+            system_accounts.system.sol_pool_pda.is_some(),
+            None,
+            None,  // no cpi_context_account for mint_to_compressed
+            false, // write to cpi context account
+        )?;
+    } else if let Some(system_accounts) = validated_accounts.write_to_cpi_context_system.as_ref() {
+        if with_sol_pool {
+            unimplemented!("")
+        }
+        if is_decompressed {
+            unimplemented!("")
+        }
+        // Execute CPI call to light-system-program
+        execute_cpi_invoke(
+            &accounts[3..6],
+            cpi_bytes,
+            &[],
+            false,
+            None,
+            Some(*system_accounts.cpi_context.key()),
+            true, // write to cpi context account
+        )?;
+    } else {
+        unreachable!()
+    }
     Ok(())
 }
 

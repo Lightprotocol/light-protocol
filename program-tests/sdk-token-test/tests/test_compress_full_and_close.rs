@@ -130,20 +130,23 @@ async fn test_compress_full_and_close() {
         compressed_mint_input: expected_compressed_mint,
     };
 
-    let mint_instruction = create_mint_to_compressed_instruction(MintToCompressedInputs {
-        compressed_mint_inputs,
-        lamports: Some(10000u64),
-        recipients: vec![Recipient {
-            recipient: recipient.into(),
-            amount: mint_amount,
-        }],
-        mint_authority,
-        payer: payer.pubkey(),
-        state_merkle_tree: state_tree_pubkey,
-        output_queue: state_output_queue,
-        state_tree_pubkey,
-        decompressed_mint_config: None,
-    })
+    let mint_instruction = create_mint_to_compressed_instruction(
+        MintToCompressedInputs {
+            compressed_mint_inputs,
+            lamports: Some(10000u64),
+            recipients: vec![Recipient {
+                recipient: recipient.into(),
+                amount: mint_amount,
+            }],
+            mint_authority,
+            payer: payer.pubkey(),
+            state_merkle_tree: state_tree_pubkey,
+            output_queue: state_output_queue,
+            state_tree_pubkey,
+            decompressed_mint_config: None,
+        },
+        None,
+    )
     .unwrap();
 
     rpc.create_and_send_transaction(

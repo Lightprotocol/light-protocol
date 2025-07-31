@@ -325,8 +325,8 @@ fn deserialize_instruction<'a>(
             })
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
-            // Min len for a small instruction 3 accounts + 1 tree or queue
-            // Fee payer + authority + registered program + account compression authority
+            // Min len for a small instruction 3 accounts + 1 tree or queue  
+            // Fee payer + authority + registered program + account compression program + account compression authority
             if accounts.len() < 5 {
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
@@ -335,7 +335,7 @@ fn deserialize_instruction<'a>(
             let system_accounts_len = if data.mode == 0 {
                 11
             } else {
-                let mut len = 4;
+                let mut len = 6; // fee_payer + authority + registered_program + account_compression_program + account_compression_authority + system_program
                 if data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }
@@ -373,7 +373,7 @@ fn deserialize_instruction<'a>(
         }
         INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION => {
             // Min len for a small instruction 4 accounts + 1 tree or queue
-            // Fee payer + authority + registered program + account compression authority
+            // Fee payer + authority + registered program + account compression program + account compression authority
             if accounts.len() < 5 {
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
@@ -382,7 +382,7 @@ fn deserialize_instruction<'a>(
             let system_accounts_len = if data.mode == 0 {
                 11
             } else {
-                let mut len = 4;
+                let mut len = 6; // fee_payer + authority + registered_program + account_compression_program + account_compression_authority + system_program
                 if data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }

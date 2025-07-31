@@ -1,4 +1,5 @@
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_compressed_token_types::CompressedCpiContext;
 use light_ctoken_types::{
     self, instructions::extensions::ExtensionInstructionData, COMPRESSED_MINT_SEED,
 };
@@ -36,6 +37,7 @@ pub struct CreateCompressedMintInputs {
 pub fn create_compressed_mint_cpi(
     input: CreateCompressedMintInputs,
     mint_address: [u8; 32],
+    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<Instruction> {
     use light_ctoken_types::instructions::create_compressed_mint::CreateCompressedMintInstructionData;
 
@@ -49,6 +51,7 @@ pub fn create_compressed_mint_cpi(
         extensions: input.extensions,
         mint_address,
         version: input.version,
+        cpi_context,
     };
 
     // Create account meta config for create_compressed_mint
@@ -78,7 +81,7 @@ pub fn create_compressed_mint_cpi(
 pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Result<Instruction> {
     let mint_address =
         derive_compressed_mint_address(&input.mint_signer, &input.address_tree_pubkey);
-    create_compressed_mint_cpi(input, mint_address)
+    create_compressed_mint_cpi(input, mint_address, None)
 }
 
 /// Derives the compressed mint address from the mint seed and address tree

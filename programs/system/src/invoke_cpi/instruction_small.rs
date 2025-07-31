@@ -1,6 +1,6 @@
 use light_account_checks::AccountIterator;
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, msg};
 
 use crate::{
     accounts::{
@@ -18,9 +18,9 @@ use crate::{
 pub struct ExecutionAccounts<'info> {
     /// CHECK: in account compression program
     pub registered_program_pda: &'info AccountInfo,
-    pub account_compression_program: &'info AccountInfo,
     /// CHECK: used to invoke account compression program cpi sign will fail if invalid account is provided seeds = [CPI_AUTHORITY_PDA_SEED].
     pub account_compression_authority: &'info AccountInfo,
+    pub account_compression_program: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
     pub sol_pool_pda: Option<&'info AccountInfo>,
     /// CHECK: unchecked is user provided recipient.
@@ -46,21 +46,23 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
 
         let fee_payer = accounts.next_signer_mut("fee_payer")?;
         let authority = accounts.next_signer("authority")?;
-
+        msg!("authority");
+        msg!(account_options.write_to_cpi_context.to_string().as_str());
         let exec_accounts = if !account_options.write_to_cpi_context {
             let registered_program_pda = accounts.next_non_mut("registered_program_pda")?;
 
+            let account_compression_authority =
+                accounts.next_non_mut("account_compression_authority")?;
             let account_compression_program =
                 accounts.next_non_mut("account_compression_program")?;
 
-            let account_compression_authority =
-                accounts.next_non_mut("account_compression_authority")?;
             let system_program = accounts.next_non_mut("system_program")?;
 
             let sol_pool_pda = check_option_sol_pool_pda(&mut accounts, account_options)?;
 
             let decompression_recipient =
                 check_option_decompression_recipient(&mut accounts, account_options)?;
+
             Some(ExecutionAccounts {
                 registered_program_pda,
                 account_compression_program,
@@ -74,7 +76,11 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
         };
 
         let cpi_context_account = check_option_cpi_context_account(&mut accounts, account_options)?;
-
+        let remaining_accounts = if !account_options.write_to_cpi_context {
+            accounts.remaining()?
+        } else {
+            &[]
+        };
         Ok((
             Self {
                 fee_payer,
@@ -82,7 +88,7 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
                 exec_accounts,
                 cpi_context_account,
             },
-            accounts.remaining()?,
+            remaining_accounts,
         ))
     }
 }

@@ -1,4 +1,7 @@
-use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
+use light_compressed_account::{
+    instruction_data::{compressed_proof::CompressedProof, cpi_context::CompressedCpiContext},
+    Pubkey,
+};
 use light_zero_copy::ZeroCopy;
 
 use crate::{
@@ -19,11 +22,11 @@ pub struct CreateCompressedMintInstructionData {
     pub freeze_authority: Option<Pubkey>,
     pub version: u8,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
+    pub cpi_context: Option<CompressedCpiContext>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct UpdateCompressedMintInstructionData {
-    // pub merkle_context: PackedMerkleContext,
     pub leaf_index: u32,
     pub prove_by_index: bool,
     pub root_index: u16,

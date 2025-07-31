@@ -60,6 +60,25 @@ impl PackedAccounts {
         Ok(())
     }
 
+    #[cfg(feature = "v2")]
+    pub fn add_system_accounts_small(
+        &mut self,
+        config: SystemAccountMetaConfig,
+    ) -> crate::error::Result<()> {
+        self.system_accounts
+            .extend(crate::instruction::get_light_system_account_metas_small(
+                config,
+            ));
+        // note cpi context account is part of the system accounts
+        /*  if let Some(pubkey) = config.cpi_context {
+            if self.next_index != 0 {
+                return Err(crate::error::LightSdkError::CpiContextOrderingViolation);
+            }
+            self.insert_or_get(pubkey);
+        }*/
+        Ok(())
+    }
+
     /// Returns the index of the provided `pubkey` in the collection.
     ///
     /// If the provided `pubkey` is not a part of the collection, it gets

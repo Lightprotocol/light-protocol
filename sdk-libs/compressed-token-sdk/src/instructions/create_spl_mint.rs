@@ -8,7 +8,7 @@ use light_ctoken_types::{
 };
 use light_sdk::constants::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
-    NOOP_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
+    REGISTERED_PROGRAM_PDA,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -42,12 +42,13 @@ pub fn create_spl_mint_instruction(inputs: CreateSplMintInputs) -> Result<Instru
         &[POOL_SEED, &mint_pda.to_bytes()],
         &Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
     );
-    create_spl_mint_instruction_with_bump(inputs, token_pool_pda)
+    create_spl_mint_instruction_with_bump(inputs, token_pool_pda, false)
 }
 
 pub fn create_spl_mint_instruction_with_bump(
     inputs: CreateSplMintInputs,
     token_pool_pda: Pubkey,
+    cpi_context: bool,
 ) -> Result<Instruction> {
     let CreateSplMintInputs {
         mint_signer,
@@ -85,7 +86,11 @@ pub fn create_spl_mint_instruction_with_bump(
         mint_bump,
         mint: update_mint_data,
         mint_authority_is_none,
+        cpi_context,
     };
+    if cpi_context {
+        unimplemented!("create_spl_mint_instruction_with_bump with cpi_context")
+    }
 
     // Create create_spl_mint accounts in the exact order expected by accounts.rs
     let create_spl_mint_accounts = vec![
@@ -100,7 +105,6 @@ pub fn create_spl_mint_instruction_with_bump(
         AccountMeta::new(payer, true), // fee_payer (signer, mutable)
         AccountMeta::new_readonly(Pubkey::new_from_array(CPI_AUTHORITY_PDA), false), // cpi_authority_pda
         AccountMeta::new_readonly(Pubkey::new_from_array(REGISTERED_PROGRAM_PDA), false), // registered_program_pda
-        AccountMeta::new_readonly(Pubkey::new_from_array(NOOP_PROGRAM_ID), false), // noop_program
         AccountMeta::new_readonly(
             Pubkey::new_from_array(ACCOUNT_COMPRESSION_AUTHORITY_PDA),
             false,
@@ -109,7 +113,6 @@ pub fn create_spl_mint_instruction_with_bump(
             Pubkey::new_from_array(ACCOUNT_COMPRESSION_PROGRAM_ID),
             false,
         ), // account_compression_program
-        AccountMeta::new_readonly(Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID), false), // self_program
         AccountMeta::new_readonly(Pubkey::default(), false), // system_program
         AccountMeta::new(input_merkle_tree, false),          // in_merkle_tree
         AccountMeta::new(input_output_queue, false),         // in_output_queue

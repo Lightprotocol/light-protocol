@@ -125,6 +125,7 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
         input_proof: Option<<CompressedProof as Deserialize>::Output>,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<(), CompressedAccountError> {
+        self.mode = 1; // Small ix mode
         self.bump = bump;
         self.invoking_program_id = *invoking_program_id;
         if let Some(proof) = self.proof.as_deref_mut() {

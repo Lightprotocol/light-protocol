@@ -56,15 +56,17 @@ pub fn get_transfer2_instruction_account_metas(
         AccountMeta::new_readonly(Pubkey::new_from_array(CPI_AUTHORITY_PDA), false),
         // registered_program_pda
         AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-        // noop_program
-        AccountMeta::new_readonly(default_pubkeys.noop_program, false),
         // account_compression_authority
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
         // account_compression_program
         AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        // invoking_program (self program)
-        AccountMeta::new_readonly(default_pubkeys.self_program, false),
     ]);
+
+    // system_program (always present)
+    metas.push(AccountMeta::new_readonly(
+        default_pubkeys.system_program,
+        false,
+    ));
 
     // Optional sol pool accounts
     if config.with_sol_pool {
@@ -75,12 +77,6 @@ pub fn get_transfer2_instruction_account_metas(
             metas.push(AccountMeta::new(sol_decompression_recipient, false));
         }
     }
-
-    // system_program (always present)
-    metas.push(AccountMeta::new_readonly(
-        default_pubkeys.system_program,
-        false,
-    ));
     if let Some(cpi_context) = config.cpi_context {
         metas.push(AccountMeta::new(cpi_context, false));
     }

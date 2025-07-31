@@ -49,31 +49,34 @@ pub fn get_create_compressed_mint_instruction_account_metas(
 ) -> Vec<AccountMeta> {
     let default_pubkeys = CTokenDefaultAccounts::default();
 
-    // Calculate capacity based on whether fee_payer is provided
-    // Base accounts: light_system_program + cpi_authority_pda + registered_program_pda +
-    //                noop_program + account_compression_authority + account_compression_program +
-    //                self_program + system_program + address_merkle_tree + output_queue
-    let base_capacity = 10;
+    // Calculate capacity based on configuration
+    // Static accounts: mint_signer + light_system_program (2)
+    // LightSystemAccounts: fee_payer + cpi_authority_pda + registered_program_pda + 
+    //                      account_compression_authority + account_compression_program + system_program (6)
+    // Tree accounts: address_merkle_tree + output_queue (2)
+    let base_capacity = 9; // 2 static + 5 LightSystemAccounts (excluding fee_payer since it's counted separately) + 2 tree
 
-    // Direct invoke accounts: mint_signer + fee_payer
-    let direct_invoke_capacity = if config.fee_payer.is_some() { 2 } else { 0 };
+    // Optional fee_payer account
+    let fee_payer_capacity = if config.fee_payer.is_some() { 1 } else { 0 };
 
-    let total_capacity = base_capacity + direct_invoke_capacity;
+    let total_capacity = base_capacity + fee_payer_capacity;
 
     let mut metas = Vec::with_capacity(total_capacity);
 
-    // Add mint_signer and fee_payer if provided (for direct invoke)
+    // First two accounts are static non-CPI accounts as expected by CPI_ACCOUNTS_OFFSET = 2
+    // mint_signer (always required)
     if let Some(mint_signer) = config.mint_signer {
         metas.push(AccountMeta::new_readonly(mint_signer, true));
     }
 
-    // light_system_program
+    // light_system_program (always required)
     metas.push(AccountMeta::new_readonly(
         default_pubkeys.light_system_program,
         false,
     ));
 
-    // Add fee_payer if provided (for direct invoke)
+    // CPI accounts start here (matching system program expectations)
+    // fee_payer (signer, mutable) - only add if provided
     if let Some(fee_payer) = config.fee_payer {
         metas.push(AccountMeta::new(fee_payer, true));
     }
@@ -90,12 +93,6 @@ pub fn get_create_compressed_mint_instruction_account_metas(
         false,
     ));
 
-    // noop_program
-    metas.push(AccountMeta::new_readonly(
-        default_pubkeys.noop_program,
-        false,
-    ));
-
     // account_compression_authority
     metas.push(AccountMeta::new_readonly(
         default_pubkeys.account_compression_authority,
@@ -108,18 +105,13 @@ pub fn get_create_compressed_mint_instruction_account_metas(
         false,
     ));
 
-    // self_program (compressed token program)
-    metas.push(AccountMeta::new_readonly(
-        default_pubkeys.self_program,
-        false,
-    ));
-
     // system_program
     metas.push(AccountMeta::new_readonly(
         default_pubkeys.system_program,
         false,
     ));
 
+    // Tree accounts (mutable) - these are parsed by CreateCompressedAccountTreeAccounts
     // address_merkle_tree (mutable)
     metas.push(AccountMeta::new(config.address_tree_pubkey, false));
 

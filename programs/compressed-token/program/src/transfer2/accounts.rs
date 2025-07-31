@@ -1,10 +1,13 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::{check_mut, check_signer};
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_pod::solana_msg::msg;
 
-use crate::shared::AccountIterator;
-
+use crate::shared::{
+    accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
+    AccountIterator,
+};
+/*
 /// Validated system accounts for multi-transfer instruction
 /// Accounts are ordered to match light-system-program CPI expectation
 pub struct Transfer2ValidatedAccounts<'info> {
@@ -14,22 +17,28 @@ pub struct Transfer2ValidatedAccounts<'info> {
     pub authority: &'info AccountInfo,
     /// Registered program PDA (index 2) - non-mutable
     pub registered_program_pda: &'info AccountInfo,
-    /// Noop program (index 3) - non-mutable
-    pub noop_program: &'info AccountInfo,
     /// Account compression authority (index 4) - non-mutable
     pub account_compression_authority: &'info AccountInfo,
     /// Account compression program (index 5) - non-mutable
     pub account_compression_program: &'info AccountInfo,
-    /// Invoking program (index 6) - self program, non-mutable
-    pub invoking_program: &'info AccountInfo,
+    /// System program (index 9) - non-mutable
+    pub system_program: &'info AccountInfo,
     /// Sol pool PDA (index 7) - optional, mutable if present
     pub sol_pool_pda: Option<&'info AccountInfo>,
     /// SOL decompression recipient (index 8) - optional, mutable, for SOL decompression
     pub sol_decompression_recipient: Option<&'info AccountInfo>,
-    /// System program (index 9) - non-mutable
-    pub system_program: &'info AccountInfo,
     /// CPI context account (index 10) - optional, non-mutable
     pub cpi_context_account: Option<&'info AccountInfo>,
+}
+ */
+
+pub struct Transfer2Accounts<'info> {
+    pub light_system_program: &'info AccountInfo,
+    pub system: Option<LightSystemAccounts<'info>>,
+    pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
+    /// Contains mint, owner, delegate, merkle tree, and queue accounts
+    /// tree and queue accounts come last.
+    pub packed_accounts: Transfer2PackedAccounts<'info>,
 }
 
 /// Dynamic accounts slice for index-based access
@@ -53,82 +62,63 @@ impl Transfer2PackedAccounts<'_> {
     }
 }
 
-impl Transfer2ValidatedAccounts<'_> {
-    // The offset of 1 skips the light-system-program account (index 0)
-    pub const CPI_ACCOUNTS_OFFSET: usize = 1;
-}
-
-impl<'info> Transfer2ValidatedAccounts<'info> {
+impl<'info> Transfer2Accounts<'info> {
     /// Validate and parse accounts from the instruction accounts slice
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
         with_sol_pool: bool,
+        decompress_sol: bool,
         with_cpi_context: bool,
-    ) -> Result<(Self, Transfer2PackedAccounts<'info>), ProgramError> {
-        // Parse system accounts from fixed positions
+        write_cpi_context: bool,
+    ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-        let fee_payer = iter.next_account("fee_payer")?;
-        let authority = iter.next_account("authority")?;
-        let registered_program_pda = iter.next_account("registered_program_pda")?;
-        let noop_program = iter.next_account("noop_program")?;
-        let account_compression_authority = iter.next_account("account_compression_authority")?;
-        let account_compression_program = iter.next_account("account_compression_program")?;
-        let invoking_program = iter.next_account("invoking_program")?;
-        let sol_pool_pda = if with_sol_pool {
-            Some(iter.next_account("sol_pool_pda")?)
+        // Unusedjust for readability
+        let light_system_program = iter.next_account("light_system_program")?;
+        let system = if write_cpi_context {
+            None
+        } else {
+            Some(LightSystemAccounts::validate_and_parse(
+                &mut iter,
+                with_sol_pool,
+                decompress_sol,
+                with_cpi_context,
+            )?)
+        };
+        let write_to_cpi_context_system = if write_cpi_context {
+            Some(CpiContextLightSystemAccounts::validate_and_parse(
+                &mut iter,
+            )?)
         } else {
             None
         };
-
-        let sol_decompression_recipient = if with_sol_pool {
-            Some(iter.next_account("sol_decompression_recipient")?)
-        } else {
-            None
-        };
-
-        let system_program = iter.next_account("system_program")?;
-        let cpi_context_account = if with_cpi_context {
-            let cpi_context_account = iter.next_account("cpi_context_account")?;
-            check_mut(cpi_context_account)?;
-            Some(cpi_context_account)
-        } else {
-            None
-        };
-
-        // Validate fee_payer: must be signer and mutable
-        check_signer(fee_payer)?;
-        check_mut(fee_payer)?;
         // Extract remaining accounts slice for dynamic indexing
-        let remaining_accounts = iter.remaining()?;
-
-        let validated_accounts = Transfer2ValidatedAccounts {
-            fee_payer,
-            authority,
-            registered_program_pda,
-            noop_program,
-            account_compression_authority,
-            account_compression_program,
-            invoking_program,
-            sol_pool_pda,
-            sol_decompression_recipient,
-            system_program,
-            cpi_context_account,
-        };
-
-        let packed_accounts = Transfer2PackedAccounts {
-            accounts: remaining_accounts,
-        };
-
-        Ok((validated_accounts, packed_accounts))
+        let packed_accounts = iter.remaining()?;
+        Ok(Transfer2Accounts {
+            light_system_program,
+            system,
+            write_to_cpi_context_system,
+            packed_accounts: Transfer2PackedAccounts {
+                accounts: packed_accounts,
+            },
+        })
     }
 
     /// Calculate static accounts count after skipping index 0 (system accounts only)
     /// Returns the count of fixed accounts based on optional features
     #[inline(always)]
     pub fn static_accounts_count(&self) -> usize {
-        let with_sol_pool = self.sol_pool_pda.is_some();
-        let with_cpi_context = self.cpi_context_account.is_some();
-        8 + if with_sol_pool { 2 } else { 0 } + if with_cpi_context { 1 } else { 0 }
+        // TODO: remove unwrap
+        let with_sol_pool = self.system.as_ref().unwrap().sol_pool_pda.is_some();
+        let decompressing_sol = self
+            .system
+            .as_ref()
+            .unwrap()
+            .sol_decompression_recipient
+            .is_some();
+        let with_cpi_context = self.system.as_ref().unwrap().cpi_context.is_some();
+        6 + if with_sol_pool { 1 } else { 0 }
+            + if decompressing_sol { 1 } else { 0 }
+            + if with_cpi_context { 1 } else { 0 }
     }
 
     /// Extract CPI accounts slice for light-system-program invocation
@@ -148,9 +138,8 @@ impl<'info> Transfer2ValidatedAccounts<'info> {
         let static_accounts_count = self.static_accounts_count();
 
         // Include static CPI accounts + tree accounts based on highest tree index
-        let cpi_accounts_end =
-            Self::CPI_ACCOUNTS_OFFSET + static_accounts_count + tree_accounts_count;
-        let cpi_accounts_slice = &all_accounts[Self::CPI_ACCOUNTS_OFFSET..cpi_accounts_end];
+        let cpi_accounts_end = 1 + static_accounts_count + tree_accounts_count;
+        let cpi_accounts_slice = &all_accounts[1..cpi_accounts_end];
 
         (cpi_accounts_slice, tree_accounts)
     }
@@ -175,7 +164,7 @@ pub fn extract_tree_accounts<'info>(
 
     // Tree accounts span from index 0 to highest_tree_index in remaining accounts
     let tree_accounts_count = highest_tree_index as usize + 1;
-
+    msg!("Tree accounts count: {}", tree_accounts_count);
     // Extract tree account pubkeys from the determined range
     let mut tree_accounts = Vec::new();
     for i in 0..tree_accounts_count {

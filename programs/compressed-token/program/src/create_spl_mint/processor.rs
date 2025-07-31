@@ -34,9 +34,9 @@ pub fn process_create_spl_mint(
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     sol_log_compute_units();
-
+    let with_cpi_context = parsed_instruction_data.cpi_context();
     // Validate and parse accounts
-    let validated_accounts = CreateSplMintAccounts::validate_and_parse(accounts)?;
+    let validated_accounts = CreateSplMintAccounts::validate_and_parse(accounts, with_cpi_context)?;
 
     // Verify mint PDA matches the spl_mint field in compressed mint inputs
     // TODO: set it instead of passing it, to eliminate duplicate ix data.
@@ -80,6 +80,7 @@ pub fn process_create_spl_mint(
         accounts,
         &validated_accounts,
         &parsed_instruction_data,
+        with_cpi_context,
     )?;
 
     sol_log_compute_units();
@@ -95,6 +96,7 @@ fn update_compressed_mint_to_decompressed<'info>(
     all_accounts: &'info [AccountInfo],
     accounts: &CreateSplMintAccounts<'info>,
     instruction_data: &ZCreateSplMintInstructionData,
+    with_cpi_context: bool,
 ) -> Result<(), ProgramError> {
     use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 
@@ -212,7 +214,9 @@ fn update_compressed_mint_to_decompressed<'info>(
         cpi_bytes,
         accounts.tree_pubkeys().as_slice(),
         false, // no sol_pool_pda
-        None,  // no cpi_context_account
+        None,
+        accounts.cpi_context.map(|cpi_context| *cpi_context.key()),
+        with_cpi_context,
     )?;
 
     Ok(())

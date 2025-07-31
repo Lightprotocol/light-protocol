@@ -114,15 +114,30 @@ pub fn get_mint_to_compressed_instruction_account_metas(
     // Optional accounts: authority + payer + optional decompressed accounts (3) + light_system_program +
     //                   cpi accounts (6 without fee_payer) + optional SOL pool + system_program + merkle tree accounts (5)
     let base_capacity = 14; // light_system_program + 6 cpi accounts + system_program + 5 tree accounts
-    let authority_capacity = if config.mint_authority.is_some() { 1 } else { 0 };
+    let authority_capacity = if config.mint_authority.is_some() {
+        1
+    } else {
+        0
+    };
     let payer_capacity = if config.payer.is_some() { 1 } else { 0 };
     let decompressed_capacity = if config.is_decompressed { 3 } else { 0 };
     let sol_pool_capacity = if config.with_lamports { 1 } else { 0 };
-    let total_capacity = base_capacity + authority_capacity + payer_capacity + decompressed_capacity + sol_pool_capacity;
+    let total_capacity = base_capacity
+        + authority_capacity
+        + payer_capacity
+        + decompressed_capacity
+        + sol_pool_capacity;
 
     let mut metas = Vec::with_capacity(total_capacity);
 
-    // authority (signer) - only add if provided
+    // light_system_program (always first)
+    metas.push(AccountMeta::new_readonly(
+        default_pubkeys.light_system_program,
+        false,
+    ));
+
+    // authority (signer) - always required by program, even in CPI mode
+    // In CPI mode, caller provides authority account at runtime
     if let Some(mint_authority) = config.mint_authority {
         metas.push(AccountMeta::new_readonly(mint_authority, true));
     }
@@ -137,12 +152,6 @@ pub fn get_mint_to_compressed_instruction_account_metas(
         )); // token_program
     }
 
-    // light_system_program
-    metas.push(AccountMeta::new_readonly(
-        default_pubkeys.light_system_program,
-        false,
-    ));
-
     // CPI accounts in exact order expected by InvokeCpiWithReadOnly
     if let Some(payer) = config.payer {
         metas.push(AccountMeta::new(payer, true)); // fee_payer (signer, mutable)
@@ -156,10 +165,6 @@ pub fn get_mint_to_compressed_instruction_account_metas(
         false,
     )); // registered_program_pda
     metas.push(AccountMeta::new_readonly(
-        default_pubkeys.noop_program,
-        false,
-    )); // noop_program
-    metas.push(AccountMeta::new_readonly(
         default_pubkeys.account_compression_authority,
         false,
     )); // account_compression_authority
@@ -167,10 +172,12 @@ pub fn get_mint_to_compressed_instruction_account_metas(
         default_pubkeys.account_compression_program,
         false,
     )); // account_compression_program
+
+    // system_program
     metas.push(AccountMeta::new_readonly(
-        default_pubkeys.self_program,
+        default_pubkeys.system_program,
         false,
-    )); // self_program
+    ));
 
     // Optional SOL pool
     if config.with_lamports {
@@ -180,22 +187,13 @@ pub fn get_mint_to_compressed_instruction_account_metas(
         )); // sol_pool_pda (mutable)
     }
 
-    // system_program
-    metas.push(AccountMeta::new_readonly(
-        default_pubkeys.system_program,
-        false,
-    ));
-
     // Merkle tree accounts - UpdateOneCompressedAccountTreeAccounts (3 accounts)
     metas.push(AccountMeta::new(config.state_merkle_tree, false)); // in_merkle_tree (mutable)
     metas.push(AccountMeta::new(config.compressed_mint_queue, false)); // in_output_queue (mutable)
     metas.push(AccountMeta::new(config.compressed_mint_queue, false)); // out_output_queue (mutable) - same as in_output_queue
-    
+
     // Additional tokens_out_queue (separate from UpdateOneCompressedAccountTreeAccounts)
     metas.push(AccountMeta::new(config.output_queue, false)); // tokens_out_queue (mutable)
-
-    // Compressed mint's address tree
-    metas.push(AccountMeta::new(config.compressed_mint_tree, false));
 
     metas
 }

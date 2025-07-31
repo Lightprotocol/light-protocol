@@ -562,6 +562,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
+            write_to_cpi_context: false, // Not used
         }
     }
 

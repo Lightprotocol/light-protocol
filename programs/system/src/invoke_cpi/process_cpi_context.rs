@@ -53,12 +53,14 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         };
         let (mut cpi_context_account, outputs_offsets) =
             deserialize_cpi_context_account(cpi_context_account_info)?;
-        msg!(format!("cpi_context_account: {:?}", cpi_context_account).as_str());
-        validate_cpi_context_associated_with_merkle_tree(
-            &instruction_data,
-            &cpi_context_account,
-            remaining_accounts,
-        )?;
+
+        if !cpi_context.first_set_context | !cpi_context.set_context {
+            validate_cpi_context_associated_with_merkle_tree(
+                &instruction_data,
+                &cpi_context_account,
+                remaining_accounts,
+            )?;
+        }
 
         if cpi_context.set_context || cpi_context.first_set_context {
             msg!("set_cpi_context");
@@ -195,7 +197,10 @@ fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionDat
     if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.to_pubkey_bytes() {
         msg!(format!(
             "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
-            first_merkle_tree_pubkey, cpi_context_account.associated_merkle_tree
+            solana_pubkey::Pubkey::new_from_array(first_merkle_tree_pubkey),
+            solana_pubkey::Pubkey::new_from_array(
+                cpi_context_account.associated_merkle_tree.to_bytes()
+            )
         )
         .as_str());
         return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());

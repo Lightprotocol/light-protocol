@@ -126,11 +126,11 @@ pub fn get_light_system_account_metas_small(config: SystemAccountMetaConfig) -> 
 
     let mut vec = vec![
         AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(default_pubkeys.system_program, false),
-        AccountMeta::new_readonly(cpi_signer, false),
+        AccountMeta::new_readonly(cpi_signer, false), // authority (cpi_signer)
         AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+        AccountMeta::new_readonly(default_pubkeys.system_program, false),
     ];
 
     if let Some(pubkey) = config.sol_pool_pda {

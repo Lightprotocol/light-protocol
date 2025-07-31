@@ -40,7 +40,10 @@ impl<'info> Deref for CreateSplMintAccounts<'info> {
 }
 
 impl<'info> CreateSplMintAccounts<'info> {
-    pub fn validate_and_parse(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
+    pub fn validate_and_parse(
+        accounts: &'info [AccountInfo],
+        with_cpi_context: bool,
+    ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
 
         // Static non-CPI accounts first
@@ -51,7 +54,8 @@ impl<'info> CreateSplMintAccounts<'info> {
         let token_program = iter.next_account("token_program")?;
         let light_system_program = iter.next_account("light_system_program")?;
 
-        let system = LightSystemAccounts::validate_and_parse(&mut iter)?;
+        let system =
+            LightSystemAccounts::validate_and_parse(&mut iter, false, false, with_cpi_context)?;
         let trees = UpdateOneCompressedAccountTreeAccounts::validate_and_parse(&mut iter)?;
 
         // Validate authority: must be signer
