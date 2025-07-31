@@ -14,7 +14,6 @@ use light_sdk::{
     cpi::{CpiAccounts, CpiInputs},
     derive_light_cpi_signer,
     instruction::{PackedAddressTreeInfo, ValidityProof},
-    LightDiscriminator,
 };
 use light_sdk_macros::add_compressible_instructions;
 use light_sdk_types::CpiSigner;
