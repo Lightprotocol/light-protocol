@@ -75,7 +75,7 @@ where
 
     if current_slot < last_written_slot + *compression_delay as u64 {
         msg!(
-            "Cannot compress yet. {} slots remaining",
+            "compress_account failed: Cannot compress yet. {} slots remaining",
             (last_written_slot + *compression_delay as u64).saturating_sub(current_slot)
         );
         return Err(LightSdkError::ConstraintViolation.into());
@@ -155,7 +155,7 @@ where
 
     if current_slot < last_written_slot + *compression_delay as u64 {
         msg!(
-            "Cannot compress yet. {} slots remaining",
+            "compress_pda_native failed: Cannot compress yet. {} slots remaining",
             (last_written_slot + *compression_delay as u64).saturating_sub(current_slot)
         );
         return Err(LightSdkError::ConstraintViolation.into());
