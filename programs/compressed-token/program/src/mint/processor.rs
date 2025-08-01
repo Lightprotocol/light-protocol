@@ -31,6 +31,7 @@ pub fn process_create_compressed_mint(
     let (parsed_instruction_data, _) =
         CreateCompressedMintInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+    msg!("parsed_instruction_data {:?}", parsed_instruction_data);
     sol_log_compute_units();
     // TODO: refactor cpi context struct we don't need the index in the struct.
     let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
@@ -79,7 +80,7 @@ pub fn process_create_compressed_mint(
         &parsed_instruction_data.cpi_context,
     )?;
 
-    if !write_to_cpi_context && !parsed_instruction_data.proof.is_none() {
+    if !write_to_cpi_context && parsed_instruction_data.proof.is_none() {
         msg!("Proof missing");
         return Err(ProgramError::InvalidInstructionData);
     }

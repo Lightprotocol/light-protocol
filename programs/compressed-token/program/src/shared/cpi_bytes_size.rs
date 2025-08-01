@@ -106,21 +106,6 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
         {
             let total_outputs = input.output_accounts.len() + if input.has_proof { 1 } else { 0 };
             let mut outputs = Vec::with_capacity(total_outputs);
-            for has_delegate in input.output_accounts {
-                let token_data_size = if has_delegate { 107 } else { 75 }; // 75 + 32 (delegate) = 107
-
-                outputs.push(OutputCompressedAccountWithPackedContextConfig {
-                    compressed_account: CompressedAccountConfig {
-                        address: (false, ()), // Token accounts don't have addresses
-                        data: (
-                            true,
-                            CompressedAccountDataConfig {
-                                data: token_data_size, // Size depends on delegate: 75 without, 107 with
-                            },
-                        ),
-                    },
-                });
-            }
 
             // Add compressed mint update if needed (last output account)
             if input.compressed_mint {
@@ -142,6 +127,23 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
                     },
                 });
             }
+
+            for has_delegate in input.output_accounts {
+                let token_data_size = if has_delegate { 107 } else { 75 }; // 75 + 32 (delegate) = 107
+
+                outputs.push(OutputCompressedAccountWithPackedContextConfig {
+                    compressed_account: CompressedAccountConfig {
+                        address: (false, ()), // Token accounts don't have addresses
+                        data: (
+                            true,
+                            CompressedAccountDataConfig {
+                                data: token_data_size, // Size depends on delegate: 75 without, 107 with
+                            },
+                        ),
+                    },
+                });
+            }
+
             outputs
         }
     };

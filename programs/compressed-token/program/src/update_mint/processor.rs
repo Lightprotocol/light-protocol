@@ -1,14 +1,12 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_compressed_account::{
-    instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
-};
+use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     context::TokenContext,
     instructions::update_compressed_mint::{
-        CompressedMintAuthorityType, UpdateCompressedMintInstructionDataV2, ZUpdateCompressedMintInstructionDataV2,
+        CompressedMintAuthorityType, UpdateCompressedMintInstructionDataV2,
+        ZUpdateCompressedMintInstructionDataV2,
     },
     state::CompressedMintConfig,
-    CTokenError,
 };
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
@@ -45,7 +43,8 @@ pub fn process_update_compressed_mint(
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     // Parse and validate authority type
-    let authority_type = CompressedMintAuthorityType::try_from(parsed_instruction_data.authority_type)?;
+    let authority_type =
+        CompressedMintAuthorityType::try_from(parsed_instruction_data.authority_type)?;
 
     sol_log_compute_units();
 
@@ -121,19 +120,25 @@ pub fn process_update_compressed_mint(
         // Apply authority update based on authority type and new_authority field
         let (mint_authority, freeze_authority) = match authority_type {
             CompressedMintAuthorityType::MintTokens => {
-                let new_mint_authority = parsed_instruction_data.new_authority
+                let new_mint_authority = parsed_instruction_data
+                    .new_authority
                     .as_ref()
                     .map(|auth| **auth); // None = revoke, Some(key) = set new authority
-                
-                (new_mint_authority, mint_data.freeze_authority.as_ref().map(|fa| **fa))
+
+                (
+                    new_mint_authority,
+                    mint_data.freeze_authority.as_ref().map(|fa| **fa),
+                )
             }
             CompressedMintAuthorityType::FreezeAccount => {
-                let new_freeze_authority = parsed_instruction_data.new_authority
+                let new_freeze_authority = parsed_instruction_data
+                    .new_authority
                     .as_ref()
                     .map(|auth| **auth); // None = revoke, Some(key) = set new authority
-                
+
                 // Use the mint authority from instruction data to preserve it
-                let current_mint_authority = parsed_instruction_data.mint_authority
+                let current_mint_authority = parsed_instruction_data
+                    .mint_authority
                     .as_ref()
                     .map(|auth| **auth);
                 (current_mint_authority, new_freeze_authority)
@@ -220,8 +225,9 @@ fn get_zero_copy_configs(
     Vec<u8>,
 ), ProgramError>{
     // Parse authority type to determine which authority is being updated
-    let authority_type = CompressedMintAuthorityType::try_from(parsed_instruction_data.authority_type)?;
-    
+    let authority_type =
+        CompressedMintAuthorityType::try_from(parsed_instruction_data.authority_type)?;
+
     // Calculate updated authorities for consistent config
     let (updated_mint_authority, updated_freeze_authority) = match authority_type {
         CompressedMintAuthorityType::MintTokens => {

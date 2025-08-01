@@ -148,8 +148,7 @@ pub fn process_mint_to_compressed(
             };
         // Compressed mint account is the last output
         create_output_compressed_mint_account(
-            &mut cpi_instruction_struct.output_compressed_accounts
-                [parsed_instruction_data.recipients.len()],
+            &mut cpi_instruction_struct.output_compressed_accounts[0],
             mint_pda,
             decimals,
             freeze_authority,
@@ -196,13 +195,29 @@ pub fn process_mint_to_compressed(
             )?;
         }
     }
-
+    // We cannot use the same queue pubkey twice. error is 6032
+    let queue_pubkey_index = if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref()
+    {
+        cpi_context.token_out_queue_index
+    } else if let Some(system_accounts) = validated_accounts.executing.as_ref() {
+        if system_accounts.tree_accounts.out_output_queue.key()
+            == system_accounts.tokens_out_queue.key()
+        {
+            2
+        } else {
+            3
+        }
+    } else {
+        msg!("no system accounts");
+        unimplemented!()
+    };
     // Create output token accounts
     create_output_compressed_token_accounts(
         parsed_instruction_data,
         cpi_instruction_struct,
         &mut context,
         mint_pda,
+        queue_pubkey_index,
     )?;
 
     if let Some(system_accounts) = validated_accounts.executing {
@@ -287,22 +302,19 @@ fn create_output_compressed_token_accounts(
     mut cpi_instruction_struct: light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
     context: &mut TokenContext,
     mint: Pubkey,
+    queue_pubkey_index: u8,
 ) -> Result<(), ProgramError> {
     let hashed_mint = context.get_or_hash_mint(&mint.to_bytes())?;
-    let queue_pubkey_index = if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref()
-    {
-        cpi_context.token_out_queue_index
-    } else {
-        3
-    };
+
     let lamports = parsed_instruction_data
         .lamports
         .map(|lamports| u64::from(*lamports));
-    for (recipient, output_account) in parsed_instruction_data
-        .recipients
-        .iter()
-        .zip(cpi_instruction_struct.output_compressed_accounts.iter_mut())
-    {
+    for (recipient, output_account) in parsed_instruction_data.recipients.iter().zip(
+        cpi_instruction_struct
+            .output_compressed_accounts
+            .iter_mut()
+            .skip(1),
+    ) {
         let output_delegate = None;
         set_output_compressed_account::<false>(
             output_account,

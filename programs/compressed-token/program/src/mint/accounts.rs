@@ -4,7 +4,6 @@ use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use crate::shared::{
     accounts::{
         CpiContextLightSystemAccounts, CreateCompressedAccountTreeAccounts, LightSystemAccounts,
-        UpdateOneCompressedAccountTreeAccounts,
     },
     AccountIterator,
 };
