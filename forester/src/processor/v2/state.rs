@@ -1,9 +1,5 @@
 use anyhow::{Error, Ok};
 use borsh::BorshSerialize;
-use forester_utils::instructions::{
-    state_batch_append::get_append_instruction_stream,
-    state_batch_nullify::get_nullify_instruction_stream,
-};
 use futures::stream::{Stream, StreamExt};
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -17,6 +13,7 @@ use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
 
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData, ParsedQueueData};
+use super::state_streams::{get_append_instruction_stream, get_nullify_instruction_stream};
 use crate::Result;
 
 async fn create_nullify_stream_future<R>(

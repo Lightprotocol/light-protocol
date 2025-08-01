@@ -1,8 +1,8 @@
 mod address;
 mod common;
-mod parallel_streams;
 mod shared_tree_proof_generator;
 mod state;
+mod state_streams;
 mod tree_cache;
 
 use common::BatchProcessor;

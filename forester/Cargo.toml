@@ -19,6 +19,7 @@ light-hasher = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-registry = { workspace = true }
 light-sparse-merkle-tree = { workspace = true }
+light-prover-client = { workspace = true }
 photon-api = { workspace = true }
 forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
