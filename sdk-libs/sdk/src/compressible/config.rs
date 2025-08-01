@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_msg::msg;
+use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_pubkey::Pubkey;
 use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
@@ -342,34 +343,39 @@ pub fn verify_program_upgrade_authority(
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
-    // Verify that the signer is the program's upgrade authority
+    // Deserialize the program data account using bincode
     let data = program_data_account.try_borrow_data()?;
+    let program_state: UpgradeableLoaderState = bincode::deserialize(&data).map_err(|_| {
+        msg!("Failed to deserialize program data account");
+        LightSdkError::ConstraintViolation
+    })?;
 
-    // The UpgradeableLoaderState::ProgramData format:
-    // 4 bytes discriminator + 8 bytes slot + 1 byte option + 32 bytes authority
-    if data.len() < 45 {
-        msg!("Program data account too small");
-        return Err(LightSdkError::ConstraintViolation.into());
-    }
-
-    // Check discriminator (should be 3 for ProgramData)
-    let discriminator = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
-    if discriminator != 3 {
-        msg!("Invalid program data discriminator");
-        return Err(LightSdkError::ConstraintViolation.into());
-    }
-
-    // Skip slot (8 bytes) and check if authority exists (1 byte flag)
-    let has_authority = data[12] == 1;
-    if !has_authority {
-        msg!("Program has no upgrade authority");
-        return Err(LightSdkError::ConstraintViolation.into());
-    }
-
-    // Read the upgrade authority pubkey (32 bytes)
-    let mut authority_bytes = [0u8; 32];
-    authority_bytes.copy_from_slice(&data[13..45]);
-    let upgrade_authority = Pubkey::new_from_array(authority_bytes);
+    // Extract upgrade authority using pattern matching
+    let upgrade_authority = match program_state {
+        UpgradeableLoaderState::ProgramData {
+            slot: _,
+            upgrade_authority_address,
+        } => {
+            match upgrade_authority_address {
+                Some(auth) => {
+                    // Check for invalid zero authority when authority exists
+                    if auth == Pubkey::default() {
+                        msg!("Invalid state: authority is zero pubkey");
+                        return Err(LightSdkError::ConstraintViolation.into());
+                    }
+                    auth
+                }
+                None => {
+                    msg!("Program has no upgrade authority");
+                    return Err(LightSdkError::ConstraintViolation.into());
+                }
+            }
+        }
+        _ => {
+            msg!("Account is not ProgramData, found: {:?}", program_state);
+            return Err(LightSdkError::ConstraintViolation.into());
+        }
+    };
 
     // Verify the signer matches the upgrade authority
     if !authority.is_signer {
@@ -378,7 +384,11 @@ pub fn verify_program_upgrade_authority(
     }
 
     if *authority.key != upgrade_authority {
-        msg!("Signer is not the program's upgrade authority");
+        msg!(
+            "Signer is not the program's upgrade authority. Signer: {:?}, Expected Authority: {:?}",
+            authority.key,
+            upgrade_authority
+        );
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
@@ -424,11 +434,11 @@ pub fn process_initialize_compression_config_checked<'info>(
 ) -> Result<(), crate::ProgramError> {
     msg!(
         "create_compression_config_checked program_data_account: {:?}",
-        program_data_account.key.log()
+        program_data_account.key
     );
     msg!(
         "create_compression_config_checked program_id: {:?}",
-        program_id.log()
+        program_id
     );
     // Verify the signer is the program's upgrade authority
     verify_program_upgrade_authority(program_id, program_data_account, update_authority)?;
