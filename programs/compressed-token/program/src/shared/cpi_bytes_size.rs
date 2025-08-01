@@ -26,6 +26,7 @@ pub struct CpiConfigInput {
     pub has_proof: bool,
     pub compressed_mint: bool,
     pub compressed_mint_with_freeze_authority: bool,
+    pub compressed_mint_with_mint_authority: bool,
     pub extensions_config: Vec<light_ctoken_types::state::ExtensionStructConfig>,
 }
 
@@ -47,6 +48,27 @@ impl CpiConfigInput {
             has_proof,
             compressed_mint: true,
             compressed_mint_with_freeze_authority,
+            compressed_mint_with_mint_authority: true, // mint_to_compressed always has mint authority
+            extensions_config: vec![],
+        }
+    }
+
+    /// Helper to create config for update_mint
+    pub fn update_mint(
+        has_proof: bool,
+        compressed_mint_with_freeze_authority: bool,
+        compressed_mint_with_mint_authority: bool,
+    ) -> Self {
+        let mut output_delegates = ArrayVec::new();
+        output_delegates.push(false); // Output mint has no delegate
+
+        Self {
+            input_accounts: ArrayVec::new(), // No input token accounts for update_mint
+            output_accounts: output_delegates, // Just the updated mint
+            has_proof,
+            compressed_mint: true, // Has input mint
+            compressed_mint_with_freeze_authority,
+            compressed_mint_with_mint_authority,
             extensions_config: vec![],
         }
     }
@@ -104,7 +126,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
             if input.compressed_mint {
                 use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
                 let mint_size_config = CompressedMintConfig {
-                    mint_authority: (input.compressed_mint, ()),
+                    mint_authority: (input.compressed_mint_with_mint_authority, ()),
                     freeze_authority: (input.compressed_mint_with_freeze_authority, ()),
                     extensions: (!input.extensions_config.is_empty(), input.extensions_config),
                 };

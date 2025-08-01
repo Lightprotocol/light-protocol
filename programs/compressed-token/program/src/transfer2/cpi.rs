@@ -33,6 +33,7 @@ pub fn allocate_cpi_bytes(
         has_proof: inputs.proof.is_some(),
         compressed_mint: false,
         compressed_mint_with_freeze_authority: false,
+        compressed_mint_with_mint_authority: false,
         extensions_config: vec![], // TODO: Add extensions support for transfer2
     };
     let config = cpi_bytes_config(config_input);

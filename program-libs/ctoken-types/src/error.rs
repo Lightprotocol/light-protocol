@@ -87,6 +87,9 @@ pub enum CTokenError {
     #[error("Instruction data expected freeze authority")]
     ZeroCopyExpectedFreezeAuthority,
 
+    #[error("Invalid authority type provided")]
+    InvalidAuthorityType,
+
     #[error("Light hasher error: {0}")]
     HasherError(#[from] light_hasher::HasherError),
 
@@ -128,6 +131,7 @@ impl From<CTokenError> for u32 {
             CTokenError::ZeroCopyExpectedMintAuthority => 18025,
             CTokenError::InstructionDataExpectedFreezeAuthority => 18026,
             CTokenError::ZeroCopyExpectedFreezeAuthority => 18027,
+            CTokenError::InvalidAuthorityType => 18029,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

@@ -15,6 +15,7 @@ pub mod mint;
 pub mod mint_to_compressed;
 pub mod shared;
 pub mod transfer2;
+pub mod update_mint;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
@@ -24,6 +25,7 @@ use create_spl_mint::processor::process_create_spl_mint;
 use create_token_account::processor::process_create_token_account;
 use mint::processor::process_create_compressed_mint;
 use mint_to_compressed::processor::process_mint_to_compressed;
+use update_mint::processor::process_update_compressed_mint;
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -41,6 +43,7 @@ pub enum InstructionType {
     CreateSplMint = 102,
     CreateAssociatedTokenAccount = 103,
     Transfer2 = 104,
+    UpdateCompressedMint = 105,
     CreateTokenAccount = 18, // equivalen to SPL Token InitializeAccount3
     Other,
 }
@@ -55,6 +58,7 @@ impl From<u8> for InstructionType {
             102 => InstructionType::CreateSplMint,
             103 => InstructionType::CreateAssociatedTokenAccount, // TODO: double check compatibility
             104 => InstructionType::Transfer2,
+            105 => InstructionType::UpdateCompressedMint,
             18 => InstructionType::CreateTokenAccount,
             _ => InstructionType::Other,
         }
@@ -121,6 +125,10 @@ pub fn process_instruction(
         InstructionType::Transfer2 => {
             anchor_lang::solana_program::msg!("Transfer2");
             process_transfer2(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::UpdateCompressedMint => {
+            anchor_lang::solana_program::msg!("UpdateCompressedMint");
+            process_update_compressed_mint(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => {

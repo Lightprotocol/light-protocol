@@ -124,6 +124,7 @@ fn update_compressed_mint_to_decompressed<'info>(
         has_proof: instruction_data.mint.proof.is_some(),
         compressed_mint: true,
         compressed_mint_with_freeze_authority: mint_inputs.freeze_authority.is_some(),
+        compressed_mint_with_mint_authority: true, // create_spl_mint always creates with mint authority
         extensions_config,
     };
 
