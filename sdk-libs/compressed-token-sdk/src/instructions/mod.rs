@@ -9,6 +9,7 @@ pub mod ctoken_accounts;
 pub mod mint_to_compressed;
 pub mod transfer;
 pub mod transfer2;
+pub mod update_compressed_mint;
 
 // Re-export all instruction utilities
 pub use approve::{
@@ -29,4 +30,8 @@ pub use ctoken_accounts::*;
 pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,
     DecompressedMintConfig, MintToCompressedInputs, MintToCompressedMetaConfig,
+};
+pub use update_compressed_mint::{
+    update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,
+    UPDATE_COMPRESSED_MINT_DISCRIMINATOR,
 };

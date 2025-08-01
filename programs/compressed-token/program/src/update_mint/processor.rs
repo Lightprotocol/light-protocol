@@ -79,9 +79,34 @@ pub fn process_update_compressed_mint(
     let mint_pda = parsed_instruction_data.compressed_mint_inputs.mint.spl_mint;
     let mint_data = &parsed_instruction_data.compressed_mint_inputs.mint;
 
-    // The authority validation happens when creating the input compressed account
-    // The signer must be the current authority that can perform this operation
-    let hashed_mint_authority = context.get_or_hash_pubkey(validated_accounts.authority.key());
+    // Verify that the signer matches the authority being updated
+    let signer_pubkey = validated_accounts.authority.key();
+    match authority_type {
+        CompressedMintAuthorityType::MintTokens => {
+            // For mint authority updates, signer must be current mint authority
+            let current_mint_authority = parsed_instruction_data
+                .compressed_mint_inputs
+                .mint
+                .mint_authority
+                .as_ref()
+                .ok_or(ProgramError::InvalidArgument)?;
+            if *signer_pubkey != current_mint_authority.to_bytes() {
+                msg!("Invalid authority {signer_pubkey:?} does not match current mint authority {current_mint_authority:?}");
+                return Err(ProgramError::InvalidArgument);
+            }
+        }
+        CompressedMintAuthorityType::FreezeAccount => {
+            // For freeze authority updates, signer must be current freeze authority
+            let current_freeze_authority = mint_data
+                .freeze_authority
+                .as_ref()
+                .ok_or(ProgramError::InvalidArgument)?;
+            if *signer_pubkey != current_freeze_authority.to_bytes() {
+                msg!("Invalid authority {signer_pubkey:?} does not match current freeze authority {current_freeze_authority:?}");
+                return Err(ProgramError::InvalidArgument);
+            }
+        }
+    }
 
     {
         let merkle_tree_pubkey_index =
@@ -96,13 +121,37 @@ pub fn process_update_compressed_mint(
             } else {
                 1
             };
+        let mut value2 = [0u8; 32];
+        let hashed_mint_authority = if let Some(mint_authority) = parsed_instruction_data
+            .compressed_mint_inputs
+            .mint
+            .mint_authority
+            .as_ref()
+        {
+            value2 = context.get_or_hash_pubkey(&mint_authority.to_bytes());
+            Some(&value2)
+        } else {
+            None
+        };
 
+        let mut value = [0u8; 32];
+        let hashed_freeze_authority = if let Some(freeze_authority) = parsed_instruction_data
+            .compressed_mint_inputs
+            .mint
+            .freeze_authority
+        {
+            value = context.get_or_hash_pubkey(&freeze_authority.to_bytes());
+            Some(&value)
+        } else {
+            None
+        };
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
             &mut context,
             &parsed_instruction_data.compressed_mint_inputs,
-            &hashed_mint_authority,
+            hashed_mint_authority,
+            hashed_freeze_authority,
             PackedMerkleContext {
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,
@@ -138,6 +187,8 @@ pub fn process_update_compressed_mint(
 
                 // Use the mint authority from instruction data to preserve it
                 let current_mint_authority = parsed_instruction_data
+                    .compressed_mint_inputs
+                    .mint
                     .mint_authority
                     .as_ref()
                     .map(|auth| **auth);
@@ -182,7 +233,7 @@ pub fn process_update_compressed_mint(
             &mut context,
         )?;
     }
-
+    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
     if let Some(system_accounts) = validated_accounts.executing {
         // Extract tree accounts for the generalized CPI call
         let tree_accounts = [
@@ -241,7 +292,11 @@ fn get_zero_copy_configs(
         }
         CompressedMintAuthorityType::FreezeAccount => {
             let new_freeze_authority = parsed_instruction_data.new_authority.is_some();
-            let current_mint_authority = parsed_instruction_data.mint_authority.is_some();
+            let current_mint_authority = parsed_instruction_data
+                .compressed_mint_inputs
+                .mint
+                .mint_authority
+                .is_some();
             (current_mint_authority, new_freeze_authority)
         }
     };

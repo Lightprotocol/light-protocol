@@ -59,12 +59,9 @@ impl CpiConfigInput {
         compressed_mint_with_freeze_authority: bool,
         compressed_mint_with_mint_authority: bool,
     ) -> Self {
-        let mut output_delegates = ArrayVec::new();
-        output_delegates.push(false); // Output mint has no delegate
-
         Self {
             input_accounts: ArrayVec::new(), // No input token accounts for update_mint
-            output_accounts: output_delegates, // Just the updated mint
+            output_accounts: ArrayVec::new(), // No token account outputs for update_mint, only the mint itself
             has_proof,
             compressed_mint: true, // Has input mint
             compressed_mint_with_freeze_authority,

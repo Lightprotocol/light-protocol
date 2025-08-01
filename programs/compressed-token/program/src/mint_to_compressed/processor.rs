@@ -98,12 +98,24 @@ pub fn process_mint_to_compressed(
             } else {
                 1
             };
+        let mut value = [0u8; 32];
+        let hashed_freeze_authority = if let Some(freeze_authority) = parsed_instruction_data
+            .compressed_mint_inputs
+            .mint
+            .freeze_authority
+        {
+            value = context.get_or_hash_pubkey(&freeze_authority.to_bytes());
+            Some(&value)
+        } else {
+            None
+        };
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
             &mut context,
             &parsed_instruction_data.compressed_mint_inputs,
-            &hashed_mint_authority,
+            Some(&hashed_mint_authority),
+            hashed_freeze_authority,
             PackedMerkleContext {
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,

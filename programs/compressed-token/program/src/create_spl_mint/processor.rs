@@ -144,13 +144,21 @@ fn update_compressed_mint_to_decompressed<'info>(
 
         let mut context = TokenContext::new();
         let hashed_mint_authority = context.get_or_hash_pubkey(accounts.authority.key());
-
+        let mut value = [0u8; 32];
+        let hashed_freeze_authority =
+            if let Some(freeze_authority) = instruction_data.mint.mint.freeze_authority {
+                value = context.get_or_hash_pubkey(&freeze_authority.to_bytes());
+                Some(&value)
+            } else {
+                None
+            };
         // Process input compressed mint account (before is_decompressed = true)
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
             &mut context,
             &instruction_data.mint,
-            &hashed_mint_authority,
+            Some(&hashed_mint_authority),
+            hashed_freeze_authority,
             PackedMerkleContext {
                 leaf_index: instruction_data.mint.leaf_index.into(),
                 prove_by_index: instruction_data.mint.prove_by_index(),

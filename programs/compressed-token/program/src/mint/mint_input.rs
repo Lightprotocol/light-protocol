@@ -25,7 +25,8 @@ pub fn create_input_compressed_mint_account(
     input_compressed_account: &mut ZInAccountMut,
     context: &mut TokenContext,
     compressed_mint_inputs: &ZUpdateCompressedMintInstructionData,
-    hashed_mint_authority: &[u8; 32],
+    hashed_mint_authority: Option<&[u8; 32]>,
+    hashed_freeze_authority: Option<&[u8; 32]>,
     merkle_context: PackedMerkleContext,
 ) -> Result<(), ProgramError> {
     // 2. Extract and validate compressed mint data
@@ -40,19 +41,14 @@ pub fn create_input_compressed_mint_account(
         supply_bytes[24..]
             .copy_from_slice(compressed_mint_input.supply.get().to_be_bytes().as_slice());
 
-        let hashed_freeze_authority = compressed_mint_input
-            .freeze_authority
-            .as_ref()
-            .map(|freeze_authority| context.get_or_hash_pubkey(&(**freeze_authority).to_bytes()));
-
         // Compute the data hash using the CompressedMint hash function
         let data_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
             &supply_bytes,
             compressed_mint_input.decimals,
             compressed_mint_input.is_decompressed(),
-            &Some(hashed_mint_authority), // pre-hashed mint_authority from signer
-            &hashed_freeze_authority.as_ref(),
+            &hashed_mint_authority,
+            &hashed_freeze_authority,
             compressed_mint_input.version,
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;

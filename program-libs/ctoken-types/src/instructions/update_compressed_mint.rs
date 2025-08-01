@@ -1,12 +1,14 @@
 use light_compressed_account::{
-    instruction_data::zero_copy_set::CompressedCpiContextTrait,
+    instruction_data::{
+        compressed_proof::CompressedProof, zero_copy_set::CompressedCpiContextTrait,
+    },
     Pubkey,
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
-    instructions::create_compressed_mint::UpdateCompressedMintInstructionData, AnchorDeserialize,
-    AnchorSerialize, CTokenError,
+    instructions::create_compressed_mint::UpdateCompressedMintInstructionData,
+    state::CompressedMint, AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
 /// Authority types for compressed mint updates, following SPL Token-2022 pattern
@@ -40,9 +42,8 @@ impl From<CompressedMintAuthorityType> for u8 {
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct UpdateCompressedMintInstructionDataV2 {
     pub compressed_mint_inputs: UpdateCompressedMintInstructionData,
-    pub authority_type: u8, // CompressedMintAuthorityType as u8
+    pub authority_type: u8,            // CompressedMintAuthorityType as u8
     pub new_authority: Option<Pubkey>, // None = revoke authority, Some(key) = set new authority
-    pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
     pub cpi_context: Option<UpdateMintCpiContext>,
 }
 
