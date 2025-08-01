@@ -1,6 +1,8 @@
 use std::ops::Deref;
 
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use light_zero_copy::{
+    borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh, ZeroCopyMut,
+};
 use zerocopy::{
     little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -30,7 +32,7 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, CompressedAccountError,
 };
 
-#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InAccount {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -193,7 +195,7 @@ impl<'a> Deref for ZInAccount<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpiWithReadOnly {
     /// 0 With program ids
     /// 1 without program ids

@@ -76,19 +76,29 @@ pub enum LightSdkError {
     InvalidSolPoolPdaAccount,
     #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
+    #[error("CPI context must be added before any other accounts (next_index must be 0)")]
+    CpiContextOrderingViolation,
+    #[error(transparent)]
+    AccountError(#[from] AccountError),
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
     ZeroCopy(#[from] ZeroCopyError),
     #[error("Program error: {0}")]
     ProgramError(#[from] ProgramError),
-    #[error(transparent)]
-    AccountError(#[from] AccountError),
 }
 
 impl From<LightSdkError> for ProgramError {
     fn from(e: LightSdkError) -> Self {
         ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<LightSdkError> for anchor_lang::error::Error {
+    fn from(e: LightSdkError) -> Self {
+        let error_code = u32::from(e);
+        anchor_lang::error::Error::from(anchor_lang::prelude::ProgramError::Custom(error_code))
     }
 }
 
@@ -159,6 +169,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiContextAccount => 16032,
             LightSdkError::InvalidSolPoolPdaAccount => 16033,
             LightSdkError::InvalidCpiAccountsOffset => 16034,
+            LightSdkError::CpiContextOrderingViolation => 16035,
             LightSdkError::AccountError(e) => e.into(),
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),

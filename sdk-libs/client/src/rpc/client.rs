@@ -691,13 +691,22 @@ impl Rpc for LightClient {
             use crate::indexer::TreeInfo;
 
             #[cfg(feature = "v2")]
-            let default_trees = vec![TreeInfo {
-                tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
-                queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
-                cpi_context: Some(pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj")),
-                next_tree_info: None,
-                tree_type: TreeType::StateV2,
-            }];
+            let default_trees = vec![
+                TreeInfo {
+                    tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
+                    queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
+                    cpi_context: Some(pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV2,
+                },
+                TreeInfo {
+                    tree: pubkey!("2Yb3fGo2E9aWLjY8KuESaqurYpGGhEeJr7eynKrSgXwS"),
+                    queue: pubkey!("12wJT3xYd46rtjeqDU6CrtT8unqLjPiheggzqhN9YsyB"),
+                    cpi_context: Some(pubkey!("HwtjxDvFEXiWnzeMeWkMBzpQN45A95rTJNZmz1Z3pe8R")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV2,
+                },
+            ];
 
             #[cfg(not(feature = "v2"))]
             let default_trees = vec![TreeInfo {
@@ -748,6 +757,16 @@ impl Rpc for LightClient {
             cpi_context: None,
             next_tree_info: None,
             tree_type: TreeType::AddressV1,
+        }
+    }
+
+    fn get_address_tree_v2(&self) -> TreeInfo {
+        TreeInfo {
+            tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            cpi_context: None,
+            next_tree_info: None,
+            tree_type: TreeType::AddressV2,
         }
     }
 }

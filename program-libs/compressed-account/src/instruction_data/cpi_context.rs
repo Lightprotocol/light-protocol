@@ -1,6 +1,10 @@
+use light_zero_copy::ZeroCopyMut;
+
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(
+    AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default, ZeroCopyMut,
+)]
 pub struct CompressedCpiContext {
     /// Is set by the program that is invoking the CPI to signal that is should
     /// set the cpi context.

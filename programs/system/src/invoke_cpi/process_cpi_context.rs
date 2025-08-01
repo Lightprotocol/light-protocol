@@ -53,7 +53,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         };
         let (mut cpi_context_account, outputs_offsets) =
             deserialize_cpi_context_account(cpi_context_account_info)?;
-
+        msg!(format!("cpi_context_account: {:?}", cpi_context_account).as_str());
         validate_cpi_context_associated_with_merkle_tree(
             &instruction_data,
             &cpi_context_account,
@@ -61,7 +61,9 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         )?;
 
         if cpi_context.set_context || cpi_context.first_set_context {
+            msg!("set_cpi_context");
             set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
+            msg!("post set_cpi_context");
             return Ok(None);
         } else {
             if cpi_context_account.context.is_empty() {

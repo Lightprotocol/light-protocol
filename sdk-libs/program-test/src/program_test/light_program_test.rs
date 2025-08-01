@@ -152,11 +152,6 @@ impl LightProgramTest {
         self.test_accounts.v1_address_trees[0]
     }
 
-    #[cfg(feature = "v2")]
-    pub fn get_address_merkle_tree_v2(&self) -> solana_sdk::pubkey::Pubkey {
-        self.test_accounts.v2_address_trees[0]
-    }
-
     pub async fn add_indexer(
         &mut self,
         test_accounts: &TestAccounts,

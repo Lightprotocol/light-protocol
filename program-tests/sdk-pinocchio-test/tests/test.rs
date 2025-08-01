@@ -32,7 +32,7 @@ async fn test_sdk_test() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
     let account_data = [1u8; 31];
 
     // // V1 trees
@@ -94,7 +94,9 @@ pub async fn create_pda(
         SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_test::ID));
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
-    accounts.add_system_accounts(system_account_meta_config);
+    accounts
+        .add_system_accounts(system_account_meta_config)
+        .unwrap();
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -142,7 +144,9 @@ pub async fn update_pda(
         SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_test::ID));
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
-    accounts.add_system_accounts(system_account_meta_config);
+    accounts
+        .add_system_accounts(system_account_meta_config)
+        .unwrap();
 
     let rpc_result = rpc
         .get_validity_proof(vec![compressed_account.hash().unwrap()], vec![], None)

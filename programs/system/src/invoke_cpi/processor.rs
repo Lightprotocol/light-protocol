@@ -46,7 +46,6 @@ pub fn process_invoke_cpi<
         Ok(None) => return Ok(()),
         Err(err) => return Err(err),
     };
-
     // 3. Process input data and cpi the account compression program.
     process::<ADDRESS_ASSIGNMENT, A, T>(
         instruction_data,

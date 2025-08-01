@@ -165,8 +165,8 @@ mod tests {
         assert_eq!(deserialized.b.get(), 20); // U16 via .get()
         assert_eq!(deserialized.c.get(), 30); // U32 via .get()
         assert_eq!(deserialized.d.get(), 40); // U64 via .get()
-        assert_eq!(deserialized.g.get(), 50); // U32 via .get()
         assert!(deserialized.e()); // bool accessor method
+        assert_eq!(deserialized.g.get(), 50); // U32 via .get()
 
         // Test ZeroCopyEq (PartialEq implementation)
         let original = PrimitiveCopyStruct2 {

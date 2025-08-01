@@ -1,11 +1,11 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use std::{assert_eq, str::FromStr};
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
-    prelude::AccountMeta, system_program, AccountDeserialize, AnchorDeserialize, AnchorSerialize,
-    InstructionData, ToAccountMetas,
+    prelude::{borsh::BorshSerialize, AccountMeta},
+    system_program, AccountDeserialize, AnchorDeserialize, InstructionData, ToAccountMetas,
 };
 use anchor_spl::{
     token::{Mint, TokenAccount},
@@ -5280,7 +5280,7 @@ async fn perform_transfer_failing_test<R: Rpc>(
     let mint = if invalid_mint {
         Pubkey::new_unique()
     } else {
-        input_compressed_account_token_data[0].mint
+        input_compressed_account_token_data[0].mint.into()
     };
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
