@@ -18,6 +18,8 @@ use crate::{
     light_account_checks::AccountInfoTrait,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
+#[cfg(feature = "anchor")]
+use anchor_lang::Key;
 
 /// Wrapper to process a single onchain PDA for compression into a new
 /// compressed account. Calls `process_accounts_for_compression_on_init` with
@@ -327,6 +329,11 @@ where
     {
         let owner_program_id = cpi_accounts.self_program_id();
 
+        msg!(
+            "Before compression - account key: {:?}",
+            _solana_account.key()
+        );
+
         // Create an empty compressed account with the specified address
         let mut compressed_account = LightAccount::<'_, A>::new_init(
             &owner_program_id,
@@ -334,11 +341,42 @@ where
             output_state_tree_index,
         );
 
+        // TODO: Remove this once we have a better error message for address
+        // mismatch.
+        {
+            use light_compressed_account::address::derive_address;
+
+            let c_pda = compressed_account.address().ok_or_else(|| {
+                msg!("Compressed account address is missing in compress_account_on_init");
+                LightSdkError::ConstraintViolation
+            })?;
+
+            let derived_c_pda = derive_address(
+                &_solana_account.key().to_bytes(),
+                &address_space[0].to_bytes(),
+                &cpi_accounts.self_program_id().to_bytes(),
+            );
+
+            // CHECK:
+            // pda and c_pda are related
+            if c_pda != derived_c_pda {
+                msg!(
+                "cPDA {:?} does not match derived cPDA {:?} for PDA {:?} with address space {:?}",
+                c_pda,
+                derived_c_pda,
+                _solana_account.key(),
+                address_space,
+            );
+                return Err(LightSdkError::ConstraintViolation);
+            }
+        }
+
         // Mark the compressed account as having empty data
         compressed_account.remove_data();
 
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
+        msg!("After compression - account remains intact, no balance change expected");
         // Note: We do NOT close the solana_account - it remains intact
     }
 
@@ -656,6 +694,7 @@ where
             .zip(new_address_params.iter())
             .zip(output_state_tree_indices.iter())
     {
+        msg!("prepare_empty_compressed_accounts_on_init_native loop");
         // Initialize compression_info for the PDA (but don't set it as compressed)
         *pda_account_data.compression_info_mut_opt() =
             Some(super::CompressionInfo::new_decompressed()?);
