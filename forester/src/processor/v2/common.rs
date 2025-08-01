@@ -34,6 +34,10 @@ pub enum BatchReadyState {
     StateReadyForNullify {
         merkle_tree_data: ParsedMerkleTreeData,
     },
+    BothReady {
+        merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: ParsedQueueData,
+    },
 }
 
 #[derive(Debug)]
@@ -244,6 +248,17 @@ impl<R: Rpc> BatchProcessor<R> {
                 }
                 result
             }
+            BatchReadyState::BothReady {
+                merkle_tree_data,
+                output_queue_data,
+            } => {
+                trace!(
+                    "Processing both nullify and append in parallel for tree: {}",
+                    self.context.merkle_tree
+                );
+                self.process_parallel(merkle_tree_data, output_queue_data)
+                    .await
+            }
             BatchReadyState::NotReady => {
                 trace!(
                     "Batch not ready for processing, tree: {}",
@@ -332,30 +347,14 @@ impl<R: Rpc> BatchProcessor<R> {
         match (input_ready, output_ready) {
             (true, true) => {
                 if let (Some(mt_data), Some(oq_data)) = (merkle_tree_data, output_queue_data) {
-                    // If both queues are ready, check their fill levels
-                    let input_fill = Self::calculate_completion_from_parsed(
-                        mt_data.num_inserted_zkps,
-                        mt_data.current_zkp_batch_index,
+                    // Both queues are ready - process them in parallel!
+                    debug!(
+                        "Both input and output queues ready for tree {}",
+                        self.context.merkle_tree
                     );
-                    let output_fill = Self::calculate_completion_from_parsed(
-                        oq_data.num_inserted_zkps,
-                        oq_data.current_zkp_batch_index,
-                    );
-
-                    trace!(
-                        "Input queue fill: {:.2}, Output queue fill: {:.2}",
-                        input_fill,
-                        output_fill
-                    );
-                    if input_fill > output_fill {
-                        BatchReadyState::StateReadyForNullify {
-                            merkle_tree_data: mt_data,
-                        }
-                    } else {
-                        BatchReadyState::StateReadyForAppend {
-                            merkle_tree_data: mt_data,
-                            output_queue_data: oq_data,
-                        }
+                    BatchReadyState::BothReady {
+                        merkle_tree_data: mt_data,
+                        output_queue_data: oq_data,
                     }
                 } else {
                     BatchReadyState::NotReady
