@@ -114,6 +114,13 @@ where
         || solana_accounts.len() != new_address_params.len()
         || solana_accounts.len() != output_state_tree_indices.len()
     {
+        msg!(
+            "Array length mismatch in prepare_accounts_for_compression_on_init - solana_accounts: {}, addresses: {}, new_address_params: {}, output_state_tree_indices: {}",
+            solana_accounts.len(),
+            addresses.len(),
+            new_address_params.len(),
+            output_state_tree_indices.len()
+        );
         return Err(LightSdkError::ConstraintViolation);
     }
 
@@ -121,9 +128,20 @@ where
     for params in new_address_params {
         let tree = cpi_accounts
             .get_tree_account_info(params.address_merkle_tree_account_index as usize)
-            .map_err(|_| LightSdkError::ConstraintViolation)?
+            .map_err(|_| {
+                msg!(
+                    "Failed to get tree account info at index {}",
+                    params.address_merkle_tree_account_index
+                );
+                LightSdkError::ConstraintViolation
+            })?
             .pubkey();
         if !address_space.iter().any(|a| a == &tree) {
+            msg!(
+                "Address tree {:?} not found in allowed address space: {:?}",
+                tree,
+                address_space
+            );
             return Err(LightSdkError::ConstraintViolation);
         }
     }
@@ -164,7 +182,10 @@ where
         // Close both PDA accounts
         solana_account
             .close(rent_recipient.clone())
-            .map_err(|_| LightSdkError::ConstraintViolation)?;
+            .map_err(|err| {
+                msg!("Failed to close solana account: {:?}", err);
+                LightSdkError::ConstraintViolation
+            })?;
     }
 
     Ok(compressed_account_infos)
@@ -263,6 +284,13 @@ where
         || solana_accounts.len() != new_address_params.len()
         || solana_accounts.len() != output_state_tree_indices.len()
     {
+        msg!(
+            "Array length mismatch in prepare_empty_compressed_accounts_on_init - solana_accounts: {}, addresses: {}, new_address_params: {}, output_state_tree_indices: {}",
+            solana_accounts.len(),
+            addresses.len(),
+            new_address_params.len(),
+            output_state_tree_indices.len()
+        );
         return Err(LightSdkError::ConstraintViolation);
     }
 
@@ -270,9 +298,20 @@ where
     for params in new_address_params {
         let tree = cpi_accounts
             .get_tree_account_info(params.address_merkle_tree_account_index as usize)
-            .map_err(|_| LightSdkError::ConstraintViolation)?
+            .map_err(|_| {
+                msg!(
+                    "Failed to get tree account info at index {} in prepare_empty_compressed_accounts_on_init",
+                    params.address_merkle_tree_account_index
+                );
+                LightSdkError::ConstraintViolation
+            })?
             .pubkey();
         if !address_space.iter().any(|a| a == &tree) {
+            msg!(
+                "Address tree {} not found in allowed address space: {:?} in prepare_empty_compressed_accounts_on_init",
+                tree,
+                address_space
+            );
             return Err(LightSdkError::ConstraintViolation);
         }
     }
@@ -338,7 +377,7 @@ where
     let new_address_params: [PackedNewAddressParams; 1] = [*new_address_param];
     let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
 
-    msg!("0 hi?");
+    msg!("compress_account_on_init_native starting");
     let compressed_infos = prepare_accounts_for_compression_on_init_native(
         &mut [pda_account_info],
         &mut pda_accounts_data,
@@ -422,11 +461,18 @@ where
     for params in new_address_params {
         let tree = cpi_accounts
             .get_tree_account_info(params.address_merkle_tree_account_index as usize)
-            .map_err(|_| LightSdkError::ConstraintViolation)?
+            .map_err(|_| {
+                msg!(
+                    "Failed to get tree account info at index {} in prepare_accounts_for_compression_on_init_native",
+                    params.address_merkle_tree_account_index
+                );
+                LightSdkError::ConstraintViolation
+            })?
             .pubkey();
         if !address_space.iter().any(|a| a == &tree) {
             msg!("address tree: {:?}", tree);
             msg!("expected address_space: {:?}", address_space);
+            msg!("Address tree {} not found in allowed address space in prepare_accounts_for_compression_on_init_native", tree);
             return Err(LightSdkError::ConstraintViolation);
         }
     }
@@ -467,7 +513,10 @@ where
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Close PDA account manually
-        close(pda_account_info, rent_recipient.clone())?;
+        close(pda_account_info, rent_recipient.clone()).map_err(|err| {
+            msg!("Failed to close PDA account in prepare_accounts_for_compression_on_init_native: {:?}", err);
+            err
+        })?;
     }
 
     Ok(compressed_account_infos)
@@ -583,7 +632,13 @@ where
     for params in new_address_params {
         let tree = cpi_accounts
             .get_tree_account_info(params.address_merkle_tree_account_index as usize)
-            .map_err(|_| LightSdkError::ConstraintViolation)?
+            .map_err(|_| {
+                msg!(
+                    "Failed to get tree account info at index {} in prepare_empty_compressed_accounts_on_init_native",
+                    params.address_merkle_tree_account_index
+                );
+                LightSdkError::ConstraintViolation
+            })?
             .pubkey();
         if !address_space.iter().any(|a| a == &tree) {
             msg!("address tree: {:?}", tree);
