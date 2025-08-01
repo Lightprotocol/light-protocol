@@ -11,7 +11,6 @@ use light_sdk_types::{
     constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID},
     cpi_context_write::CpiContextWriteAccounts,
 };
-use solana_msg::msg;
 
 use crate::{
     cpi::{

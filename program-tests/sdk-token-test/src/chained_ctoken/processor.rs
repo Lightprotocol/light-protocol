@@ -6,9 +6,9 @@ use crate::chained_ctoken::create_pda::process_create_escrow_pda;
 use crate::chained_ctoken::mint_to::{mint_to_compressed, MintToCompressedInstructionData};
 use anchor_lang::prelude::*;
 use light_compressed_token_sdk::ValidityProof;
-use light_ctoken_types::instructions::extensions::ExtensionInstructionData;
 use light_ctoken_types::instructions::mint_to_compressed::CompressedMintInputs;
 use light_ctoken_types::state::CompressedMint;
+use light_ctoken_types::state::{ExtensionStruct, TokenMetadata};
 use light_ctoken_types::{COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID};
 use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
 
@@ -44,12 +44,9 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
     )
     .unwrap()
     .into();
-    msg!(
-        "input.compressed_mint_address {:?}",
-        input.compressed_mint_address
-    );
+
     let compressed_mint_inputs = CompressedMintInputs {
-        leaf_index: 1, // TODO: get from output queue
+        leaf_index: 0, // The mint is created at index 1 in the CPI context
         prove_by_index: true,
         root_index: 0,
         address: input.compressed_mint_address,
@@ -60,23 +57,29 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
             decimals: input.decimals,
             supply: 0,
             is_decompressed: false,
-            freeze_authority: None,
-            extensions: None,
+            freeze_authority: input.freeze_authority.map(|f| f.into()),
+            extensions: input.metadata.as_ref().map(|metadata| {
+                vec![ExtensionStruct::TokenMetadata(TokenMetadata {
+                    update_authority: metadata.update_authority,
+                    mint: spl_mint.into(),
+                    metadata: metadata.metadata.clone(),
+                    additional_metadata: metadata.additional_metadata.clone().unwrap_or_default(),
+                    version: metadata.version,
+                })]
+            }),
         },
     };
     // First CPI call: create compressed mint
     create_compressed_mint(&ctx, input, &cpi_accounts)?;
-    /*
-        // Second CPI call: mint to compressed tokens
-        mint_to_compressed(
-            &ctx,
-            mint_input.clone(),
-            compressed_mint_inputs,
-            &cpi_accounts,
-        )?;
-    */
-    msg!("address {:?}", address);
-    msg!("cpi_accounts {:?}", cpi_accounts.tree_pubkeys());
+
+    // Second CPI call: mint to compressed tokens
+    mint_to_compressed(
+        &ctx,
+        mint_input.clone(),
+        compressed_mint_inputs,
+        &cpi_accounts,
+    )?;
+
     // Third CPI call: create compressed escrow PDA
     process_create_escrow_pda(
         pda_proof,

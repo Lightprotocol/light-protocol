@@ -100,12 +100,13 @@ pub async fn create_mint<R: Rpc + Indexer>(
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (_spl_mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (spl_mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
     let pda_address_seed = hash_to_bn254_field_size_be(
         [b"escrow", payer.pubkey().to_bytes().as_ref()]
             .concat()
             .as_slice(),
     );
+    println!("spl_mint: {:?}", spl_mint);
     let pda_address = derive_address(
         &pda_address_seed,
         &address_tree_pubkey.to_bytes(),
@@ -117,11 +118,11 @@ pub async fn create_mint<R: Rpc + Indexer>(
             vec![],
             vec![
                 light_client::indexer::AddressWithTree {
-                    address: pda_address, // is first, because we execute the cpi context with this ix
+                    address: compressed_mint_address,
                     tree: address_tree_pubkey,
                 },
                 light_client::indexer::AddressWithTree {
-                    address: compressed_mint_address,
+                    address: pda_address, // is first, because we execute the cpi context with this ix
                     tree: address_tree_pubkey,
                 },
             ],
@@ -178,7 +179,9 @@ pub async fn create_mint<R: Rpc + Indexer>(
         assigned_to_account: true,
     };
     let output_tree_index = packed_accounts.insert_or_get(tree_info.get_output_pubkey().unwrap());
+    let tree_index = packed_accounts.insert_or_get(tree_info.tree);
     assert_eq!(output_tree_index, 1);
+    assert_eq!(tree_index, 2);
     let remaining_accounts = packed_accounts.to_account_metas().0;
 
     // Create the instruction

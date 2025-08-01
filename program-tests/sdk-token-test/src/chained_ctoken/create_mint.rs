@@ -7,7 +7,6 @@ use light_compressed_token_sdk::instructions::instruction::{
 use super::CreateCompressedMint;
 use crate::LIGHT_CPI_SIGNER;
 use light_compressed_token_sdk::instructions::create_compressed_mint::CpiContextWriteAccounts;
-use light_compressed_token_sdk::CompressedCpiContext;
 use light_ctoken_types::instructions::{
     create_compressed_mint::CpiContext,
     extensions::{ExtensionInstructionData, TokenMetadataInstructionData},

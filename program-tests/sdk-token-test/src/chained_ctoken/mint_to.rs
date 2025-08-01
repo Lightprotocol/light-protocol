@@ -4,7 +4,6 @@ use light_compressed_token_sdk::instructions::mint_to_compressed::{
     create_mint_to_compressed_cpi_write, MintToCompressedCpiContextWriteAccounts,
     MintToCompressedInputsCpiWrite,
 };
-use light_compressed_token_sdk::CompressedCpiContext;
 use light_ctoken_types::instructions::mint_to_compressed::{
     CompressedMintInputs, CpiContext, Recipient,
 };
@@ -15,7 +14,6 @@ use crate::LIGHT_CPI_SIGNER;
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct MintToCompressedInstructionData {
-    // pub compressed_mint_inputs: CompressedMintInputs,
     pub recipients: Vec<Recipient>,
     pub lamports: Option<u64>,
     pub version: u8,
@@ -35,7 +33,6 @@ pub fn mint_to_compressed<'a, 'b, 'c, 'info>(
         cpi_context: cpi_accounts.cpi_context().unwrap(),
         cpi_signer: LIGHT_CPI_SIGNER,
     };
-    msg!(" cpi_context_account_info {:?}", cpi_context_account_info);
 
     let mint_to_inputs = MintToCompressedInputsCpiWrite {
         compressed_mint_inputs,
@@ -46,7 +43,7 @@ pub fn mint_to_compressed<'a, 'b, 'c, 'info>(
         cpi_context: CpiContext {
             set_context: true,
             first_set_context: false,
-            in_tree_index: 0,
+            in_tree_index: 2,
             in_queue_index: 1,
             out_queue_index: 1,
             token_out_queue_index: 1,
@@ -57,7 +54,6 @@ pub fn mint_to_compressed<'a, 'b, 'c, 'info>(
 
     let mint_to_instruction =
         create_mint_to_compressed_cpi_write(mint_to_inputs).map_err(ProgramError::from)?;
-    msg!(" mint_to_instruction {:?}", mint_to_instruction);
     // Execute the CPI call to mint compressed tokens
     invoke(
         &mint_to_instruction,
