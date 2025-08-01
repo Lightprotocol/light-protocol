@@ -5,7 +5,7 @@ use anyhow::Result;
 use light_hasher::Hasher;
 use light_sparse_merkle_tree::SparseMerkleTree;
 use solana_sdk::pubkey::Pubkey;
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::RwLock;
 use tracing::{debug, info};
 
 /// Global tree cache instance
