@@ -23,7 +23,6 @@ pub struct TreeSnapshot {
     pub next_index: usize,
     pub root: [u8; 32],
     pub height: usize,
-    pub sequence_number: u64,
 }
 
 impl TreeSnapshot {
@@ -50,15 +49,12 @@ impl TreeSnapshot {
 pub struct TreeCache {
     /// Cache of tree snapshots by merkle tree pubkey
     snapshots: Arc<RwLock<HashMap<Pubkey, TreeSnapshot>>>,
-    /// Sequence numbers for each tree (for detecting stale data)
-    sequences: Arc<RwLock<HashMap<Pubkey, u64>>>,
 }
 
 impl TreeCache {
     pub fn new() -> Self {
         Self {
             snapshots: Arc::new(RwLock::new(HashMap::new())),
-            sequences: Arc::new(RwLock::new(HashMap::new())),
         }
     }
     
@@ -67,30 +63,24 @@ impl TreeCache {
         self.snapshots.read().await.get(merkle_tree).cloned()
     }
     
-    /// Update or insert a tree snapshot
+    /// Update or insert a tree snapshot from SparseMerkleTree instance
+    /// (Alternative to update_from_data when you have a tree object)
     pub async fn update<H: Hasher, const HEIGHT: usize>(
         &self,
         merkle_tree: Pubkey,
         tree: &SparseMerkleTree<H, HEIGHT>,
     ) -> Result<()> {
-        let mut sequences = self.sequences.write().await;
-        let seq = sequences.entry(merkle_tree).or_insert(0);
-        *seq += 1;
-        let sequence_number = *seq;
-        drop(sequences);
-        
         let snapshot = TreeSnapshot {
             subtrees: tree.get_subtrees().to_vec(),
             next_index: tree.get_next_index(),
             root: tree.root(),
             height: HEIGHT,
-            sequence_number,
         };
         
         let mut snapshots = self.snapshots.write().await;
         snapshots.insert(merkle_tree, snapshot);
         
-        debug!("Updated tree cache for {:?} (seq: {})", merkle_tree, sequence_number);
+        debug!("Updated tree cache for {:?}", merkle_tree);
         Ok(())
     }
     
@@ -103,42 +93,34 @@ impl TreeCache {
         root: [u8; 32],
         height: usize,
     ) -> Result<()> {
-        let mut sequences = self.sequences.write().await;
-        let seq = sequences.entry(merkle_tree).or_insert(0);
-        *seq += 1;
-        let sequence_number = *seq;
-        drop(sequences);
-        
         let snapshot = TreeSnapshot {
             subtrees,
             next_index,
             root,
             height,
-            sequence_number,
         };
         
         let mut snapshots = self.snapshots.write().await;
         snapshots.insert(merkle_tree, snapshot);
         
-        info!("Updated tree cache from data for {:?} (seq: {})", merkle_tree, sequence_number);
+        info!("Updated tree cache from data for {:?}", merkle_tree);
         Ok(())
     }
     
-    /// Clear cache for a specific tree
+    /// Clear cache for a specific tree (useful for error recovery)
     pub async fn invalidate(&self, merkle_tree: &Pubkey) {
         self.snapshots.write().await.remove(merkle_tree);
-        self.sequences.write().await.remove(merkle_tree);
         debug!("Invalidated cache for {:?}", merkle_tree);
     }
     
-    /// Clear entire cache
+    /// Clear entire cache (useful for testing and cleanup)
     pub async fn clear(&self) {
         self.snapshots.write().await.clear();
-        self.sequences.write().await.clear();
         info!("Cleared entire tree cache");
     }
     
-    /// Get or create a tree from cache or data
+    /// Get or create a tree from cache or data (convenience method that combines get + create logic)
+    /// TODO: Consider using this in state_streams.rs to simplify tree creation logic
     pub async fn get_or_create<H: Hasher, const HEIGHT: usize>(
         &self,
         merkle_tree: Pubkey,

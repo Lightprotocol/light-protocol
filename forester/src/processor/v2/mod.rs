@@ -1,6 +1,5 @@
 mod address;
 mod common;
-mod shared_tree_proof_generator;
 mod state;
 mod state_streams;
 mod tree_cache;
