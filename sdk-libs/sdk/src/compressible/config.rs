@@ -76,19 +76,25 @@ impl CompressibleConfig {
     /// Validates the config account
     pub fn validate(&self) -> Result<(), crate::ProgramError> {
         if self.version != 1 {
-            msg!("Unsupported config version: {}", self.version);
+            msg!(
+                "CompressibleConfig validation failed: Unsupported config version: {}",
+                self.version
+            );
             return Err(LightSdkError::ConstraintViolation.into());
         }
         if self.address_space.len() != 1 {
             msg!(
-                "Address space must contain exactly 1 pubkey, found: {}",
+                "CompressibleConfig validation failed: Address space must contain exactly 1 pubkey, found: {}",
                 self.address_space.len()
             );
             return Err(LightSdkError::ConstraintViolation.into());
         }
         // For now, only allow config_bump = 0 to keep it simple
         if self.config_bump != 0 {
-            msg!("Config bump must be 0 for now, found: {}", self.config_bump);
+            msg!(
+                "CompressibleConfig validation failed: Config bump must be 0 for now, found: {}",
+                self.config_bump
+            );
             return Err(LightSdkError::ConstraintViolation.into());
         }
         Ok(())
@@ -101,21 +107,27 @@ impl CompressibleConfig {
     ) -> Result<Self, crate::ProgramError> {
         if account.owner != program_id {
             msg!(
-                "Config account owner mismatch. Expected: {}. Found: {}.",
+                "CompressibleConfig::load_checked failed: Config account owner mismatch. Expected: {:?}. Found: {:?}.",
                 program_id,
                 account.owner
             );
             return Err(LightSdkError::ConstraintViolation.into());
         }
         let data = account.try_borrow_data()?;
-        let config = Self::try_from_slice(&data).map_err(|_| LightSdkError::Borsh)?;
+        let config = Self::try_from_slice(&data).map_err(|err| {
+            msg!(
+                "CompressibleConfig::load_checked failed: Failed to deserialize config data: {:?}",
+                err
+            );
+            LightSdkError::Borsh
+        })?;
         config.validate()?;
 
         // CHECK: PDA derivation
         let (expected_pda, _) = Self::derive_pda(program_id, config.config_bump);
         if expected_pda != *account.key {
             msg!(
-                "Config account key mismatch. Expected PDA: {}. Found: {}.",
+                "CompressibleConfig::load_checked failed: Config account key mismatch. Expected PDA: {:?}. Found: {:?}.",
                 expected_pda,
                 account.key
             );
