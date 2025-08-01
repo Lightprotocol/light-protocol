@@ -2,7 +2,7 @@
   "devDependencies": {
     "husky": "^9.1.7",
     "nx": "^20.8.1",
-    "playwright": "^1.52.0",
+    "playwright": "^1.54.2",
     "prettier": "^3.6.2",
     "snarkjs": "^0.7.5",
     "syncpack": "^13.0.4",
