@@ -3806,6 +3806,7 @@ version = "0.13.0"
 dependencies = [
  "anchor-lang",
  "arrayvec",
+ "bincode",
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
@@ -3820,6 +3821,7 @@ dependencies = [
  "solana-cpi",
  "solana-instruction",
  "solana-msg",
+ "solana-program",
  "solana-program-error",
  "solana-pubkey",
  "solana-rent",
