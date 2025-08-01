@@ -5,7 +5,9 @@ use forester_utils::rpc_pool::SolanaRpcPool;
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use futures::{pin_mut, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
-    batch::BatchState, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+    batch::BatchState, 
+    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs},
+    queue::BatchedQueueAccount,
 };
 use light_client::{rpc::Rpc, indexer::Indexer};
 use light_compressed_account::TreeType;
@@ -590,20 +592,31 @@ impl<R: Rpc> BatchProcessor<R> {
             process_stream(
                 &self.context,
                 nullify_future,
-                |data| light_registry::account_compression_cpi::sdk::create_batch_nullify_instruction(
-                    vec![data.clone()],
-                    self.context.authority.pubkey()
-                ),
+                |data: &InstructionDataBatchNullifyInputs| {
+                    light_registry::account_compression_cpi::sdk::create_batch_nullify_instruction(
+                        self.context.authority.pubkey(),
+                        self.context.derivation,
+                        self.context.merkle_tree,
+                        self.context.epoch,
+                        data.try_to_vec().unwrap(),
+                    )
+                },
                 "state",
                 Some("nullify")
             ),
             process_stream(
                 &self.context,
                 append_future,
-                |data| light_registry::account_compression_cpi::sdk::create_batch_append_instruction(
-                    vec![data.clone()],
-                    self.context.authority.pubkey()
-                ),
+                |data: &InstructionDataBatchAppendInputs| {
+                    light_registry::account_compression_cpi::sdk::create_batch_append_instruction(
+                        self.context.authority.pubkey(),
+                        self.context.derivation,
+                        self.context.merkle_tree,
+                        self.context.output_queue,
+                        self.context.epoch,
+                        data.try_to_vec().unwrap(),
+                    )
+                },
                 "state",
                 Some("append")
             )

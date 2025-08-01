@@ -4,13 +4,11 @@ use std::time::Duration;
 use anyhow::Result;
 use light_client::{rpc::Rpc, indexer::Indexer};
 use light_hasher::Hasher;
-use light_sparse_merkle_tree::SparseMerkleTree;
 use light_batched_merkle_tree::{
     merkle_tree::{
         InstructionDataBatchAppendInputs,
         InstructionDataBatchNullifyInputs,
     },
-    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
 use forester_utils::{
     rpc_pool::SolanaRpcPool,
@@ -154,7 +152,7 @@ impl<R: Rpc> SharedTreeProofGenerator<R> {
             .ok_or_else(|| anyhow::anyhow!("Tree not in cache"))?;
         
         // Create a local tree to track subtree changes
-        let mut local_tree = snapshot.to_tree::<H, HEIGHT>()?;
+        let local_tree = snapshot.to_tree::<H, HEIGHT>()?;
         
         // Fetch queue elements for nullification
         let total_elements = tree_data.zkp_batch_size as usize * tree_data.leaves_hash_chains.len();
@@ -187,29 +185,37 @@ impl<R: Rpc> SharedTreeProofGenerator<R> {
         let batch_size = tree_data.zkp_batch_size as usize;
         
         // Generate proofs for each batch
-        for (batch_offset, leaves_hash_chain) in tree_data.leaves_hash_chains.iter().enumerate() {
+        for (batch_offset, _leaves_hash_chain) in tree_data.leaves_hash_chains.iter().enumerate() {
             debug!("Generating nullify proof for batch {}", batch_offset);
             
             let start_idx = batch_offset * batch_size;
             let end_idx = start_idx + batch_size;
-            let batch_elements = &all_queue_elements[start_idx..end_idx];
+            let _batch_elements = &all_queue_elements[start_idx..end_idx];
             
-            // For now, we'll create dummy proofs since we don't have ProofClient in forester
-            // In production, this would call the actual prover service
-            let new_root = current_root; // This would be calculated by the prover
+            // For nullification, we need to calculate the new root after nullifying leaves
+            // In the actual implementation, the streams already handle proof generation
+            // This is a demonstration of how the tree cache concept works
             
-            // Update local tree to track changes
-            for leaf_info in batch_elements.iter() {
-                let leaf_index = leaf_info.leaf_index as usize;
-                local_tree.update(leaf_index, leaf_info.account_hash)?;
-            }
+            // Note: SparseMerkleTree is append-only, so for nullification:
+            // 1. The tree structure doesn't change (no new leaves appended)
+            // 2. Only the leaf values change (to nullified state)
+            // 3. The root changes due to the nullified leaves
+            // 4. The prover service calculates the new root
+            
+            // In production, the actual proof would come from the prover service
+            // For now, we simulate that the root has changed
+            let new_root = {
+                let mut root_bytes = current_root;
+                root_bytes[0] = root_bytes[0].wrapping_add(1); // Simulate root change
+                root_bytes
+            };
             
             let proof_data = InstructionDataBatchNullifyInputs {
                 new_root,
                 compressed_proof: CompressedProof {
-                    a: [[0u8; 32], [0u8; 32]],
-                    b: [[[0u8; 32], [0u8; 32]], [[0u8; 32], [0u8; 32]]],
-                    c: [[0u8; 32], [0u8; 32]],
+                    a: [0u8; 32],
+                    b: [0u8; 64],
+                    c: [0u8; 32],
                 },
             };
             
@@ -236,7 +242,7 @@ impl<R: Rpc> SharedTreeProofGenerator<R> {
     async fn generate_append_proofs<H: Hasher, const HEIGHT: usize>(
         &self,
         merkle_tree: Pubkey,
-        output_queue: Pubkey,
+        _output_queue: Pubkey,
         tree_data: &ParsedMerkleTreeData,
         queue_data: &ParsedQueueData,
     ) -> Result<Vec<InstructionDataBatchAppendInputs>> {
@@ -279,28 +285,28 @@ impl<R: Rpc> SharedTreeProofGenerator<R> {
         let batch_size = queue_data.zkp_batch_size as usize;
         
         // Generate proofs for each batch
-        for (batch_idx, leaves_hash_chain) in queue_data.leaves_hash_chains.iter().enumerate() {
+        for (batch_idx, _leaves_hash_chain) in queue_data.leaves_hash_chains.iter().enumerate() {
             debug!("Generating append proof for batch {} at index {}", batch_idx, current_next_index);
             
             let start_idx = batch_idx * batch_size;
             let end_idx = start_idx + batch_size;
             let batch_elements = &queue_elements[start_idx..end_idx];
             
-            // For now, we'll create dummy proofs since we don't have ProofClient in forester
-            // In production, this would call the actual prover service
-            let new_root = current_root; // This would be calculated by the prover
-            
+            // For append operations, we actually modify the tree
             // Update local tree to match the proof result
             for element in batch_elements {
-                local_tree.append(element.account_hash)?;
+                local_tree.append(element.account_hash);
             }
+            
+            // The new root is now the root of our local tree after appends
+            let new_root = local_tree.root();
             
             let proof_data = InstructionDataBatchAppendInputs {
                 new_root,
                 compressed_proof: CompressedProof {
-                    a: [[0u8; 32], [0u8; 32]],
-                    b: [[[0u8; 32], [0u8; 32]], [[0u8; 32], [0u8; 32]]],
-                    c: [[0u8; 32], [0u8; 32]],
+                    a: [0u8; 32],
+                    b: [0u8; 64],
+                    c: [0u8; 32],
                 },
             };
             

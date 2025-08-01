@@ -1,16 +1,13 @@
 use std::{pin::Pin, sync::Arc, time::Duration};
 
-use async_stream::stream;
 use futures::{stream::Stream, StreamExt};
 use light_batched_merkle_tree::{
-    constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
     merkle_tree::{InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs},
 };
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::rpc::Rpc;
 use solana_sdk::pubkey::Pubkey;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
-use super::tree_cache::TREE_CACHE;
 use crate::Result;
 use forester_utils::{
     rpc_pool::SolanaRpcPool,
@@ -28,7 +25,7 @@ pub async fn create_nullify_stream_with_cache_update<R: Rpc>(
     merkle_tree_data: ParsedMerkleTreeData,
     yield_batch_size: usize,
 ) -> Result<(
-    impl Stream<Item = Result<Vec<InstructionDataBatchNullifyInputs>>> + Send,
+    Pin<Box<dyn Stream<Item = Result<Vec<InstructionDataBatchNullifyInputs>>> + Send>>,
     u16,
 )> {
     let zkp_batch_size = merkle_tree_data.zkp_batch_size;
@@ -36,7 +33,8 @@ pub async fn create_nullify_stream_with_cache_update<R: Rpc>(
     
     if leaves_hash_chains.is_empty() {
         debug!("No hash chains to process for nullification");
-        return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
+        let empty_stream = futures::stream::empty().map(|x| x);
+        return Ok((Box::pin(empty_stream), zkp_batch_size));
     }
     
     // Use the existing stream implementation and wrap it
@@ -53,7 +51,7 @@ pub async fn create_nullify_stream_with_cache_update<R: Rpc>(
     .map_err(anyhow::Error::from)?;
     
     // Wrap the stream to add cache update logic
-    let merkle_tree_pubkey_clone = merkle_tree_pubkey;
+    let _merkle_tree_pubkey_clone = merkle_tree_pubkey;
     let wrapped_stream = stream.map(move |result| {
         // After each batch of proofs, we should update the tree cache
         // Note: In a complete implementation, we would:
@@ -74,7 +72,7 @@ pub async fn create_nullify_stream_with_cache_update<R: Rpc>(
         result.map_err(anyhow::Error::from)
     });
     
-    Ok((wrapped_stream, size))
+    Ok((Box::pin(wrapped_stream), size))
 }
 
 /// Creates an append stream that updates the shared tree cache after each proof
@@ -96,7 +94,8 @@ pub async fn create_append_stream_with_cache_update<R: Rpc>(
     
     if leaves_hash_chains.is_empty() {
         debug!("No hash chains to process for append");
-        return Ok((Box::pin(futures::stream::empty()), zkp_batch_size));
+        let empty_stream = futures::stream::empty().map(|x| x);
+        return Ok((Box::pin(empty_stream), zkp_batch_size));
     }
     
     // Use the existing stream implementation and wrap it
@@ -114,7 +113,7 @@ pub async fn create_append_stream_with_cache_update<R: Rpc>(
     .map_err(anyhow::Error::from)?;
     
     // Wrap the stream to add cache update logic
-    let merkle_tree_pubkey_clone = merkle_tree_pubkey;
+    let _merkle_tree_pubkey_clone = merkle_tree_pubkey;
     let wrapped_stream = stream.map(move |result| {
         // After each batch of proofs, we should update the tree cache
         // Note: In a complete implementation, we would:
@@ -136,5 +135,5 @@ pub async fn create_append_stream_with_cache_update<R: Rpc>(
         result.map_err(anyhow::Error::from)
     });
     
-    Ok((wrapped_stream, size))
+    Ok((Box::pin(wrapped_stream), size))
 }
