@@ -7,13 +7,16 @@ use futures::{pin_mut, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
     batch::BatchState, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_client::rpc::Rpc;
+use light_client::{rpc::Rpc, indexer::Indexer};
 use light_compressed_account::TreeType;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
-use super::{address, state};
+use super::{
+    address, state, tree_cache,
+    parallel_streams::{create_nullify_stream_with_cache_update, create_append_stream_with_cache_update}
+};
 use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, Result};
 
 #[derive(Debug)]
@@ -548,4 +551,90 @@ impl<R: Rpc> BatchProcessor<R> {
         let remaining = total - num_inserted_zkps;
         remaining as f64 / total as f64
     }
+
+    /// Process operations in parallel using cache-updating streams
+    async fn process_parallel(
+        &self,
+        merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: ParsedQueueData,
+    ) -> Result<usize> {
+        info!("Processing state operations in parallel with cache updates");
+        
+        // Update tree cache with initial state
+        update_tree_cache(&self.context, &merkle_tree_data).await?;
+        
+        // Create futures for stream creation
+        let nullify_future = create_nullify_stream_with_cache_update(
+            self.context.rpc_pool.clone(),
+            self.context.merkle_tree,
+            self.context.prover_url.clone(),
+            self.context.prover_polling_interval,
+            self.context.prover_max_wait_time,
+            merkle_tree_data.clone(),
+            1, // yield_batch_size
+        );
+        
+        let append_future = create_append_stream_with_cache_update(
+            self.context.rpc_pool.clone(),
+            self.context.merkle_tree,
+            self.context.prover_url.clone(),
+            self.context.prover_polling_interval,
+            self.context.prover_max_wait_time,
+            merkle_tree_data,
+            output_queue_data,
+            1, // yield_batch_size
+        );
+        
+        // Process both streams in parallel
+        let (nullify_result, append_result) = tokio::join!(
+            process_stream(
+                &self.context,
+                nullify_future,
+                |data| light_registry::account_compression_cpi::sdk::create_batch_nullify_instruction(
+                    vec![data.clone()],
+                    self.context.authority.pubkey()
+                ),
+                "state",
+                Some("nullify")
+            ),
+            process_stream(
+                &self.context,
+                append_future,
+                |data| light_registry::account_compression_cpi::sdk::create_batch_append_instruction(
+                    vec![data.clone()],
+                    self.context.authority.pubkey()
+                ),
+                "state",
+                Some("append")
+            )
+        );
+        
+        let nullify_count = nullify_result?;
+        let append_count = append_result?;
+        
+        Ok(nullify_count + append_count)
+    }
+}
+
+/// Update tree cache with current on-chain state
+async fn update_tree_cache<R: Rpc>(
+    context: &BatchContext<R>,
+    tree_data: &ParsedMerkleTreeData,
+) -> Result<()> {
+    // Fetch subtrees from indexer
+    let mut rpc = context.rpc_pool.get_connection().await?;
+    let indexer = rpc.indexer_mut()?;
+    let subtrees_response = indexer.get_subtrees(context.merkle_tree.to_bytes(), None).await?;
+    let subtrees = subtrees_response.value.items;
+    
+    let cache = tree_cache::get_tree_cache().await;
+    cache.update_from_data(
+        context.merkle_tree,
+        subtrees,
+        tree_data.next_index as usize,
+        tree_data.current_root,
+        32, // HEIGHT for state trees
+    ).await?;
+    
+    Ok(())
 }

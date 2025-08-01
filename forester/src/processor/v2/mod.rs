@@ -1,6 +1,9 @@
 mod address;
 mod common;
+mod parallel_streams;
+mod shared_tree_proof_generator;
 mod state;
+mod tree_cache;
 
 use common::BatchProcessor;
 use light_client::rpc::Rpc;

@@ -17,6 +17,7 @@ use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
 
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData, ParsedQueueData};
+use super::tree_cache;
 use crate::Result;
 
 async fn create_nullify_stream_future<R>(
