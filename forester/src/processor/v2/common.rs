@@ -17,7 +17,7 @@ use tracing::{debug, error, info, trace};
 
 use super::{
     address, state, tree_cache,
-    parallel_streams::{create_nullify_stream_with_cache_update, create_append_stream_with_cache_update}
+    state_streams::{get_nullify_instruction_stream, get_append_instruction_stream}
 };
 use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, Result};
 
@@ -565,7 +565,7 @@ impl<R: Rpc> BatchProcessor<R> {
         update_tree_cache(&self.context, &merkle_tree_data).await?;
         
         // Create futures for stream creation
-        let nullify_future = create_nullify_stream_with_cache_update(
+        let nullify_future = get_nullify_instruction_stream(
             self.context.rpc_pool.clone(),
             self.context.merkle_tree,
             self.context.prover_url.clone(),
@@ -575,7 +575,7 @@ impl<R: Rpc> BatchProcessor<R> {
             1, // yield_batch_size
         );
         
-        let append_future = create_append_stream_with_cache_update(
+        let append_future = get_append_instruction_stream(
             self.context.rpc_pool.clone(),
             self.context.merkle_tree,
             self.context.prover_url.clone(),
