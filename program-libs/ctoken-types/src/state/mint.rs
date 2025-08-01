@@ -137,7 +137,9 @@ impl CompressedMint {
             hash_inputs.push(&num_extensions_bytes[..]);
         }
 
-        Poseidon::hashv(hash_inputs.as_slice())
+        let hash = Poseidon::hashv(hash_inputs.as_slice())?;
+
+        Ok(hash)
     }
 }
 

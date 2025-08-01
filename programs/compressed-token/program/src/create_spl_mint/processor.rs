@@ -7,10 +7,7 @@ use light_compressed_account::{
 };
 use light_ctoken_types::{
     context::TokenContext,
-    instructions::{
-        create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
-        mint_to_compressed::CpiContext,
-    },
+    instructions::create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
     state::{CompressedMint, CompressedMintConfig},
     COMPRESSED_MINT_SEED,
 };

@@ -37,7 +37,6 @@ impl<'info> MintToCompressedAccounts<'info> {
         // Static non-CPI accounts first
         let authority = iter.next_signer("authority")?;
         if write_to_cpi_context {
-            msg!("write to cpi context");
             Ok(MintToCompressedAccounts {
                 light_system_program,
                 authority,

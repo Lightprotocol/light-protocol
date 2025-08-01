@@ -1,5 +1,5 @@
 // 1 in little endian (for compressed mint accounts)
-pub const COMPRESSED_MINT_DISCRIMINATOR: [u8; 8] = [1, 0, 0, 0, 0, 0, 0, 0];
+pub const COMPRESSED_MINT_DISCRIMINATOR: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 1];
 // 2 in little endian
 pub const TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR: [u8; 8] = [2, 0, 0, 0, 0, 0, 0, 0];
 // 3 in big endian (for V2 token accounts in batched trees)

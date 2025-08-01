@@ -43,18 +43,15 @@ pub fn process_mint_to_compressed(
 
     sol_log_compute_units();
     let with_sol_pool = parsed_instruction_data.lamports.is_some();
-    msg!(" with sol pool: {}", with_sol_pool);
     let is_decompressed = parsed_instruction_data
         .compressed_mint_inputs
         .mint
         .is_decompressed();
-    msg!("is_decompressed: {}", is_decompressed);
     let write_to_cpi_context = parsed_instruction_data
         .cpi_context
         .as_ref()
         .map(|x| x.first_set_context() || x.set_context())
         .unwrap_or_default();
-    msg!("write_to_cpi_context: {}", write_to_cpi_context);
     // Validate and parse accounts
     let validated_accounts = MintToCompressedAccounts::validate_and_parse(
         accounts,
@@ -217,18 +214,6 @@ pub fn process_mint_to_compressed(
             system_accounts.tokens_out_queue.key(),
         ];
         let start_index = if is_decompressed { 5 } else { 2 };
-        msg!("start_index: {}", start_index);
-        msg!(
-            " system_accounts.system.sol_pool_pda.is_some(): {}",
-            system_accounts.system.sol_pool_pda.is_some()
-        );
-        msg!(
-            "accounts {:?}",
-            &accounts
-                .iter()
-                .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
-                .collect::<Vec<_>>()
-        );
         execute_cpi_invoke(
             &accounts[start_index..], // Skip first 5 non-CPI accounts (authority, mint, token_pool_pda, token_program, light_system_program)
             cpi_bytes,
@@ -244,21 +229,9 @@ pub fn process_mint_to_compressed(
             unimplemented!("")
         }
         if is_decompressed {
-            msg!("is decompressed");
+            msg!("with sol pool");
             unimplemented!("")
         }
-        msg!("accounts len {}", accounts.len());
-        {
-            let _cpi_accounts = accounts
-                .iter()
-                .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
-                .collect::<Vec<_>>();
-            msg!("account infos {:?}", _cpi_accounts);
-        }
-        msg!(
-            "*system_accounts.cpi_context.key() {:?}",
-            solana_pubkey::Pubkey::new_from_array(*system_accounts.cpi_context.key())
-        );
         // Execute CPI call to light-system-program
         execute_cpi_invoke(
             &accounts[2..],

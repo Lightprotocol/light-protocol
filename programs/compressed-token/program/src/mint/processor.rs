@@ -97,7 +97,7 @@ pub fn process_create_compressed_mint(
         parsed_instruction_data
             .address_merkle_tree_root_index
             .into(),
-        None,
+        Some(0),
         address_merkle_tree_account_index,
     );
     // 3. Create compressed mint account data
