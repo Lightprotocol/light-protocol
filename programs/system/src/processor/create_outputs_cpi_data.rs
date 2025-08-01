@@ -49,6 +49,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     let mut index_merkle_tree_account = 0;
     let number_of_merkle_trees =
         inputs.output_accounts().last().unwrap().merkle_tree_index() as usize + 1;
+
     let mut merkle_tree_pubkeys =
         Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
@@ -70,6 +71,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                         output_queue.metadata.rollover_metadata.network_fee,
                         current_index as u8,
                     );
+
                     hashed_merkle_tree = output_queue.hashed_merkle_tree_pubkey;
                     rollover_fee = output_queue.metadata.rollover_metadata.rollover_fee;
                     mt_next_index = output_queue.batch_metadata.next_index as u32;
@@ -136,11 +138,12 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             {
                 context.addresses.remove(position);
             } else {
+                msg!(format!("context.addresses: {:?}", context.addresses).as_str());
                 return Err(SystemProgramError::InvalidAddress.into());
             }
         }
-
         cpi_ix_data.output_leaf_indices[j] = (mt_next_index + num_leaves_in_tree).into();
+
         num_leaves_in_tree += 1;
         if account.has_data() && context.invoking_program_id.is_none() {
             msg!("Invoking program is not provided.");
@@ -199,11 +202,18 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
             let output_account = inputs
                 .get_output_account(assigned_account_index)
                 .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;
+
             if derived_addresses.address
                 != output_account
                     .address()
                     .ok_or(SystemProgramError::AddressIsNone)?
             {
+                msg!(format!(
+                    "derived_addresses.address {:?} != account address {:?}",
+                    derived_addresses.address,
+                    output_account.address()
+                )
+                .as_str());
                 return Err(SystemProgramError::AddressDoesNotMatch);
             }
         }

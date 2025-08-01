@@ -750,6 +750,16 @@ impl Rpc for LightClient {
             tree_type: TreeType::AddressV1,
         }
     }
+
+    fn get_address_tree_v2(&self) -> TreeInfo {
+        TreeInfo {
+            tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            cpi_context: None,
+            next_tree_info: None,
+            tree_type: TreeType::AddressV2,
+        }
+    }
 }
 
 impl MerkleTreeExt for LightClient {}

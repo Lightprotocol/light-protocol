@@ -20,7 +20,7 @@ use crate::{
     instruction_data::{
         data::{InstructionDataInvoke, OutputCompressedAccountWithPackedContext},
         insert_into_queues::InsertIntoQueuesInstructionData,
-        with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+        with_account_info::{InstructionDataInvokeCpiWithAccountInfo, OutAccountInfo},
         with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,
@@ -160,7 +160,7 @@ fn deserialize_associated_instructions<'a>(
         deserialize_instruction(&instructions[indices.system], &accounts[indices.system])?;
     Ok(AssociatedInstructions {
         executing_system_instruction: exec_instruction,
-        cpi_context_outputs,
+        cpi_context_outputs: cpi_context_outputs,
         insert_into_queues_instruction: insert_queues_instruction,
         // Remove signer and register program accounts.
         accounts: &accounts[indices.insert_into_queues][2..],
@@ -326,7 +326,7 @@ fn deserialize_instruction<'a>(
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
             // Min len for a small instruction 3 accounts + 1 tree or queue
-            // Fee payer + authority + registered program + account compression authority
+            // Fee payer + authority + registered program + account compression program + account compression authority
             if accounts.len() < 5 {
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
@@ -335,7 +335,7 @@ fn deserialize_instruction<'a>(
             let system_accounts_len = if data.mode == 0 {
                 11
             } else {
-                let mut len = 4;
+                let mut len = 6; // fee_payer + authority + registered_program + account_compression_program + account_compression_authority + system_program
                 if data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }
@@ -373,7 +373,7 @@ fn deserialize_instruction<'a>(
         }
         INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION => {
             // Min len for a small instruction 4 accounts + 1 tree or queue
-            // Fee payer + authority + registered program + account compression authority
+            // Fee payer + authority + registered program + account compression program + account compression authority
             if accounts.len() < 5 {
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
@@ -382,7 +382,7 @@ fn deserialize_instruction<'a>(
             let system_accounts_len = if data.mode == 0 {
                 11
             } else {
-                let mut len = 4;
+                let mut len = 6; // fee_payer + authority + registered_program + account_compression_program + account_compression_authority + system_program
                 if data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }

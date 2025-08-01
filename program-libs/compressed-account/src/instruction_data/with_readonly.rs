@@ -1,6 +1,8 @@
 use std::ops::Deref;
 
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use light_zero_copy::{
+    borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh, ZeroCopyMut,
+};
 use zerocopy::{
     little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -30,7 +32,7 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, CompressedAccountError,
 };
 
-#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InAccount {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -193,7 +195,7 @@ impl<'a> Deref for ZInAccount<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpiWithReadOnly {
     /// 0 With program ids
     /// 1 without program ids
@@ -264,6 +266,8 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
+            write_to_cpi_context: self.cpi_context.first_set_context()
+                || self.cpi_context.set_context(),
         }
     }
 
@@ -287,9 +291,15 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     }
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
-        self.new_address_params.as_slice()
+        &self.new_address_params.as_slice()
     }
 
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        // Return one owner per address
+        (0..self.new_address_params.len())
+            .map(|_| Some(self.invoking_program_id))
+            .collect()
+    }
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
         self.proof
     }

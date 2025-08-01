@@ -204,6 +204,5 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     fn get_address_tree_v1(&self) -> TreeInfo;
 
-    // TODO: add with v2 release
-    // fn get_address_tree_v2(&self) -> Result<Vec<Pubkey>, RpcError>;
+    fn get_address_tree_v2(&self) -> TreeInfo;
 }

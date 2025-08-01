@@ -94,6 +94,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             context.get_index_or_insert(merkle_context.queue_pubkey_index, remaining_accounts);
         let tree_index = context
             .get_index_or_insert(merkle_context.merkle_tree_pubkey_index, remaining_accounts);
+
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
                 .hash_with_hashed_values(

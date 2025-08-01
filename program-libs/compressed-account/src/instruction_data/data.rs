@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+use light_zero_copy::ZeroCopyMut;
+
 use crate::{
-    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-    instruction_data::compressed_proof::CompressedProof,
+    compressed_account::{CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext},
+    instruction_data::{compressed_proof::CompressedProof, with_account_info::OutAccountInfo},
     AnchorDeserialize, AnchorSerialize, Pubkey,
 };
 
@@ -24,13 +26,15 @@ pub struct OutputCompressedAccountWithContext {
     pub merkle_tree: Pubkey,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -38,7 +42,9 @@ pub struct NewAddressParamsPacked {
     pub address_merkle_tree_root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct NewAddressParamsAssignedPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -86,7 +92,9 @@ pub struct NewAddressParamsAssigned {
     pub assigned_account_index: Option<u8>,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct PackedReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_root_index: u16,

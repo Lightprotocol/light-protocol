@@ -66,16 +66,16 @@ impl PartialEq<<Pubkey as Deserialize<'_>>::Output> for Pubkey {
 }
 
 impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for Pubkey {
-    type Config = ();
+    type ZeroCopyConfig = ();
     type Output = <Self as DeserializeMut<'a>>::Output;
 
-    fn byte_len(_config: &Self::Config) -> usize {
+    fn byte_len(_config: &Self::ZeroCopyConfig) -> usize {
         32 // Pubkey is always 32 bytes
     }
 
     fn new_zero_copy(
         bytes: &'a mut [u8],
-        _config: Self::Config,
+        _config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         Self::zero_copy_at_mut(bytes)
     }
