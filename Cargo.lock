@@ -2137,6 +2137,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
+ "light-sparse-merkle-tree",
  "light-system-program-anchor",
  "light-test-utils",
  "num-bigint 0.4.6",
