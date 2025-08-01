@@ -8,7 +8,7 @@ use solana_msg::msg;
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
 use crate::{
-    context::TokenContext, state::Version, AnchorDeserialize, AnchorSerialize, CTokenError,
+    hash_cache::HashCache, state::Version, AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -63,7 +63,7 @@ impl ExtensionInstructionData {
     pub fn hash<H: Hasher>(
         &self,
         mint: light_compressed_account::Pubkey,
-        context: &mut TokenContext,
+        context: &mut HashCache,
     ) -> Result<[u8; 32], CTokenError> {
         match self {
             /* ExtensionInstructionData::MetadataPointer(metadata_pointer) => {
@@ -81,7 +81,7 @@ impl ZExtensionInstructionData<'_> {
     pub fn hash<H: Hasher>(
         &self,
         hashed_mint: &[u8; 32],
-        context: &mut TokenContext,
+        context: &mut HashCache,
     ) -> Result<[u8; 32], CTokenError> {
         match self {
             /*ZExtensionInstructionData::MetadataPointer(metadata_pointer) => {

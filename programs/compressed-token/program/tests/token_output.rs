@@ -19,7 +19,7 @@ use light_compressed_token::{
         token_output::set_output_compressed_account,
     },
 };
-use light_ctoken_types::{context::TokenContext, state::AccountState};
+use light_ctoken_types::{hash_cache::HashCache, state::AccountState};
 use light_zero_copy::ZeroCopyNew;
 
 #[test]
@@ -90,7 +90,7 @@ fn test_rnd_create_output_compressed_accounts() {
         )
         .unwrap();
 
-        let mut context = TokenContext::new();
+        let mut hash_cache = HashCache::new();
         for (index, output_account) in cpi_instruction_struct
             .output_compressed_accounts
             .iter_mut()
@@ -104,7 +104,7 @@ fn test_rnd_create_output_compressed_accounts() {
 
             set_output_compressed_account::<false>(
                 output_account,
-                &mut context,
+                &mut hash_cache,
                 owner_pubkeys[index],
                 output_delegate,
                 amounts[index],

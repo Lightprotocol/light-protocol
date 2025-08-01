@@ -1,5 +1,5 @@
 use anchor_lang::prelude::ProgramError;
-use light_ctoken_types::{context::TokenContext, state::ZExtensionStructMut};
+use light_ctoken_types::{hash_cache::HashCache, state::ZExtensionStructMut};
 use light_hasher::Hasher;
 use pinocchio::pubkey::Pubkey;
 
@@ -42,11 +42,11 @@ pub fn extensions_state_in_output_compressed_account(
 pub fn create_extension_hash_chain<H: Hasher>(
     extensions: &[ZExtensionInstructionData<'_>],
     hashed_spl_mint: &Pubkey,
-    context: &mut TokenContext,
+    hash_cache: &mut HashCache,
 ) -> Result<[u8; 32], ProgramError> {
     let mut extension_hashchain = [0u8; 32];
     for extension in extensions {
-        let extension_hash = extension.hash::<H>(hashed_spl_mint, context)?;
+        let extension_hash = extension.hash::<H>(hashed_spl_mint, hash_cache)?;
         extension_hashchain =
             H::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
     }

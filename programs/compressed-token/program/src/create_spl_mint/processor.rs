@@ -6,7 +6,7 @@ use light_compressed_account::{
     instruction_data::cpi_context::CompressedCpiContext, pubkey::AsPubkey,
 };
 use light_ctoken_types::{
-    context::TokenContext,
+    hash_cache::HashCache,
     instructions::create_spl_mint::{CreateSplMintInstructionData, ZCreateSplMintInstructionData},
     state::{CompressedMint, CompressedMintConfig},
     COMPRESSED_MINT_SEED,
@@ -40,6 +40,12 @@ pub fn process_create_spl_mint(
     // Validate and parse accounts
     let validated_accounts = CreateSplMintAccounts::validate_and_parse(accounts, with_cpi_context)?;
 
+    // Check mint authority if it exists.
+    if let Some(ix_data_mint_authority) = parsed_instruction_data.mint.mint.mint_authority {
+        if *validated_accounts.authority.key() != ix_data_mint_authority.to_bytes() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+    }
     // Verify mint PDA matches the spl_mint field in compressed mint inputs
     // TODO: set it instead of passing it, to eliminate duplicate ix data.
     let expected_mint: [u8; 32] = parsed_instruction_data.mint.mint.spl_mint.to_bytes();
@@ -142,23 +148,13 @@ fn update_compressed_mint_to_decompressed<'info>(
             &Option::<CompressedCpiContext>::None,
         )?;
 
-        let mut context = TokenContext::new();
-        let hashed_mint_authority = context.get_or_hash_pubkey(accounts.authority.key());
-        let mut value = [0u8; 32];
-        let hashed_freeze_authority =
-            if let Some(freeze_authority) = instruction_data.mint.mint.freeze_authority {
-                value = context.get_or_hash_pubkey(&freeze_authority.to_bytes());
-                Some(&value)
-            } else {
-                None
-            };
+        let mut hash_cache = HashCache::new();
+
         // Process input compressed mint account (before is_decompressed = true)
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
-            &mut context,
+            &mut hash_cache,
             &instruction_data.mint,
-            Some(&hashed_mint_authority),
-            hashed_freeze_authority,
             PackedMerkleContext {
                 leaf_index: instruction_data.mint.leaf_index.into(),
                 prove_by_index: instruction_data.mint.prove_by_index(),
@@ -190,7 +186,7 @@ fn update_compressed_mint_to_decompressed<'info>(
             freeze_authority: (mint_inputs.freeze_authority.is_some(), ()),
             extensions: (has_extensions_output, extensions_config_output),
         };
-        let mut token_context = TokenContext::new();
+        let mut token_context = HashCache::new();
 
         create_output_compressed_mint_account(
             &mut cpi_instruction_struct.output_compressed_accounts[0],

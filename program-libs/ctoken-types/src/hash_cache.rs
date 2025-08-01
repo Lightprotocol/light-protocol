@@ -5,14 +5,14 @@ use pinocchio::pubkey::Pubkey;
 use crate::error::CTokenError;
 
 /// Context for caching hashed values to avoid recomputation
-pub struct TokenContext {
+pub struct HashCache {
     /// Cache for mint hashes: (mint_pubkey, hashed_mint)
     pub hashed_mints: ArrayVec<(Pubkey, [u8; 32]), 5>,
     /// Cache for pubkey hashes: (pubkey, hashed_pubkey)
     pub hashed_pubkeys: Vec<(Pubkey, [u8; 32])>,
 }
 
-impl TokenContext {
+impl HashCache {
     /// Create a new empty context
     pub fn new() -> Self {
         Self {
@@ -54,7 +54,7 @@ impl TokenContext {
     }
 }
 
-impl Default for TokenContext {
+impl Default for HashCache {
     fn default() -> Self {
         Self::new()
     }

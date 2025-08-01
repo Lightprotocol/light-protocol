@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 use light_ctoken_types::{
-    context::TokenContext, instructions::transfer2::ZCompressedTokenInstructionDataTransfer2,
+    hash_cache::HashCache, instructions::transfer2::ZCompressedTokenInstructionDataTransfer2,
 };
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 /// Process output compressed accounts and return total output lamports
 pub fn set_output_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
-    context: &mut TokenContext,
+    hash_cache: &mut HashCache,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &Transfer2PackedAccounts,
 ) -> Result<u64, ProgramError> {
@@ -33,7 +33,7 @@ pub fn set_output_compressed_accounts(
 
         let mint_index = output_data.mint;
         let mint_account = packed_accounts.get_u8(mint_index)?;
-        let hashed_mint = context.get_or_hash_pubkey(mint_account.key());
+        let hashed_mint = hash_cache.get_or_hash_pubkey(mint_account.key());
 
         // Get owner account using owner index
         let owner_account = packed_accounts.get_u8(output_data.owner)?;
@@ -56,7 +56,7 @@ pub fn set_output_compressed_accounts(
                 .output_compressed_accounts
                 .get_mut(i)
                 .ok_or(ProgramError::InvalidAccountData)?,
-            context,
+            hash_cache,
             owner_pubkey.into(),
             delegate_pubkey.map(|d| d.into()),
             output_data.amount,

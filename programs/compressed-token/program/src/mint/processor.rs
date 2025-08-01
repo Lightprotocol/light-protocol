@@ -3,7 +3,7 @@ use light_compressed_account::{
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
 };
 use light_ctoken_types::{
-    context::TokenContext,
+    hash_cache::HashCache,
     instructions::create_compressed_mint::CreateCompressedMintInstructionData,
     COMPRESSED_MINT_SEED,
 };
@@ -33,7 +33,7 @@ pub fn process_create_compressed_mint(
             .map_err(|_| ProgramError::InvalidInstructionData)?;
     msg!("parsed_instruction_data {:?}", parsed_instruction_data);
     sol_log_compute_units();
-    // TODO: refactor cpi context struct we don't need the index in the struct.
+    // TODO: refactor cpi hash_cache struct we don't need the index in the struct.
     let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
     let write_to_cpi_context = parsed_instruction_data
         .cpi_context
@@ -62,11 +62,9 @@ pub fn process_create_compressed_mint(
         &crate::ID,
     )?
     .into();
-    // TODO: hash the address instead of
 
     let (mint_size_config, config) = get_zero_copy_configs(&parsed_instruction_data)?;
 
-    // + discriminator len + vector len
     let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
     sol_log_compute_units();
@@ -110,7 +108,7 @@ pub fn process_create_compressed_mint(
     } else {
         1
     };
-    let mut token_context = TokenContext::new();
+    let mut token_context = HashCache::new();
     create_output_compressed_mint_account(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         spl_mint_pda,
@@ -142,7 +140,7 @@ pub fn process_create_compressed_mint(
                 .unwrap()
                 .cpi_context
                 .map(|x| *x.key()),
-            false, // write to cpi context account
+            false, // write to cpi hash_cache account
         )
     } else {
         execute_cpi_invoke(

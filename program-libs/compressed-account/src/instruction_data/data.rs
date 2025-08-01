@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use light_zero_copy::ZeroCopyMut;
 
 use crate::{
-    compressed_account::{CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext},
-    instruction_data::{compressed_proof::CompressedProof, with_account_info::OutAccountInfo},
+    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+    instruction_data::compressed_proof::CompressedProof,
     AnchorDeserialize, AnchorSerialize, Pubkey,
 };
 

@@ -3,7 +3,7 @@ use light_compressed_account::{
     instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
 };
 use light_ctoken_types::{
-    context::TokenContext, instructions::mint_to_compressed::MintToCompressedInstructionData,
+    hash_cache::HashCache, instructions::mint_to_compressed::MintToCompressedInstructionData,
     state::CompressedMintConfig,
 };
 use light_sdk::instruction::PackedMerkleContext;
@@ -60,6 +60,18 @@ pub fn process_mint_to_compressed(
         parsed_instruction_data.cpi_context.is_some(),
         write_to_cpi_context,
     )?;
+    // Check mint authority if it exists, else return error.
+    if let Some(ix_data_mint_authority) = parsed_instruction_data
+        .compressed_mint_inputs
+        .mint
+        .mint_authority
+    {
+        if *validated_accounts.authority.key() != ix_data_mint_authority.to_bytes() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+    } else {
+        return Err(ProgramError::InvalidAccountData);
+    }
     let (config, mut cpi_bytes) = get_zero_copy_configs(&parsed_instruction_data)?;
 
     sol_log_compute_units();
@@ -80,45 +92,30 @@ pub fn process_mint_to_compressed(
         cpi_instruction_struct.is_compress = 1;
     }
 
-    let mut context = TokenContext::new();
+    let mut hash_cache = HashCache::new();
     let mint_pda = parsed_instruction_data.compressed_mint_inputs.mint.spl_mint;
 
-    let hashed_mint_authority = context.get_or_hash_pubkey(validated_accounts.authority.key());
-
     {
-        let merkle_tree_pubkey_index =
-            if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
-                cpi_context.in_tree_index
-            } else {
-                0
-            };
-        let queue_pubkey_index =
-            if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
-                cpi_context.in_queue_index
-            } else {
-                1
-            };
-        let mut value = [0u8; 32];
-        let hashed_freeze_authority = if let Some(freeze_authority) = parsed_instruction_data
-            .compressed_mint_inputs
-            .mint
-            .freeze_authority
-        {
-            value = context.get_or_hash_pubkey(&freeze_authority.to_bytes());
-            Some(&value)
-        } else {
-            None
-        };
+        let in_tree_index = parsed_instruction_data
+            .cpi_context
+            .as_ref()
+            .map(|cpi_context| cpi_context.in_tree_index)
+            .unwrap_or(0);
+        let in_queue_index = parsed_instruction_data
+            .cpi_context
+            .as_ref()
+            .map(|cpi_context| cpi_context.in_queue_index)
+            .unwrap_or(1);
+
+        //TODO: check mint authority
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
-            &mut context,
+            &mut hash_cache,
             &parsed_instruction_data.compressed_mint_inputs,
-            Some(&hashed_mint_authority),
-            hashed_freeze_authority,
             PackedMerkleContext {
-                merkle_tree_pubkey_index,
-                queue_pubkey_index,
+                merkle_tree_pubkey_index: in_tree_index,
+                queue_pubkey_index: in_queue_index,
                 leaf_index: parsed_instruction_data
                     .compressed_mint_inputs
                     .leaf_index
@@ -175,7 +172,7 @@ pub fn process_mint_to_compressed(
                 .mint
                 .is_decompressed(),
             mint_inputs.extensions.as_deref(),
-            &mut context,
+            &mut hash_cache,
         )?;
     }
 
@@ -227,7 +224,7 @@ pub fn process_mint_to_compressed(
     create_output_compressed_token_accounts(
         parsed_instruction_data,
         cpi_instruction_struct,
-        &mut context,
+        &mut hash_cache,
         mint_pda,
         queue_pubkey_index,
     )?;
@@ -248,7 +245,7 @@ pub fn process_mint_to_compressed(
             system_accounts.system.sol_pool_pda.is_some(),
             None,
             None,  // no cpi_context_account for mint_to_compressed
-            false, // write to cpi context account
+            false, // write to cpi hash_cache account
         )?;
     } else if let Some(system_accounts) = validated_accounts.write_to_cpi_context_system.as_ref() {
         if with_sol_pool {
@@ -267,7 +264,7 @@ pub fn process_mint_to_compressed(
             false,
             None,
             Some(*system_accounts.cpi_context.key()),
-            true, // write to cpi context account
+            true, // write to cpi hash_cache account
         )?;
     } else {
         msg!("no system accounts");
@@ -275,7 +272,6 @@ pub fn process_mint_to_compressed(
     }
     Ok(())
 }
-
 
 fn get_zero_copy_configs(parsed_instruction_data: &light_ctoken_types::instructions::mint_to_compressed::ZMintToCompressedInstructionData<'_>) -> Result<(light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig, Vec<u8>), ProgramError>{
     // Build configuration for CPI instruction data using the generalized function
@@ -312,11 +308,11 @@ fn get_zero_copy_configs(parsed_instruction_data: &light_ctoken_types::instructi
 fn create_output_compressed_token_accounts(
     parsed_instruction_data: light_ctoken_types::instructions::mint_to_compressed::ZMintToCompressedInstructionData<'_>,
     mut cpi_instruction_struct: light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
-    context: &mut TokenContext,
+    hash_cache: &mut HashCache,
     mint: Pubkey,
     queue_pubkey_index: u8,
 ) -> Result<(), ProgramError> {
-    let hashed_mint = context.get_or_hash_mint(&mint.to_bytes())?;
+    let hashed_mint = hash_cache.get_or_hash_mint(&mint.to_bytes())?;
 
     let lamports = parsed_instruction_data
         .lamports
@@ -325,12 +321,12 @@ fn create_output_compressed_token_accounts(
         cpi_instruction_struct
             .output_compressed_accounts
             .iter_mut()
-            .skip(1),
+            .skip(1), // Skip the first account which is the mint account.
     ) {
         let output_delegate = None;
         set_output_compressed_account::<false>(
             output_account,
-            context,
+            hash_cache,
             recipient.recipient,
             output_delegate,
             recipient.amount,

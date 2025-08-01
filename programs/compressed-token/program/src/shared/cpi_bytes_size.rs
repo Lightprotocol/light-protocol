@@ -83,15 +83,15 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
         // Add regular input accounts (token accounts)
         for _ in input.input_accounts {
             input_compressed_accounts.push(InAccountConfig {
-                merkle_context: PackedMerkleContextConfig {}, // Default merkle context
-                address: (false, ()),                         // Token accounts don't have addresses
+                merkle_context: PackedMerkleContextConfig {},
+                address: (false, ()), // Token accounts don't have addresses
             });
         }
 
         // Add compressed mint input account if needed
         if input.compressed_mint {
             input_compressed_accounts.push(InAccountConfig {
-                merkle_context: PackedMerkleContextConfig {}, // Default merkle context
+                merkle_context: PackedMerkleContextConfig {},
                 address: (true, ()),
             });
         }

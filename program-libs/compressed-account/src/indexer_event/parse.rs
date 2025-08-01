@@ -20,7 +20,7 @@ use crate::{
     instruction_data::{
         data::{InstructionDataInvoke, OutputCompressedAccountWithPackedContext},
         insert_into_queues::InsertIntoQueuesInstructionData,
-        with_account_info::{InstructionDataInvokeCpiWithAccountInfo, OutAccountInfo},
+        with_account_info::InstructionDataInvokeCpiWithAccountInfo,
         with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,

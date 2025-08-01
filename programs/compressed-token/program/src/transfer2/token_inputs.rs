@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 use light_ctoken_types::{
-    context::TokenContext, instructions::transfer2::ZCompressedTokenInstructionDataTransfer2,
+    hash_cache::HashCache, instructions::transfer2::ZCompressedTokenInstructionDataTransfer2,
 };
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 /// Process input compressed accounts and return total input lamports
 pub fn set_input_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
-    context: &mut TokenContext,
+    hash_cache: &mut HashCache,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &Transfer2PackedAccounts,
 ) -> Result<u64, ProgramError> {
@@ -35,7 +35,7 @@ pub fn set_input_compressed_accounts(
                 .input_compressed_accounts
                 .get_mut(i)
                 .ok_or(ProgramError::InvalidAccountData)?,
-            context,
+            hash_cache,
             input_data,
             packed_accounts.accounts,
             input_lamports,

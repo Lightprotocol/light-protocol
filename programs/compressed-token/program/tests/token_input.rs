@@ -16,7 +16,7 @@ use light_compressed_token::{
     },
 };
 use light_ctoken_types::{
-    context::TokenContext, instructions::transfer2::MultiInputTokenDataWithContext,
+    hash_cache::HashCache, instructions::transfer2::MultiInputTokenDataWithContext,
     state::AccountState,
 };
 use light_sdk::instruction::PackedMerkleContext;
@@ -42,7 +42,7 @@ fn test_rnd_create_input_compressed_account() {
         // Random delegate flag (30% chance)
         let with_delegate = rng.gen_bool(0.3);
 
-        // Random merkle context fields
+        // Random merkle hash_cache fields
         let merkle_tree_pubkey_index = rng.gen_range(0..=255u8);
         let queue_pubkey_index = rng.gen_range(0..=255u8);
         let leaf_index = rng.gen::<u32>();
@@ -107,13 +107,13 @@ fn test_rnd_create_input_compressed_account() {
             // Get the input account reference
             let input_account = &mut cpi_instruction_struct.input_compressed_accounts[0];
 
-            let mut context = TokenContext::new();
+            let mut hash_cache = HashCache::new();
 
             // Call the function under test
             let result = if is_frozen {
                 set_input_compressed_account::<true>(
                     input_account,
-                    &mut context,
+                    &mut hash_cache,
                     &z_input_data,
                     remaining_accounts.as_slice(),
                     lamports,
@@ -121,7 +121,7 @@ fn test_rnd_create_input_compressed_account() {
             } else {
                 set_input_compressed_account::<false>(
                     input_account,
-                    &mut context,
+                    &mut hash_cache,
                     &z_input_data,
                     remaining_accounts.as_slice(),
                     lamports,

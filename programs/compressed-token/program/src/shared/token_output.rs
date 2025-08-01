@@ -7,7 +7,7 @@ use anchor_lang::{
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
-use light_ctoken_types::{context::TokenContext, instructions::transfer2::TokenAccountVersion};
+use light_ctoken_types::{hash_cache::HashCache, instructions::transfer2::TokenAccountVersion};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -70,7 +70,7 @@ impl ZTokenDataMut<'_> {
 #[allow(clippy::too_many_arguments)]
 pub fn set_output_compressed_account<const IS_FROZEN: bool>(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
-    context: &mut TokenContext,
+    hash_cache: &mut HashCache,
     owner: Pubkey,
     delegate: Option<Pubkey>,
     amount: impl ZeroCopyNumTrait,
@@ -112,11 +112,11 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
     let token_version = TokenAccountVersion::try_from(version)?;
     // 2. Create TokenData using zero-copy to compute the data hash
     let data_hash = {
-        let hashed_owner = context.get_or_hash_pubkey(&owner.into());
+        let hashed_owner = hash_cache.get_or_hash_pubkey(&owner.into());
         let amount_bytes = token_version.serialize_amount_bytes(amount.into());
 
         let hashed_delegate =
-            delegate.map(|delegate_pubkey| context.get_or_hash_pubkey(&delegate_pubkey.into()));
+            delegate.map(|delegate_pubkey| hash_cache.get_or_hash_pubkey(&delegate_pubkey.into()));
 
         if !IS_FROZEN {
             AnchorTokenData::hash_with_hashed_values(

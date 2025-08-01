@@ -2,7 +2,7 @@ use anchor_compressed_token::check_cpi_context;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
-    context::TokenContext,
+    hash_cache::HashCache,
     instructions::transfer2::{validate_instruction_data, CompressedTokenInstructionDataTransfer2},
 };
 use light_heap::{bench_sbf_end, bench_sbf_start};
@@ -40,7 +40,7 @@ pub fn process_transfer2(
     let (inputs, _) = CompressedTokenInstructionDataTransfer2::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 
-    // Check CPI context validity (multi-transfer modifies Solana account state)
+    // Check CPI  context validity (multi-transfer modifies Solana account state)
     check_cpi_context(&inputs.cpi_context).map_err(ProgramError::from)?;
 
     let total_input_lamports = if let Some(inputs) = inputs.in_lamports.as_ref() {
@@ -78,8 +78,8 @@ pub fn process_transfer2(
     bench_sbf_start!("t_context_and_check_sig");
     // anchor_lang::solana_program::log::msg!("inputs {:?}", inputs);
 
-    // Create TokenContext for hash caching
-    let mut context = TokenContext::new();
+    // Create HashCache for hash caching
+    let mut hash_cache = HashCache::new();
 
     // Allocate CPI bytes and create zero-copy structure
     let (mut cpi_bytes, config) = allocate_cpi_bytes(&inputs);
@@ -97,7 +97,7 @@ pub fn process_transfer2(
     // Process input compressed accounts
     set_input_compressed_accounts(
         &mut cpi_instruction_struct,
-        &mut context,
+        &mut hash_cache,
         &inputs,
         &validated_accounts.packed_accounts,
     )?;
@@ -105,7 +105,7 @@ pub fn process_transfer2(
     // Process output compressed accounts
     set_output_compressed_accounts(
         &mut cpi_instruction_struct,
-        &mut context,
+        &mut hash_cache,
         &inputs,
         &validated_accounts.packed_accounts,
     )?;

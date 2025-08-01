@@ -4,7 +4,9 @@ use light_hasher::{
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
-use crate::{context::TokenContext, AnchorDeserialize, AnchorSerialize, CTokenError, state::ExtensionType};
+use crate::{
+    context::HashCache, state::ExtensionType, AnchorDeserialize, AnchorSerialize, CTokenError,
+};
 
 /// Metadata pointer extension data for compressed mints.
 #[derive(
@@ -51,7 +53,7 @@ pub struct InitMetadataPointer {
 impl InitMetadataPointer {
     pub fn hash_metadata_pointer<H: Hasher>(
         &self,
-        context: &mut TokenContext,
+        context: &mut HashCache,
     ) -> Result<[u8; 32], CTokenError> {
         let mut discriminator = [0u8; 32];
         discriminator[31] = ExtensionType::MetadataPointer as u8;
@@ -80,7 +82,7 @@ impl InitMetadataPointer {
 impl ZInitMetadataPointer<'_> {
     pub fn hash_metadata_pointer<H: Hasher>(
         &self,
-        context: &mut TokenContext,
+        context: &mut HashCache,
     ) -> Result<[u8; 32], CTokenError> {
         let mut discriminator = [0u8; 32];
         discriminator[31] = ExtensionType::MetadataPointer as u8;

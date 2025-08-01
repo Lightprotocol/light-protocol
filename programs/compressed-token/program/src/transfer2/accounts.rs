@@ -7,30 +7,6 @@ use crate::shared::{
     accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
     AccountIterator,
 };
-/*
-/// Validated system accounts for multi-transfer instruction
-/// Accounts are ordered to match light-system-program CPI expectation
-pub struct Transfer2ValidatedAccounts<'info> {
-    /// Fee payer account (index 0) - signer, mutable
-    pub fee_payer: &'info AccountInfo,
-    /// CPI authority PDA (index 1) - signer (via CPI)
-    pub authority: &'info AccountInfo,
-    /// Registered program PDA (index 2) - non-mutable
-    pub registered_program_pda: &'info AccountInfo,
-    /// Account compression authority (index 4) - non-mutable
-    pub account_compression_authority: &'info AccountInfo,
-    /// Account compression program (index 5) - non-mutable
-    pub account_compression_program: &'info AccountInfo,
-    /// System program (index 9) - non-mutable
-    pub system_program: &'info AccountInfo,
-    /// Sol pool PDA (index 7) - optional, mutable if present
-    pub sol_pool_pda: Option<&'info AccountInfo>,
-    /// SOL decompression recipient (index 8) - optional, mutable, for SOL decompression
-    pub sol_decompression_recipient: Option<&'info AccountInfo>,
-    /// CPI context account (index 10) - optional, non-mutable
-    pub cpi_context_account: Option<&'info AccountInfo>,
-}
- */
 
 pub struct Transfer2Accounts<'info> {
     pub light_system_program: &'info AccountInfo,

@@ -2,7 +2,7 @@ use light_compressed_account::Pubkey;
 use light_zero_copy::ZeroCopy;
 
 use crate::{
-    context::TokenContext,
+    hash_cache::HashCache,
     state::{
         token_metadata_hash, token_metadata_hash_with_hashed_values, AdditionalMetadata, Metadata,
     },
@@ -22,7 +22,7 @@ impl TokenMetadataInstructionData {
     pub fn hash_token_metadata<H: light_hasher::Hasher>(
         &self,
         mint: light_compressed_account::Pubkey,
-        context: &mut TokenContext,
+        hash_cache: &mut HashCache,
     ) -> Result<[u8; 32], CTokenError> {
         let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)
             .map_err(|_| CTokenError::InvalidAccountData)?;
@@ -39,9 +39,9 @@ impl TokenMetadataInstructionData {
 
         let hashed_update_authority = self
             .update_authority
-            .map(|update_authority| context.get_or_hash_pubkey(&update_authority.into()));
+            .map(|update_authority| hash_cache.get_or_hash_pubkey(&update_authority.into()));
 
-        let hashed_mint = context.get_or_hash_mint(&mint.into())?;
+        let hashed_mint = hash_cache.get_or_hash_mint(&mint.into())?;
 
         token_metadata_hash::<H>(
             hashed_update_authority
@@ -60,7 +60,7 @@ impl ZTokenMetadataInstructionData<'_> {
     pub fn hash_token_metadata<H: light_hasher::Hasher>(
         &self,
         hashed_mint: &[u8; 32],
-        context: &mut TokenContext,
+        hash_cache: &mut HashCache,
     ) -> Result<[u8; 32], CTokenError> {
         let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)
             .map_err(|_| CTokenError::InvalidAccountData)?;
@@ -77,7 +77,7 @@ impl ZTokenMetadataInstructionData<'_> {
 
         let hashed_update_authority = self
             .update_authority
-            .map(|update_authority| context.get_or_hash_pubkey(&(*update_authority).into()));
+            .map(|update_authority| hash_cache.get_or_hash_pubkey(&(*update_authority).into()));
 
         token_metadata_hash_with_hashed_values::<H>(
             hashed_update_authority.as_ref(),

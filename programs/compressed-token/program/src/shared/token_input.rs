@@ -2,7 +2,7 @@ use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
-    context::TokenContext,
+    hash_cache::HashCache,
     instructions::transfer2::{TokenAccountVersion, ZMultiInputTokenDataWithContext},
 };
 use pinocchio::account_info::AccountInfo;
@@ -15,7 +15,7 @@ use crate::shared::owner_validation::verify_owner_or_delegate_signer;
 /// and computes the appropriate token data hash based on frozen state.
 pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     input_compressed_account: &mut ZInAccountMut,
-    context: &mut TokenContext,
+    hash_cache: &mut HashCache,
     input_token_data: &ZMultiInputTokenDataWithContext,
     accounts: &[AccountInfo],
     lamports: u64,
@@ -32,14 +32,14 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
 
     let verified_delegate = verify_owner_or_delegate_signer(owner_account, delegate_account)?;
     let hashed_delegate =
-        verified_delegate.map(|delegate| context.get_or_hash_pubkey(delegate.key()));
+        verified_delegate.map(|delegate| hash_cache.get_or_hash_pubkey(delegate.key()));
 
-    // Compute data hash using TokenContext for caching
-    let hashed_owner = context.get_or_hash_pubkey(owner_account.key());
+    // Compute data hash using HashCache for caching
+    let hashed_owner = hash_cache.get_or_hash_pubkey(owner_account.key());
 
-    // Get mint hash from context
+    // Get mint hash from hash_cache
     let mint_account = &accounts[input_token_data.mint as usize];
-    let hashed_mint = context.get_or_hash_mint(mint_account.key())?;
+    let hashed_mint = hash_cache.get_or_hash_mint(mint_account.key())?;
 
     let version = TokenAccountVersion::try_from(input_token_data.version)?;
     let amount_bytes = version.serialize_amount_bytes(input_token_data.amount.get());

@@ -16,7 +16,7 @@ use light_compressed_token::{
     },
 };
 use light_ctoken_types::{
-    context::TokenContext,
+    hash_cache::HashCache,
     instructions::{
         extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
         mint_to_compressed::CompressedMintInputs,
@@ -407,13 +407,13 @@ fn test_rnd_create_compressed_mint_account() {
         let (z_update_instruction_data, _) =
             light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData::zero_copy_at(&input_data).unwrap();
 
-        let mut context = TokenContext::new();
-        let hashed_mint_authority = context.get_or_hash_pubkey(&mint_authority.into());
+        let mut hash_cache = HashCache::new();
         light_compressed_token::mint::mint_input::create_input_compressed_mint_account(
             input_account,
-            &mut context,
+            &mut hash_cache,
             &z_update_instruction_data,
-            &hashed_mint_authority,
+            Some(&mint_authority),
+            freeze_authority.as_ref(),
             PackedMerkleContext {
                 merkle_tree_pubkey_index: input_account.merkle_context.merkle_tree_pubkey_index,
                 queue_pubkey_index: input_account.merkle_context.queue_pubkey_index,
@@ -450,7 +450,7 @@ fn test_rnd_create_compressed_mint_account() {
         };
 
         // Create output data
-        let mut context = TokenContext::new();
+        let mut hash_cache = HashCache::new();
         create_output_compressed_mint_account(
             output_account,
             mint_pda,
@@ -464,7 +464,7 @@ fn test_rnd_create_compressed_mint_account() {
             version,
             is_decompressed,
             z_extensions.as_deref(),
-            &mut context,
+            &mut hash_cache,
         )
         .unwrap();
 

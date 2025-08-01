@@ -3,7 +3,7 @@ use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
 use light_ctoken_types::{
-    context::TokenContext,
+    hash_cache::HashCache,
     instructions::{
         extensions::ZExtensionInstructionData, mint_to_compressed::ZCompressedMintInputs,
     },
@@ -63,7 +63,7 @@ pub fn create_output_compressed_mint_account(
     version: u8,
     is_decompressed: bool,
     extensions: Option<&[ZExtensionInstructionData<'_>]>,
-    context: &mut TokenContext,
+    hash_cache: &mut HashCache,
 ) -> Result<(), ProgramError> {
     // 1. Set CompressedMint account data & compute hash
     let data_hash = {
@@ -98,19 +98,19 @@ pub fn create_output_compressed_mint_account(
                 z_extensions.as_mut_slice(),
                 mint_pda,
             )?;
-            let hashed_spl_mint = context.get_or_hash_mint(&mint_pda.into())?;
+            let hashed_spl_mint = hash_cache.get_or_hash_mint(&mint_pda.into())?;
 
             Some(create_extension_hash_chain::<Poseidon>(
                 extensions,
                 &hashed_spl_mint,
-                context,
+                hash_cache,
             )?)
         } else {
             None
         };
         // Compute final hash with extensions
         compressed_mint
-            .hash(extension_hash, context)
+            .hash(extension_hash, hash_cache)
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 

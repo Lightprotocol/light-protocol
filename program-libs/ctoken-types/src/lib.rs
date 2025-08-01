@@ -1,6 +1,6 @@
 pub mod instructions;
 
-pub mod context;
+pub mod hash_cache;
 
 pub mod error;
 

@@ -18,14 +18,14 @@ use crate::LIGHT_CPI_SIGNER;
 /// Executes CPI to light-system-program using the new InvokeCpiInstructionSmall format
 ///
 /// This function follows the same pattern as the system program's InvokeCpiInstructionSmall
-/// and properly handles AccountOptions for determining execution vs context writing.
+/// and properly handles AccountOptions for determining execution vs cpi context writing.
 ///
 /// # Arguments
 /// * `accounts` - All account infos passed to the instruction
 /// * `cpi_bytes` - The CPI instruction data bytes
 /// * `tree_accounts` - Slice of tree account pubkeys to append (will be marked as mutable)
 /// * `with_sol_pool` - Whether SOL pool is being used
-/// * `cpi_context_account` - Optional CPI context account pubkey
+/// * `cpi_context_account` - Optional CPI cpi context account pubkey
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - Success or error from the CPI call
@@ -88,7 +88,7 @@ pub fn execute_cpi_invoke(
         if let Some(decompress_sol) = decompress_sol {
             account_metas.push(AccountMeta::new(decompress_sol, true, false));
         }
-        // Optional CPI context account (for both execution and context writing modes)
+        // Optional CPI context account (for both execution and cpi context writing modes)
         if let Some(cpi_context) = cpi_context_account.as_ref() {
             account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account
         }
@@ -97,7 +97,7 @@ pub fn execute_cpi_invoke(
             account_metas.push(AccountMeta::new(tree_account, true, false));
         }
     } else {
-        // Optional CPI context account (for both execution and context writing modes)
+        // Optional CPI context account (for both execution and cpi context writing modes)
         if let Some(cpi_context) = cpi_context_account.as_ref() {
             account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account
         }

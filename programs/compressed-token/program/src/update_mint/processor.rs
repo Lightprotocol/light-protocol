@@ -1,7 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
-    context::TokenContext,
+    hash_cache::HashCache,
     instructions::update_compressed_mint::{
         CompressedMintAuthorityType, UpdateCompressedMintInstructionDataV2,
         ZUpdateCompressedMintInstructionDataV2,
@@ -75,7 +75,7 @@ pub fn process_update_compressed_mint(
         &parsed_instruction_data.cpi_context,
     )?;
 
-    let mut context = TokenContext::new();
+    let mut hash_cache = HashCache::new();
     let mint_pda = parsed_instruction_data.compressed_mint_inputs.mint.spl_mint;
     let mint_data = &parsed_instruction_data.compressed_mint_inputs.mint;
 
@@ -121,37 +121,12 @@ pub fn process_update_compressed_mint(
             } else {
                 1
             };
-        let mut value2 = [0u8; 32];
-        let hashed_mint_authority = if let Some(mint_authority) = parsed_instruction_data
-            .compressed_mint_inputs
-            .mint
-            .mint_authority
-            .as_ref()
-        {
-            value2 = context.get_or_hash_pubkey(&mint_authority.to_bytes());
-            Some(&value2)
-        } else {
-            None
-        };
 
-        let mut value = [0u8; 32];
-        let hashed_freeze_authority = if let Some(freeze_authority) = parsed_instruction_data
-            .compressed_mint_inputs
-            .mint
-            .freeze_authority
-        {
-            value = context.get_or_hash_pubkey(&freeze_authority.to_bytes());
-            Some(&value)
-        } else {
-            None
-        };
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
-            &mut context,
+            &mut hash_cache,
             &parsed_instruction_data.compressed_mint_inputs,
-            hashed_mint_authority,
-            hashed_freeze_authority,
             PackedMerkleContext {
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,
@@ -230,7 +205,7 @@ pub fn process_update_compressed_mint(
             mint_data.version,
             mint_data.is_decompressed(),
             mint_data.extensions.as_deref(),
-            &mut context,
+            &mut hash_cache,
         )?;
     }
     msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);

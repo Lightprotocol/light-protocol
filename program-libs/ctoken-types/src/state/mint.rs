@@ -4,7 +4,7 @@ use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::{little_endian::U64, IntoBytes};
 
 use crate::{
-    context::TokenContext, state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError,
+    hash_cache::HashCache, state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
 // Order is optimized for hashing.
@@ -147,10 +147,10 @@ impl ZCompressedMintMut<'_> {
     pub fn hash(
         &self,
         extension_hashchain: Option<[u8; 32]>,
-        context: &mut TokenContext,
+        hash_cache: &mut HashCache,
     ) -> std::result::Result<[u8; 32], CTokenError> {
         // let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
-        let hashed_spl_mint = context.get_or_hash_mint(&self.spl_mint.into())?;
+        let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
         // TODO: copy from slice
         self.supply
@@ -161,25 +161,26 @@ impl ZCompressedMintMut<'_> {
             .for_each(|(x, y)| *y = *x);
 
         let hashed_mint_authority;
-        let hashed_mint_authority_option =
-            if let Some(mint_authority) = self.mint_authority.as_ref() {
-                hashed_mint_authority = context.get_or_hash_pubkey(&(*mint_authority).to_bytes());
-                // hash_to_bn254_field_size_be(mint_authority.to_bytes().as_slice());
-                Some(&hashed_mint_authority)
-            } else {
-                None
-            };
-
-        let hashed_freeze_authority;
-        let hashed_freeze_authority_option = if let Some(freeze_authority) =
-            self.freeze_authority.as_ref()
+        let hashed_mint_authority_option = if let Some(mint_authority) =
+            self.mint_authority.as_ref()
         {
-            hashed_freeze_authority = context.get_or_hash_pubkey(&(*freeze_authority).to_bytes());
-            // hash_to_bn254_field_size_be(freeze_authority.to_bytes().as_slice());
-            Some(&hashed_freeze_authority)
+            hashed_mint_authority = hash_cache.get_or_hash_pubkey(&(*mint_authority).to_bytes());
+            // hash_to_bn254_field_size_be(mint_authority.to_bytes().as_slice());
+            Some(&hashed_mint_authority)
         } else {
             None
         };
+
+        let hashed_freeze_authority;
+        let hashed_freeze_authority_option =
+            if let Some(freeze_authority) = self.freeze_authority.as_ref() {
+                hashed_freeze_authority =
+                    hash_cache.get_or_hash_pubkey(&(*freeze_authority).to_bytes());
+                // hash_to_bn254_field_size_be(freeze_authority.to_bytes().as_slice());
+                Some(&hashed_freeze_authority)
+            } else {
+                None
+            };
 
         let mint_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
