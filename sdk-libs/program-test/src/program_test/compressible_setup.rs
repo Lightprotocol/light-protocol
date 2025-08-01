@@ -3,6 +3,7 @@
 //! This module provides common functionality for testing compressible accounts,
 //! including mock program data setup and configuration management.
 
+use light_client::rpc::{Rpc, RpcError};
 use light_compressible_client::CompressibleInstruction;
 use solana_sdk::{
     bpf_loader_upgradeable,
@@ -10,10 +11,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-use crate::{
-    program_test::{LightProgramTest, TestRpc},
-    Rpc, RpcError,
-};
+use crate::program_test::TestRpc;
 
 /// Create mock program data account for testing
 ///
@@ -41,8 +39,8 @@ pub fn create_mock_program_data(authority: Pubkey) -> Vec<u8> {
 ///
 /// # Returns
 /// The pubkey of the created program data account
-pub fn setup_mock_program_data(
-    rpc: &mut LightProgramTest,
+pub fn setup_mock_program_data<T: TestRpc>(
+    rpc: &mut T,
     payer: &Keypair,
     program_id: &Pubkey,
 ) -> Pubkey {
@@ -77,8 +75,8 @@ pub fn setup_mock_program_data(
 /// # Returns
 /// Transaction signature on success
 #[allow(clippy::too_many_arguments)]
-pub async fn initialize_compression_config(
-    rpc: &mut LightProgramTest,
+pub async fn initialize_compression_config<T: Rpc>(
+    rpc: &mut T,
     payer: &Keypair,
     program_id: &Pubkey,
     authority: &Keypair,
@@ -134,8 +132,8 @@ pub async fn initialize_compression_config(
 /// # Returns
 /// Transaction signature on success
 #[allow(clippy::too_many_arguments)]
-pub async fn update_compression_config(
-    rpc: &mut LightProgramTest,
+pub async fn update_compression_config<T: Rpc>(
+    rpc: &mut T,
     payer: &Keypair,
     program_id: &Pubkey,
     authority: &Keypair,
