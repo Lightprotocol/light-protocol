@@ -90,7 +90,7 @@ pub struct ZPackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub queue_pubkey_index: u8,
     pub leaf_index: U32,
-    prove_by_index: u8,
+    pub prove_by_index: u8,
 }
 
 impl ZPackedMerkleContext {
@@ -474,6 +474,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
         self.new_address_params.as_slice()
     }
 
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![None]
+    }
+
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts_with_merkle_context
             .as_slice()
@@ -597,6 +601,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
+    }
+
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![None]
     }
 
     fn output_accounts(&self) -> &[impl OutputAccount<'a>] {

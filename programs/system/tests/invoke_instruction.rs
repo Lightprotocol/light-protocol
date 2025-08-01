@@ -63,16 +63,21 @@ fn functional_from_account_infos() {
     assert_eq!(
         invoke_cpi_instruction
             .get_account_compression_authority()
+            .unwrap()
             .key(),
         account_compression_authority.key()
     );
     assert_eq!(
-        invoke_cpi_instruction.get_registered_program_pda().key(),
+        invoke_cpi_instruction
+            .get_registered_program_pda()
+            .unwrap()
+            .key(),
         registered_program_pda.key()
     );
-    assert!(invoke_cpi_instruction.get_sol_pool_pda().is_none());
+    assert!(invoke_cpi_instruction.get_sol_pool_pda().unwrap().is_none());
     assert!(invoke_cpi_instruction
         .get_decompression_recipient()
+        .unwrap()
         .is_none());
 }
 

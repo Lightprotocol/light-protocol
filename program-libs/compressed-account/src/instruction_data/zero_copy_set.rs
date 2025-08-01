@@ -1,12 +1,10 @@
 use light_zero_copy::borsh::Deserialize;
-use solana_msg::msg;
 use zerocopy::little_endian::U16;
 
 use crate::{
     compressed_account::PackedMerkleContext,
     instruction_data::{
         compressed_proof::CompressedProof,
-        cpi_context::CompressedCpiContext,
         data::{ZNewAddressParamsAssignedPackedMut, ZOutputCompressedAccountWithPackedContextMut},
         with_readonly::{ZInAccountMut, ZInstructionDataInvokeCpiWithReadOnlyMut},
     },

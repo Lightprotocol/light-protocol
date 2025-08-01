@@ -11,7 +11,7 @@ use light_compressed_account::{
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
-    invoke_cpi::account::CpiContextAccount,
+    cpi_context::state::ZCpiContextAccount,
     processor::sol_compression::{SOL_POOL_PDA_BUMP, SOL_POOL_PDA_SEED},
     Result,
 };
@@ -100,7 +100,7 @@ pub fn check_anchor_option_cpi_context_account(
                 )
                 .as_str())
             })?;*/
-            check_discriminator::<CpiContextAccount>(
+            check_discriminator::<ZCpiContextAccount>(
                 option_cpi_context_account.try_borrow_data()?.as_ref(),
             )?;
         }
@@ -112,10 +112,10 @@ pub fn check_anchor_option_cpi_context_account(
 pub fn check_option_decompression_recipient<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
-) -> Result<Option<&'a AccountInfo>>
-{
+) -> Result<Option<&'a AccountInfo>> {
     let account = if account_options.decompression_recipient {
-        let option_decompression_recipient = account_infos.next_account("decompression_recipient")?;
+        let option_decompression_recipient =
+            account_infos.next_account("decompression_recipient")?;
         check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
         Some(option_decompression_recipient)
     } else {
@@ -127,12 +127,11 @@ pub fn check_option_decompression_recipient<'a>(
 pub fn check_option_cpi_context_account<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
-) -> Result<Option<&'a AccountInfo>>
-{
+) -> Result<Option<&'a AccountInfo>> {
     let account = if account_options.cpi_context_account {
         let account_info = account_infos.next_account("cpi_context")?;
         check_owner(&crate::ID, account_info)?;
-        check_discriminator::<CpiContextAccount>(account_info.try_borrow_data()?.as_ref())?;
+        check_discriminator::<ZCpiContextAccount>(account_info.try_borrow_data()?.as_ref())?;
         Some(account_info)
     } else {
         None
@@ -143,8 +142,7 @@ pub fn check_option_cpi_context_account<'a>(
 pub fn check_option_sol_pool_pda<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
-) -> Result<Option<&'a AccountInfo>>
-{
+) -> Result<Option<&'a AccountInfo>> {
     let sol_pool_pda = if account_options.sol_pool_pda {
         let option_sol_pool_pda = account_infos.next_account("sol_pool_pda")?;
         check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;

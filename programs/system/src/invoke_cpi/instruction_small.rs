@@ -46,8 +46,7 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
 
         let fee_payer = accounts.next_signer_mut("fee_payer")?;
         let authority = accounts.next_signer("authority")?;
-        msg!("authority");
-        msg!(account_options.write_to_cpi_context.to_string().as_str());
+
         let exec_accounts = if !account_options.write_to_cpi_context {
             let registered_program_pda = accounts.next_non_mut("registered_program_pda")?;
 

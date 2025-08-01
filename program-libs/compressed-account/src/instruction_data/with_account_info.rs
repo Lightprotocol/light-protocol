@@ -333,7 +333,11 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     }
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
-        self.new_address_params.as_slice()
+        &self.new_address_params.as_slice()
+    }
+
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![Some(self.invoking_program_id)]
     }
 
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {

@@ -120,7 +120,7 @@ mod test {
     use solana_pubkey::Pubkey;
 
     use super::*;
-
+    #[ignore = "pinocchio doesnt support hashing non solana target os"]
     #[test]
     fn test_cpi_signer_check() {
         for _ in 0..1000 {

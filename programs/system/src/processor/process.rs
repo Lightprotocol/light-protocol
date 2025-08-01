@@ -22,8 +22,8 @@ use crate::{
     },
     constants::CPI_AUTHORITY_PDA_BUMP,
     context::WrappedInstructionData,
+    cpi_context::process_cpi_context::copy_cpi_context_outputs,
     errors::SystemProgramError,
-    invoke_cpi::process_cpi_context::copy_cpi_context_outputs,
     processor::{
         cpi::{cpi_account_compression_program, create_cpi_data_and_context},
         create_address_cpi_data::derive_new_addresses,
@@ -154,6 +154,7 @@ pub fn process<
     if num_new_addresses != 0 {
         derive_new_addresses::<ADDRESS_ASSIGNMENT>(
             inputs.new_addresses(),
+            inputs.new_addresses_owners().as_slice(),
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,

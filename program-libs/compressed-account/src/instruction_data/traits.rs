@@ -12,6 +12,7 @@ use crate::{compressed_account::CompressedAccountData, pubkey::Pubkey, Compresse
 pub trait InstructionData<'a> {
     fn owner(&self) -> Pubkey;
     fn new_addresses(&self) -> &[impl NewAddress<'a>];
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>>;
     fn input_accounts(&self) -> &[impl InputAccount<'a>];
     fn output_accounts(&self) -> &[impl OutputAccount<'a>];
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]>;
@@ -36,6 +37,20 @@ where
     fn assigned_compressed_account_index(&self) -> Option<usize>;
 }
 
+pub fn new_addresses_eq<'a>(left: &[impl NewAddress<'a>], right: &[impl NewAddress<'a>]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    left.iter().zip(right.iter()).all(|(l, r)| {
+        l.seed() == r.seed()
+            && l.address_queue_index() == r.address_queue_index()
+            && l.address_merkle_tree_account_index() == r.address_merkle_tree_account_index()
+            && l.address_merkle_tree_root_index() == r.address_merkle_tree_root_index()
+            && l.assigned_compressed_account_index() == r.assigned_compressed_account_index()
+    })
+}
+
 pub trait InputAccount<'a>
 where
     Self: Debug,
@@ -58,6 +73,26 @@ where
     fn root_index(&self) -> u16;
 }
 
+pub fn input_accounts_eq<'a>(
+    left: &[impl InputAccount<'a>],
+    right: &[impl InputAccount<'a>],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    left.iter().zip(right.iter()).all(|(l, r)| {
+        l.owner() == r.owner()
+            && l.lamports() == r.lamports()
+            && l.address() == r.address()
+            && l.merkle_context() == r.merkle_context()
+            && l.skip() == r.skip()
+            && l.has_data() == r.has_data()
+            && l.data() == r.data()
+            && l.root_index() == r.root_index()
+    })
+}
+
 pub trait OutputAccount<'a>
 where
     Self: Debug,
@@ -77,6 +112,46 @@ where
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError>;
 }
+
+pub fn output_accounts_eq<'a>(
+    left: &[impl OutputAccount<'a>],
+    right: &[impl OutputAccount<'a>],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    left.iter().zip(right.iter()).all(|(l, r)| {
+        l.owner() == r.owner()
+            && l.lamports() == r.lamports()
+            && l.address() == r.address()
+            && l.merkle_tree_index() == r.merkle_tree_index()
+            && l.skip() == r.skip()
+            && l.has_data() == r.has_data()
+            && l.data() == r.data()
+    })
+}
+
+/// Compares:
+/// 1. new address
+/// 2. input account
+/// 3. output account
+/// 4. read-only address
+/// 5. read-only account
+/// - other data is not compared
+pub fn instruction_data_eq<'a>(
+    left: &impl InstructionData<'a>,
+    right: &impl InstructionData<'a>,
+) -> bool {
+    // Compare collections using our helper functions
+    new_addresses_eq(left.new_addresses(), right.new_addresses()) &&
+    input_accounts_eq(left.input_accounts(), right.input_accounts()) &&
+    output_accounts_eq(left.output_accounts(), right.output_accounts()) &&
+    // Compare read-only data
+    left.read_only_addresses() == right.read_only_addresses() &&
+    left.read_only_accounts() == right.read_only_accounts()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccountOptions {
     pub sol_pool_pda: bool,

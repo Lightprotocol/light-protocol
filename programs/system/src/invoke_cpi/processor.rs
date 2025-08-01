@@ -5,7 +5,8 @@ pub use crate::Result;
 use crate::{
     accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     context::WrappedInstructionData,
-    invoke_cpi::{process_cpi_context::process_cpi_context, verify_signer::cpi_signer_checks},
+    cpi_context::process_cpi_context::process_cpi_context,
+    invoke_cpi::verify_signer::cpi_signer_checks,
     processor::process::process,
 };
 
@@ -58,7 +59,8 @@ pub fn process_invoke_cpi<
 
     // 4. clear cpi context account
     if cpi_context_inputs_len > 0 {
-        clear_cpi_context_account(accounts.get_cpi_context_account())?;
+        // TODO: reimplement this doesn't work anymore
+        // clear_cpi_context_account(accounts.get_cpi_context_account())?;
     }
     Ok(())
 }
