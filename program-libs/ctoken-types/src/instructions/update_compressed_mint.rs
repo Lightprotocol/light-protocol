@@ -44,6 +44,7 @@ pub struct UpdateCompressedMintInstructionDataV2 {
     pub compressed_mint_inputs: UpdateCompressedMintInstructionData,
     pub authority_type: u8,            // CompressedMintAuthorityType as u8
     pub new_authority: Option<Pubkey>, // None = revoke authority, Some(key) = set new authority
+    pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
     pub cpi_context: Option<UpdateMintCpiContext>,
 }
 

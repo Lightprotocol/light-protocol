@@ -6,6 +6,7 @@ pub use account_metas::{
 };
 
 pub use instruction::{
-    update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,
+    create_update_compressed_mint_cpi_write, update_compressed_mint, update_compressed_mint_cpi, 
+    UpdateCompressedMintInputs, UpdateCompressedMintInputsCpiWrite,
     UPDATE_COMPRESSED_MINT_DISCRIMINATOR,
 };

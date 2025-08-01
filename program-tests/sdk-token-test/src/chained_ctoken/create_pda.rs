@@ -22,7 +22,7 @@ pub fn process_create_escrow_pda<'a>(
 
     my_compressed_account.amount = amount;
     my_compressed_account.owner = *cpi_accounts.fee_payer().key;
-    new_address_params.assigned_account_index = 3; // works with 0
+    new_address_params.assigned_account_index = 4;
     new_address_params.assigned_to_account = true;
     let cpi_inputs = CpiInputs {
         proof,

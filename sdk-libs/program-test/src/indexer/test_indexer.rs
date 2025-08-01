@@ -1589,67 +1589,7 @@ impl TestIndexer {
         compressed_accounts: &mut Vec<CompressedAccountWithMerkleContext>,
     ) {
         let mut input_addresses = vec![];
-        if event.input_compressed_account_hashes.len() > i {
-            let tx_hash: [u8; 32] = create_tx_hash(
-                &event.input_compressed_account_hashes,
-                &event.output_compressed_account_hashes,
-                slot,
-            )
-            .unwrap();
-            let hash = event.input_compressed_account_hashes[i];
-            let index = self
-                .compressed_accounts
-                .iter()
-                .position(|x| x.hash().unwrap() == hash);
-            let (leaf_index, merkle_tree_pubkey) = if let Some(index) = index {
-                self.nullified_compressed_accounts
-                    .push(self.compressed_accounts[index].clone());
-                let leaf_index = self.compressed_accounts[index].merkle_context.leaf_index;
-                let merkle_tree_pubkey = self.compressed_accounts[index]
-                    .merkle_context
-                    .merkle_tree_pubkey;
-                if let Some(address) = self.compressed_accounts[index].compressed_account.address {
-                    input_addresses.push(address);
-                }
-                self.compressed_accounts.remove(index);
-                (leaf_index, merkle_tree_pubkey)
-            } else {
-                let index = self
-                    .token_compressed_accounts
-                    .iter()
-                    .position(|x| x.compressed_account.hash().unwrap() == hash)
-                    .expect("input compressed account not found");
-                self.token_nullified_compressed_accounts
-                    .push(self.token_compressed_accounts[index].clone());
-                let leaf_index = self.token_compressed_accounts[index]
-                    .compressed_account
-                    .merkle_context
-                    .leaf_index;
-                let merkle_tree_pubkey = self.token_compressed_accounts[index]
-                    .compressed_account
-                    .merkle_context
-                    .merkle_tree_pubkey;
-                self.token_compressed_accounts.remove(index);
-                (leaf_index, merkle_tree_pubkey)
-            };
-            let bundle =
-                &mut <TestIndexer as TestIndexerExtensions>::get_state_merkle_trees_mut(self)
-                    .iter_mut()
-                    .find(|x| {
-                        x.accounts.merkle_tree
-                            == solana_pubkey::Pubkey::from(merkle_tree_pubkey.to_bytes())
-                    })
-                    .unwrap();
-            // Store leaf indices of input accounts for batched trees
-            if bundle.tree_type == TreeType::StateV2 {
-                let leaf_hash = event.input_compressed_account_hashes[i];
-                bundle.input_leaf_indices.push(LeafIndexInfo {
-                    leaf_index,
-                    leaf: leaf_hash,
-                    tx_hash,
-                });
-            }
-        }
+
         let mut new_addresses = vec![];
         if event.output_compressed_accounts.len() > i {
             let compressed_account = &event.output_compressed_accounts[i];
@@ -1789,6 +1729,75 @@ impl TestIndexer {
                     event.output_compressed_account_hashes[i],
                     event.output_leaf_indices[i].into(),
                 ));
+            }
+        }
+        if event.input_compressed_account_hashes.len() > i {
+            let tx_hash: [u8; 32] = create_tx_hash(
+                &event.input_compressed_account_hashes,
+                &event.output_compressed_account_hashes,
+                slot,
+            )
+            .unwrap();
+            let hash = event.input_compressed_account_hashes[i];
+            let index = self
+                .compressed_accounts
+                .iter()
+                .position(|x| x.hash().unwrap() == hash);
+            let (leaf_index, merkle_tree_pubkey) = if let Some(index) = index {
+                self.nullified_compressed_accounts
+                    .push(self.compressed_accounts[index].clone());
+                let leaf_index = self.compressed_accounts[index].merkle_context.leaf_index;
+                let merkle_tree_pubkey = self.compressed_accounts[index]
+                    .merkle_context
+                    .merkle_tree_pubkey;
+                if let Some(address) = self.compressed_accounts[index].compressed_account.address {
+                    input_addresses.push(address);
+                }
+                self.compressed_accounts.remove(index);
+                (Some(leaf_index), Some(merkle_tree_pubkey))
+            } else {
+                if let Some(index) = self
+                    .token_compressed_accounts
+                    .iter()
+                    .position(|x| x.compressed_account.hash().unwrap() == hash)
+                {
+                    self.token_nullified_compressed_accounts
+                        .push(self.token_compressed_accounts[index].clone());
+                    let leaf_index = self.token_compressed_accounts[index]
+                        .compressed_account
+                        .merkle_context
+                        .leaf_index;
+                    let merkle_tree_pubkey = self.token_compressed_accounts[index]
+                        .compressed_account
+                        .merkle_context
+                        .merkle_tree_pubkey;
+                    self.token_compressed_accounts.remove(index);
+                    (Some(leaf_index), Some(merkle_tree_pubkey))
+                } else {
+                    (None, None)
+                }
+            };
+            if let Some(leaf_index) = leaf_index {
+                let merkle_tree_pubkey = merkle_tree_pubkey.unwrap();
+                let bundle =
+                    &mut <TestIndexer as TestIndexerExtensions>::get_state_merkle_trees_mut(self)
+                        .iter_mut()
+                        .find(|x| {
+                            x.accounts.merkle_tree
+                                == solana_pubkey::Pubkey::from(merkle_tree_pubkey.to_bytes())
+                        })
+                        .unwrap();
+                // Store leaf indices of input accounts for batched trees
+                if bundle.tree_type == TreeType::StateV2 {
+                    let leaf_hash = event.input_compressed_account_hashes[i];
+                    bundle.input_leaf_indices.push(LeafIndexInfo {
+                        leaf_index,
+                        leaf: leaf_hash,
+                        tx_hash,
+                    });
+                }
+            } else {
+                println!("Test indexer didn't find input compressed accounts to nullify");
             }
         }
         // checks whether there are addresses in outputs which don't exist in inputs.

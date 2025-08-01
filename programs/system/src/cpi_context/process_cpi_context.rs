@@ -1,7 +1,10 @@
+use std::fmt::format;
+
 use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::{instruction_data::traits::InstructionData, pubkey::AsPubkey};
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
+use zerocopy::IntoBytes;
 
 use super::state::{deserialize_cpi_context_account, ZCpiContextAccount};
 use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result};
@@ -170,15 +173,57 @@ pub fn copy_cpi_context_outputs(
     bytes: &mut [u8],
 ) -> Result<()> {
     if let Some(cpi_context) = cpi_context_account {
-        let num_outputs: u32 = cpi_context.out_accounts.len().try_into().unwrap();
-        // TODO: fix this
-        let cpi_context_data = cpi_context_account_info.unwrap().try_borrow_data()?;
-        // Manually copy output bytes in borsh compatible format.
-        // 1. Write Vec<Outputs>::len() as u32.
-        bytes[0..4].copy_from_slice(num_outputs.to_le_bytes().as_slice());
-        // 2. Copy serialized outputs.
-        bytes[4..4 + cpi_outputs_data_len]
-            .copy_from_slice(&cpi_context_data[start_offset..end_offset]);
+        let (len_store, mut bytes) = bytes.split_at_mut(4);
+        len_store.copy_from_slice(
+            (cpi_context.out_accounts.len() as u32)
+                .to_le_bytes()
+                .as_slice(),
+        );
+        msg!("here");
+        let mut start_offset = 4;
+        let mut end_offset = start_offset;
+        for (output_account, output_data) in cpi_context
+            .out_accounts
+            .iter()
+            .zip(cpi_context.output_data.iter())
+        {
+            let (owner, inner_bytes) = bytes.split_at_mut(32);
+            owner.copy_from_slice(output_account.owner.to_bytes().as_slice());
+            let (lamports, inner_bytes) = inner_bytes.split_at_mut(8);
+            lamports.copy_from_slice(&u64::from(output_account.lamports).to_le_bytes());
+            let inner_bytes = if output_account.with_address == 1 {
+                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
+                option_byte[0] = 1;
+                let (address, inner_bytes) = inner_bytes.split_at_mut(32);
+                address.copy_from_slice(output_account.address.as_slice());
+                inner_bytes
+            } else {
+                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
+                option_byte[0] = 0;
+                inner_bytes
+            };
+            let inner_bytes = if output_account.discriminator != [0u8; 8] {
+                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
+                option_byte[0] = 1;
+                let (discriminator, inner_bytes) = inner_bytes.split_at_mut(8);
+                discriminator.copy_from_slice(output_account.discriminator.as_slice());
+
+                let (data_len_store, inner_bytes) = inner_bytes.split_at_mut(4);
+                data_len_store.copy_from_slice(&(output_data.len() as u32).to_le_bytes());
+                let (data_bytes, inner_bytes) = inner_bytes.split_at_mut(output_data.len());
+                data_bytes.copy_from_slice(output_data.as_slice());
+                let (data_hash, inner_bytes) = inner_bytes.split_at_mut(32);
+                data_hash.copy_from_slice(output_account.data_hash.as_slice());
+                inner_bytes
+            } else {
+                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
+                option_byte[0] = 0;
+                inner_bytes
+            };
+            let (output_merkle_tree_index, inner_bytes) = inner_bytes.split_at_mut(1);
+            output_merkle_tree_index[0] = output_account.output_merkle_tree_index;
+            bytes = inner_bytes;
+        }
     }
     Ok(())
 }
@@ -539,7 +584,8 @@ mod tests {
         instruction_data.new_address_params = vec![];
 
         let merkle_tree_account_info = get_merkle_tree_account_info();
-        let cpi_context_account = create_test_cpi_context_account(Some(*merkle_tree_account_info.key()));
+        let cpi_context_account =
+            create_test_cpi_context_account(Some(*merkle_tree_account_info.key()));
         let mut input_bytes = Vec::new();
         instruction_data.serialize(&mut input_bytes).unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();

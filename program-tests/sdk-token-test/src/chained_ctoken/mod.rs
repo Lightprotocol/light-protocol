@@ -2,6 +2,7 @@ pub mod create_mint;
 pub mod create_pda;
 pub mod mint_to;
 pub mod processor;
+pub mod update_compressed_mint;
 
 use anchor_lang::prelude::*;
 

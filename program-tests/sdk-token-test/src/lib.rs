@@ -53,7 +53,7 @@ pub struct PdaParams {
 }
 use crate::{
     create_mint::CreateCompressedMintInstructionData, mint_to::MintToCompressedInstructionData,
-    processor::process_chained_ctoken,
+    processor::process_chained_ctoken, update_compressed_mint::UpdateCompressedMintInstructionDataCpi,
 };
 use crate::{
     process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
@@ -284,13 +284,14 @@ pub mod sdk_token_test {
         ctx: Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
         inputs: CreateCompressedMintInstructionData,
         mint_inputs: MintToCompressedInstructionData,
+        update_mint_inputs: UpdateCompressedMintInstructionDataCpi,
         pda_proof: light_compressed_token_sdk::ValidityProof,
         output_tree_index: u8,
         amount: u64,
         address: [u8; 32],
         new_address_params: light_sdk::address::NewAddressParamsAssignedPacked,
     ) -> Result<()> {
-        process_chained_ctoken(ctx, inputs, mint_inputs, pda_proof, output_tree_index, amount, address, new_address_params)
+        process_chained_ctoken(ctx, inputs, mint_inputs, update_mint_inputs, pda_proof, output_tree_index, amount, address, new_address_params)
     }
 }
 

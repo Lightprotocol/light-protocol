@@ -1,4 +1,5 @@
-use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_spl::mint;
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::{
     instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
@@ -7,10 +8,13 @@ use light_compressed_token_sdk::{
 
 use light_ctoken_types::{
     instructions::{
-        extensions::token_metadata::TokenMetadataInstructionData,
-        mint_to_compressed::{CompressedMintInputs, Recipient},
+        extensions::token_metadata::TokenMetadataInstructionData, mint_to_compressed::Recipient,
+        update_compressed_mint::CompressedMintAuthorityType,
     },
-    state::extensions::{AdditionalMetadata, Metadata},
+    state::{
+        extensions::{AdditionalMetadata, Metadata},
+        CompressedMint,
+    },
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
@@ -18,7 +22,8 @@ use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{
-    create_mint::CreateCompressedMintInstructionData, mint_to::MintToCompressedInstructionData, ID,
+    create_mint::CreateCompressedMintInstructionData, mint_to::MintToCompressedInstructionData,
+    update_compressed_mint::UpdateCompressedMintInstructionDataCpi, ID,
 };
 use solana_sdk::{
     pubkey::Pubkey,
@@ -67,8 +72,8 @@ async fn test_ctoken_minter() {
         version: 0, // Poseidon hash version
     };
 
-    // Create the compressed mint
-    let _compressed_mint_address = create_mint(
+    // Create the compressed mint (with chained operations including update mint)
+    let compressed_mint_address = create_mint(
         &mut rpc,
         &mint_seed,
         decimals,
@@ -79,6 +84,77 @@ async fn test_ctoken_minter() {
     )
     .await
     .unwrap();
+    let all_accounts = rpc
+        .get_compressed_accounts_by_owner(&sdk_token_test::ID, None, None)
+        .await
+        .unwrap()
+        .value;
+    println!("All accounts: {:?}", all_accounts);
+
+    let mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    // Verify the chained CPI operations worked correctly
+    println!("🧪 Verifying chained CPI results...");
+
+    // 1. Verify compressed mint was created and mint authority was revoked
+    let compressed_mint = light_ctoken_types::state::CompressedMint::deserialize(
+        &mut &mint_account.data.as_ref().unwrap().data[..],
+    )
+    .unwrap();
+
+    println!("✅ Compressed mint created:");
+    println!("   - SPL mint: {:?}", compressed_mint.spl_mint);
+    println!("   - Decimals: {}", compressed_mint.decimals);
+    println!("   - Supply: {}", compressed_mint.supply);
+    println!("   - Mint authority: {:?}", compressed_mint.mint_authority);
+    println!(
+        "   - Freeze authority: {:?}",
+        compressed_mint.freeze_authority
+    );
+
+    // Assert mint authority was revoked (should be None after update)
+    assert_eq!(
+        compressed_mint.mint_authority, None,
+        "Mint authority should be revoked (None)"
+    );
+    assert_eq!(
+        compressed_mint.supply, 1000u64,
+        "Supply should be 1000 after minting"
+    );
+    assert_eq!(compressed_mint.decimals, decimals, "Decimals should match");
+
+    // 2. Verify tokens were minted to the payer
+    let token_accounts = rpc
+        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    println!("✅ Tokens minted:");
+    println!("   - Token accounts found: {}", token_accounts.len());
+    assert!(
+        !token_accounts.is_empty(),
+        "Should have minted tokens to payer"
+    );
+
+    let token_account = &token_accounts[0];
+    println!("   - Token amount: {}", token_account.token.amount);
+    println!("   - Token mint: {:?}", token_account.token.mint);
+    assert_eq!(
+        token_account.token.amount, 1000u64,
+        "Token amount should be 1000"
+    );
+
+    println!("🎉 All chained CPI operations completed successfully!");
+    println!("   1. ✅ Created compressed mint with mint authority");
+    println!("   2. ✅ Minted 1000 tokens to payer");
+    println!("   3. ✅ Revoked mint authority (set to None)");
+    println!("   4. ✅ Created escrow PDA");
 }
 
 pub async fn create_mint<R: Rpc + Indexer>(
@@ -158,6 +234,13 @@ pub async fn create_mint<R: Rpc + Indexer>(
         lamports: None,
         version: 2,
     };
+
+    // Create update_compressed_mint instruction data (revoke mint authority)
+    let update_mint_inputs = UpdateCompressedMintInstructionDataCpi {
+        authority_type: CompressedMintAuthorityType::MintTokens,
+        new_authority: None, // Revoke mint authority (set to None)
+        mint_authority: Some(mint_authority.pubkey()), // Current mint authority needed for validation
+    };
     // Create Anchor accounts struct
     let accounts = sdk_token_test::accounts::CreateCompressedMint {
         payer: payer.pubkey(),
@@ -188,6 +271,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
     let instruction_data = sdk_token_test::instruction::ChainedCtoken {
         inputs,
         mint_inputs,
+        update_mint_inputs,
         pda_proof: rpc_result.proof,
         output_tree_index,
         amount: pda_amount,

@@ -4,6 +4,9 @@ use crate::chained_ctoken::create_mint::{
 };
 use crate::chained_ctoken::create_pda::process_create_escrow_pda;
 use crate::chained_ctoken::mint_to::{mint_to_compressed, MintToCompressedInstructionData};
+use crate::chained_ctoken::update_compressed_mint::{
+    update_compressed_mint_cpi_write, UpdateCompressedMintInstructionDataCpi,
+};
 use anchor_lang::prelude::*;
 use light_compressed_token_sdk::ValidityProof;
 use light_ctoken_types::instructions::mint_to_compressed::CompressedMintInputs;
@@ -16,6 +19,7 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
     input: CreateCompressedMintInstructionData,
     mint_input: MintToCompressedInstructionData,
+    update_mint_input: UpdateCompressedMintInstructionDataCpi,
     pda_proof: ValidityProof,
     output_tree_index: u8,
     amount: u64,
@@ -70,17 +74,53 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
         },
     };
     // First CPI call: create compressed mint
-    create_compressed_mint(&ctx, input, &cpi_accounts)?;
+    create_compressed_mint(&ctx, input.clone(), &cpi_accounts)?;
 
     // Second CPI call: mint to compressed tokens
     mint_to_compressed(
         &ctx,
         mint_input.clone(),
-        compressed_mint_inputs,
+        compressed_mint_inputs.clone(),
         &cpi_accounts,
     )?;
 
-    // Third CPI call: create compressed escrow PDA
+    // Third CPI call: update compressed mint (revoke mint authority)
+    // Create updated mint data for the update operation (after minting)
+    let updated_compressed_mint_inputs = light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData {
+        leaf_index: 1, // The mint is at index 1 after being created
+        prove_by_index: true,
+        root_index: 0,
+        address: input.compressed_mint_address,
+        proof: None, // No proof needed for CPI context writes
+        mint: light_ctoken_types::instructions::create_compressed_mint::CompressedMintInstructionData {
+            version: input.version,
+            spl_mint: spl_mint.into(),
+            supply: mint_input.recipients.iter().map(|r| r.amount).sum(), // Total supply after minting
+            decimals: input.decimals,
+            is_decompressed: false,
+            mint_authority: Some(ctx.accounts.mint_authority.key().into()), // Current mint authority
+            freeze_authority: input.freeze_authority.map(|f| f.into()),
+            extensions: input.metadata.as_ref().map(|metadata| {
+                vec![light_ctoken_types::instructions::extensions::ExtensionInstructionData::TokenMetadata(
+                    light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+                        update_authority: metadata.update_authority,
+                        metadata: metadata.metadata.clone(),
+                        additional_metadata: metadata.additional_metadata.clone(),
+                        version: metadata.version,
+                    }
+                )]
+            }),
+        },
+    };
+
+    update_compressed_mint_cpi_write(
+        &ctx,
+        update_mint_input,
+        updated_compressed_mint_inputs,
+        &cpi_accounts,
+    )?;
+
+    // Fourth CPI call: create compressed escrow PDA
     process_create_escrow_pda(
         pda_proof,
         output_tree_index,

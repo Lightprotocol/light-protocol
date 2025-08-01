@@ -1,6 +1,6 @@
 use light_account_checks::AccountIterator;
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use pinocchio::{account_info::AccountInfo, msg};
+use pinocchio::account_info::AccountInfo;
 
 use crate::{
     accounts::{

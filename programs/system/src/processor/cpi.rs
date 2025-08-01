@@ -49,7 +49,7 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
     );
     // Data size + 8 bytes for discriminator + 4 bytes for vec length, + 4 cpi data vec length, + cpi data length.
     let byte_len = bytes_size + 8 + 4 + 4 + cpi_data_len;
-    let mut bytes = vec![0u8; byte_len];
+    let mut bytes = vec![0u8; 10240];
     bytes[..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
     // Vec len.
     bytes[8..12].copy_from_slice(&u32::try_from(byte_len - 12).unwrap().to_le_bytes());
