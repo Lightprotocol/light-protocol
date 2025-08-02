@@ -386,7 +386,7 @@ fn test_rnd_create_compressed_mint_account() {
             address: compressed_account_address,
         };
 
-        let update_instruction_data = light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData {
+        let update_instruction_data = light_ctoken_types::instructions::create_compressed_mint::CompressedMintWithContext {
             leaf_index: input_compressed_mint.leaf_index,
             prove_by_index: input_compressed_mint.prove_by_index,
             root_index: input_compressed_mint.root_index,
@@ -405,7 +405,7 @@ fn test_rnd_create_compressed_mint_account() {
 
         let input_data = update_instruction_data.try_to_vec().unwrap();
         let (z_update_instruction_data, _) =
-            light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData::zero_copy_at(&input_data).unwrap();
+            light_ctoken_types::instructions::create_compressed_mint::CompressedMintWithContext::zero_copy_at(&input_data).unwrap();
 
         let mut hash_cache = HashCache::new();
         light_compressed_token::mint::mint_input::create_input_compressed_mint_account(

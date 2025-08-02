@@ -24,16 +24,17 @@ pub struct CreateCompressedMintInstructionData {
     pub version: u8,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub cpi_context: Option<CpiContext>,
+    /// To create the compressed mint account address a proof is always required.
+    /// Set none if used with cpi context, the proof is required with the executing cpi.
     pub proof: Option<CompressedProof>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
-pub struct UpdateCompressedMintInstructionData {
+pub struct CompressedMintWithContext {
     pub leaf_index: u32,
     pub prove_by_index: bool,
     pub root_index: u16,
     pub address: [u8; 32],
-    pub proof: Option<CompressedProof>,
     pub mint: CompressedMintInstructionData,
 }
 
@@ -58,6 +59,7 @@ pub struct CompressedMintInstructionData {
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
+
 impl TryFrom<CompressedMint> for CompressedMintInstructionData {
     type Error = CTokenError;
 

@@ -8,7 +8,7 @@ use light_compressed_token_sdk::instructions::{
     CreateSplMintInputs,
 };
 use light_ctoken_types::{
-    instructions::mint_to_compressed::CompressedMintInputs, state::CompressedMint,
+    instructions::create_compressed_mint::CompressedMintWithContext, state::CompressedMint,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -76,7 +76,7 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
     let output_queue = output_tree_info.queue;
 
     // Prepare compressed mint inputs
-    let compressed_mint_inputs = CompressedMintInputs {
+    let compressed_mint_inputs = CompressedMintWithContext {
         leaf_index: compressed_mint_account.leaf_index,
         prove_by_index: true,
         root_index: proof_result.accounts[0]
@@ -84,7 +84,9 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
             .root_index()
             .unwrap_or_default(),
         address: compressed_mint_address,
-        compressed_mint_input: compressed_mint,
+        mint: compressed_mint.try_into().map_err(|e| {
+            RpcError::CustomError(format!("Failed to create SPL mint instruction: {}", e))
+        })?,
     };
 
     // Create the instruction using the SDK function

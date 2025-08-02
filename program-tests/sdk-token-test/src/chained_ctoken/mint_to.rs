@@ -4,8 +4,9 @@ use light_compressed_token_sdk::instructions::mint_to_compressed::{
     create_mint_to_compressed_cpi_write, MintToCompressedCpiContextWriteAccounts,
     MintToCompressedInputsCpiWrite,
 };
-use light_ctoken_types::instructions::mint_to_compressed::{
-    CompressedMintInputs, CpiContext, Recipient,
+use light_ctoken_types::instructions::{
+    create_compressed_mint::CompressedMintWithContext,
+    mint_to_compressed::{CpiContext, Recipient},
 };
 use light_sdk_types::CpiAccountsSmall;
 
@@ -22,7 +23,7 @@ pub struct MintToCompressedInstructionData {
 pub fn mint_to_compressed<'a, 'b, 'c, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
     input: MintToCompressedInstructionData,
-    compressed_mint_inputs: CompressedMintInputs,
+    compressed_mint_inputs: CompressedMintWithContext,
     cpi_accounts: &CpiAccountsSmall<'a, AccountInfo<'info>>,
 ) -> Result<()> {
     let cpi_context_account_info = MintToCompressedCpiContextWriteAccounts {

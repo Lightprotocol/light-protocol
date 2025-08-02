@@ -11,7 +11,9 @@ use light_compressed_token_sdk::{
     token_pool::find_token_pool_pda_with_index,
 };
 use light_ctoken_types::{
-    instructions::mint_to_compressed::{CompressedMintInputs, Recipient},
+    instructions::{
+        create_compressed_mint::CompressedMintWithContext, mint_to_compressed::Recipient,
+    },
     state::CompressedMint,
 };
 use solana_instruction::Instruction;
@@ -44,6 +46,11 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e))
         })?;
 
+    let rpc_proof_result = rpc
+        .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
+        .await?
+        .value;
+
     // Get state tree info for outputs
     let state_tree_info = rpc.get_random_state_tree_info()?;
 
@@ -60,12 +67,15 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     };
 
     // Prepare compressed mint inputs
-    let compressed_mint_inputs = CompressedMintInputs {
-        prove_by_index: true,
+    let compressed_mint_inputs = CompressedMintWithContext {
+        prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
         leaf_index: compressed_mint_account.leaf_index,
-        root_index: 0,
+        root_index: rpc_proof_result.accounts[0]
+            .root_index
+            .root_index()
+            .unwrap_or_default(),
         address: compressed_mint_address,
-        compressed_mint_input: compressed_mint,
+        mint: compressed_mint.try_into().unwrap(),
     };
 
     // Create the instruction
@@ -80,6 +90,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             output_queue: compressed_mint_account.tree_info.queue,
             state_tree_pubkey: state_tree_info.tree,
             decompressed_mint_config,
+            proof: rpc_proof_result.proof.into(),
         },
         None,
     )

@@ -127,7 +127,7 @@ fn update_compressed_mint_to_decompressed<'info>(
     let config_input = CpiConfigInput {
         input_accounts: ArrayVec::new(),
         output_accounts: ArrayVec::new(),
-        has_proof: instruction_data.mint.proof.is_some(),
+        has_proof: instruction_data.proof.is_some(),
         compressed_mint: true,
         compressed_mint_with_freeze_authority: mint_inputs.freeze_authority.is_some(),
         compressed_mint_with_mint_authority: true, // create_spl_mint always creates with mint authority
@@ -144,7 +144,7 @@ fn update_compressed_mint_to_decompressed<'info>(
         cpi_instruction_struct.initialize(
             crate::LIGHT_CPI_SIGNER.bump,
             &crate::LIGHT_CPI_SIGNER.program_id.into(),
-            instruction_data.mint.proof,
+            instruction_data.proof,
             &Option::<CompressedCpiContext>::None,
         )?;
 

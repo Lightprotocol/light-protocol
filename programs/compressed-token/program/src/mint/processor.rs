@@ -20,6 +20,10 @@ use crate::{
     shared::{cpi::execute_cpi_invoke, cpi_bytes_size::allocate_invoke_with_read_only_cpi_bytes},
 };
 
+// Create mint - no input
+// Mint to - mint input, mint output with increased supply, if spl mint exists
+// Update mint - mint input, mint output, update mint or freeze authority
+
 /// Checks:
 /// 1. check mint_signer (compressed mint randomness) is signer
 /// 2.

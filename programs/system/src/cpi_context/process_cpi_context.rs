@@ -1,10 +1,18 @@
-use std::fmt::format;
-
 use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
-use light_compressed_account::{instruction_data::traits::InstructionData, pubkey::AsPubkey};
+use light_compressed_account::{
+    compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
+    instruction_data::{
+        data::{
+            OutputCompressedAccountWithPackedContext,
+            OutputCompressedAccountWithPackedContextConfig,
+        },
+        traits::{InstructionData, OutputAccount},
+    },
+    pubkey::AsPubkey,
+};
+use light_zero_copy::ZeroCopyNew;
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
-use zerocopy::IntoBytes;
 
 use super::state::{deserialize_cpi_context_account, ZCpiContextAccount};
 use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result};
@@ -180,48 +188,36 @@ pub fn copy_cpi_context_outputs(
                 .as_slice(),
         );
         msg!("here");
-        let mut start_offset = 4;
-        let mut end_offset = start_offset;
         for (output_account, output_data) in cpi_context
             .out_accounts
             .iter()
             .zip(cpi_context.output_data.iter())
         {
-            let (owner, inner_bytes) = bytes.split_at_mut(32);
-            owner.copy_from_slice(output_account.owner.to_bytes().as_slice());
-            let (lamports, inner_bytes) = inner_bytes.split_at_mut(8);
-            lamports.copy_from_slice(&u64::from(output_account.lamports).to_le_bytes());
-            let inner_bytes = if output_account.with_address == 1 {
-                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
-                option_byte[0] = 1;
-                let (address, inner_bytes) = inner_bytes.split_at_mut(32);
+            let config = OutputCompressedAccountWithPackedContextConfig {
+                compressed_account: CompressedAccountConfig {
+                    address: (output_account.address().is_some(), ()),
+                    data: (
+                        !output_data.is_empty(),
+                        CompressedAccountDataConfig {
+                            data: output_data.len() as u32,
+                        },
+                    ),
+                },
+            };
+            let (mut accounts, inner_bytes) =
+                OutputCompressedAccountWithPackedContext::new_zero_copy(bytes, config)?;
+            if let Some(address) = accounts.compressed_account.address.as_deref_mut() {
                 address.copy_from_slice(output_account.address.as_slice());
-                inner_bytes
-            } else {
-                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
-                option_byte[0] = 0;
-                inner_bytes
-            };
-            let inner_bytes = if output_account.discriminator != [0u8; 8] {
-                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
-                option_byte[0] = 1;
-                let (discriminator, inner_bytes) = inner_bytes.split_at_mut(8);
-                discriminator.copy_from_slice(output_account.discriminator.as_slice());
+            }
+            accounts.compressed_account.lamports = output_account.lamports;
+            accounts.compressed_account.owner = output_account.owner;
+            *accounts.merkle_tree_index = output_account.output_merkle_tree_index;
+            if let Some(data) = accounts.compressed_account.data.as_mut() {
+                data.discriminator = output_account.discriminator;
+                *data.data_hash = output_account.data_hash;
+                data.data.copy_from_slice(output_data.as_slice());
+            }
 
-                let (data_len_store, inner_bytes) = inner_bytes.split_at_mut(4);
-                data_len_store.copy_from_slice(&(output_data.len() as u32).to_le_bytes());
-                let (data_bytes, inner_bytes) = inner_bytes.split_at_mut(output_data.len());
-                data_bytes.copy_from_slice(output_data.as_slice());
-                let (data_hash, inner_bytes) = inner_bytes.split_at_mut(32);
-                data_hash.copy_from_slice(output_account.data_hash.as_slice());
-                inner_bytes
-            } else {
-                let (option_byte, inner_bytes) = inner_bytes.split_at_mut(1);
-                option_byte[0] = 0;
-                inner_bytes
-            };
-            let (output_merkle_tree_index, inner_bytes) = inner_bytes.split_at_mut(1);
-            output_merkle_tree_index[0] = output_account.output_merkle_tree_index;
             bytes = inner_bytes;
         }
     }

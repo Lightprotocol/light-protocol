@@ -9,9 +9,13 @@ use crate::chained_ctoken::update_compressed_mint::{
 };
 use anchor_lang::prelude::*;
 use light_compressed_token_sdk::ValidityProof;
-use light_ctoken_types::instructions::mint_to_compressed::CompressedMintInputs;
-use light_ctoken_types::state::CompressedMint;
-use light_ctoken_types::state::{ExtensionStruct, TokenMetadata};
+use light_ctoken_types::instructions::create_compressed_mint::{
+    CompressedMintInstructionData, CompressedMintWithContext,
+};
+use light_ctoken_types::instructions::extensions::{
+    ExtensionInstructionData, TokenMetadataInstructionData,
+};
+
 use light_ctoken_types::{COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID};
 use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
 
@@ -49,12 +53,12 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
     .unwrap()
     .into();
 
-    let compressed_mint_inputs = CompressedMintInputs {
+    let compressed_mint_inputs = CompressedMintWithContext {
         leaf_index: 0, // The mint is created at index 1 in the CPI context
         prove_by_index: true,
         root_index: 0,
         address: input.compressed_mint_address,
-        compressed_mint_input: CompressedMint {
+        mint: CompressedMintInstructionData {
             version: input.version,
             mint_authority: Some(ctx.accounts.mint_authority.key().into()),
             spl_mint: spl_mint.into(),
@@ -63,13 +67,14 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
             is_decompressed: false,
             freeze_authority: input.freeze_authority.map(|f| f.into()),
             extensions: input.metadata.as_ref().map(|metadata| {
-                vec![ExtensionStruct::TokenMetadata(TokenMetadata {
-                    update_authority: metadata.update_authority,
-                    mint: spl_mint.into(),
-                    metadata: metadata.metadata.clone(),
-                    additional_metadata: metadata.additional_metadata.clone().unwrap_or_default(),
-                    version: metadata.version,
-                })]
+                vec![ExtensionInstructionData::TokenMetadata(
+                    TokenMetadataInstructionData {
+                        update_authority: metadata.update_authority,
+                        metadata: metadata.metadata.clone(),
+                        additional_metadata: metadata.additional_metadata.clone(),
+                        version: metadata.version,
+                    },
+                )]
             }),
         },
     };
@@ -86,12 +91,11 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
 
     // Third CPI call: update compressed mint (revoke mint authority)
     // Create updated mint data for the update operation (after minting)
-    let updated_compressed_mint_inputs = light_ctoken_types::instructions::create_compressed_mint::UpdateCompressedMintInstructionData {
+    let updated_compressed_mint_inputs = light_ctoken_types::instructions::create_compressed_mint::CompressedMintWithContext {
         leaf_index: 1, // The mint is at index 1 after being created
         prove_by_index: true,
         root_index: 0,
         address: input.compressed_mint_address,
-        proof: None, // No proof needed for CPI context writes
         mint: light_ctoken_types::instructions::create_compressed_mint::CompressedMintInstructionData {
             version: input.version,
             spl_mint: spl_mint.into(),

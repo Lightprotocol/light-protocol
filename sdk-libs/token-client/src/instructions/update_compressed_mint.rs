@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
@@ -7,12 +8,11 @@ use light_compressed_token_sdk::instructions::update_compressed_mint::{
 };
 use light_ctoken_types::{
     instructions::{
-        create_compressed_mint::{UpdateCompressedMintInstructionData, CompressedMintInstructionData},
+        create_compressed_mint::{CompressedMintInstructionData, CompressedMintWithContext},
         update_compressed_mint::CompressedMintAuthorityType,
     },
     state::CompressedMint,
 };
-use borsh::BorshDeserialize;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -59,8 +59,7 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
         .items
         .iter()
         .find(|account| {
-            account.hash == compressed_mint_hash
-                && account.leaf_index == compressed_mint_leaf_index
+            account.hash == compressed_mint_hash && account.leaf_index == compressed_mint_leaf_index
         })
         .ok_or_else(|| RpcError::CustomError("Compressed mint account not found".to_string()))?;
 
@@ -71,24 +70,26 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
         .ok_or_else(|| RpcError::CustomError("Compressed mint data not found".to_string()))?;
 
     // Deserialize the compressed mint
-    let compressed_mint: CompressedMint = 
-        BorshDeserialize::deserialize(&mut compressed_mint_data.data.as_slice())
-            .map_err(|e| RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e)))?;
+    let compressed_mint: CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_mint_data.data.as_slice()).map_err(|e| {
+            RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e))
+        })?;
 
     // Convert to instruction data format
-    let compressed_mint_instruction_data = CompressedMintInstructionData::try_from(compressed_mint.clone())
-        .map_err(|e| RpcError::CustomError(format!("Failed to convert compressed mint: {:?}", e)))?;
+    let compressed_mint_instruction_data =
+        CompressedMintInstructionData::try_from(compressed_mint.clone()).map_err(|e| {
+            RpcError::CustomError(format!("Failed to convert compressed mint: {:?}", e))
+        })?;
 
     // Get random state tree info for output queue
     let state_tree_info = rpc.get_random_state_tree_info()?;
 
-    // Create the UpdateCompressedMintInstructionData - using similar pattern to mint_to_compressed
-    let compressed_mint_inputs = UpdateCompressedMintInstructionData {
+    // Create the CompressedMintWithContext - using similar pattern to mint_to_compressed
+    let compressed_mint_inputs = CompressedMintWithContext {
         leaf_index: compressed_mint_leaf_index,
         prove_by_index: true, // Use index-based proof like mint_to_compressed
-        root_index: 0, // Use 0 like mint_to_compressed
+        root_index: 0,        // Use 0 like mint_to_compressed
         address: compressed_mint_account.address.unwrap_or([0u8; 32]),
-        proof: None, // No proof needed for index-based proving
         mint: compressed_mint_instruction_data,
     };
 
@@ -98,7 +99,7 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
         authority_type,
         new_authority,
         mint_authority,
-        proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof::default(), // Empty proof for index-based proving
+        proof: None,
         payer,
         authority: current_authority.pubkey(),
         in_merkle_tree: compressed_mint_merkle_tree,

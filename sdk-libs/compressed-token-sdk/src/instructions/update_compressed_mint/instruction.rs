@@ -1,9 +1,9 @@
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_ctoken_types::{
     self,
-    instructions::create_compressed_mint::UpdateCompressedMintInstructionData,
+    instructions::create_compressed_mint::CompressedMintWithContext,
     instructions::update_compressed_mint::{
-        CompressedMintAuthorityType, UpdateCompressedMintInstructionDataV2, UpdateMintCpiContext,
+        CompressedMintAuthorityType, UpdateCompressedMintInstructionData, UpdateMintCpiContext,
     },
 };
 use solana_instruction::Instruction;
@@ -22,11 +22,11 @@ pub const UPDATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 105;
 /// Input struct for updating a compressed mint instruction
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct UpdateCompressedMintInputs {
-    pub compressed_mint_inputs: UpdateCompressedMintInstructionData,
+    pub compressed_mint_inputs: CompressedMintWithContext,
     pub authority_type: CompressedMintAuthorityType,
     pub new_authority: Option<Pubkey>,
     pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
-    pub proof: CompressedProof,
+    pub proof: Option<CompressedProof>,
     pub payer: Pubkey,
     pub authority: Pubkey,
     pub in_merkle_tree: Pubkey,
@@ -41,12 +41,13 @@ pub fn update_compressed_mint_cpi(
 ) -> Result<Instruction> {
     let with_cpi_context = cpi_context.is_some();
 
-    let instruction_data = UpdateCompressedMintInstructionDataV2 {
+    let instruction_data = UpdateCompressedMintInstructionData {
         compressed_mint_inputs: input.compressed_mint_inputs,
         authority_type: input.authority_type.into(),
         new_authority: input.new_authority.map(|auth| auth.to_bytes().into()),
         mint_authority: input.mint_authority.map(|auth| auth.to_bytes().into()),
         cpi_context,
+        proof: None,
     };
 
     // Create account meta config for update_compressed_mint
@@ -82,7 +83,7 @@ pub fn update_compressed_mint(input: UpdateCompressedMintInputs) -> Result<Instr
 /// Input struct for creating an update compressed mint instruction with CPI context write
 #[derive(Debug, Clone)]
 pub struct UpdateCompressedMintInputsCpiWrite {
-    pub compressed_mint_inputs: UpdateCompressedMintInstructionData,
+    pub compressed_mint_inputs: CompressedMintWithContext,
     pub authority_type: CompressedMintAuthorityType,
     pub new_authority: Option<Pubkey>,
     pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
@@ -111,12 +112,13 @@ pub fn create_update_compressed_mint_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    let instruction_data = UpdateCompressedMintInstructionDataV2 {
+    let instruction_data = UpdateCompressedMintInstructionData {
         compressed_mint_inputs,
         authority_type: authority_type.into(),
         new_authority: new_authority.map(|auth| auth.to_bytes().into()),
         mint_authority: mint_authority.map(|auth| auth.to_bytes().into()),
         cpi_context: Some(cpi_context),
+        proof: None,
     };
 
     // For CPI write mode, use the same pattern as mint_to_compressed
@@ -126,7 +128,7 @@ pub fn create_update_compressed_mint_cpi_write(
             false,
         ), // light_system_program
         solana_instruction::AccountMeta::new_readonly(inputs.authority, true), // authority (signer)
-        solana_instruction::AccountMeta::new(inputs.payer, true), // fee_payer
+        solana_instruction::AccountMeta::new(inputs.payer, true),              // fee_payer
         solana_instruction::AccountMeta::new_readonly(
             crate::instructions::CTokenDefaultAccounts::default().cpi_authority_pda,
             false,

@@ -7,8 +7,8 @@ use light_compressed_account::{
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
-    instructions::create_compressed_mint::UpdateCompressedMintInstructionData,
-    state::CompressedMint, AnchorDeserialize, AnchorSerialize,
+    instructions::create_compressed_mint::CompressedMintWithContext, state::CompressedMint,
+    AnchorDeserialize, AnchorSerialize,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
@@ -29,10 +29,10 @@ pub struct Recipient {
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct MintToCompressedInstructionData {
     pub token_account_version: u8,
-    pub compressed_mint_inputs: UpdateCompressedMintInstructionData,
+    pub compressed_mint_inputs: CompressedMintWithContext,
+    pub proof: Option<CompressedProof>,
     pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
-    pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
 }
 

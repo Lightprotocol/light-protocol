@@ -1,9 +1,8 @@
+use light_compressed_token_types::CompressedProof;
 use light_ctoken_types::{
     instructions::{
-        create_compressed_mint::UpdateCompressedMintInstructionData,
-        mint_to_compressed::{
-            CompressedMintInputs, CpiContext, MintToCompressedInstructionData, Recipient,
-        },
+        create_compressed_mint::CompressedMintWithContext,
+        mint_to_compressed::{CpiContext, MintToCompressedInstructionData, Recipient},
     },
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
@@ -27,7 +26,7 @@ pub const MINT_TO_COMPRESSED_DISCRIMINATOR: u8 = 101;
 /// Input parameters for creating a mint_to_compressed instruction
 #[derive(Debug, Clone)]
 pub struct MintToCompressedInputs {
-    pub compressed_mint_inputs: CompressedMintInputs,
+    pub compressed_mint_inputs: CompressedMintWithContext,
     pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
     pub mint_authority: Pubkey,
@@ -37,6 +36,7 @@ pub struct MintToCompressedInputs {
     pub state_tree_pubkey: Pubkey,
     /// Required if the mint is decompressed
     pub decompressed_mint_config: Option<DecompressedMintConfig<Pubkey>>,
+    pub proof: Option<CompressedProof>,
 }
 
 /// Create a mint_to_compressed instruction
@@ -54,34 +54,25 @@ pub fn create_mint_to_compressed_instruction(
         output_queue,
         state_tree_pubkey,
         decompressed_mint_config,
+        proof,
     } = inputs;
 
     // Store decompressed flag before moving the compressed_mint_input
-    let is_decompressed = compressed_mint_inputs.compressed_mint_input.is_decompressed;
+    let is_decompressed = compressed_mint_inputs.mint.is_decompressed;
 
     // Validate that decompressed_mint_config is provided when the mint is decompressed
     if is_decompressed && decompressed_mint_config.is_none() {
         return Err(TokenSdkError::DecompressedMintConfigRequired);
     }
 
-    // Create UpdateCompressedMintInstructionData from CompressedMintInputs
-    let update_mint_data = UpdateCompressedMintInstructionData {
-        leaf_index: compressed_mint_inputs.leaf_index.into(),
-        prove_by_index: compressed_mint_inputs.prove_by_index.into(),
-        root_index: compressed_mint_inputs.root_index,
-        address: compressed_mint_inputs.address,
-        proof: None, // No proof needed for this test
-        mint: compressed_mint_inputs.compressed_mint_input.try_into()?,
-    };
-
     // Create mint_to_compressed instruction data
     let mint_to_instruction_data = MintToCompressedInstructionData {
         token_account_version: 2, // V2 for batched merkle trees
-        compressed_mint_inputs: update_mint_data,
+        compressed_mint_inputs,
         lamports,
         recipients,
-        proof: None, // No proof needed for this test
         cpi_context,
+        proof,
     };
 
     // Create account meta config
@@ -133,7 +124,7 @@ pub fn create_mint_to_compressed_instruction(
 /// Input struct for creating a mint_to_compressed instruction with CPI context write
 #[derive(Debug, Clone)]
 pub struct MintToCompressedInputsCpiWrite {
-    pub compressed_mint_inputs: CompressedMintInputs,
+    pub compressed_mint_inputs: CompressedMintWithContext,
     pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
     pub mint_authority: Pubkey,
@@ -162,24 +153,14 @@ pub fn create_mint_to_compressed_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    // Create UpdateCompressedMintInstructionData from CompressedMintInputs
-    let update_mint_data = UpdateCompressedMintInstructionData {
-        leaf_index: compressed_mint_inputs.leaf_index.into(),
-        prove_by_index: compressed_mint_inputs.prove_by_index.into(),
-        root_index: compressed_mint_inputs.root_index,
-        address: compressed_mint_inputs.address,
-        proof: None, // No proof needed for CPI context writes
-        mint: compressed_mint_inputs.compressed_mint_input.try_into()?,
-    };
-
     // Create mint_to_compressed instruction data
     let mint_to_instruction_data = MintToCompressedInstructionData {
         token_account_version: version,
-        compressed_mint_inputs: update_mint_data,
+        compressed_mint_inputs,
         lamports,
         recipients,
-        proof: None, // No proof needed for CPI context writes
         cpi_context: Some(cpi_context),
+        proof: None,
     };
 
     // Create account meta config for CPI context write

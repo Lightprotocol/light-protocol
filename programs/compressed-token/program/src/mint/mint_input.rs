@@ -1,8 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
-    hash_cache::HashCache,
-    instructions::create_compressed_mint::ZUpdateCompressedMintInstructionData,
+    hash_cache::HashCache, instructions::create_compressed_mint::ZCompressedMintWithContext,
     state::CompressedMint,
 };
 use light_hasher::{Hasher, Poseidon};
@@ -24,7 +23,7 @@ use crate::{
 pub fn create_input_compressed_mint_account(
     input_compressed_account: &mut ZInAccountMut,
     hash_cache: &mut HashCache,
-    mint_instruction_data: &ZUpdateCompressedMintInstructionData,
+    mint_instruction_data: &ZCompressedMintWithContext,
     merkle_context: PackedMerkleContext,
 ) -> Result<(), ProgramError> {
     let mint = &mint_instruction_data.mint;

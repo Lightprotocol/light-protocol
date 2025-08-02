@@ -3,8 +3,8 @@ use light_compressed_account::instruction_data::with_readonly::InstructionDataIn
 use light_ctoken_types::{
     hash_cache::HashCache,
     instructions::update_compressed_mint::{
-        CompressedMintAuthorityType, UpdateCompressedMintInstructionDataV2,
-        ZUpdateCompressedMintInstructionDataV2,
+        CompressedMintAuthorityType, UpdateCompressedMintInstructionData,
+        ZUpdateCompressedMintInstructionData,
     },
     state::CompressedMintConfig,
 };
@@ -39,7 +39,7 @@ pub fn process_update_compressed_mint(
 
     // Parse instruction data using zero-copy
     let (parsed_instruction_data, _) =
-        UpdateCompressedMintInstructionDataV2::zero_copy_at(instruction_data)
+        UpdateCompressedMintInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     // Parse and validate authority type
@@ -71,7 +71,7 @@ pub fn process_update_compressed_mint(
     cpi_instruction_struct.initialize(
         LIGHT_CPI_SIGNER.bump,
         &LIGHT_CPI_SIGNER.program_id.into(),
-        parsed_instruction_data.compressed_mint_inputs.proof,
+        parsed_instruction_data.proof,
         &parsed_instruction_data.cpi_context,
     )?;
 
@@ -245,7 +245,7 @@ pub fn process_update_compressed_mint(
 }
 
 fn get_zero_copy_configs(
-    parsed_instruction_data: &ZUpdateCompressedMintInstructionDataV2,
+    parsed_instruction_data: &ZUpdateCompressedMintInstructionData,
 ) -> Result<(
     light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig,
     Vec<u8>,
@@ -286,10 +286,7 @@ fn get_zero_copy_configs(
     )?;
 
     let mut config_input = CpiConfigInput::update_mint(
-        parsed_instruction_data
-            .compressed_mint_inputs
-            .proof
-            .is_some(),
+        parsed_instruction_data.proof.is_some(),
         updated_freeze_authority,
         updated_mint_authority,
     );

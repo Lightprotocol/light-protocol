@@ -1,8 +1,8 @@
 use light_compressed_token_types::{ValidityProof, CPI_AUTHORITY_PDA};
 use light_ctoken_types::{
     instructions::{
-        create_compressed_mint::UpdateCompressedMintInstructionData,
-        create_spl_mint::CreateSplMintInstructionData, mint_to_compressed::CompressedMintInputs,
+        create_compressed_mint::CompressedMintWithContext,
+        create_spl_mint::CreateSplMintInstructionData,
     },
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
@@ -20,20 +20,20 @@ pub const POOL_SEED: &[u8] = b"pool";
 pub struct CreateSplMintInputs {
     pub mint_signer: Pubkey,
     pub mint_bump: u8,
-    pub compressed_mint_inputs: CompressedMintInputs,
-    pub proof: ValidityProof,
+    pub compressed_mint_inputs: CompressedMintWithContext,
     pub payer: Pubkey,
     pub input_merkle_tree: Pubkey,
     pub input_output_queue: Pubkey,
     pub output_queue: Pubkey,
     pub mint_authority: Pubkey,
+    pub proof: ValidityProof,
 }
 
 pub fn create_spl_mint_instruction(inputs: CreateSplMintInputs) -> Result<Instruction> {
     // Extract values from compressed_mint_inputs
     let mint_pda: Pubkey = inputs
         .compressed_mint_inputs
-        .compressed_mint_input
+        .mint
         .spl_mint
         .to_bytes()
         .into();
@@ -62,23 +62,15 @@ pub fn create_spl_mint_instruction_with_bump(
         mint_authority,
     } = inputs;
     // Extract values from compressed_mint_inputs
-    let mint_pda: Pubkey = compressed_mint_inputs
-        .compressed_mint_input
-        .spl_mint
-        .to_bytes()
-        .into();
-    let mint_authority_is_none = compressed_mint_inputs
-        .compressed_mint_input
-        .mint_authority
-        .is_none();
-    // Create UpdateCompressedMintInstructionData from the compressed mint inputs
-    let update_mint_data = UpdateCompressedMintInstructionData {
+    let mint_pda: Pubkey = compressed_mint_inputs.mint.spl_mint.to_bytes().into();
+    let mint_authority_is_none = compressed_mint_inputs.mint.mint_authority.is_none();
+    // Create CompressedMintWithContext from the compressed mint inputs
+    let update_mint_data = CompressedMintWithContext {
         leaf_index: compressed_mint_inputs.leaf_index.into(),
         prove_by_index: compressed_mint_inputs.prove_by_index,
         root_index: compressed_mint_inputs.root_index,
         address: compressed_mint_inputs.address,
-        proof: proof.into(),
-        mint: compressed_mint_inputs.compressed_mint_input.try_into()?,
+        mint: compressed_mint_inputs.mint,
     };
 
     // Create the create_spl_mint instruction data
@@ -87,6 +79,7 @@ pub fn create_spl_mint_instruction_with_bump(
         mint: update_mint_data,
         mint_authority_is_none,
         cpi_context,
+        proof: proof.into(),
     };
     if cpi_context {
         unimplemented!("create_spl_mint_instruction_with_bump with cpi_context")

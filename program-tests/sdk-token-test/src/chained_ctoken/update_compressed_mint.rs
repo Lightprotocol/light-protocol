@@ -6,11 +6,9 @@ use light_compressed_token_sdk::instructions::{
         create_update_compressed_mint_cpi_write, UpdateCompressedMintInputsCpiWrite,
     },
 };
-use light_ctoken_types::{
-    instructions::{
-        create_compressed_mint::UpdateCompressedMintInstructionData,
-        update_compressed_mint::{CompressedMintAuthorityType, UpdateMintCpiContext},
-    },
+use light_ctoken_types::instructions::{
+    create_compressed_mint::CompressedMintWithContext,
+    update_compressed_mint::{CompressedMintAuthorityType, UpdateMintCpiContext},
 };
 use light_sdk_types::CpiAccountsSmall;
 
@@ -24,11 +22,10 @@ pub struct UpdateCompressedMintInstructionDataCpi {
     pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
 }
 
-
 pub fn update_compressed_mint_cpi_write<'a, 'b, 'c, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
     input: UpdateCompressedMintInstructionDataCpi,
-    compressed_mint_inputs: UpdateCompressedMintInstructionData,
+    compressed_mint_inputs: CompressedMintWithContext,
     cpi_accounts: &CpiAccountsSmall<'a, AccountInfo<'info>>,
 ) -> Result<()> {
     let cpi_context_account_info = MintToCompressedCpiContextWriteAccounts {
@@ -61,8 +58,8 @@ pub fn update_compressed_mint_cpi_write<'a, 'b, 'c, 'info>(
     };
 
     // Create the instruction using the SDK
-    let update_instruction = create_update_compressed_mint_cpi_write(update_inputs)
-        .map_err(ProgramError::from)?;
+    let update_instruction =
+        create_update_compressed_mint_cpi_write(update_inputs).map_err(ProgramError::from)?;
 
     // Execute the CPI call to update compressed mint authority
     invoke(

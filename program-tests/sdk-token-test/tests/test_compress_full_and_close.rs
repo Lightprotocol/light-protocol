@@ -7,7 +7,9 @@ use light_compressed_token_sdk::instructions::{
     derive_ctoken_ata, CreateCompressedMintInputs, MintToCompressedInputs,
 };
 use light_ctoken_types::{
-    instructions::mint_to_compressed::{CompressedMintInputs, Recipient},
+    instructions::{
+        create_compressed_mint::CompressedMintWithContext, mint_to_compressed::Recipient,
+    },
     state::CompressedMint,
     COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID,
 };
@@ -122,16 +124,17 @@ async fn test_compress_full_and_close() {
     let state_tree_pubkey = state_tree_info.tree;
     let state_output_queue = state_tree_info.queue;
 
-    let compressed_mint_inputs = CompressedMintInputs {
+    let compressed_mint_inputs = CompressedMintWithContext {
         prove_by_index: true,
         leaf_index: compressed_mint_account.leaf_index,
         root_index: 0,
         address: compressed_mint_address,
-        compressed_mint_input: expected_compressed_mint,
+        mint: expected_compressed_mint.try_into().unwrap(),
     };
 
     let mint_instruction = create_mint_to_compressed_instruction(
         MintToCompressedInputs {
+            proof: None,
             compressed_mint_inputs,
             lamports: Some(10000u64),
             recipients: vec![Recipient {

@@ -8,7 +8,7 @@ use light_compressed_token_sdk::{
 };
 use light_ctoken_types::{
     instructions::{
-        mint_to_compressed::{CompressedMintInputs, Recipient},
+        create_compressed_mint::CompressedMintWithContext, mint_to_compressed::Recipient,
         transfer2::MultiInputTokenDataWithContext,
     },
     COMPRESSED_MINT_SEED,
@@ -241,13 +241,14 @@ async fn mint_compressed_tokens(
 
     let mint_to_instruction = create_mint_to_compressed_instruction(
         MintToCompressedInputs {
-            compressed_mint_inputs: CompressedMintInputs {
+            compressed_mint_inputs: CompressedMintWithContext {
                 prove_by_index: true,
                 leaf_index: compressed_mint_account.leaf_index,
                 root_index: 0,
                 address: compressed_mint_account.address.unwrap(),
-                compressed_mint_input: expected_compressed_mint,
+                mint: expected_compressed_mint.try_into().unwrap(),
             },
+            proof: None,
             recipients: vec![Recipient {
                 recipient: payer.pubkey().into(),
                 amount,
