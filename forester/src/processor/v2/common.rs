@@ -224,7 +224,7 @@ impl<R: Rpc> BatchProcessor<R> {
                     self.context.merkle_tree
                 );
                 let result = self
-                    .process_state_append_hybrid(merkle_tree_data, output_queue_data)
+                    .process_state_append(merkle_tree_data, output_queue_data)
                     .await;
                 if let Err(ref e) = result {
                     error!(
@@ -239,7 +239,7 @@ impl<R: Rpc> BatchProcessor<R> {
                     "Processing batch for nullify, tree: {}",
                     self.context.merkle_tree
                 );
-                let result = self.process_state_nullify_hybrid(merkle_tree_data).await;
+                let result = self.process_state_nullify(merkle_tree_data).await;
                 if let Err(ref e) = result {
                     error!(
                         "State nullify failed for tree {}: {:?}",
@@ -342,12 +342,9 @@ impl<R: Rpc> BatchProcessor<R> {
             };
         }
 
-        // For State tree type, balance appends and nullifies operations
-        // based on the queue states
         match (input_ready, output_ready) {
             (true, true) => {
                 if let (Some(mt_data), Some(oq_data)) = (merkle_tree_data, output_queue_data) {
-                    // Both queues are ready - process them in parallel!
                     debug!(
                         "Both input and output queues ready for tree {}",
                         self.context.merkle_tree
@@ -383,14 +380,14 @@ impl<R: Rpc> BatchProcessor<R> {
         }
     }
 
-    async fn process_state_nullify_hybrid(
+    async fn process_state_nullify(
         &self,
         merkle_tree_data: ParsedMerkleTreeData,
     ) -> Result<usize> {
         let zkp_batch_size = merkle_tree_data.zkp_batch_size as usize;
 
         let batch_hash = format!(
-            "state_nullify_hybrid_{}_{}",
+            "state_nullify_{}_{}",
             self.context.merkle_tree, self.context.epoch
         );
 
@@ -398,7 +395,7 @@ impl<R: Rpc> BatchProcessor<R> {
             let mut cache = self.context.ops_cache.lock().await;
             if cache.contains(&batch_hash) {
                 trace!(
-                    "Skipping already processed state nullify batch (hybrid): {}",
+                    "Skipping already processed state nullify batch: {}",
                     batch_hash
                 );
                 return Ok(0);
@@ -409,7 +406,7 @@ impl<R: Rpc> BatchProcessor<R> {
         state::perform_nullify(&self.context, merkle_tree_data).await?;
 
         trace!(
-            "State nullify operation (hybrid) completed for tree: {}",
+            "State nullify operation completed for tree: {}",
             self.context.merkle_tree
         );
         let mut cache = self.context.ops_cache.lock().await;
@@ -419,7 +416,7 @@ impl<R: Rpc> BatchProcessor<R> {
         Ok(zkp_batch_size)
     }
 
-    async fn process_state_append_hybrid(
+    async fn process_state_append(
         &self,
         merkle_tree_data: ParsedMerkleTreeData,
         output_queue_data: ParsedQueueData,
@@ -427,14 +424,14 @@ impl<R: Rpc> BatchProcessor<R> {
         let zkp_batch_size = output_queue_data.zkp_batch_size as usize;
 
         let batch_hash = format!(
-            "state_append_hybrid_{}_{}",
+            "state_append_{}_{}",
             self.context.merkle_tree, self.context.epoch
         );
         {
             let mut cache = self.context.ops_cache.lock().await;
             if cache.contains(&batch_hash) {
                 trace!(
-                    "Skipping already processed state append batch (hybrid): {}",
+                    "Skipping already processed state append batch: {}",
                     batch_hash
                 );
                 return Ok(0);
@@ -443,7 +440,7 @@ impl<R: Rpc> BatchProcessor<R> {
         }
         state::perform_append(&self.context, merkle_tree_data, output_queue_data).await?;
         trace!(
-            "State append operation (hybrid) completed for tree: {}",
+            "State append operation completed for tree: {}",
             self.context.merkle_tree
         );
 
@@ -451,6 +448,80 @@ impl<R: Rpc> BatchProcessor<R> {
         cache.cleanup_by_key(&batch_hash);
 
         Ok(zkp_batch_size)
+    }
+
+    /// Process operations in parallel using cache-updating streams
+    async fn process_parallel(
+        &self,
+        merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: ParsedQueueData,
+    ) -> Result<usize> {
+        info!("Processing state operations in parallel with cache updates");
+
+        // Update tree cache with initial state
+        update_tree_cache(&self.context, &merkle_tree_data).await?;
+
+        // Create futures for stream creation
+        let nullify_future = get_nullify_instruction_stream(
+            self.context.rpc_pool.clone(),
+            self.context.merkle_tree,
+            self.context.prover_url.clone(),
+            self.context.prover_polling_interval,
+            self.context.prover_max_wait_time,
+            merkle_tree_data.clone(),
+            1,
+        );
+
+        let append_future = get_append_instruction_stream(
+            self.context.rpc_pool.clone(),
+            self.context.merkle_tree,
+            self.context.prover_url.clone(),
+            self.context.prover_polling_interval,
+            self.context.prover_max_wait_time,
+            merkle_tree_data,
+            output_queue_data,
+            1,
+        );
+
+        // Process both streams in parallel
+        let (nullify_result, append_result) = tokio::join!(
+            process_stream(
+                &self.context,
+                nullify_future,
+                |data: &InstructionDataBatchNullifyInputs| {
+                    light_registry::account_compression_cpi::sdk::create_batch_nullify_instruction(
+                        self.context.authority.pubkey(),
+                        self.context.derivation,
+                        self.context.merkle_tree,
+                        self.context.epoch,
+                        data.try_to_vec().unwrap(),
+                    )
+                },
+                "state",
+                Some("nullify")
+            ),
+            process_stream(
+                &self.context,
+                append_future,
+                |data: &InstructionDataBatchAppendInputs| {
+                    light_registry::account_compression_cpi::sdk::create_batch_append_instruction(
+                        self.context.authority.pubkey(),
+                        self.context.derivation,
+                        self.context.merkle_tree,
+                        self.context.output_queue,
+                        self.context.epoch,
+                        data.try_to_vec().unwrap(),
+                    )
+                },
+                "state",
+                Some("append")
+            )
+        );
+
+        let nullify_count = nullify_result?;
+        let append_count = append_result?;
+
+        Ok(nullify_count + append_count)
     }
 
     /// Parse merkle tree account and check if batch is ready
@@ -551,80 +622,6 @@ impl<R: Rpc> BatchProcessor<R> {
         }
         let remaining = total - num_inserted_zkps;
         remaining as f64 / total as f64
-    }
-
-    /// Process operations in parallel using cache-updating streams
-    async fn process_parallel(
-        &self,
-        merkle_tree_data: ParsedMerkleTreeData,
-        output_queue_data: ParsedQueueData,
-    ) -> Result<usize> {
-        info!("Processing state operations in parallel with cache updates");
-        
-        // Update tree cache with initial state
-        update_tree_cache(&self.context, &merkle_tree_data).await?;
-        
-        // Create futures for stream creation
-        let nullify_future = get_nullify_instruction_stream(
-            self.context.rpc_pool.clone(),
-            self.context.merkle_tree,
-            self.context.prover_url.clone(),
-            self.context.prover_polling_interval,
-            self.context.prover_max_wait_time,
-            merkle_tree_data.clone(),
-            1, // yield_batch_size
-        );
-        
-        let append_future = get_append_instruction_stream(
-            self.context.rpc_pool.clone(),
-            self.context.merkle_tree,
-            self.context.prover_url.clone(),
-            self.context.prover_polling_interval,
-            self.context.prover_max_wait_time,
-            merkle_tree_data,
-            output_queue_data,
-            1, // yield_batch_size
-        );
-        
-        // Process both streams in parallel
-        let (nullify_result, append_result) = tokio::join!(
-            process_stream(
-                &self.context,
-                nullify_future,
-                |data: &InstructionDataBatchNullifyInputs| {
-                    light_registry::account_compression_cpi::sdk::create_batch_nullify_instruction(
-                        self.context.authority.pubkey(),
-                        self.context.derivation,
-                        self.context.merkle_tree,
-                        self.context.epoch,
-                        data.try_to_vec().unwrap(),
-                    )
-                },
-                "state",
-                Some("nullify")
-            ),
-            process_stream(
-                &self.context,
-                append_future,
-                |data: &InstructionDataBatchAppendInputs| {
-                    light_registry::account_compression_cpi::sdk::create_batch_append_instruction(
-                        self.context.authority.pubkey(),
-                        self.context.derivation,
-                        self.context.merkle_tree,
-                        self.context.output_queue,
-                        self.context.epoch,
-                        data.try_to_vec().unwrap(),
-                    )
-                },
-                "state",
-                Some("append")
-            )
-        );
-        
-        let nullify_count = nullify_result?;
-        let append_count = append_result?;
-        
-        Ok(nullify_count + append_count)
     }
 }
 

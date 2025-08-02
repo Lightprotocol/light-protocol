@@ -109,7 +109,6 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
 
         trace!("Starting nullify stream - total_elements: {}, offset: {}", total_elements, offset);
         
-        // Get tree snapshot from cache or create from on-chain data
         let tree_snapshot = match tree_cache.get(&merkle_tree_pubkey).await {
             Some(snapshot) if snapshot.root == current_root => {
                 info!("Using cached tree snapshot for nullify");
@@ -117,7 +116,6 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
             }
             _ => {
                 info!("Tree cache miss or stale, fetching subtrees from indexer");
-                // Fetch subtrees from indexer
                 let mut rpc = match rpc_pool.get_connection().await {
                     Ok(rpc) => rpc,
                     Err(e) => {
@@ -166,8 +164,7 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
             }
         };
         
-        // Create local tree from snapshot to track changes
-        let mut local_tree = match tree_snapshot.to_tree::<Poseidon, { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>() {
+        let local_tree = match tree_snapshot.to_tree::<Poseidon, { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>() {
             Ok(tree) => tree,
             Err(e) => {
                 yield Err(anyhow!("Failed to create tree from snapshot: {}", e));
@@ -288,14 +285,10 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
                     Some(Ok(proof_data)) => {
                         pending_count -= 1;
                         current_root = proof_data.new_root;
-                        
-                        // Update local tree to reflect the nullification
-                        // Note: For nullify, the tree structure doesn't change, only the root
-                        
+
                         proof_buffer.push(proof_data);
                         
                         if proof_buffer.len() >= yield_batch_size || (batch_offset == num_batches_to_process - 1 && pending_count == 0) {
-                            // Update tree cache with new state after processing batch
                             if let Err(e) = tree_cache.update_from_data(
                                 merkle_tree_pubkey,
                                 local_tree.get_subtrees().to_vec(),
@@ -370,7 +363,6 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
 
         trace!("Starting append stream - total_elements: {}, offset: {}", total_elements, offset);
         
-        // Get tree snapshot from cache or create from on-chain data
         let tree_snapshot = match tree_cache.get(&merkle_tree_pubkey).await {
             Some(snapshot) if snapshot.root == current_root && snapshot.next_index == current_next_index as usize => {
                 info!("Using cached tree snapshot for append");
@@ -405,7 +397,6 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                 
                 let subtrees = subtrees_response.value.items;
                 
-                // Update cache with fresh data
                 if let Err(e) = tree_cache.update_from_data(
                     merkle_tree_pubkey,
                     subtrees.clone(),
@@ -427,7 +418,6 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             }
         };
         
-        // Create local tree from snapshot to track changes
         let mut local_tree = match tree_snapshot.to_tree::<Poseidon, { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>() {
             Ok(tree) => tree,
             Err(e) => {
@@ -514,7 +504,6 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
 
             all_changelogs.extend(batch_changelogs);
             
-            // Update local tree with the new leaves
             for leaf in &leaves {
                 local_tree.append(*leaf);
             }
@@ -530,14 +519,11 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                         pending_count -= 1;
                         current_root = proof_data.new_root;
                         
-                        // Local tree is updated as we process batches
-                        // The tree structure changes are tracked in the tree cache
                         current_next_index += zkp_batch_size as u32;
                         
                         proof_buffer.push(proof_data);
                         
                         if proof_buffer.len() >= yield_batch_size || (batch_idx == num_batches_to_process - 1 && pending_count == 0) {
-                            // Update tree cache with new state after processing batch
                             if let Err(e) = tree_cache.update_from_data(
                                 merkle_tree_pubkey,
                                 local_tree.get_subtrees().to_vec(),
