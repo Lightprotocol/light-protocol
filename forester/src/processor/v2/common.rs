@@ -403,7 +403,7 @@ impl<R: Rpc> BatchProcessor<R> {
             cache.add(&batch_hash);
         }
 
-        // Ensure changelog cache exists (but don't clear it)
+
         let _ = changelog_cache::get_changelog_cache().await;
 
         // Create nullify stream
@@ -464,7 +464,7 @@ impl<R: Rpc> BatchProcessor<R> {
             cache.add(&batch_hash);
         }
 
-        // Ensure changelog cache exists (but don't clear it)
+
         let _ = changelog_cache::get_changelog_cache().await;
 
         // Create append stream
@@ -511,7 +511,7 @@ impl<R: Rpc> BatchProcessor<R> {
     ) -> Result<usize> {
         info!("Processing state operations in parallel with changelog cache");
 
-        // Ensure changelog cache exists (but don't clear it)
+
         let _ = changelog_cache::get_changelog_cache().await;
 
         // Create futures for stream creation
