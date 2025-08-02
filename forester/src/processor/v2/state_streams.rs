@@ -11,7 +11,6 @@ use light_batched_merkle_tree::{
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_hasher::Poseidon;
 use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
     proof_client::ProofClient,
@@ -24,7 +23,7 @@ use light_sparse_merkle_tree::changelog::ChangelogEntry;
 use solana_sdk::pubkey::Pubkey;
 use tracing::{debug, trace, info};
 
-use super::tree_cache;
+use super::changelog_cache;
 use forester_utils::{
     error::ForesterUtilsError, 
     rpc_pool::SolanaRpcPool, 
@@ -100,83 +99,25 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
     }
 
     let num_batches_to_process = leaves_hash_chains.len();
-    let tree_cache = tree_cache::get_tree_cache().await;
+    let changelog_cache = changelog_cache::get_changelog_cache().await;
     
     let stream = stream! {
         let total_elements = zkp_batch_size as usize * num_batches_to_process;
-        let mut current_root = merkle_tree_data.current_root;
+        let current_root = merkle_tree_data.current_root;
         let offset = merkle_tree_data.num_inserted_zkps * zkp_batch_size as u64;
 
         trace!("Starting nullify stream - total_elements: {}, offset: {}", total_elements, offset);
         
-        let tree_snapshot = match tree_cache.get(&merkle_tree_pubkey).await {
-            Some(snapshot) if snapshot.root == current_root => {
-                info!("Using cached tree snapshot for nullify");
-                snapshot
-            }
-            _ => {
-                info!("Tree cache miss or stale, fetching subtrees from indexer");
-                let mut rpc = match rpc_pool.get_connection().await {
-                    Ok(rpc) => rpc,
-                    Err(e) => {
-                        yield Err(anyhow!("RPC error: {}", e));
-                        return;
-                    }
-                };
-                
-                let indexer = match rpc.indexer_mut() {
-                    Ok(indexer) => indexer,
-                    Err(e) => {
-                        yield Err(anyhow!("Indexer error: {}", e));
-                        return;
-                    }
-                };
-                
-                let subtrees_response = match indexer.get_subtrees(merkle_tree_pubkey.to_bytes(), None).await {
-                    Ok(res) => res,
-                    Err(e) => {
-                        yield Err(anyhow!("Failed to get subtrees: {}", e));
-                        return;
-                    }
-                };
-                
-                let subtrees = subtrees_response.value.items;
-                
-                // Update cache with fresh data
-                if let Err(e) = tree_cache.update_from_data(
-                    merkle_tree_pubkey,
-                    subtrees.clone(),
-                    merkle_tree_data.next_index as usize,
-                    current_root,
-                    DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
-                ).await {
-                    yield Err(anyhow!("Failed to update tree cache: {}", e));
-                    return;
-                }
-                
-                match tree_cache.get(&merkle_tree_pubkey).await {
-                    Some(snapshot) => snapshot,
-                    None => {
-                        yield Err(anyhow!("Failed to get tree snapshot after update"));
-                        return;
-                    }
-                }
-            }
-        };
-        
-        let local_tree = match tree_snapshot.to_tree::<Poseidon, { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>() {
-            Ok(tree) => tree,
-            Err(e) => {
-                yield Err(anyhow!("Failed to create tree from snapshot: {}", e));
-                return;
-            }
-        };
+        // Get accumulated changelogs from cache
+        let previous_changelogs = changelog_cache.get_changelogs(&merkle_tree_pubkey).await;
+        info!("Using {} previous changelogs for nullify", previous_changelogs.len());
 
+        // Fetch queue elements with merkle proofs
         let all_queue_elements = {
             let mut connection = match rpc_pool.get_connection().await {
                 Ok(conn) => conn,
                 Err(e) => {
-                    yield Err(anyhow::Error::from(ForesterUtilsError::Indexer(format!("RPC error: {}", e))));
+                    yield Err(anyhow!("RPC error: {}", e));
                     return;
                 }
             };
@@ -220,11 +161,10 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
             }
         }
 
-        let mut all_changelogs = Vec::new();
+        let mut all_changelogs: Vec<ChangelogEntry<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>> = previous_changelogs.clone();
         let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time));
         let mut futures_ordered = FuturesOrdered::new();
         let mut pending_count = 0;
-
         let mut proof_buffer = Vec::new();
 
         for (batch_offset, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
@@ -253,6 +193,7 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
                 );
             }
 
+            // Pass previous changelogs to get_batch_update_inputs
             let (circuit_inputs, batch_changelog) = match get_batch_update_inputs::<
                 { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
             >(
@@ -264,7 +205,7 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
                 merkle_proofs,
                 path_indices.clone(),
                 zkp_batch_size as u32,
-                &all_changelogs,
+                &previous_changelogs,  // Use cached changelogs
             ) {
                 Ok(inputs) => inputs,
                 Err(e) => {
@@ -284,22 +225,9 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
                 match futures_ordered.next().await {
                     Some(Ok(proof_data)) => {
                         pending_count -= 1;
-                        current_root = proof_data.new_root;
-
                         proof_buffer.push(proof_data);
                         
                         if proof_buffer.len() >= yield_batch_size || (batch_offset == num_batches_to_process - 1 && pending_count == 0) {
-                            if let Err(e) = tree_cache.update_from_data(
-                                merkle_tree_pubkey,
-                                local_tree.get_subtrees().to_vec(),
-                                local_tree.get_next_index(),
-                                current_root,
-                                DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
-                            ).await {
-                                yield Err(anyhow!("Failed to update tree cache: {}", e));
-                                return;
-                            }
-                            
                             yield Ok(proof_buffer.clone());
                             proof_buffer.clear();
                         }
@@ -311,6 +239,16 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
                     None => break,
                 }
             }
+        }
+
+        // Store only new changelogs in cache (skip the ones we started with)
+        let new_changelogs = all_changelogs.into_iter().skip(previous_changelogs.len()).collect::<Vec<_>>();
+        if !new_changelogs.is_empty() {
+            if let Err(e) = changelog_cache.append_changelogs(merkle_tree_pubkey, new_changelogs.clone()).await {
+                yield Err(anyhow!("Failed to update changelog cache: {}", e));
+                return;
+            }
+            info!("Stored {} new changelogs for nullify", new_changelogs.len());
         }
 
         if !proof_buffer.is_empty() {
@@ -353,84 +291,24 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
     }
 
     let num_batches_to_process = leaves_hash_chains.len();
-    let tree_cache = tree_cache::get_tree_cache().await;
+    let changelog_cache = changelog_cache::get_changelog_cache().await;
     
     let stream = stream! {
         let total_elements = zkp_batch_size as usize * num_batches_to_process;
-        let mut current_root = merkle_tree_data.current_root;
+        let current_root = merkle_tree_data.current_root;
         let offset = merkle_tree_data.next_index;
-        let mut current_next_index = merkle_tree_data.next_index as u32;
 
         trace!("Starting append stream - total_elements: {}, offset: {}", total_elements, offset);
         
-        let tree_snapshot = match tree_cache.get(&merkle_tree_pubkey).await {
-            Some(snapshot) if snapshot.root == current_root && snapshot.next_index == current_next_index as usize => {
-                info!("Using cached tree snapshot for append");
-                snapshot
-            }
-            _ => {
-                info!("Tree cache miss or stale, fetching subtrees from indexer");
-                // Fetch subtrees from indexer
-                let mut rpc = match rpc_pool.get_connection().await {
-                    Ok(rpc) => rpc,
-                    Err(e) => {
-                        yield Err(anyhow!("RPC error: {}", e));
-                        return;
-                    }
-                };
-                
-                let indexer = match rpc.indexer_mut() {
-                    Ok(indexer) => indexer,
-                    Err(e) => {
-                        yield Err(anyhow!("Indexer error: {}", e));
-                        return;
-                    }
-                };
-                
-                let subtrees_response = match indexer.get_subtrees(merkle_tree_pubkey.to_bytes(), None).await {
-                    Ok(res) => res,
-                    Err(e) => {
-                        yield Err(anyhow!("Failed to get subtrees: {}", e));
-                        return;
-                    }
-                };
-                
-                let subtrees = subtrees_response.value.items;
-                
-                if let Err(e) = tree_cache.update_from_data(
-                    merkle_tree_pubkey,
-                    subtrees.clone(),
-                    current_next_index as usize,
-                    current_root,
-                    DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
-                ).await {
-                    yield Err(anyhow!("Failed to update tree cache: {}", e));
-                    return;
-                }
-                
-                match tree_cache.get(&merkle_tree_pubkey).await {
-                    Some(snapshot) => snapshot,
-                    None => {
-                        yield Err(anyhow!("Failed to get tree snapshot after update"));
-                        return;
-                    }
-                }
-            }
-        };
-        
-        let mut local_tree = match tree_snapshot.to_tree::<Poseidon, { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>() {
-            Ok(tree) => tree,
-            Err(e) => {
-                yield Err(anyhow!("Failed to create tree from snapshot: {}", e));
-                return;
-            }
-        };
+        // Get accumulated changelogs from cache
+        let previous_changelogs = changelog_cache.get_changelogs(&merkle_tree_pubkey).await;
+        info!("Using {} previous changelogs for append", previous_changelogs.len());
 
         let queue_elements = {
             let mut connection = match rpc_pool.get_connection().await {
                 Ok(conn) => conn,
                 Err(e) => {
-                    yield Err(anyhow::Error::from(ForesterUtilsError::Indexer(format!("RPC error: {}", e))));
+                    yield Err(anyhow!("RPC error: {}", e));
                     return;
                 }
             };
@@ -467,7 +345,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             return;
         }
 
-        let mut all_changelogs: Vec<ChangelogEntry<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>> = Vec::new();
+        let mut all_changelogs: Vec<ChangelogEntry<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>> = previous_changelogs.clone();
         let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time));
         let mut futures_ordered = FuturesOrdered::new();
         let mut pending_count = 0;
@@ -483,6 +361,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             let merkle_proofs: Vec<Vec<[u8; 32]>> = batch_elements.iter().map(|x| x.proof.clone()).collect();
             let adjusted_start_index = offset as u32 + (batch_idx * zkp_batch_size as usize) as u32;
 
+            // Pass previous changelogs to get_batch_append_inputs
             let (circuit_inputs, batch_changelogs) = match get_batch_append_inputs::<
                 { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
             >(
@@ -493,7 +372,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                 old_leaves,
                 merkle_proofs,
                 zkp_batch_size as u32,
-                &all_changelogs,
+                &previous_changelogs,  // Use cached changelogs
             ) {
                 Ok(inputs) => inputs,
                 Err(e) => {
@@ -503,10 +382,6 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             };
 
             all_changelogs.extend(batch_changelogs);
-            
-            for leaf in &leaves {
-                local_tree.append(*leaf);
-            }
 
             let proof_client = proof_client.clone();
             let future = Box::pin(generate_append_zkp_proof(circuit_inputs, proof_client));
@@ -517,24 +392,9 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                 match futures_ordered.next().await {
                     Some(Ok(proof_data)) => {
                         pending_count -= 1;
-                        current_root = proof_data.new_root;
-                        
-                        current_next_index += zkp_batch_size as u32;
-                        
                         proof_buffer.push(proof_data);
                         
                         if proof_buffer.len() >= yield_batch_size || (batch_idx == num_batches_to_process - 1 && pending_count == 0) {
-                            if let Err(e) = tree_cache.update_from_data(
-                                merkle_tree_pubkey,
-                                local_tree.get_subtrees().to_vec(),
-                                local_tree.get_next_index(),
-                                current_root,
-                                DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
-                            ).await {
-                                yield Err(anyhow!("Failed to update tree cache: {}", e));
-                                return;
-                            }
-                            
                             yield Ok(proof_buffer.clone());
                             proof_buffer.clear();
                         }
@@ -546,6 +406,16 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                     None => break,
                 }
             }
+        }
+
+        // Store only new changelogs in cache (skip the ones we started with)
+        let new_changelogs = all_changelogs.into_iter().skip(previous_changelogs.len()).collect::<Vec<_>>();
+        if !new_changelogs.is_empty() {
+            if let Err(e) = changelog_cache.append_changelogs(merkle_tree_pubkey, new_changelogs.clone()).await {
+                yield Err(anyhow!("Failed to update changelog cache: {}", e));
+                return;
+            }
+            info!("Stored {} new changelogs for append", new_changelogs.len());
         }
 
         if !proof_buffer.is_empty() {

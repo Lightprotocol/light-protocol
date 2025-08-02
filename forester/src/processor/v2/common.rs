@@ -9,14 +9,14 @@ use light_batched_merkle_tree::{
     merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs},
     queue::BatchedQueueAccount,
 };
-use light_client::{rpc::Rpc, indexer::Indexer};
+use light_client::rpc::Rpc;
 use light_compressed_account::TreeType;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use super::{
-    address, state, tree_cache,
+    address, state, changelog_cache,
     state_streams::{get_nullify_instruction_stream, get_append_instruction_stream}
 };
 use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, Result};
@@ -456,10 +456,10 @@ impl<R: Rpc> BatchProcessor<R> {
         merkle_tree_data: ParsedMerkleTreeData,
         output_queue_data: ParsedQueueData,
     ) -> Result<usize> {
-        info!("Processing state operations in parallel with cache updates");
+        info!("Processing state operations in parallel with changelog cache");
 
-        // Update tree cache with initial state
-        update_tree_cache(&self.context, &merkle_tree_data).await?;
+        // Initialize changelog cache for this tree
+        initialize_changelog_cache(&self.context, &merkle_tree_data).await?;
 
         // Create futures for stream creation
         let nullify_future = get_nullify_instruction_stream(
@@ -611,39 +611,18 @@ impl<R: Rpc> BatchProcessor<R> {
         Ok((parsed_data, is_ready))
     }
 
-    /// Calculate completion percentage from parsed data
-    fn calculate_completion_from_parsed(
-        num_inserted_zkps: u64,
-        current_zkp_batch_index: u64,
-    ) -> f64 {
-        let total = current_zkp_batch_index;
-        if total == 0 {
-            return 0.0;
-        }
-        let remaining = total - num_inserted_zkps;
-        remaining as f64 / total as f64
-    }
 }
 
-/// Update tree cache with current on-chain state
-async fn update_tree_cache<R: Rpc>(
+/// Initialize changelog cache for a tree
+async fn initialize_changelog_cache<R: Rpc>(
     context: &BatchContext<R>,
-    tree_data: &ParsedMerkleTreeData,
+    _tree_data: &ParsedMerkleTreeData,
 ) -> Result<()> {
-    // Fetch subtrees from indexer
-    let mut rpc = context.rpc_pool.get_connection().await?;
-    let indexer = rpc.indexer_mut()?;
-    let subtrees_response = indexer.get_subtrees(context.merkle_tree.to_bytes(), None).await?;
-    let subtrees = subtrees_response.value.items;
+    let cache = changelog_cache::get_changelog_cache().await;
     
-    let cache = tree_cache::get_tree_cache().await;
-    cache.update_from_data(
-        context.merkle_tree,
-        subtrees,
-        tree_data.next_index as usize,
-        tree_data.current_root,
-        32, // HEIGHT for state trees
-    ).await?;
+    // Clear any existing changelogs for this tree to start fresh
+    cache.invalidate(&context.merkle_tree).await;
     
+    info!("Initialized changelog cache for tree {:?}", context.merkle_tree);
     Ok(())
 }
