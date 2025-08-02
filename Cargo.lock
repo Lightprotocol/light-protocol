@@ -2129,6 +2129,7 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
  "light-merkle-tree-metadata",
