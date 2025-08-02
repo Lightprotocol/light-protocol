@@ -1,6 +1,7 @@
 package merkle_tree
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -102,7 +103,7 @@ func (imt *IndexedMerkleTree) Append(value *big.Int) error {
 	lowElement := imt.IndexArray.Get(lowElementIndex)
 
 	if value.Cmp(lowElement.NextValue) >= 0 {
-		return fmt.Errorf("new value must be less than next element value")
+		return errors.New("new value must be less than next element value")
 	}
 
 	newElementIndex := uint32(len(imt.IndexArray.Elements))
