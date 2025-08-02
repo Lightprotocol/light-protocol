@@ -1,6 +1,5 @@
 mod address;
 mod common;
-mod state;
 mod state_streams;
 mod changelog_cache;
 
