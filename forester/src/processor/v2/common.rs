@@ -403,8 +403,8 @@ impl<R: Rpc> BatchProcessor<R> {
             cache.add(&batch_hash);
         }
 
-        // Initialize changelog cache for this tree
-        initialize_changelog_cache(&self.context, &merkle_tree_data).await?;
+        // Ensure changelog cache exists (but don't clear it)
+        let _ = changelog_cache::get_changelog_cache().await;
 
         // Create nullify stream
         let nullify_future = get_nullify_instruction_stream(
@@ -464,8 +464,8 @@ impl<R: Rpc> BatchProcessor<R> {
             cache.add(&batch_hash);
         }
 
-        // Initialize changelog cache for this tree
-        initialize_changelog_cache(&self.context, &merkle_tree_data).await?;
+        // Ensure changelog cache exists (but don't clear it)
+        let _ = changelog_cache::get_changelog_cache().await;
 
         // Create append stream
         let append_future = get_append_instruction_stream(
@@ -511,8 +511,8 @@ impl<R: Rpc> BatchProcessor<R> {
     ) -> Result<usize> {
         info!("Processing state operations in parallel with changelog cache");
 
-        // Initialize changelog cache for this tree
-        initialize_changelog_cache(&self.context, &merkle_tree_data).await?;
+        // Ensure changelog cache exists (but don't clear it)
+        let _ = changelog_cache::get_changelog_cache().await;
 
         // Create futures for stream creation
         let nullify_future = get_nullify_instruction_stream(
@@ -666,16 +666,3 @@ impl<R: Rpc> BatchProcessor<R> {
 
 }
 
-/// Initialize changelog cache for a tree
-async fn initialize_changelog_cache<R: Rpc>(
-    context: &BatchContext<R>,
-    _tree_data: &ParsedMerkleTreeData,
-) -> Result<()> {
-    let cache = changelog_cache::get_changelog_cache().await;
-    
-    // Clear any existing changelogs for this tree to start fresh
-    cache.invalidate(&context.merkle_tree).await;
-    
-    info!("Initialized changelog cache for tree {:?}", context.merkle_tree);
-    Ok(())
-}
