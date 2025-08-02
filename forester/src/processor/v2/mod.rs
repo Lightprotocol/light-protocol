@@ -1,6 +1,7 @@
 mod address;
 mod common;
-mod state;
+mod state_streams;
+mod changelog_cache;
 
 use common::BatchProcessor;
 use light_client::rpc::Rpc;
