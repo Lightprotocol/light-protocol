@@ -13,6 +13,15 @@ pub async fn get_changelog_cache() -> &'static ChangelogCache {
     CHANGELOG_CACHE.get_or_init(|| async { ChangelogCache::new() }).await
 }
 
+/// Thread-safe cache for merkle tree changelogs.
+/// 
+/// This cache is designed to work across multiple concurrent operations:
+/// - Multiple threads can read changelogs simultaneously (RwLock allows multiple readers)
+/// - Writes are serialized but append-only (no data loss)
+/// - Each tree has its own changelog list that accumulates over time
+/// 
+/// IMPORTANT: This cache is never cleared during normal operations to prevent
+/// race conditions between concurrent nullify and append operations.
 pub struct ChangelogCache {
     changelogs: Arc<RwLock<HashMap<Pubkey, Vec<ChangelogEntry<32>>>>>,
 }
@@ -44,9 +53,5 @@ impl ChangelogCache {
         Ok(())
     }
     
-    pub async fn invalidate(&self, merkle_tree: &Pubkey) {
-        self.changelogs.write().await.remove(merkle_tree);
-        debug!("Invalidated cache for {:?}", merkle_tree);
-    }
     
 }
