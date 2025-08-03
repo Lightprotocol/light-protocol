@@ -1,6 +1,7 @@
 extern crate proc_macro;
 use accounts::{process_light_accounts, process_light_system_accounts};
-use hasher::derive_light_hasher;
+use discriminator::{discriminator, discriminator_sha};
+use hasher::{derive_light_hasher, derive_light_hasher_sha};
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemMod, ItemStruct};
 use traits::process_light_traits;
@@ -135,7 +136,35 @@ pub fn light_traits_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LightDiscriminator)]
 pub fn light_discriminator(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    discriminator::discriminator(input)
+    discriminator(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// SHA256 variant of the LightDiscriminator derive macro.
+///
+/// This derive macro provides the same discriminator functionality as LightDiscriminator
+/// but is designed to be used with SHA256-based hashing for consistency.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::sha::{LightHasher, LightDiscriminator};
+///
+/// #[derive(LightHasher, LightDiscriminator)]
+/// pub struct LargeGameState {
+///     pub field1: u64, pub field2: u64, pub field3: u64, pub field4: u64,
+///     pub field5: u64, pub field6: u64, pub field7: u64, pub field8: u64,
+///     pub field9: u64, pub field10: u64, pub field11: u64, pub field12: u64,
+///     pub field13: u64, pub field14: u64, pub field15: u64,
+///     pub owner: Pubkey,
+///     pub authority: Pubkey,
+/// }
+/// ```
+#[proc_macro_derive(LightDiscriminatorSha)]
+pub fn light_discriminator_sha(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    discriminator_sha(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -252,6 +281,32 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     derive_light_hasher(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// SHA256 variant of the LightHasher derive macro.
+///
+/// This derive macro automatically implements the `DataHasher` and `ToByteArray` traits
+/// for structs, using SHA256 as the hashing algorithm instead of Poseidon.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::sha::LightHasher;
+///
+/// #[derive(LightHasher)]
+/// pub struct GameState {
+///     #[hash]
+///     pub player: Pubkey,  // Will be hashed to 31 bytes
+///     pub level: u32,
+/// }
+/// ```
+#[proc_macro_derive(LightHasherSha, attributes(hash, skip))]
+pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    derive_light_hasher_sha(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

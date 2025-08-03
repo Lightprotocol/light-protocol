@@ -4,4 +4,4 @@ mod input_validator;
 mod light_hasher;
 mod to_byte_array;
 
-pub(crate) use light_hasher::derive_light_hasher;
+pub(crate) use light_hasher::{derive_light_hasher, derive_light_hasher_sha};
