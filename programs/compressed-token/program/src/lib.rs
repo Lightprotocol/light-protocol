@@ -15,6 +15,7 @@ pub mod mint;
 pub mod mint_to_compressed;
 pub mod shared;
 pub mod transfer2;
+// pub mod update_metadata;
 pub mod update_mint;
 
 // Reexport the wrapped anchor program.

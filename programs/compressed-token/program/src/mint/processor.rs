@@ -35,7 +35,7 @@ pub fn process_create_compressed_mint(
     let (parsed_instruction_data, _) =
         CreateCompressedMintInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
-    msg!("parsed_instruction_data {:?}", parsed_instruction_data);
+
     sol_log_compute_units();
     // TODO: refactor cpi hash_cache struct we don't need the index in the struct.
     let with_cpi_context = parsed_instruction_data.cpi_context.is_some();

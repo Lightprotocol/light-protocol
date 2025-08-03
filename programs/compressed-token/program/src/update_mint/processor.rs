@@ -208,7 +208,6 @@ pub fn process_update_compressed_mint(
             &mut hash_cache,
         )?;
     }
-    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
     if let Some(system_accounts) = validated_accounts.executing {
         // Extract tree accounts for the generalized CPI call
         let tree_accounts = [

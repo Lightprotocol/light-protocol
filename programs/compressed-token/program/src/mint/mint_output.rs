@@ -9,7 +9,6 @@ use light_ctoken_types::{
     },
     state::{CompressedMint, CompressedMintConfig},
 };
-use light_hasher::Poseidon;
 use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
 
@@ -100,10 +99,11 @@ pub fn create_output_compressed_mint_account(
             )?;
             let hashed_spl_mint = hash_cache.get_or_hash_mint(&mint_pda.into())?;
 
-            Some(create_extension_hash_chain::<Poseidon>(
+            Some(create_extension_hash_chain(
                 extensions,
                 &hashed_spl_mint,
                 hash_cache,
+                version,
             )?)
         } else {
             None

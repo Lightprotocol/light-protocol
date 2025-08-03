@@ -1,5 +1,5 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
-use light_hasher::{errors::HasherError, Hasher, Poseidon};
+use light_hasher::{errors::HasherError, Hasher, Poseidon, Sha256};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::{little_endian::U64, IntoBytes};
 
@@ -60,7 +60,7 @@ impl CompressedMint {
             None
         };
 
-        let mint_hash = Self::hash_with_hashed_values(
+        let mint_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
             &supply_bytes,
             self.decimals,
@@ -73,21 +73,71 @@ impl CompressedMint {
         if let Some(extensions) = self.extensions.as_ref() {
             let mut extension_hashchain = [0u8; 32];
             for extension in extensions {
-                extension_hashchain = Poseidon::hashv(&[
-                    extension_hashchain.as_slice(),
-                    extension.hash::<Poseidon>()?.as_slice(),
-                ])?;
+                if self.version == 0 {
+                    extension_hashchain = Poseidon::hashv(&[
+                        extension_hashchain.as_slice(),
+                        extension.hash::<Poseidon>()?.as_slice(),
+                    ])?;
+                } else if self.version == 1 {
+                    extension_hashchain = Sha256::hashv(&[
+                        extension_hashchain.as_slice(),
+                        extension.hash::<Sha256>()?.as_slice(),
+                    ])?;
+                } else {
+                    return Err(CTokenError::InvalidTokenDataVersion);
+                }
             }
-            Ok(Poseidon::hashv(&[
-                mint_hash.as_slice(),
-                extension_hashchain.as_slice(),
-            ])?)
+            if self.version == 0 {
+                Ok(Poseidon::hashv(&[
+                    mint_hash.as_slice(),
+                    extension_hashchain.as_slice(),
+                ])?)
+            } else if self.version == 1 {
+                Ok(Sha256::hashv(&[
+                    mint_hash.as_slice(),
+                    extension_hashchain.as_slice(),
+                ])?)
+            } else {
+                return Err(CTokenError::InvalidTokenDataVersion);
+            }
         } else {
             Ok(mint_hash)
         }
     }
-
     pub fn hash_with_hashed_values(
+        hashed_spl_mint: &[u8; 32],
+        supply_bytes: &[u8; 32],
+        decimals: u8,
+        is_decompressed: bool,
+        hashed_mint_authority: &Option<&[u8; 32]>,
+        hashed_freeze_authority: &Option<&[u8; 32]>,
+        version: u8,
+    ) -> std::result::Result<[u8; 32], CTokenError> {
+        if version == 0 {
+            Ok(CompressedMint::hash_with_hashed_values_inner::<Poseidon>(
+                &hashed_spl_mint,
+                &supply_bytes,
+                decimals,
+                is_decompressed,
+                &hashed_mint_authority,
+                &hashed_freeze_authority,
+                version,
+            )?)
+        } else if version == 1 {
+            Ok(CompressedMint::hash_with_hashed_values_inner::<Sha256>(
+                &hashed_spl_mint,
+                &supply_bytes,
+                decimals,
+                is_decompressed,
+                &hashed_mint_authority,
+                &hashed_freeze_authority,
+                version,
+            )?)
+        } else {
+            Err(CTokenError::InvalidTokenDataVersion)
+        }
+    }
+    fn hash_with_hashed_values_inner<H: Hasher>(
         hashed_spl_mint: &[u8; 32],
         supply_bytes: &[u8; 32],
         decimals: u8,
@@ -137,7 +187,7 @@ impl CompressedMint {
             hash_inputs.push(&num_extensions_bytes[..]);
         }
 
-        let hash = Poseidon::hashv(hash_inputs.as_slice())?;
+        let hash = H::hashv(hash_inputs.as_slice())?;
 
         Ok(hash)
     }
@@ -164,8 +214,8 @@ impl ZCompressedMintMut<'_> {
         let hashed_mint_authority_option = if let Some(mint_authority) =
             self.mint_authority.as_ref()
         {
+            // TODO: skip if sha is selected
             hashed_mint_authority = hash_cache.get_or_hash_pubkey(&(*mint_authority).to_bytes());
-            // hash_to_bn254_field_size_be(mint_authority.to_bytes().as_slice());
             Some(&hashed_mint_authority)
         } else {
             None
@@ -174,15 +224,16 @@ impl ZCompressedMintMut<'_> {
         let hashed_freeze_authority;
         let hashed_freeze_authority_option =
             if let Some(freeze_authority) = self.freeze_authority.as_ref() {
+                // TODO: skip if sha is selected
                 hashed_freeze_authority =
                     hash_cache.get_or_hash_pubkey(&(*freeze_authority).to_bytes());
-                // hash_to_bn254_field_size_be(freeze_authority.to_bytes().as_slice());
+
                 Some(&hashed_freeze_authority)
             } else {
                 None
             };
 
-        let mint_hash = CompressedMint::hash_with_hashed_values(
+        let mut mint_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
             &supply_bytes,
             self.decimals,
@@ -191,13 +242,31 @@ impl ZCompressedMintMut<'_> {
             &hashed_freeze_authority_option,
             self.version,
         )?;
+
         if let Some(extension_hashchain) = extension_hashchain {
-            Ok(Poseidon::hashv(&[
-                mint_hash.as_slice(),
-                extension_hashchain.as_slice(),
-            ])?)
+            if self.version == 0 {
+                Ok(Poseidon::hashv(&[
+                    mint_hash.as_slice(),
+                    extension_hashchain.as_slice(),
+                ])?)
+            } else if self.version == 1 {
+                let mut hash =
+                    Sha256::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])?;
+                hash[0] = 0;
+                Ok(hash)
+            } else {
+                Err(CTokenError::InvalidTokenDataVersion)
+            }
         } else {
-            Ok(mint_hash)
+            if self.version == 0 {
+                Ok(mint_hash)
+            } else if self.version == 1 {
+                // Truncate hash to 248 bits
+                mint_hash[0] = 0;
+                Ok(mint_hash)
+            } else {
+                Err(CTokenError::InvalidTokenDataVersion)
+            }
         }
     }
 }
@@ -236,7 +305,7 @@ impl ZCompressedMintMut<'_> {
         if self.freeze_authority.is_some() && freeze_authority.is_none() {
             return Err(CTokenError::ZeroCopyExpectedFreezeAuthority);
         }
-        // extensions are handled separately as they require special processing
+        // extensions are handled separately
         Ok(())
     }
 }

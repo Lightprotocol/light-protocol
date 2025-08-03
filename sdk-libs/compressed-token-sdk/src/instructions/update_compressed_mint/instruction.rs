@@ -45,7 +45,6 @@ pub fn update_compressed_mint_cpi(
         compressed_mint_inputs: input.compressed_mint_inputs,
         authority_type: input.authority_type.into(),
         new_authority: input.new_authority.map(|auth| auth.to_bytes().into()),
-        mint_authority: input.mint_authority.map(|auth| auth.to_bytes().into()),
         cpi_context,
         proof: None,
     };
@@ -86,7 +85,6 @@ pub struct UpdateCompressedMintInputsCpiWrite {
     pub compressed_mint_inputs: CompressedMintWithContext,
     pub authority_type: CompressedMintAuthorityType,
     pub new_authority: Option<Pubkey>,
-    pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
     pub payer: Pubkey,
     pub authority: Pubkey,
     pub cpi_context: UpdateMintCpiContext,
@@ -101,7 +99,6 @@ pub fn create_update_compressed_mint_cpi_write(
         compressed_mint_inputs,
         authority_type,
         new_authority,
-        mint_authority,
         payer: _,
         authority: _,
         cpi_context,
@@ -116,7 +113,6 @@ pub fn create_update_compressed_mint_cpi_write(
         compressed_mint_inputs,
         authority_type: authority_type.into(),
         new_authority: new_authority.map(|auth| auth.to_bytes().into()),
-        mint_authority: mint_authority.map(|auth| auth.to_bytes().into()),
         cpi_context: Some(cpi_context),
         proof: None,
     };

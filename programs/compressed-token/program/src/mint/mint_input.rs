@@ -2,9 +2,9 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::create_compressed_mint::ZCompressedMintWithContext,
-    state::CompressedMint,
+    state::CompressedMint, CTokenError,
 };
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::{Hasher, Poseidon, Sha256};
 use light_sdk::instruction::PackedMerkleContext;
 
 use crate::{
@@ -51,8 +51,7 @@ pub fn create_input_compressed_mint_account(
             &hashed_mint_authority.as_ref(),
             &hashed_freeze_authority.as_ref(),
             mint.version,
-        )
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+        )?;
 
         let extension_hashchain =
             mint_instruction_data
@@ -60,16 +59,32 @@ pub fn create_input_compressed_mint_account(
                 .extensions
                 .as_ref()
                 .map(|extensions| {
-                    create_extension_hash_chain::<Poseidon>(
+                    create_extension_hash_chain(
                         extensions,
                         &hashed_spl_mint,
                         hash_cache,
+                        mint.version,
                     )
                 });
         if let Some(extension_hashchain) = extension_hashchain {
-            Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?
-        } else {
+            if mint.version == 0 {
+                Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?
+            } else if mint.version == 1 {
+                let mut hash =
+                    Sha256::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?;
+                hash[0] = 0;
+                hash
+            } else {
+                return Err(ProgramError::from(CTokenError::InvalidTokenDataVersion));
+            }
+        } else if mint.version == 0 {
             data_hash
+        } else if mint.version == 1 {
+            let mut hash = data_hash;
+            hash[0] = 0;
+            hash
+        } else {
+            return Err(ProgramError::from(CTokenError::InvalidTokenDataVersion));
         }
     };
 

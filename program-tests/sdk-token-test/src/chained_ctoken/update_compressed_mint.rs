@@ -50,7 +50,6 @@ pub fn update_compressed_mint_cpi_write<'a, 'b, 'c, 'info>(
         compressed_mint_inputs,
         authority_type: input.authority_type,
         new_authority: input.new_authority,
-        mint_authority: input.mint_authority,
         payer: ctx.accounts.payer.key(),
         authority: ctx.accounts.mint_authority.key(),
         cpi_context,

@@ -1,6 +1,6 @@
 use light_sdk_types::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CpiAccountsSmall as GenericCpiAccountsSmall,
-    REGISTERED_PROGRAM_PDA, SMALL_SYSTEM_ACCOUNTS_LEN,
+    CpiAccountsSmall as GenericCpiAccountsSmall, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+    ACCOUNT_COMPRESSION_PROGRAM_ID, REGISTERED_PROGRAM_PDA, SMALL_SYSTEM_ACCOUNTS_LEN,
 };
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
@@ -18,7 +18,7 @@ pub fn to_account_metas_small<'a>(
 
     // 2. Authority/CPI Signer (signer, readonly) - hardcoded from config
     account_metas.push(AccountMeta::readonly_signer(
-        &Pubkey::from(cpi_accounts.config().cpi_signer()),
+        &cpi_accounts.config().cpi_signer(),
     ));
 
     // 3. Registered Program PDA (readonly) - hardcoded constant
@@ -35,7 +35,7 @@ pub fn to_account_metas_small<'a>(
     )));
 
     // 6. System Program (readonly) - always default pubkey
-    account_metas.push(AccountMeta::readonly(Pubkey::default()));
+    account_metas.push(AccountMeta::readonly(&Pubkey::default()));
 
     // Optional accounts based on config
     if cpi_accounts.config().sol_pool_pda {
