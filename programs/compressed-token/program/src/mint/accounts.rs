@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, log::sol_log_compute_units, msg, pubkey::Pubkey};
 
 use crate::shared::{
     accounts::{
@@ -21,17 +21,22 @@ impl CreateCompressedMintAccounts<'_> {
 }
 
 impl<'info> CreateCompressedMintAccounts<'info> {
+    #[inline(always)]
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
         with_cpi_context: bool,
         write_to_cpi_context: bool,
     ) -> Result<Self, ProgramError> {
+        // 1 CU
         let mut iter = AccountIterator::new(accounts);
 
         // Static non-CPI accounts first
+        // 9 CU
         let mint_signer = iter.next_signer("mint_signer")?;
+        // 18 CU
         let light_system_program = iter.next_non_mut("light_system_program")?;
         if write_to_cpi_context {
+            // 46 CU
             let cpi_context_light_system_accounts =
                 CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?;
 

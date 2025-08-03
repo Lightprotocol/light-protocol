@@ -11,6 +11,7 @@ pub struct CpiContextLightSystemAccounts<'info> {
 
 impl<'info> CpiContextLightSystemAccounts<'info> {
     #[track_caller]
+    #[inline(always)]
     pub fn validate_and_parse(
         iter: &mut AccountIterator<'info, AccountInfo>,
     ) -> Result<Self, ProgramError> {

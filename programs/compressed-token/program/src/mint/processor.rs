@@ -32,11 +32,13 @@ pub fn process_create_compressed_mint(
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     sol_log_compute_units();
+    // 677 CU
     let (parsed_instruction_data, _) =
         CreateCompressedMintInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     sol_log_compute_units();
+    // 112 CU write to cpi contex
     // TODO: refactor cpi hash_cache struct we don't need the index in the struct.
     let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
     let write_to_cpi_context = parsed_instruction_data

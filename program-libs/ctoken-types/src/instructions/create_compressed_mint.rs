@@ -20,8 +20,8 @@ pub struct CreateCompressedMintInstructionData {
     pub address_merkle_tree_root_index: u16,
     // compressed address TODO: make a type CompressedAddress (not straight forward because of AnchorSerialize)
     pub mint_address: [u8; 32],
-    pub freeze_authority: Option<Pubkey>,
     pub version: u8,
+    pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub cpi_context: Option<CpiContext>,
     /// To create the compressed mint account address a proof is always required.
