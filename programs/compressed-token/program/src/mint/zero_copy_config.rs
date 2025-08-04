@@ -11,6 +11,14 @@ use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
 use light_sdk_pinocchio::NewAddressParamsAssignedPackedConfig;
 use light_zero_copy::ZeroCopyNew;
 
+trait CreateZeroCopyConfig {
+    fn num_input_tokens(&self) -> u32;
+    fn num_output_tokens(&self) -> u32;
+    fn input_token_mint(&self) -> Option<usize>;
+    fn output_token_mint(&self) -> Option<usize>;
+    fn num_new_addresses(&self) -> usize;
+}
+
 // TODO: unit test.
 pub fn get_zero_copy_configs(
     parsed_instruction_data: &light_ctoken_types::instructions::create_compressed_mint::ZCreateCompressedMintInstructionData<'_>,

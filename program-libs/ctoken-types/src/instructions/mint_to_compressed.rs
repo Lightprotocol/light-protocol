@@ -11,19 +11,27 @@ use crate::{
     AnchorDeserialize, AnchorSerialize,
 };
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+/* TODO: double check that it is only used in tests
+ * #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInputs {
     pub leaf_index: u32,
     pub prove_by_index: bool,
     pub root_index: u16,
     pub address: [u8; 32],
     pub compressed_mint_input: CompressedMint, //TODO: move supply and authority last so that we can send only the hash chain.
-}
+}*/
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct Recipient {
     pub recipient: Pubkey,
     pub amount: u64,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct MintToAction {
+    pub token_account_version: u8,
+    pub lamports: Option<u64>,
+    pub recipients: Vec<Recipient>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

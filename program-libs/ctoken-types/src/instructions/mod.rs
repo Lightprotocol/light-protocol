@@ -7,3 +7,4 @@ pub mod update_compressed_mint;
 pub mod update_metadata;
 
 pub mod extensions;
+pub mod mint_actions;

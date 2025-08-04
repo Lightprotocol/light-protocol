@@ -12,6 +12,7 @@ pub mod create_spl_mint;
 pub mod create_token_account;
 pub mod extensions;
 pub mod mint;
+pub mod mint_action;
 pub mod mint_to_compressed;
 pub mod shared;
 pub mod transfer2;

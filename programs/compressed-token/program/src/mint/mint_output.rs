@@ -4,12 +4,10 @@ use light_compressed_account::{
 };
 use light_ctoken_types::{
     hash_cache::HashCache,
-    instructions::{
-        extensions::ZExtensionInstructionData, mint_to_compressed::ZCompressedMintInputs,
-    },
+    instructions::extensions::ZExtensionInstructionData,
     state::{CompressedMint, CompressedMintConfig},
 };
-use light_zero_copy::ZeroCopyNew;
+use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use zerocopy::little_endian::U64;
 
 use crate::{
@@ -18,7 +16,7 @@ use crate::{
         create_extension_hash_chain, extensions_state_in_output_compressed_account,
     },
 };
-
+/*
 /// Input struct for create_output_compressed_mint_account function
 /// Consolidates all parameters needed to create an output compressed mint account
 pub struct CreateOutputCompressedMintAccountInputs<'a, 'b> {
@@ -42,10 +40,10 @@ pub struct CreateOutputCompressedMintAccountInputs<'a, 'b> {
     pub version: u8,
     /// Whether the mint is decompressed
     pub is_decompressed: bool,
-    pub compressed_mint_input: ZCompressedMintInputs<'a>,
+    pub compressed_mint_input: <CompressedMint as Deserialize>::Output,
     /// Optional extensions
     pub extensions: Option<&'a [ZExtensionInstructionData<'b>]>,
-}
+}*/
 
 // TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
