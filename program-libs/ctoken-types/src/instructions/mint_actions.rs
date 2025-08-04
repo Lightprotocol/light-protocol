@@ -19,11 +19,16 @@ pub struct UpdateAuthority {
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct CreateSplMintAction {
+    pub mint_bump: u8,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub enum Action {
     MintTo(MintToAction),
     UpdateMintAuthority(UpdateAuthority),
     UpdateFreezeAuthority(UpdateAuthority),
-    CreateSplMint,
+    CreateSplMint(CreateSplMintAction),
     UpdateMetadata,
 }
 

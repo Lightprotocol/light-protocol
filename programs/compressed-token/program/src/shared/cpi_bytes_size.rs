@@ -19,15 +19,22 @@ use light_zero_copy::ZeroCopyNew;
 const MAX_INPUT_ACCOUNTS: usize = 8;
 const MAX_OUTPUT_ACCOUNTS: usize = 35;
 
+/// Calculate data length for a compressed mint account
+pub fn mint_data_len(config: &light_ctoken_types::state::CompressedMintConfig) -> u32 {
+    use light_ctoken_types::state::CompressedMint;
+    CompressedMint::byte_len(config) as u32
+}
+
+/// Calculate data length for a compressed token account
+pub fn token_data_len(has_delegate: bool) -> u32 {
+    if has_delegate { 107 } else { 75 }
+}
+
 #[derive(Debug, Clone)]
 pub struct CpiConfigInput {
-    pub input_accounts: ArrayVec<bool, MAX_INPUT_ACCOUNTS>, // Per-input account delegate flag
-    pub output_accounts: ArrayVec<bool, MAX_OUTPUT_ACCOUNTS>, // Per-output account delegate flag
+    pub input_accounts: ArrayVec<bool, MAX_INPUT_ACCOUNTS>, // true = has address (mint), false = no address (token)
+    pub output_accounts: ArrayVec<(bool, u32), MAX_OUTPUT_ACCOUNTS>, // (has_address, data_len)
     pub has_proof: bool,
-    pub compressed_mint: bool,
-    pub compressed_mint_with_freeze_authority: bool,
-    pub compressed_mint_with_mint_authority: bool,
-    pub extensions_config: Vec<light_ctoken_types::state::ExtensionStructConfig>,
 }
 
 impl CpiConfigInput {
@@ -35,38 +42,41 @@ impl CpiConfigInput {
     pub fn mint_to_compressed(
         num_recipients: usize,
         has_proof: bool,
-        compressed_mint_with_freeze_authority: bool,
+        output_mint_config: &light_ctoken_types::state::CompressedMintConfig,
     ) -> Self {
-        let mut output_delegates = ArrayVec::new();
+        let mut outputs = ArrayVec::new();
+        
+        // First output is always the mint account
+        outputs.push((true, mint_data_len(output_mint_config)));
+        
+        // Add token accounts for recipients
         for _ in 0..num_recipients {
-            output_delegates.push(false); // No delegates for simple mint
+            outputs.push((false, token_data_len(false))); // No delegates for simple mint
         }
 
         Self {
             input_accounts: ArrayVec::new(), // No input accounts for mint_to_compressed
-            output_accounts: output_delegates,
+            output_accounts: outputs,
             has_proof,
-            compressed_mint: true,
-            compressed_mint_with_freeze_authority,
-            compressed_mint_with_mint_authority: true, // mint_to_compressed always has mint authority
-            extensions_config: vec![],
         }
     }
 
     /// Helper to create config for update_mint
     pub fn update_mint(
         has_proof: bool,
-        compressed_mint_with_freeze_authority: bool,
-        compressed_mint_with_mint_authority: bool,
+        input_mint_config: &light_ctoken_types::state::CompressedMintConfig,
+        output_mint_config: &light_ctoken_types::state::CompressedMintConfig,
     ) -> Self {
+        let mut inputs = ArrayVec::new();
+        inputs.push(true); // Input mint has address
+        
+        let mut outputs = ArrayVec::new();
+        outputs.push((true, mint_data_len(output_mint_config))); // Output mint has address
+        
         Self {
-            input_accounts: ArrayVec::new(), // No input token accounts for update_mint
-            output_accounts: ArrayVec::new(), // No token account outputs for update_mint, only the mint itself
+            input_accounts: inputs,
+            output_accounts: outputs,
             has_proof,
-            compressed_mint: true, // Has input mint
-            compressed_mint_with_freeze_authority,
-            compressed_mint_with_mint_authority,
-            extensions_config: vec![],
         }
     }
 }
@@ -74,25 +84,13 @@ impl CpiConfigInput {
 // TODO: add version of this function with hardcoded values that just calculates the cpi_byte_size, with a randomized test vs this function
 pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithReadOnlyConfig {
     let input_compressed_accounts = {
-        let mut inputs_capacity = input.input_accounts.len();
-        if input.compressed_mint {
-            inputs_capacity += 1;
-        }
-        let mut input_compressed_accounts = Vec::with_capacity(inputs_capacity);
+        let mut input_compressed_accounts = Vec::with_capacity(input.input_accounts.len());
 
-        // Add regular input accounts (token accounts)
-        for _ in input.input_accounts {
+        // Process input accounts in order
+        for has_address in input.input_accounts {
             input_compressed_accounts.push(InAccountConfig {
                 merkle_context: PackedMerkleContextConfig {},
-                address: (false, ()), // Token accounts don't have addresses
-            });
-        }
-
-        // Add compressed mint input account if needed
-        if input.compressed_mint {
-            input_compressed_accounts.push(InAccountConfig {
-                merkle_context: PackedMerkleContextConfig {},
-                address: (true, ()),
+                address: (has_address, ()),
             });
         }
 
@@ -100,49 +98,24 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
     };
 
     let output_compressed_accounts = {
-        {
-            let total_outputs = input.output_accounts.len() + if input.has_proof { 1 } else { 0 };
-            let mut outputs = Vec::with_capacity(total_outputs);
+        let mut outputs = Vec::with_capacity(input.output_accounts.len());
 
-            // Add compressed mint update if needed (last output account)
-            if input.compressed_mint {
-                use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
-                let mint_size_config = CompressedMintConfig {
-                    mint_authority: (input.compressed_mint_with_mint_authority, ()),
-                    freeze_authority: (input.compressed_mint_with_freeze_authority, ()),
-                    extensions: (!input.extensions_config.is_empty(), input.extensions_config),
-                };
-                outputs.push(OutputCompressedAccountWithPackedContextConfig {
-                    compressed_account: CompressedAccountConfig {
-                        address: (true, ()), // Compressed mint has an address
-                        data: (
-                            true,
-                            CompressedAccountDataConfig {
-                                data: CompressedMint::byte_len(&mint_size_config) as u32,
-                            },
-                        ),
-                    },
-                });
-            }
-
-            for has_delegate in input.output_accounts {
-                let token_data_size = if has_delegate { 107 } else { 75 }; // 75 + 32 (delegate) = 107
-
-                outputs.push(OutputCompressedAccountWithPackedContextConfig {
-                    compressed_account: CompressedAccountConfig {
-                        address: (false, ()), // Token accounts don't have addresses
-                        data: (
-                            true,
-                            CompressedAccountDataConfig {
-                                data: token_data_size, // Size depends on delegate: 75 without, 107 with
-                            },
-                        ),
-                    },
-                });
-            }
-
-            outputs
+        // Process output accounts in order
+        for (has_address, data_len) in input.output_accounts {
+            outputs.push(OutputCompressedAccountWithPackedContextConfig {
+                compressed_account: CompressedAccountConfig {
+                    address: (has_address, ()),
+                    data: (
+                        true,
+                        CompressedAccountDataConfig {
+                            data: data_len,
+                        },
+                    ),
+                },
+            });
         }
+
+        outputs
     };
     InstructionDataInvokeCpiWithReadOnlyConfig {
         cpi_context: CompressedCpiContextConfig {},

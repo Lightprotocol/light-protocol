@@ -1,19 +1,14 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use pinocchio::{
-    account_info::AccountInfo,
-    pubkey::Pubkey,
-};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::shared::{
-    accounts::{
-        CpiContextLightSystemAccounts, LightSystemAccounts,
-    },
+    accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
     AccountIterator,
 };
 
 pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
-    pub mint_signer: &'info AccountInfo,
+    pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
     pub executing: Option<ExecutingAccounts<'info>>,
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
@@ -35,12 +30,14 @@ impl<'info> MintActionAccounts<'info> {
         accounts: &'info [AccountInfo],
         with_lamports: bool,
         is_decompressed: bool,
+        with_mint_signer: bool,
         with_cpi_context: bool,
         write_to_cpi_context: bool,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let light_system_program = iter.next_account("light_system_program")?;
-        let mint_signer = iter.next_account("mint_signer")?;
+        // TODO: make it option signer
+        let mint_signer = iter.next_option("mint_signer", with_mint_signer)?;
         // Static non-CPI accounts first
         let authority = iter.next_signer("authority")?;
         if write_to_cpi_context {
@@ -118,5 +115,46 @@ impl<'info> MintActionAccounts<'info> {
         }
 
         pubkeys
+    }
+
+    /// Calculate the dynamic CPI accounts offset based on which accounts are present
+    pub fn cpi_accounts_offset(&self) -> usize {
+        let mut offset = 0;
+        
+        // light_system_program (always present)
+        offset += 1;
+        
+        // mint_signer (optional)
+        if self.mint_signer.is_some() {
+            offset += 1;
+        }
+        
+        // authority (always present)
+        offset += 1;
+        
+        if let Some(executing) = &self.executing {
+            // mint (optional)
+            if executing.mint.is_some() {
+                offset += 1;
+            }
+            
+            // token_pool_pda (optional)
+            if executing.token_pool_pda.is_some() {
+                offset += 1;
+            }
+            
+            // token_program (optional)
+            if executing.token_program.is_some() {
+                offset += 1;
+            }
+            
+            // LightSystemAccounts - these are the CPI accounts that start here
+            // We don't add them to offset since this is where CPI accounts begin
+        } else if let Some(_) = &self.write_to_cpi_context_system {
+            // CpiContextLightSystemAccounts - these are the CPI accounts that start here
+            // We don't add them to offset since this is where CPI accounts begin
+        }
+        
+        offset
     }
 }

@@ -291,13 +291,18 @@ fn get_zero_copy_configs(parsed_instruction_data: &light_ctoken_types::instructi
             .as_ref(),
     )?;
 
-    let mut config_input = CpiConfigInput::mint_to_compressed(
+    // Create mint config for the output
+    let output_mint_config = light_ctoken_types::state::CompressedMintConfig {
+        mint_authority: (true, ()), // mint_to_compressed always has mint authority
+        freeze_authority: (compressed_mint_with_freeze_authority, ()),
+        extensions: (!extensions_config.is_empty(), extensions_config),
+    };
+    
+    let config_input = CpiConfigInput::mint_to_compressed(
         parsed_instruction_data.recipients.len(),
         parsed_instruction_data.proof.is_some(),
-        compressed_mint_with_freeze_authority,
+        &output_mint_config,
     );
-    // Override the empty extensions_config with the actual one
-    config_input.extensions_config = extensions_config;
 
     let config = cpi_bytes_config(config_input);
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);

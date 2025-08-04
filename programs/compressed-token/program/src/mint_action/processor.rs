@@ -1,4 +1,6 @@
 use anchor_lang::solana_program::program_error::ProgramError;
+use arrayvec::ArrayVec;
+use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_compressed_account::{
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
     instruction_data::with_readonly::{
@@ -10,8 +12,7 @@ use light_ctoken_types::{
     hash_cache::HashCache,
     instructions::{
         mint_actions::{
-            MintActionCompressedInstructionData, ZAction,
-            ZMintActionCompressedInstructionData,
+            MintActionCompressedInstructionData, ZAction, ZMintActionCompressedInstructionData,
         },
         mint_to_compressed::ZMintToAction,
     },
@@ -24,10 +25,16 @@ use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 
+use light_hasher::{Hasher, Poseidon, Sha256};
+
 use crate::{
-    mint::{
-        accounts::CreateCompressedMintAccounts, mint_output::create_output_compressed_mint_account,
+    constants::COMPRESSED_MINT_DISCRIMINATOR,
+    create_spl_mint::processor::{
+        create_mint_account, create_token_pool_account_manual, initialize_mint_account_for_action,
+        initialize_token_pool_account_for_action,
     },
+    extensions::processor::create_extension_hash_chain,
+    mint::mint_output::create_output_compressed_mint_account,
     mint_action::accounts::MintActionAccounts,
     shared::{
         cpi::execute_cpi_invoke,
@@ -65,15 +72,28 @@ pub fn process_create_compressed_mint(
         .as_ref()
         .map(|x| x.first_set_context() || x.set_context())
         .unwrap_or_default();
-    // TODO: fix if mint to requires lamports.
-    let with_lamports = false;
+    let with_lamports = parsed_instruction_data
+        .actions
+        .iter()
+        .any(|action| matches!(action, ZAction::MintTo(mint_to_action) if mint_to_action.lamports.is_some()));
     // TODO: differentiate between will be compressed or is compressed.
-    let is_decompressed = parsed_instruction_data.mint.is_decompressed();
+    let is_decompressed = parsed_instruction_data.mint.is_decompressed()
+        | parsed_instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, ZAction::CreateSplMint(_)));
+    // We need mint signer if create mint, and create spl mint.
+    let with_mint_signer = parsed_instruction_data.create_mint()
+        | parsed_instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, ZAction::CreateSplMint(_)));
     // Validate and parse
     let validated_accounts = MintActionAccounts::validate_and_parse(
         accounts,
         with_lamports,
         is_decompressed,
+        with_mint_signer,
         with_cpi_context,
         write_to_cpi_context,
     )?;
@@ -81,8 +101,6 @@ pub fn process_create_compressed_mint(
 
     let (config, mut cpi_bytes, mint_size_config) =
         get_zero_copy_configs(&parsed_instruction_data)?;
-
-    // let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
     sol_log_compute_units();
     let (mut cpi_instruction_struct, _) =
@@ -112,11 +130,23 @@ pub fn process_create_compressed_mint(
         .as_ref()
         .map(|cpi_context| cpi_context.in_queue_index)
         .unwrap_or(1);
-    let out_token_queue_index = parsed_instruction_data
-        .cpi_context
-        .as_ref()
-        .map(|cpi_context| cpi_context.token_out_queue_index)
-        .unwrap_or(2);
+    let out_token_queue_index =
+        if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
+            cpi_context.token_out_queue_index
+        } else if let Some(system_accounts) = validated_accounts.executing.as_ref() {
+            if let Some(tokens_out_queue) = system_accounts.tokens_out_queue {
+                if system_accounts.out_output_queue.key() == tokens_out_queue.key() {
+                    2
+                } else {
+                    3
+                }
+            } else {
+                2
+            }
+        } else {
+            msg!("no system accounts");
+            unimplemented!()
+        };
     // If create mint
     // 1. derive spl mint pda
     // 2. set create address
@@ -128,10 +158,13 @@ pub fn process_create_compressed_mint(
         // - The spl mint pda is used as mint in compressed token accounts.
         // Note: we cant use pinocchio_pubkey::derive_address because don't use the mint_pda in this ix.
         //  The pda would be unvalidated and an invalid bump could be used.
+        let mint_signer = validated_accounts
+            .mint_signer
+            .ok_or(CTokenError::ExpectedMintSignerAccount)?;
         let spl_mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
             &[
                 COMPRESSED_MINT_SEED,
-                validated_accounts.mint_signer.key().as_slice(),
+                mint_signer.key().as_slice(),
                 &[parsed_instruction_data.mint_bump],
             ],
             &crate::ID,
@@ -194,7 +227,6 @@ pub fn process_create_compressed_mint(
                     if is_decompressed {
                         let sum_amounts: u64 =
                             action.recipients.iter().map(|x| u64::from(x.amount)).sum();
-
                         let mint_account = system_accounts
                             .mint
                             .ok_or(ProgramError::InvalidAccountData)?;
@@ -212,15 +244,15 @@ pub fn process_create_compressed_mint(
                             validated_accounts.cpi_authority()?,
                             sum_amounts,
                         )?;
-                        // Create output token accounts
-                        create_output_compressed_token_accounts(
-                            action,
-                            &mut cpi_instruction_struct,
-                            &mut hash_cache,
-                            parsed_instruction_data.mint.spl_mint,
-                            out_token_queue_index,
-                        )?;
                     }
+                    // Create output token accounts
+                    create_output_compressed_token_accounts(
+                        action,
+                        &mut cpi_instruction_struct,
+                        &mut hash_cache,
+                        parsed_instruction_data.mint.spl_mint,
+                        out_token_queue_index,
+                    )?;
                 }
             }
             ZAction::UpdateMintAuthority(update_action) => {
@@ -228,7 +260,7 @@ pub fn process_create_compressed_mint(
                     update_action,
                     validated_accounts.authority.key(),
                     mint_authority,
-                    "mint authority"
+                    "mint authority",
                 )?;
             }
             ZAction::UpdateFreezeAuthority(update_action) => {
@@ -236,7 +268,14 @@ pub fn process_create_compressed_mint(
                     update_action,
                     validated_accounts.authority.key(),
                     freeze_authority,
-                    "freeze authority"
+                    "freeze authority",
+                )?;
+            }
+            ZAction::CreateSplMint(create_spl_action) => {
+                process_create_spl_mint_action(
+                    create_spl_action,
+                    &validated_accounts,
+                    &parsed_instruction_data.mint,
                 )?;
             }
             _ => {
@@ -247,14 +286,14 @@ pub fn process_create_compressed_mint(
     }
 
     // 3. Create compressed mint account data
-    // TODO: add input struct, try to use CompressedMintInput
     // TODO: bench performance input struct vs direct inputs.
     let output_queue_index = if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref()
     {
         cpi_context.out_queue_index
     } else {
-        1
+        2
     };
+
     let mut token_context = HashCache::new();
 
     create_output_compressed_mint_account(
@@ -274,21 +313,22 @@ pub fn process_create_compressed_mint(
     )?;
     sol_log_compute_units();
 
+    let cpi_accounts_offset = validated_accounts.cpi_accounts_offset();
+
     if let Some(executing) = validated_accounts.executing.as_ref() {
-        // TODO: adapt cpi accounts offset.
-        // 4. Execute CPI to light-system-program
+        // Execute CPI to light-system-program
         execute_cpi_invoke(
-            &accounts[CreateCompressedMintAccounts::CPI_ACCOUNTS_OFFSET..],
+            &accounts[cpi_accounts_offset..],
             cpi_bytes,
             validated_accounts.tree_pubkeys().as_slice(),
-            false, // no sol_pool_pda for create_compressed_mint
+            with_lamports,
             None,
             executing.system.cpi_context.map(|x| *x.key()),
-            false, // write to cpi hash_cache account
+            false, // write to cpi context account
         )
     } else {
         execute_cpi_invoke(
-            &accounts[CreateCompressedMintAccounts::CPI_ACCOUNTS_OFFSET..],
+            &accounts[cpi_accounts_offset..],
             cpi_bytes,
             &[],
             false, // no sol_pool_pda for create_compressed_mint
@@ -347,54 +387,96 @@ fn get_zero_copy_configs(
     ),
     ProgramError,
 > {
-    // Build configuration for CPI instruction data using the generalized function
-    let compressed_mint_with_freeze_authority =
-        parsed_instruction_data.mint.freeze_authority.is_some();
+    use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
 
     // Process extensions to get the proper config for CPI bytes allocation
-    // The mint contains ZExtensionInstructionData, so we can use process_extensions_config directly
     let (_, extensions_config, _) = crate::extensions::process_extensions_config(
         parsed_instruction_data.mint.extensions.as_ref(),
     )?;
 
-    let mut input = CpiConfigInput::mint_to_compressed(
-        0, //parsed_instruction_data.recipients.len(), TODO: adapt
-        parsed_instruction_data.proof.is_some(),
-        compressed_mint_with_freeze_authority,
-    );
-    // Override the empty extensions_config with the actual one
-    input.extensions_config = extensions_config;
-    use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
-    let mint_size_config = CompressedMintConfig {
-        mint_authority: (input.compressed_mint_with_mint_authority, ()),
-        freeze_authority: (input.compressed_mint_with_freeze_authority, ()),
-        extensions: (
-            !input.extensions_config.is_empty(),
-            input.extensions_config.clone(),
-        ),
+    // Determine if we have input mint (when not creating mint)
+    let input_mint_config = if !parsed_instruction_data.create_mint() {
+        Some(CompressedMintConfig {
+            mint_authority: (parsed_instruction_data.mint.mint_authority.is_some(), ()),
+            freeze_authority: (parsed_instruction_data.mint.freeze_authority.is_some(), ()),
+            extensions: (!extensions_config.is_empty(), extensions_config.clone()),
+        })
+    } else {
+        None
     };
-    let _compressed_mint_config = CompressedAccountConfig {
-        address: (true, ()), // Compressed mint has an address
-        data: (
-            true,
-            CompressedAccountDataConfig {
-                data: CompressedMint::byte_len(&mint_size_config) as u32,
-            },
-        ),
+
+    // Calculate final authority states after processing all actions
+    let mut final_mint_authority = parsed_instruction_data.mint.mint_authority.is_some();
+    let mut final_freeze_authority = parsed_instruction_data.mint.freeze_authority.is_some();
+
+    // Process actions in order to determine final authority states
+    for action in parsed_instruction_data.actions.iter() {
+        match action {
+            ZAction::UpdateMintAuthority(update_action) => {
+                // None = revoke authority, Some(key) = set new authority
+                final_mint_authority = update_action.new_authority.is_some();
+            }
+            ZAction::UpdateFreezeAuthority(update_action) => {
+                // None = revoke authority, Some(key) = set new authority
+                final_freeze_authority = update_action.new_authority.is_some();
+            }
+            ZAction::UpdateMetadata => {
+                // TODO: When UpdateMetadata is implemented, process extension modifications here
+                // and recalculate final extensions_config for correct output mint size calculation
+            }
+            _ => {} // Other actions don't affect authority or extension states
+        }
+    }
+
+    // Output mint config (always present) with final authority states
+    let output_mint_config = CompressedMintConfig {
+        mint_authority: (final_mint_authority, ()),
+        freeze_authority: (final_freeze_authority, ()),
+        extensions: (!extensions_config.is_empty(), extensions_config),
+    };
+
+    // Count recipients from MintTo actions
+    let num_recipients = parsed_instruction_data
+        .actions
+        .iter()
+        .map(|action| match action {
+            ZAction::MintTo(mint_to_action) => mint_to_action.recipients.len(),
+            _ => 0,
+        })
+        .sum();
+
+    let input = CpiConfigInput {
+        input_accounts: {
+            let mut inputs = ArrayVec::new();
+            // Add input mint if not creating mint
+            if !parsed_instruction_data.create_mint() {
+                inputs.push(true); // Input mint has address
+            }
+            inputs
+        },
+        output_accounts: {
+            let mut outputs = ArrayVec::new();
+            // First output is always the mint account
+            outputs.push((
+                true,
+                crate::shared::cpi_bytes_size::mint_data_len(&output_mint_config),
+            ));
+
+            // Add token accounts for recipients
+            for _ in 0..num_recipients {
+                outputs.push((false, crate::shared::cpi_bytes_size::token_data_len(false)));
+                // No delegates for simple mint
+            }
+            outputs
+        },
+        has_proof: parsed_instruction_data.proof.is_some(),
     };
 
     let config = cpi_bytes_config(input);
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
-    Ok((config, cpi_bytes, mint_size_config))
+    Ok((config, cpi_bytes, output_mint_config))
 }
-use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
-
-use light_hasher::{Hasher, Poseidon, Sha256};
-
-use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR, extensions::processor::create_extension_hash_chain,
-};
 
 /// Creates and validates an input compressed mint account.
 /// This function follows the same pattern as create_output_compressed_mint_account
@@ -494,13 +576,84 @@ fn update_authority(
     authority_name: &str,
 ) -> Result<Option<Pubkey>, ProgramError> {
     // Verify that the signer is the current authority
-    let current_authority_pubkey = current_authority
-        .ok_or(ProgramError::InvalidArgument)?;
+    let current_authority_pubkey = current_authority.ok_or(ProgramError::InvalidArgument)?;
     if *signer_key != current_authority_pubkey.to_bytes() {
-        msg!("Invalid authority: signer does not match current {}", authority_name);
+        msg!(
+            "Invalid authority: signer does not match current {}",
+            authority_name
+        );
         return Err(ProgramError::InvalidArgument);
     }
-    
+
     // Update the authority (None = revoke, Some(key) = set new authority)
     Ok(update_action.new_authority.as_ref().map(|auth| **auth))
+}
+
+/// Helper function for processing CreateSplMint action
+fn process_create_spl_mint_action(
+    create_spl_action: &light_ctoken_types::instructions::mint_actions::ZCreateSplMintAction<'_>,
+    validated_accounts: &MintActionAccounts,
+    mint_data: &light_ctoken_types::instructions::create_compressed_mint::ZCompressedMintInstructionData<'_>,
+) -> Result<(), ProgramError> {
+    let executing_accounts = validated_accounts
+        .executing
+        .as_ref()
+        .ok_or(ProgramError::InvalidAccountData)?;
+
+    // Check mint authority if it exists
+    if let Some(ix_data_mint_authority) = mint_data.mint_authority {
+        if *validated_accounts.authority.key() != ix_data_mint_authority.to_bytes() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+    }
+
+    // Verify mint PDA matches the spl_mint field in compressed mint inputs
+    let expected_mint: [u8; 32] = mint_data.spl_mint.to_bytes();
+    if executing_accounts
+        .mint
+        .ok_or(ProgramError::InvalidAccountData)?
+        .key()
+        != &expected_mint
+    {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // 1. Create the mint account manually (PDA derived from our program, owned by token program)
+    let mint_signer = validated_accounts
+        .mint_signer
+        .ok_or(CTokenError::ExpectedMintSignerAccount)?;
+    create_mint_account(
+        executing_accounts,
+        &crate::LIGHT_CPI_SIGNER.program_id,
+        create_spl_action.mint_bump,
+        mint_signer,
+    )?;
+
+    // 2. Initialize the mint account using Token-2022's initialize_mint2 instruction
+    initialize_mint_account_for_action(executing_accounts, mint_data)?;
+
+    // 3. Create the token pool account manually (PDA derived from our program, owned by token program)
+    create_token_pool_account_manual(executing_accounts, &crate::LIGHT_CPI_SIGNER.program_id)?;
+
+    // 4. Initialize the token pool account
+    initialize_token_pool_account_for_action(executing_accounts)?;
+
+    // 5. Mint the existing supply to the token pool if there's any supply
+    if mint_data.supply > 0 {
+        crate::shared::mint_to_token_pool(
+            executing_accounts
+                .mint
+                .ok_or(ProgramError::InvalidAccountData)?,
+            executing_accounts
+                .token_pool_pda
+                .ok_or(ProgramError::InvalidAccountData)?,
+            executing_accounts
+                .token_program
+                .ok_or(ProgramError::InvalidAccountData)?,
+            executing_accounts.system.cpi_authority_pda,
+            mint_data.supply.into(),
+        )?;
+    }
+
+    Ok(())
 }

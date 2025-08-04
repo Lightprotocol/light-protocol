@@ -23,7 +23,7 @@ pub mod update_mint;
 pub use ::anchor_compressed_token::*;
 use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::processor::process_create_associated_token_account;
-use create_spl_mint::processor::process_create_spl_mint;
+// use create_spl_mint::processor::process_create_spl_mint;
 use create_token_account::processor::process_create_token_account;
 use mint::processor::process_create_compressed_mint;
 use mint_to_compressed::processor::process_mint_to_compressed;
@@ -109,8 +109,9 @@ pub fn process_instruction(
             process_mint_to_compressed(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateSplMint => {
-            anchor_lang::solana_program::msg!("CreateSplMint");
-            process_create_spl_mint(accounts, &instruction_data[1..])?;
+            anchor_lang::solana_program::msg!("CreateSplMint unimplemented");
+            unimplemented!();
+            //process_create_spl_mint(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
             anchor_lang::solana_program::msg!("CreateAssociatedTokenAccount");

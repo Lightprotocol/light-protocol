@@ -90,6 +90,9 @@ pub enum CTokenError {
     #[error("Invalid authority type provided")]
     InvalidAuthorityType,
 
+    #[error("Expected mint signer account")]
+    ExpectedMintSignerAccount,
+
     #[error("Light hasher error: {0}")]
     HasherError(#[from] light_hasher::HasherError),
 
@@ -132,6 +135,7 @@ impl From<CTokenError> for u32 {
             CTokenError::InstructionDataExpectedFreezeAuthority => 18026,
             CTokenError::ZeroCopyExpectedFreezeAuthority => 18027,
             CTokenError::InvalidAuthorityType => 18029,
+            CTokenError::ExpectedMintSignerAccount => 18030,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),
