@@ -24,6 +24,7 @@ pub use ::anchor_compressed_token::*;
 use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::processor::process_create_associated_token_account;
 // use create_spl_mint::processor::process_create_spl_mint;
+use crate::mint_action::processor::process_mint_action;
 use create_token_account::processor::process_create_token_account;
 use mint::processor::process_create_compressed_mint;
 use mint_to_compressed::processor::process_mint_to_compressed;
@@ -46,6 +47,7 @@ pub enum InstructionType {
     CreateAssociatedTokenAccount = 103,
     Transfer2 = 104,
     UpdateCompressedMint = 105,
+    MintAction = 106,
     CreateTokenAccount = 18, // equivalen to SPL Token InitializeAccount3
     Other,
 }
@@ -61,6 +63,7 @@ impl From<u8> for InstructionType {
             103 => InstructionType::CreateAssociatedTokenAccount, // TODO: double check compatibility
             104 => InstructionType::Transfer2,
             105 => InstructionType::UpdateCompressedMint,
+            106 => InstructionType::MintAction,
             18 => InstructionType::CreateTokenAccount,
             _ => InstructionType::Other,
         }
@@ -132,6 +135,10 @@ pub fn process_instruction(
         InstructionType::UpdateCompressedMint => {
             anchor_lang::solana_program::msg!("UpdateCompressedMint");
             process_update_compressed_mint(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::MintAction => {
+            anchor_lang::solana_program::msg!("MintAction");
+            process_mint_action(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         _ => {

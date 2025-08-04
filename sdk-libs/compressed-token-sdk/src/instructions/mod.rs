@@ -6,6 +6,7 @@ pub mod create_compressed_mint;
 mod create_spl_mint;
 pub mod create_token_account;
 pub mod ctoken_accounts;
+pub mod mint_action;
 pub mod mint_to_compressed;
 pub mod transfer;
 pub mod transfer2;
@@ -27,6 +28,10 @@ pub use create_token_account::{
     create_compressible_token_account, create_token_account, CreateCompressibleTokenAccount,
 };
 pub use ctoken_accounts::*;
+pub use mint_action::{
+    create_mint_action, create_mint_action_cpi, get_mint_action_instruction_account_metas,
+    MintActionInputs, MintActionMetaConfig, MINT_ACTION_DISCRIMINATOR,
+};
 pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,
     DecompressedMintConfig, MintToCompressedInputs, MintToCompressedMetaConfig,

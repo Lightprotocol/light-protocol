@@ -14,6 +14,7 @@ use light_compressed_account::{
         },
     },
 };
+use light_sdk_pinocchio::NewAddressParamsAssignedPackedConfig;
 use light_zero_copy::ZeroCopyNew;
 
 const MAX_INPUT_ACCOUNTS: usize = 8;
@@ -27,7 +28,11 @@ pub fn mint_data_len(config: &light_ctoken_types::state::CompressedMintConfig) -
 
 /// Calculate data length for a compressed token account
 pub fn token_data_len(has_delegate: bool) -> u32 {
-    if has_delegate { 107 } else { 75 }
+    if has_delegate {
+        107
+    } else {
+        75
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -35,6 +40,7 @@ pub struct CpiConfigInput {
     pub input_accounts: ArrayVec<bool, MAX_INPUT_ACCOUNTS>, // true = has address (mint), false = no address (token)
     pub output_accounts: ArrayVec<(bool, u32), MAX_OUTPUT_ACCOUNTS>, // (has_address, data_len)
     pub has_proof: bool,
+    pub new_address_params: usize, // Number of new addresses to create
 }
 
 impl CpiConfigInput {
@@ -45,10 +51,10 @@ impl CpiConfigInput {
         output_mint_config: &light_ctoken_types::state::CompressedMintConfig,
     ) -> Self {
         let mut outputs = ArrayVec::new();
-        
+
         // First output is always the mint account
         outputs.push((true, mint_data_len(output_mint_config)));
-        
+
         // Add token accounts for recipients
         for _ in 0..num_recipients {
             outputs.push((false, token_data_len(false))); // No delegates for simple mint
@@ -58,6 +64,7 @@ impl CpiConfigInput {
             input_accounts: ArrayVec::new(), // No input accounts for mint_to_compressed
             output_accounts: outputs,
             has_proof,
+            new_address_params: 0, // No new addresses for mint_to_compressed
         }
     }
 
@@ -69,18 +76,19 @@ impl CpiConfigInput {
     ) -> Self {
         let mut inputs = ArrayVec::new();
         inputs.push(true); // Input mint has address
-        
+
         let mut outputs = ArrayVec::new();
         outputs.push((true, mint_data_len(output_mint_config))); // Output mint has address
-        
+
         Self {
             input_accounts: inputs,
             output_accounts: outputs,
             has_proof,
+            new_address_params: 0, // No new addresses for update_mint
         }
     }
 }
-
+// TODO: generalize and move the light-compressed-account
 // TODO: add version of this function with hardcoded values that just calculates the cpi_byte_size, with a randomized test vs this function
 pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithReadOnlyConfig {
     let input_compressed_accounts = {
@@ -105,12 +113,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
             outputs.push(OutputCompressedAccountWithPackedContextConfig {
                 compressed_account: CompressedAccountConfig {
                     address: (has_address, ()),
-                    data: (
-                        true,
-                        CompressedAccountDataConfig {
-                            data: data_len,
-                        },
-                    ),
+                    data: (true, CompressedAccountDataConfig { data: data_len }),
                 },
             });
         }
@@ -120,7 +123,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
     InstructionDataInvokeCpiWithReadOnlyConfig {
         cpi_context: CompressedCpiContextConfig {},
         proof: (input.has_proof, CompressedProofConfig {}),
-        new_address_params: vec![], // No new addresses for mint_to_compressed
+        new_address_params: (0..input.new_address_params).map(|_| NewAddressParamsAssignedPackedConfig {}).collect(), // Create required number of new address params
         input_compressed_accounts,
         output_compressed_accounts,
         read_only_addresses: vec![],

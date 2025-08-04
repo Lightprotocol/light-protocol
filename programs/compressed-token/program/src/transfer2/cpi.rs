@@ -37,6 +37,7 @@ pub fn allocate_cpi_bytes(
         input_accounts,
         output_accounts,
         has_proof: inputs.proof.is_some(),
+        new_address_params: 0, // No new addresses for transfer2
     };
     let config = cpi_bytes_config(config_input);
     (allocate_invoke_with_read_only_cpi_bytes(&config), config)

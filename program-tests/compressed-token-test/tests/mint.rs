@@ -19,7 +19,7 @@ use light_ctoken_types::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
-    assert_mint_to_compressed::assert_mint_to_compressed_one,
+    assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
     assert_spl_mint::assert_spl_mint,
     assert_transfer2::{
         assert_transfer2, assert_transfer2_compress, assert_transfer2_decompress,
@@ -831,6 +831,190 @@ async fn test_update_compressed_mint_authority() {
     // The test passes if all operations complete without errors
     // In a real scenario, you would verify the compressed mint state
     // but for now we're testing that the instruction can be created and executed
+}
+
+/// Test comprehensive mint actions in a single instruction
+#[tokio::test]
+#[serial]
+async fn test_mint_actions_comprehensive() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test parameters
+    let decimals = 8u8;
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+    let freeze_authority = Keypair::new();
+    let new_mint_authority = Keypair::new();
+
+    // Recipients for minting
+    let recipients = vec![
+        light_ctoken_types::instructions::mint_to_compressed::Recipient {
+            recipient: Keypair::new().pubkey().to_bytes().into(),
+            amount: 1000u64,
+        },
+        light_ctoken_types::instructions::mint_to_compressed::Recipient {
+            recipient: Keypair::new().pubkey().to_bytes().into(),
+            amount: 2000u64,
+        },
+        light_ctoken_types::instructions::mint_to_compressed::Recipient {
+            recipient: Keypair::new().pubkey().to_bytes().into(),
+            amount: 3000u64,
+        },
+    ];
+    let total_mint_amount = 6000u64;
+
+    // Fund authority accounts
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&freeze_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // Derive addresses
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+
+    // === SINGLE MINT ACTION INSTRUCTION ===
+    // Execute ONE instruction with ALL actions
+    let signature = light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        true,                                // create_spl_mint
+        recipients.clone(),                  // mint_to_recipients
+        Some(new_mint_authority.pubkey()),   // update_mint_authority
+       None,// Some(new_freeze_authority.pubkey()), // update_freeze_authority
+        None,                                // no lamports
+        Some(light_token_client::instructions::mint_action::NewMint {
+            decimals,
+            supply:0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: Some(freeze_authority.pubkey()),
+            metadata: Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+                update_authority: Some(mint_authority.pubkey().into()),
+                metadata: light_ctoken_types::state::Metadata {
+                    name: "Test Token".as_bytes().to_vec(),
+                    symbol: "TEST".as_bytes().to_vec(),
+                    uri: "https://example.com/token.json".as_bytes().to_vec(),
+                },
+                additional_metadata: None,
+                version: 1,
+            }),
+            version: 1,
+        }),
+    )
+    .await
+    .unwrap();
+
+    println!("Mint action transaction signature: {}", signature);
+
+    // === VERIFY RESULTS USING EXISTING ASSERTION HELPERS ===
+    
+    // Recipients are already in the correct format for assertions
+    let expected_recipients: Vec<Recipient> = recipients.clone();
+
+    // Create empty pre-states since everything was created from scratch
+    let empty_pre_compressed_mint = CompressedMint {
+        spl_mint: spl_mint_pda.into(),
+        supply: 0,
+        decimals,
+        mint_authority: Some(new_mint_authority.pubkey().into()),
+        freeze_authority: Some(freeze_authority.pubkey().into()), // We didn't update freeze authority
+        is_decompressed: true, // Should be true after CreateSplMint action
+        version: 1,             // With metadata
+        extensions: Some(vec![
+            light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
+                light_ctoken_types::state::extensions::TokenMetadata {
+                    update_authority: Some(mint_authority.pubkey().into()), // Original authority in metadata 
+                    mint: spl_mint_pda.into(),
+                    metadata: light_ctoken_types::state::Metadata {
+                        name: "Test Token".as_bytes().to_vec(),
+                        symbol: "TEST".as_bytes().to_vec(), 
+                        uri: "https://example.com/token.json".as_bytes().to_vec(),
+                    },
+                    additional_metadata: vec![], // No additional metadata in our test
+                    version: 1,
+                }
+            )
+        ]), // Match the metadata we're creating
+    };
+
+    // Use empty token pool account (before creation)
+    let empty_token_pool = spl_token_2022::state::Account {
+        mint: spl_mint_pda,
+        owner: Pubkey::find_program_address(
+            &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
+            &light_compressed_token::ID,
+        ).0,
+        amount: 0, // Started with 0
+        delegate: None.into(),
+        state: spl_token_2022::state::AccountState::Initialized,
+        is_native: None.into(),
+        delegated_amount: 0,
+        close_authority: None.into(),
+    };
+
+    // Use empty SPL mint (before creation)
+    let empty_spl_mint = spl_token_2022::state::Mint {
+        mint_authority: Some(Pubkey::find_program_address(
+            &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
+            &light_compressed_token::ID,
+        ).0).into(), // SPL mint always has CPI authority as mint authority
+        supply: 0, // Started with 0
+        decimals,
+        is_initialized: true, // Is initialized after creation
+        freeze_authority: Some(freeze_authority.pubkey().into()).into(),
+    };
+
+    assert_mint_to_compressed(
+        &mut rpc,
+        spl_mint_pda,
+        &expected_recipients,
+        total_mint_amount, // expected total supply
+        Some(empty_token_pool),
+        empty_pre_compressed_mint,
+        Some(empty_spl_mint),
+    )
+    .await;
+
+    // 3. Verify authority updates
+    let updated_compressed_mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+    let updated_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut updated_compressed_mint_account
+            .data
+            .unwrap()
+            .data
+            .as_slice(),
+    )
+    .unwrap();
+
+    // Authority update assertions
+    assert_eq!(
+        updated_compressed_mint.mint_authority.unwrap(),
+        new_mint_authority.pubkey(),
+        "Mint authority should be updated"
+    );
+    assert_eq!(
+        updated_compressed_mint.supply, total_mint_amount,
+        "Supply should match minted amount"
+    );
+    assert!(
+        updated_compressed_mint.is_decompressed,
+        "Mint should be decompressed after CreateSplMint"
+    );
+
+    println!("✅ Comprehensive mint action test passed!");
 }
 
 #[tokio::test]

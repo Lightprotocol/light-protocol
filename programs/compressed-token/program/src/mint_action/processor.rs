@@ -2,7 +2,6 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_compressed_account::{
-    compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
     instruction_data::with_readonly::{
         InstructionDataInvokeCpiWithReadOnly, InstructionDataInvokeCpiWithReadOnlyConfig,
     },
@@ -53,7 +52,7 @@ use crate::{
 /// Checks:
 /// 1. check mint_signer (compressed mint randomness) is signer
 /// 2.
-pub fn process_create_compressed_mint(
+pub fn process_mint_action(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
@@ -62,6 +61,7 @@ pub fn process_create_compressed_mint(
     let (parsed_instruction_data, _) =
         MintActionCompressedInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
+    msg!(" parsed_instruction_data  {:?}", parsed_instruction_data);
 
     sol_log_compute_units();
     // 112 CU write to cpi contex
@@ -101,7 +101,8 @@ pub fn process_create_compressed_mint(
 
     let (config, mut cpi_bytes, mint_size_config) =
         get_zero_copy_configs(&parsed_instruction_data)?;
-
+    msg!("post get_zero_copy_configs config {:?}", config);
+    msg!("post mint_size_config {:?}", mint_size_config);
     sol_log_compute_units();
     let (mut cpi_instruction_struct, _) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
@@ -144,8 +145,8 @@ pub fn process_create_compressed_mint(
                 2
             }
         } else {
-            msg!("no system accounts");
-            unimplemented!()
+            msg!("No system accounts provided for queue index");
+            return Err(ProgramError::InvalidAccountData);
         };
     // If create mint
     // 1. derive spl mint pda
@@ -170,17 +171,17 @@ pub fn process_create_compressed_mint(
             &crate::ID,
         )?
         .into();
+        msg!("post mint_size_config {:?}", mint_size_config);
         if spl_mint_pda.to_bytes() != parsed_instruction_data.mint.spl_mint.to_bytes() {
-            msg!("Invalid mint");
-            panic!("Invalid mint");
-            //return Err(ErrorCode::InvalidMint.into());
+            msg!("Invalid mint PDA derivation");
+            return Err(ProgramError::InvalidAccountData);
         }
         // 2. Create NewAddressParams
         let address_merkle_tree_account_index =
             if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
                 cpi_context.in_tree_index
             } else {
-                0
+                1 // Address tree is at index 1 after out_output_queue
             };
         cpi_instruction_struct.new_address_params[0].set(
             spl_mint_pda.to_bytes(),
@@ -188,10 +189,22 @@ pub fn process_create_compressed_mint(
             Some(0),
             address_merkle_tree_account_index,
         );
+        // Validate mint parameters
         if u64::from(parsed_instruction_data.mint.supply) != 0 {
-            msg!("Invalid supply");
-            panic!("Invalid supply");
-            //return Err(ErrorCode::InvalidSupply.into());
+            msg!("Initial supply must be 0 for new mint creation");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        
+        // Validate version is supported
+        if parsed_instruction_data.mint.version > 1 {
+            msg!("Unsupported mint version");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        
+        // Validate is_decompressed is false for new mint creation
+        if parsed_instruction_data.mint.is_decompressed() {
+            msg!("New mint must start as compressed (is_decompressed=false)");
+            return Err(ProgramError::InvalidInstructionData);
         }
     } else {
         // Process input compressed mint account
@@ -279,8 +292,8 @@ pub fn process_create_compressed_mint(
                 )?;
             }
             _ => {
-                msg!("Invalid action");
-                unimplemented!()
+                msg!("Unsupported action type");
+                return Err(ProgramError::InvalidInstructionData);
             }
         }
     }
@@ -307,7 +320,7 @@ pub fn process_create_compressed_mint(
         parsed_instruction_data.compressed_address,
         output_queue_index,
         parsed_instruction_data.mint.version,
-        false, // Set is_decompressed = false for new mint creation
+        is_decompressed,
         parsed_instruction_data.mint.extensions.as_deref(),
         &mut token_context,
     )?;
@@ -387,23 +400,13 @@ fn get_zero_copy_configs(
     ),
     ProgramError,
 > {
-    use light_ctoken_types::state::{CompressedMint, CompressedMintConfig};
-
+    use light_ctoken_types::state::CompressedMintConfig;
+    msg!("get_zero_copy_configs");
     // Process extensions to get the proper config for CPI bytes allocation
     let (_, extensions_config, _) = crate::extensions::process_extensions_config(
         parsed_instruction_data.mint.extensions.as_ref(),
     )?;
-
-    // Determine if we have input mint (when not creating mint)
-    let input_mint_config = if !parsed_instruction_data.create_mint() {
-        Some(CompressedMintConfig {
-            mint_authority: (parsed_instruction_data.mint.mint_authority.is_some(), ()),
-            freeze_authority: (parsed_instruction_data.mint.freeze_authority.is_some(), ()),
-            extensions: (!extensions_config.is_empty(), extensions_config.clone()),
-        })
-    } else {
-        None
-    };
+    msg!("get_zero_copy_configs1");
 
     // Calculate final authority states after processing all actions
     let mut final_mint_authority = parsed_instruction_data.mint.mint_authority.is_some();
@@ -427,6 +430,7 @@ fn get_zero_copy_configs(
             _ => {} // Other actions don't affect authority or extension states
         }
     }
+    msg!("get_zero_copy_configs2");
 
     // Output mint config (always present) with final authority states
     let output_mint_config = CompressedMintConfig {
@@ -444,6 +448,7 @@ fn get_zero_copy_configs(
             _ => 0,
         })
         .sum();
+    msg!("get_zero_copy_configs2");
 
     let input = CpiConfigInput {
         input_accounts: {
@@ -470,10 +475,19 @@ fn get_zero_copy_configs(
             outputs
         },
         has_proof: parsed_instruction_data.proof.is_some(),
+        // Add new address params if creating a mint
+        new_address_params: if parsed_instruction_data.create_mint() {
+            1
+        } else {
+            0
+        },
     };
+    msg!("get_zero_copy_configs5");
 
     let config = cpi_bytes_config(input);
+    msg!("get_zero_copy_configs6");
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
+    msg!("get_zero_copy_configs7");
 
     Ok((config, cpi_bytes, output_mint_config))
 }

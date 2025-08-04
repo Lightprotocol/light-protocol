@@ -148,6 +148,7 @@ fn update_compressed_mint_to_decompressed<'info>(
             outputs
         },
         has_proof: instruction_data.proof.is_some(),
+        new_address_params: 0, // No new addresses for create_spl_mint
     };
 
     let config = cpi_bytes_config(config_input);
