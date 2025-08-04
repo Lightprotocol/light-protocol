@@ -35,7 +35,7 @@ pub struct CompressedTokenInstructionDataApprove {
 }
 
 /// Processes an approve instruction.
-/// - creates an output compressed acount which is delegated to the delegate.
+/// - creates an output compressed account which is delegated to the delegate.
 /// - creates a change account for the remaining amount (sum inputs - delegated amount).
 /// - ignores prior delegations.
 /// 1. unpack instruction data and input compressed accounts
