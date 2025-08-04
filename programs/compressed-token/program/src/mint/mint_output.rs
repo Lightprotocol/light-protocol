@@ -7,7 +7,7 @@ use light_ctoken_types::{
     instructions::extensions::ZExtensionInstructionData,
     state::{CompressedMint, CompressedMintConfig},
 };
-use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
+use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
 
 use crate::{

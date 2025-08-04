@@ -1,4 +1,3 @@
-use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
@@ -10,9 +9,8 @@ use light_compressed_account::{
 use light_ctoken_types::{
     hash_cache::HashCache,
     instructions::{
-        create_compressed_mint::CreateCompressedMintInstructionData,
         mint_actions::{
-            Action, MintActionCompressedInstructionData, ZAction,
+            MintActionCompressedInstructionData, ZAction,
             ZMintActionCompressedInstructionData,
         },
         mint_to_compressed::ZMintToAction,
@@ -21,7 +19,7 @@ use light_ctoken_types::{
     CTokenError, COMPRESSED_MINT_SEED,
 };
 use light_sdk::instruction::PackedMerkleContext;
-use light_zero_copy::{borsh::Deserialize, ZeroCopyNew, U64};
+use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
@@ -176,8 +174,8 @@ pub fn process_create_compressed_mint(
             },
         )?;
     }
-    let mut freeze_authority = parsed_instruction_data.mint.freeze_authority;
-    let mut mint_authority = parsed_instruction_data.mint.mint_authority;
+    let mut freeze_authority = parsed_instruction_data.mint.freeze_authority.map(|fa| *fa);
+    let mut mint_authority = parsed_instruction_data.mint.mint_authority.map(|fa| *fa);
     let mut supply: u64 = parsed_instruction_data.mint.supply.into();
 
     for action in parsed_instruction_data.actions.iter() {
@@ -225,6 +223,22 @@ pub fn process_create_compressed_mint(
                     }
                 }
             }
+            ZAction::UpdateMintAuthority(update_action) => {
+                mint_authority = update_authority(
+                    update_action,
+                    validated_accounts.authority.key(),
+                    mint_authority,
+                    "mint authority"
+                )?;
+            }
+            ZAction::UpdateFreezeAuthority(update_action) => {
+                freeze_authority = update_authority(
+                    update_action,
+                    validated_accounts.authority.key(),
+                    freeze_authority,
+                    "freeze authority"
+                )?;
+            }
             _ => {
                 msg!("Invalid action");
                 unimplemented!()
@@ -247,8 +261,8 @@ pub fn process_create_compressed_mint(
         &mut cpi_instruction_struct.output_compressed_accounts[0],
         parsed_instruction_data.mint.spl_mint,
         parsed_instruction_data.mint.decimals,
-        freeze_authority.map(|fa| *fa),
-        mint_authority.map(|fa| *fa),
+        freeze_authority,
+        mint_authority,
         supply.into(),
         mint_size_config,
         parsed_instruction_data.compressed_address,
@@ -359,7 +373,7 @@ fn get_zero_copy_configs(
             input.extensions_config.clone(),
         ),
     };
-    let compressed_mint_config = CompressedAccountConfig {
+    let _compressed_mint_config = CompressedAccountConfig {
         address: (true, ()), // Compressed mint has an address
         data: (
             true,
@@ -470,4 +484,23 @@ pub fn create_input_compressed_mint_account(
     )?;
 
     Ok(())
+}
+
+/// Helper function for processing authority update actions
+fn update_authority(
+    update_action: &light_ctoken_types::instructions::mint_actions::ZUpdateAuthority<'_>,
+    signer_key: &pinocchio::pubkey::Pubkey,
+    current_authority: Option<Pubkey>,
+    authority_name: &str,
+) -> Result<Option<Pubkey>, ProgramError> {
+    // Verify that the signer is the current authority
+    let current_authority_pubkey = current_authority
+        .ok_or(ProgramError::InvalidArgument)?;
+    if *signer_key != current_authority_pubkey.to_bytes() {
+        msg!("Invalid authority: signer does not match current {}", authority_name);
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Update the authority (None = revoke, Some(key) = set new authority)
+    Ok(update_action.new_authority.as_ref().map(|auth| **auth))
 }

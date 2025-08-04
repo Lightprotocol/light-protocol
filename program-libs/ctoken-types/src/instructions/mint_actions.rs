@@ -4,21 +4,25 @@ use light_compressed_account::{
     },
     Pubkey,
 };
-use light_zero_copy::{borsh::Deserialize, ZeroCopy, ZeroCopyMut};
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
     instructions::{
-        create_compressed_mint::{CompressedMintInstructionData, CompressedMintWithContext},
-        mint_to_compressed::MintToAction,
+        create_compressed_mint::CompressedMintInstructionData, mint_to_compressed::MintToAction,
     },
-    state::CompressedMint,
     AnchorDeserialize, AnchorSerialize,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct UpdateAuthority {
+    pub new_authority: Option<Pubkey>, // None = revoke authority, Some(key) = set new authority
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub enum Action {
     MintTo(MintToAction),
-    Update,
+    UpdateMintAuthority(UpdateAuthority),
+    UpdateFreezeAuthority(UpdateAuthority),
     CreateSplMint,
     UpdateMetadata,
 }

@@ -1,13 +1,12 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use pinocchio::{
     account_info::AccountInfo,
-    pubkey::{self, Pubkey},
+    pubkey::Pubkey,
 };
-use solana_pubkey::PUBKEY_BYTES;
 
 use crate::shared::{
     accounts::{
-        CpiContextLightSystemAccounts, LightSystemAccounts, UpdateOneCompressedAccountTreeAccounts,
+        CpiContextLightSystemAccounts, LightSystemAccounts,
     },
     AccountIterator,
 };

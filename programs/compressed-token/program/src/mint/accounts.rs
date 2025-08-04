@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use pinocchio::{account_info::AccountInfo, log::sol_log_compute_units, msg, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::shared::{
     accounts::{

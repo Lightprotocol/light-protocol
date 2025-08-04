@@ -7,8 +7,8 @@ use light_compressed_account::{
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
-    instructions::create_compressed_mint::CompressedMintWithContext, state::CompressedMint,
-    AnchorDeserialize, AnchorSerialize,
+    instructions::create_compressed_mint::CompressedMintWithContext, AnchorDeserialize,
+    AnchorSerialize,
 };
 
 /* TODO: double check that it is only used in tests
