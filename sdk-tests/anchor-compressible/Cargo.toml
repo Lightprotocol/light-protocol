@@ -26,6 +26,9 @@ light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
+light-ctoken-types = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
+light-compressed-token-types = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["v2"] }
