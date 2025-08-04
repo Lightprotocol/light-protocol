@@ -10,12 +10,13 @@ pub struct MintActionMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub mint_signer: Option<Pubkey>,
     pub authority: Pubkey,
-    pub address_tree_pubkey: Pubkey,
+    pub tree_pubkey: Pubkey, // address tree when create_mint, input state tree when not
     pub output_queue: Pubkey,
     pub with_lamports: bool,
     pub is_decompressed: bool,
     pub with_cpi_context: bool,
     pub create_mint: bool,
+    pub with_mint_signer: bool,
 }
 
 impl MintActionMetaConfig {
@@ -24,23 +25,25 @@ impl MintActionMetaConfig {
         fee_payer: Pubkey,
         mint_signer: Pubkey,
         authority: Pubkey,
-        address_tree_pubkey: Pubkey,
+        tree_pubkey: Pubkey,
         output_queue: Pubkey,
         with_lamports: bool,
         is_decompressed: bool,
         with_cpi_context: bool,
         create_mint: bool,
+        with_mint_signer: bool,
     ) -> Self {
         Self {
             fee_payer: Some(fee_payer),
             mint_signer: Some(mint_signer),
             authority,
-            address_tree_pubkey,
+            tree_pubkey,
             output_queue,
             with_lamports,
             is_decompressed,
             with_cpi_context,
             create_mint,
+            with_mint_signer,
         }
     }
 }
@@ -48,6 +51,7 @@ impl MintActionMetaConfig {
 /// Get the account metas for a mint action instruction
 pub fn get_mint_action_instruction_account_metas(
     config: MintActionMetaConfig,
+    compressed_mint_inputs: &light_ctoken_types::instructions::create_compressed_mint::CompressedMintWithContext,
 ) -> Vec<AccountMeta> {
     let default_pubkeys = CTokenDefaultAccounts::default();
     let mut metas = Vec::new();
@@ -59,26 +63,35 @@ pub fn get_mint_action_instruction_account_metas(
         false,
     ));
 
-    // mint_signer (conditional)
-    if let Some(mint_signer) = config.mint_signer {
-        metas.push(AccountMeta::new_readonly(mint_signer, true));
+    // mint_signer (conditional) - matches onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
+    if config.with_mint_signer {
+        if let Some(mint_signer) = config.mint_signer {
+            metas.push(AccountMeta::new_readonly(mint_signer, true));
+        }
     }
 
     // authority (signer)
     metas.push(AccountMeta::new_readonly(config.authority, true));
 
     // For decompressed mints, add SPL mint and token program accounts
+    // These need to come right after authority to match processor expectations
     if config.is_decompressed {
-        // mint (derived from mint_signer)
+        // mint - either derived from mint_signer (for creation) or from existing mint data
         if let Some(mint_signer) = config.mint_signer {
+            // For mint creation - derive from mint_signer
             let (spl_mint_pda, _) = crate::instructions::find_spl_mint_address(&mint_signer);
-            metas.push(AccountMeta::new(spl_mint_pda, false));
-        }
-
-        // token_pool_pda (derived from mint)
-        if let Some(mint_signer) = config.mint_signer {
-            let (spl_mint_pda, _) = crate::instructions::find_spl_mint_address(&mint_signer);
+            metas.push(AccountMeta::new(spl_mint_pda, false)); // mutable: true, signer: false
+            
+            // token_pool_pda (derived from mint)
             let (token_pool_pda, _) = crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pda, 0);
+            metas.push(AccountMeta::new(token_pool_pda, false));
+        } else {
+            // For existing mint operations - use the spl_mint from compressed mint inputs
+            let spl_mint_pubkey = solana_pubkey::Pubkey::from(compressed_mint_inputs.mint.spl_mint.to_bytes());
+            metas.push(AccountMeta::new(spl_mint_pubkey, false)); // mutable: true, signer: false
+            
+            // token_pool_pda (derived from the spl_mint)
+            let (token_pool_pda, _) = crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pubkey, 0);
             metas.push(AccountMeta::new(token_pool_pda, false));
         }
 
@@ -150,7 +163,13 @@ pub fn get_mint_action_instruction_account_metas(
 
     // Add address tree only if creating a new mint (for address creation)
     if config.create_mint {
-        metas.push(AccountMeta::new(config.address_tree_pubkey, false));
+        metas.push(AccountMeta::new(config.tree_pubkey, false));
+    }
+
+    // in_merkle_tree (optional if is_decompressed) - the state tree containing the existing compressed mint
+    if config.is_decompressed && !config.create_mint {
+        // For existing mints, we need the state merkle tree where the compressed mint is stored
+        metas.push(AccountMeta::new(config.tree_pubkey, false));
     }
 
     // in_output_queue (optional if is_decompressed)

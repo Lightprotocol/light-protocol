@@ -134,7 +134,12 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         payer: params.payer,
         proof,
         actions: params.actions,
-        address_tree_pubkey,
+        // address_tree when create_mint, input state tree when not
+        address_tree_pubkey: if is_creating_mint { 
+            address_tree_pubkey 
+        } else { 
+            state_tree_info.tree 
+        },
         output_queue: state_tree_info.queue,
         cpi_context: None, // CPI context will be added if needed
     };

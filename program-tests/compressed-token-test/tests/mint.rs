@@ -147,7 +147,6 @@ async fn test_create_compressed_mint() {
             spl_mint_pda,
             recipient,
             mint_amount,
-            expected_supply,
             None, // No pre-token pool account for compressed mint
             pre_compressed_mint,
             None, // No pre-spl mint for compressed mint
@@ -688,7 +687,6 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
             spl_mint_pda,
             recipient,
             mint_amount,
-            mint_amount,                  // Expected total supply after minting
             Some(pre_token_pool_account), // Pass pre-token pool account for decompressed mint validation
             pre_compressed_mint,
             Some(pre_spl_mint),
@@ -873,6 +871,9 @@ async fn test_mint_actions_comprehensive() {
     rpc.airdrop_lamports(&freeze_authority.pubkey(), 10_000_000_000)
         .await
         .unwrap();
+    rpc.airdrop_lamports(&new_mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
 
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
@@ -916,7 +917,7 @@ async fn test_mint_actions_comprehensive() {
     println!("Mint action transaction signature: {}", signature);
 
     // === VERIFY RESULTS USING EXISTING ASSERTION HELPERS ===
-    
+
     // Recipients are already in the correct format for assertions
     let expected_recipients: Vec<Recipient> = recipients.clone();
 
@@ -928,21 +929,21 @@ async fn test_mint_actions_comprehensive() {
         mint_authority: Some(new_mint_authority.pubkey().into()),
         freeze_authority: Some(freeze_authority.pubkey().into()), // We didn't update freeze authority
         is_decompressed: true, // Should be true after CreateSplMint action
-        version: 1,             // With metadata
+        version: 1,            // With metadata
         extensions: Some(vec![
             light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
                 light_ctoken_types::state::extensions::TokenMetadata {
-                    update_authority: Some(mint_authority.pubkey().into()), // Original authority in metadata 
+                    update_authority: Some(mint_authority.pubkey().into()), // Original authority in metadata
                     mint: spl_mint_pda.into(),
                     metadata: light_ctoken_types::state::Metadata {
                         name: "Test Token".as_bytes().to_vec(),
-                        symbol: "TEST".as_bytes().to_vec(), 
+                        symbol: "TEST".as_bytes().to_vec(),
                         uri: "https://example.com/token.json".as_bytes().to_vec(),
                     },
                     additional_metadata: vec![], // No additional metadata in our test
                     version: 1,
-                }
-            )
+                },
+            ),
         ]), // Match the metadata we're creating
     };
 
@@ -952,7 +953,8 @@ async fn test_mint_actions_comprehensive() {
         owner: Pubkey::find_program_address(
             &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
             &light_compressed_token::ID,
-        ).0,
+        )
+        .0,
         amount: 0, // Started with 0
         delegate: None.into(),
         state: spl_token_2022::state::AccountState::Initialized,
@@ -963,10 +965,14 @@ async fn test_mint_actions_comprehensive() {
 
     // Use empty SPL mint (before creation)
     let empty_spl_mint = spl_token_2022::state::Mint {
-        mint_authority: Some(Pubkey::find_program_address(
-            &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
-            &light_compressed_token::ID,
-        ).0).into(), // SPL mint always has CPI authority as mint authority
+        mint_authority: Some(
+            Pubkey::find_program_address(
+                &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
+                &light_compressed_token::ID,
+            )
+            .0,
+        )
+        .into(), // SPL mint always has CPI authority as mint authority
         supply: 0, // Started with 0
         decimals,
         is_initialized: true, // Is initialized after creation
@@ -977,7 +983,6 @@ async fn test_mint_actions_comprehensive() {
         &mut rpc,
         spl_mint_pda,
         &expected_recipients,
-        total_mint_amount, // expected total supply
         Some(empty_token_pool),
         empty_pre_compressed_mint,
         Some(empty_spl_mint),
@@ -1015,6 +1020,128 @@ async fn test_mint_actions_comprehensive() {
     );
 
     println!("✅ Comprehensive mint action test passed!");
+
+    // === TEST 2: MINT_ACTION ON EXISTING MINT ===
+    // Now test mint_action on the existing mint (no creation, just minting and authority updates)
+
+    println!("\n=== Testing mint_action on existing mint ===");
+
+    // Get current mint state for input
+    let current_compressed_mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+    let current_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut current_compressed_mint_account
+            .data
+            .unwrap()
+            .data
+            .as_slice(),
+    )
+    .unwrap();
+
+    // Create another new authority to test second update
+    let newer_mint_authority = Keypair::new();
+
+    // Fund both the current authority (new_mint_authority) and newer authority
+    rpc.airdrop_lamports(&new_mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&newer_mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // Additional recipients for second minting
+    let additional_recipients = vec![
+        light_ctoken_types::instructions::mint_to_compressed::Recipient {
+            recipient: Keypair::new().pubkey().to_bytes().into(),
+            amount: 5000u64,
+        },
+        light_ctoken_types::instructions::mint_to_compressed::Recipient {
+            recipient: Keypair::new().pubkey().to_bytes().into(),
+            amount: 2500u64,
+        },
+    ];
+    let additional_mint_amount = 7500u64;
+    // Token pool should have previous amount
+    let (token_pool_pda, _) =
+        light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
+            &spl_mint_pda,
+            0,
+        );
+    let pre_pool_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+    let pre_token_pool_for_second =
+        spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
+
+    let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
+    let pre_spl_mint_for_second =
+        spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
+    // Execute mint_action on existing mint (no creation)
+    let signature2 = light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &new_mint_authority, // Current authority from first test (now the authority for this mint)
+        &payer,
+        false,                               // create_spl_mint = false (already exists)
+        additional_recipients.clone(),       // mint_to_recipients
+        Some(newer_mint_authority.pubkey()), // update_mint_authority to newer authority
+        None,                                // update_freeze_authority (no change)
+        None,                                // no lamports
+        None,                                // no new mint data (already exists)
+    )
+    .await
+    .unwrap();
+
+    println!("Second mint action transaction signature: {}", signature2);
+
+    // Verify results of second mint action
+    let expected_additional_recipients: Vec<Recipient> = additional_recipients.clone();
+
+    // Create pre-states for the second action (current state after first action)
+    let mut pre_compressed_mint_for_second = current_compressed_mint.clone();
+    pre_compressed_mint_for_second.mint_authority = Some(newer_mint_authority.pubkey().into());
+
+    // Verify second minting using assertion helper
+    assert_mint_to_compressed(
+        &mut rpc,
+        spl_mint_pda,
+        &expected_additional_recipients,
+        Some(pre_token_pool_for_second),
+        pre_compressed_mint_for_second,
+        Some(pre_spl_mint_for_second),
+    )
+    .await;
+
+    // Verify final authority update
+    let final_compressed_mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+    let final_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut final_compressed_mint_account.data.unwrap().data.as_slice(),
+    )
+    .unwrap();
+
+    // Final assertions
+    assert_eq!(
+        final_compressed_mint.mint_authority.unwrap(),
+        newer_mint_authority.pubkey(),
+        "Mint authority should be updated to newer authority"
+    );
+    assert_eq!(
+        final_compressed_mint.supply,
+        total_mint_amount + additional_mint_amount,
+        "Supply should include both mintings"
+    );
+    assert!(
+        final_compressed_mint.is_decompressed,
+        "Mint should remain decompressed"
+    );
+
+    println!("✅ Existing mint test passed!");
+    println!("✅ All comprehensive mint action tests passed!");
 }
 
 #[tokio::test]
@@ -1173,7 +1300,6 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
             spl_mint_pda,
             recipient,
             mint_amount,
-            mint_amount,                  // Expected total supply after minting
             Some(pre_token_pool_account), // Pass pre-token pool account for decompressed mint validation
             pre_compressed_mint,
             Some(pre_spl_mint),

@@ -15,7 +15,6 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
     rpc: &mut R,
     spl_mint_pda: Pubkey,
     recipients: &[Recipient],
-    expected_total_supply: u64,
     pre_token_pool_account: Option<spl_token_2022::state::Account>,
     pre_compressed_mint: CompressedMint,
     pre_spl_mint: Option<spl_token_2022::state::Mint>,
@@ -96,7 +95,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
 
     // Create expected compressed mint by mutating the pre-mint
     let mut expected_compressed_mint = pre_compressed_mint;
-    expected_compressed_mint.supply = expected_total_supply;
+    expected_compressed_mint.supply += total_minted;
 
     assert_eq!(
         actual_compressed_mint, expected_compressed_mint,
@@ -119,7 +118,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
             // Validate SPL mint using mutation pattern if pre_spl_mint is provided
             if let Some(pre_spl_mint_account) = pre_spl_mint {
                 let mut expected_spl_mint = pre_spl_mint_account;
-                expected_spl_mint.supply = expected_total_supply;
+                expected_spl_mint.supply += total_minted;
 
                 assert_eq!(
                     actual_spl_mint, expected_spl_mint,
@@ -128,7 +127,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
             } else {
                 // Fallback validation if no pre_spl_mint provided
                 assert_eq!(
-                    actual_spl_mint.supply, expected_total_supply,
+                    actual_spl_mint.supply, total_minted,
                     "SPL mint supply should be updated to expected total supply when decompressed"
                 );
             }
@@ -163,7 +162,6 @@ pub async fn assert_mint_to_compressed_one<R: Rpc + Indexer>(
     spl_mint_pda: Pubkey,
     recipient: Pubkey,
     expected_amount: u64,
-    expected_total_supply: u64,
     pre_token_pool_account: Option<spl_token_2022::state::Account>,
     pre_compressed_mint: CompressedMint,
     pre_spl_mint: Option<spl_token_2022::state::Mint>,
@@ -177,7 +175,6 @@ pub async fn assert_mint_to_compressed_one<R: Rpc + Indexer>(
         rpc,
         spl_mint_pda,
         &recipients,
-        expected_total_supply,
         pre_token_pool_account,
         pre_compressed_mint,
         pre_spl_mint,

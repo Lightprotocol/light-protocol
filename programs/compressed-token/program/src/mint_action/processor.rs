@@ -61,7 +61,7 @@ pub fn process_mint_action(
     let (parsed_instruction_data, _) =
         MintActionCompressedInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
-    msg!(" parsed_instruction_data  {:?}", parsed_instruction_data);
+    // msg!(" parsed_instruction_data  {:?}", parsed_instruction_data);
 
     sol_log_compute_units();
     // 112 CU write to cpi contex
@@ -88,6 +88,8 @@ pub fn process_mint_action(
             .actions
             .iter()
             .any(|action| matches!(action, ZAction::CreateSplMint(_)));
+    msg!("is decompressed {}", is_decompressed);
+    msg!("with_mint_signer {}", with_mint_signer);
     // Validate and parse
     let validated_accounts = MintActionAccounts::validate_and_parse(
         accounts,
@@ -114,7 +116,10 @@ pub fn process_mint_action(
         &parsed_instruction_data.cpi_context,
     )?;
 
-    if !write_to_cpi_context && parsed_instruction_data.proof.is_none() {
+    if !write_to_cpi_context
+        && !parsed_instruction_data.prove_by_index()
+        && parsed_instruction_data.proof.is_none()
+    {
         msg!("Proof missing");
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -125,24 +130,24 @@ pub fn process_mint_action(
         .cpi_context
         .as_ref()
         .map(|cpi_context| cpi_context.in_tree_index)
-        .unwrap_or(0);
+        .unwrap_or(1);
     let in_queue_index = parsed_instruction_data
         .cpi_context
         .as_ref()
         .map(|cpi_context| cpi_context.in_queue_index)
-        .unwrap_or(1);
+        .unwrap_or(2);
     let out_token_queue_index =
         if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
             cpi_context.token_out_queue_index
         } else if let Some(system_accounts) = validated_accounts.executing.as_ref() {
             if let Some(tokens_out_queue) = system_accounts.tokens_out_queue {
                 if system_accounts.out_output_queue.key() == tokens_out_queue.key() {
-                    2
+                    0
                 } else {
                     3
                 }
             } else {
-                2
+                0
             }
         } else {
             msg!("No system accounts provided for queue index");
@@ -194,13 +199,13 @@ pub fn process_mint_action(
             msg!("Initial supply must be 0 for new mint creation");
             return Err(ProgramError::InvalidInstructionData);
         }
-        
+
         // Validate version is supported
         if parsed_instruction_data.mint.version > 1 {
             msg!("Unsupported mint version");
             return Err(ProgramError::InvalidInstructionData);
         }
-        
+
         // Validate is_decompressed is false for new mint creation
         if parsed_instruction_data.mint.is_decompressed() {
             msg!("New mint must start as compressed (is_decompressed=false)");
@@ -249,7 +254,7 @@ pub fn process_mint_action(
                         let token_program = system_accounts
                             .token_program
                             .ok_or(ProgramError::InvalidAccountData)?;
-
+                        msg!("minting {}", sum_amounts);
                         mint_to_token_pool(
                             mint_account,
                             token_pool_account,
@@ -304,7 +309,7 @@ pub fn process_mint_action(
     {
         cpi_context.out_queue_index
     } else {
-        2
+        0
     };
 
     let mut token_context = HashCache::new();
@@ -325,7 +330,7 @@ pub fn process_mint_action(
         &mut token_context,
     )?;
     sol_log_compute_units();
-
+    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
     let cpi_accounts_offset = validated_accounts.cpi_accounts_offset();
 
     if let Some(executing) = validated_accounts.executing.as_ref() {

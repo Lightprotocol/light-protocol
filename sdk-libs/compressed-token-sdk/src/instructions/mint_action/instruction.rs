@@ -70,8 +70,11 @@ pub fn create_mint_action_cpi(
 
     // Check for lamports and decompressed status before moving
     let with_lamports = input.actions.iter().any(|action| matches!(action, MintActionType::MintTo { lamports: Some(_), .. }));
-    let is_decompressed = input.actions.iter().any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
+    let is_decompressed = input.actions.iter().any(|action| matches!(action, MintActionType::CreateSplMint { .. })) 
+        || input.compressed_mint_inputs.mint.is_decompressed;
     let with_cpi_context = cpi_context.is_some();
+    // Match onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
+    let with_mint_signer = create_mint || input.actions.iter().any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
 
     for action in input.actions {
         match action {
@@ -110,6 +113,23 @@ pub fn create_mint_action_cpi(
         }
     }
 
+    // Create account meta config first (before moving compressed_mint_inputs)
+    let meta_config = MintActionMetaConfig {
+        fee_payer: Some(input.payer),
+        mint_signer: if with_mint_signer { Some(input.mint_seed) } else { None },
+        authority: input.authority,
+        tree_pubkey: input.address_tree_pubkey,
+        output_queue: input.output_queue,
+        with_lamports,
+        is_decompressed,
+        with_cpi_context,
+        create_mint,
+        with_mint_signer,
+    };
+
+    // Get account metas (before moving compressed_mint_inputs)
+    let accounts = get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
+
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
         mint_bump,
@@ -122,22 +142,16 @@ pub fn create_mint_action_cpi(
         proof: input.proof,
         cpi_context,
     };
-
-    // Create account meta config
-    let meta_config = MintActionMetaConfig {
-        fee_payer: Some(input.payer),
-        mint_signer: Some(input.mint_seed),
-        authority: input.authority,
-        address_tree_pubkey: input.address_tree_pubkey,
-        output_queue: input.output_queue,
-        with_lamports,
-        is_decompressed,
-        with_cpi_context,
-        create_mint,
-    };
-
-    // Get account metas
-    let accounts = get_mint_action_instruction_account_metas(meta_config);
+    
+    // Debug: Print account metas
+    println!("=== ACCOUNT METAS DEBUG ===");
+    println!("meta_config: mint_signer={:?}, is_decompressed={}, create_mint={}", 
+             meta_config.mint_signer, meta_config.is_decompressed, meta_config.create_mint);
+    for (i, account) in accounts.iter().enumerate() {
+        println!("Index {}: pubkey={}, mutable={}, signer={}", 
+                 i, account.pubkey, account.is_writable, account.is_signer);
+    }
+    println!("=== END ACCOUNT METAS DEBUG ===");
 
     // Serialize instruction data
     let data_vec = instruction_data

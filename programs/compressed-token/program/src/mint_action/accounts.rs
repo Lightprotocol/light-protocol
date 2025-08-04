@@ -1,5 +1,6 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_pod::solana_msg::msg;
 
 use crate::shared::{
     accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
@@ -113,48 +114,54 @@ impl<'info> MintActionAccounts<'info> {
                 pubkeys.push(tokens_out_queue.key());
             }
         }
-
+        msg!(
+            "Tree pubkeys {:?}",
+            pubkeys
+                .iter()
+                .map(|p| solana_pubkey::Pubkey::new_from_array(**p))
+                .collect::<Vec<_>>()
+        );
         pubkeys
     }
 
     /// Calculate the dynamic CPI accounts offset based on which accounts are present
     pub fn cpi_accounts_offset(&self) -> usize {
         let mut offset = 0;
-        
+
         // light_system_program (always present)
         offset += 1;
-        
+
         // mint_signer (optional)
         if self.mint_signer.is_some() {
             offset += 1;
         }
-        
+
         // authority (always present)
         offset += 1;
-        
+
         if let Some(executing) = &self.executing {
             // mint (optional)
             if executing.mint.is_some() {
                 offset += 1;
             }
-            
+
             // token_pool_pda (optional)
             if executing.token_pool_pda.is_some() {
                 offset += 1;
             }
-            
+
             // token_program (optional)
             if executing.token_program.is_some() {
                 offset += 1;
             }
-            
+
             // LightSystemAccounts - these are the CPI accounts that start here
             // We don't add them to offset since this is where CPI accounts begin
         } else if let Some(_) = &self.write_to_cpi_context_system {
             // CpiContextLightSystemAccounts - these are the CPI accounts that start here
             // We don't add them to offset since this is where CPI accounts begin
         }
-        
+
         offset
     }
 }
