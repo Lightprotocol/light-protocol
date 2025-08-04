@@ -5,6 +5,7 @@ use syn::{parse_quote, DeriveInput, Field, Ident};
 
 use crate::shared::{
     meta_struct, utils,
+    z_enum::{generate_enum_deserialize_impl, generate_enum_zero_copy_struct_inner, generate_z_enum},
     z_struct::{analyze_struct_fields, generate_z_struct, FieldType},
 };
 
@@ -231,45 +232,66 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
         ));
     }
 
-    // Process the input to extract struct information
-    let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
+    // Process the input to extract information for both structs and enums
+    let (name, z_name, input_type) = utils::process_input_generic(&input)?;
 
-    // Process the fields to separate meta fields and struct fields
-    let (meta_fields, struct_fields) = utils::process_fields(fields);
+    match input_type {
+        utils::InputType::Struct(fields) => {
+            // Handle struct case (existing logic)
+            let z_struct_name = z_name;
+            let z_struct_meta_name = format_ident!("Z{}Meta", name);
 
-    let meta_struct_def = if !meta_fields.is_empty() {
-        meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
-    } else {
-        quote! {}
-    };
+            // Process the fields to separate meta fields and struct fields
+            let (meta_fields, struct_fields) = utils::process_fields(fields);
 
-    let z_struct_def = generate_z_struct::<false>(
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        &meta_fields,
-        hasher,
-    )?;
+            let meta_struct_def = if !meta_fields.is_empty() {
+                meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
+            } else {
+                quote! {}
+            };
 
-    let zero_copy_struct_inner_impl =
-        generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
+            let z_struct_def = generate_z_struct::<false>(
+                &z_struct_name,
+                &z_struct_meta_name,
+                &struct_fields,
+                &meta_fields,
+                hasher,
+            )?;
 
-    let deserialize_impl = generate_deserialize_impl::<false>(
-        name,
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        meta_fields.is_empty(),
-        quote! {},
-    )?;
+            let zero_copy_struct_inner_impl =
+                generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
 
-    // Combine all implementations
-    let expanded = quote! {
-        #meta_struct_def
-        #z_struct_def
-        #zero_copy_struct_inner_impl
-        #deserialize_impl
-    };
+            let deserialize_impl = generate_deserialize_impl::<false>(
+                name,
+                &z_struct_name,
+                &z_struct_meta_name,
+                &struct_fields,
+                meta_fields.is_empty(),
+                quote! {},
+            )?;
 
-    Ok(expanded)
+            // Combine all implementations
+            Ok(quote! {
+                #meta_struct_def
+                #z_struct_def
+                #zero_copy_struct_inner_impl
+                #deserialize_impl
+            })
+        }
+        utils::InputType::Enum(enum_data) => {
+            // Handle enum case (new logic)
+            let z_enum_name = z_name;
+
+            let z_enum_def = generate_z_enum(&z_enum_name, enum_data)?;
+            let deserialize_impl = generate_enum_deserialize_impl(name, &z_enum_name, enum_data)?;
+            let zero_copy_struct_inner_impl = generate_enum_zero_copy_struct_inner(name, &z_enum_name)?;
+
+            // Combine all implementations
+            Ok(quote! {
+                #z_enum_def
+                #deserialize_impl
+                #zero_copy_struct_inner_impl
+            })
+        }
+    }
 }
