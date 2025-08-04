@@ -184,3 +184,45 @@ pub fn get_mint_action_instruction_account_metas(
 
     metas
 }
+
+/// Account metadata configuration for mint action CPI write instruction
+#[derive(Debug, Copy, Clone)]
+pub struct MintActionMetaConfigCpiWrite {
+    pub fee_payer: Pubkey,
+    pub mint_signer: Option<Pubkey>, // Optional - only when creating mint and when creating SPL mint
+    pub authority: Pubkey,
+    pub cpi_context: Pubkey,
+}
+
+/// Get the account metas for a mint action CPI write instruction
+pub fn get_mint_action_instruction_account_metas_cpi_write(
+    config: MintActionMetaConfigCpiWrite,
+) -> Vec<AccountMeta> {
+    let default_pubkeys = CTokenDefaultAccounts::default();
+    let mut metas = Vec::new();
+
+    // The order must match mint_action on-chain program expectations:
+    // [light_system_program, mint_signer, authority, fee_payer, cpi_authority_pda, cpi_context]
+
+    // light_system_program (always required) - index 0
+    metas.push(AccountMeta::new_readonly(default_pubkeys.light_system_program, false));
+
+    // mint_signer (optional signer - only when creating mint and creating SPL mint) - index 1
+    if let Some(mint_signer) = config.mint_signer {
+        metas.push(AccountMeta::new_readonly(mint_signer, true));
+    }
+
+    // authority (signer) - index 2
+    metas.push(AccountMeta::new_readonly(config.authority, true));
+
+    // fee_payer (signer, mutable) - index 3 (this is what the program checks for)
+    metas.push(AccountMeta::new(config.fee_payer, true));
+
+    // cpi_authority_pda - index 4
+    metas.push(AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false));
+
+    // cpi_context (mutable) - index 5
+    metas.push(AccountMeta::new(config.cpi_context, false));
+
+    metas
+}

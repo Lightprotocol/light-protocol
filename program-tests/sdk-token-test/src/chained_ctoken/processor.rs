@@ -1,13 +1,14 @@
 use super::CreateCompressedMint;
-use crate::chained_ctoken::create_mint::{
-    create_compressed_mint, CreateCompressedMintInstructionData,
-};
+use crate::chained_ctoken::create_mint::CreateCompressedMintInstructionData;
 use crate::chained_ctoken::create_pda::process_create_escrow_pda;
-use crate::chained_ctoken::mint_to::{mint_to_compressed, MintToCompressedInstructionData};
-use crate::chained_ctoken::update_compressed_mint::{
-    update_compressed_mint_cpi_write, UpdateCompressedMintInstructionDataCpi,
-};
+use crate::chained_ctoken::mint_to::MintToCompressedInstructionData;
+use crate::chained_ctoken::update_compressed_mint::UpdateCompressedMintInstructionDataCpi;
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::program::invoke;
+use light_compressed_token_sdk::instructions::mint_action::{
+    MintActionCpiWriteAccounts, MintActionType, MintToRecipient,
+};
+use light_compressed_token_sdk::instructions::{mint_action_cpi_write, MintActionInputsCpiWrite};
 use light_compressed_token_sdk::ValidityProof;
 use light_ctoken_types::instructions::create_compressed_mint::{
     CompressedMintInstructionData, CompressedMintWithContext,
@@ -78,53 +79,75 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
             }),
         },
     };
-    // First CPI call: create compressed mint
-    create_compressed_mint(&ctx, input.clone(), &cpi_accounts)?;
 
-    // Second CPI call: mint to compressed tokens
-    mint_to_compressed(
-        &ctx,
-        mint_input.clone(),
-        compressed_mint_inputs.clone(),
-        &cpi_accounts,
-    )?;
+    // Single CPI call: consolidated mint action (create + mint + update authority)
+    // Convert recipients from the mint input
+    let recipients: Vec<MintToRecipient> = mint_input
+        .recipients
+        .iter()
+        .map(|r| MintToRecipient {
+            recipient: Pubkey::from(r.recipient.to_bytes()),
+            amount: r.amount,
+        })
+        .collect();
 
-    // Third CPI call: update compressed mint (revoke mint authority)
-    // Create updated mint data for the update operation (after minting)
-    let updated_compressed_mint_inputs = light_ctoken_types::instructions::create_compressed_mint::CompressedMintWithContext {
-        leaf_index: 1, // The mint is at index 1 after being created
-        prove_by_index: true,
-        root_index: 0,
-        address: input.compressed_mint_address,
-        mint: light_ctoken_types::instructions::create_compressed_mint::CompressedMintInstructionData {
-            version: input.version,
-            spl_mint: spl_mint.into(),
-            supply: mint_input.recipients.iter().map(|r| r.amount).sum(), // Total supply after minting
-            decimals: input.decimals,
-            is_decompressed: false,
-            mint_authority: Some(ctx.accounts.mint_authority.key().into()), // Current mint authority
-            freeze_authority: input.freeze_authority.map(|f| f.into()),
-            extensions: input.metadata.as_ref().map(|metadata| {
-                vec![light_ctoken_types::instructions::extensions::ExtensionInstructionData::TokenMetadata(
-                    light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
-                        update_authority: metadata.update_authority,
-                        metadata: metadata.metadata.clone(),
-                        additional_metadata: metadata.additional_metadata.clone(),
-                        version: metadata.version,
-                    }
-                )]
-            }),
+    // Build actions for mint_action instruction
+    let actions = vec![
+        // 1. Mint tokens to recipients
+        MintActionType::MintTo {
+            recipients,
+            lamports: None,
+            token_account_version: mint_input.version,
         },
+        // 2. Update mint authority (revoke if None)
+        MintActionType::UpdateMintAuthority {
+            new_authority: update_mint_input.new_authority,
+        },
+    ];
+
+    // Create mint action CPI write inputs
+    let mint_action_inputs = MintActionInputsCpiWrite {
+        compressed_mint_inputs: compressed_mint_inputs.clone(),
+        mint_seed: Some(ctx.accounts.mint_seed.key()), // Needed for creating mint and CreateSplMint action
+        mint_bump: Some(input.mint_bump),              // Bump seed for creating SPL mint
+        create_mint: true,                             // We are creating a new mint
+        authority: ctx.accounts.mint_authority.key(),
+        payer: ctx.accounts.payer.key(),
+        actions,
+        cpi_context: light_ctoken_types::instructions::mint_actions::CpiContext {
+            set_context: false,
+            first_set_context: true,
+            in_tree_index: 0, // Used as address tree index if create mint
+            in_queue_index: 1,
+            out_queue_index: 1,
+            token_out_queue_index: 1,
+            assigned_account_index: 0, // Assign new address to the mint account (index 0)
+        },
+        cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
     };
 
-    update_compressed_mint_cpi_write(
-        &ctx,
-        update_mint_input,
-        updated_compressed_mint_inputs,
-        &cpi_accounts,
+    // Create the instruction using the SDK function
+    let mint_action_instruction =
+        mint_action_cpi_write(mint_action_inputs).map_err(ProgramError::from)?;
+    msg!("mint_action_instruction {:?}", mint_action_instruction);
+    // Prepare account infos following the same pattern as other CPI write functions
+    let mint_action_account_infos = MintActionCpiWriteAccounts {
+        light_system_program: cpi_accounts.system_program().unwrap(),
+        mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
+        authority: ctx.accounts.mint_authority.as_ref(),
+        fee_payer: ctx.accounts.payer.as_ref(),
+        cpi_authority_pda: ctx.accounts.ctoken_cpi_authority.as_ref(),
+        cpi_context: cpi_accounts.cpi_context().unwrap(),
+        cpi_signer: crate::LIGHT_CPI_SIGNER,
+    };
+
+    // Execute the CPI call
+    invoke(
+        &mint_action_instruction,
+        &mint_action_account_infos.to_account_infos(),
     )?;
 
-    // Fourth CPI call: create compressed escrow PDA
+    // Second CPI call: create compressed escrow PDA
     process_create_escrow_pda(
         pda_proof,
         output_tree_index,

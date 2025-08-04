@@ -62,6 +62,8 @@ pub struct CpiContext {
     pub in_queue_index: u8,
     pub out_queue_index: u8,
     pub token_out_queue_index: u8,
+    // Index of the compressed account that should receive the new address (0 = mint, 1+ = token accounts)
+    pub assigned_account_index: u8,
 }
 impl CompressedCpiContextTrait for ZCpiContext<'_> {
     fn first_set_context(&self) -> u8 {

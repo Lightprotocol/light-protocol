@@ -50,16 +50,15 @@ pub fn process_mint_to_action(
                 sum_amounts,
             )?;
         }
-        // Create output token accounts
-        create_output_compressed_token_accounts(
-            action,
-            cpi_instruction_struct,
-            hash_cache,
-            mint,
-            out_token_queue_index,
-        )?;
     }
-
+    // Create output token accounts
+    create_output_compressed_token_accounts(
+        action,
+        cpi_instruction_struct,
+        hash_cache,
+        mint,
+        out_token_queue_index,
+    )?;
     Ok(updated_supply)
 }
 

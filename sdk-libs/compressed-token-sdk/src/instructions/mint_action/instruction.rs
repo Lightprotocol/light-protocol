@@ -12,7 +12,8 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::{Result, TokenSdkError},
     instructions::mint_action::account_metas::{
-        get_mint_action_instruction_account_metas, MintActionMetaConfig,
+        get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
+        MintActionMetaConfig, MintActionMetaConfigCpiWrite,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -168,4 +169,119 @@ pub fn create_mint_action_cpi(
 /// Creates a mint action instruction without CPI context
 pub fn create_mint_action(input: MintActionInputs) -> Result<Instruction> {
     create_mint_action_cpi(input, None)
+}
+
+/// Input struct for creating a mint action CPI write instruction
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+pub struct MintActionInputsCpiWrite {
+    pub compressed_mint_inputs: light_ctoken_types::instructions::create_compressed_mint::CompressedMintWithContext,
+    pub mint_seed: Option<Pubkey>, // Optional - only when creating mint and when creating SPL mint
+    pub mint_bump: Option<u8>, // Bump seed for creating SPL mint
+    pub create_mint: bool, // Whether we're creating a new mint
+    pub authority: Pubkey,
+    pub payer: Pubkey,
+    pub actions: Vec<MintActionType>,
+    pub cpi_context: light_ctoken_types::instructions::mint_actions::CpiContext,
+    pub cpi_context_pubkey: Pubkey,
+}
+
+/// Creates a mint action CPI write instruction (for use in CPI context)
+pub fn mint_action_cpi_write(
+    input: MintActionInputsCpiWrite,
+) -> Result<Instruction> {
+    use light_ctoken_types::instructions::mint_actions::MintActionCompressedInstructionData;
+    
+    // Validate CPI context
+    if !input.cpi_context.first_set_context && !input.cpi_context.set_context {
+        return Err(TokenSdkError::InvalidAccountData);
+    }
+
+    // Convert high-level actions to program-level actions
+    let mut program_actions = Vec::new();
+    let create_mint = input.create_mint;
+    let mint_bump = input.mint_bump.unwrap_or(0u8);
+
+    // Check for lamports and decompressed status
+    let _with_lamports = input.actions.iter().any(|action| matches!(action, MintActionType::MintTo { lamports: Some(_), .. }));
+    let _is_decompressed = input.actions.iter().any(|action| matches!(action, MintActionType::CreateSplMint { .. })) 
+        || input.compressed_mint_inputs.mint.is_decompressed;
+    let with_mint_signer = create_mint || input.actions.iter().any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
+
+    for action in input.actions {
+        match action {
+            MintActionType::CreateSplMint { mint_bump: bump } => {
+                program_actions.push(light_ctoken_types::instructions::mint_actions::Action::CreateSplMint(
+                    light_ctoken_types::instructions::mint_actions::CreateSplMintAction {
+                        mint_bump: bump,
+                    }
+                ));
+            }
+            MintActionType::MintTo { recipients, lamports, token_account_version } => {
+                let program_recipients: Vec<_> = recipients
+                    .into_iter()
+                    .map(|r| light_ctoken_types::instructions::mint_to_compressed::Recipient {
+                        recipient: r.recipient.to_bytes().into(),
+                        amount: r.amount,
+                    })
+                    .collect();
+
+                program_actions.push(light_ctoken_types::instructions::mint_actions::Action::MintTo(
+                    light_ctoken_types::instructions::mint_to_compressed::MintToAction {
+                        token_account_version,
+                        recipients: program_recipients,
+                        lamports,
+                    }
+                ));
+            }
+            MintActionType::UpdateMintAuthority { new_authority } => {
+                program_actions.push(light_ctoken_types::instructions::mint_actions::Action::UpdateMintAuthority(
+                    light_ctoken_types::instructions::mint_actions::UpdateAuthority {
+                        new_authority: new_authority.map(|auth| auth.to_bytes().into()),
+                    }
+                ));
+            }
+            MintActionType::UpdateFreezeAuthority { new_authority } => {
+                program_actions.push(light_ctoken_types::instructions::mint_actions::Action::UpdateFreezeAuthority(
+                    light_ctoken_types::instructions::mint_actions::UpdateAuthority {
+                        new_authority: new_authority.map(|auth| auth.to_bytes().into()),
+                    }
+                ));
+            }
+        }
+    }
+
+    let instruction_data = MintActionCompressedInstructionData {
+        create_mint,
+        mint_bump,
+        leaf_index: input.compressed_mint_inputs.leaf_index,
+        prove_by_index: input.compressed_mint_inputs.prove_by_index,
+        root_index: input.compressed_mint_inputs.root_index,
+        compressed_address: input.compressed_mint_inputs.address,
+        mint: input.compressed_mint_inputs.mint,
+        actions: program_actions,
+        proof: None, // No proof for CPI write context
+        cpi_context: Some(input.cpi_context),
+    };
+
+    // Create account meta config for CPI write
+    let meta_config = MintActionMetaConfigCpiWrite {
+        fee_payer: input.payer,
+        mint_signer: if with_mint_signer { input.mint_seed } else { None },
+        authority: input.authority,
+        cpi_context: input.cpi_context_pubkey,
+    };
+
+    // Get account metas
+    let accounts = get_mint_action_instruction_account_metas_cpi_write(meta_config);
+
+    // Serialize instruction data
+    let data_vec = instruction_data
+        .try_to_vec()
+        .map_err(|_| TokenSdkError::SerializationError)?;
+
+    Ok(Instruction {
+        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts,
+        data: [vec![MINT_ACTION_DISCRIMINATOR], data_vec].concat(),
+    })
 }
