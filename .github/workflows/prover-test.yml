@@ -128,13 +128,13 @@ jobs:
           cd prover/server
           go test -run TestFull -timeout 120m
 
-      # - name: Extract circuit to Lean
-      #   run: |
-      #     cd prover/server
-      #     ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-height=26 --compressed-accounts=8
+      - name: Extract circuit to Lean
+        run: |
+          cd prover/server
+          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --address-tree-height 40 --compressed-accounts 8 --state-tree-height 32
 
-      # - name: Build lean project
-      #   run: |
-      #     cd prover/server/formal-verification
-      #     ~/.elan/bin/lake exe cache get
-      #     ~/.elan/bin/lake build
+      - name: Build lean project
+        run: |
+          cd prover/server/formal-verification
+          ~/.elan/bin/lake exe cache get
+          ~/.elan/bin/lake build
