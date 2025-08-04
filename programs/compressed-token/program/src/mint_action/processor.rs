@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
     instruction_data::with_readonly::{
@@ -79,7 +80,7 @@ pub fn process_mint_action(
         && parsed_instruction_data.proof.is_none()
     {
         msg!("Proof missing");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ErrorCode::MintActionProofMissing.into());
     }
 
     sol_log_compute_units();
@@ -218,7 +219,7 @@ fn process_actions(
             }
             _ => {
                 msg!("Unsupported action type");
-                return Err(ProgramError::InvalidInstructionData);
+                return Err(ErrorCode::MintActionUnsupportedActionType.into());
             }
         }
     }

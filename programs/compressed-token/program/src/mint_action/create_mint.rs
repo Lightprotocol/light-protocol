@@ -1,13 +1,14 @@
-use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_compressed_token::ErrorCode;
+use anchor_lang::prelude::ProgramError;
 use light_ctoken_types::instructions::mint_actions::ZMintActionCompressedInstructionData;
 use light_ctoken_types::state::CompressedMintConfig;
 
-use light_compressed_account::{ Pubkey};
-use light_ctoken_types::{ CTokenError, COMPRESSED_MINT_SEED};
+use light_compressed_account::Pubkey;
+use light_ctoken_types::{CTokenError, COMPRESSED_MINT_SEED};
 
 use spl_pod::solana_msg::msg;
 
-use crate::{ mint_action::accounts::MintActionAccounts};
+use crate::mint_action::accounts::MintActionAccounts;
 
 // TODO: unit test.
 /// Processes the create mint action by validating parameters and setting up the new address
@@ -24,7 +25,8 @@ pub fn process_create_mint_action(
     //  The pda would be unvalidated and an invalid bump could be used.
     let mint_signer = validated_accounts
         .mint_signer
-        .ok_or(CTokenError::ExpectedMintSignerAccount)?;
+        .ok_or(CTokenError::ExpectedMintSignerAccount)
+        .map_err(|_| ErrorCode::MintActionMissingExecutingAccounts)?;
     let spl_mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
         &[
             COMPRESSED_MINT_SEED,
@@ -37,7 +39,7 @@ pub fn process_create_mint_action(
     msg!("post mint_size_config {:?}", mint_size_config);
     if spl_mint_pda.to_bytes() != parsed_instruction_data.mint.spl_mint.to_bytes() {
         msg!("Invalid mint PDA derivation");
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
     // 2. Create NewAddressParams
     let address_merkle_tree_account_index =
@@ -55,19 +57,19 @@ pub fn process_create_mint_action(
     // Validate mint parameters
     if u64::from(parsed_instruction_data.mint.supply) != 0 {
         msg!("Initial supply must be 0 for new mint creation");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ErrorCode::MintActionInvalidInitialSupply.into());
     }
 
     // Validate version is supported
     if parsed_instruction_data.mint.version > 1 {
         msg!("Unsupported mint version");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ErrorCode::MintActionUnsupportedVersion.into());
     }
 
     // Validate is_decompressed is false for new mint creation
     if parsed_instruction_data.mint.is_decompressed() {
         msg!("New mint must start as compressed (is_decompressed=false)");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ErrorCode::MintActionInvalidCompressionState.into());
     }
 
     Ok(())

@@ -33,12 +33,20 @@ pub enum TokenSdkError {
     AccountBorrowFailed,
     #[error("Invalid account data")]
     InvalidAccountData,
+    #[error("Missing required CPI account")]
+    MissingCpiAccount,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
     CTokenError(#[from] CTokenError),
 }
-
+#[cfg(feature = "anchor")]
+impl From<TokenSdkError> for anchor_lang::prelude::ProgramError {
+    fn from(e: TokenSdkError) -> Self {
+        ProgramError::Custom(e.into())
+    }
+}
+#[cfg(not(feature = "anchor"))]
 impl From<TokenSdkError> for ProgramError {
     fn from(e: TokenSdkError) -> Self {
         ProgramError::Custom(e.into())
@@ -61,6 +69,7 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::InvalidCompressInputOwner => 17011,
             TokenSdkError::AccountBorrowFailed => 17012,
             TokenSdkError::InvalidAccountData => 17013,
+            TokenSdkError::MissingCpiAccount => 17014,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
         }

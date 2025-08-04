@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_types::CTokenError;
 
@@ -18,12 +19,12 @@ pub fn process_create_spl_mint_action(
     let executing_accounts = validated_accounts
         .executing
         .as_ref()
-        .ok_or(ProgramError::InvalidAccountData)?;
+        .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
 
     // Check mint authority if it exists
     if let Some(ix_data_mint_authority) = mint_data.mint_authority {
         if *validated_accounts.authority.key() != ix_data_mint_authority.to_bytes() {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(ErrorCode::MintActionInvalidMintAuthority.into());
         }
     }
 
@@ -31,11 +32,11 @@ pub fn process_create_spl_mint_action(
     let expected_mint: [u8; 32] = mint_data.spl_mint.to_bytes();
     if executing_accounts
         .mint
-        .ok_or(ProgramError::InvalidAccountData)?
+        .ok_or(ErrorCode::MintActionMissingMintAccount)?
         .key()
         != &expected_mint
     {
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
 
     // 1. Create the mint account manually (PDA derived from our program, owned by token program)
@@ -63,13 +64,13 @@ pub fn process_create_spl_mint_action(
         crate::shared::mint_to_token_pool(
             executing_accounts
                 .mint
-                .ok_or(ProgramError::InvalidAccountData)?,
+                .ok_or(ErrorCode::MintActionMissingMintAccount)?,
             executing_accounts
                 .token_pool_pda
-                .ok_or(ProgramError::InvalidAccountData)?,
+                .ok_or(ErrorCode::MintActionMissingTokenPoolAccount)?,
             executing_accounts
                 .token_program
-                .ok_or(ProgramError::InvalidAccountData)?,
+                .ok_or(ErrorCode::MintActionMissingTokenProgram)?,
             executing_accounts.system.cpi_authority_pda,
             mint_data.supply.into(),
         )?;

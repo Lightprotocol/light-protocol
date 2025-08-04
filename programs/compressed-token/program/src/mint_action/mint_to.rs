@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{hash_cache::HashCache, instructions::mint_to_compressed::ZMintToAction};
@@ -26,7 +27,7 @@ pub fn process_mint_to_action(
         .sum::<u64>();
     let updated_supply = current_supply
         .checked_add(sum_amounts)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ErrorCode::MintActionAmountTooLarge)?;
 
     if let Some(system_accounts) = validated_accounts.executing.as_ref() {
         // If mint is decompressed, mint tokens to the token pool to maintain SPL mint supply consistency
@@ -34,13 +35,13 @@ pub fn process_mint_to_action(
             let sum_amounts: u64 = action.recipients.iter().map(|x| u64::from(x.amount)).sum();
             let mint_account = system_accounts
                 .mint
-                .ok_or(ProgramError::InvalidAccountData)?;
+                .ok_or(ErrorCode::MintActionMissingMintAccount)?;
             let token_pool_account = system_accounts
                 .token_pool_pda
-                .ok_or(ProgramError::InvalidAccountData)?;
+                .ok_or(ErrorCode::MintActionMissingTokenPoolAccount)?;
             let token_program = system_accounts
                 .token_program
-                .ok_or(ProgramError::InvalidAccountData)?;
+                .ok_or(ErrorCode::MintActionMissingTokenProgram)?;
             msg!("minting {}", sum_amounts);
             mint_to_token_pool(
                 mint_account,

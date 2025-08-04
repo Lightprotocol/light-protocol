@@ -1,5 +1,5 @@
 use crate::mint_action::accounts::MintActionAccounts;
-use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_compressed_token::ErrorCode;
 use light_ctoken_types::instructions::mint_actions::ZMintActionCompressedInstructionData;
 
 use spl_pod::solana_msg::msg;
@@ -16,7 +16,7 @@ impl QueueIndices {
     pub fn new(
         parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
         validated_accounts: &MintActionAccounts,
-    ) -> Result<QueueIndices, ProgramError> {
+    ) -> Result<QueueIndices, ErrorCode> {
         let in_tree_index = parsed_instruction_data
             .cpi_context
             .as_ref()
@@ -42,7 +42,7 @@ impl QueueIndices {
                 }
             } else {
                 msg!("No system accounts provided for queue index");
-                return Err(ProgramError::InvalidAccountData);
+                return Err(ErrorCode::MintActionMissingSystemAccountsForQueue);
             };
         let output_queue_index =
             if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {

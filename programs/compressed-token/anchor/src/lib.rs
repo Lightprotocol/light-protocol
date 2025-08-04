@@ -290,6 +290,53 @@ pub enum ErrorCode {
     InstructionDataExpectedDelegate,
     ZeroCopyExpectedDelegate,
     TokenDataTlvUnimplemented,
+    // Mint Action specific errors
+    #[msg("Mint action requires at least one action")]
+    MintActionNoActionsProvided,
+    #[msg("Missing mint signer account for SPL mint creation")]
+    MintActionMissingSplMintSigner,
+    #[msg("Missing system account configuration for mint action")]
+    MintActionMissingSystemAccount,
+    #[msg("Invalid mint bump seed provided")]
+    MintActionInvalidMintBump,
+    #[msg("Missing mint account for decompressed mint operations")]
+    MintActionMissingMintAccount,
+    #[msg("Missing token pool account for decompressed mint operations")]
+    MintActionMissingTokenPoolAccount,
+    #[msg("Missing token program for SPL operations")]
+    MintActionMissingTokenProgram,
+    #[msg("Invalid queue index configuration")]
+    MintActionInvalidQueueIndex,
+    #[msg("Mint output serialization failed")]
+    MintActionSerializationFailed,
+    #[msg("Proof required for mint action but not provided")]
+    MintActionProofMissing,
+    #[msg("Unsupported mint action type")]
+    MintActionUnsupportedActionType,
+    #[msg("Missing executing system accounts for mint action")]
+    MintActionMissingExecutingAccounts,
+    #[msg("Invalid mint authority for mint action")]
+    MintActionInvalidMintAuthority,
+    #[msg("Invalid mint PDA derivation in mint action")]
+    MintActionInvalidMintPda,
+    #[msg("Missing system accounts for queue index calculation")]
+    MintActionMissingSystemAccountsForQueue,
+    #[msg("Account data serialization failed in mint output")]
+    MintActionOutputSerializationFailed,
+    #[msg("Mint amount too large, would cause overflow")]
+    MintActionAmountTooLarge,
+    #[msg("Initial supply must be 0 for new mint creation")]
+    MintActionInvalidInitialSupply,
+    #[msg("Mint version not supported")]
+    MintActionUnsupportedVersion,
+    #[msg("New mint must start as compressed")]
+    MintActionInvalidCompressionState,
+}
+
+impl From<ErrorCode> for ProgramError {
+    fn from(e: ErrorCode) -> Self {
+        ProgramError::Custom(e as u32)
+    }
 }
 
 /// Checks if CPI context usage is valid for the current instruction

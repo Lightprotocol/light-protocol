@@ -1,4 +1,5 @@
-use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_compressed_token::ErrorCode;
+use anchor_lang::prelude::ProgramError;
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
@@ -68,11 +69,11 @@ pub fn create_output_compressed_mint_account(
             .compressed_account
             .data
             .as_mut()
-            .ok_or(ProgramError::InvalidAccountData)?;
+            .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
 
         let (mut compressed_mint, _) =
             CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
-                .map_err(ProgramError::from)?;
+                .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
         compressed_mint.set(
             version,
             mint_pda,
@@ -107,9 +108,7 @@ pub fn create_output_compressed_mint_account(
             None
         };
         // Compute final hash with extensions
-        compressed_mint
-            .hash(extension_hash, hash_cache)
-            .map_err(|_| ProgramError::InvalidAccountData)?
+        compressed_mint.hash(extension_hash, hash_cache)?
     };
 
     // 2. Set output compressed account

@@ -126,10 +126,19 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         (compressed_mint_inputs, rpc_proof_result.proof.into())
     };
 
+    // Get mint bump from find_spl_mint_address if we're creating a compressed mint
+    let mint_bump = if is_creating_mint {
+        Some(find_spl_mint_address(&params.mint_seed).1)
+    } else {
+        None
+    };
+
     // Create the mint action instruction inputs
     let instruction_inputs = MintActionInputs {
         compressed_mint_inputs,
         mint_seed: params.mint_seed,
+        create_mint: is_creating_mint,
+        mint_bump,
         authority: params.authority,
         payer: params.payer,
         proof,

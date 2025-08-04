@@ -44,8 +44,7 @@ pub fn process_mint_action<'a, 'b, 'c, 'info>(
         cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
     };
 
-    let mint_action_instruction =
-        mint_action_cpi_write(mint_action_inputs).map_err(ProgramError::from)?;
+    let mint_action_instruction = mint_action_cpi_write(mint_action_inputs).unwrap();
     let mint_action_account_infos = MintActionCpiWriteAccounts {
         light_system_program: cpi_accounts.system_program().unwrap(),
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
