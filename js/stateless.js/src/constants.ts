@@ -172,19 +172,32 @@ export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
             nextTreeInfo: null,
         },
     ].filter(info =>
-        featureFlags.isV2() ? true : info.treeType === TreeType.StateV1,
+        featureFlags.isV2()
+            ? info.treeType === TreeType.StateV2
+            : info.treeType === TreeType.StateV1,
     );
 };
 
 export const getDefaultAddressTreeInfo = () => {
-    return {
-        tree: new PublicKey(addressTree),
-        queue: new PublicKey(addressQueue),
-        cpiContext: null,
-        treeType: TreeType.AddressV1,
-        nextTreeInfo: null,
-    };
+    if (featureFlags.isV2()) {
+        return {
+            tree: addressTreeV2,
+            queue: addressTreeV2, // v2 has queue in same account as tree.
+            cpiContext: null,
+            treeType: TreeType.AddressV2,
+            nextTreeInfo: null,
+        };
+    } else {
+        return {
+            tree: new PublicKey(addressTree),
+            queue: new PublicKey(addressQueue),
+            cpiContext: null,
+            treeType: TreeType.AddressV1,
+            nextTreeInfo: null,
+        };
+    }
 };
+
 /**
  * @deprecated use {@link rpc.getStateTreeInfos} and {@link selectStateTreeInfo} instead.
  * for address trees, use {@link getDefaultAddressTreeInfo} instead.
@@ -231,6 +244,11 @@ export const cpiContextPubkey = 'cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4';
 export const merkletreePubkey = 'smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT';
 export const addressTree = 'amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2';
 export const addressQueue = 'aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F';
+
+// V2 tree is in same account as queue.
+export const addressTreeV2 = new PublicKey(
+    'EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK',
+);
 
 export const merkleTree2Pubkey = 'smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho';
 export const nullifierQueue2Pubkey =

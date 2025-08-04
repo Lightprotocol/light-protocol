@@ -103,6 +103,57 @@ export class PackedAccounts {
     }
 }
 
+/**
+ * Creates a PackedAccounts instance with system accounts for the specified
+ * program. This is a convenience wrapper around SystemAccountMetaConfig.new()
+ * and PackedAccounts.newWithSystemAccounts().
+ *
+ * @param programId - The program ID that will be using these system accounts
+ * @returns A new PackedAccounts instance with system accounts configured
+ *
+ * @example
+ * ```ts
+ * const packedAccounts = createPackedAccounts(myProgram.programId);
+ *
+ * const instruction = new TransactionInstruction({
+ *     keys: [...yourInstructionAccounts, ...packedAccounts.toAccountMetas().remainingAccounts],
+ *     programId: myProgram.programId,
+ *     data: instructionData,
+ * });
+ * ```
+ */
+export function createPackedAccounts(programId: PublicKey): PackedAccounts {
+    const systemAccountConfig = SystemAccountMetaConfig.new(programId);
+    return PackedAccounts.newWithSystemAccounts(systemAccountConfig);
+}
+
+/**
+ * Creates a PackedAccounts instance with system accounts and CPI context for the specified program.
+ * This is a convenience wrapper that includes CPI context configuration.
+ *
+ * @param programId - The program ID that will be using these system accounts
+ * @param cpiContext - The CPI context account public key
+ * @returns A new PackedAccounts instance with system accounts and CPI context configured
+ *
+ * @example
+ * ```ts
+ * const packedAccounts = createPackedAccountsWithCpiContext(
+ *     myProgram.programId,
+ *     cpiContextAccount
+ * );
+ * ```
+ */
+export function createPackedAccountsWithCpiContext(
+    programId: PublicKey,
+    cpiContext: PublicKey,
+): PackedAccounts {
+    const systemAccountConfig = SystemAccountMetaConfig.newWithCpiContext(
+        programId,
+        cpiContext,
+    );
+    return PackedAccounts.newWithSystemAccounts(systemAccountConfig);
+}
+
 export class SystemAccountMetaConfig {
     selfProgram: PublicKey;
     cpiContext?: PublicKey;

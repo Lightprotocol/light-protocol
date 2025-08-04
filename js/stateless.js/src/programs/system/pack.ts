@@ -1,4 +1,5 @@
 import { AccountMeta, PublicKey } from '@solana/web3.js';
+import BN from 'bn.js';
 import {
     AccountProofInput,
     CompressedAccountLegacy,
@@ -7,13 +8,16 @@ import {
     PackedCompressedAccountWithMerkleContext,
     TreeInfo,
     TreeType,
+    ValidityProof,
 } from '../../state';
+import { ValidityProofWithContext } from '../../rpc-interface';
 import {
     CompressedAccountWithMerkleContextLegacy,
     PackedAddressTreeInfo,
     PackedStateTreeInfo,
 } from '../../state/compressed-account';
 import { featureFlags } from '../../constants';
+import { PackedAccounts } from '../../utils';
 
 /**
  * @internal Finds the index of a PublicKey in an array, or adds it if not
@@ -72,18 +76,10 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
     );
 }
 
-export interface PackedStateTreeInfos {
-    packedTreeInfos: PackedStateTreeInfo[];
-    outputTreeIndex: number;
-}
-
-export interface PackedTreeInfos {
-    stateTrees?: PackedStateTreeInfos;
-    addressTrees: PackedAddressTreeInfo[];
-}
-
 const INVALID_TREE_INDEX = -1;
+
 /**
+ * @deprecated Use {@link packTreeInfos} instead.
  * Packs TreeInfos. Replaces PublicKey with index pointer to remaining accounts.
  *
  * Only use for MUT, CLOSE, NEW_ADDRESSES. For INIT, pass
@@ -99,7 +95,7 @@ const INVALID_TREE_INDEX = -1;
  * @returns Remaining accounts, packed state and address tree infos, state tree
  * output index and address tree infos.
  */
-export function packTreeInfos(
+export function packTreeInfosWithPubkeys(
     remainingAccounts: PublicKey[],
     accountProofInputs: AccountProofInput[],
     newAddressProofInputs: NewAddressProofInput[],
@@ -113,7 +109,7 @@ export function packTreeInfos(
     // Early exit.
     if (accountProofInputs.length === 0 && newAddressProofInputs.length === 0) {
         return {
-            stateTrees: undefined,
+            stateTrees: null,
             addressTrees: addressTreeInfos,
         };
     }
@@ -181,7 +177,7 @@ export function packTreeInfos(
                       packedTreeInfos: stateTreeInfos,
                       outputTreeIndex,
                   }
-                : undefined,
+                : null,
         addressTrees: addressTreeInfos,
     };
 }
@@ -305,5 +301,261 @@ export function packCompressedAccounts(
         packedInputCompressedAccounts,
         packedOutputCompressedAccounts,
         remainingAccounts: _remainingAccounts,
+    };
+}
+
+/**
+ * Root index for state tree proofs.
+ */
+export type RootIndex = {
+    proofByIndex: boolean;
+    rootIndex: number;
+};
+
+/**
+ * Creates a RootIndex for proving by merkle proof.
+ */
+export function createRootIndex(rootIndex: number): RootIndex {
+    return {
+        proofByIndex: false,
+        rootIndex,
+    };
+}
+
+/**
+ * Creates a RootIndex for proving by leaf index.
+ */
+export function createRootIndexByIndex(): RootIndex {
+    return {
+        proofByIndex: true,
+        rootIndex: 0,
+    };
+}
+
+/**
+ * Account proof inputs for state tree accounts.
+ */
+export type AccountProofInputs = {
+    hash: Uint8Array;
+    root: Uint8Array;
+    rootIndex: RootIndex;
+    leafIndex: number;
+    treeInfo: TreeInfo;
+};
+
+/**
+ * Address proof inputs for address tree accounts.
+ */
+export type AddressProofInputs = {
+    address: Uint8Array;
+    root: Uint8Array;
+    rootIndex: number;
+    treeInfo: TreeInfo;
+};
+
+/**
+ * Validity proof with context structure that matches Rust implementation.
+ */
+export type ValidityProofWithContextV2 = {
+    proof: ValidityProof | null;
+    accounts: AccountProofInputs[];
+    addresses: AddressProofInputs[];
+};
+
+/**
+ * Packed state tree infos.
+ */
+export type PackedStateTreeInfos = {
+    packedTreeInfos: PackedStateTreeInfo[];
+    outputTreeIndex: number;
+};
+
+/**
+ * Packed tree infos containing both state and address trees.
+ */
+export type PackedTreeInfos = {
+    stateTrees: PackedStateTreeInfos | null;
+    addressTrees: PackedAddressTreeInfo[];
+};
+
+/**
+ * Packs the output tree index based on tree type.
+ * For StateV1, returns the index of the tree account.
+ * For StateV2, returns the index of the queue account.
+ */
+function packOutputTreeIndex(
+    treeInfo: TreeInfo,
+    packedAccounts: PackedAccounts,
+): number {
+    switch (treeInfo.treeType) {
+        case TreeType.StateV1:
+            return packedAccounts.insertOrGet(treeInfo.tree);
+        case TreeType.StateV2:
+            return packedAccounts.insertOrGet(treeInfo.queue);
+        default:
+            throw new Error('Invalid tree type for packing output tree index');
+    }
+}
+
+/**
+ * Converts ValidityProofWithContext to ValidityProofWithContextV2 format.
+ * Infers the split between state and address accounts based on tree types.
+ */
+function convertValidityProofToV2(
+    validityProof: ValidityProofWithContext,
+): ValidityProofWithContextV2 {
+    const accounts: AccountProofInputs[] = [];
+    const addresses: AddressProofInputs[] = [];
+
+    for (let i = 0; i < validityProof.treeInfos.length; i++) {
+        const treeInfo = validityProof.treeInfos[i];
+
+        if (
+            treeInfo.treeType === TreeType.StateV1 ||
+            treeInfo.treeType === TreeType.StateV2
+        ) {
+            // State tree account
+            accounts.push({
+                hash: new Uint8Array(validityProof.leaves[i].toArray('le', 32)),
+                root: new Uint8Array(validityProof.roots[i].toArray('le', 32)),
+                rootIndex: {
+                    proofByIndex: validityProof.proveByIndices[i],
+                    rootIndex: validityProof.rootIndices[i],
+                },
+                leafIndex: validityProof.leafIndices[i],
+                treeInfo,
+            });
+        } else {
+            // Address tree account
+            addresses.push({
+                address: new Uint8Array(
+                    validityProof.leaves[i].toArray('le', 32),
+                ),
+                root: new Uint8Array(validityProof.roots[i].toArray('le', 32)),
+                rootIndex: validityProof.rootIndices[i],
+                treeInfo,
+            });
+        }
+    }
+
+    return {
+        proof: validityProof.compressedProof,
+        accounts,
+        addresses,
+    };
+}
+
+/**
+ * Packs tree infos from ValidityProofWithContext into packed format. This is a
+ * TypeScript equivalent of the Rust pack_tree_infos method.
+ *
+ * @param validityProof - The validity proof with context (flat format)
+ * @param packedAccounts - The packed accounts manager
+ * @returns Packed tree infos
+ */
+export function packTreeInfos(
+    validityProof: ValidityProofWithContext,
+    packedAccounts: PackedAccounts,
+): PackedTreeInfos;
+
+/**
+ * Packs tree infos from ValidityProofWithContextV2 into packed format. This is
+ * a TypeScript equivalent of the Rust pack_tree_infos method.
+ *
+ * @param validityProof - The validity proof with context (structured format)
+ * @param packedAccounts - The packed accounts manager
+ * @returns Packed tree infos
+ */
+export function packTreeInfos(
+    validityProof: ValidityProofWithContextV2,
+    packedAccounts: PackedAccounts,
+): PackedTreeInfos;
+
+export function packTreeInfos(
+    validityProof: ValidityProofWithContext | ValidityProofWithContextV2,
+    packedAccounts: PackedAccounts,
+): PackedTreeInfos {
+    // Convert flat format to structured format if needed
+    const structuredProof =
+        'accounts' in validityProof
+            ? (validityProof as ValidityProofWithContextV2)
+            : convertValidityProofToV2(
+                  validityProof as ValidityProofWithContext,
+              );
+    const packedTreeInfos: PackedStateTreeInfo[] = [];
+    const addressTrees: PackedAddressTreeInfo[] = [];
+    let outputTreeIndex: number | null = null;
+
+    // Process state tree accounts
+    for (const account of structuredProof.accounts) {
+        // Pack TreeInfo
+        const merkleTreePubkeyIndex = packedAccounts.insertOrGet(
+            account.treeInfo.tree,
+        );
+        const queuePubkeyIndex = packedAccounts.insertOrGet(
+            account.treeInfo.queue,
+        );
+
+        const treeInfoPacked: PackedStateTreeInfo = {
+            rootIndex: account.rootIndex.rootIndex,
+            merkleTreePubkeyIndex,
+            queuePubkeyIndex,
+            leafIndex: account.leafIndex,
+            proveByIndex: account.rootIndex.proofByIndex,
+        };
+        packedTreeInfos.push(treeInfoPacked);
+
+        // Determine output tree index
+        // If a next Merkle tree exists, the Merkle tree is full -> use the next Merkle tree for new state.
+        // Else use the current Merkle tree for new state.
+        if (account.treeInfo.nextTreeInfo) {
+            // SAFETY: account will always have a state Merkle tree context.
+            // packOutputTreeIndex only throws on an invalid address Merkle tree context.
+            const index = packOutputTreeIndex(
+                account.treeInfo.nextTreeInfo,
+                packedAccounts,
+            );
+            if (outputTreeIndex === null) {
+                outputTreeIndex = index;
+            }
+        } else {
+            // SAFETY: account will always have a state Merkle tree context.
+            // packOutputTreeIndex only throws on an invalid address Merkle tree context.
+            const index = packOutputTreeIndex(account.treeInfo, packedAccounts);
+            if (outputTreeIndex === null) {
+                outputTreeIndex = index;
+            }
+        }
+    }
+
+    // Process address tree accounts
+    for (const address of structuredProof.addresses) {
+        // Pack AddressTreeInfo
+        const addressMerkleTreePubkeyIndex = packedAccounts.insertOrGet(
+            address.treeInfo.tree,
+        );
+        const addressQueuePubkeyIndex = packedAccounts.insertOrGet(
+            address.treeInfo.queue,
+        );
+
+        addressTrees.push({
+            addressMerkleTreePubkeyIndex,
+            addressQueuePubkeyIndex,
+            rootIndex: address.rootIndex,
+        });
+    }
+
+    // Create final packed tree infos
+    const stateTrees =
+        packedTreeInfos.length === 0
+            ? null
+            : {
+                  packedTreeInfos,
+                  outputTreeIndex: outputTreeIndex!,
+              };
+
+    return {
+        stateTrees,
+        addressTrees,
     };
 }
