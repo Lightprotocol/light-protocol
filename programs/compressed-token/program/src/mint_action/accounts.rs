@@ -1,11 +1,13 @@
-use anchor_lang::solana_program::program_error::ProgramError;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use spl_pod::solana_msg::msg;
-
 use crate::shared::{
     accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
     AccountIterator,
 };
+use anchor_lang::solana_program::program_error::ProgramError;
+use light_ctoken_types::instructions::mint_actions::{
+    ZAction, ZMintActionCompressedInstructionData,
+};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_pod::solana_msg::msg;
 
 pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
@@ -29,19 +31,15 @@ pub struct ExecutingAccounts<'info> {
 impl<'info> MintActionAccounts<'info> {
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
-        with_lamports: bool,
-        is_decompressed: bool,
-        with_mint_signer: bool,
-        with_cpi_context: bool,
-        write_to_cpi_context: bool,
+        config: &AccountsConfig,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let light_system_program = iter.next_account("light_system_program")?;
         // TODO: make it option signer
-        let mint_signer = iter.next_option("mint_signer", with_mint_signer)?;
+        let mint_signer = iter.next_option("mint_signer", config.with_mint_signer)?;
         // Static non-CPI accounts first
         let authority = iter.next_signer("authority")?;
-        if write_to_cpi_context {
+        if config.write_to_cpi_context {
             Ok(MintActionAccounts {
                 light_system_program,
                 mint_signer,
@@ -52,21 +50,21 @@ impl<'info> MintActionAccounts<'info> {
                 ),
             })
         } else {
-            let mint = iter.next_option_mut("mint", is_decompressed)?;
-            let token_pool_pda = iter.next_option_mut("token_pool_pda", is_decompressed)?;
-            let token_program = iter.next_option("token_program", is_decompressed)?;
+            let mint = iter.next_option_mut("mint", config.is_decompressed)?;
+            let token_pool_pda = iter.next_option_mut("token_pool_pda", config.is_decompressed)?;
+            let token_program = iter.next_option("token_program", config.is_decompressed)?;
 
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
-                with_lamports,
+                config.with_lamports,
                 false,
-                with_cpi_context,
+                config.with_cpi_context,
             )?;
 
             let out_output_queue = iter.next_account("out_output_queue")?;
-            let in_merkle_tree = iter.next_option("in_merkle_tree", is_decompressed)?;
-            let in_output_queue = iter.next_option("in_output_queue", is_decompressed)?;
-            let tokens_out_queue = iter.next_option("tokens_out_queue", is_decompressed)?;
+            let in_merkle_tree = iter.next_option("in_merkle_tree", config.is_decompressed)?;
+            let in_output_queue = iter.next_option("in_output_queue", config.is_decompressed)?;
+            let tokens_out_queue = iter.next_option("tokens_out_queue", config.is_decompressed)?;
 
             Ok(MintActionAccounts {
                 mint_signer,
@@ -163,5 +161,49 @@ impl<'info> MintActionAccounts<'info> {
         }
 
         offset
+    }
+}
+
+#[derive(Debug)]
+pub struct AccountsConfig {
+    pub with_cpi_context: bool,
+    pub write_to_cpi_context: bool,
+    pub with_lamports: bool,
+    pub is_decompressed: bool,
+    pub with_mint_signer: bool,
+}
+
+pub fn determine_accounts_config(
+    parsed_instruction_data: &ZMintActionCompressedInstructionData,
+) -> AccountsConfig {
+    let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
+    let write_to_cpi_context = parsed_instruction_data
+        .cpi_context
+        .as_ref()
+        .map(|x| x.first_set_context() || x.set_context())
+        .unwrap_or_default();
+    let with_lamports = parsed_instruction_data
+        .actions
+        .iter()
+        .any(|action| matches!(action, ZAction::MintTo(mint_to_action) if mint_to_action.lamports.is_some()));
+    // TODO: differentiate between will be compressed or is compressed.
+    let is_decompressed = parsed_instruction_data.mint.is_decompressed()
+        | parsed_instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, ZAction::CreateSplMint(_)));
+    // We need mint signer if create mint, and create spl mint.
+    let with_mint_signer = parsed_instruction_data.create_mint()
+        | parsed_instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, ZAction::CreateSplMint(_)));
+
+    AccountsConfig {
+        with_cpi_context,
+        write_to_cpi_context,
+        with_lamports,
+        is_decompressed,
+        with_mint_signer,
     }
 }

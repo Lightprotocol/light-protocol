@@ -20,12 +20,16 @@ pub fn allocate_cpi_bytes(
     for output_data in inputs.out_token_data.iter() {
         // Check if output has delegate (delegate index != 0 means delegate is present)
         let has_delegate = output_data.delegate != 0;
-        output_accounts.push((false, crate::shared::cpi_bytes_size::token_data_len(has_delegate))); // Token accounts don't have addresses
+        output_accounts.push((
+            false,
+            crate::shared::cpi_bytes_size::token_data_len(has_delegate),
+        )); // Token accounts don't have addresses
     }
 
     // Add extra output account for change account if needed (no delegate, no token data)
     if inputs.with_lamports_change_account_merkle_tree_index != 0 {
-        output_accounts.push((false, crate::shared::cpi_bytes_size::token_data_len(false))); // No delegate
+        output_accounts.push((false, crate::shared::cpi_bytes_size::token_data_len(false)));
+        // No delegate
     }
 
     let mut input_accounts = ArrayVec::new();

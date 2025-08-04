@@ -831,6 +831,7 @@ async fn test_update_compressed_mint_authority() {
     // but for now we're testing that the instruction can be created and executed
 }
 
+// TODO: add test case that can perform ever action on its own, with and without a decompressed mint.
 /// Test comprehensive mint actions in a single instruction
 #[tokio::test]
 #[serial]

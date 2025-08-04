@@ -284,24 +284,14 @@ fn get_zero_copy_configs(
             .as_ref(),
     )?;
 
-    // Create input and output mint configs
-    let input_mint_config = light_ctoken_types::state::CompressedMintConfig {
-        mint_authority: (parsed_instruction_data.compressed_mint_inputs.mint.mint_authority.is_some(), ()),
-        freeze_authority: (parsed_instruction_data.compressed_mint_inputs.mint.freeze_authority.is_some(), ()),
-        extensions: (!extensions_config.is_empty(), extensions_config.clone()),
-    };
-    
     let output_mint_config = light_ctoken_types::state::CompressedMintConfig {
         mint_authority: (updated_mint_authority, ()),
         freeze_authority: (updated_freeze_authority, ()),
         extensions: (!extensions_config.is_empty(), extensions_config),
     };
-    
-    let config_input = CpiConfigInput::update_mint(
-        parsed_instruction_data.proof.is_some(),
-        &input_mint_config,
-        &output_mint_config,
-    );
+
+    let config_input =
+        CpiConfigInput::update_mint(parsed_instruction_data.proof.is_some(), &output_mint_config);
 
     let config = cpi_bytes_config(config_input);
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);

@@ -71,7 +71,6 @@ impl CpiConfigInput {
     /// Helper to create config for update_mint
     pub fn update_mint(
         has_proof: bool,
-        input_mint_config: &light_ctoken_types::state::CompressedMintConfig,
         output_mint_config: &light_ctoken_types::state::CompressedMintConfig,
     ) -> Self {
         let mut inputs = ArrayVec::new();
@@ -123,7 +122,9 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
     InstructionDataInvokeCpiWithReadOnlyConfig {
         cpi_context: CompressedCpiContextConfig {},
         proof: (input.has_proof, CompressedProofConfig {}),
-        new_address_params: (0..input.new_address_params).map(|_| NewAddressParamsAssignedPackedConfig {}).collect(), // Create required number of new address params
+        new_address_params: (0..input.new_address_params)
+            .map(|_| NewAddressParamsAssignedPackedConfig {})
+            .collect(), // Create required number of new address params
         input_compressed_accounts,
         output_compressed_accounts,
         read_only_addresses: vec![],
