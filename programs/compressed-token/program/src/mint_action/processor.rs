@@ -1,14 +1,14 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::{
-    instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly, Pubkey,
+    instruction_data::with_readonly::{
+        InstructionDataInvokeCpiWithReadOnly, ZInstructionDataInvokeCpiWithReadOnlyMut,
+    },
+    Pubkey,
 };
 use light_ctoken_types::{
     hash_cache::HashCache,
-    instructions::{
-        mint_actions::{
-            MintActionCompressedInstructionData, ZAction, ZMintActionCompressedInstructionData,
-        },
-        mint_to_compressed::ZMintToAction,
+    instructions::mint_actions::{
+        MintActionCompressedInstructionData, ZAction, ZMintActionCompressedInstructionData,
     },
 };
 
@@ -25,12 +25,12 @@ use crate::{
         create_spl_mint::process_create_spl_mint_action,
         mint_input::create_input_compressed_mint_account,
         mint_output::create_output_compressed_mint_account,
+        mint_to::process_mint_to_action,
+        queue_indices::QueueIndices,
         update_authority::update_authority,
         zero_copy_config::get_zero_copy_configs,
     },
-    shared::{
-        cpi::execute_cpi_invoke, mint_to_token_pool, token_output::set_output_compressed_account,
-    },
+    shared::cpi::execute_cpi_invoke,
 };
 
 // Create mint - no input
@@ -84,7 +84,7 @@ pub fn process_mint_action(
 
     sol_log_compute_units();
     let mut hash_cache = HashCache::new();
-    let queue_indices = get_queue_indices(&parsed_instruction_data, &validated_accounts)?;
+    let queue_indices = QueueIndices::new(&parsed_instruction_data, &validated_accounts)?;
 
     // If create mint
     // 1. derive spl mint pda
@@ -167,65 +167,11 @@ pub fn process_mint_action(
     }
 }
 
-#[derive(Debug)]
-pub struct QueueIndices {
-    pub in_tree_index: u8,
-    pub in_queue_index: u8,
-    pub out_token_queue_index: u8,
-    pub output_queue_index: u8,
-}
-
-fn get_queue_indices(
-    parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
-    validated_accounts: &MintActionAccounts,
-) -> Result<QueueIndices, ProgramError> {
-    let in_tree_index = parsed_instruction_data
-        .cpi_context
-        .as_ref()
-        .map(|cpi_context| cpi_context.in_tree_index)
-        .unwrap_or(1);
-    let in_queue_index = parsed_instruction_data
-        .cpi_context
-        .as_ref()
-        .map(|cpi_context| cpi_context.in_queue_index)
-        .unwrap_or(2);
-    let out_token_queue_index =
-        if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
-            cpi_context.token_out_queue_index
-        } else if let Some(system_accounts) = validated_accounts.executing.as_ref() {
-            if let Some(tokens_out_queue) = system_accounts.tokens_out_queue {
-                if system_accounts.out_output_queue.key() == tokens_out_queue.key() {
-                    0
-                } else {
-                    3
-                }
-            } else {
-                0
-            }
-        } else {
-            msg!("No system accounts provided for queue index");
-            return Err(ProgramError::InvalidAccountData);
-        };
-    let output_queue_index = if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref()
-    {
-        cpi_context.out_queue_index
-    } else {
-        0
-    };
-
-    Ok(QueueIndices {
-        in_tree_index,
-        in_queue_index,
-        out_token_queue_index,
-        output_queue_index,
-    })
-}
-
 fn process_actions(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
     validated_accounts: &MintActionAccounts,
-    accounts_config: &crate::mint_action::accounts::AccountsConfig,
-    cpi_instruction_struct: &mut light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut,
+    accounts_config: &AccountsConfig,
+    cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
 ) -> Result<(Option<Pubkey>, Option<Pubkey>, u64), ProgramError> {
@@ -236,46 +182,16 @@ fn process_actions(
     for action in parsed_instruction_data.actions.iter() {
         match action {
             ZAction::MintTo(action) => {
-                let sum_amounts = action
-                    .recipients
-                    .iter()
-                    .map(|x| u64::from(x.amount))
-                    .sum::<u64>();
-                supply = supply
-                    .checked_add(sum_amounts)
-                    .ok_or(ProgramError::ArithmeticOverflow)?;
-                if let Some(system_accounts) = validated_accounts.executing.as_ref() {
-                    // If mint is decompressed, mint tokens to the token pool to maintain SPL mint supply consistency
-                    if accounts_config.is_decompressed {
-                        let sum_amounts: u64 =
-                            action.recipients.iter().map(|x| u64::from(x.amount)).sum();
-                        let mint_account = system_accounts
-                            .mint
-                            .ok_or(ProgramError::InvalidAccountData)?;
-                        let token_pool_account = system_accounts
-                            .token_pool_pda
-                            .ok_or(ProgramError::InvalidAccountData)?;
-                        let token_program = system_accounts
-                            .token_program
-                            .ok_or(ProgramError::InvalidAccountData)?;
-                        msg!("minting {}", sum_amounts);
-                        mint_to_token_pool(
-                            mint_account,
-                            token_pool_account,
-                            token_program,
-                            validated_accounts.cpi_authority()?,
-                            sum_amounts,
-                        )?;
-                    }
-                    // Create output token accounts
-                    create_output_compressed_token_accounts(
-                        action,
-                        cpi_instruction_struct,
-                        hash_cache,
-                        parsed_instruction_data.mint.spl_mint,
-                        queue_indices.out_token_queue_index,
-                    )?;
-                }
+                supply = process_mint_to_action(
+                    action,
+                    supply,
+                    validated_accounts,
+                    accounts_config,
+                    cpi_instruction_struct,
+                    hash_cache,
+                    parsed_instruction_data.mint.spl_mint,
+                    queue_indices.out_token_queue_index,
+                )?;
             }
             ZAction::UpdateMintAuthority(update_action) => {
                 mint_authority = update_authority(
@@ -308,39 +224,4 @@ fn process_actions(
     }
 
     Ok((freeze_authority, mint_authority, supply))
-}
-
-fn create_output_compressed_token_accounts(
-    parsed_instruction_data: &ZMintToAction<'_>,
-    cpi_instruction_struct: &mut light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
-    hash_cache: &mut HashCache,
-    mint: Pubkey,
-    queue_pubkey_index: u8,
-) -> Result<(), ProgramError> {
-    let hashed_mint = hash_cache.get_or_hash_mint(&mint.to_bytes())?;
-
-    let lamports = parsed_instruction_data
-        .lamports
-        .map(|lamports| u64::from(*lamports));
-    for (recipient, output_account) in parsed_instruction_data.recipients.iter().zip(
-        cpi_instruction_struct
-            .output_compressed_accounts
-            .iter_mut()
-            .skip(1), // Skip the first account which is the mint account.
-    ) {
-        let output_delegate = None;
-        set_output_compressed_account::<false>(
-            output_account,
-            hash_cache,
-            recipient.recipient,
-            output_delegate,
-            recipient.amount,
-            lamports,
-            mint,
-            &hashed_mint,
-            queue_pubkey_index,
-            parsed_instruction_data.token_account_version,
-        )?;
-    }
-    Ok(())
 }

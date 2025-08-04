@@ -109,7 +109,6 @@ async fn test_create_compressed_mint() {
     let recipient_keypair = Keypair::new();
     let recipient = recipient_keypair.pubkey();
     let mint_amount = 1000u64;
-    let expected_supply = mint_amount; // After minting tokens, SPL mint should have this supply
     let lamports = Some(10000u64);
 
     // Use our mint_to_compressed action helper
