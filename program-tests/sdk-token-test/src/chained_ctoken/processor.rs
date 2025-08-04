@@ -43,8 +43,7 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
         config,
     );
 
-    process_mint_action(&ctx, &input, &cpi_accounts)
-        .map_err(|e| ProgramError::from(e))?;
+    process_mint_action(&ctx, &input, &cpi_accounts).map_err(|e| ProgramError::from(e))?;
 
     process_create_escrow_pda(
         input.pda_creation.proof,
