@@ -1,50 +1,13 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use arrayvec::ArrayVec;
-use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
-use light_compressed_account::{
-    instruction_data::with_readonly::{
-        InstructionDataInvokeCpiWithReadOnly, InstructionDataInvokeCpiWithReadOnlyConfig,
-    },
-    Pubkey,
-};
-use light_ctoken_types::{
-    hash_cache::HashCache,
-    instructions::{
-        mint_actions::{
-            MintActionCompressedInstructionData, ZAction, ZMintActionCompressedInstructionData,
-        },
-        mint_to_compressed::ZMintToAction,
-    },
-    state::{CompressedMint, CompressedMintConfig},
-    CTokenError, COMPRESSED_MINT_SEED,
-};
-use light_sdk::instruction::PackedMerkleContext;
-use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
-use pinocchio::account_info::AccountInfo;
+use light_ctoken_types::instructions::mint_actions::ZMintActionCompressedInstructionData;
+use light_ctoken_types::state::CompressedMintConfig;
+
+use light_compressed_account::{ Pubkey};
+use light_ctoken_types::{ CTokenError, COMPRESSED_MINT_SEED};
+
 use spl_pod::solana_msg::msg;
-use spl_token::solana_program::log::sol_log_compute_units;
 
-use light_hasher::{Hasher, Poseidon, Sha256};
-
-use crate::mint_action::accounts::determine_accounts_config;
-use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR,
-    create_spl_mint::processor::{
-        create_mint_account, create_token_pool_account_manual, initialize_mint_account_for_action,
-        initialize_token_pool_account_for_action,
-    },
-    extensions::processor::create_extension_hash_chain,
-    mint::mint_output::create_output_compressed_mint_account,
-    mint_action::accounts::MintActionAccounts,
-    shared::{
-        cpi::execute_cpi_invoke,
-        cpi_bytes_size::{
-            allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
-        },
-        mint_to_token_pool,
-        token_output::set_output_compressed_account,
-    },
-};
+use crate::{ mint_action::accounts::MintActionAccounts};
 
 // TODO: unit test.
 /// Processes the create mint action by validating parameters and setting up the new address

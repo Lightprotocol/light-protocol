@@ -33,7 +33,7 @@ pub fn allocate_cpi_bytes(
     }
 
     let mut input_accounts = ArrayVec::new();
-    for has_delegate in input_delegate_flags {
+    for _ in input_delegate_flags {
         input_accounts.push(false); // Token accounts don't have addresses
     }
 

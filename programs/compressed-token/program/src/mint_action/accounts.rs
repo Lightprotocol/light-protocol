@@ -96,6 +96,7 @@ impl<'info> MintActionAccounts<'info> {
             Ok(cpi_system.cpi_authority_pda)
         }
     }
+
     #[inline(always)]
     pub fn tree_pubkeys(&self) -> Vec<&'info Pubkey> {
         let mut pubkeys = Vec::with_capacity(4);
@@ -155,10 +156,9 @@ impl<'info> MintActionAccounts<'info> {
 
             // LightSystemAccounts - these are the CPI accounts that start here
             // We don't add them to offset since this is where CPI accounts begin
-        } else if let Some(_) = &self.write_to_cpi_context_system {
-            // CpiContextLightSystemAccounts - these are the CPI accounts that start here
-            // We don't add them to offset since this is where CPI accounts begin
         }
+        // CpiContextLightSystemAccounts - these are the CPI accounts that start here
+        // We don't add them to offset since this is where CPI accounts begin
 
         offset
     }
@@ -173,37 +173,37 @@ pub struct AccountsConfig {
     pub with_mint_signer: bool,
 }
 
-pub fn determine_accounts_config(
-    parsed_instruction_data: &ZMintActionCompressedInstructionData,
-) -> AccountsConfig {
-    let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
-    let write_to_cpi_context = parsed_instruction_data
-        .cpi_context
-        .as_ref()
-        .map(|x| x.first_set_context() || x.set_context())
-        .unwrap_or_default();
-    let with_lamports = parsed_instruction_data
+impl AccountsConfig {
+    pub fn new(parsed_instruction_data: &ZMintActionCompressedInstructionData) -> AccountsConfig {
+        let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
+        let write_to_cpi_context = parsed_instruction_data
+            .cpi_context
+            .as_ref()
+            .map(|x| x.first_set_context() || x.set_context())
+            .unwrap_or_default();
+        let with_lamports = parsed_instruction_data
         .actions
         .iter()
         .any(|action| matches!(action, ZAction::MintTo(mint_to_action) if mint_to_action.lamports.is_some()));
-    // TODO: differentiate between will be compressed or is compressed.
-    let is_decompressed = parsed_instruction_data.mint.is_decompressed()
-        | parsed_instruction_data
-            .actions
-            .iter()
-            .any(|action| matches!(action, ZAction::CreateSplMint(_)));
-    // We need mint signer if create mint, and create spl mint.
-    let with_mint_signer = parsed_instruction_data.create_mint()
-        | parsed_instruction_data
-            .actions
-            .iter()
-            .any(|action| matches!(action, ZAction::CreateSplMint(_)));
+        // TODO: differentiate between will be compressed or is compressed.
+        let is_decompressed = parsed_instruction_data.mint.is_decompressed()
+            | parsed_instruction_data
+                .actions
+                .iter()
+                .any(|action| matches!(action, ZAction::CreateSplMint(_)));
+        // We need mint signer if create mint, and create spl mint.
+        let with_mint_signer = parsed_instruction_data.create_mint()
+            | parsed_instruction_data
+                .actions
+                .iter()
+                .any(|action| matches!(action, ZAction::CreateSplMint(_)));
 
-    AccountsConfig {
-        with_cpi_context,
-        write_to_cpi_context,
-        with_lamports,
-        is_decompressed,
-        with_mint_signer,
+        AccountsConfig {
+            with_cpi_context,
+            write_to_cpi_context,
+            with_lamports,
+            is_decompressed,
+            with_mint_signer,
+        }
     }
 }
