@@ -1,5 +1,4 @@
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use anchor_spl::mint;
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::{
     instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
@@ -11,10 +10,7 @@ use light_ctoken_types::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_to_compressed::Recipient,
         update_compressed_mint::CompressedMintAuthorityType,
     },
-    state::{
-        extensions::{AdditionalMetadata, Metadata},
-        CompressedMint,
-    },
+    state::extensions::{AdditionalMetadata, Metadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
@@ -22,8 +18,11 @@ use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{
-    create_mint::CreateCompressedMintInstructionData, mint_to::MintToCompressedInstructionData,
-    update_compressed_mint::UpdateCompressedMintInstructionDataCpi, ID,
+    processor::{
+        CreateCompressedMintInstructionData, MintToCompressedInstructionData,
+        UpdateCompressedMintInstructionDataCpi,
+    },
+    ID,
 };
 use solana_sdk::{
     pubkey::Pubkey,

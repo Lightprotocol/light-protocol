@@ -51,16 +51,17 @@ pub struct PdaParams {
     pub account_meta: CompressedAccountMeta,
     pub existing_amount: u64,
 }
-use crate::{
-    create_mint::CreateCompressedMintInstructionData, mint_to::MintToCompressedInstructionData,
-    processor::process_chained_ctoken, update_compressed_mint::UpdateCompressedMintInstructionDataCpi,
-};
+use crate::processor::process_chained_ctoken;
+use crate::processor::UpdateCompressedMintInstructionDataCpi;
 use crate::{
     process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
     process_update_deposit::process_update_deposit,
 };
 use light_sdk::address::v1::derive_address;
 use light_sdk_types::CpiAccountsConfig;
+
+use crate::processor::CreateCompressedMintInstructionData;
+use crate::processor::MintToCompressedInstructionData;
 
 #[program]
 pub mod sdk_token_test {
@@ -291,7 +292,17 @@ pub mod sdk_token_test {
         address: [u8; 32],
         new_address_params: light_sdk::address::NewAddressParamsAssignedPacked,
     ) -> Result<()> {
-        process_chained_ctoken(ctx, inputs, mint_inputs, update_mint_inputs, pda_proof, output_tree_index, amount, address, new_address_params)
+        process_chained_ctoken(
+            ctx,
+            inputs,
+            mint_inputs,
+            update_mint_inputs,
+            pda_proof,
+            output_tree_index,
+            amount,
+            address,
+            new_address_params,
+        )
     }
 }
 

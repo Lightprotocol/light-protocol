@@ -1,8 +1,5 @@
 use super::CreateCompressedMint;
-use crate::chained_ctoken::create_mint::CreateCompressedMintInstructionData;
 use crate::chained_ctoken::create_pda::process_create_escrow_pda;
-use crate::chained_ctoken::mint_to::MintToCompressedInstructionData;
-use crate::chained_ctoken::update_compressed_mint::UpdateCompressedMintInstructionDataCpi;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke;
 use light_compressed_token_sdk::instructions::mint_action::{
@@ -16,10 +13,33 @@ use light_ctoken_types::instructions::create_compressed_mint::{
 use light_ctoken_types::instructions::extensions::{
     ExtensionInstructionData, TokenMetadataInstructionData,
 };
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+pub struct UpdateCompressedMintInstructionDataCpi {
+    pub authority_type: CompressedMintAuthorityType,
+    pub new_authority: Option<Pubkey>,
+    pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
+}
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+pub struct CreateCompressedMintInstructionData {
+    pub decimals: u8,
+    pub freeze_authority: Option<Pubkey>,
+    pub mint_bump: u8,
+    pub address_merkle_tree_root_index: u16,
+    pub version: u8,
+    pub metadata: Option<TokenMetadataInstructionData>,
+    pub compressed_mint_address: [u8; 32],
+}
 
+use light_ctoken_types::instructions::mint_to_compressed::Recipient;
+use light_ctoken_types::instructions::update_compressed_mint::CompressedMintAuthorityType;
 use light_ctoken_types::{COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID};
 use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
-
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+pub struct MintToCompressedInstructionData {
+    pub recipients: Vec<Recipient>,
+    pub lamports: Option<u64>,
+    pub version: u8,
+}
 pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
     input: CreateCompressedMintInstructionData,
