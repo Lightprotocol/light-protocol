@@ -14,17 +14,17 @@ pub struct Transfer2Accounts<'info> {
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
     /// Contains mint, owner, delegate, merkle tree, and queue accounts
     /// tree and queue accounts come last.
-    pub packed_accounts: Transfer2PackedAccounts<'info>,
+    pub packed_accounts: ProgramPackedAccounts<'info>,
 }
 
 /// Dynamic accounts slice for index-based access
 /// Contains mint, owner, delegate, merkle tree, and queue accounts
-pub struct Transfer2PackedAccounts<'info> {
+pub struct ProgramPackedAccounts<'info> {
     /// Packed accounts slice starting at index 11
     pub accounts: &'info [AccountInfo],
 }
 
-impl Transfer2PackedAccounts<'_> {
+impl ProgramPackedAccounts<'_> {
     /// Get account by index with bounds checking
     pub fn get(&self, index: usize) -> Result<&AccountInfo, ProgramError> {
         self.accounts
@@ -73,7 +73,7 @@ impl<'info> Transfer2Accounts<'info> {
             light_system_program,
             system,
             write_to_cpi_context_system,
-            packed_accounts: Transfer2PackedAccounts {
+            packed_accounts: ProgramPackedAccounts {
                 accounts: packed_accounts,
             },
         })
@@ -105,7 +105,7 @@ impl<'info> Transfer2Accounts<'info> {
         &self,
         all_accounts: &'info [AccountInfo],
         inputs: &ZCompressedTokenInstructionDataTransfer2,
-        packed_accounts: &'info Transfer2PackedAccounts<'info>,
+        packed_accounts: &'info ProgramPackedAccounts<'info>,
     ) -> (&'info [AccountInfo], Vec<&'info Pubkey>) {
         // Extract tree accounts using highest index approach
         let (tree_accounts, tree_accounts_count) = extract_tree_accounts(inputs, packed_accounts);
@@ -125,7 +125,7 @@ impl<'info> Transfer2Accounts<'info> {
 /// Extract tree accounts by finding the highest tree index and using it as closing offset
 pub fn extract_tree_accounts<'info>(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &'info Transfer2PackedAccounts<'info>,
+    packed_accounts: &'info ProgramPackedAccounts<'info>,
 ) -> (Vec<&'info Pubkey>, usize) {
     // Find highest tree index from input and output data to determine tree accounts range
     let mut highest_tree_index = 0u8;

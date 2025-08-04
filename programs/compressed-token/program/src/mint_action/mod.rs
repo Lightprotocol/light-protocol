@@ -4,6 +4,7 @@ pub mod create_spl_mint;
 pub mod mint_input;
 pub mod mint_output;
 pub mod mint_to;
+pub mod mint_to_decompressed;
 pub mod processor;
 pub mod queue_indices;
 pub mod update_authority;

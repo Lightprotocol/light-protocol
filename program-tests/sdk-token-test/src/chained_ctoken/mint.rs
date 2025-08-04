@@ -22,6 +22,11 @@ pub fn process_mint_action<'a, 'b, 'c, 'info>(
         MintActionType::UpdateMintAuthority {
             new_authority: input.final_mint_authority,
         },
+        MintActionType::MintToDecompressed {
+            account: ctx.accounts.token_account.key(),
+            amount: input.token_recipients.first().map(|r| r.amount).unwrap_or(1000),
+            compressible_config: None,
+        },
     ];
 
     let mint_action_inputs = MintActionInputsCpiWrite {
@@ -54,6 +59,7 @@ pub fn process_mint_action<'a, 'b, 'c, 'info>(
         cpi_authority_pda: ctx.accounts.ctoken_cpi_authority.as_ref(),
         cpi_context: cpi_accounts.cpi_context().unwrap(),
         cpi_signer: crate::LIGHT_CPI_SIGNER,
+        recipient_token_accounts: vec![ctx.accounts.token_account.as_ref()],
     };
 
     invoke(

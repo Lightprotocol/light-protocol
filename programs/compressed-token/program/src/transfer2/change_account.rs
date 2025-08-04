@@ -2,13 +2,13 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 
-use crate::transfer2::accounts::Transfer2PackedAccounts;
+use crate::transfer2::accounts::ProgramPackedAccounts;
 
 /// Create a change account for excess lamports (following anchor program pattern)
 pub fn assign_change_account(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &Transfer2PackedAccounts,
+    packed_accounts: &ProgramPackedAccounts,
     change_lamports: u64,
 ) -> Result<(), ProgramError> {
     // Find the next available output account slot
@@ -55,7 +55,7 @@ pub fn assign_change_account(
 
 pub fn process_change_lamports(
     inputs: &ZCompressedTokenInstructionDataTransfer2<'_>,
-    packed_accounts: &Transfer2PackedAccounts<'_>,
+    packed_accounts: &ProgramPackedAccounts<'_>,
     mut cpi_instruction_struct: ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
     total_input_lamports: u64,
     total_output_lamports: u64,

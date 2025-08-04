@@ -1,6 +1,9 @@
-use crate::shared::{
-    accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
-    AccountIterator,
+use crate::{
+    shared::{
+        accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
+        AccountIterator,
+    },
+    transfer2::accounts::ProgramPackedAccounts,
 };
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_types::instructions::mint_actions::{
@@ -15,6 +18,7 @@ pub struct MintActionAccounts<'info> {
     pub authority: &'info AccountInfo,
     pub executing: Option<ExecutingAccounts<'info>>,
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
+    pub packed_accounts: ProgramPackedAccounts<'info>,
 }
 
 pub struct ExecutingAccounts<'info> {
@@ -48,6 +52,9 @@ impl<'info> MintActionAccounts<'info> {
                 write_to_cpi_context_system: Some(
                     CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?,
                 ),
+                packed_accounts: ProgramPackedAccounts {
+                    accounts: iter.remaining()?,
+                },
             })
         } else {
             let mint = iter.next_option_mut("mint", config.is_decompressed)?;
@@ -81,6 +88,9 @@ impl<'info> MintActionAccounts<'info> {
                     tokens_out_queue,
                 }),
                 write_to_cpi_context_system: None,
+                packed_accounts: ProgramPackedAccounts {
+                    accounts: iter.remaining()?,
+                },
             })
         }
     }

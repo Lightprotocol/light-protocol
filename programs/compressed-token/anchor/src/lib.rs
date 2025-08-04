@@ -305,6 +305,10 @@ pub enum ErrorCode {
     MintActionMissingTokenPoolAccount,
     #[msg("Missing token program for SPL operations")]
     MintActionMissingTokenProgram,
+    #[msg("Mint account does not match expected mint")]
+    MintAccountMismatch,
+    #[msg("Invalid or missing authority for compression operation")]
+    InvalidCompressAuthority,
     #[msg("Invalid queue index configuration")]
     MintActionInvalidQueueIndex,
     #[msg("Mint output serialization failed")]

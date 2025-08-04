@@ -5,7 +5,7 @@ use spl_token_2022;
 use crate::instructions::CTokenDefaultAccounts;
 
 /// Account metadata configuration for mint action instruction
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct MintActionMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub mint_signer: Option<Pubkey>,
@@ -17,6 +17,7 @@ pub struct MintActionMetaConfig {
     pub with_cpi_context: bool,
     pub create_mint: bool,
     pub with_mint_signer: bool,
+    pub decompressed_token_accounts: Vec<Pubkey>, // For mint_to_decompressed actions
 }
 
 impl MintActionMetaConfig {
@@ -32,6 +33,7 @@ impl MintActionMetaConfig {
         with_cpi_context: bool,
         create_mint: bool,
         with_mint_signer: bool,
+        decompressed_token_accounts: Vec<Pubkey>,
     ) -> Self {
         Self {
             fee_payer: Some(fee_payer),
@@ -44,6 +46,7 @@ impl MintActionMetaConfig {
             with_cpi_context,
             create_mint,
             with_mint_signer,
+            decompressed_token_accounts,
         }
     }
 }
@@ -182,16 +185,22 @@ pub fn get_mint_action_instruction_account_metas(
         metas.push(AccountMeta::new(config.output_queue, false));
     }
 
+    // Add decompressed token accounts as remaining accounts for MintToDecompressed actions
+    for token_account in &config.decompressed_token_accounts {
+        metas.push(AccountMeta::new(*token_account, false));
+    }
+
     metas
 }
 
 /// Account metadata configuration for mint action CPI write instruction
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct MintActionMetaConfigCpiWrite {
     pub fee_payer: Pubkey,
     pub mint_signer: Option<Pubkey>, // Optional - only when creating mint and when creating SPL mint
     pub authority: Pubkey,
     pub cpi_context: Pubkey,
+    pub decompressed_token_accounts: Vec<Pubkey>, // For mint_to_decompressed actions
 }
 
 /// Get the account metas for a mint action CPI write instruction
@@ -223,6 +232,11 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
 
     // cpi_context (mutable) - index 5
     metas.push(AccountMeta::new(config.cpi_context, false));
+
+    // Add decompressed token accounts as remaining accounts for MintToDecompressed actions
+    for token_account in &config.decompressed_token_accounts {
+        metas.push(AccountMeta::new(*token_account, false));
+    }
 
     metas
 }

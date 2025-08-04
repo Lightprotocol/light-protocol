@@ -5,7 +5,7 @@ use light_ctoken_types::{
 };
 
 use crate::{
-    shared::token_input::set_input_compressed_account, transfer2::accounts::Transfer2PackedAccounts,
+    shared::token_input::set_input_compressed_account, transfer2::accounts::ProgramPackedAccounts,
 };
 
 /// Process input compressed accounts and return total input lamports
@@ -13,7 +13,7 @@ pub fn set_input_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     hash_cache: &mut HashCache,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &Transfer2PackedAccounts,
+    packed_accounts: &ProgramPackedAccounts,
 ) -> Result<u64, ProgramError> {
     let mut total_input_lamports = 0u64;
 

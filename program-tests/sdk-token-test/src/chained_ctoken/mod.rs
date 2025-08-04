@@ -10,6 +10,9 @@ pub struct CreateCompressedMint<'info> {
     pub payer: Signer<'info>,
     pub mint_authority: Signer<'info>,
     pub mint_seed: Signer<'info>,
+    /// CHECK: Associated token account for mint_to_decompressed
+    #[account(mut)]
+    pub token_account: UncheckedAccount<'info>,
     /// CHECK:
     pub ctoken_program: UncheckedAccount<'info>,
     /// CHECK:

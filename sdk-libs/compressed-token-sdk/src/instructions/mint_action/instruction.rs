@@ -59,6 +59,11 @@ pub enum MintActionType {
     UpdateFreezeAuthority {
         new_authority: Option<Pubkey>,
     },
+    MintToDecompressed {
+        account: Pubkey,
+        amount: u64,
+        compressible_config: Option<light_ctoken_types::instructions::extensions::compressible::CompressibleExtensionInstructionData>,
+    },
 }
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
@@ -100,6 +105,10 @@ pub fn create_mint_action_cpi(
             .iter()
             .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
 
+    // Collect decompressed accounts for account index mapping
+    let mut decompressed_accounts: Vec<Pubkey> = Vec::new();
+    let mut decompressed_account_index = 0u8;
+
     for action in input.actions {
         match action {
             MintActionType::CreateSplMint { mint_bump: bump } => {
@@ -136,6 +145,28 @@ pub fn create_mint_action_cpi(
                     new_authority: new_authority.map(|auth| auth.to_bytes().into()),
                 }));
             }
+            MintActionType::MintToDecompressed {
+                account,
+                amount,
+                compressible_config,
+            } => {
+                use light_ctoken_types::instructions::mint_actions::{
+                    DecompressedRecipient, MintToDecompressedAction,
+                };
+
+                // Add account to decompressed accounts list and get its index
+                decompressed_accounts.push(account);
+                let current_index = decompressed_account_index;
+                decompressed_account_index += 1;
+
+                program_actions.push(Action::MintToDecompressed(MintToDecompressedAction {
+                    recipient: DecompressedRecipient {
+                        account_index: current_index,
+                        amount,
+                        compressible_config,
+                    },
+                }));
+            }
         }
     }
 
@@ -155,6 +186,7 @@ pub fn create_mint_action_cpi(
         with_cpi_context,
         create_mint,
         with_mint_signer,
+        decompressed_token_accounts: decompressed_accounts,
     };
 
     // Get account metas (before moving compressed_mint_inputs)
@@ -227,6 +259,10 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
             .iter()
             .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
 
+    // Collect decompressed accounts for account index mapping (CPI write version)
+    let mut decompressed_accounts: Vec<Pubkey> = Vec::new();
+    let mut decompressed_account_index = 0u8;
+
     for action in input.actions {
         match action {
             MintActionType::CreateSplMint { mint_bump: bump } => {
@@ -281,6 +317,32 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
                     ),
                 );
             }
+            MintActionType::MintToDecompressed {
+                account,
+                amount,
+                compressible_config,
+            } => {
+                use light_ctoken_types::instructions::mint_actions::{
+                    DecompressedRecipient, MintToDecompressedAction,
+                };
+
+                // Add account to decompressed accounts list and get its index
+                decompressed_accounts.push(account);
+                let current_index = decompressed_account_index;
+                decompressed_account_index += 1;
+
+                program_actions.push(
+                    light_ctoken_types::instructions::mint_actions::Action::MintToDecompressed(
+                        MintToDecompressedAction {
+                            recipient: DecompressedRecipient {
+                                account_index: current_index,
+                                amount,
+                                compressible_config,
+                            },
+                        },
+                    ),
+                );
+            }
         }
     }
 
@@ -307,6 +369,7 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
         },
         authority: input.authority,
         cpi_context: input.cpi_context_pubkey,
+        decompressed_token_accounts: decompressed_accounts,
     };
 
     // Get account metas

@@ -27,11 +27,13 @@ use crate::{
         mint_input::create_input_compressed_mint_account,
         mint_output::create_output_compressed_mint_account,
         mint_to::process_mint_to_action,
+        mint_to_decompressed::process_mint_to_decompressed_action,
         queue_indices::QueueIndices,
         update_authority::update_authority,
         zero_copy_config::get_zero_copy_configs,
     },
     shared::cpi::execute_cpi_invoke,
+    transfer2::accounts::ProgramPackedAccounts,
 };
 
 // Create mint - no input
@@ -113,13 +115,14 @@ pub fn process_mint_action(
             },
         )?;
     }
-    let (freeze_authority, mint_authority, supply) = process_actions(
+    let (freeze_authority, mint_authority, supply, num_decompressed_recipients) = process_actions(
         &parsed_instruction_data,
         &validated_accounts,
         &accounts_config,
         &mut cpi_instruction_struct,
         &mut hash_cache,
         &queue_indices,
+        &validated_accounts.packed_accounts,
     )?;
 
     create_output_compressed_mint_account(
@@ -144,7 +147,7 @@ pub fn process_mint_action(
     if let Some(executing) = validated_accounts.executing.as_ref() {
         // Execute CPI to light-system-program
         execute_cpi_invoke(
-            &accounts[cpi_accounts_offset..],
+            &accounts[cpi_accounts_offset..accounts.len() - num_decompressed_recipients as usize],
             cpi_bytes,
             validated_accounts.tree_pubkeys().as_slice(),
             accounts_config.with_lamports,
@@ -154,7 +157,7 @@ pub fn process_mint_action(
         )
     } else {
         execute_cpi_invoke(
-            &accounts[cpi_accounts_offset..],
+            &accounts[cpi_accounts_offset..cpi_accounts_offset + 3],
             cpi_bytes,
             &[],
             false, // no sol_pool_pda for create_compressed_mint
@@ -175,10 +178,12 @@ fn process_actions(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
-) -> Result<(Option<Pubkey>, Option<Pubkey>, u64), ProgramError> {
+    packed_accounts: &ProgramPackedAccounts,
+) -> Result<(Option<Pubkey>, Option<Pubkey>, u64, u64), ProgramError> {
     let mut freeze_authority = parsed_instruction_data.mint.freeze_authority.map(|fa| *fa);
     let mut mint_authority = parsed_instruction_data.mint.mint_authority.map(|fa| *fa);
     let mut supply: u64 = parsed_instruction_data.mint.supply.into();
+    let mut num_decompressed_recipients = 0;
 
     for action in parsed_instruction_data.actions.iter() {
         match action {
@@ -217,6 +222,17 @@ fn process_actions(
                     &parsed_instruction_data.mint,
                 )?;
             }
+            ZAction::MintToDecompressed(mint_to_decompressed_action) => {
+                supply = process_mint_to_decompressed_action(
+                    mint_to_decompressed_action,
+                    supply,
+                    validated_accounts,
+                    accounts_config,
+                    packed_accounts,
+                    parsed_instruction_data.mint.spl_mint,
+                )?;
+                num_decompressed_recipients += 1;
+            }
             _ => {
                 msg!("Unsupported action type");
                 return Err(ErrorCode::MintActionUnsupportedActionType.into());
@@ -224,5 +240,10 @@ fn process_actions(
         }
     }
 
-    Ok((freeze_authority, mint_authority, supply))
+    Ok((
+        freeze_authority,
+        mint_authority,
+        supply,
+        num_decompressed_recipients,
+    ))
 }

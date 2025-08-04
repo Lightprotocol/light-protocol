@@ -24,11 +24,24 @@ pub struct CreateSplMintAction {
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct DecompressedRecipient {
+    pub account_index: u8, // Index into remaining accounts for the recipient token account
+    pub amount: u64,
+    pub compressible_config: Option<crate::instructions::extensions::compressible::CompressibleExtensionInstructionData>,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct MintToDecompressedAction {
+    pub recipient: DecompressedRecipient,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub enum Action {
     MintTo(MintToAction),
     UpdateMintAuthority(UpdateAuthority),
     UpdateFreezeAuthority(UpdateAuthority),
     CreateSplMint(CreateSplMintAction),
+    MintToDecompressed(MintToDecompressedAction),
     UpdateMetadata,
 }
 
