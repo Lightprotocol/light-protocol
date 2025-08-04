@@ -1,4 +1,5 @@
 pub mod create_pda;
+pub mod mint;
 pub mod processor;
 
 use anchor_lang::prelude::*;

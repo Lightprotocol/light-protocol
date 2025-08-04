@@ -1,14 +1,20 @@
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::{
-    instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
+    instructions::{
+        create_compressed_mint::find_spl_mint_address, 
+        derive_compressed_mint_address,
+        mint_action::MintToRecipient,
+    },
     CPI_AUTHORITY_PDA,
 };
 
 use light_ctoken_types::{
     instructions::{
-        extensions::token_metadata::TokenMetadataInstructionData, mint_to_compressed::Recipient,
-        update_compressed_mint::CompressedMintAuthorityType,
+        create_compressed_mint::{
+            CompressedMintWithContext, CompressedMintInstructionData
+        },
+        extensions::token_metadata::TokenMetadataInstructionData,
     },
     state::extensions::{AdditionalMetadata, Metadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
@@ -17,13 +23,7 @@ use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use sdk_token_test::{
-    processor::{
-        CreateCompressedMintInstructionData, MintToCompressedInstructionData,
-        UpdateCompressedMintInstructionDataCpi,
-    },
-    ID,
-};
+use sdk_token_test::{processor::{ChainedCtokenInstructionData, PdaCreationData}, ID};
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
@@ -213,32 +213,37 @@ pub async fn create_mint<R: Rpc + Indexer>(
     };
     packed_accounts.add_system_accounts_small(config).unwrap();
     rpc_result.pack_tree_infos(&mut packed_accounts);
-    // Create instruction data for the ctoken-minter program
-    let inputs = CreateCompressedMintInstructionData {
-        decimals,
-        freeze_authority,
-        mint_bump,
-        address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
-        version: 1,
-        metadata,
-        compressed_mint_address,
+    
+    // Create PDA parameters
+    let pda_amount = 100u64;
+    
+    // Create consolidated instruction data using new optimized structure
+    let compressed_mint_with_context = CompressedMintWithContext {
+        leaf_index: 0,
+        prove_by_index: false,
+        root_index: rpc_result.addresses[0].root_index,
+        address: compressed_mint_address,
+        mint: CompressedMintInstructionData {
+            version: 1,
+            spl_mint: spl_mint.into(),
+            supply: 0,
+            decimals,
+            mint_authority: Some(mint_authority.pubkey().into()),
+            freeze_authority: freeze_authority.map(|fa| fa.into()),
+            extensions: metadata.map(|m| vec![light_ctoken_types::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
+            is_decompressed: false,
+        },
     };
 
-    // Create mint_to_compressed instruction data
-    let mint_inputs = MintToCompressedInstructionData {
-        recipients: vec![Recipient {
-            recipient: payer.pubkey().into(),
-            amount: 1000u64, // Mint 1000 tokens
-        }],
-        lamports: None,
-        version: 2,
-    };
+    let token_recipients = vec![MintToRecipient {
+        recipient: payer.pubkey().into(),
+        amount: 1000u64, // Mint 1000 tokens
+    }];
 
-    // Create update_compressed_mint instruction data (revoke mint authority)
-    let update_mint_inputs = UpdateCompressedMintInstructionDataCpi {
-        authority_type: CompressedMintAuthorityType::MintTokens,
-        new_authority: None, // Revoke mint authority (set to None)
-        mint_authority: Some(mint_authority.pubkey()), // Current mint authority needed for validation
+    let pda_creation = PdaCreationData {
+        amount: pda_amount,
+        address: pda_address,
+        proof: rpc_result.proof,
     };
     // Create Anchor accounts struct
     let accounts = sdk_token_test::accounts::CreateCompressedMint {
@@ -248,9 +253,6 @@ pub async fn create_mint<R: Rpc + Indexer>(
         ctoken_program: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
         ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
     };
-
-    // Create PDA parameters
-    let pda_amount = 100u64;
 
     let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {
         seed: pda_address_seed,
@@ -266,16 +268,18 @@ pub async fn create_mint<R: Rpc + Indexer>(
     assert_eq!(tree_index, 2);
     let remaining_accounts = packed_accounts.to_account_metas().0;
 
-    // Create the instruction
+    // Create the consolidated instruction data
     let instruction_data = sdk_token_test::instruction::ChainedCtoken {
-        inputs,
-        mint_inputs,
-        update_mint_inputs,
-        pda_proof: rpc_result.proof,
-        output_tree_index,
-        amount: pda_amount,
-        address: pda_address,
-        new_address_params: pda_new_address_params,
+        input: ChainedCtokenInstructionData {
+            compressed_mint_with_context,
+            mint_bump,
+            token_recipients,
+            lamports: None,
+            final_mint_authority: None, // Revoke mint authority (set to None)
+            pda_creation,
+            output_tree_index,
+            new_address_params: pda_new_address_params,
+        },
     };
     let ix = solana_sdk::instruction::Instruction {
         program_id: ID,

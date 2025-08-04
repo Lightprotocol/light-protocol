@@ -52,7 +52,7 @@ pub struct PdaParams {
     pub existing_amount: u64,
 }
 use crate::processor::process_chained_ctoken;
-use crate::processor::UpdateCompressedMintInstructionDataCpi;
+use crate::processor::ChainedCtokenInstructionData;
 use crate::{
     process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
     process_update_deposit::process_update_deposit,
@@ -60,8 +60,6 @@ use crate::{
 use light_sdk::address::v1::derive_address;
 use light_sdk_types::CpiAccountsConfig;
 
-use crate::processor::CreateCompressedMintInstructionData;
-use crate::processor::MintToCompressedInstructionData;
 
 #[program]
 pub mod sdk_token_test {
@@ -283,26 +281,9 @@ pub mod sdk_token_test {
 
     pub fn chained_ctoken<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
-        inputs: CreateCompressedMintInstructionData,
-        mint_inputs: MintToCompressedInstructionData,
-        update_mint_inputs: UpdateCompressedMintInstructionDataCpi,
-        pda_proof: light_compressed_token_sdk::ValidityProof,
-        output_tree_index: u8,
-        amount: u64,
-        address: [u8; 32],
-        new_address_params: light_sdk::address::NewAddressParamsAssignedPacked,
+        input: ChainedCtokenInstructionData,
     ) -> Result<()> {
-        process_chained_ctoken(
-            ctx,
-            inputs,
-            mint_inputs,
-            update_mint_inputs,
-            pda_proof,
-            output_tree_index,
-            amount,
-            address,
-            new_address_params,
-        )
+        process_chained_ctoken(ctx, input)
     }
 }
 
