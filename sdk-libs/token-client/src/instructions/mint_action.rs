@@ -149,6 +149,12 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         } else { 
             state_tree_info.tree 
         },
+        // input_queue only needed when operating on existing mint
+        input_queue: if is_creating_mint { 
+            None 
+        } else { 
+            Some(state_tree_info.queue) 
+        },
         output_queue: state_tree_info.queue,
         cpi_context: None, // CPI context will be added if needed
     };

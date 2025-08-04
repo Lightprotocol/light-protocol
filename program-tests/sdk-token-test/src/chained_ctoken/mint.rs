@@ -32,6 +32,7 @@ pub fn process_mint_action<'a, 'b, 'c, 'info>(
         authority: ctx.accounts.mint_authority.key(),
         payer: ctx.accounts.payer.key(),
         actions,
+        input_queue: None, // Not needed for create_mint: true
         cpi_context: light_ctoken_types::instructions::mint_actions::CpiContext {
             set_context: false,
             first_set_context: true,

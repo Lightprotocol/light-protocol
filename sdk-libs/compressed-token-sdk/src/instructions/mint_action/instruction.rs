@@ -37,6 +37,7 @@ pub struct MintActionInputs {
     pub proof: Option<CompressedProof>,
     pub actions: Vec<MintActionType>,
     pub address_tree_pubkey: Pubkey,
+    pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub output_queue: Pubkey,
     pub cpi_context: Option<CpiContext>,
 }
@@ -201,6 +202,7 @@ pub struct MintActionInputsCpiWrite {
     pub authority: Pubkey,
     pub payer: Pubkey,
     pub actions: Vec<MintActionType>,
+    pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub cpi_context: light_ctoken_types::instructions::mint_actions::CpiContext,
     pub cpi_context_pubkey: Pubkey,
 }
