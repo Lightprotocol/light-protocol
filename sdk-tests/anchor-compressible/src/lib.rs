@@ -1,4 +1,23 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+// #![cfg_attr(target_os = "solana", allow(unused_variables, unused_mut))]
+
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke, pubkey::Pubkey},
+};
+use light_compressed_token_sdk::instructions::create_compressed_mint::{
+    create_compressed_mint, CreateCompressedMintInputs,
+};
+use light_compressed_token_types::constants::CPI_AUTHORITY_PDA;
+use light_ctoken_types::{
+    instructions::extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
+    state::{AdditionalMetadata, Metadata},
+    COMPRESSED_MINT_SEED,
+};
+use light_sdk_types::constants::{
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, C_TOKEN_PROGRAM_ID,
+    LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
+};
+
 use light_sdk::{
     account::Size,
     compressible::{
@@ -355,15 +374,157 @@ pub mod anchor_compressible {
 
         // Set your account data.
         user_record.owner = ctx.accounts.user.key();
-        user_record.name = account_data.user_name;
+        user_record.name = account_data.user_name.clone();
         user_record.score = 11;
         game_session.session_id = account_data.session_id;
         game_session.player = ctx.accounts.user.key();
-        game_session.game_type = account_data.game_type;
+        game_session.game_type = account_data.game_type.clone();
         game_session.start_time = Clock::get()?.unix_timestamp as u64;
         game_session.end_time = None;
         game_session.score = 0;
 
+        // Log compressed mint creation intent with metadata
+        msg!(
+            "Creating compressed mint with metadata: name={}, symbol={}, uri={}, decimals={}, supply={}",
+            account_data.mint_name,
+            account_data.mint_symbol,
+            account_data.mint_uri,
+            account_data.mint_decimals,
+            account_data.mint_supply
+        );
+
+        // Log mint authorities
+        msg!("Mint authority: {:?}", ctx.accounts.user.key());
+        if let Some(freeze_auth) = account_data.mint_freeze_authority {
+            msg!("Freeze authority: {:?}", freeze_auth);
+        }
+        if let Some(update_auth) = account_data.mint_update_authority {
+            msg!("Update authority: {:?}", update_auth);
+        }
+
+        // Log additional metadata if provided
+        if let Some(metadata) = &account_data.additional_metadata {
+            msg!("Additional metadata:");
+            for (key, value) in metadata {
+                msg!("  {}: {}", key, value);
+            }
+        }
+
+        // Find mint PDA
+        let compressed_token_program_id = Pubkey::new_from_array(C_TOKEN_PROGRAM_ID);
+        let (mint_pda, mint_bump) = Pubkey::find_program_address(
+            &[
+                COMPRESSED_MINT_SEED,
+                ctx.accounts.mint_signer.key().as_ref(),
+            ],
+            &compressed_token_program_id,
+        );
+
+        // Derive the compressed mint address using the PDA as seed
+        let address_seed = mint_pda.to_bytes();
+        let mint_address = light_compressed_account::address::derive_address(
+            &address_seed,
+            &ctx.accounts.address_merkle_tree.key().to_bytes(),
+            &compressed_token_program_id.to_bytes(),
+        );
+
+        msg!("Mint PDA: {:?}, bump: {}", mint_pda, mint_bump);
+        msg!("Compressed mint address: {:?}", mint_address);
+        msg!("Address tree: {:?}", ctx.accounts.address_merkle_tree.key());
+
+        // Convert additional metadata to the correct format
+        let additional_metadata_converted = account_data.additional_metadata.map(|metadata| {
+            metadata
+                .into_iter()
+                .map(|(key, value)| AdditionalMetadata {
+                    key: key.into_bytes(),
+                    value: value.into_bytes(),
+                })
+                .collect()
+        });
+
+        // Create token metadata extension
+        let token_metadata = TokenMetadataInstructionData {
+            update_authority: account_data
+                .mint_update_authority
+                .map(|ua| light_compressed_account::Pubkey::new_from_array(ua.to_bytes())),
+            metadata: Metadata {
+                name: account_data.mint_name.into_bytes(),
+                symbol: account_data.mint_symbol.into_bytes(),
+                uri: account_data.mint_uri.into_bytes(),
+            },
+            additional_metadata: additional_metadata_converted,
+            version: 0,
+        };
+
+        // Create extension instruction data
+        let extensions = vec![ExtensionInstructionData::TokenMetadata(token_metadata)];
+
+        // Convert the proof to the correct type for the SDK
+        let compressed_proof = compression_params.proof.0.unwrap();
+
+        // Create the compressed mint inputs
+        let mint_inputs = CreateCompressedMintInputs {
+            decimals: account_data.mint_decimals,
+            mint_authority: ctx.accounts.user.key(),
+            freeze_authority: account_data.mint_freeze_authority,
+            proof: compressed_proof,
+            mint_bump: compression_params.mint_signer_bump,
+            address_merkle_tree_root_index: compression_params.mint_address_tree_info.root_index,
+            mint_signer: ctx.accounts.mint_signer.key(),
+            payer: ctx.accounts.user.key(),
+            address_tree_pubkey: ctx.accounts.address_merkle_tree.key(),
+            output_queue: ctx.accounts.output_queue.key(),
+            extensions: Some(extensions),
+            version: 0,
+        };
+
+        // Create the compressed mint instruction using the SDK
+        let mint_instruction =
+            create_compressed_mint(mint_inputs).map_err(|_| ErrorCode::MintCreationFailed)?;
+
+        // Validate program IDs before CPI
+        require_keys_eq!(
+            ctx.accounts.light_system_program.key(),
+            Pubkey::new_from_array(LIGHT_SYSTEM_PROGRAM_ID),
+            ErrorCode::MintCreationFailed
+        );
+        require_keys_eq!(
+            ctx.accounts.account_compression_program.key(),
+            Pubkey::new_from_array(ACCOUNT_COMPRESSION_PROGRAM_ID),
+            ErrorCode::MintCreationFailed
+        );
+        require_keys_eq!(
+            ctx.accounts.compressed_token_program.key(),
+            compressed_token_program_id,
+            ErrorCode::MintCreationFailed
+        );
+
+        // Create account infos for the CPI call in expected order
+        let mut mint_account_infos = vec![
+            ctx.accounts.mint_signer.to_account_info(),
+            ctx.accounts.user.to_account_info(), // payer
+            ctx.accounts.cpi_authority_pda.to_account_info(),
+            ctx.accounts.light_system_program.to_account_info(),
+            ctx.accounts.account_compression_program.to_account_info(),
+            ctx.accounts.registered_program_pda.to_account_info(),
+            ctx.accounts.noop_program.to_account_info(),
+            ctx.accounts.account_compression_authority.to_account_info(),
+            ctx.accounts.compressed_token_program.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            ctx.accounts.address_merkle_tree.to_account_info(),
+            ctx.accounts.output_queue.to_account_info(),
+        ];
+
+        // Add remaining accounts to the instruction
+        for remaining_account in ctx.remaining_accounts {
+            mint_account_infos.push(remaining_account.to_account_info());
+        }
+
+        invoke(&mint_instruction, &mint_account_infos)?;
+        msg!("Compressed mint with metadata created successfully");
+
+        // Now continue with the original logic for user record and game session
         // Create CPI accounts.
         let cpi_accounts =
             CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
@@ -636,7 +797,7 @@ pub struct CreatePlaceholderRecord<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(account_data: AccountCreationData)]
+#[instruction(account_data: AccountCreationData, compression_params: CompressionParams)]
 pub struct CreateUserRecordAndGameSession<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -661,6 +822,49 @@ pub struct CreateUserRecordAndGameSession<'info> {
         bump,
     )]
     pub game_session: Account<'info, GameSession>,
+
+    // Compressed mint creation accounts
+    /// The mint signer used for PDA derivation
+    pub mint_signer: Signer<'info>,
+
+    /// CPI authority for compressed account creation
+    /// CHECK: Validated by compressed-token program
+    pub cpi_authority_pda: AccountInfo<'info>,
+
+    /// Light system program for compressed account creation
+    /// CHECK: Program ID validated using LIGHT_SYSTEM_PROGRAM_ID constant
+    pub light_system_program: UncheckedAccount<'info>,
+
+    /// Account compression program
+    /// CHECK: Program ID validated using ACCOUNT_COMPRESSION_PROGRAM_ID constant
+    pub account_compression_program: UncheckedAccount<'info>,
+
+    /// Registered program PDA for light system program
+    /// CHECK: Validated by light-system-program
+    pub registered_program_pda: AccountInfo<'info>,
+
+    /// NoOp program for event emission
+    /// CHECK: Validated by light-system-program
+    pub noop_program: UncheckedAccount<'info>,
+
+    /// Authority for account compression
+    /// CHECK: Validated by light-system-program
+    pub account_compression_authority: UncheckedAccount<'info>,
+
+    /// Compressed token program
+    /// CHECK: Program ID validated using COMPRESSED_TOKEN_PROGRAM_ID constant
+    pub compressed_token_program: UncheckedAccount<'info>,
+
+    /// Address merkle tree for compressed account creation
+    /// CHECK: Validated by light-system-program
+    #[account(mut)]
+    pub address_merkle_tree: AccountInfo<'info>,
+
+    /// Output queue account where compressed mint will be stored
+    /// CHECK: Validated by light-system-program
+    #[account(mut)]
+    pub output_queue: AccountInfo<'info>,
+
     /// Needs to be here for the init anchor macro to work.
     pub system_program: Program<'info, System>,
     /// The global config account
@@ -1090,6 +1294,8 @@ pub enum ErrorCode {
     InvalidAccountCount,
     #[msg("Rent recipient does not match config")]
     InvalidRentRecipient,
+    #[msg("Failed to create compressed mint")]
+    MintCreationFailed,
 }
 
 // Add these struct definitions before the program module
@@ -1098,6 +1304,15 @@ pub struct AccountCreationData {
     pub user_name: String,
     pub session_id: u64,
     pub game_type: String,
+    // TODO: Add mint metadata fields when implementing mint functionality
+    pub mint_name: String,
+    pub mint_symbol: String,
+    pub mint_uri: String,
+    pub mint_decimals: u8,
+    pub mint_supply: u64,
+    pub mint_update_authority: Option<Pubkey>,
+    pub mint_freeze_authority: Option<Pubkey>,
+    pub additional_metadata: Option<Vec<(String, String)>>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -1109,4 +1324,9 @@ pub struct CompressionParams {
     pub game_compressed_address: [u8; 32],
     pub game_address_tree_info: PackedAddressTreeInfo,
     pub game_output_state_tree_index: u8,
+    // TODO: Add mint compression parameters when implementing mint functionality
+    pub mint_compressed_address: [u8; 32],
+    pub mint_address_tree_info: PackedAddressTreeInfo,
+    pub mint_output_state_tree_index: u8,
+    pub mint_signer_bump: u8,
 }

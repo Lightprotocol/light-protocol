@@ -628,11 +628,45 @@ async fn test_create_user_record_and_game_session(
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
+    // Create a mint signer for the compressed mint
+    let mint_signer = solana_sdk::signature::Keypair::new();
+
+    // Find mint PDA
+    let compressed_token_program_id =
+        solana_sdk::pubkey::Pubkey::new_from_array(light_sdk_types::constants::C_TOKEN_PROGRAM_ID);
+    let (mint_pda, mint_bump) = solana_sdk::pubkey::Pubkey::find_program_address(
+        &[
+            light_ctoken_types::COMPRESSED_MINT_SEED,
+            mint_signer.pubkey().as_ref(),
+        ],
+        &compressed_token_program_id,
+    );
+
+    // Derive the compressed mint address using the PDA as seed
+    let address_seed = mint_pda.to_bytes();
+    let mint_compressed_address = light_compressed_account::address::derive_address(
+        &address_seed,
+        &address_tree_pubkey.to_bytes(),
+        &compressed_token_program_id.to_bytes(),
+    );
+
     // Create the instruction
     let accounts = anchor_compressible::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         user_record: *user_record_pda,
         game_session: *game_session_pda,
+        mint_signer: mint_signer.pubkey(),
+        cpi_authority_pda: light_compressed_token_types::constants::CPI_AUTHORITY_PDA.into(),
+        light_system_program: light_sdk_types::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
+        account_compression_program: light_sdk_types::constants::ACCOUNT_COMPRESSION_PROGRAM_ID
+            .into(),
+        registered_program_pda: light_sdk_types::constants::REGISTERED_PROGRAM_PDA.into(),
+        noop_program: light_sdk_types::constants::NOOP_PROGRAM_ID.into(),
+        account_compression_authority:
+            light_sdk_types::constants::ACCOUNT_COMPRESSION_AUTHORITY_PDA.into(),
+        compressed_token_program: light_sdk_types::constants::C_TOKEN_PROGRAM_ID.into(),
+        address_merkle_tree: address_tree_pubkey,
+        output_queue: rpc.get_address_tree_v2().queue,
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_recipient: RENT_RECIPIENT,
@@ -650,7 +684,7 @@ async fn test_create_user_record_and_game_session(
         &program_id.to_bytes(),
     );
 
-    // Get validity proof from RPC
+    // Get validity proof from RPC including mint address
     let rpc_result = rpc
         .get_validity_proof(
             vec![],
@@ -663,6 +697,10 @@ async fn test_create_user_record_and_game_session(
                     address: game_compressed_address,
                     tree: address_tree_pubkey,
                 },
+                AddressWithTree {
+                    address: mint_compressed_address,
+                    tree: address_tree_pubkey,
+                },
             ],
             None,
         )
@@ -673,14 +711,17 @@ async fn test_create_user_record_and_game_session(
     // Pack tree infos into remaining accounts
     let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
 
-    // Get the packed address tree info (both should use the same tree)
+    // Get the packed address tree info (all should use the same tree)
     let user_address_tree_info = packed_tree_infos.address_trees[0];
     let game_address_tree_info = packed_tree_infos.address_trees[1];
+    let mint_address_tree_info = packed_tree_infos.address_trees[2];
 
     // Get output state tree indices
     let user_output_state_tree_index =
         remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
     let game_output_state_tree_index =
+        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+    let mint_output_state_tree_index =
         remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
 
     // Get system accounts for the instruction
@@ -692,6 +733,24 @@ async fn test_create_user_record_and_game_session(
             user_name: "Combined User".to_string(),
             session_id,
             game_type: "Combined Game".to_string(),
+            // Add mint metadata
+            mint_name: "Test Game Token".to_string(),
+            mint_symbol: "TGT".to_string(),
+            mint_uri: "https://example.com/token.json".to_string(),
+            mint_decimals: 9,
+            mint_supply: 1_000_000_000,
+            mint_update_authority: Some(user.pubkey()),
+            mint_freeze_authority: None,
+            additional_metadata: Some(vec![
+                (
+                    "description".to_string(),
+                    "A test token for the game".to_string(),
+                ),
+                (
+                    "image".to_string(),
+                    "https://example.com/token.png".to_string(),
+                ),
+            ]),
         },
         compression_params: anchor_compressible::CompressionParams {
             proof: rpc_result.proof,
@@ -701,6 +760,11 @@ async fn test_create_user_record_and_game_session(
             game_compressed_address,
             game_address_tree_info,
             game_output_state_tree_index,
+            // Add mint compression parameters
+            mint_compressed_address,
+            mint_address_tree_info,
+            mint_output_state_tree_index,
+            mint_signer_bump: mint_bump,
         },
     };
 
@@ -714,7 +778,7 @@ async fn test_create_user_record_and_game_session(
     println!("CreateUserRecordAndGameSession CU consumed: {}", cu);
     // Create and send transaction
     let result = rpc
-        .create_and_send_transaction(&[instruction], &user.pubkey(), &[user])
+        .create_and_send_transaction(&[instruction], &user.pubkey(), &[user, &mint_signer])
         .await;
 
     assert!(
