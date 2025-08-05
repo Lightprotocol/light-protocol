@@ -317,6 +317,20 @@ pub enum ErrorCode {
     MintActionProofMissing,
     #[msg("Unsupported mint action type")]
     MintActionUnsupportedActionType,
+    #[msg("Metadata operations require decompressed mints")]
+    MintActionMetadataNotDecompressed,
+    #[msg("Missing metadata extension in mint")]
+    MintActionMissingMetadataExtension,
+    #[msg("Extension index out of bounds")]
+    MintActionInvalidExtensionIndex,
+    #[msg("Invalid metadata value encoding")]
+    MintActionInvalidMetadataValue,
+    #[msg("Invalid metadata key encoding")]
+    MintActionInvalidMetadataKey,
+    #[msg("Extension at index is not a TokenMetadata extension")]
+    MintActionInvalidExtensionType,
+    #[msg("Metadata key not found")]
+    MintActionMetadataKeyNotFound,
     #[msg("Missing executing system accounts for mint action")]
     MintActionMissingExecutingAccounts,
     #[msg("Invalid mint authority for mint action")]
@@ -335,6 +349,7 @@ pub enum ErrorCode {
     MintActionUnsupportedVersion,
     #[msg("New mint must start as compressed")]
     MintActionInvalidCompressionState,
+    MintActionUnsupportedOperation,
 }
 
 impl From<ErrorCode> for ProgramError {

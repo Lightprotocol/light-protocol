@@ -194,11 +194,7 @@ impl CompressedMint {
 }
 
 impl ZCompressedMintMut<'_> {
-    pub fn hash(
-        &self,
-        extension_hashchain: Option<[u8; 32]>,
-        hash_cache: &mut HashCache,
-    ) -> std::result::Result<[u8; 32], CTokenError> {
+    pub fn hash(&self, hash_cache: &mut HashCache) -> std::result::Result<[u8; 32], CTokenError> {
         // let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
         let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
@@ -243,7 +239,25 @@ impl ZCompressedMintMut<'_> {
             self.version,
         )?;
 
-        if let Some(extension_hashchain) = extension_hashchain {
+        // Compute extension hash chain if extensions exist
+        if let Some(extensions) = self.extensions.as_ref() {
+            let mut extension_hashchain = [0u8; 32];
+            for extension in extensions.as_slice() {
+                if self.version == 0 {
+                    extension_hashchain = Poseidon::hashv(&[
+                        extension_hashchain.as_slice(),
+                        extension.hash::<Poseidon>()?.as_slice(),
+                    ])?;
+                } else if self.version == 1 {
+                    extension_hashchain = Sha256::hashv(&[
+                        extension_hashchain.as_slice(),
+                        extension.hash::<Sha256>()?.as_slice(),
+                    ])?;
+                } else {
+                    return Err(CTokenError::InvalidTokenDataVersion);
+                }
+            }
+
             if self.version == 0 {
                 Ok(Poseidon::hashv(&[
                     mint_hash.as_slice(),

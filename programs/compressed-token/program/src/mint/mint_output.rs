@@ -12,9 +12,7 @@ use zerocopy::little_endian::U64;
 
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
-    extensions::processor::{
-        create_extension_hash_chain, extensions_state_in_output_compressed_account,
-    },
+    extensions::processor::extensions_state_in_output_compressed_account,
 };
 /*
 /// Input struct for create_output_compressed_mint_account function
@@ -84,7 +82,7 @@ pub fn create_output_compressed_mint_account(
         )?;
 
         // Process extensions if provided and populate the zero-copy extension data
-        let extension_hash = if let Some(extensions) = extensions.as_ref() {
+        if let Some(extensions) = extensions.as_ref() {
             let z_extensions = compressed_mint
                 .extensions
                 .as_mut()
@@ -95,20 +93,10 @@ pub fn create_output_compressed_mint_account(
                 z_extensions.as_mut_slice(),
                 mint_pda,
             )?;
-            let hashed_spl_mint = hash_cache.get_or_hash_mint(&mint_pda.into())?;
-
-            Some(create_extension_hash_chain(
-                extensions,
-                &hashed_spl_mint,
-                hash_cache,
-                version,
-            )?)
-        } else {
-            None
-        };
+        }
         // Compute final hash with extensions
         compressed_mint
-            .hash(extension_hash, hash_cache)
+            .hash(hash_cache)
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 

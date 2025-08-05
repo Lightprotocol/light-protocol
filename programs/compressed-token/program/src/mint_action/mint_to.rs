@@ -3,6 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{hash_cache::HashCache, instructions::mint_to_compressed::ZMintToAction};
 
+use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
 use spl_pod::solana_msg::msg;
 
 use crate::{
@@ -15,7 +16,7 @@ pub fn process_mint_to_action(
     current_supply: u64,
     validated_accounts: &MintActionAccounts,
     accounts_config: &crate::mint_action::accounts::AccountsConfig,
-    cpi_instruction_struct: &mut light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut,
+    cpi_instruction_struct: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
     hash_cache: &mut HashCache,
     mint: Pubkey,
     out_token_queue_index: u8,
@@ -65,7 +66,7 @@ pub fn process_mint_to_action(
 
 fn create_output_compressed_token_accounts(
     parsed_instruction_data: &ZMintToAction<'_>,
-    cpi_instruction_struct: &mut light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
+    output_compressed_accounts: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
     hash_cache: &mut HashCache,
     mint: Pubkey,
     queue_pubkey_index: u8,
@@ -75,12 +76,11 @@ fn create_output_compressed_token_accounts(
     let lamports = parsed_instruction_data
         .lamports
         .map(|lamports| u64::from(*lamports));
-    for (recipient, output_account) in parsed_instruction_data.recipients.iter().zip(
-        cpi_instruction_struct
-            .output_compressed_accounts
-            .iter_mut()
-            .skip(1), // Skip the first account which is the mint account.
-    ) {
+    for (recipient, output_account) in parsed_instruction_data
+        .recipients
+        .iter()
+        .zip(output_compressed_accounts.iter_mut())
+    {
         let output_delegate = None;
         set_output_compressed_account::<false>(
             output_account,

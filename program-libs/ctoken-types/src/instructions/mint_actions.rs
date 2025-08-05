@@ -36,13 +36,36 @@ pub struct MintToDecompressedAction {
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct UpdateMetadataFieldAction {
+    pub extension_index: u8, // Index of the TokenMetadata extension in the extensions array
+    pub field_type: u8,      // 0=Name, 1=Symbol, 2=Uri, 3=Custom key
+    pub key: Vec<u8>,        // Empty for Name/Symbol/Uri, key string for custom fields
+    pub value: Vec<u8>,      // UTF-8 encoded value
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct UpdateMetadataAuthorityAction {
+    pub extension_index: u8, // Index of the TokenMetadata extension in the extensions array
+    pub new_authority: Pubkey, // Use zero bytes to set to None
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+pub struct RemoveMetadataKeyAction {
+    pub extension_index: u8, // Index of the TokenMetadata extension in the extensions array
+    pub key: Vec<u8>,        // UTF-8 encoded key to remove
+    pub idempotent: u8,      // 0=false, 1=true - don't error if key doesn't exist
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub enum Action {
     MintTo(MintToAction),
     UpdateMintAuthority(UpdateAuthority),
     UpdateFreezeAuthority(UpdateAuthority),
     CreateSplMint(CreateSplMintAction),
     MintToDecompressed(MintToDecompressedAction),
-    UpdateMetadata,
+    UpdateMetadataField(UpdateMetadataFieldAction),
+    UpdateMetadataAuthority(UpdateMetadataAuthorityAction),
+    RemoveMetadataKey(RemoveMetadataKeyAction),
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

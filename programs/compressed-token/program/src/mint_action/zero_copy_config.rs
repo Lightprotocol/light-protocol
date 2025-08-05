@@ -45,9 +45,9 @@ pub fn get_zero_copy_configs(
                 // None = revoke authority, Some(key) = set new authority
                 final_freeze_authority = update_action.new_authority.is_some();
             }
-            ZAction::UpdateMetadata => {
-                // TODO: When UpdateMetadata is implemented, process extension modifications here
-                // and recalculate final extensions_config for correct output mint size calculation
+            ZAction::UpdateMetadataField(_) | ZAction::UpdateMetadataAuthority(_) | ZAction::RemoveMetadataKey(_) => {
+                // Metadata updates don't significantly change extension size
+                // This may result in empty space but is ok
             }
             _ => {} // Other actions don't affect authority or extension states
         }

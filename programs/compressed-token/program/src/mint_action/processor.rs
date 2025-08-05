@@ -1,8 +1,9 @@
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_lang::prelude::ProgramError;
 use light_compressed_account::{
-    instruction_data::with_readonly::{
-        InstructionDataInvokeCpiWithReadOnly, ZInstructionDataInvokeCpiWithReadOnlyMut,
+    instruction_data::{
+        data::ZOutputCompressedAccountWithPackedContextMut,
+        with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     Pubkey,
 };
@@ -11,8 +12,8 @@ use light_ctoken_types::{
     instructions::mint_actions::{
         MintActionCompressedInstructionData, ZAction, ZMintActionCompressedInstructionData,
     },
+    state::{CompressedMint, ZCompressedMintMut},
 };
-
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
@@ -20,16 +21,18 @@ use spl_pod::solana_msg::msg;
 use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
+    constants::COMPRESSED_MINT_DISCRIMINATOR,
+    extensions::processor::extensions_state_in_output_compressed_account,
     mint_action::{
         accounts::{AccountsConfig, MintActionAccounts},
         create_mint::process_create_mint_action,
         create_spl_mint::process_create_spl_mint_action,
         mint_input::create_input_compressed_mint_account,
-        mint_output::create_output_compressed_mint_account,
         mint_to::process_mint_to_action,
         mint_to_decompressed::process_mint_to_decompressed_action,
         queue_indices::QueueIndices,
         update_authority::update_authority,
+        update_metadata::{process_update_metadata_field_action, process_update_metadata_authority_action},
         zero_copy_config::get_zero_copy_configs,
     },
     shared::cpi::execute_cpi_invoke,
@@ -115,35 +118,85 @@ pub fn process_mint_action(
             },
         )?;
     }
-    let (freeze_authority, mint_authority, supply, num_decompressed_recipients) = process_actions(
-        &parsed_instruction_data,
-        &validated_accounts,
-        &accounts_config,
-        &mut cpi_instruction_struct,
-        &mut hash_cache,
-        &queue_indices,
-        &validated_accounts.packed_accounts,
-    )?;
+    let num_decompressed_recipients = {
+        let freeze_authority = parsed_instruction_data.mint.freeze_authority.map(|fa| *fa);
+        let mint_authority = parsed_instruction_data.mint.mint_authority.map(|fa| *fa);
 
-    create_output_compressed_mint_account(
-        &mut cpi_instruction_struct.output_compressed_accounts[0],
-        parsed_instruction_data.mint.spl_mint,
-        parsed_instruction_data.mint.decimals,
-        freeze_authority,
-        mint_authority,
-        supply.into(),
-        mint_size_config,
-        parsed_instruction_data.compressed_address,
-        queue_indices.output_queue_index,
-        parsed_instruction_data.mint.version,
-        accounts_config.is_decompressed,
-        parsed_instruction_data.mint.extensions.as_deref(),
-        &mut hash_cache,
-    )?;
+        let (mint_account, token_accounts): (
+            &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
+            &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
+        ) = if cpi_instruction_struct.output_compressed_accounts.len() == 1 {
+            (
+                &mut cpi_instruction_struct.output_compressed_accounts[0],
+                &mut [],
+            )
+        } else {
+            let (mint_account, token_accounts) = cpi_instruction_struct
+                .output_compressed_accounts
+                .split_at_mut(1);
+            (&mut mint_account[0], token_accounts)
+        };
+        let mint_pda = parsed_instruction_data.mint.spl_mint;
+
+        // 2. Set output compressed account
+        mint_account.set(
+            crate::LIGHT_CPI_SIGNER.program_id.into(),
+            0,
+            Some(parsed_instruction_data.compressed_address),
+            queue_indices.output_queue_index,
+            COMPRESSED_MINT_DISCRIMINATOR,
+            [0u8; 32],
+        )?;
+
+        let compressed_account_data = mint_account
+            .compressed_account
+            .data
+            .as_mut()
+            .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
+
+        let (mut compressed_mint, _) =
+            CompressedMint::new_zero_copy(compressed_account_data.data, mint_size_config)
+                .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
+        compressed_mint.set(
+            parsed_instruction_data.mint.version,
+            mint_pda,
+            parsed_instruction_data.mint.supply,
+            parsed_instruction_data.mint.decimals,
+            accounts_config.is_decompressed,
+            mint_authority,
+            freeze_authority,
+        )?;
+        if let Some(extensions) = parsed_instruction_data.mint.extensions.as_deref() {
+            let z_extensions = compressed_mint
+                .extensions
+                .as_mut()
+                .ok_or(ProgramError::AccountAlreadyInitialized)?;
+
+            extensions_state_in_output_compressed_account(
+                extensions,
+                z_extensions.as_mut_slice(),
+                mint_pda,
+            )?;
+        }
+
+        let num_decompressed_recipients = process_actions(
+            &parsed_instruction_data,
+            &validated_accounts,
+            &accounts_config,
+            token_accounts,
+            &mut hash_cache,
+            &queue_indices,
+            &validated_accounts.packed_accounts,
+            &mut compressed_mint,
+        )?;
+        *compressed_account_data.data_hash = compressed_mint.hash(&mut hash_cache)?;
+
+        num_decompressed_recipients
+    };
     sol_log_compute_units();
-    msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
-    let cpi_accounts_offset = validated_accounts.cpi_accounts_offset();
 
+    let cpi_accounts_offset = validated_accounts.cpi_accounts_offset();
+    // TODO: implement a more robust end offset calculation than - num_decompressed_recipients as usize
     if let Some(executing) = validated_accounts.executing.as_ref() {
         // Execute CPI to light-system-program
         execute_cpi_invoke(
@@ -171,15 +224,16 @@ pub fn process_mint_action(
     }
 }
 
-fn process_actions(
+fn process_actions<'a>(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
     validated_accounts: &MintActionAccounts,
     accounts_config: &AccountsConfig,
-    cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
+    cpi_instruction_struct: &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
     packed_accounts: &ProgramPackedAccounts,
-) -> Result<(Option<Pubkey>, Option<Pubkey>, u64, u64), ProgramError> {
+    compressed_mint: &mut ZCompressedMintMut<'a>,
+) -> Result<u64, ProgramError> {
     let mut freeze_authority = parsed_instruction_data.mint.freeze_authority.map(|fa| *fa);
     let mut mint_authority = parsed_instruction_data.mint.mint_authority.map(|fa| *fa);
     let mut supply: u64 = parsed_instruction_data.mint.supply.into();
@@ -233,6 +287,28 @@ fn process_actions(
                 )?;
                 num_decompressed_recipients += 1;
             }
+            ZAction::UpdateMetadataField(update_metadata_action) => {
+                process_update_metadata_field_action(
+                    update_metadata_action,
+                    compressed_mint,
+                    &Pubkey::from(*validated_accounts.authority.key()),
+                )?;
+            }
+            ZAction::UpdateMetadataAuthority(update_metadata_authority_action) => {
+                process_update_metadata_authority_action(
+                    update_metadata_authority_action,
+                    compressed_mint,
+                    &Pubkey::from(*validated_accounts.authority.key()),
+                )?;
+            }
+            /*ZAction::RemoveMetadataKey(remove_metadata_key_action) => {
+                process_remove_metadata_key_action(
+                    remove_metadata_key_action,
+                    parsed_instruction_data.mint.extensions,
+                    validated_accounts,
+                    accounts_config,
+                )?;
+            }*/
             _ => {
                 msg!("Unsupported action type");
                 return Err(ErrorCode::MintActionUnsupportedActionType.into());
@@ -240,10 +316,5 @@ fn process_actions(
         }
     }
 
-    Ok((
-        freeze_authority,
-        mint_authority,
-        supply,
-        num_decompressed_recipients,
-    ))
+    Ok(num_decompressed_recipients)
 }

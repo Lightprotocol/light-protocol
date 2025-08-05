@@ -6,7 +6,7 @@ use light_compressed_account::{
 use light_ctoken_types::{
     hash_cache::HashCache,
     instructions::extensions::ZExtensionInstructionData,
-    state::{CompressedMint, CompressedMintConfig},
+    state::{CompressedMint, CompressedMintConfig, ZCompressedMint, ZCompressedMintMut},
 };
 use light_zero_copy::ZeroCopyNew;
 use zerocopy::little_endian::U64;
@@ -48,8 +48,8 @@ pub struct CreateOutputCompressedMintAccountInputs<'a, 'b> {
 
 // TODO: pass in struct
 #[allow(clippy::too_many_arguments)]
-pub fn create_output_compressed_mint_account(
-    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
+pub fn create_output_compressed_mint_account<'a>(
+    output_compressed_account: &'a mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     mint_pda: Pubkey,
     decimals: u8,
     freeze_authority: Option<Pubkey>,
@@ -62,55 +62,23 @@ pub fn create_output_compressed_mint_account(
     is_decompressed: bool,
     extensions: Option<&[ZExtensionInstructionData<'_>]>,
     hash_cache: &mut HashCache,
-) -> Result<(), ProgramError> {
+) -> Result<ZCompressedMintMut<'a>, ProgramError> {
+    // Compute f
     // 1. Set CompressedMint account data & compute hash
-    let data_hash = {
-        let compressed_account_data = output_compressed_account
-            .compressed_account
-            .data
-            .as_mut()
-            .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
 
-        let (mut compressed_mint, _) =
-            CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
-                .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
-        compressed_mint.set(
+    // Process extensions if provided and populate the zero-copy extension data
+    let extension_hash = if let Some(extensions) = extensions.as_ref() {
+        let hashed_spl_mint = hash_cache.get_or_hash_mint(&mint_pda.into())?;
+        Some(create_extension_hash_chain(
+            extensions,
+            &hashed_spl_mint,
+            hash_cache,
             version,
-            mint_pda,
-            supply,
-            decimals,
-            is_decompressed,
-            mint_authority,
-            freeze_authority,
-        )?;
-
-        // Process extensions if provided and populate the zero-copy extension data
-        let extension_hash = if let Some(extensions) = extensions.as_ref() {
-            let z_extensions = compressed_mint
-                .extensions
-                .as_mut()
-                .ok_or(ProgramError::AccountAlreadyInitialized)?;
-
-            extensions_state_in_output_compressed_account(
-                extensions,
-                z_extensions.as_mut_slice(),
-                mint_pda,
-            )?;
-            let hashed_spl_mint = hash_cache.get_or_hash_mint(&mint_pda.into())?;
-
-            Some(create_extension_hash_chain(
-                extensions,
-                &hashed_spl_mint,
-                hash_cache,
-                version,
-            )?)
-        } else {
-            None
-        };
-        // Compute final hash with extensions
-        compressed_mint.hash(extension_hash, hash_cache)?
+        )?)
+    } else {
+        None
     };
-
+    // let data_hash = compressed_mint.hash(extension_hash, hash_cache)?;
     // 2. Set output compressed account
     output_compressed_account.set(
         crate::LIGHT_CPI_SIGNER.program_id.into(),
@@ -118,8 +86,39 @@ pub fn create_output_compressed_mint_account(
         Some(compressed_account_address),
         merkle_tree_index,
         COMPRESSED_MINT_DISCRIMINATOR,
-        data_hash,
+        [0u8; 32],
     )?;
 
-    Ok(())
+    let compressed_account_data = output_compressed_account
+        .compressed_account
+        .data
+        .as_mut()
+        .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
+
+    let (mut compressed_mint, _) =
+        CompressedMint::new_zero_copy(compressed_account_data.data, mint_config)
+            .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
+    compressed_mint.set(
+        version,
+        mint_pda,
+        supply,
+        decimals,
+        is_decompressed,
+        mint_authority,
+        freeze_authority,
+    )?;
+    if let Some(extensions) = extensions.as_ref() {
+        let z_extensions = compressed_mint
+            .extensions
+            .as_mut()
+            .ok_or(ProgramError::AccountAlreadyInitialized)?;
+
+        extensions_state_in_output_compressed_account(
+            extensions,
+            z_extensions.as_mut_slice(),
+            mint_pda,
+        )?;
+    }
+
+    Ok(compressed_mint)
 }

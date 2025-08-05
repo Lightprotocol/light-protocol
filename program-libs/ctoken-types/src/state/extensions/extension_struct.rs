@@ -337,3 +337,17 @@ impl ExtensionStruct {
         }
     }
 }
+
+impl<'a> ZExtensionStructMut<'a> {
+    pub fn hash<H: Hasher>(&self) -> Result<[u8; 32], CTokenError> {
+        match self {
+            // ZExtensionStructMut::MetadataPointer(metadata_pointer) => Ok(metadata_pointer.hash::<H>()?),
+            ZExtensionStructMut::TokenMetadata(token_metadata) => {
+                // hash function is defined on the metadata level
+                use light_hasher::DataHasher;
+                Ok(DataHasher::hash::<H>(token_metadata)?)
+            }
+            _ => Err(CTokenError::UnsupportedExtension),
+        }
+    }
+}
