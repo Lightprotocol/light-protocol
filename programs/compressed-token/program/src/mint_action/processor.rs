@@ -244,17 +244,14 @@ fn process_actions<'a>(
     packed_accounts: &ProgramPackedAccounts,
     compressed_mint: &mut ZCompressedMintMut<'a>,
 ) -> Result<u64, ProgramError> {
-    let mut freeze_authority = parsed_instruction_data.mint.freeze_authority.map(|fa| *fa);
-    let mut mint_authority = parsed_instruction_data.mint.mint_authority.map(|fa| *fa);
-    let mut supply: u64 = parsed_instruction_data.mint.supply.into();
     let mut num_decompressed_recipients = 0;
 
     for action in parsed_instruction_data.actions.iter() {
         match action {
             ZAction::MintTo(action) => {
-                supply = process_mint_to_action(
+                let new_supply = process_mint_to_action(
                     action,
-                    supply,
+                    u64::from(compressed_mint.supply),
                     validated_accounts,
                     accounts_config,
                     cpi_instruction_struct,
@@ -262,22 +259,41 @@ fn process_actions<'a>(
                     parsed_instruction_data.mint.spl_mint,
                     queue_indices.out_token_queue_index,
                 )?;
+                compressed_mint.supply = new_supply.into();
             }
             ZAction::UpdateMintAuthority(update_action) => {
-                mint_authority = update_authority(
+                let current_mint_authority = compressed_mint.mint_authority.as_ref().map(|auth| **auth);
+                let new_mint_authority = update_authority(
                     update_action,
                     validated_accounts.authority.key(),
-                    mint_authority,
+                    current_mint_authority,
                     "mint authority",
                 )?;
+                if let Some(mint_auth_ref) = compressed_mint.mint_authority.as_mut() {
+                    if let Some(new_auth) = new_mint_authority {
+                        **mint_auth_ref = new_auth;
+                    }
+                } else if new_mint_authority.is_some() {
+                    msg!("Cannot set mint authority when none was allocated");
+                    return Err(ErrorCode::MintActionUnsupportedOperation.into());
+                }
             }
             ZAction::UpdateFreezeAuthority(update_action) => {
-                freeze_authority = update_authority(
+                let current_freeze_authority = compressed_mint.freeze_authority.as_ref().map(|auth| **auth);
+                let new_freeze_authority = update_authority(
                     update_action,
                     validated_accounts.authority.key(),
-                    freeze_authority,
+                    current_freeze_authority,
                     "freeze authority",
                 )?;
+                if let Some(freeze_auth_ref) = compressed_mint.freeze_authority.as_mut() {
+                    if let Some(new_auth) = new_freeze_authority {
+                        **freeze_auth_ref = new_auth;
+                    }
+                } else if new_freeze_authority.is_some() {
+                    msg!("Cannot set freeze authority when none was allocated");
+                    return Err(ErrorCode::MintActionUnsupportedOperation.into());
+                }
             }
             ZAction::CreateSplMint(create_spl_action) => {
                 process_create_spl_mint_action(
@@ -287,14 +303,15 @@ fn process_actions<'a>(
                 )?;
             }
             ZAction::MintToDecompressed(mint_to_decompressed_action) => {
-                supply = process_mint_to_decompressed_action(
+                let new_supply = process_mint_to_decompressed_action(
                     mint_to_decompressed_action,
-                    supply,
+                    u64::from(compressed_mint.supply),
                     validated_accounts,
                     accounts_config,
                     packed_accounts,
                     parsed_instruction_data.mint.spl_mint,
                 )?;
+                compressed_mint.supply = new_supply.into();
                 num_decompressed_recipients += 1;
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {

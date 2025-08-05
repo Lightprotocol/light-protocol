@@ -146,6 +146,17 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
         Ok(&self.accounts[self.position..])
     }
 
+    /// Get all remaining accounts in the iterator.
+    #[inline(always)]
+    #[track_caller]
+    pub fn remaining_unchecked(&self) -> Result<&'info [T], AccountError> {
+        if self.position >= self.accounts.len() {
+            Ok(&[])
+        } else {
+            Ok(&self.accounts[self.position..])
+        }
+    }
+
     /// Get the current position in the iterator.
     pub fn position(&self) -> usize {
         self.position

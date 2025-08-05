@@ -4,7 +4,7 @@ use light_hasher::{
     Poseidon, Sha256,
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-use pinocchio::msg;
+use solana_msg::msg;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
@@ -96,11 +96,12 @@ pub fn token_metadata_hash<H: light_hasher::Hasher>(
     vec[4][31] = version;
 
     slice_vec[0] = vec[0].as_slice();
-    slice_vec[1] = vec[2].as_slice();
+    slice_vec[1] = vec[1].as_slice();
     slice_vec[2] = metadata_hash;
     slice_vec[3] = vec[3].as_slice();
     slice_vec[4] = vec[4].as_slice();
 
+    msg!("token_metadata_hash_with_hashed_values {:?}", slice_vec);
     if vec[4] != [0u8; 32] {
         H::hashv(&slice_vec[..4])
     } else {
@@ -131,11 +132,11 @@ pub fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
     vec[4][31] = version;
 
     slice_vec[0] = vec[0].as_slice();
-    slice_vec[1] = vec[2].as_slice();
+    slice_vec[1] = vec[1].as_slice();
     slice_vec[2] = metadata_hash;
     slice_vec[3] = vec[3].as_slice();
     slice_vec[4] = vec[4].as_slice();
-
+    msg!("token_metadata_hash_with_hashed_values {:?}", slice_vec);
     if vec[4] != [0u8; 32] {
         H::hashv(&slice_vec[..4])
     } else {

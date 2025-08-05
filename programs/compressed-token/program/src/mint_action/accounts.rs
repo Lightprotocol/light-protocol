@@ -53,7 +53,7 @@ impl<'info> MintActionAccounts<'info> {
                     CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?,
                 ),
                 packed_accounts: ProgramPackedAccounts {
-                    accounts: iter.remaining()?,
+                    accounts: iter.remaining_unchecked()?,
                 },
             })
         } else {
@@ -89,7 +89,7 @@ impl<'info> MintActionAccounts<'info> {
                 }),
                 write_to_cpi_context_system: None,
                 packed_accounts: ProgramPackedAccounts {
-                    accounts: iter.remaining()?,
+                    accounts: iter.remaining_unchecked()?,
                 },
             })
         }
