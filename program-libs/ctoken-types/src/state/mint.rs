@@ -1,6 +1,7 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon, Sha256};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use pinocchio::msg;
 use zerocopy::{little_endian::U64, IntoBytes};
 
 use crate::{
@@ -243,18 +244,25 @@ impl ZCompressedMintMut<'_> {
         if let Some(extensions) = self.extensions.as_ref() {
             let mut extension_hashchain = [0u8; 32];
             for extension in extensions.as_slice() {
+                let extension_hash = if self.version == 0 {
+                    extension.hash::<Poseidon>()?
+                } else if self.version == 1 {
+                    extension.hash::<Sha256>()?
+                } else {
+                    return Err(CTokenError::InvalidTokenDataVersion);
+                };
+                msg!("ZCompressedMintMut extension hash: {:?}", extension_hash);
+
                 if self.version == 0 {
                     extension_hashchain = Poseidon::hashv(&[
                         extension_hashchain.as_slice(),
-                        extension.hash::<Poseidon>()?.as_slice(),
+                        extension_hash.as_slice(),
                     ])?;
                 } else if self.version == 1 {
                     extension_hashchain = Sha256::hashv(&[
                         extension_hashchain.as_slice(),
-                        extension.hash::<Sha256>()?.as_slice(),
+                        extension_hash.as_slice(),
                     ])?;
-                } else {
-                    return Err(CTokenError::InvalidTokenDataVersion);
                 }
             }
 
