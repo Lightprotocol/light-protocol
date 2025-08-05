@@ -247,7 +247,10 @@ impl ZCompressedMintMut<'_> {
                 let extension_hash = if self.version == 0 {
                     extension.hash::<Poseidon>()?
                 } else if self.version == 1 {
-                    extension.hash::<Sha256>()?
+                    let mut hash = extension.hash::<Sha256>()?;
+                    // This is the fix.
+                    hash[0] = 0;
+                    hash
                 } else {
                     return Err(CTokenError::InvalidTokenDataVersion);
                 };
