@@ -1,9 +1,13 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_types::{
-    instructions::mint_actions::{ZAction, ZMintActionCompressedInstructionData},
-    state::CompressedMintConfig,
+    instructions::{
+        extensions::ZExtensionInstructionData,
+        mint_actions::{ZAction, ZMintActionCompressedInstructionData},
+    },
+    state::{CompressedMintConfig, ExtensionStructConfig},
 };
 
 use spl_pod::solana_msg::msg;
@@ -13,19 +17,21 @@ use crate::shared::cpi_bytes_size::{
 };
 
 pub fn get_zero_copy_configs(
-    parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
+    parsed_instruction_data: &mut ZMintActionCompressedInstructionData<'_>,
 ) -> Result<
     (
         InstructionDataInvokeCpiWithReadOnlyConfig,
         Vec<u8>,
         CompressedMintConfig,
+        bool,
     ),
     ProgramError,
 > {
+    let mut idempotent = false;
     use light_ctoken_types::state::CompressedMintConfig;
     msg!("get_zero_copy_configs");
     // Process extensions to get the proper config for CPI bytes allocation
-    let (_, extensions_config, _) = crate::extensions::process_extensions_config(
+    let (_, mut extensions_config, _) = crate::extensions::process_extensions_config(
         parsed_instruction_data.mint.extensions.as_ref(),
     )?;
     msg!("get_zero_copy_configs1");
@@ -45,9 +51,63 @@ pub fn get_zero_copy_configs(
                 // None = revoke authority, Some(key) = set new authority
                 final_freeze_authority = update_action.new_authority.is_some();
             }
-            ZAction::UpdateMetadataField(_) | ZAction::UpdateMetadataAuthority(_) | ZAction::RemoveMetadataKey(_) => {
-                // Metadata updates don't significantly change extension size
-                // This may result in empty space but is ok
+            ZAction::RemoveMetadataKey(action) => {
+                let extension_index = action.extension_index as usize;
+                if extension_index >= extensions_config.len() {
+                    msg!("Extension index {} out of bounds", extension_index);
+                    return Err(
+                        anchor_compressed_token::ErrorCode::MintActionInvalidExtensionIndex.into(),
+                    );
+                }
+                if let ExtensionStructConfig::TokenMetadata(ref mut metadata_config) =
+                    &mut extensions_config[extension_index]
+                {
+                    let mut found = None;
+                    idempotent = action.idempotent != 0;
+                    let additional_metadata =
+                        if let ZExtensionInstructionData::TokenMetadata(metadata_pair) =
+                            &mut parsed_instruction_data.mint.extensions.as_mut().unwrap()
+                                [extension_index]
+                        {
+                            metadata_pair.additional_metadata.as_mut().unwrap()
+                        } else {
+                            &mut vec![]
+                        };
+                    for (index, metadata_pair) in additional_metadata.iter().enumerate() {
+                        if metadata_pair.key == action.key {
+                            found = Some(index);
+                            break;
+                        }
+                    }
+                    if let Some(index) = found {
+                        // remove it from ix data
+                        additional_metadata.remove(index);
+                        // remove it from config
+                        metadata_config.additional_metadata.remove(index);
+                    } else if !idempotent {
+                        msg!("Adding new custom key-value pair not supported in zero-copy mode");
+                        return Err(ErrorCode::MintActionUnsupportedOperation.into());
+                    }
+                }
+            }
+            ZAction::UpdateMetadataAuthority(auth_action) => {
+                // Check if authority is being revoked (set to zero pubkey)
+                if auth_action.new_authority.to_bytes() == [0u8; 32] {
+                    // Update specific extension config to allocate with None authority
+                    let extension_index = auth_action.extension_index as usize;
+                    if extension_index >= extensions_config.len() {
+                        msg!("Extension index {} out of bounds", extension_index);
+                        return Err(
+                            anchor_compressed_token::ErrorCode::MintActionInvalidExtensionIndex
+                                .into(),
+                        );
+                    }
+                    if let ExtensionStructConfig::TokenMetadata(ref mut metadata_config) =
+                        &mut extensions_config[extension_index]
+                    {
+                        metadata_config.update_authority = (false, ());
+                    }
+                }
             }
             _ => {} // Other actions don't affect authority or extension states
         }
@@ -111,5 +171,5 @@ pub fn get_zero_copy_configs(
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
     msg!("get_zero_copy_configs7");
 
-    Ok((config, cpi_bytes, output_mint_config))
+    Ok((config, cpi_bytes, output_mint_config, idempotent))
 }

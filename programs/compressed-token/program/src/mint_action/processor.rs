@@ -32,7 +32,10 @@ use crate::{
         mint_to_decompressed::process_mint_to_decompressed_action,
         queue_indices::QueueIndices,
         update_authority::update_authority,
-        update_metadata::{process_update_metadata_field_action, process_update_metadata_authority_action},
+        update_metadata::{
+            process_remove_metadata_key_action, process_update_metadata_authority_action,
+            process_update_metadata_field_action,
+        },
         zero_copy_config::get_zero_copy_configs,
     },
     shared::cpi::execute_cpi_invoke,
@@ -52,7 +55,7 @@ pub fn process_mint_action(
 ) -> Result<(), ProgramError> {
     sol_log_compute_units();
     // 677 CU
-    let (parsed_instruction_data, _) =
+    let (mut parsed_instruction_data, _) =
         MintActionCompressedInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
     // msg!(" parsed_instruction_data  {:?}", parsed_instruction_data);
@@ -65,8 +68,8 @@ pub fn process_mint_action(
     let validated_accounts = MintActionAccounts::validate_and_parse(accounts, &accounts_config)?;
     sol_log_compute_units();
 
-    let (config, mut cpi_bytes, mint_size_config) =
-        get_zero_copy_configs(&parsed_instruction_data)?;
+    let (config, mut cpi_bytes, mint_size_config, idempotent) =
+        get_zero_copy_configs(&mut parsed_instruction_data)?;
     msg!("post get_zero_copy_configs config {:?}", config);
     msg!("post mint_size_config {:?}", mint_size_config);
     sol_log_compute_units();
@@ -197,7 +200,7 @@ pub fn process_mint_action(
 
     let cpi_accounts_offset = validated_accounts.cpi_accounts_offset();
     // TODO: implement a more robust end offset calculation than - num_decompressed_recipients as usize
-    if let Some(executing) = validated_accounts.executing.as_ref() {
+    let res = if let Some(executing) = validated_accounts.executing.as_ref() {
         // Execute CPI to light-system-program
         execute_cpi_invoke(
             &accounts[cpi_accounts_offset..accounts.len() - num_decompressed_recipients as usize],
@@ -221,6 +224,13 @@ pub fn process_mint_action(
                 .map(|x| *x.cpi_context.key()),
             true,
         )
+    };
+    // idempotent can be passed with key removal
+    // TODO: consider limiting use to sole key removal.
+    if idempotent {
+        Ok(())
+    } else {
+        res
     }
 }
 
@@ -301,17 +311,12 @@ fn process_actions<'a>(
                     &Pubkey::from(*validated_accounts.authority.key()),
                 )?;
             }
-            /*ZAction::RemoveMetadataKey(remove_metadata_key_action) => {
+            ZAction::RemoveMetadataKey(remove_metadata_key_action) => {
                 process_remove_metadata_key_action(
                     remove_metadata_key_action,
-                    parsed_instruction_data.mint.extensions,
-                    validated_accounts,
-                    accounts_config,
+                    compressed_mint,
+                    &Pubkey::from(*validated_accounts.authority.key()),
                 )?;
-            }*/
-            _ => {
-                msg!("Unsupported action type");
-                return Err(ErrorCode::MintActionUnsupportedActionType.into());
             }
         }
     }

@@ -46,9 +46,5 @@ pub fn create_output_token_metadata(
         }
     }
 
-    // Use the zero-copy mut struct for hashing
-    // let hash = token_metadata
-    //   .hash::<light_hasher::Poseidon>()
-    //  .map_err(|_| ProgramError::InvalidAccountData)?;
     Ok(())
 }
