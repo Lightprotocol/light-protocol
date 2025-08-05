@@ -24,7 +24,11 @@ pub fn process_mint_action<'a, 'b, 'c, 'info>(
         },
         MintActionType::MintToDecompressed {
             account: ctx.accounts.token_account.key(),
-            amount: input.token_recipients.first().map(|r| r.amount).unwrap_or(1000),
+            amount: input
+                .token_recipients
+                .first()
+                .map(|r| r.amount)
+                .unwrap_or(1000),
             compressible_config: None,
         },
     ];
