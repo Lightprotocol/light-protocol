@@ -14,10 +14,7 @@ use light_ctoken_types::{
     COMPRESSED_MINT_SEED,
 };
 use light_sdk_types::{
-    constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, C_TOKEN_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
-        NOOP_PROGRAM_ID,
-    },
+    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, C_TOKEN_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID},
     CpiAccountsConfig, CpiAccountsSmall,
 };
 
@@ -524,7 +521,7 @@ pub mod anchor_compressible {
         let mut mint_account_infos = vec![
             ctx.accounts.mint_signer.to_account_info(),
             ctx.accounts.user.to_account_info(), // payer
-            cpi_accounts.cpi_authority_pda().unwrap().to_account_info(),
+            // cpi_accounts.cpi_authority_pda().unwrap().to_account_info(),
             cpi_accounts.system_program().unwrap().to_account_info(),
             cpi_accounts
                 .account_compression_program()
@@ -534,7 +531,7 @@ pub mod anchor_compressible {
                 .registered_program_pda()
                 .unwrap()
                 .to_account_info(),
-            ctx.accounts.noop_program.to_account_info(),
+            // ctx.accounts.noop_program.to_account_info(),
             cpi_accounts
                 .account_compression_authority()
                 .unwrap()

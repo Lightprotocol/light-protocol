@@ -20,12 +20,13 @@ use light_ctoken_types::{
     },
     state::extensions::{AdditionalMetadata, Metadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
-};
+};ompressed mint created
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 
 use anchor_lang::solana_program::program_pack::Pack;
 use anchor_spl::token_interface::spl_token_2022;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
+use light_prover_client::prover::{ProverConfig, ProverMode};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{
     ID, {ChainedCtokenInstructionData, PdaCreationData},
@@ -38,7 +39,11 @@ use solana_sdk::{
 #[tokio::test]
 async fn test_pda_ctoken() {
     // Initialize test environment
-    let config = ProgramTestConfig::new_v2(false, Some(vec![("sdk_token_test", ID)]));
+    let mut config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_token_test", ID)]));
+    config.prover_config = Some(ProverConfig {
+        run_mode: Some(ProverMode::Rpc),
+        circuits: vec![],
+    });
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 

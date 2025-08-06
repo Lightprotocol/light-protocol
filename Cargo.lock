@@ -5710,6 +5710,7 @@ dependencies = [
  "light-ctoken-types",
  "light-hasher",
  "light-program-test",
+ "light-prover-client",
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
