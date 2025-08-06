@@ -141,6 +141,9 @@ impl Rpc for LightProgramTest {
             self._send_transaction_with_batched_event(transaction)
                 .await?;
         } else {
+            self.transaction_counter += 1;
+            let transaction_for_logging = transaction.clone();
+            let signature = *transaction.signatures.first().unwrap();
             let _res = self.context.send_transaction(transaction).map_err(|x| {
                 if self.config.log_failed_tx {
                     println!("{}", x.meta.pretty_logs());
@@ -148,6 +151,21 @@ impl Rpc for LightProgramTest {
 
                 RpcError::TransactionError(x.err)
             })?;
+
+            let slot = self.context.get_sysvar::<Clock>().slot;
+
+            // Always try enhanced logging for file output (regardless of debug/backtrace settings)
+            if crate::logging::should_use_enhanced_logging(&self.config) {
+                crate::logging::log_transaction_enhanced(
+                    &self.config,
+                    &transaction_for_logging,
+                    &Ok(_res.clone()),
+                    &signature,
+                    slot,
+                    self.transaction_counter,
+                );
+            }
+
             self.maybe_print_logs(_res.pretty_logs());
         }
         Ok(sig)
@@ -158,15 +176,32 @@ impl Rpc for LightProgramTest {
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
+        self.transaction_counter += 1;
+        let transaction_for_logging = transaction.clone();
+        let signature = *transaction.signatures.first().unwrap();
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             if self.config.log_failed_tx {
                 println!("{}", x.meta.pretty_logs());
             }
             RpcError::TransactionError(x.err)
         })?;
-        self.maybe_print_logs(_res.pretty_logs());
 
         let slot = self.context.get_sysvar::<Clock>().slot;
+
+        // Always try enhanced logging for file output (regardless of debug/backtrace settings)
+        if crate::logging::should_use_enhanced_logging(&self.config) {
+            crate::logging::log_transaction_enhanced(
+                &self.config,
+                &transaction_for_logging,
+                &Ok(_res.clone()),
+                &signature,
+                slot,
+                self.transaction_counter,
+            );
+        }
+
+        self.maybe_print_logs(_res.pretty_logs());
+
         Ok((sig, slot))
     }
 
@@ -291,6 +326,13 @@ impl Rpc for LightProgramTest {
 
 impl LightProgramTest {
     fn maybe_print_logs(&self, logs: impl std::fmt::Display) {
+        // Use enhanced logging if enabled and RUST_BACKTRACE is set
+        if crate::logging::should_use_enhanced_logging(&self.config) {
+            // Enhanced logging will be handled in the transaction processing methods
+            return;
+        }
+
+        // Fallback to basic logging
         if !self.config.no_logs && cfg!(debug_assertions) && std::env::var("RUST_BACKTRACE").is_ok()
         {
             println!("{}", logs);
@@ -314,9 +356,10 @@ impl LightProgramTest {
         let mut vec = Vec::new();
 
         let signature = transaction.signatures[0];
-        // Simulate the transaction. Currently, in banks-client/server, only
-        // simulations are able to track CPIs. Therefore, simulating is the
-        // only way to retrieve the event.
+        let transaction_for_logging = transaction.clone(); // Clone for logging
+                                                           // Simulate the transaction. Currently, in banks-client/server, only
+                                                           // simulations are able to track CPIs. Therefore, simulating is the
+                                                           // only way to retrieve the event.
         let simulation_result = self
             .context
             .simulate_transaction(transaction.clone())
@@ -394,6 +437,7 @@ impl LightProgramTest {
         };
 
         // Transaction was successful, execute it.
+        self.transaction_counter += 1;
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             // Prevent duplicate prints for failing tx.
 
@@ -403,18 +447,56 @@ impl LightProgramTest {
 
             RpcError::TransactionError(x.err)
         })?;
+
+        let slot = self.context.get_sysvar::<Clock>().slot;
+
+        // Always try enhanced logging for file output (regardless of debug/backtrace settings)
+        if crate::logging::should_use_enhanced_logging(&self.config) {
+            crate::logging::log_transaction_enhanced(
+                &self.config,
+                &transaction_for_logging,
+                &Ok(_res.clone()),
+                &signature,
+                slot,
+                self.transaction_counter,
+            );
+        }
+
+        // Console logging (only in debug builds with backtrace)
         if !self.config.no_logs {
             #[cfg(debug_assertions)]
             {
                 if std::env::var("RUST_BACKTRACE").is_ok() {
-                    // Print all tx logs and events.
-                    println!("{}", _res.pretty_logs());
-                    println!("event:\n {:?}", event);
+                    // Use enhanced logging for console if enabled and log_events is true
+                    if crate::logging::should_use_enhanced_logging(&self.config)
+                        && self.config.enhanced_logging.log_events
+                    {
+                        // Print enhanced logs to console
+                        crate::logging::log_transaction_enhanced_with_console(
+                            &self.config,
+                            &transaction_for_logging,
+                            &Ok(_res.clone()),
+                            &signature,
+                            slot,
+                            self.transaction_counter,
+                            true, // Enable console output
+                        );
+
+                        if self.config.log_light_protocol_events {
+                            if let Some(ref event_data) = event {
+                                println!("event:\n {:?}", event_data);
+                            }
+                        }
+                    } else {
+                        // Fallback to basic logging
+                        println!("{}", _res.pretty_logs());
+                        if self.config.log_light_protocol_events {
+                            println!("event:\n {:?}", event);
+                        }
+                    }
                 }
             }
         }
-
-        let slot = self.context.get_sysvar::<Clock>().slot;
         let event = event.map(|e| (e, signature, slot));
 
         if let Some(indexer) = self.indexer.as_mut() {
@@ -466,6 +548,7 @@ impl LightProgramTest {
                 T::try_from_slice(&inner_instruction.instruction.data).ok()
             });
         // If transaction was successful, execute it.
+        self.transaction_counter += 1;
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             if self.config.log_failed_tx {
                 println!("{}", x.meta.pretty_logs());

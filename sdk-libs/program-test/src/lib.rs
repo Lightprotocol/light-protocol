@@ -114,6 +114,7 @@
 
 pub mod accounts;
 pub mod indexer;
+pub mod logging;
 pub mod program_test;
 pub mod utils;
 

@@ -26,6 +26,7 @@ pub struct LightProgramTest {
     pub indexer: Option<TestIndexer>,
     pub test_accounts: TestAccounts,
     pub payer: Keypair,
+    pub transaction_counter: usize,
 }
 
 impl LightProgramTest {
@@ -58,6 +59,7 @@ impl LightProgramTest {
             test_accounts: TestAccounts::get_program_test_test_accounts(),
             payer,
             config: config.clone(),
+            transaction_counter: 0,
         };
         let keypairs = TestKeypairs::program_test_default();
 
