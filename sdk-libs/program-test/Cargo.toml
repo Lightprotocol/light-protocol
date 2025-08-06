@@ -57,3 +57,4 @@ solana-transaction-status = { workspace = true }
 bs58 = { workspace = true }
 light-sdk-types = { workspace = true }
 tabled = { workspace = true }
+chrono = "0.4"
