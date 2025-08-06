@@ -114,6 +114,8 @@ impl LightProgramTest {
                 context.set_account(address_queue_pubkey, account);
             }
         }
+        // reset tx counter after program setup.
+        context.transaction_counter = 0;
         // Will always start a prover server.
         #[cfg(feature = "devenv")]
         let prover_config = if config.prover_config.is_none() {
