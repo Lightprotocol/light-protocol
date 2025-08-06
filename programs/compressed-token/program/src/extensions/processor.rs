@@ -55,6 +55,7 @@ pub fn create_extension_hash_chain(
     } else if version == 1 {
         for extension in extensions {
             let extension_hash = extension.hash::<Sha256>(hashed_spl_mint, hash_cache)?;
+            msg!("in extension extension_hash {:?}", extension_hash);
             extension_hashchain =
                 Sha256::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
         }

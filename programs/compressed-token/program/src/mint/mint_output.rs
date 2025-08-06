@@ -14,7 +14,9 @@ use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
     extensions::processor::extensions_state_in_output_compressed_account,
 };
-/*
+use anchor_lang::prelude::msg;
+/*            msg!("in extension extension_hash {:?}", extension_hash);
+
 /// Input struct for create_output_compressed_mint_account function
 /// Consolidates all parameters needed to create an output compressed mint account
 pub struct CreateOutputCompressedMintAccountInputs<'a, 'b> {
@@ -80,6 +82,7 @@ pub fn create_output_compressed_mint_account(
             mint_authority,
             freeze_authority,
         )?;
+        msg!("ouput version: {:?}", version);
 
         // Process extensions if provided and populate the zero-copy extension data
         if let Some(extensions) = extensions.as_ref() {
@@ -99,7 +102,7 @@ pub fn create_output_compressed_mint_account(
             .hash(hash_cache)
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
-
+    msg!("data_hash {:?}", data_hash);
     // 2. Set output compressed account
     output_compressed_account.set(
         crate::LIGHT_CPI_SIGNER.program_id.into(),

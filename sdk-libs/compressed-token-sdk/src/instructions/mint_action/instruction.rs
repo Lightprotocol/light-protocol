@@ -104,6 +104,9 @@ pub fn create_mint_action_cpi(
             .actions
             .iter()
             .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
+    
+    // Only require mint to sign when creating a new compressed mint
+    let mint_needs_to_sign = create_mint;
 
     // Collect decompressed accounts for account index mapping
     let mut decompressed_accounts: Vec<Pubkey> = Vec::new();
@@ -186,6 +189,7 @@ pub fn create_mint_action_cpi(
         with_cpi_context,
         create_mint,
         with_mint_signer,
+        mint_needs_to_sign,
         decompressed_token_accounts: decompressed_accounts,
     };
 
@@ -258,6 +262,9 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
             .actions
             .iter()
             .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
+    
+    // Only require mint to sign when creating a new compressed mint
+    let mint_needs_to_sign = create_mint;
 
     // Collect decompressed accounts for account index mapping (CPI write version)
     let mut decompressed_accounts: Vec<Pubkey> = Vec::new();
@@ -369,6 +376,7 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
         },
         authority: input.authority,
         cpi_context: input.cpi_context_pubkey,
+        mint_needs_to_sign,
         decompressed_token_accounts: decompressed_accounts,
     };
 

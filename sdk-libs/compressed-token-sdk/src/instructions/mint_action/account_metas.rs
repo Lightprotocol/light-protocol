@@ -17,6 +17,7 @@ pub struct MintActionMetaConfig {
     pub with_cpi_context: bool,
     pub create_mint: bool,
     pub with_mint_signer: bool,
+    pub mint_needs_to_sign: bool, // Only true when creating new compressed mint
     pub decompressed_token_accounts: Vec<Pubkey>, // For mint_to_decompressed actions
 }
 
@@ -33,6 +34,7 @@ impl MintActionMetaConfig {
         with_cpi_context: bool,
         create_mint: bool,
         with_mint_signer: bool,
+        mint_needs_to_sign: bool,
         decompressed_token_accounts: Vec<Pubkey>,
     ) -> Self {
         Self {
@@ -46,6 +48,7 @@ impl MintActionMetaConfig {
             with_cpi_context,
             create_mint,
             with_mint_signer,
+            mint_needs_to_sign,
             decompressed_token_accounts,
         }
     }
@@ -69,7 +72,7 @@ pub fn get_mint_action_instruction_account_metas(
     // mint_signer (conditional) - matches onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
     if config.with_mint_signer {
         if let Some(mint_signer) = config.mint_signer {
-            metas.push(AccountMeta::new_readonly(mint_signer, true));
+            metas.push(AccountMeta::new_readonly(mint_signer, config.mint_needs_to_sign));
         }
     }
 
@@ -200,6 +203,7 @@ pub struct MintActionMetaConfigCpiWrite {
     pub mint_signer: Option<Pubkey>, // Optional - only when creating mint and when creating SPL mint
     pub authority: Pubkey,
     pub cpi_context: Pubkey,
+    pub mint_needs_to_sign: bool, // Only true when creating new compressed mint
     pub decompressed_token_accounts: Vec<Pubkey>, // For mint_to_decompressed actions
 }
 
@@ -218,7 +222,7 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
 
     // mint_signer (optional signer - only when creating mint and creating SPL mint) - index 1
     if let Some(mint_signer) = config.mint_signer {
-        metas.push(AccountMeta::new_readonly(mint_signer, true));
+        metas.push(AccountMeta::new_readonly(mint_signer, config.mint_needs_to_sign));
     }
 
     // authority (signer) - index 2

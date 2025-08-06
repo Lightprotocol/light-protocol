@@ -92,9 +92,9 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     if !mint_to_recipients.is_empty() {
         let recipients = mint_to_recipients
             .into_iter()
-            .map(|recipient| MintToRecipient { 
-                recipient: solana_pubkey::Pubkey::from(recipient.recipient.to_bytes()), 
-                amount: recipient.amount 
+            .map(|recipient| MintToRecipient {
+                recipient: solana_pubkey::Pubkey::from(recipient.recipient.to_bytes()),
+                amount: recipient.amount
             })
             .collect();
 

@@ -10,6 +10,7 @@ use light_sdk::instruction::PackedMerkleContext;
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR, extensions::processor::create_extension_hash_chain,
 };
+use anchor_lang::prelude::msg;
 
 /// Creates and validates an input compressed mint account.
 /// This function follows the same pattern as create_output_compressed_mint_account
@@ -27,6 +28,7 @@ pub fn create_input_compressed_mint_account(
     merkle_context: PackedMerkleContext,
 ) -> Result<(), ProgramError> {
     let mint = &mint_instruction_data.mint;
+    msg!("input mint: {:?}", mint);
     // 1. Compute data hash using HashCache for caching
     let data_hash = {
         let hashed_spl_mint = hash_cache
@@ -52,6 +54,7 @@ pub fn create_input_compressed_mint_account(
             &hashed_freeze_authority.as_ref(),
             mint.version,
         )?;
+        msg!("in data_hash {:?}", data_hash);
 
         let extension_hashchain =
             mint_instruction_data
@@ -66,6 +69,7 @@ pub fn create_input_compressed_mint_account(
                         mint.version,
                     )
                 });
+        msg!("in extension hashchain {:?}", extension_hashchain);
         if let Some(extension_hashchain) = extension_hashchain {
             if mint.version == 0 {
                 Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?

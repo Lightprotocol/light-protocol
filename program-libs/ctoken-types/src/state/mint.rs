@@ -1,11 +1,13 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon, Sha256};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-use pinocchio::msg;
+use solana_msg::msg;
 use zerocopy::{little_endian::U64, IntoBytes};
 
 use crate::{
-    hash_cache::HashCache, state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError,
+    hash_cache::HashCache,
+    state::{ExtensionStruct, ZExtensionStructMut},
+    AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
 // Order is optimized for hashing.
@@ -239,22 +241,29 @@ impl ZCompressedMintMut<'_> {
             &hashed_freeze_authority_option,
             self.version,
         )?;
+        msg!("mint_hash {:?}", mint_hash);
 
         // Compute extension hash chain if extensions exist
         if let Some(extensions) = self.extensions.as_ref() {
             let mut extension_hashchain = [0u8; 32];
             for extension in extensions.as_slice() {
-                let extension_hash = if self.version == 0 {
-                    extension.hash::<Poseidon>()?
-                } else if self.version == 1 {
-                    let mut hash = extension.hash::<Sha256>()?;
-                    // This is the fix.
-                    hash[0] = 0;
-                    hash
-                } else {
-                    return Err(CTokenError::InvalidTokenDataVersion);
+                // Let each extension determine its own hash method based on its version
+                let extension_hash = match extension {
+                    ZExtensionStructMut::TokenMetadata(token_metadata) => {
+                        if *token_metadata.version == 0 {
+                            extension.hash::<Poseidon>()?
+                        } else if *token_metadata.version == 1 {
+                            let mut hash = extension.hash::<Sha256>()?;
+                            // Apply the same fix as in ZTokenMetadataInstructionData
+                            hash[0] = 0;
+                            hash
+                        } else {
+                            return Err(CTokenError::InvalidTokenDataVersion);
+                        }
+                    }
+                    _ => return Err(CTokenError::UnsupportedExtension),
                 };
-                msg!("ZCompressedMintMut extension hash: {:?}", extension_hash);
+                msg!("ZCompressedMintMut extension hash: {:?} ", extension_hash);
 
                 if self.version == 0 {
                     extension_hashchain = Poseidon::hashv(&[
@@ -266,8 +275,15 @@ impl ZCompressedMintMut<'_> {
                         extension_hashchain.as_slice(),
                         extension_hash.as_slice(),
                     ])?;
+                } else {
+                    msg!("invalid version ");
+                    return Err(CTokenError::InvalidTokenDataVersion);
                 }
             }
+            msg!(
+                "ZCompressedMintMut extension_hashchain: {:?} ",
+                extension_hashchain
+            );
 
             if self.version == 0 {
                 Ok(Poseidon::hashv(&[
@@ -278,6 +294,7 @@ impl ZCompressedMintMut<'_> {
                 let mut hash =
                     Sha256::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])?;
                 hash[0] = 0;
+                msg!("data hash {:?}", hash);
                 Ok(hash)
             } else {
                 Err(CTokenError::InvalidTokenDataVersion)

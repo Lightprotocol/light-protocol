@@ -58,7 +58,7 @@ pub fn process_mint_action(
     let (mut parsed_instruction_data, _) =
         MintActionCompressedInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
-    // msg!(" parsed_instruction_data  {:?}", parsed_instruction_data);
+    msg!("parsed_instruction_data  {:?}", parsed_instruction_data);
 
     sol_log_compute_units();
     // 112 CU write to cpi contex
@@ -262,7 +262,8 @@ fn process_actions<'a>(
                 compressed_mint.supply = new_supply.into();
             }
             ZAction::UpdateMintAuthority(update_action) => {
-                let current_mint_authority = compressed_mint.mint_authority.as_ref().map(|auth| **auth);
+                let current_mint_authority =
+                    compressed_mint.mint_authority.as_ref().map(|auth| **auth);
                 let new_mint_authority = update_authority(
                     update_action,
                     validated_accounts.authority.key(),
@@ -279,7 +280,8 @@ fn process_actions<'a>(
                 }
             }
             ZAction::UpdateFreezeAuthority(update_action) => {
-                let current_freeze_authority = compressed_mint.freeze_authority.as_ref().map(|auth| **auth);
+                let current_freeze_authority =
+                    compressed_mint.freeze_authority.as_ref().map(|auth| **auth);
                 let new_freeze_authority = update_authority(
                     update_action,
                     validated_accounts.authority.key(),

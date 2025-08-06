@@ -20,7 +20,7 @@ use crate::instructions::create_spl_mint::create_spl_mint_instruction;
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer access
-/// * `compressed_mint_address` - Address of the compressed mint to convert to SPL mint  
+/// * `compressed_mint_address` - Address of the compressed mint to convert to SPL mint
 /// * `mint_seed` - Keypair used as seed for the SPL mint PDA
 /// * `mint_authority` - Keypair that can mint tokens (must be able to sign)
 /// * `payer` - Keypair for transaction fees (must be able to sign)
@@ -57,6 +57,7 @@ pub async fn create_spl_mint<R: Rpc + Indexer>(
     if unique_signers.insert(mint_authority.pubkey()) {
         signers.push(mint_authority);
     }
+    println!("unique_signers {:?}", unique_signers);
 
     // Create and send the transaction
     let signature = rpc

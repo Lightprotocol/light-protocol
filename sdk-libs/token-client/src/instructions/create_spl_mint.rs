@@ -102,6 +102,6 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
         mint_authority,
     })
     .map_err(|e| RpcError::CustomError(format!("Failed to create SPL mint instruction: {}", e)))?;
-
+    println!("instruction {:?}", instruction);
     Ok(instruction)
 }
