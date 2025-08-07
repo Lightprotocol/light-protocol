@@ -8,7 +8,7 @@ use spl_token::instruction::TokenInstruction;
 pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
-pub mod create_spl_mint;
+//pub mod create_spl_mint;
 pub mod create_token_account;
 pub mod extensions;
 pub mod mint;
@@ -20,14 +20,11 @@ pub mod transfer2;
 pub mod update_mint;
 
 // Reexport the wrapped anchor program.
+use crate::mint_action::processor::process_mint_action;
 pub use ::anchor_compressed_token::*;
 use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::processor::process_create_associated_token_account;
-// use create_spl_mint::processor::process_create_spl_mint;
-use crate::mint_action::processor::process_mint_action;
 use create_token_account::processor::process_create_token_account;
-use mint::processor::process_create_compressed_mint;
-//use mint_to_compressed::processor::process_mint_to_compressed;
 use update_mint::processor::process_update_compressed_mint;
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -105,7 +102,8 @@ pub fn process_instruction(
         }
         InstructionType::CreateCompressedMint => {
             anchor_lang::solana_program::msg!("CreateCompressedMint");
-            process_create_compressed_mint(accounts, &instruction_data[1..])?;
+            unimplemented!();
+            // process_create_compressed_mint(accounts, &instruction_data[1..])?;
         }
         InstructionType::MintToCompressed => {
             anchor_lang::solana_program::msg!("MintToCompressed unimplemented");
