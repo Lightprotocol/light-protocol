@@ -26,7 +26,6 @@ use std::{
 };
 
 use chrono;
-
 pub use config::{EnhancedLoggingConfig, LogVerbosity};
 pub use formatter::TransactionFormatter;
 use litesvm::types::TransactionResult;
@@ -87,9 +86,9 @@ fn initialize_log_file() {
         {
             // Format timestamp as readable date
             let datetime = chrono::DateTime::from_timestamp(timestamp as i64, 0)
-                .unwrap_or_else(|| chrono::Utc::now());
+                .unwrap_or_else(chrono::Utc::now);
             let formatted_date = datetime.format("%Y-%m-%d %H:%M:%S UTC");
-            
+
             let _ = writeln!(
                 file,
                 "=== Light Program Test Session Started at {} ===\n",
