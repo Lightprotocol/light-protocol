@@ -649,21 +649,6 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
         let recipient_keypair = Keypair::new();
         let recipient = recipient_keypair.pubkey();
 
-        // Use our mint_to_compressed action helper (automatically handles decompressed mint config)
-        mint_to_compressed(
-            &mut rpc,
-            spl_mint_pda,
-            vec![Recipient {
-                recipient: recipient.into(),
-                amount: mint_amount,
-            }],
-            &mint_authority_keypair,
-            &payer,
-            None, // No lamports
-        )
-        .await
-        .unwrap();
-
         // Get pre-compressed mint and pre-spl mint for assertion
         let pre_compressed_mint_account = rpc
             .indexer()
@@ -679,6 +664,21 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
 
         let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
         let pre_spl_mint = spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
+
+        // Use our mint_to_compressed action helper (automatically handles decompressed mint config)
+        mint_to_compressed(
+            &mut rpc,
+            spl_mint_pda,
+            vec![Recipient {
+                recipient: recipient.into(),
+                amount: mint_amount,
+            }],
+            &mint_authority_keypair,
+            &payer,
+            None, // No lamports
+        )
+        .await
+        .unwrap();
 
         // Verify minted tokens using our assertion helper
         assert_mint_to_compressed_one(
@@ -976,7 +976,7 @@ async fn test_mint_actions_comprehensive() {
         supply: 0, // Started with 0
         decimals,
         is_initialized: true, // Is initialized after creation
-        freeze_authority: Some(freeze_authority.pubkey().into()).into(),
+        freeze_authority: Some(freeze_authority.pubkey()).into(),
     };
 
     assert_mint_to_compressed(

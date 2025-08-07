@@ -176,15 +176,10 @@ pub fn get_mint_action_instruction_account_metas(
     // out_output_queue (mutable) - always required
     metas.push(AccountMeta::new(config.output_queue, false));
 
-    // Address tree (for creating new mint addresses) - only when creating mint
-    if config.create_mint {
-        metas.push(AccountMeta::new(config.tree_pubkey, false));
-    }
-
-    // in_merkle_tree (state tree) - only when NOT creating mint  
-    if !config.create_mint {
-        metas.push(AccountMeta::new(config.tree_pubkey, false));
-    }
+    // in_merkle_tree (always required)
+    // When create_mint=true: this is the address tree for creating new mint addresses
+    // When create_mint=false: this is the state tree containing the existing compressed mint
+    metas.push(AccountMeta::new(config.tree_pubkey, false));
 
     // in_output_queue - only when NOT creating mint
     if !config.create_mint {
