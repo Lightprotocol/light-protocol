@@ -10,6 +10,7 @@ mod export_photon_test_data;
 mod fee;
 mod hash_set;
 mod new_deployment;
+mod resize_registered_program_pda;
 mod type_sizes;
 mod utils;
 mod zero_bytes;
@@ -57,6 +58,9 @@ enum Command {
     InitNewDeployment(new_deployment::Options),
     /// cargo xtask create-update-protocol-config --slot-length <u64>
     CreateUpdateProtocolConfigIx(create_update_protocol_config_ix::Options),
+    /// Resize registered program PDA to match current program structure
+    /// Example: cargo xtask resize-registered-program-pda --network devnet
+    ResizeRegisteredProgramPda(resize_registered_program_pda::Options),
 }
 
 #[tokio::main]
@@ -88,6 +92,9 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::InitNewDeployment(opts) => new_deployment::init_new_deployment(opts).await,
         Command::CreateUpdateProtocolConfigIx(opts) => {
             create_update_protocol_config_ix::create_update_protocol_config_ix(opts).await
+        }
+        Command::ResizeRegisteredProgramPda(opts) => {
+            resize_registered_program_pda::resize_registered_program_pda(opts).await
         }
     }
 }

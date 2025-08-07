@@ -104,7 +104,7 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
     };
     println!("read payer: {:?}", payer.pubkey());
 
-    let config = if let Some(config) = options.config {
+    let mut config = if let Some(config) = options.config {
         if config == "testnet" {
             InitStateTreeAccountsInstructionData::testnet_default()
         } else {
@@ -113,6 +113,7 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
     } else {
         InitStateTreeAccountsInstructionData::default()
     };
+    config.index = options.index as u64;
 
     for ((merkle_tree_keypair, nullifier_queue_keypair), cpi_context_keypair) in mt_keypairs
         .iter()
@@ -126,6 +127,7 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
             cpi_context_keypair.pubkey(),
             options.index
         );
+        println!("config {:?}", config);
         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
         println!("Payer balance: {:?}", balance);
         let tx_hash = create_batched_state_merkle_tree(

@@ -89,7 +89,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
             data: instruction.data(),
         }
     };
-
+    println!("instruction {:?}", instruction);
     rpc.create_and_send_transaction(
         &[
             create_mt_account_ix,

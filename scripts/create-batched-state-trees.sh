@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Base directory for keypairs
-KEYPAIR_DIR="./target/tree-keypairs"
+KEYPAIR_DIR="../light-keypairs/batched-tree-keypairs"
 
 # Command template
-CMD_TEMPLATE="cargo xtask create-state-tree --mt-pubkey {SMT} --nfq-pubkey {NFQ} --cpi-pubkey {CPI} --index {INDEX} --network devnet"
+CMD_TEMPLATE="cargo xtask create-batch-state-tree --mt-pubkey {SMT} --nfq-pubkey {NFQ} --cpi-pubkey {CPI} --index {INDEX} --network devnet"
 
 # Collect sorted key files for each type
-SMT_KEYS=($(ls $KEYPAIR_DIR/smt*.json | sort))
-NFQ_KEYS=($(ls $KEYPAIR_DIR/nfq*.json | sort))
+SMT_KEYS=($(ls $KEYPAIR_DIR/bmt*.json | sort))
+NFQ_KEYS=($(ls $KEYPAIR_DIR/oq*.json | sort))
 CPI_KEYS=($(ls $KEYPAIR_DIR/cpi*.json | sort))
 
 # Ensure equal number of keys for each type
@@ -22,7 +22,7 @@ for i in "${!SMT_KEYS[@]}"; do
     SMT_KEY="${SMT_KEYS[i]}"
     NFQ_KEY="${NFQ_KEYS[i]}"
     CPI_KEY="${CPI_KEYS[i]}"
-    INDEX=$((i + 2))
+    INDEX=$((i + 30))
 
     # Replace placeholders in the command template
     CMD=${CMD_TEMPLATE//\{SMT\}/"$SMT_KEY"}
@@ -34,5 +34,14 @@ for i in "${!SMT_KEYS[@]}"; do
     eval "$CMD"
 
 done
+
+echo "All batch state trees created."
+
+# Create batch address tree using the first amt keypair
+echo "Creating batch address tree..."
+AMT_KEY="$(ls $KEYPAIR_DIR/amt*.json | sort | head -n 1)"
+ADDR_CMD="cargo xtask create-batch-address-tree --mt-pubkey $AMT_KEY --network devnet"
+echo "Executing: $ADDR_CMD"
+eval "$ADDR_CMD"
 
 echo "All commands executed."
