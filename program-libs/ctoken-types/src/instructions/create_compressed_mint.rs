@@ -117,6 +117,7 @@ pub struct CpiContext {
     pub first_set_context: bool,
     pub address_tree_index: u8,
     pub out_queue_index: u8,
+    pub cpi_context_pubkey: Pubkey,
 }
 
 impl CompressedCpiContextTrait for ZCpiContext<'_> {

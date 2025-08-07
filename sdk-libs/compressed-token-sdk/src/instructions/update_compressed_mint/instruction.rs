@@ -3,7 +3,7 @@ use light_ctoken_types::{
     self,
     instructions::create_compressed_mint::CompressedMintWithContext,
     instructions::update_compressed_mint::{
-        CompressedMintAuthorityType, UpdateCompressedMintInstructionData, UpdateMintCpiContext,
+        CompressedMintAuthorityType, UpdateMintCpiContext,
     },
 };
 use solana_instruction::Instruction;
@@ -11,8 +11,10 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     error::{Result, TokenSdkError},
-    instructions::update_compressed_mint::account_metas::{
-        get_update_compressed_mint_instruction_account_metas, UpdateCompressedMintMetaConfig,
+    instructions::{
+        mint_action::instruction::{
+            create_mint_action_cpi, mint_action_cpi_write, MintActionInputs, MintActionInputsCpiWrite, MintActionType
+        },
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -34,44 +36,57 @@ pub struct UpdateCompressedMintInputs {
     pub out_output_queue: Pubkey,
 }
 
-/// Creates an update compressed mint instruction with CPI context support
+/// Creates an update compressed mint instruction with CPI context support (now uses mint_action)
 pub fn update_compressed_mint_cpi(
     input: UpdateCompressedMintInputs,
     cpi_context: Option<UpdateMintCpiContext>,
 ) -> Result<Instruction> {
-    let with_cpi_context = cpi_context.is_some();
+    // Convert UpdateMintCpiContext to mint_action CpiContext if needed
+    let mint_action_cpi_context = if let Some(update_cpi_ctx) = cpi_context {
+        Some(light_ctoken_types::instructions::mint_actions::CpiContext {
+            set_context: update_cpi_ctx.set_context,
+            first_set_context: update_cpi_ctx.first_set_context,
+            in_tree_index: update_cpi_ctx.in_tree_index,
+            in_queue_index: update_cpi_ctx.in_queue_index,
+            out_queue_index: update_cpi_ctx.out_queue_index,
+            token_out_queue_index: 0, // Default value - not used for authority updates
+            assigned_account_index: 0, // Default value - mint account index for authority updates
+        })
+    } else {
+        None
+    };
 
-    let instruction_data = UpdateCompressedMintInstructionData {
+    // Create the appropriate action based on authority type
+    let actions = match input.authority_type {
+        CompressedMintAuthorityType::MintTokens => {
+            vec![MintActionType::UpdateMintAuthority {
+                new_authority: input.new_authority,
+            }]
+        }
+        CompressedMintAuthorityType::FreezeAccount => {
+            vec![MintActionType::UpdateFreezeAuthority {
+                new_authority: input.new_authority,
+            }]
+        }
+    };
+
+    // Create mint action inputs for authority update
+    let mint_action_inputs = MintActionInputs {
         compressed_mint_inputs: input.compressed_mint_inputs,
-        authority_type: input.authority_type.into(),
-        new_authority: input.new_authority.map(|auth| auth.to_bytes().into()),
-        cpi_context,
-        proof: None,
+        mint_seed: Pubkey::default(), // Not needed for authority updates
+        create_mint: false, // We're updating an existing mint
+        mint_bump: None,
+        authority: input.authority,
+        payer: input.payer,
+        proof: input.proof,
+        actions,
+        address_tree_pubkey: input.in_merkle_tree, // Use in_merkle_tree as the state tree
+        input_queue: Some(input.in_output_queue),
+        output_queue: input.out_output_queue,
+        tokens_out_queue: None, // Not needed for authority updates
     };
 
-    // Create account meta config for update_compressed_mint
-    let meta_config = UpdateCompressedMintMetaConfig {
-        fee_payer: Some(input.payer),
-        authority: Some(input.authority),
-        in_merkle_tree: input.in_merkle_tree,
-        in_output_queue: input.in_output_queue,
-        out_output_queue: input.out_output_queue,
-        with_cpi_context,
-    };
-
-    // Get account metas
-    let accounts = get_update_compressed_mint_instruction_account_metas(meta_config);
-
-    // Serialize instruction data
-    let data_vec = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
-
-    Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
-        accounts,
-        data: [vec![UPDATE_COMPRESSED_MINT_DISCRIMINATOR], data_vec].concat(),
-    })
+    create_mint_action_cpi(mint_action_inputs, mint_action_cpi_context, None)
 }
 
 /// Creates an update compressed mint instruction without CPI context
@@ -91,55 +106,52 @@ pub struct UpdateCompressedMintInputsCpiWrite {
     pub cpi_context_pubkey: Pubkey,
 }
 
-/// Creates an update compressed mint instruction for CPI context writes
+/// Creates an update compressed mint instruction for CPI context writes (now uses mint_action)
 pub fn create_update_compressed_mint_cpi_write(
     inputs: UpdateCompressedMintInputsCpiWrite,
 ) -> Result<Instruction> {
-    let UpdateCompressedMintInputsCpiWrite {
-        compressed_mint_inputs,
-        authority_type,
-        new_authority,
-        payer: _,
-        authority: _,
-        cpi_context,
-        cpi_context_pubkey: _,
-    } = inputs;
-
-    if !cpi_context.first_set_context && !cpi_context.set_context {
+    if !inputs.cpi_context.first_set_context && !inputs.cpi_context.set_context {
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    let instruction_data = UpdateCompressedMintInstructionData {
-        compressed_mint_inputs,
-        authority_type: authority_type.into(),
-        new_authority: new_authority.map(|auth| auth.to_bytes().into()),
-        cpi_context: Some(cpi_context),
-        proof: None,
+    // Convert UpdateMintCpiContext to mint_action CpiContext
+    let mint_action_cpi_context = light_ctoken_types::instructions::mint_actions::CpiContext {
+        set_context: inputs.cpi_context.set_context,
+        first_set_context: inputs.cpi_context.first_set_context,
+        in_tree_index: inputs.cpi_context.in_tree_index,
+        in_queue_index: inputs.cpi_context.in_queue_index,
+        out_queue_index: inputs.cpi_context.out_queue_index,
+        token_out_queue_index: 0, // Default value - not used for authority updates
+        assigned_account_index: 0, // Default value - mint account index for authority updates
     };
 
-    // For CPI write mode, use the same pattern as mint_to_compressed
-    let accounts = vec![
-        solana_instruction::AccountMeta::new_readonly(
-            Pubkey::new_from_array(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
-            false,
-        ), // light_system_program
-        solana_instruction::AccountMeta::new_readonly(inputs.authority, true), // authority (signer)
-        solana_instruction::AccountMeta::new(inputs.payer, true),              // fee_payer
-        solana_instruction::AccountMeta::new_readonly(
-            crate::instructions::CTokenDefaultAccounts::default().cpi_authority_pda,
-            false,
-        ), // cpi_authority_pda
-        solana_instruction::AccountMeta::new(inputs.cpi_context_pubkey, false), // cpi_context
-    ];
+    // Create the appropriate action based on authority type
+    let actions = match inputs.authority_type {
+        CompressedMintAuthorityType::MintTokens => {
+            vec![MintActionType::UpdateMintAuthority {
+                new_authority: inputs.new_authority,
+            }]
+        }
+        CompressedMintAuthorityType::FreezeAccount => {
+            vec![MintActionType::UpdateFreezeAuthority {
+                new_authority: inputs.new_authority,
+            }]
+        }
+    };
 
-    // Serialize instruction data
-    let data_vec = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+    // Create mint action inputs for CPI write
+    let mint_action_inputs = MintActionInputsCpiWrite {
+        compressed_mint_inputs: inputs.compressed_mint_inputs,
+        mint_seed: None, // Not needed for authority updates
+        mint_bump: None,
+        create_mint: false, // We're updating an existing mint
+        authority: inputs.authority,
+        payer: inputs.payer,
+        actions,
+        input_queue: None, // Not needed for CPI write mode
+        cpi_context: mint_action_cpi_context,
+        cpi_context_pubkey: inputs.cpi_context_pubkey,
+    };
 
-    Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
-        accounts,
-        data: [vec![UPDATE_COMPRESSED_MINT_DISCRIMINATOR], data_vec].concat(),
-    })
+    mint_action_cpi_write(mint_action_inputs)
 }

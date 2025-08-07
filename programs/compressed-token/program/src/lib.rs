@@ -8,16 +8,11 @@ use spl_token::instruction::TokenInstruction;
 pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
-//pub mod create_spl_mint;
 pub mod create_token_account;
 pub mod extensions;
-pub mod mint;
 pub mod mint_action;
-//pub mod mint_to_compressed;
 pub mod shared;
 pub mod transfer2;
-// pub mod update_metadata;
-pub mod update_mint;
 
 // Reexport the wrapped anchor program.
 use crate::mint_action::processor::process_mint_action;
@@ -25,7 +20,6 @@ pub use ::anchor_compressed_token::*;
 use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::processor::process_create_associated_token_account;
 use create_token_account::processor::process_create_token_account;
-use update_mint::processor::process_update_compressed_mint;
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -38,12 +32,8 @@ pub const MAX_ACCOUNTS: usize = 30;
 pub enum InstructionType {
     DecompressedTransfer = 3, // SPL Token transfer
     CloseTokenAccount = 9,    // SPL Token CloseAccount
-    CreateCompressedMint = 100,
-    MintToCompressed = 101,
-    CreateSplMint = 102,
     CreateAssociatedTokenAccount = 103,
     Transfer2 = 104,
-    UpdateCompressedMint = 105,
     MintAction = 106,
     CreateTokenAccount = 18, // equivalen to SPL Token InitializeAccount3
     Other,
@@ -54,12 +44,8 @@ impl From<u8> for InstructionType {
         match value {
             3 => InstructionType::DecompressedTransfer,
             9 => InstructionType::CloseTokenAccount,
-            100 => InstructionType::CreateCompressedMint,
-            101 => InstructionType::MintToCompressed,
-            102 => InstructionType::CreateSplMint,
             103 => InstructionType::CreateAssociatedTokenAccount, // TODO: double check compatibility
             104 => InstructionType::Transfer2,
-            105 => InstructionType::UpdateCompressedMint,
             106 => InstructionType::MintAction,
             18 => InstructionType::CreateTokenAccount,
             _ => InstructionType::Other,
@@ -100,21 +86,6 @@ pub fn process_instruction(
                 _ => return Err(ProgramError::InvalidInstructionData),
             }
         }
-        InstructionType::CreateCompressedMint => {
-            anchor_lang::solana_program::msg!("CreateCompressedMint");
-            unimplemented!();
-            // process_create_compressed_mint(accounts, &instruction_data[1..])?;
-        }
-        InstructionType::MintToCompressed => {
-            anchor_lang::solana_program::msg!("MintToCompressed unimplemented");
-            unimplemented!();
-            // process_mint_to_compressed(accounts, &instruction_data[1..])?;
-        }
-        InstructionType::CreateSplMint => {
-            anchor_lang::solana_program::msg!("CreateSplMint unimplemented");
-            unimplemented!();
-            //process_create_spl_mint(accounts, &instruction_data[1..])?;
-        }
         InstructionType::CreateAssociatedTokenAccount => {
             anchor_lang::solana_program::msg!("CreateAssociatedTokenAccount");
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
@@ -130,10 +101,6 @@ pub fn process_instruction(
         InstructionType::Transfer2 => {
             anchor_lang::solana_program::msg!("Transfer2");
             process_transfer2(accounts, &instruction_data[1..])?;
-        }
-        InstructionType::UpdateCompressedMint => {
-            anchor_lang::solana_program::msg!("UpdateCompressedMint");
-            process_update_compressed_mint(accounts, &instruction_data[1..])?;
         }
         InstructionType::MintAction => {
             anchor_lang::solana_program::msg!("MintAction");

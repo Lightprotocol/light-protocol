@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_ctoken_types::{
     self,
-    instructions::{create_compressed_mint::CpiContext, extensions::ExtensionInstructionData},
+    instructions::{create_compressed_mint::CpiContext, extensions::ExtensionInstructionData, create_compressed_mint::CompressedMintWithContext},
     COMPRESSED_MINT_SEED,
 };
 use solana_instruction::Instruction;
@@ -10,14 +10,8 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     error::{Result, TokenSdkError},
-    instructions::{
-        account_metas::{
-            get_create_compressed_mint_instruction_account_metas_cpi_write,
-            CreateCompressedMintMetaConfigCpiWrite,
-        },
-        create_compressed_mint::account_metas::{
-            get_create_compressed_mint_instruction_account_metas, CreateCompressedMintMetaConfig,
-        },
+    instructions::mint_action::{
+        create_mint_action_cpi, mint_action_cpi_write, MintActionInputs, MintActionInputsCpiWrite,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -41,48 +35,63 @@ pub struct CreateCompressedMintInputs {
     pub version: u8,
 }
 
-/// Creates a compressed mint instruction with a pre-computed mint address
+/// Creates a compressed mint instruction with a pre-computed mint address (wrapper around mint_action)
 pub fn create_compressed_mint_cpi(
     input: CreateCompressedMintInputs,
     mint_address: [u8; 32],
     cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
-    use light_ctoken_types::instructions::create_compressed_mint::CreateCompressedMintInstructionData;
-
-    let instruction_data = CreateCompressedMintInstructionData {
-        decimals: input.decimals,
-        mint_authority: input.mint_authority.to_bytes().into(),
-        freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
-        proof: Some(input.proof), // always some if we execute cpi context or invoke without cpi context
-        mint_bump: input.mint_bump,
-        address_merkle_tree_root_index: input.address_merkle_tree_root_index,
-        extensions: input.extensions,
-        mint_address,
-        version: input.version,
-        cpi_context,
+    // Build CompressedMintWithContext from the input parameters
+    let compressed_mint_with_context = CompressedMintWithContext {
+        address: mint_address,
+        mint: light_ctoken_types::instructions::create_compressed_mint::CompressedMintInstructionData {
+            decimals: input.decimals,
+            mint_authority: Some(input.mint_authority.to_bytes().into()),
+            freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
+            spl_mint: find_spl_mint_address(&input.mint_signer).0.to_bytes().into(),
+            supply: 0,
+            extensions: input.extensions,
+            version: input.version,
+            is_decompressed: false,
+        },
+        leaf_index: 0, // Default value for new mint
+        prove_by_index: false,
+        root_index: input.address_merkle_tree_root_index,
     };
 
-    // Create account meta config for create_compressed_mint
-    let meta_config = CreateCompressedMintMetaConfig {
-        fee_payer: Some(input.payer),
-        mint_signer: Some(input.mint_signer),
-        address_tree_pubkey: input.address_tree_pubkey,
-        output_queue: input.output_queue, // TODO: add cpi context
+    // Extract cpi_context_pubkey before consuming cpi_context
+    let cpi_context_pubkey = cpi_context.as_ref().map(|ctx| solana_pubkey::Pubkey::from(ctx.cpi_context_pubkey.to_bytes()));
+    
+    // Convert create_compressed_mint CpiContext to mint_actions CpiContext if present
+    let mint_action_cpi_context = cpi_context.map(|ctx| {
+        light_ctoken_types::instructions::mint_actions::CpiContext {
+            set_context: ctx.set_context,
+            first_set_context: ctx.first_set_context,
+            in_tree_index: 0, // Default for create mint
+            in_queue_index: 0,
+            out_queue_index: 0,
+            token_out_queue_index: 0,
+            assigned_account_index: 0, // Default for create mint
+        }
+    });
+
+    // Create mint action inputs for compressed mint creation
+    let mint_action_inputs = MintActionInputs {
+        compressed_mint_inputs: compressed_mint_with_context,
+        mint_seed: input.mint_signer,
+        create_mint: true, // Key difference - we're creating a new compressed mint
+        mint_bump: Some(input.mint_bump),
+        authority: input.mint_authority,
+        payer: input.payer,
+        proof: Some(input.proof),
+        actions: Vec::new(), // Empty - just creating mint, no additional actions
+        address_tree_pubkey: input.address_tree_pubkey, // Address tree for new mint address
+        input_queue: None,                              // Not needed for create_mint: true
+        output_queue: input.output_queue,
+        tokens_out_queue: None, // No tokens being minted
     };
 
-    // Get account metas
-    let accounts = get_create_compressed_mint_instruction_account_metas(meta_config);
-
-    // Serialize instruction data
-    let data_vec = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
-
-    Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
-        accounts,
-        data: [vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR], data_vec].concat(),
-    })
+    create_mint_action_cpi(mint_action_inputs, mint_action_cpi_context, cpi_context_pubkey)
 }
 
 /// Input struct for creating a compressed mint instruction
@@ -104,7 +113,6 @@ pub struct CreateCompressedMintInputsCpiWrite {
 pub fn create_compressed_mint_cpi_write(
     input: CreateCompressedMintInputsCpiWrite,
 ) -> Result<Instruction> {
-    use light_ctoken_types::instructions::create_compressed_mint::CreateCompressedMintInstructionData;
     if !input.cpi_context.first_set_context && !input.cpi_context.set_context {
         msg!(
             "Invalid CPI context first cpi set or set context must be true {:?}",
@@ -113,39 +121,50 @@ pub fn create_compressed_mint_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    let instruction_data = CreateCompressedMintInstructionData {
-        decimals: input.decimals,
-        mint_authority: input.mint_authority.to_bytes().into(),
-        freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
-        proof: None,
-        mint_bump: input.mint_bump,
-        address_merkle_tree_root_index: input.address_merkle_tree_root_index,
-        extensions: input.extensions,
-        mint_address: input.mint_address,
-        version: input.version,
-        cpi_context: Some(input.cpi_context),
+    // Build CompressedMintWithContext from the input parameters  
+    let compressed_mint_with_context = CompressedMintWithContext {
+        address: input.mint_address,
+        mint: light_ctoken_types::instructions::create_compressed_mint::CompressedMintInstructionData {
+            decimals: input.decimals,
+            mint_authority: Some(input.mint_authority.to_bytes().into()),
+            freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
+            spl_mint: find_spl_mint_address(&input.mint_signer).0.to_bytes().into(),
+            supply: 0,
+            extensions: input.extensions,
+            version: input.version,
+            is_decompressed: false,
+        },
+        leaf_index: 0, // Default value for new mint
+        prove_by_index: false,
+        root_index: input.address_merkle_tree_root_index,
     };
 
-    // Create account meta config for create_compressed_mint
-    let meta_config = CreateCompressedMintMetaConfigCpiWrite {
-        fee_payer: input.payer,
-        mint_signer: input.mint_signer,
-        cpi_context: input.cpi_context_pubkey,
+    // Convert create_compressed_mint CpiContext to mint_actions CpiContext
+    let mint_action_cpi_context = light_ctoken_types::instructions::mint_actions::CpiContext {
+        set_context: input.cpi_context.set_context,
+        first_set_context: input.cpi_context.first_set_context,
+        in_tree_index: 0, // Default for create mint
+        in_queue_index: 0,
+        out_queue_index: 0,
+        token_out_queue_index: 0,
+        assigned_account_index: 0, // Default for create mint
     };
 
-    // Get account metas
-    let accounts = get_create_compressed_mint_instruction_account_metas_cpi_write(meta_config);
+    // Create mint action inputs for compressed mint creation (CPI write mode)
+    let mint_action_inputs = MintActionInputsCpiWrite {
+        compressed_mint_inputs: compressed_mint_with_context,
+        mint_seed: Some(input.mint_signer),
+        mint_bump: Some(input.mint_bump),
+        create_mint: true, // Key difference - we're creating a new compressed mint
+        authority: input.mint_authority,
+        payer: input.payer,
+        actions: Vec::new(), // Empty - just creating mint, no additional actions
+        input_queue: None,   // Not needed for create_mint: true
+        cpi_context: mint_action_cpi_context,
+        cpi_context_pubkey: input.cpi_context_pubkey,
+    };
 
-    // Serialize instruction data
-    let data_vec = instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
-
-    Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
-        accounts: accounts.to_vec(),
-        data: [vec![CREATE_COMPRESSED_MINT_DISCRIMINATOR], data_vec].concat(),
-    })
+    mint_action_cpi_write(mint_action_inputs)
 }
 
 /// Creates a compressed mint instruction with automatic mint address derivation

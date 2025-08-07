@@ -88,8 +88,9 @@ pub fn get_mint_action_instruction_account_metas(
         }
     }
 
-    // authority (signer)
-    metas.push(AccountMeta::new_readonly(config.authority, true));
+    // authority (signer only if we have mint actions that require authority)
+    let authority_needs_to_sign = config.has_mint_to_actions || !config.create_mint;
+    metas.push(AccountMeta::new_readonly(config.authority, authority_needs_to_sign));
 
     // For decompressed mints, add SPL mint and token program accounts
     // These need to come right after authority to match processor expectations

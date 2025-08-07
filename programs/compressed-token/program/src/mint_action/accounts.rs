@@ -42,7 +42,13 @@ impl<'info> MintActionAccounts<'info> {
         // TODO: make it option signer
         let mint_signer = iter.next_option("mint_signer", config.with_mint_signer)?;
         // Static non-CPI accounts first
-        let authority = iter.next_signer("authority")?;
+        // Authority only needs to sign if we have mint actions that require authority or if not creating mint
+        let authority_needs_to_sign = config.has_mint_to_actions || !config.create_mint;
+        let authority = if authority_needs_to_sign {
+            iter.next_signer("authority")?
+        } else {
+            iter.next_account("authority")?
+        };
         if config.write_to_cpi_context {
             let write_to_cpi_context_system =
                 CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?;
