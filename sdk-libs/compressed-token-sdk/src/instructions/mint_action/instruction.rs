@@ -83,7 +83,7 @@ pub fn create_mint_action_cpi(
     let create_mint = input.create_mint;
     let mint_bump = input.mint_bump.unwrap_or(0u8);
 
-    // Check for lamports and decompressed status before moving
+    // Check for lamports, decompressed status, and mint actions before moving
     let with_lamports = input.actions.iter().any(|action| {
         matches!(
             action,
@@ -98,6 +98,9 @@ pub fn create_mint_action_cpi(
         .iter()
         .any(|action| matches!(action, MintActionType::CreateSplMint { .. }))
         || input.compressed_mint_inputs.mint.is_decompressed;
+    let has_mint_to_actions = input.actions.iter().any(|action| {
+        matches!(action, MintActionType::MintTo { .. })
+    });
     let with_cpi_context = cpi_context.is_some();
     // Match onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
     let with_mint_signer = create_mint
@@ -189,6 +192,7 @@ pub fn create_mint_action_cpi(
         tokens_out_queue: input.tokens_out_queue,
         with_lamports,
         is_decompressed,
+        has_mint_to_actions,
         with_cpi_context,
         create_mint,
         with_mint_signer,

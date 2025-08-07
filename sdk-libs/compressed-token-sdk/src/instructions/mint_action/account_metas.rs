@@ -16,6 +16,7 @@ pub struct MintActionMetaConfig {
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub with_lamports: bool,
     pub is_decompressed: bool,
+    pub has_mint_to_actions: bool, // Whether we have MintTo actions
     pub with_cpi_context: bool,
     pub create_mint: bool,
     pub with_mint_signer: bool,
@@ -35,6 +36,7 @@ impl MintActionMetaConfig {
         tokens_out_queue: Option<Pubkey>,
         with_lamports: bool,
         is_decompressed: bool,
+        has_mint_to_actions: bool,
         with_cpi_context: bool,
         create_mint: bool,
         with_mint_signer: bool,
@@ -51,6 +53,7 @@ impl MintActionMetaConfig {
             tokens_out_queue,
             with_lamports,
             is_decompressed,
+            has_mint_to_actions,
             with_cpi_context,
             create_mint,
             with_mint_signer,
@@ -168,31 +171,30 @@ pub fn get_mint_action_instruction_account_metas(
         // For now, we'll handle this in the client layer
     }
 
-    // After LightSystemAccounts, add the remaining accounts:
+    // After LightSystemAccounts, add the remaining accounts to match onchain expectations:
     
-    // out_output_queue (mutable)
+    // out_output_queue (mutable) - always required
     metas.push(AccountMeta::new(config.output_queue, false));
 
-    // Add address tree only if creating a new mint (for address creation)
+    // Address tree (for creating new mint addresses) - only when creating mint
     if config.create_mint {
         metas.push(AccountMeta::new(config.tree_pubkey, false));
     }
 
-    // in_merkle_tree (optional if is_decompressed) - the state tree containing the existing compressed mint
-    if config.is_decompressed && !config.create_mint {
-        // For existing mints, we need the state merkle tree where the compressed mint is stored
+    // in_merkle_tree (state tree) - only when NOT creating mint  
+    if !config.create_mint {
         metas.push(AccountMeta::new(config.tree_pubkey, false));
     }
 
-    // in_output_queue (optional if is_decompressed)
-    if config.is_decompressed {
+    // in_output_queue - only when NOT creating mint
+    if !config.create_mint {
         if let Some(input_queue) = config.input_queue {
             metas.push(AccountMeta::new(input_queue, false));
         }
     }
 
-    // tokens_out_queue (required if is_decompressed)
-    if config.is_decompressed {
+    // tokens_out_queue - only when we have MintTo actions
+    if config.has_mint_to_actions {
         let tokens_out_queue = config.tokens_out_queue.unwrap_or(config.output_queue);
         metas.push(AccountMeta::new(tokens_out_queue, false));
     }

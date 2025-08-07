@@ -27,7 +27,7 @@ pub struct ExecutingAccounts<'info> {
     pub token_program: Option<&'info AccountInfo>,
     pub system: LightSystemAccounts<'info>,
     pub out_output_queue: &'info AccountInfo,
-    pub in_merkle_tree: Option<&'info AccountInfo>,
+    pub in_merkle_tree: &'info AccountInfo,
     pub in_output_queue: Option<&'info AccountInfo>,
     pub tokens_out_queue: Option<&'info AccountInfo>,
 }
@@ -69,9 +69,13 @@ impl<'info> MintActionAccounts<'info> {
             )?;
 
             let out_output_queue = iter.next_account("out_output_queue")?;
-            let in_merkle_tree = iter.next_option("in_merkle_tree", config.is_decompressed)?;
-            let in_output_queue = iter.next_option("in_output_queue", config.is_decompressed)?;
-            let tokens_out_queue = iter.next_option("tokens_out_queue", config.is_decompressed)?;
+            // When create mint this is the address tree
+            // When mint exists this is the in merkle tree.
+            let in_merkle_tree = iter.next_account("in_merkle_tree")?;
+            let in_output_queue = iter.next_option("in_output_queue", !config.create_mint)?;
+            // Only needed for minting to compressed token accounts
+            let tokens_out_queue =
+                iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
 
             Ok(MintActionAccounts {
                 mint_signer,
@@ -113,9 +117,7 @@ impl<'info> MintActionAccounts<'info> {
 
         if let Some(executing) = &self.executing {
             pubkeys.push(executing.out_output_queue.key());
-            if let Some(in_tree) = executing.in_merkle_tree {
-                pubkeys.push(in_tree.key());
-            }
+            pubkeys.push(executing.in_merkle_tree.key());
             if let Some(in_queue) = executing.in_output_queue {
                 pubkeys.push(in_queue.key());
             }
@@ -180,7 +182,9 @@ pub struct AccountsConfig {
     pub write_to_cpi_context: bool,
     pub with_lamports: bool,
     pub is_decompressed: bool,
+    pub has_mint_to_actions: bool,
     pub with_mint_signer: bool,
+    pub create_mint: bool,
 }
 
 impl AccountsConfig {
@@ -195,6 +199,11 @@ impl AccountsConfig {
         .actions
         .iter()
         .any(|action| matches!(action, ZAction::MintTo(mint_to_action) if mint_to_action.lamports.is_some()));
+        // Check if we have MintTo actions - needed for tokens_out_queue
+        let has_mint_to_actions = parsed_instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, ZAction::MintTo(_)));
         // TODO: differentiate between will be compressed or is compressed.
         let is_decompressed = parsed_instruction_data.mint.is_decompressed()
             | parsed_instruction_data
@@ -213,7 +222,9 @@ impl AccountsConfig {
             write_to_cpi_context,
             with_lamports,
             is_decompressed,
+            has_mint_to_actions,
             with_mint_signer,
+            create_mint: parsed_instruction_data.create_mint(),
         }
     }
 }

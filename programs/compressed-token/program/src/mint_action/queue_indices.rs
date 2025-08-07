@@ -10,6 +10,7 @@ pub struct QueueIndices {
     pub in_queue_index: u8,
     pub out_token_queue_index: u8,
     pub output_queue_index: u8,
+    pub deduplicated: bool,
 }
 
 impl QueueIndices {
@@ -32,7 +33,14 @@ impl QueueIndices {
                 cpi_context.token_out_queue_index
             } else if let Some(system_accounts) = validated_accounts.executing.as_ref() {
                 if let Some(tokens_out_queue) = system_accounts.tokens_out_queue {
-                    if system_accounts.out_output_queue.key() == tokens_out_queue.key() {
+                    let out_queue_key = system_accounts.out_output_queue.key();
+                    let tokens_queue_key = tokens_out_queue.key();
+                    msg!("Comparing queues:");
+                    msg!("  out_output_queue: {:?}", solana_pubkey::Pubkey::new_from_array(*out_queue_key));
+                    msg!("  tokens_out_queue: {:?}", solana_pubkey::Pubkey::new_from_array(*tokens_queue_key));
+                    msg!("  are_equal: {}", out_queue_key == tokens_queue_key);
+                    
+                    if out_queue_key == tokens_queue_key {
                         0
                     } else {
                         3
@@ -56,6 +64,12 @@ impl QueueIndices {
             in_queue_index,
             out_token_queue_index,
             output_queue_index,
+            deduplicated: out_token_queue_index == output_queue_index
+                && validated_accounts
+                    .executing
+                    .as_ref()
+                    .map(|executing| executing.tokens_out_queue.is_some())
+                    .unwrap_or(false),
         })
     }
 }

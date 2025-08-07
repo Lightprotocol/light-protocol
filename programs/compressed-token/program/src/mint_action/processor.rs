@@ -198,12 +198,26 @@ pub fn process_mint_action(
     };
     sol_log_compute_units();
 
+    msg!("queue_indices {:?}", queue_indices);
     let cpi_accounts_offset = validated_accounts.cpi_accounts_offset();
+    let end_offset = if queue_indices.deduplicated {
+        accounts.len() - num_decompressed_recipients as usize - 1
+    } else {
+        accounts.len() - num_decompressed_recipients as usize
+    };
+    msg!("cpi accounts offset: {}", cpi_accounts_offset);
+    msg!(
+        "account info pubkeys {:?}",
+        accounts[cpi_accounts_offset..end_offset]
+            .iter()
+            .map(|info| solana_pubkey::Pubkey::new_from_array(*info.key()))
+            .collect::<Vec<_>>()
+    );
     // TODO: implement a more robust end offset calculation than - num_decompressed_recipients as usize
     let res = if let Some(executing) = validated_accounts.executing.as_ref() {
         // Execute CPI to light-system-program
         execute_cpi_invoke(
-            &accounts[cpi_accounts_offset..accounts.len() - num_decompressed_recipients as usize],
+            &accounts[cpi_accounts_offset..end_offset],
             cpi_bytes,
             validated_accounts.tree_pubkeys().as_slice(),
             accounts_config.with_lamports,
