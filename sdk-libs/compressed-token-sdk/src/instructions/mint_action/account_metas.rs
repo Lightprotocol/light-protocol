@@ -11,7 +11,7 @@ pub struct MintActionMetaConfig {
     pub mint_signer: Option<Pubkey>,
     pub authority: Pubkey,
     pub tree_pubkey: Pubkey, // address tree when create_mint, input state tree when not
-    pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations  
+    pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub output_queue: Pubkey,
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub with_lamports: bool,
@@ -81,7 +81,10 @@ pub fn get_mint_action_instruction_account_metas(
     // mint_signer (conditional) - matches onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
     if config.with_mint_signer {
         if let Some(mint_signer) = config.mint_signer {
-            metas.push(AccountMeta::new_readonly(mint_signer, config.mint_needs_to_sign));
+            metas.push(AccountMeta::new_readonly(
+                mint_signer,
+                config.mint_needs_to_sign,
+            ));
         }
     }
 
@@ -96,29 +99,29 @@ pub fn get_mint_action_instruction_account_metas(
             // For mint creation - derive from mint_signer
             let (spl_mint_pda, _) = crate::instructions::find_spl_mint_address(&mint_signer);
             metas.push(AccountMeta::new(spl_mint_pda, false)); // mutable: true, signer: false
-            
+
             // token_pool_pda (derived from mint)
-            let (token_pool_pda, _) = crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pda, 0);
+            let (token_pool_pda, _) =
+                crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pda, 0);
             metas.push(AccountMeta::new(token_pool_pda, false));
         } else {
             // For existing mint operations - use the spl_mint from compressed mint inputs
-            let spl_mint_pubkey = solana_pubkey::Pubkey::from(compressed_mint_inputs.mint.spl_mint.to_bytes());
+            let spl_mint_pubkey =
+                solana_pubkey::Pubkey::from(compressed_mint_inputs.mint.spl_mint.to_bytes());
             metas.push(AccountMeta::new(spl_mint_pubkey, false)); // mutable: true, signer: false
-            
+
             // token_pool_pda (derived from the spl_mint)
-            let (token_pool_pda, _) = crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pubkey, 0);
+            let (token_pool_pda, _) =
+                crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pubkey, 0);
             metas.push(AccountMeta::new(token_pool_pda, false));
         }
 
         // token_program (use spl_token_2022 program ID)
-        metas.push(AccountMeta::new_readonly(
-            spl_token_2022::ID,
-            false,
-        ));
+        metas.push(AccountMeta::new_readonly(spl_token_2022::ID, false));
     }
 
     // LightSystemAccounts in exact order expected by validate_and_parse:
-    
+
     // fee_payer (signer, mutable) - only add if provided
     if let Some(fee_payer) = config.fee_payer {
         metas.push(AccountMeta::new(fee_payer, true));
@@ -172,7 +175,7 @@ pub fn get_mint_action_instruction_account_metas(
     }
 
     // After LightSystemAccounts, add the remaining accounts to match onchain expectations:
-    
+
     // out_output_queue (mutable) - always required
     metas.push(AccountMeta::new(config.output_queue, false));
 
@@ -224,11 +227,17 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
     // [light_system_program, mint_signer, authority, fee_payer, cpi_authority_pda, cpi_context]
 
     // light_system_program (always required) - index 0
-    metas.push(AccountMeta::new_readonly(default_pubkeys.light_system_program, false));
+    metas.push(AccountMeta::new_readonly(
+        default_pubkeys.light_system_program,
+        false,
+    ));
 
     // mint_signer (optional signer - only when creating mint and creating SPL mint) - index 1
     if let Some(mint_signer) = config.mint_signer {
-        metas.push(AccountMeta::new_readonly(mint_signer, config.mint_needs_to_sign));
+        metas.push(AccountMeta::new_readonly(
+            mint_signer,
+            config.mint_needs_to_sign,
+        ));
     }
 
     // authority (signer) - index 2
@@ -238,7 +247,10 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
     metas.push(AccountMeta::new(config.fee_payer, true));
 
     // cpi_authority_pda - index 4
-    metas.push(AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false));
+    metas.push(AccountMeta::new_readonly(
+        default_pubkeys.cpi_authority_pda,
+        false,
+    ));
 
     // cpi_context (mutable) - index 5
     metas.push(AccountMeta::new(config.cpi_context, false));

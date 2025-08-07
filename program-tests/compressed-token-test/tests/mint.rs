@@ -113,6 +113,19 @@ async fn test_create_compressed_mint() {
 
     // Use our mint_to_compressed action helper
     {
+        // Get pre-compressed mint for assertion
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
         mint_to_compressed(
             &mut rpc,
             spl_mint_pda,
@@ -125,19 +138,6 @@ async fn test_create_compressed_mint() {
             lamports,
         )
         .await
-        .unwrap();
-
-        // Get pre-compressed mint for assertion
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
-            .await
-            .unwrap()
-            .value;
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
         .unwrap();
 
         // Verify minted tokens using our assertion helper

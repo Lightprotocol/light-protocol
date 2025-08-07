@@ -20,13 +20,18 @@ pub fn process_mint_to_action(
     hash_cache: &mut HashCache,
     mint: Pubkey,
     out_token_queue_index: u8,
-) -> Result<u64, ProgramError> {
+) -> Result<(u64, u64), ProgramError> {
     msg!("process_mint_to_action");
     let sum_amounts = action
         .recipients
         .iter()
         .map(|x| u64::from(x.amount))
         .sum::<u64>();
+    let sum_lamports = if let Some(lamports) = action.lamports {
+        u64::from(*lamports) * action.recipients.len() as u64
+    } else {
+        0
+    };
     let updated_supply = current_supply
         .checked_add(sum_amounts)
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
@@ -62,7 +67,7 @@ pub fn process_mint_to_action(
         mint,
         out_token_queue_index,
     )?;
-    Ok(updated_supply)
+    Ok((updated_supply, sum_lamports))
 }
 
 fn create_output_compressed_token_accounts(

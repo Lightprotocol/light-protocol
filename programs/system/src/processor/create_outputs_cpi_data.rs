@@ -102,7 +102,39 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                     is_batched = false;
                     *pubkey
                 }
+                AcpAccount::Unknown() => {
+                    msg!(
+                        format!("found batched unknown create outputs {} ", current_index).as_str()
+                    );
+
+                    return Err(
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                    );
+                }
+                AcpAccount::BatchedAddressTree(_) => {
+                    msg!(format!(
+                        "found batched address tree create outputs {} ",
+                        current_index
+                    )
+                    .as_str());
+
+                    return Err(
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                    );
+                }
+                AcpAccount::BatchedStateTree(_) => {
+                    msg!(
+                        format!("found batched state tree create outputs {} ", current_index)
+                            .as_str()
+                    );
+
+                    return Err(
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                    );
+                }
                 _ => {
+                    msg!(format!("create outputs {} ", current_index).as_str());
+
                     return Err(
                         SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
                     );

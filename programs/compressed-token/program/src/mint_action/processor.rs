@@ -82,7 +82,6 @@ pub fn process_mint_action(
         parsed_instruction_data.proof,
         &parsed_instruction_data.cpi_context,
     )?;
-
     if !accounts_config.write_to_cpi_context
         && !parsed_instruction_data.prove_by_index()
         && parsed_instruction_data.proof.is_none()
@@ -94,7 +93,23 @@ pub fn process_mint_action(
     sol_log_compute_units();
     let mut hash_cache = HashCache::new();
     let queue_indices = QueueIndices::new(&parsed_instruction_data, &validated_accounts)?;
-
+    let compressed_lamports = parsed_instruction_data
+        .actions
+        .iter()
+        .map(|action| {
+            if let ZAction::MintTo(action) = action {
+                if let Some(lamports) = action.lamports {
+                    u64::from(*lamports)
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        })
+        .sum::<u64>();
+    cpi_instruction_struct.compress_or_decompress_lamports = compressed_lamports.into();
+    cpi_instruction_struct.is_compress = if compressed_lamports > 0 { 1 } else { 0 };
     // If create mint
     // 1. derive spl mint pda
     // 2. set create address
@@ -121,7 +136,7 @@ pub fn process_mint_action(
             },
         )?;
     }
-    let num_decompressed_recipients = {
+    {
         let freeze_authority = parsed_instruction_data.mint.freeze_authority.map(|fa| *fa);
         let mint_authority = parsed_instruction_data.mint.mint_authority.map(|fa| *fa);
 
@@ -182,7 +197,7 @@ pub fn process_mint_action(
             )?;
         }
 
-        let num_decompressed_recipients = process_actions(
+        process_actions(
             &parsed_instruction_data,
             &validated_accounts,
             &accounts_config,
@@ -193,19 +208,14 @@ pub fn process_mint_action(
             &mut compressed_mint,
         )?;
         *compressed_account_data.data_hash = compressed_mint.hash(&mut hash_cache)?;
-
-        num_decompressed_recipients
     };
     sol_log_compute_units();
 
     msg!("queue_indices {:?}", queue_indices);
-    let cpi_accounts_offset = validated_accounts.cpi_accounts_offset();
-    let end_offset = if queue_indices.deduplicated {
-        accounts.len() - num_decompressed_recipients as usize - 1
-    } else {
-        accounts.len() - num_decompressed_recipients as usize
-    };
-    msg!("cpi accounts offset: {}", cpi_accounts_offset);
+    let cpi_accounts_offset = validated_accounts.cpi_accounts_start_offset();
+    let end_offset = validated_accounts.cpi_accounts_end_offset(queue_indices.deduplicated);
+    msg!("cpi accounts start offset: {}", cpi_accounts_offset);
+    msg!("cpi accounts end offset: {}", end_offset);
     msg!(
         "account info pubkeys {:?}",
         accounts[cpi_accounts_offset..end_offset]
@@ -219,7 +229,9 @@ pub fn process_mint_action(
         execute_cpi_invoke(
             &accounts[cpi_accounts_offset..end_offset],
             cpi_bytes,
-            validated_accounts.tree_pubkeys().as_slice(),
+            validated_accounts
+                .tree_pubkeys(queue_indices.deduplicated)
+                .as_slice(),
             accounts_config.with_lamports,
             None,
             executing.system.cpi_context.map(|x| *x.key()),
@@ -257,13 +269,11 @@ fn process_actions<'a>(
     queue_indices: &QueueIndices,
     packed_accounts: &ProgramPackedAccounts,
     compressed_mint: &mut ZCompressedMintMut<'a>,
-) -> Result<u64, ProgramError> {
-    let mut num_decompressed_recipients = 0;
-
+) -> Result<(), ProgramError> {
     for action in parsed_instruction_data.actions.iter() {
         match action {
             ZAction::MintTo(action) => {
-                let new_supply = process_mint_to_action(
+                let (new_supply, _lamports) = process_mint_to_action(
                     action,
                     u64::from(compressed_mint.supply),
                     validated_accounts,
@@ -328,7 +338,6 @@ fn process_actions<'a>(
                     parsed_instruction_data.mint.spl_mint,
                 )?;
                 compressed_mint.supply = new_supply.into();
-                num_decompressed_recipients += 1;
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {
                 process_update_metadata_field_action(
@@ -354,5 +363,5 @@ fn process_actions<'a>(
         }
     }
 
-    Ok(num_decompressed_recipients)
+    Ok(())
 }

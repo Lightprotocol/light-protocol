@@ -112,7 +112,7 @@ impl<'info> MintActionAccounts<'info> {
     }
 
     #[inline(always)]
-    pub fn tree_pubkeys(&self) -> Vec<&'info Pubkey> {
+    pub fn tree_pubkeys(&self, deduplicated: bool) -> Vec<&'info Pubkey> {
         let mut pubkeys = Vec::with_capacity(4);
 
         if let Some(executing) = &self.executing {
@@ -122,7 +122,9 @@ impl<'info> MintActionAccounts<'info> {
                 pubkeys.push(in_queue.key());
             }
             if let Some(tokens_out_queue) = executing.tokens_out_queue {
-                pubkeys.push(tokens_out_queue.key());
+                if !deduplicated {
+                    pubkeys.push(tokens_out_queue.key());
+                }
             }
         }
         msg!(
@@ -136,7 +138,7 @@ impl<'info> MintActionAccounts<'info> {
     }
 
     /// Calculate the dynamic CPI accounts offset based on which accounts are present
-    pub fn cpi_accounts_offset(&self) -> usize {
+    pub fn cpi_accounts_start_offset(&self) -> usize {
         let mut offset = 0;
 
         // light_system_program (always present)
@@ -171,6 +173,36 @@ impl<'info> MintActionAccounts<'info> {
         }
         // CpiContextLightSystemAccounts - these are the CPI accounts that start here
         // We don't add them to offset since this is where CPI accounts begin
+
+        offset
+    }
+
+    pub fn cpi_accounts_end_offset(&self, deduplicated: bool) -> usize {
+        let mut offset = self.cpi_accounts_start_offset();
+        if let Some(executing) = self.executing.as_ref() {
+            offset += 6;
+            if executing.system.sol_pool_pda.is_some() {
+                offset += 1;
+            }
+            if executing.system.cpi_context.is_some() {
+                offset += 1;
+            }
+            // + tree accounts
+            // out_output_queue (always present)
+            // in_merkle_tree (always present)
+            offset += 2;
+            if executing.in_output_queue.is_some() {
+                offset += 1;
+            }
+            msg!(
+                "executing.tokens_out_queue.is_some() {:?}",
+                executing.tokens_out_queue.is_some()
+            );
+            msg!("deduplicated {:?}", deduplicated);
+            if executing.tokens_out_queue.is_some() && !deduplicated {
+                offset += 1;
+            }
+        }
 
         offset
     }

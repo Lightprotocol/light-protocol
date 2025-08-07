@@ -6,7 +6,7 @@ use light_compressed_account::{
     },
 };
 use light_hasher::{Hasher, Poseidon};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount,
@@ -77,6 +77,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                         .hashed_pubkey
                 }
                 _ => {
+                    msg!(format!("create_inputs_cpi_data {} ", current_mt_index).as_str());
                     return Err(
                         SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
                     );

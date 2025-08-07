@@ -84,7 +84,7 @@ pub fn create_mint_to_compressed_instruction(
             lamports,
             token_account_version, // From inputs parameter
         }],
-        address_tree_pubkey: state_merkle_tree, // Input state tree (where compressed mint lives)
+        address_tree_pubkey: state_merkle_tree, // State tree where compressed mint is stored
         input_queue: Some(input_queue), // Input queue from compressed mint tree  
         output_queue: output_queue_cmint, // Output queue for updated compressed mint
         tokens_out_queue: Some(output_queue_tokens), // Output queue for new token accounts
