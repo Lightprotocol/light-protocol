@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-. "./scripts/devenv.sh" || { echo >&2 "Failed to source devenv.sh. Aborting."; exit 1; }
+if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
+    . "./scripts/devenv.sh" || { echo >&2 "Failed to source devenv.sh. Aborting."; exit 1; }
+fi
 
 set -eux
 
