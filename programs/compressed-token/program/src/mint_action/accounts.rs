@@ -199,6 +199,8 @@ impl<'info> MintActionAccounts<'info> {
                 executing.tokens_out_queue.is_some()
             );
             msg!("deduplicated {:?}", deduplicated);
+            // When deduplicated=false, we need to include the extra queue account
+            // When deduplicated=true, the duplicate queue is in the outer instruction but not in CPI slice
             if executing.tokens_out_queue.is_some() && !deduplicated {
                 offset += 1;
             }

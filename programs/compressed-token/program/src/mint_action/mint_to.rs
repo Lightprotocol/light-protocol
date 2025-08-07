@@ -59,6 +59,7 @@ pub fn process_mint_to_action(
             )?;
         }
     }
+    msg!("pre create_output_compressed_token_accounts");
     // Create output token accounts
     create_output_compressed_token_accounts(
         action,
@@ -67,6 +68,7 @@ pub fn process_mint_to_action(
         mint,
         out_token_queue_index,
     )?;
+    msg!("post create_output_compressed_token_accounts");
     Ok((updated_supply, sum_lamports))
 }
 

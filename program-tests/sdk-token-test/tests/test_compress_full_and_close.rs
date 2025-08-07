@@ -144,9 +144,11 @@ async fn test_compress_full_and_close() {
             mint_authority,
             payer: payer.pubkey(),
             state_merkle_tree: state_tree_pubkey,
-            output_queue: state_output_queue,
-            state_tree_pubkey,
+            input_queue: state_output_queue,
+            output_queue_cmint: state_output_queue,
+            output_queue_tokens: state_output_queue,
             decompressed_mint_config: None,
+            token_account_version: 2,
         },
         None,
     )

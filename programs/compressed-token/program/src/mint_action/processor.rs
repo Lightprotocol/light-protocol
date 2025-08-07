@@ -207,7 +207,9 @@ pub fn process_mint_action(
             &validated_accounts.packed_accounts,
             &mut compressed_mint,
         )?;
+        msg!("pre data hash");
         *compressed_account_data.data_hash = compressed_mint.hash(&mut hash_cache)?;
+        msg!("post data hash");
     };
     sol_log_compute_units();
 
@@ -270,9 +272,11 @@ fn process_actions<'a>(
     packed_accounts: &ProgramPackedAccounts,
     compressed_mint: &mut ZCompressedMintMut<'a>,
 ) -> Result<(), ProgramError> {
-    for action in parsed_instruction_data.actions.iter() {
+    for (index, action) in parsed_instruction_data.actions.iter().enumerate() {
+        msg!("Processing action at index {}", index);
         match action {
             ZAction::MintTo(action) => {
+                msg!("Processing MintTo action");
                 let (new_supply, _lamports) = process_mint_to_action(
                     action,
                     u64::from(compressed_mint.supply),
@@ -286,8 +290,13 @@ fn process_actions<'a>(
                 compressed_mint.supply = new_supply.into();
             }
             ZAction::UpdateMintAuthority(update_action) => {
-                let current_mint_authority =
-                    compressed_mint.mint_authority.as_ref().map(|auth| **auth);
+                msg!("Processing UpdateMintAuthority action");
+                let current_mint_authority = parsed_instruction_data
+                    .mint
+                    .mint_authority
+                    .as_ref()
+                    .map(|auth| **auth);
+
                 let new_mint_authority = update_authority(
                     update_action,
                     validated_accounts.authority.key(),
@@ -304,6 +313,7 @@ fn process_actions<'a>(
                 }
             }
             ZAction::UpdateFreezeAuthority(update_action) => {
+                msg!("Processing UpdateFreezeAuthority action");
                 let current_freeze_authority =
                     compressed_mint.freeze_authority.as_ref().map(|auth| **auth);
                 let new_freeze_authority = update_authority(
@@ -322,13 +332,15 @@ fn process_actions<'a>(
                 }
             }
             ZAction::CreateSplMint(create_spl_action) => {
+                msg!("Processing CreateSplMint action");
                 process_create_spl_mint_action(
                     create_spl_action,
-                    &validated_accounts,
+                    validated_accounts,
                     &parsed_instruction_data.mint,
                 )?;
             }
             ZAction::MintToDecompressed(mint_to_decompressed_action) => {
+                msg!("Processing MintToDecompressed action");
                 let new_supply = process_mint_to_decompressed_action(
                     mint_to_decompressed_action,
                     u64::from(compressed_mint.supply),
@@ -340,6 +352,7 @@ fn process_actions<'a>(
                 compressed_mint.supply = new_supply.into();
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {
+                msg!("Processing UpdateMetadataField action");
                 process_update_metadata_field_action(
                     update_metadata_action,
                     compressed_mint,
@@ -347,6 +360,7 @@ fn process_actions<'a>(
                 )?;
             }
             ZAction::UpdateMetadataAuthority(update_metadata_authority_action) => {
+                msg!("Processing UpdateMetadataAuthority action");
                 process_update_metadata_authority_action(
                     update_metadata_authority_action,
                     compressed_mint,
@@ -354,6 +368,7 @@ fn process_actions<'a>(
                 )?;
             }
             ZAction::RemoveMetadataKey(remove_metadata_key_action) => {
+                msg!("Processing RemoveMetadataKey action");
                 process_remove_metadata_key_action(
                     remove_metadata_key_action,
                     compressed_mint,
