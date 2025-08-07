@@ -39,6 +39,7 @@ pub struct MintActionInputs {
     pub address_tree_pubkey: Pubkey,
     pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub output_queue: Pubkey,
+    pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub cpi_context: Option<CpiContext>,
 }
 
@@ -183,7 +184,9 @@ pub fn create_mint_action_cpi(
         },
         authority: input.authority,
         tree_pubkey: input.address_tree_pubkey,
+        input_queue: input.input_queue,
         output_queue: input.output_queue,
+        tokens_out_queue: input.tokens_out_queue,
         with_lamports,
         is_decompressed,
         with_cpi_context,

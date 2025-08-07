@@ -2,21 +2,19 @@ use light_compressed_token_types::CompressedProof;
 use light_ctoken_types::{
     instructions::{
         create_compressed_mint::CompressedMintWithContext,
-        mint_to_compressed::{CpiContext, MintToCompressedInstructionData, Recipient},
+        mint_to_compressed::{CpiContext, Recipient},
     },
-    COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use crate::{
     error::{Result, TokenSdkError},
-    instructions::mint_to_compressed::account_metas::{
-        get_mint_to_compressed_instruction_account_metas,
-        get_mint_to_compressed_instruction_account_metas_cpi_write, MintToCompressedMetaConfig,
-        MintToCompressedMetaConfigCpiWrite,
+    instructions::{
+        mint_action::{
+            create_mint_action_cpi, MintActionInputs, MintActionType, MintToRecipient,
+        },
     },
-    AnchorSerialize,
 };
 
 pub use light_compressed_token_types::account_infos::mint_to_compressed::DecompressedMintConfig;
@@ -32,14 +30,16 @@ pub struct MintToCompressedInputs {
     pub mint_authority: Pubkey,
     pub payer: Pubkey,
     pub state_merkle_tree: Pubkey,
-    pub output_queue: Pubkey,
-    pub state_tree_pubkey: Pubkey,
+    pub input_queue: Pubkey,
+    pub output_queue_cmint: Pubkey,
+    pub output_queue_tokens: Pubkey,
     /// Required if the mint is decompressed
     pub decompressed_mint_config: Option<DecompressedMintConfig<Pubkey>>,
     pub proof: Option<CompressedProof>,
+    pub token_account_version: u8,
 }
 
-/// Create a mint_to_compressed instruction
+/// Create a mint_to_compressed instruction (wrapper around mint_action)
 pub fn create_mint_to_compressed_instruction(
     inputs: MintToCompressedInputs,
     cpi_context: Option<CpiContext>,
@@ -51,136 +51,56 @@ pub fn create_mint_to_compressed_instruction(
         mint_authority,
         payer,
         state_merkle_tree,
-        output_queue,
-        state_tree_pubkey,
-        decompressed_mint_config,
+        input_queue,
+        output_queue_cmint,
+        output_queue_tokens,
+        decompressed_mint_config: _,
         proof,
+        token_account_version,
     } = inputs;
 
-    // Store decompressed flag before moving the compressed_mint_input
-    let is_decompressed = compressed_mint_inputs.mint.is_decompressed;
+    // Convert Recipients to MintToRecipients
+    let mint_to_recipients: Vec<MintToRecipient> = recipients
+        .into_iter()
+        .map(|recipient| MintToRecipient {
+            recipient: solana_pubkey::Pubkey::from(recipient.recipient.to_bytes()),
+            amount: recipient.amount,
+        })
+        .collect();
 
-    // Validate that decompressed_mint_config is provided when the mint is decompressed
-    if is_decompressed && decompressed_mint_config.is_none() {
-        return Err(TokenSdkError::DecompressedMintConfigRequired);
-    }
-
-    // Create mint_to_compressed instruction data
-    let mint_to_instruction_data = MintToCompressedInstructionData {
-        token_account_version: 2, // V2 for batched merkle trees
+    // Create mint action inputs
+    // For existing mint operations, we don't need a mint_seed since we can use the SPL mint directly
+    // from the compressed_mint_inputs data. We use a dummy value that won't be used.
+    let mint_action_inputs = MintActionInputs {
         compressed_mint_inputs,
-        lamports,
-        recipients,
-        cpi_context,
-        proof,
-    };
-
-    // Create account meta config
-    let has_sol_pool = lamports.is_some();
-
-    let meta_config = if is_decompressed {
-        let decompressed_config = decompressed_mint_config.unwrap();
-        MintToCompressedMetaConfig::new_decompressed(
-            mint_authority,
-            payer,
-            state_merkle_tree,
-            output_queue,
-            state_tree_pubkey,
-            state_tree_pubkey, // compressed_mint_tree
-            output_queue,      // compressed_mint_queue
-            decompressed_config.mint_pda,
-            decompressed_config.token_pool_pda,
-            decompressed_config.token_program,
-            has_sol_pool,
-        )
-    } else {
-        MintToCompressedMetaConfig::new(
-            mint_authority,
-            payer,
-            state_merkle_tree,
-            output_queue,
-            state_tree_pubkey,
-            state_tree_pubkey, // compressed_mint_tree
-            output_queue,      // compressed_mint_queue
-            has_sol_pool,
-        )
-    };
-
-    // Get account metas using the SDK function
-    let accounts = get_mint_to_compressed_instruction_account_metas(meta_config);
-
-    // Serialize instruction data
-    let data_vec = mint_to_instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
-
-    Ok(Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
-        accounts,
-        data: [vec![MINT_TO_COMPRESSED_DISCRIMINATOR], data_vec].concat(),
-    })
-}
-
-/// Input struct for creating a mint_to_compressed instruction with CPI context write
-#[derive(Debug, Clone)]
-pub struct MintToCompressedInputsCpiWrite {
-    pub compressed_mint_inputs: CompressedMintWithContext,
-    pub lamports: Option<u64>,
-    pub recipients: Vec<Recipient>,
-    pub mint_authority: Pubkey,
-    pub payer: Pubkey,
-    pub cpi_context: CpiContext,
-    pub cpi_context_pubkey: Pubkey,
-    pub version: u8,
-}
-
-/// Create a mint_to_compressed instruction for CPI context writes
-pub fn create_mint_to_compressed_cpi_write(
-    inputs: MintToCompressedInputsCpiWrite,
-) -> Result<Instruction> {
-    let MintToCompressedInputsCpiWrite {
-        compressed_mint_inputs,
-        lamports,
-        recipients,
-        mint_authority,
+        mint_seed: solana_pubkey::Pubkey::default(), // Dummy value, not used for existing mints
+        create_mint: false, // Never creating mint in mint_to_compressed
+        mint_bump: None, // No mint creation
+        authority: mint_authority,
         payer,
-        cpi_context,
-        cpi_context_pubkey: _,
-        version,
-    } = inputs;
-
-    if !cpi_context.first_set_context && !cpi_context.set_context {
-        return Err(TokenSdkError::InvalidAccountData);
-    }
-
-    // Create mint_to_compressed instruction data
-    let mint_to_instruction_data = MintToCompressedInstructionData {
-        token_account_version: version,
-        compressed_mint_inputs,
-        lamports,
-        recipients,
-        cpi_context: Some(cpi_context),
-        proof: None,
+        proof,
+        actions: vec![MintActionType::MintTo {
+            recipients: mint_to_recipients,
+            lamports,
+            token_account_version, // From inputs parameter
+        }],
+        address_tree_pubkey: state_merkle_tree, // Input state tree (where compressed mint lives)
+        input_queue: Some(input_queue), // Input queue from compressed mint tree  
+        output_queue: output_queue_cmint, // Output queue for updated compressed mint
+        tokens_out_queue: Some(output_queue_tokens), // Output queue for new token accounts
+        cpi_context: cpi_context.map(|ctx| light_ctoken_types::instructions::mint_actions::CpiContext {
+            set_context: ctx.set_context,
+            first_set_context: ctx.first_set_context,
+            in_tree_index: ctx.in_tree_index,
+            in_queue_index: ctx.in_queue_index,
+            out_queue_index: ctx.out_queue_index,
+            token_out_queue_index: ctx.token_out_queue_index,
+            assigned_account_index: 0, // Default value for mint operation
+        }),
     };
 
-    // Create account meta config for CPI context write
-    let meta_config = MintToCompressedMetaConfigCpiWrite {
-        fee_payer: payer,
-        mint_authority,
-        cpi_context: inputs.cpi_context_pubkey,
-    };
-
-    // Get account metas
-    let accounts = get_mint_to_compressed_instruction_account_metas_cpi_write(meta_config);
-
-    // Serialize instruction data
-    let data_vec = mint_to_instruction_data
-        .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
-
-    Ok(Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
-        accounts: accounts.to_vec(),
-        data: [vec![MINT_TO_COMPRESSED_DISCRIMINATOR], data_vec].concat(),
+    // Use mint_action instruction internally
+    create_mint_action_cpi(mint_action_inputs, None).map_err(|e| {
+        TokenSdkError::CpiError(format!("Failed to create mint_action instruction: {:?}", e))
     })
 }

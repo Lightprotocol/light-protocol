@@ -61,6 +61,7 @@ pub fn create_spl_mint_instruction_with_bump(
         address_tree_pubkey: input_merkle_tree,
         input_queue: Some(input_output_queue), // Input queue for existing compressed mint
         output_queue,
+        tokens_out_queue: None, // No tokens being minted in CreateSplMint
         cpi_context: None, // Standard non-CPI context
     };
 

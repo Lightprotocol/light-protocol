@@ -21,6 +21,7 @@ pub fn process_mint_to_action(
     mint: Pubkey,
     out_token_queue_index: u8,
 ) -> Result<u64, ProgramError> {
+    msg!("process_mint_to_action");
     let sum_amounts = action
         .recipients
         .iter()

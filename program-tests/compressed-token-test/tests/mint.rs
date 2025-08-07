@@ -1243,7 +1243,7 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
         )
         .await
         .unwrap();
-
+        println!(" pre_compressed_mint {:?}", pre_compressed_mint);
         // Verify SPL mint was created using our assertion helper
         assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
     }
@@ -1263,6 +1263,21 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
         let recipient_keypair = Keypair::new();
         let recipient = recipient_keypair.pubkey();
 
+        // Get pre-compressed mint and pre-spl mint for assertion
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+        let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
+        let pre_spl_mint = spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
+
         // Use our mint_to_compressed action helper (automatically handles decompressed mint config)
         mint_to_compressed(
             &mut rpc,
@@ -1277,22 +1292,6 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
         )
         .await
         .unwrap();
-
-        // Get pre-compressed mint and pre-spl mint for assertion
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
-            .await
-            .unwrap()
-            .value;
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
-
-        let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
-        let pre_spl_mint = spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
 
         // Verify minted tokens using our assertion helper
         assert_mint_to_compressed_one(

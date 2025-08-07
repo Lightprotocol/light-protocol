@@ -156,6 +156,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             Some(state_tree_info.queue) 
         },
         output_queue: state_tree_info.queue,
+        tokens_out_queue: Some(state_tree_info.queue), // Output queue for tokens
         cpi_context: None, // CPI context will be added if needed
     };
 

@@ -87,10 +87,12 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             mint_authority,
             payer,
             state_merkle_tree: compressed_mint_account.tree_info.tree,
-            output_queue: compressed_mint_account.tree_info.queue,
-            state_tree_pubkey: state_tree_info.tree,
+            input_queue: compressed_mint_account.tree_info.queue,
+            output_queue_cmint: compressed_mint_account.tree_info.queue,
+            output_queue_tokens: state_tree_info.queue,
             decompressed_mint_config,
             proof: rpc_proof_result.proof.into(),
+            token_account_version: 2, // V2 for batched merkle trees
         },
         None,
     )

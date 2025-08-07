@@ -11,7 +11,9 @@ pub struct MintActionMetaConfig {
     pub mint_signer: Option<Pubkey>,
     pub authority: Pubkey,
     pub tree_pubkey: Pubkey, // address tree when create_mint, input state tree when not
+    pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations  
     pub output_queue: Pubkey,
+    pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub with_lamports: bool,
     pub is_decompressed: bool,
     pub with_cpi_context: bool,
@@ -28,7 +30,9 @@ impl MintActionMetaConfig {
         mint_signer: Pubkey,
         authority: Pubkey,
         tree_pubkey: Pubkey,
+        input_queue: Option<Pubkey>,
         output_queue: Pubkey,
+        tokens_out_queue: Option<Pubkey>,
         with_lamports: bool,
         is_decompressed: bool,
         with_cpi_context: bool,
@@ -42,7 +46,9 @@ impl MintActionMetaConfig {
             mint_signer: Some(mint_signer),
             authority,
             tree_pubkey,
+            input_queue,
             output_queue,
+            tokens_out_queue,
             with_lamports,
             is_decompressed,
             with_cpi_context,
@@ -180,12 +186,15 @@ pub fn get_mint_action_instruction_account_metas(
 
     // in_output_queue (optional if is_decompressed)
     if config.is_decompressed {
-        metas.push(AccountMeta::new(config.output_queue, false));
+        if let Some(input_queue) = config.input_queue {
+            metas.push(AccountMeta::new(input_queue, false));
+        }
     }
 
-    // tokens_out_queue (optional if is_decompressed)
+    // tokens_out_queue (required if is_decompressed)
     if config.is_decompressed {
-        metas.push(AccountMeta::new(config.output_queue, false));
+        let tokens_out_queue = config.tokens_out_queue.unwrap_or(config.output_queue);
+        metas.push(AccountMeta::new(tokens_out_queue, false));
     }
 
     // Add decompressed token accounts as remaining accounts for MintToDecompressed actions

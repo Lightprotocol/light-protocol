@@ -13,7 +13,7 @@ pub mod create_token_account;
 pub mod extensions;
 pub mod mint;
 pub mod mint_action;
-pub mod mint_to_compressed;
+//pub mod mint_to_compressed;
 pub mod shared;
 pub mod transfer2;
 // pub mod update_metadata;
@@ -27,7 +27,7 @@ use create_associated_token_account::processor::process_create_associated_token_
 use crate::mint_action::processor::process_mint_action;
 use create_token_account::processor::process_create_token_account;
 use mint::processor::process_create_compressed_mint;
-use mint_to_compressed::processor::process_mint_to_compressed;
+//use mint_to_compressed::processor::process_mint_to_compressed;
 use update_mint::processor::process_update_compressed_mint;
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -108,8 +108,9 @@ pub fn process_instruction(
             process_create_compressed_mint(accounts, &instruction_data[1..])?;
         }
         InstructionType::MintToCompressed => {
-            anchor_lang::solana_program::msg!("MintToCompressed");
-            process_mint_to_compressed(accounts, &instruction_data[1..])?;
+            anchor_lang::solana_program::msg!("MintToCompressed unimplemented");
+            unimplemented!();
+            // process_mint_to_compressed(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateSplMint => {
             anchor_lang::solana_program::msg!("CreateSplMint unimplemented");
