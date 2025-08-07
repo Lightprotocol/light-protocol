@@ -197,6 +197,7 @@ arrayvec = "0.7"
 
 # Math and crypto
 num-bigint = "0.4.6"
+tabled = "0.20"
 num-traits = "0.2.19"
 zerocopy = { version = "0.8.25" }
 base64 = "0.13"

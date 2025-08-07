@@ -26,6 +26,7 @@ pub struct LightProgramTest {
     pub indexer: Option<TestIndexer>,
     pub test_accounts: TestAccounts,
     pub payer: Keypair,
+    pub transaction_counter: usize,
 }
 
 impl LightProgramTest {
@@ -58,6 +59,7 @@ impl LightProgramTest {
             test_accounts: TestAccounts::get_program_test_test_accounts(),
             payer,
             config: config.clone(),
+            transaction_counter: 0,
         };
         let keypairs = TestKeypairs::program_test_default();
 
@@ -112,6 +114,8 @@ impl LightProgramTest {
                 context.set_account(address_queue_pubkey, account);
             }
         }
+        // reset tx counter after program setup.
+        context.transaction_counter = 0;
         // Will always start a prover server.
         #[cfg(feature = "devenv")]
         let prover_config = if config.prover_config.is_none() {
