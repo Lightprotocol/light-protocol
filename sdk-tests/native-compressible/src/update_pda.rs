@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
+    cpi::{CpiAccountsConfig, CpiAccountsSmall, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
 };
@@ -36,18 +36,18 @@ pub fn update_pda<const BATCHED: bool>(
 
     let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
     sol_log_compute_units();
-    let cpi_accounts = CpiAccounts::try_new_with_config(
+    let cpi_accounts = CpiAccountsSmall::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
-    )?;
+    );
     sol_log_compute_units();
     let cpi_inputs = CpiInputs::new(
         instruction_data.proof,
         vec![my_compressed_account.to_account_info()?],
     );
     sol_log_compute_units();
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
     Ok(())
 }
 

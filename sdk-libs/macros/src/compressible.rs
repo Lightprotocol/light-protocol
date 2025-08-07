@@ -291,11 +291,11 @@ pub(crate) fn add_compressible_instructions(
                 return err!(ErrorCode::InvalidAccountCount);
             }
 
-            let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
-                &ctx.accounts.fee_payer,
-                &ctx.remaining_accounts[system_accounts_offset as usize..],
-                LIGHT_CPI_SIGNER,
-            );
+                            let cpi_accounts = light_sdk::cpi::CpiAccountsSmall::new(
+                    &ctx.accounts.fee_payer,
+                    &ctx.remaining_accounts[system_accounts_offset as usize..],
+                    LIGHT_CPI_SIGNER,
+                );
 
             // Get address space from config checked.
             let config = light_sdk::compressible::CompressibleConfig::load_checked(&ctx.accounts.config, &super::ID)?;
@@ -346,7 +346,7 @@ pub(crate) fn add_compressible_instructions(
                 msg!("No compressed accounts to decompress");
             } else {
                 let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, all_compressed_infos);
-                cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+                cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
             }
 
             Ok(())
@@ -433,7 +433,7 @@ pub(crate) fn add_compressible_instructions(
                     return err!(ErrorCode::InvalidRentRecipient);
                 }
 
-                let cpi_accounts = light_sdk::cpi::CpiAccounts::new(
+                let cpi_accounts = light_sdk::cpi::CpiAccountsSmall::new(
                     &ctx.accounts.user,
                     &ctx.remaining_accounts[..],
                     LIGHT_CPI_SIGNER,

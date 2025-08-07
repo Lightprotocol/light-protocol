@@ -214,7 +214,7 @@ async fn test_create_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -316,7 +316,7 @@ async fn test_create_game_session(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -623,7 +623,7 @@ async fn test_create_user_record_and_game_session(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -656,17 +656,7 @@ async fn test_create_user_record_and_game_session(
         user_record: *user_record_pda,
         game_session: *game_session_pda,
         mint_signer: mint_signer.pubkey(),
-        cpi_authority_pda: light_compressed_token_types::constants::CPI_AUTHORITY_PDA.into(),
-        light_system_program: light_sdk_types::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
-        account_compression_program: light_sdk_types::constants::ACCOUNT_COMPRESSION_PROGRAM_ID
-            .into(),
-        registered_program_pda: light_sdk_types::constants::REGISTERED_PROGRAM_PDA.into(),
-        noop_program: light_sdk_types::constants::NOOP_PROGRAM_ID.into(),
-        account_compression_authority:
-            light_sdk_types::constants::ACCOUNT_COMPRESSION_AUTHORITY_PDA.into(),
         compressed_token_program: light_sdk_types::constants::C_TOKEN_PROGRAM_ID.into(),
-        address_merkle_tree: address_tree_pubkey,
-        output_queue: rpc.get_address_tree_v2().queue,
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_recipient: RENT_RECIPIENT,
@@ -884,7 +874,7 @@ async fn test_compress_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -1764,7 +1754,7 @@ async fn test_create_placeholder_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;

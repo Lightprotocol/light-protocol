@@ -12,7 +12,7 @@ use crate::{
     account::sha::LightAccount,
     address::PackedNewAddressParams,
     compressible::HasCompressionInfo,
-    cpi::{CpiAccounts, CpiInputs},
+    cpi::{CpiAccountsSmall, CpiInputs},
     error::{LightSdkError, Result},
     instruction::ValidityProof,
     light_account_checks::AccountInfoTrait,
@@ -31,7 +31,7 @@ pub fn compress_account_on_init<'info, A>(
     address: &[u8; 32],
     new_address_param: &PackedNewAddressParams,
     output_state_tree_index: u8,
-    cpi_accounts: CpiAccounts<'_, 'info>,
+    cpi_accounts: CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
     proof: ValidityProof,
@@ -62,9 +62,18 @@ where
         rent_recipient,
     )?;
 
-    let cpi_inputs = CpiInputs::new_with_address(proof, compressed_infos, vec![*new_address_param]);
+    let cpi_inputs = CpiInputs::new_with_assigned_address(
+        proof,
+        compressed_infos,
+        vec![
+            light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(
+                *new_address_param,
+                None,
+            ),
+        ],
+    );
 
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
     Ok(())
 }
@@ -97,7 +106,7 @@ pub fn prepare_accounts_for_compression_on_init<'info, A>(
     addresses: &[[u8; 32]],
     new_address_params: &[PackedNewAddressParams],
     output_state_tree_indices: &[u8],
-    cpi_accounts: &CpiAccounts<'_, 'info>,
+    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
@@ -203,7 +212,7 @@ pub fn compress_empty_account_on_init<'info, A>(
     address: &[u8; 32],
     new_address_param: &PackedNewAddressParams,
     output_state_tree_index: u8,
-    cpi_accounts: CpiAccounts<'_, 'info>,
+    cpi_accounts: CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
     proof: ValidityProof,
 ) -> Result<()>
@@ -232,9 +241,18 @@ where
         address_space,
     )?;
 
-    let cpi_inputs = CpiInputs::new_with_address(proof, compressed_infos, vec![*new_address_param]);
+    let cpi_inputs = CpiInputs::new_with_assigned_address(
+        proof,
+        compressed_infos,
+        vec![
+            light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(
+                *new_address_param,
+                None,
+            ),
+        ],
+    );
 
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
     Ok(())
 }
@@ -268,7 +286,7 @@ pub fn prepare_empty_compressed_accounts_on_init<'info, A>(
     addresses: &[[u8; 32]],
     new_address_params: &[PackedNewAddressParams],
     output_state_tree_indices: &[u8],
-    cpi_accounts: &CpiAccounts<'_, 'info>,
+    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
@@ -395,7 +413,7 @@ pub fn compress_account_on_init_native<'info, A>(
     address: &[u8; 32],
     new_address_param: &PackedNewAddressParams,
     output_state_tree_index: u8,
-    cpi_accounts: CpiAccounts<'_, 'info>,
+    cpi_accounts: CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
     proof: ValidityProof,
@@ -427,9 +445,18 @@ where
         rent_recipient,
     )?;
 
-    let cpi_inputs = CpiInputs::new_with_address(proof, compressed_infos, vec![*new_address_param]);
+    let cpi_inputs = CpiInputs::new_with_assigned_address(
+        proof,
+        compressed_infos,
+        vec![
+            light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(
+                *new_address_param,
+                None,
+            ),
+        ],
+    );
 
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
     Ok(())
 }
@@ -466,7 +493,7 @@ pub fn prepare_accounts_for_compression_on_init_native<'info, A>(
     addresses: &[[u8; 32]],
     new_address_params: &[PackedNewAddressParams],
     output_state_tree_indices: &[u8],
-    cpi_accounts: &CpiAccounts<'_, 'info>,
+    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
     rent_recipient: &AccountInfo<'info>,
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
@@ -581,7 +608,7 @@ pub fn compress_empty_account_on_init_native<'info, A>(
     address: &[u8; 32],
     new_address_param: &PackedNewAddressParams,
     output_state_tree_index: u8,
-    cpi_accounts: CpiAccounts<'_, 'info>,
+    cpi_accounts: CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
     proof: ValidityProof,
 ) -> Result<()>
@@ -609,9 +636,18 @@ where
         address_space,
     )?;
 
-    let cpi_inputs = CpiInputs::new_with_address(proof, compressed_infos, vec![*new_address_param]);
+    let cpi_inputs = CpiInputs::new_with_assigned_address(
+        proof,
+        compressed_infos,
+        vec![
+            light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(
+                *new_address_param,
+                None,
+            ),
+        ],
+    );
 
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
     Ok(())
 }
@@ -640,7 +676,7 @@ pub fn prepare_empty_compressed_accounts_on_init_native<'info, A>(
     addresses: &[[u8; 32]],
     new_address_params: &[PackedNewAddressParams],
     output_state_tree_indices: &[u8],
-    cpi_accounts: &CpiAccounts<'_, 'info>,
+    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where

@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::sha::LightAccount,
     compressible::{prepare_accounts_for_decompress_idempotent, CompressibleConfig},
-    cpi::{CpiAccounts, CpiInputs},
+    cpi::{CpiAccountsSmall, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
 };
@@ -65,7 +65,7 @@ pub fn decompress_multiple_dynamic_pdas(
 
     // Light Protocol system accounts start after PDA accounts
     let system_accounts_start = pda_accounts_end;
-    let cpi_accounts = CpiAccounts::new(
+    let cpi_accounts = CpiAccountsSmall::new(
         fee_payer,
         &accounts[system_accounts_start..],
         crate::LIGHT_CPI_SIGNER,
@@ -161,7 +161,7 @@ pub fn decompress_multiple_dynamic_pdas(
 
     if !compressed_infos.is_empty() {
         let cpi_inputs = CpiInputs::new(instruction_data.proof, compressed_infos);
-        cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+        cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
     }
 
     Ok(())

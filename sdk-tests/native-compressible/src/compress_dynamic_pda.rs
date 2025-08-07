@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     compressible::{compress_pda_native, CompressibleConfig},
-    cpi::CpiAccounts,
+    cpi::CpiAccountsSmall,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
 };
@@ -57,7 +57,7 @@ pub fn compress_dynamic_pda(
 
     // Cpi accounts
     let cpi_config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    let cpi_accounts = CpiAccounts::new_with_config(&accounts[0], &accounts[4..], cpi_config);
+    let cpi_accounts = CpiAccountsSmall::new_with_config(&accounts[0], &accounts[4..], cpi_config);
 
     // Deserialize the PDA account data (skip the 8-byte discriminator)
     // Use a scope to ensure the borrow is dropped before compression

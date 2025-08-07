@@ -26,7 +26,7 @@ use light_sdk::{
         process_initialize_compression_config_checked, process_update_compression_config,
         CompressAs, CompressibleConfig, CompressionInfo, HasCompressionInfo,
     },
-    cpi::{CpiAccounts, CpiInputs},
+    cpi::CpiInputs,
     derive_light_cpi_signer,
     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
     light_hasher::{DataHasher, Hasher},
@@ -68,8 +68,9 @@ pub mod anchor_compressible {
         }
 
         // 3. Create CPI accounts
+        let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
@@ -178,6 +179,12 @@ pub mod anchor_compressible {
         let pda_accounts_end = system_accounts_offset as usize;
         let solana_accounts = &ctx.remaining_accounts[..pda_accounts_end];
 
+        msg!("program: solana_accounts len: {:?}", solana_accounts.len());
+        msg!(
+            "program: remaining_accounts len: {:?}",
+            ctx.remaining_accounts.len()
+        );
+        msg!("program: remaining_accounts: {:?}", ctx.remaining_accounts);
         // Validate we have matching number of PDAs, compressed accounts, and bumps
         if solana_accounts.len() != compressed_accounts.len()
             || solana_accounts.len() != bumps.len()
@@ -185,11 +192,18 @@ pub mod anchor_compressible {
             return err!(ErrorCode::InvalidAccountCount);
         }
 
-        let cpi_accounts = CpiAccounts::new(
-            &ctx.accounts.fee_payer,
+        let fee_payer_account_info = ctx.accounts.fee_payer.to_account_info();
+        let cpi_accounts = CpiAccountsSmall::new(
+            &fee_payer_account_info,
             &ctx.remaining_accounts[system_accounts_offset as usize..],
             LIGHT_CPI_SIGNER,
         );
+
+        msg!(
+            "program: cpi_accounts len: {:?}",
+            cpi_accounts.account_infos().len()
+        );
+        msg!("program: tree_accounts: {:?}", cpi_accounts.tree_accounts());
 
         // Get address space from config checked.
         let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
@@ -291,7 +305,7 @@ pub mod anchor_compressible {
             msg!("No compressed accounts to decompress");
         } else {
             let cpi_inputs = CpiInputs::new(proof, all_compressed_infos);
-            cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+            cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
         }
         Ok(())
     }
@@ -325,8 +339,9 @@ pub mod anchor_compressible {
         }
 
         // Create CPI accounts.
-        let cpi_accounts = CpiAccounts::new(
-            &ctx.accounts.player,
+        let player_account_info = ctx.accounts.player.to_account_info();
+        let cpi_accounts = CpiAccountsSmall::new(
+            &player_account_info,
             ctx.remaining_accounts,
             LIGHT_CPI_SIGNER,
         );
@@ -383,40 +398,7 @@ pub mod anchor_compressible {
         game_session.end_time = None;
         game_session.score = 0;
 
-        // Log compressed mint creation intent with metadata
-        msg!(
-            "Creating compressed mint with metadata: name={}, symbol={}, uri={}, decimals={}, supply={}",
-            account_data.mint_name,
-            account_data.mint_symbol,
-            account_data.mint_uri,
-            account_data.mint_decimals,
-            account_data.mint_supply
-        );
-
-        // Log mint authorities
-        msg!("Mint authority: {:?}", ctx.accounts.user.key());
-        if let Some(freeze_auth) = account_data.mint_freeze_authority {
-            msg!("Freeze authority: {:?}", freeze_auth);
-        }
-        if let Some(update_auth) = account_data.mint_update_authority {
-            msg!("Update authority: {:?}", update_auth);
-        }
-
-        // Log additional metadata if provided
-        if let Some(metadata) = &account_data.additional_metadata {
-            msg!("Additional metadata:");
-            for (key, value) in metadata {
-                msg!("  {}: {}", key, value);
-            }
-        }
-
-        // Create CPI accounts config for accessing system accounts
-        let cpi_config = CpiAccountsConfig {
-            cpi_signer: LIGHT_CPI_SIGNER,
-            cpi_context: true,
-            sol_pool_pda: false,
-            sol_compression_recipient: false,
-        };
+        let cpi_config = CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER);
 
         // Create CPI accounts from remaining accounts
         let cpi_accounts = CpiAccountsSmall::new_with_config(
@@ -551,9 +533,10 @@ pub mod anchor_compressible {
         msg!("Compressed mint with metadata created successfully");
 
         // Now continue with the original logic for user record and game session
-        // Create regular CPI accounts for compression since prepare_accounts_for_compression_on_init expects CpiAccounts
+        // Create regular CPI accounts for compression since prepare_accounts_for_compression_on_init expects CpiAccountsSmall
+        let user_account_info = ctx.accounts.user.to_account_info();
         let compression_cpi_accounts =
-            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         // Prepare new address params. One per pda account.
         let user_new_address_params = compression_params
@@ -608,7 +591,7 @@ pub mod anchor_compressible {
 
         // Invoke light system program to create all compressed accounts in one
         // CPI. Call at the end of your init instruction.
-        cpi_inputs.invoke_light_system_program(compression_cpi_accounts)?;
+        cpi_inputs.invoke_light_system_program_small(compression_cpi_accounts)?;
 
         Ok(())
     }
@@ -633,8 +616,9 @@ pub mod anchor_compressible {
             return err!(ErrorCode::InvalidRentRecipient);
         }
 
+        let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         compress_account::<UserRecord>(
             user_record,
@@ -667,8 +651,9 @@ pub mod anchor_compressible {
             return err!(ErrorCode::InvalidRentRecipient);
         }
 
-        let cpi_accounts = CpiAccounts::new(
-            &ctx.accounts.player,
+        let player_account_info = ctx.accounts.player.to_account_info();
+        let cpi_accounts = CpiAccountsSmall::new(
+            &player_account_info,
             ctx.remaining_accounts,
             LIGHT_CPI_SIGNER,
         );
@@ -718,8 +703,9 @@ pub mod anchor_compressible {
         }
 
         // Create CPI accounts
+        let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         let new_address_params =
             address_tree_info.into_new_address_params_packed(placeholder_record.key().to_bytes());
@@ -755,8 +741,9 @@ pub mod anchor_compressible {
             return err!(ErrorCode::InvalidRentRecipient);
         }
 
+        let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         compress_account::<PlaceholderRecord>(
             placeholder_record,

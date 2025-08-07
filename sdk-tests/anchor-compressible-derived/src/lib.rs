@@ -11,7 +11,7 @@ use light_sdk::{
         compress_account_on_init, prepare_accounts_for_compression_on_init, CompressibleConfig,
         HasCompressionInfo,
     },
-    cpi::{CpiAccounts, CpiInputs},
+    cpi::{CpiAccountsSmall, CpiInputs},
     derive_light_cpi_signer,
     instruction::{PackedAddressTreeInfo, ValidityProof},
 };
@@ -53,8 +53,9 @@ pub mod anchor_compressible_derived {
         }
 
         // 3. Create CPI accounts
+        let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         let new_address_params =
             address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
@@ -114,8 +115,9 @@ pub mod anchor_compressible_derived {
         game_session.score = 0;
 
         // Create CPI accounts.
+        let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccounts::new(&ctx.accounts.user, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         // Prepare new address params. One per pda account.
         let user_new_address_params = compression_params
@@ -170,7 +172,7 @@ pub mod anchor_compressible_derived {
 
         // Invoke light system program to create all compressed accounts in one
         // CPI. Call at the end of your init instruction.
-        cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+        cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
         Ok(())
     }

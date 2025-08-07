@@ -12,7 +12,8 @@ use solana_sysvar::Sysvar;
 
 use crate::{
     account::sha::LightAccount, compressible::compression_info::HasCompressionInfo,
-    cpi::CpiAccounts, error::LightSdkError, AnchorDeserialize, AnchorSerialize, LightDiscriminator,
+    cpi::CpiAccountsSmall, error::LightSdkError, AnchorDeserialize, AnchorSerialize,
+    LightDiscriminator,
 };
 
 /// Helper function to decompress multiple compressed accounts into PDAs
@@ -39,7 +40,7 @@ pub fn prepare_accounts_for_decompress_idempotent<'info, T>(
     solana_accounts: &[&AccountInfo<'info>],
     compressed_accounts: Vec<LightAccount<'_, T>>,
     solana_accounts_signer_seeds: &[&[&[u8]]],
-    cpi_accounts: &CpiAccounts<'_, 'info>,
+    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
     rent_payer: &AccountInfo<'info>,
     address_space: Pubkey,
 ) -> Result<Vec<CompressedAccountInfo>, LightSdkError>

@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     compressible::{compress_account_on_init_native, CompressibleConfig, CompressionInfo},
-    cpi::CpiAccounts,
+    cpi::CpiAccountsSmall,
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
 };
@@ -107,7 +107,8 @@ pub fn create_dynamic_pda(
     } // account_data borrow is dropped here
 
     // Cpi accounts
-    let cpi_accounts_struct = CpiAccounts::new(fee_payer, &accounts[5..], crate::LIGHT_CPI_SIGNER);
+    let cpi_accounts_struct =
+        CpiAccountsSmall::new(fee_payer, &accounts[5..], crate::LIGHT_CPI_SIGNER);
 
     // the onchain PDA is the seed for the cPDA. this way devs don't have to
     // change their onchain PDA checks.
