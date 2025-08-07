@@ -10,13 +10,13 @@ use light_compressed_token_sdk::instructions::{
 use light_ctoken_types::{
     instructions::{
         create_compressed_mint::CompressedMintWithContext,
-        extensions::{ExtensionInstructionData, token_metadata::TokenMetadataInstructionData},
+        extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
     },
     state::CompressedMint,
 };
 use solana_instruction::Instruction;
-use solana_pubkey::Pubkey;
 use solana_keypair::Keypair;
+use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 /// Parameters for creating a new mint
@@ -46,8 +46,11 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     params: MintActionParams,
 ) -> Result<Instruction, RpcError> {
     // Check if we're creating a new mint
-    let is_creating_mint = params.actions.iter().any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
-    
+    let is_creating_mint = params
+        .actions
+        .iter()
+        .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
+
     // Get address tree and output queue info
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let state_tree_info = rpc.get_random_state_tree_info()?;
@@ -70,7 +73,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         let new_mint = params.new_mint.as_ref().ok_or_else(|| {
             RpcError::CustomError("NewMint parameters required for mint creation".to_string())
         })?;
-        
+
         let mint_data = light_ctoken_types::instructions::create_compressed_mint::CompressedMintInstructionData {
             version: new_mint.version,
             spl_mint: find_spl_mint_address(&params.mint_seed).0.to_bytes().into(),
@@ -86,7 +89,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
         let compressed_mint_inputs = CompressedMintWithContext {
             prove_by_index: false, // Use full proof for creation
-            leaf_index: 0, // Not applicable for creation
+            leaf_index: 0,         // Not applicable for creation
             root_index: rpc_proof_result.addresses[0].root_index,
             address: params.compressed_mint_address,
             mint: mint_data,
@@ -101,11 +104,12 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             .value;
 
         // Deserialize the compressed mint
-        let compressed_mint: CompressedMint =
-            BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-                .map_err(|e| {
-                    RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e))
-                })?;
+        let compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .map_err(|e| {
+            RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e))
+        })?;
 
         let rpc_proof_result = rpc
             .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
@@ -144,27 +148,26 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         proof,
         actions: params.actions,
         // address_tree when create_mint, input state tree when not
-        address_tree_pubkey: if is_creating_mint { 
-            address_tree_pubkey 
-        } else { 
-            state_tree_info.tree 
+        address_tree_pubkey: if is_creating_mint {
+            address_tree_pubkey
+        } else {
+            state_tree_info.tree
         },
         // input_queue only needed when operating on existing mint
-        input_queue: if is_creating_mint { 
-            None 
-        } else { 
-            Some(state_tree_info.queue) 
+        input_queue: if is_creating_mint {
+            None
+        } else {
+            Some(state_tree_info.queue)
         },
         output_queue: state_tree_info.queue,
         tokens_out_queue: Some(state_tree_info.queue), // Output queue for tokens
-        cpi_context: None, // CPI context will be added if needed
     };
 
     // Create the instruction using the SDK
     let instruction = create_mint_action(instruction_inputs).map_err(|e| {
         RpcError::CustomError(format!("Failed to create mint action instruction: {:?}", e))
     })?;
-    
+
     Ok(instruction)
 }
 
@@ -184,7 +187,8 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
 ) -> Result<Instruction, RpcError> {
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address = derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
     let (_, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
     // Build actions
@@ -199,7 +203,7 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
             .into_iter()
             .map(|(recipient, amount)| MintToRecipient { recipient, amount })
             .collect();
-        
+
         actions.push(MintActionType::MintTo {
             recipients,
             lamports,

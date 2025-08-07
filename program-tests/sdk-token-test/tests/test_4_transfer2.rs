@@ -241,6 +241,7 @@ async fn mint_compressed_tokens(
 
     let mint_to_instruction = create_mint_to_compressed_instruction(
         MintToCompressedInputs {
+            cpi_context_pubkey: None,
             compressed_mint_inputs: CompressedMintWithContext {
                 prove_by_index: true,
                 leaf_index: compressed_mint_account.leaf_index,

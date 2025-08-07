@@ -1,5 +1,6 @@
-use super::CreateCompressedMint;
-use crate::processor::ChainedCtokenInstructionData;
+use crate::ChainedCtokenInstructionData;
+
+use super::CTokenPda;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke;
 use light_compressed_token_sdk::instructions::mint_action::{
@@ -8,8 +9,8 @@ use light_compressed_token_sdk::instructions::mint_action::{
 use light_compressed_token_sdk::instructions::{mint_action_cpi_write, MintActionInputsCpiWrite};
 use light_sdk::cpi::CpiAccountsSmall;
 
-pub fn process_mint_action<'a, 'b, 'c, 'info>(
-    ctx: &Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
+pub fn process_mint_action<'c, 'info>(
+    ctx: &Context<'_, '_, 'c, 'info, CTokenPda<'info>>,
     input: &ChainedCtokenInstructionData,
     cpi_accounts: &CpiAccountsSmall<'c, 'info>,
 ) -> Result<()> {
@@ -21,11 +22,6 @@ pub fn process_mint_action<'a, 'b, 'c, 'info>(
         },
         MintActionType::UpdateMintAuthority {
             new_authority: input.final_mint_authority,
-        },
-        MintActionType::MintToDecompressed {
-            account: ctx.accounts.token_account.key(),
-            amount: input.token_recipients.first().map(|r| r.amount).unwrap_or(1000),
-            compressible_config: None,
         },
     ];
 
@@ -59,7 +55,7 @@ pub fn process_mint_action<'a, 'b, 'c, 'info>(
         cpi_authority_pda: ctx.accounts.ctoken_cpi_authority.as_ref(),
         cpi_context: cpi_accounts.cpi_context().unwrap(),
         cpi_signer: crate::LIGHT_CPI_SIGNER,
-        recipient_token_accounts: vec![ctx.accounts.token_account.as_ref()],
+        recipient_token_accounts: vec![],
     };
 
     invoke(

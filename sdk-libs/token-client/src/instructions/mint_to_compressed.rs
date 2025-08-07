@@ -81,6 +81,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     // Create the instruction
     create_mint_to_compressed_instruction(
         MintToCompressedInputs {
+            cpi_context_pubkey: None,
             compressed_mint_inputs,
             lamports,
             recipients,

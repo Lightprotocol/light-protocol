@@ -42,16 +42,27 @@ pub fn process_create_mint_action(
         return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
     // 2. Create NewAddressParams
-    let address_merkle_tree_account_index =
-        if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
-            cpi_context.in_tree_index
-        } else {
-            1 // Address tree is at index 1 after out_output_queue
-        };
+    // TODO: unify in queue indices.
+    let address_merkle_tree_account_index = parsed_instruction_data
+        .cpi_context
+        .as_ref()
+        .map(|ctx| ctx.in_tree_index)
+        .unwrap_or(1);
+    //   if let Some(cpi_context) = parsed_instruction_data.cpi_context.as_ref() {
+    //         cpi_context.in_tree_index
+    //     } else {
+    //          1 // Address tree is at index 1 after out_output_queue
+    //     };
     cpi_instruction_struct.new_address_params[0].set(
         spl_mint_pda.to_bytes(),
-        parsed_instruction_data.root_index.into(),
-        Some(0),
+        parsed_instruction_data.root_index,
+        Some(
+            parsed_instruction_data
+                .cpi_context
+                .as_ref()
+                .map(|ctx| ctx.assigned_account_index)
+                .unwrap_or_default(),
+        ),
         address_merkle_tree_account_index,
     );
     // Validate mint parameters

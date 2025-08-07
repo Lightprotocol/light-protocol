@@ -22,6 +22,7 @@ use crate::{
     },
     AnchorDeserialize, AnchorSerialize,
 };
+use solana_msg::msg;
 
 pub const MINT_ACTION_DISCRIMINATOR: u8 = 106;
 
@@ -40,7 +41,8 @@ pub struct MintActionInputs {
     pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub output_queue: Pubkey,
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
-    pub cpi_context: Option<CpiContext>,
+                                          //pub cpi_context: Option<CpiContext>,
+                                          // pub cpi_context_pubkey: Option<Pubkey>,
 }
 
 /// High-level action types for the mint action instruction
@@ -77,6 +79,7 @@ pub struct MintToRecipient {
 pub fn create_mint_action_cpi(
     input: MintActionInputs,
     cpi_context: Option<CpiContext>,
+    cpi_context_pubkey: Option<Pubkey>,
 ) -> Result<Instruction> {
     // Convert high-level actions to program-level actions
     let mut program_actions = Vec::new();
@@ -98,17 +101,17 @@ pub fn create_mint_action_cpi(
         .iter()
         .any(|action| matches!(action, MintActionType::CreateSplMint { .. }))
         || input.compressed_mint_inputs.mint.is_decompressed;
-    let has_mint_to_actions = input.actions.iter().any(|action| {
-        matches!(action, MintActionType::MintTo { .. })
-    });
-    let with_cpi_context = cpi_context.is_some();
+    let has_mint_to_actions = input
+        .actions
+        .iter()
+        .any(|action| matches!(action, MintActionType::MintTo { .. }));
     // Match onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
     let with_mint_signer = create_mint
         || input
             .actions
             .iter()
             .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
-    
+
     // Only require mint to sign when creating a new compressed mint
     let mint_needs_to_sign = create_mint;
 
@@ -193,7 +196,7 @@ pub fn create_mint_action_cpi(
         with_lamports,
         is_decompressed,
         has_mint_to_actions,
-        with_cpi_context,
+        with_cpi_context: cpi_context_pubkey,
         create_mint,
         with_mint_signer,
         mint_needs_to_sign,
@@ -203,7 +206,7 @@ pub fn create_mint_action_cpi(
     // Get account metas (before moving compressed_mint_inputs)
     let accounts =
         get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
-
+    msg!("account metas {:?}", accounts);
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
         mint_bump,
@@ -231,7 +234,7 @@ pub fn create_mint_action_cpi(
 
 /// Creates a mint action instruction without CPI context
 pub fn create_mint_action(input: MintActionInputs) -> Result<Instruction> {
-    create_mint_action_cpi(input, None)
+    create_mint_action_cpi(input, None, None)
 }
 
 /// Input struct for creating a mint action CPI write instruction
@@ -269,7 +272,7 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
             .actions
             .iter()
             .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
-    
+
     // Only require mint to sign when creating a new compressed mint
     let mint_needs_to_sign = create_mint;
 

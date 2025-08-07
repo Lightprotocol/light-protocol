@@ -21,7 +21,10 @@ pub fn process_token_compression(
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
         for compression in compressions {
-            let source_or_recipient = packed_accounts.get_u8(compression.source_or_recipient)?;
+            let source_or_recipient = packed_accounts.get_u8(
+                compression.source_or_recipient,
+                "compression source or recipient",
+            )?;
 
             match unsafe { source_or_recipient.owner() } {
                 ID => {
@@ -65,9 +68,11 @@ fn process_native_compressions(
     // Validate compression fields for the given mode
     validate_compression_mode_fields(compression)?;
     // Get authority account and effective compression amount
-    let authority_account = packed_accounts.get_u8(compression.authority)?;
+    let authority_account = packed_accounts.get_u8(compression.authority, "authority")?;
     // TODO: add get_checked_account from  PackedAccounts.
-    let mint_account = *packed_accounts.get_u8(compression.mint)?.key();
+    let mint_account = *packed_accounts
+        .get_u8(compression.mint, "token mint")?
+        .key();
     native_compression(
         Some(&authority_account),
         (*compression.amount).into(),

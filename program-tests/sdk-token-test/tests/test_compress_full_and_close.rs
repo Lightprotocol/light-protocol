@@ -134,6 +134,7 @@ async fn test_compress_full_and_close() {
 
     let mint_instruction = create_mint_to_compressed_instruction(
         MintToCompressedInputs {
+            cpi_context_pubkey: None,
             proof: None,
             compressed_mint_inputs,
             lamports: Some(10000u64),

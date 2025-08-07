@@ -1,6 +1,7 @@
-use super::CreateCompressedMint;
-use crate::chained_ctoken::create_pda::process_create_escrow_pda;
-use crate::mint::process_mint_action;
+use super::mint::process_mint_action;
+
+use super::create_pda::process_create_escrow_pda_with_cpi_context;
+use super::PdaCToken;
 use anchor_lang::prelude::*;
 use light_compressed_token_sdk::instructions::mint_action::MintToRecipient;
 
@@ -24,10 +25,11 @@ pub struct PdaCreationData {
     pub address: [u8; 32],
     pub proof: ValidityProof,
 }
-
+// TODO: remove mint to compressed
+// TODO: create a second ix which switches the cpis.
 use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
-pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, CreateCompressedMint<'info>>,
+pub fn process_pda_ctoken<'info>(
+    ctx: Context<'_, '_, '_, 'info, PdaCToken<'info>>,
     input: ChainedCtokenInstructionData,
 ) -> Result<()> {
     let config = CpiAccountsConfig {
@@ -42,18 +44,15 @@ pub fn process_chained_ctoken<'a, 'b, 'c, 'info>(
         ctx.remaining_accounts,
         config,
     );
-
-    process_mint_action(&ctx, &input, &cpi_accounts)
-        .map_err(|e| ProgramError::from(e))?;
-
-    process_create_escrow_pda(
-        input.pda_creation.proof,
+    process_create_escrow_pda_with_cpi_context(
         input.output_tree_index,
         input.pda_creation.amount,
         input.pda_creation.address,
         input.new_address_params,
-        cpi_accounts,
+        &cpi_accounts,
     )?;
+
+    process_mint_action(&ctx, &input, &cpi_accounts)?;
 
     Ok(())
 }

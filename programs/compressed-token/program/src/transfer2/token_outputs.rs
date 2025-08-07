@@ -31,16 +31,17 @@ pub fn set_output_compressed_accounts(
         total_output_lamports += output_lamports;
 
         let mint_index = output_data.mint;
-        let mint_account = packed_accounts.get_u8(mint_index)?;
+        let mint_account = packed_accounts.get_u8(mint_index, "token mint")?;
         let hashed_mint = hash_cache.get_or_hash_pubkey(mint_account.key());
 
         // Get owner account using owner index
-        let owner_account = packed_accounts.get_u8(output_data.owner)?;
+        let owner_account = packed_accounts.get_u8(output_data.owner, "token owner")?;
         let owner_pubkey = *owner_account.key();
 
         // Get delegate if present
         let delegate_pubkey = if output_data.delegate != 0 {
-            let delegate_account = packed_accounts.get_u8(output_data.delegate)?;
+            let delegate_account =
+                packed_accounts.get_u8(output_data.delegate, "token delegete")?;
             Some(*delegate_account.key())
         } else {
             None

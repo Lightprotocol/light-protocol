@@ -44,17 +44,23 @@ impl<'info> MintActionAccounts<'info> {
         // Static non-CPI accounts first
         let authority = iter.next_signer("authority")?;
         if config.write_to_cpi_context {
+            let write_to_cpi_context_system =
+                CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?;
+
+            if iter
+                .next_account("out of bounds account should not exist.")
+                .is_ok()
+            {
+                msg!("Too many accounts for write to cpi context.");
+                return Err(ProgramError::InvalidAccountData);
+            }
             Ok(MintActionAccounts {
                 light_system_program,
                 mint_signer,
                 authority,
                 executing: None,
-                write_to_cpi_context_system: Some(
-                    CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?,
-                ),
-                packed_accounts: ProgramPackedAccounts {
-                    accounts: iter.remaining_unchecked()?,
-                },
+                write_to_cpi_context_system: Some(write_to_cpi_context_system),
+                packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
             let mint = iter.next_option_mut("mint", config.is_decompressed)?;
@@ -76,7 +82,16 @@ impl<'info> MintActionAccounts<'info> {
             // Only needed for minting to compressed token accounts
             let tokens_out_queue =
                 iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
-
+            msg!(
+                "in merkle tree {:?}",
+                solana_pubkey::Pubkey::new_from_array(*in_merkle_tree.key())
+            );
+            if let Some(tokens_out_queue) = tokens_out_queue {
+                msg!(
+                    "tokens_out_queue {:?}",
+                    solana_pubkey::Pubkey::new_from_array(*tokens_out_queue.key())
+                );
+            }
             Ok(MintActionAccounts {
                 mint_signer,
                 light_system_program,

@@ -33,7 +33,7 @@ pub fn create_spl_mint_instruction(inputs: CreateSplMintInputs) -> Result<Instru
 pub fn create_spl_mint_instruction_with_bump(
     inputs: CreateSplMintInputs,
     _token_pool_pda: Pubkey, // Unused in mint_action, kept for API compatibility
-    _cpi_context: bool,      // Unused in mint_action, kept for API compatibility  
+    _cpi_context: bool,      // Unused in mint_action, kept for API compatibility
 ) -> Result<Instruction> {
     let CreateSplMintInputs {
         mint_signer,
@@ -41,8 +41,8 @@ pub fn create_spl_mint_instruction_with_bump(
         compressed_mint_inputs,
         proof,
         payer,
-        input_merkle_tree,       // Used for existing compressed mint
-        input_output_queue,      // Used for existing compressed mint input queue
+        input_merkle_tree,  // Used for existing compressed mint
+        input_output_queue, // Used for existing compressed mint input queue
         output_queue,
         mint_authority,
     } = inputs;
@@ -62,7 +62,6 @@ pub fn create_spl_mint_instruction_with_bump(
         input_queue: Some(input_output_queue), // Input queue for existing compressed mint
         output_queue,
         tokens_out_queue: None, // No tokens being minted in CreateSplMint
-        cpi_context: None, // Standard non-CPI context
     };
 
     create_mint_action(mint_action_inputs)

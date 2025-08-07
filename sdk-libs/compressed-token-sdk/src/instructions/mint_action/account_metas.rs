@@ -17,7 +17,7 @@ pub struct MintActionMetaConfig {
     pub with_lamports: bool,
     pub is_decompressed: bool,
     pub has_mint_to_actions: bool, // Whether we have MintTo actions
-    pub with_cpi_context: bool,
+    pub with_cpi_context: Option<Pubkey>,
     pub create_mint: bool,
     pub with_mint_signer: bool,
     pub mint_needs_to_sign: bool, // Only true when creating new compressed mint
@@ -37,7 +37,7 @@ impl MintActionMetaConfig {
         with_lamports: bool,
         is_decompressed: bool,
         has_mint_to_actions: bool,
-        with_cpi_context: bool,
+        with_cpi_context: Option<Pubkey>,
         create_mint: bool,
         with_mint_signer: bool,
         mint_needs_to_sign: bool,
@@ -169,9 +169,8 @@ pub fn get_mint_action_instruction_account_metas(
     // Skip this as decompress_sol is false in mint_action
 
     // cpi_context (optional)
-    if config.with_cpi_context {
-        // CPI context account would be added here
-        // For now, we'll handle this in the client layer
+    if let Some(cpi_context) = config.with_cpi_context {
+        metas.push(AccountMeta::new(cpi_context, false));
     }
 
     // After LightSystemAccounts, add the remaining accounts to match onchain expectations:

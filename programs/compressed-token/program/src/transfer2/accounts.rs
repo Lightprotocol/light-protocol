@@ -26,15 +26,16 @@ pub struct ProgramPackedAccounts<'info> {
 
 impl ProgramPackedAccounts<'_> {
     /// Get account by index with bounds checking
-    pub fn get(&self, index: usize) -> Result<&AccountInfo, ProgramError> {
-        self.accounts
-            .get(index)
-            .ok_or(ProgramError::NotEnoughAccountKeys)
+    pub fn get(&self, index: usize, name: &str) -> Result<&AccountInfo, ProgramError> {
+        self.accounts.get(index).ok_or({
+            msg!("Account {} index {} out of bounds", name, index);
+            ProgramError::NotEnoughAccountKeys
+        })
     }
 
     /// Get account by u8 index with bounds checking
-    pub fn get_u8(&self, index: u8) -> Result<&AccountInfo, ProgramError> {
-        self.get(index as usize)
+    pub fn get_u8(&self, index: u8, name: &str) -> Result<&AccountInfo, ProgramError> {
+        self.get(index as usize, name)
     }
 }
 

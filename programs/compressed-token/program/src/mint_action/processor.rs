@@ -66,7 +66,6 @@ pub fn process_mint_action(
     msg!("accounts_config {:?}", accounts_config);
     // Validate and parse
     let validated_accounts = MintActionAccounts::validate_and_parse(accounts, &accounts_config)?;
-    sol_log_compute_units();
 
     let (config, mut cpi_bytes, mint_size_config, idempotent) =
         get_zero_copy_configs(&mut parsed_instruction_data)?;
@@ -92,6 +91,7 @@ pub fn process_mint_action(
 
     sol_log_compute_units();
     let mut hash_cache = HashCache::new();
+    // TODO: unify with cpi context
     let queue_indices = QueueIndices::new(&parsed_instruction_data, &validated_accounts)?;
     let compressed_lamports = parsed_instruction_data
         .actions
@@ -350,6 +350,7 @@ fn process_actions<'a>(
                     parsed_instruction_data.mint.spl_mint,
                 )?;
                 compressed_mint.supply = new_supply.into();
+                msg!("done Processing MintToDecompressed action");
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {
                 msg!("Processing UpdateMetadataField action");

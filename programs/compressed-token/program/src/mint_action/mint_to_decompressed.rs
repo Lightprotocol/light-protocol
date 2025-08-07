@@ -27,8 +27,11 @@ pub fn process_mint_to_decompressed_action(
     handle_decompressed_mint_to_token_pool(validated_accounts, accounts_config, amount, mint)?;
 
     // Get the recipient token account from packed accounts using the index
-    let token_account_info = packed_accounts.get_u8(action.recipient.account_index)?;
-    
+    let token_account_info = packed_accounts.get_u8(
+        action.recipient.account_index,
+        "decompressed mint to recipient",
+    )?;
+
     // For decompression (minting tokens into account), no authority check is needed
     // The mint authority validation happens at the mint_action level
     native_compression(
