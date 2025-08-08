@@ -33,8 +33,10 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 pub mod anchor_compressible {
 
     use light_compressed_token_sdk::instructions::{
-        mint_action::MintActionCpiWriteAccounts, mint_action_cpi_write, MintActionInputsCpiWrite,
+        create_mint_action_cpi, mint_action::MintActionCpiWriteAccounts, mint_action_cpi_write,
+        MintActionInputs, MintActionInputsCpiWrite,
     };
+    use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 
     use super::*;
 
@@ -180,7 +182,7 @@ pub mod anchor_compressible {
             "program: remaining_accounts len: {:?}",
             ctx.remaining_accounts.len()
         );
-        msg!("program: remaining_accounts: {:?}", ctx.remaining_accounts);
+        // msg!("program: remaining_accounts: {:?}", ctx.remaining_accounts);
         // Validate we have matching number of PDAs, compressed accounts, and bumps
         if solana_accounts.len() != compressed_accounts.len()
             || solana_accounts.len() != bumps.len()
@@ -399,91 +401,27 @@ pub mod anchor_compressible {
         game_session.end_time = None;
         game_session.score = 0;
 
-        let cpi_config = CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER);
-
-        msg!("program: remaining_accounts: {:?}", ctx.remaining_accounts);
         // Create CPI accounts from remaining accounts
         let cpi_accounts = CpiAccountsSmall::new_with_config(
             ctx.accounts.user.as_ref(),
             ctx.remaining_accounts,
-            cpi_config,
+            CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
         );
+        let cpi_context_pubkey = cpi_accounts.cpi_context().unwrap().key();
+        let cpi_context_account = cpi_accounts.cpi_context().unwrap();
 
         msg!(
             "program: cpi_accounts.cpi_context(): {:?}",
             cpi_accounts.cpi_context()
         );
 
-        let actions = vec![
-            // MintActionType::MintTo {
-            //     recipients: input.token_recipients.clone(),
-            //     lamports: input.lamports,
-            //     token_account_version: input.compressed_mint_with_context.mint.version,
-            // },
-            // MintActionType::UpdateMintAuthority {
-            //     new_authority: input.final_mint_authority,
-            // },
-            // MintActionType::MintToDecompressed {
-            //     account: ctx.accounts.token_account.key(),
-            //     amount: input
-            //         .token_recipients
-            //         .first()
-            //         .map(|r| r.amount)
-            //         .unwrap_or(1000),
-            //     compressible_config: None,
-            // },
-        ];
-
-        let mint_action_inputs = MintActionInputsCpiWrite {
-            compressed_mint_inputs: compression_params.mint_with_context.clone().into(),
-            mint_seed: Some(ctx.accounts.mint_signer.key()),
-            mint_bump: Some(compression_params.mint_bump),
-            create_mint: true,
-            authority: ctx.accounts.mint_authority.key(),
-            payer: ctx.accounts.user.key(),
-            actions,
-            input_queue: None, // Not needed for create_mint: true
-            cpi_context: light_ctoken_types::instructions::mint_actions::CpiContext {
-                set_context: false,
-                first_set_context: true,
-                in_tree_index: 0,
-                in_queue_index: 1,
-                out_queue_index: 1,
-                token_out_queue_index: 1,
-                assigned_account_index: 0,
-            },
-            cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
-        };
-
-        let mint_action_instruction = mint_action_cpi_write(mint_action_inputs).unwrap();
-        let mint_action_account_infos = MintActionCpiWriteAccounts {
-            light_system_program: cpi_accounts.system_program().unwrap(),
-            mint_signer: Some(ctx.accounts.mint_signer.as_ref()),
-            authority: ctx.accounts.mint_authority.as_ref(),
-            fee_payer: ctx.accounts.user.as_ref(),
-            cpi_authority_pda: ctx.accounts.compress_token_program_cpi_authority.as_ref(),
-            cpi_context: cpi_accounts.cpi_context().unwrap(),
-            cpi_signer: crate::LIGHT_CPI_SIGNER,
-            recipient_token_accounts: vec![], // why needed.
-        };
-
-        msg!("invoke token start!");
-        msg!("mint_action_account_infos: {:?}", mint_action_account_infos);
-
-        invoke(
-            &mint_action_instruction,
-            &mint_action_account_infos.to_account_infos(),
-        )?;
-
-        msg!("invoke token done!");
-
         // Prepare new address params. One per pda account.
         let user_new_address_params = compression_params
             .user_address_tree_info
-            .into_new_address_params_assigned_packed(user_record.key().to_bytes(), true, Some(1));
+            .into_new_address_params_assigned_packed(user_record.key().to_bytes(), true, Some(0));
         let game_new_address_params = compression_params
             .game_address_tree_info
-            .into_new_address_params_assigned_packed(game_session.key().to_bytes(), true, Some(2));
+            .into_new_address_params_assigned_packed(game_session.key().to_bytes(), true, Some(1));
 
         let mut all_compressed_infos = Vec::new();
 
@@ -521,28 +459,99 @@ pub mod anchor_compressible {
         )?;
         all_compressed_infos.extend(game_compressed_infos);
 
-        // Create CPI inputs with all compressed accounts and new addresses
-        // let cpi_inputs = CpiInputs::new_with_address(
-        //     compression_params.proof,
-        //     all_compressed_infos,
-        //     vec![user_new_address_params, game_new_address_params],
-        // );
         let cpi_inputs = CpiInputs {
-            proof: compression_params.proof,
+            proof: ValidityProof(None), //compression_params.proof,
             account_infos: Some(all_compressed_infos),
             new_assigned_addresses: Some(vec![user_new_address_params, game_new_address_params]),
             cpi_context: Some(CompressedCpiContext {
                 set_context: false,
-                first_set_context: false,
-                cpi_context_account_index: 0,
+                first_set_context: true,
+                cpi_context_account_index: 0, // Unused
             }),
             ..Default::default()
         };
         msg!("invoke .pda");
 
-        // Invoke light system program to create all compressed accounts in one
-        // CPI. Call at the end of your init instruction.
-        cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+        let cpi_context_accounts = CpiContextWriteAccounts {
+            fee_payer: cpi_accounts.fee_payer(),
+            authority: cpi_accounts.authority().unwrap(),
+            cpi_context: cpi_context_account,
+            cpi_signer: LIGHT_CPI_SIGNER,
+        };
+        cpi_inputs.invoke_light_system_program_cpi_context(cpi_context_accounts)?;
+
+        let actions = vec![];
+
+        // TODO: pass.
+        msg!("TREE ACCOUNTS {:?}", cpi_accounts.tree_accounts().unwrap());
+        let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key; // Same tree as PDA
+        let address_tree_pubkey = *cpi_accounts.tree_accounts().unwrap()[1].key; // Same tree as PDA
+
+        msg!("output_queue {:?}", output_queue);
+        msg!("address_tree_pubkey {:?}", address_tree_pubkey);
+        msg!("mint_authority {:?}", ctx.accounts.mint_authority.key);
+        msg!("mint_authority {:?}", ctx.accounts.mint_authority.is_signer);
+        msg!("mint_signer {:?}", ctx.accounts.mint_signer.key);
+        msg!("mint_signer {:?}", ctx.accounts.mint_signer.is_signer);
+        let mint_action_inputs = MintActionInputs {
+            compressed_mint_inputs: compression_params.mint_with_context.clone().into(),
+            mint_seed: ctx.accounts.mint_signer.key(),
+            mint_bump: Some(compression_params.mint_bump),
+            create_mint: true,
+            authority: ctx.accounts.mint_authority.key(),
+            payer: ctx.accounts.user.key(),
+            proof: compression_params.proof.into(),
+            actions,
+            input_queue: None, // Not needed for create_mint: true
+            output_queue,
+            tokens_out_queue: Some(output_queue), // For MintTo actions
+            address_tree_pubkey,
+        };
+
+        let mint_action_instruction = create_mint_action_cpi(
+            mint_action_inputs,
+            Some(light_ctoken_types::instructions::mint_actions::CpiContext {
+                set_context: false,
+                first_set_context: false,
+                in_tree_index: 1, // address tree
+                in_queue_index: 0,
+                out_queue_index: 0,
+                token_out_queue_index: 0,
+                assigned_account_index: 2,
+            }),
+            Some(cpi_context_pubkey),
+        )
+        .unwrap();
+
+        msg!("invoke token start!");
+        // Get all account infos needed for the mint action
+        let mut account_infos = cpi_accounts.to_account_infos();
+        account_infos.push(
+            ctx.accounts
+                .compress_token_program_cpi_authority
+                .to_account_info(),
+        );
+        account_infos.push(ctx.accounts.compressed_token_program.to_account_info());
+        account_infos.push(ctx.accounts.mint_authority.to_account_info());
+        account_infos.push(ctx.accounts.mint_signer.to_account_info());
+        account_infos.push(ctx.accounts.user.to_account_info());
+        // account_infos.push(ctx.accounts.token_account.to_account_info());
+        msg!(
+            "mint_action_instruction {:?}",
+            mint_action_instruction.accounts
+        );
+        // msg!("account_infos {:?}", account_infos);
+        msg!(
+            "account infos pubkeys {:?}",
+            account_infos
+                .iter()
+                .map(|info| info.key)
+                .collect::<Vec<_>>()
+        );
+        // Invoke the mint action instruction directly
+        invoke(&mint_action_instruction, &account_infos)?;
+
+        msg!("invoke token done!");
 
         Ok(())
     }

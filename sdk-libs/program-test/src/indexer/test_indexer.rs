@@ -1918,6 +1918,8 @@ impl TestIndexer {
                 queues.push(bundle.accounts.nullifier_queue);
                 cpi_contextes.push(bundle.accounts.cpi_context);
                 tree_types.push(bundle.tree_type);
+                println!("merkle_tree {:?}", merkle_tree);
+                println!("account {:?}", account);
                 let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
                 let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 

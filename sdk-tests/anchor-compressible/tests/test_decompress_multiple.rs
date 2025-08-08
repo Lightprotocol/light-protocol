@@ -734,6 +734,10 @@ async fn test_create_user_record_and_game_session(
         .unwrap()
         .value;
 
+    let user_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
+    let game_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
+    let mint_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
+
     // Pack tree infos into remaining accounts
     let packed_tree_infos = rpc_result.pack_tree_infos(&mut remaining_accounts);
 
@@ -746,9 +750,8 @@ async fn test_create_user_record_and_game_session(
     println!("mint_address_tree_info: {:?}", mint_address_tree_info);
 
     // Get output state tree indices
-    let user_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
-    let game_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
-    let mint_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
+    // TODO: remove after debug.
+    // let state_tree_idx = remaining_accounts.insert_or_get(state_tree_info.tree);
 
     println!(
         "mint_output_state_tree_index: {:?}",
@@ -808,6 +811,15 @@ async fn test_create_user_record_and_game_session(
         accounts: [accounts.to_account_metas(None), system_accounts].concat(),
         data: instruction_data.data(),
     };
+
+    println!(
+        "instruction accounts pubkeys:  {:?}",
+        instruction
+            .accounts
+            .iter()
+            .map(|a| a.pubkey)
+            .collect::<Vec<_>>()
+    );
     // let cu = simulate_cu(rpc, user, &instruction).await;
     // println!("CreateUserRecordAndGameSession CU consumed: {}", cu);
     println!("creating and sending transaction...");
