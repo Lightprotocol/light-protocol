@@ -3,6 +3,8 @@ use anchor_lang::{
     AccountsClose,
     {prelude::Account, AccountDeserialize, AccountSerialize},
 };
+#[cfg(feature = "anchor")]
+use light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked;
 use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
 use solana_msg::msg;
@@ -29,7 +31,7 @@ use anchor_lang::Key;
 pub fn compress_account_on_init<'info, A>(
     solana_account: &mut Account<'info, A>,
     address: &[u8; 32],
-    new_address_param: &PackedNewAddressParams,
+    new_address_param: &NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
     cpi_accounts: CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
@@ -49,7 +51,7 @@ where
 {
     let mut solana_accounts: [&mut Account<'info, A>; 1] = [solana_account];
     let addresses: [[u8; 32]; 1] = [*address];
-    let new_address_params: [PackedNewAddressParams; 1] = [*new_address_param];
+    let new_address_params: [NewAddressParamsAssignedPacked; 1] = [*new_address_param];
     let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
 
     let compressed_infos = prepare_accounts_for_compression_on_init(
@@ -62,16 +64,8 @@ where
         rent_recipient,
     )?;
 
-    let cpi_inputs = CpiInputs::new_with_assigned_address(
-        proof,
-        compressed_infos,
-        vec![
-            light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(
-                *new_address_param,
-                None,
-            ),
-        ],
-    );
+    let cpi_inputs =
+        CpiInputs::new_with_assigned_address(proof, compressed_infos, vec![*new_address_param]);
 
     cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
@@ -104,7 +98,7 @@ where
 pub fn prepare_accounts_for_compression_on_init<'info, A>(
     solana_accounts: &mut [&mut Account<'info, A>],
     addresses: &[[u8; 32]],
-    new_address_params: &[PackedNewAddressParams],
+    new_address_params: &[NewAddressParamsAssignedPacked],
     output_state_tree_indices: &[u8],
     cpi_accounts: &CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
@@ -210,7 +204,7 @@ where
 pub fn compress_empty_account_on_init<'info, A>(
     solana_account: &mut Account<'info, A>,
     address: &[u8; 32],
-    new_address_param: &PackedNewAddressParams,
+    new_address_param: &NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
     cpi_accounts: CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],
@@ -229,7 +223,7 @@ where
 {
     let mut solana_accounts: [&mut Account<'info, A>; 1] = [solana_account];
     let addresses: [[u8; 32]; 1] = [*address];
-    let new_address_params: [PackedNewAddressParams; 1] = [*new_address_param];
+    let new_address_params: [NewAddressParamsAssignedPacked; 1] = [*new_address_param];
     let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
 
     let compressed_infos = prepare_empty_compressed_accounts_on_init(
@@ -241,16 +235,8 @@ where
         address_space,
     )?;
 
-    let cpi_inputs = CpiInputs::new_with_assigned_address(
-        proof,
-        compressed_infos,
-        vec![
-            light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(
-                *new_address_param,
-                None,
-            ),
-        ],
-    );
+    let cpi_inputs =
+        CpiInputs::new_with_assigned_address(proof, compressed_infos, vec![*new_address_param]);
 
     cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
@@ -284,7 +270,7 @@ where
 pub fn prepare_empty_compressed_accounts_on_init<'info, A>(
     solana_accounts: &mut [&mut Account<'info, A>],
     addresses: &[[u8; 32]],
-    new_address_params: &[PackedNewAddressParams],
+    new_address_params: &[NewAddressParamsAssignedPacked],
     output_state_tree_indices: &[u8],
     cpi_accounts: &CpiAccountsSmall<'_, 'info>,
     address_space: &[Pubkey],

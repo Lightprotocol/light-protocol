@@ -1,22 +1,11 @@
-// #![cfg_attr(target_os = "solana", allow(unused_variables, unused_mut))]
-
 use anchor_lang::{
     prelude::*,
     solana_program::{program::invoke, pubkey::Pubkey},
 };
-use light_compressed_token_sdk::instructions::create_compressed_mint::{
-    create_compressed_mint, CreateCompressedMintInputs,
-};
 
-use light_ctoken_types::{
-    instructions::extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
-    state::{AdditionalMetadata, Metadata},
-    COMPRESSED_MINT_SEED,
-};
-use light_sdk_types::{
-    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, C_TOKEN_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID},
-    CpiAccountsConfig, CpiAccountsSmall,
-};
+use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+use light_ctoken_types::instructions::create_compressed_mint::CompressedMintWithContext;
+use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
 
 use light_sdk::{
     account::Size,
@@ -42,6 +31,10 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 // Simple anchor program retrofitted with compressible accounts.
 #[program]
 pub mod anchor_compressible {
+
+    use light_compressed_token_sdk::instructions::{
+        mint_action::MintActionCpiWriteAccounts, mint_action_cpi_write, MintActionInputsCpiWrite,
+    };
 
     use super::*;
 
@@ -72,8 +65,11 @@ pub mod anchor_compressible {
         let cpi_accounts =
             CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
-        let new_address_params =
-            address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
+        let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
+            user_record.key().to_bytes(),
+            true,
+            Some(0),
+        );
 
         compress_account_on_init::<UserRecord>(
             user_record,
@@ -348,8 +344,11 @@ pub mod anchor_compressible {
 
         // Prepare new address params. The cpda takes the address of the
         // compressible pda account as seed.
-        let new_address_params =
-            address_tree_info.into_new_address_params_packed(game_session.key().to_bytes());
+        let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
+            game_session.key().to_bytes(),
+            true,
+            Some(0),
+        );
 
         // Call at the end of your init instruction to compress the pda account
         // safely. This also closes the pda account. The account can then be
@@ -376,6 +375,7 @@ pub mod anchor_compressible {
         account_data: AccountCreationData,
         compression_params: CompressionParams,
     ) -> Result<()> {
+        msg!("program: 0011 - create_user_record_and_game_session");
         let user_record = &mut ctx.accounts.user_record;
         let game_session = &mut ctx.accounts.game_session;
 
@@ -391,6 +391,7 @@ pub mod anchor_compressible {
         user_record.owner = ctx.accounts.user.key();
         user_record.name = account_data.user_name.clone();
         user_record.score = 11;
+
         game_session.session_id = account_data.session_id;
         game_session.player = ctx.accounts.user.key();
         game_session.game_type = account_data.game_type.clone();
@@ -400,6 +401,7 @@ pub mod anchor_compressible {
 
         let cpi_config = CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER);
 
+        msg!("program: remaining_accounts: {:?}", ctx.remaining_accounts);
         // Create CPI accounts from remaining accounts
         let cpi_accounts = CpiAccountsSmall::new_with_config(
             ctx.accounts.user.as_ref(),
@@ -407,144 +409,81 @@ pub mod anchor_compressible {
             cpi_config,
         );
 
-        // Find mint PDA
-        let compressed_token_program_id = Pubkey::new_from_array(C_TOKEN_PROGRAM_ID);
-        let (mint_pda, mint_bump) = Pubkey::find_program_address(
-            &[
-                COMPRESSED_MINT_SEED,
-                ctx.accounts.mint_signer.key().as_ref(),
-            ],
-            &compressed_token_program_id,
+        msg!(
+            "program: cpi_accounts.cpi_context(): {:?}",
+            cpi_accounts.cpi_context()
         );
 
-        // Derive the compressed mint address using the PDA as seed
-        let address_seed = mint_pda.to_bytes();
-        let address_merkle_tree = cpi_accounts.get_tree_account_info(2).unwrap(); // Index 2 is address merkle tree
-        let mint_address = light_compressed_account::address::derive_address(
-            &address_seed,
-            &address_merkle_tree.key().to_bytes(),
-            &compressed_token_program_id.to_bytes(),
-        );
-
-        msg!("Mint PDA: {:?}, bump: {}", mint_pda, mint_bump);
-        msg!("Compressed mint address: {:?}", mint_address);
-        msg!("Address tree: {:?}", address_merkle_tree.key());
-
-        // Convert additional metadata to the correct format
-        let additional_metadata_converted = account_data.additional_metadata.map(|metadata| {
-            metadata
-                .into_iter()
-                .map(|(key, value)| AdditionalMetadata {
-                    key: key.into_bytes(),
-                    value: value.into_bytes(),
-                })
-                .collect()
-        });
-
-        // Create token metadata extension
-        let token_metadata = TokenMetadataInstructionData {
-            update_authority: account_data
-                .mint_update_authority
-                .map(|ua| light_compressed_account::Pubkey::new_from_array(ua.to_bytes())),
-            metadata: Metadata {
-                name: account_data.mint_name.into_bytes(),
-                symbol: account_data.mint_symbol.into_bytes(),
-                uri: account_data.mint_uri.into_bytes(),
-            },
-            additional_metadata: additional_metadata_converted,
-            version: 0,
-        };
-
-        // Create extension instruction data
-        let extensions = vec![ExtensionInstructionData::TokenMetadata(token_metadata)];
-
-        // Convert the proof to the correct type for the SDK
-        let compressed_proof = compression_params.proof.0.unwrap();
-
-        // Create the compressed mint inputs using CPI accounts
-        let output_queue = cpi_accounts.get_tree_account_info(1).unwrap(); // Index 1 is output queue
-        let mint_inputs = CreateCompressedMintInputs {
-            decimals: account_data.mint_decimals,
-            mint_authority: ctx.accounts.user.key(),
-            freeze_authority: account_data.mint_freeze_authority,
-            proof: compressed_proof,
-            mint_bump: compression_params.mint_signer_bump,
-            address_merkle_tree_root_index: compression_params.mint_address_tree_info.root_index,
-            mint_signer: ctx.accounts.mint_signer.key(),
-            payer: ctx.accounts.user.key(),
-            address_tree_pubkey: address_merkle_tree.key(),
-            output_queue: output_queue.key(),
-            extensions: Some(extensions),
-            version: 0,
-        };
-
-        // Create the compressed mint instruction using the SDK
-        let mint_instruction =
-            create_compressed_mint(mint_inputs).map_err(|_| ErrorCode::MintCreationFailed)?;
-
-        // Validate program IDs before CPI
-        require_keys_eq!(
-            cpi_accounts.system_program().unwrap().key(),
-            Pubkey::new_from_array(LIGHT_SYSTEM_PROGRAM_ID),
-            ErrorCode::MintCreationFailed
-        );
-        require_keys_eq!(
-            cpi_accounts.account_compression_program().unwrap().key(),
-            Pubkey::new_from_array(ACCOUNT_COMPRESSION_PROGRAM_ID),
-            ErrorCode::MintCreationFailed
-        );
-        require_keys_eq!(
-            ctx.accounts.compressed_token_program.key(),
-            compressed_token_program_id,
-            ErrorCode::MintCreationFailed
-        );
-
-        // Create account infos for the CPI call using CPI accounts structure
-        let mut mint_account_infos = vec![
-            ctx.accounts.mint_signer.to_account_info(),
-            ctx.accounts.user.to_account_info(), // payer
-            // cpi_accounts.cpi_authority_pda().unwrap().to_account_info(),
-            cpi_accounts.system_program().unwrap().to_account_info(),
-            cpi_accounts
-                .account_compression_program()
-                .unwrap()
-                .to_account_info(),
-            cpi_accounts
-                .registered_program_pda()
-                .unwrap()
-                .to_account_info(),
-            // ctx.accounts.noop_program.to_account_info(),
-            cpi_accounts
-                .account_compression_authority()
-                .unwrap()
-                .to_account_info(),
-            ctx.accounts.compressed_token_program.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            address_merkle_tree.to_account_info(),
-            output_queue.to_account_info(),
+        let actions = vec![
+            // MintActionType::MintTo {
+            //     recipients: input.token_recipients.clone(),
+            //     lamports: input.lamports,
+            //     token_account_version: input.compressed_mint_with_context.mint.version,
+            // },
+            // MintActionType::UpdateMintAuthority {
+            //     new_authority: input.final_mint_authority,
+            // },
+            // MintActionType::MintToDecompressed {
+            //     account: ctx.accounts.token_account.key(),
+            //     amount: input
+            //         .token_recipients
+            //         .first()
+            //         .map(|r| r.amount)
+            //         .unwrap_or(1000),
+            //     compressible_config: None,
+            // },
         ];
 
-        // Add remaining accounts to the instruction (they're already included in CPI accounts)
-        for remaining_account in ctx.remaining_accounts {
-            mint_account_infos.push(remaining_account.to_account_info());
-        }
+        let mint_action_inputs = MintActionInputsCpiWrite {
+            compressed_mint_inputs: compression_params.mint_with_context.clone().into(),
+            mint_seed: Some(ctx.accounts.mint_signer.key()),
+            mint_bump: Some(compression_params.mint_bump),
+            create_mint: true,
+            authority: ctx.accounts.mint_authority.key(),
+            payer: ctx.accounts.user.key(),
+            actions,
+            input_queue: None, // Not needed for create_mint: true
+            cpi_context: light_ctoken_types::instructions::mint_actions::CpiContext {
+                set_context: false,
+                first_set_context: true,
+                in_tree_index: 0,
+                in_queue_index: 1,
+                out_queue_index: 1,
+                token_out_queue_index: 1,
+                assigned_account_index: 0,
+            },
+            cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
+        };
 
-        invoke(&mint_instruction, &mint_account_infos)?;
-        msg!("Compressed mint with metadata created successfully");
+        let mint_action_instruction = mint_action_cpi_write(mint_action_inputs).unwrap();
+        let mint_action_account_infos = MintActionCpiWriteAccounts {
+            light_system_program: cpi_accounts.system_program().unwrap(),
+            mint_signer: Some(ctx.accounts.mint_signer.as_ref()),
+            authority: ctx.accounts.mint_authority.as_ref(),
+            fee_payer: ctx.accounts.user.as_ref(),
+            cpi_authority_pda: ctx.accounts.compress_token_program_cpi_authority.as_ref(),
+            cpi_context: cpi_accounts.cpi_context().unwrap(),
+            cpi_signer: crate::LIGHT_CPI_SIGNER,
+            recipient_token_accounts: vec![], // why needed.
+        };
 
-        // Now continue with the original logic for user record and game session
-        // Create regular CPI accounts for compression since prepare_accounts_for_compression_on_init expects CpiAccountsSmall
-        let user_account_info = ctx.accounts.user.to_account_info();
-        let compression_cpi_accounts =
-            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+        msg!("invoke token start!");
+        msg!("mint_action_account_infos: {:?}", mint_action_account_infos);
+
+        invoke(
+            &mint_action_instruction,
+            &mint_action_account_infos.to_account_infos(),
+        )?;
+
+        msg!("invoke token done!");
 
         // Prepare new address params. One per pda account.
         let user_new_address_params = compression_params
             .user_address_tree_info
-            .into_new_address_params_packed(user_record.key().to_bytes());
+            .into_new_address_params_assigned_packed(user_record.key().to_bytes(), true, Some(1));
         let game_new_address_params = compression_params
             .game_address_tree_info
-            .into_new_address_params_packed(game_session.key().to_bytes());
+            .into_new_address_params_assigned_packed(game_session.key().to_bytes(), true, Some(2));
 
         let mut all_compressed_infos = Vec::new();
 
@@ -559,7 +498,7 @@ pub mod anchor_compressible {
             &[compression_params.user_compressed_address],
             &[user_new_address_params],
             &[compression_params.user_output_state_tree_index],
-            &compression_cpi_accounts,
+            &cpi_accounts,
             &config.address_space,
             &ctx.accounts.rent_recipient,
         )?;
@@ -576,22 +515,34 @@ pub mod anchor_compressible {
             &[compression_params.game_compressed_address],
             &[game_new_address_params],
             &[compression_params.game_output_state_tree_index],
-            &compression_cpi_accounts,
+            &cpi_accounts,
             &config.address_space,
             &ctx.accounts.rent_recipient,
         )?;
         all_compressed_infos.extend(game_compressed_infos);
 
         // Create CPI inputs with all compressed accounts and new addresses
-        let cpi_inputs = CpiInputs::new_with_address(
-            compression_params.proof,
-            all_compressed_infos,
-            vec![user_new_address_params, game_new_address_params],
-        );
+        // let cpi_inputs = CpiInputs::new_with_address(
+        //     compression_params.proof,
+        //     all_compressed_infos,
+        //     vec![user_new_address_params, game_new_address_params],
+        // );
+        let cpi_inputs = CpiInputs {
+            proof: compression_params.proof,
+            account_infos: Some(all_compressed_infos),
+            new_assigned_addresses: Some(vec![user_new_address_params, game_new_address_params]),
+            cpi_context: Some(CompressedCpiContext {
+                set_context: false,
+                first_set_context: false,
+                cpi_context_account_index: 0,
+            }),
+            ..Default::default()
+        };
+        msg!("invoke .pda");
 
         // Invoke light system program to create all compressed accounts in one
         // CPI. Call at the end of your init instruction.
-        cpi_inputs.invoke_light_system_program_small(compression_cpi_accounts)?;
+        cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
         Ok(())
     }
@@ -707,8 +658,11 @@ pub mod anchor_compressible {
         let cpi_accounts =
             CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
-        let new_address_params =
-            address_tree_info.into_new_address_params_packed(placeholder_record.key().to_bytes());
+        let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
+            placeholder_record.key().to_bytes(),
+            true,
+            Some(0),
+        );
 
         // Use the new compress_empty_account_on_init function
         // This creates an empty compressed account but does NOT close the PDA
@@ -810,7 +764,7 @@ pub struct CreatePlaceholderRecord<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(account_data: AccountCreationData, compression_params: CompressionParams)]
+#[instruction(account_data: AccountCreationData)]
 pub struct CreateUserRecordAndGameSession<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -840,9 +794,15 @@ pub struct CreateUserRecordAndGameSession<'info> {
     /// The mint signer used for PDA derivation
     pub mint_signer: Signer<'info>,
 
+    /// The mint authority used for PDA derivation
+    pub mint_authority: Signer<'info>,
+
     /// Compressed token program
     /// CHECK: Program ID validated using COMPRESSED_TOKEN_PROGRAM_ID constant
     pub compressed_token_program: UncheckedAccount<'info>,
+
+    /// CHECK: CPI authority of the compressed token program
+    pub compress_token_program_cpi_authority: UncheckedAccount<'info>,
 
     /// Needs to be here for the init anchor macro to work.
     pub system_program: Program<'info, System>,
@@ -1304,8 +1264,9 @@ pub struct CompressionParams {
     pub game_address_tree_info: PackedAddressTreeInfo,
     pub game_output_state_tree_index: u8,
     // TODO: Add mint compression parameters when implementing mint functionality
-    pub mint_compressed_address: [u8; 32],
-    pub mint_address_tree_info: PackedAddressTreeInfo,
-    pub mint_output_state_tree_index: u8,
-    pub mint_signer_bump: u8,
+    // pub mint_compressed_address: [u8; 32],
+    // pub mint_address_tree_info: PackedAddressTreeInfo,
+    // pub mint_output_state_tree_index: u8,
+    pub mint_bump: u8,
+    pub mint_with_context: CompressedMintWithContext,
 }

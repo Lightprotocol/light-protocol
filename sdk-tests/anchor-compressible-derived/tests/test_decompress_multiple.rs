@@ -181,7 +181,7 @@ async fn test_create_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -473,7 +473,7 @@ async fn test_create_user_record_and_game_session(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -671,7 +671,7 @@ async fn test_compress_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;

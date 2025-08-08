@@ -5,7 +5,7 @@ edition = { workspace = true }
 
 [features]
 
-anchor = ["anchor-lang", "light-compressed-token-types/anchor"]
+anchor = ["anchor-lang", "light-compressed-token-types/anchor", "light-ctoken-types/anchor"]
 
 [dependencies]
 # Light Protocol dependencies

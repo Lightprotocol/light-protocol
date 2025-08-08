@@ -20,7 +20,7 @@ use light_ctoken_types::{
     },
     state::extensions::{AdditionalMetadata, Metadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
-};ompressed mint created
+};
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 
 use anchor_lang::solana_program::program_pack::Pack;

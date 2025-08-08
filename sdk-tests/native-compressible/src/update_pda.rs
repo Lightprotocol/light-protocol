@@ -36,11 +36,7 @@ pub fn update_pda<const BATCHED: bool>(
 
     let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
     sol_log_compute_units();
-    let cpi_accounts = CpiAccountsSmall::new_with_config(
-        &accounts[0],
-        &accounts[instruction_data.system_accounts_offset as usize..],
-        config,
-    );
+    let cpi_accounts = CpiAccountsSmall::new_with_config(&accounts[0], &accounts[1..], config);
     sol_log_compute_units();
     let cpi_inputs = CpiInputs::new(
         instruction_data.proof,

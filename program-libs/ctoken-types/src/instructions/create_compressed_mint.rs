@@ -38,6 +38,16 @@ pub struct CompressedMintWithContext {
     pub mint: CompressedMintInstructionData,
 }
 
+// /// Anchor-compatible version of CompressedMintWithContext without ZeroCopy derive
+// #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+// pub struct CompressedMintWithContextAnchor {
+//     pub leaf_index: u32,
+//     pub prove_by_index: bool,
+//     pub root_index: u16,
+//     pub address: [u8; 32],
+//     pub mint: CompressedMintInstructionDataAnchor,
+// }
+
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInstructionData {
     /// Version for upgradability
@@ -59,6 +69,56 @@ pub struct CompressedMintInstructionData {
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
+
+// /// Anchor-compatible version of CompressedMintInstructionData without ZeroCopy derive
+// /// Note: extensions field is omitted to avoid serialization issues
+// #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize)]
+// pub struct CompressedMintInstructionDataAnchor {
+//     /// Version for upgradability
+//     pub version: u8,
+//     /// Pda with seed address of compressed mint
+//     pub spl_mint: Pubkey,
+//     /// Total supply of tokens.
+//     pub supply: u64,
+//     /// Number of base 10 digits to the right of the decimal place.
+//     pub decimals: u8,
+//     /// Extension, necessary for mint to.
+//     pub is_decompressed: bool,
+//     /// Optional authority used to mint new tokens. The mint authority may only
+//     /// be provided during mint creation. If no mint authority is present
+//     /// then the mint has a fixed supply and no further tokens may be
+//     /// minted.
+//     pub mint_authority: Option<Pubkey>,
+//     /// Optional authority to freeze token accounts.
+//     pub freeze_authority: Option<Pubkey>,
+// }
+
+// impl From<CompressedMintInstructionDataAnchor> for CompressedMintInstructionData {
+//     fn from(anchor_data: CompressedMintInstructionDataAnchor) -> Self {
+//         Self {
+//             version: anchor_data.version,
+//             spl_mint: anchor_data.spl_mint,
+//             supply: anchor_data.supply,
+//             decimals: anchor_data.decimals,
+//             is_decompressed: anchor_data.is_decompressed,
+//             mint_authority: anchor_data.mint_authority,
+//             freeze_authority: anchor_data.freeze_authority,
+//             extensions: None, // Extensions not supported in Anchor-compatible version
+//         }
+//     }
+// // }
+
+// impl From<CompressedMintWithContextAnchor> for CompressedMintWithContext {
+//     fn from(anchor_context: CompressedMintWithContextAnchor) -> Self {
+//         Self {
+//             leaf_index: anchor_context.leaf_index,
+//             prove_by_index: anchor_context.prove_by_index,
+//             root_index: anchor_context.root_index,
+//             address: anchor_context.address,
+//             mint: anchor_context.mint.into(),
+//         }
+//     }
+// }
 
 impl TryFrom<CompressedMint> for CompressedMintInstructionData {
     type Error = CTokenError;

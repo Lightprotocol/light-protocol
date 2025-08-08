@@ -552,7 +552,7 @@ impl Indexer for TestIndexer {
                 #[cfg(debug_assertions)]
                 {
                     if std::env::var("RUST_BACKTRACE").is_ok() {
-                        println!("get_validit_proof: rpc_result {:?}", rpc_result);
+                        println!("get_validity_proof: rpc_result {:?}", rpc_result);
                     }
                 }
 
@@ -2015,14 +2015,14 @@ impl TestIndexer {
                 "address_merkle_tree_pubkeys[i]: {:?}",
                 address_merkle_tree_pubkeys[i]
             );
-            println!("address_merkle_trees: {:?}", self.address_merkle_trees);
+            // println!("address_merkle_trees: {:?}", self.address_merkle_trees);
             let address_tree = self
                 .address_merkle_trees
                 .iter()
                 .find(|x| x.accounts.merkle_tree == address_merkle_tree_pubkeys[i])
                 .unwrap();
             // TODO: Remove after debugging.
-            println!("address_tree: {:?}", address_tree);
+            // println!("address_tree: {:?}", address_tree);
             tree_heights.push(address_tree.height());
 
             let proof_inputs = address_tree.get_non_inclusion_proof_inputs(address)?;
@@ -2275,28 +2275,47 @@ impl TestIndexer {
                     .body(json_payload.clone())
                     .send()
                     .await;
-                if let Ok(response_result) = response_result {
-                    if response_result.status().is_success() {
-                        let body = response_result.text().await.unwrap();
-                        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-                        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-                        let (proof_a, proof_b, proof_c) =
-                            compress_proof(&proof_a, &proof_b, &proof_c);
-                        return Ok(ValidityProofWithContext {
-                            accounts: account_proof_inputs,
-                            addresses: address_proof_inputs,
-                            proof: CompressedProof {
-                                a: proof_a,
-                                b: proof_b,
-                                c: proof_c,
-                            }
-                            .into(),
-                        });
+
+                match response_result {
+                    Ok(resp) => {
+                        let status = resp.status();
+                        if status.is_success() {
+                            let body = resp.text().await.unwrap();
+                            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                            let (proof_a, proof_b, proof_c) =
+                                compress_proof(&proof_a, &proof_b, &proof_c);
+                            return Ok(ValidityProofWithContext {
+                                accounts: account_proof_inputs,
+                                addresses: address_proof_inputs,
+                                proof: CompressedProof {
+                                    a: proof_a,
+                                    b: proof_b,
+                                    c: proof_c,
+                                }
+                                .into(),
+                            });
+                        }
+
+                        // Non-success HTTP response. Read body for diagnostics and decide whether to retry.
+                        let body = resp.text().await.unwrap_or_default();
+                        // Fail fast on 4xx (client errors are usually non-retryable: bad params or missing circuit)
+                        if status.is_client_error() {
+                            return Err(IndexerError::CustomError(format!(
+                                "Prover client error {}: {}",
+                                status, body
+                            )));
+                        }
+                        // Otherwise, treat as transient and backoff
+                        println!("Prover non-success {}: {}", status, body);
+                        retries -= 1;
+                        tokio::time::sleep(Duration::from_secs(5)).await;
                     }
-                } else {
-                    println!("Error: {:#?}", response_result);
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    retries -= 1;
+                    Err(err) => {
+                        println!("Request error: {:?}", err);
+                        retries -= 1;
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
                 }
             }
             Err(IndexerError::CustomError(

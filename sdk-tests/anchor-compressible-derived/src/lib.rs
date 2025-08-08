@@ -164,10 +164,13 @@ pub mod anchor_compressible_derived {
         all_compressed_infos.extend(game_compressed_infos);
 
         // Create CPI inputs with all compressed accounts and new addresses
-        let cpi_inputs = CpiInputs::new_with_address(
+        let cpi_inputs = CpiInputs::new_with_assigned_address(
             compression_params.proof,
             all_compressed_infos,
-            vec![user_new_address_params, game_new_address_params],
+            vec![
+                light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(user_new_address_params, None),
+                light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(game_new_address_params, None),
+            ],
         );
 
         // Invoke light system program to create all compressed accounts in one

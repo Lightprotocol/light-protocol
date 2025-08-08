@@ -27,8 +27,8 @@ borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
 light-ctoken-types = { workspace = true }
-light-compressed-token-sdk = { workspace = true }
-light-compressed-token-types = { workspace = true }
+light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
+light-compressed-token-types = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["v2"] }

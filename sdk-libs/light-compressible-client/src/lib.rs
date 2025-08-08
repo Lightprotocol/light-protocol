@@ -301,6 +301,7 @@ impl CompressibleInstruction {
         // Setup remaining accounts to get tree infos
         let mut remaining_accounts = PackedAccounts::default();
         let system_config = SystemAccountMetaConfig::new(*program_id);
+
         let _ = remaining_accounts.add_system_accounts_small(system_config);
 
         for pda in solana_accounts {

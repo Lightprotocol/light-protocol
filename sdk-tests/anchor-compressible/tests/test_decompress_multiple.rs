@@ -1,13 +1,18 @@
 #![cfg(feature = "test-sbf")]
 
-use anchor_compressible::{
-    CompressedAccountData, CompressedAccountVariant, GameSession, PlaceholderRecord, UserRecord,
-};
+use anchor_compressible::{CompressedAccountVariant, GameSession, UserRecord};
 use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
 use light_compressed_account::address::derive_address;
+use light_compressed_token_sdk::{
+    instructions::{derive_compressed_mint_address, find_spl_mint_address},
+    CPI_AUTHORITY_PDA,
+};
 use light_compressible_client::CompressibleInstruction;
+use light_ctoken_types::instructions::create_compressed_mint::{
+    CompressedMintInstructionData, CompressedMintWithContext,
+};
 use light_macros::pubkey;
 use light_program_test::{
     initialize_compression_config,
@@ -17,11 +22,11 @@ use light_program_test::{
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::{
-    compressible::{CompressAs, CompressibleConfig, HasCompressionInfo},
+    compressible::{CompressAs, CompressibleConfig},
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
+    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
@@ -77,6 +82,7 @@ async fn test_create_and_decompress_two_accounts() {
 
     rpc.warp_to_slot(100).unwrap();
 
+    println!("01234.");
     test_decompress_multiple_pdas(
         &mut rpc,
         &payer,
@@ -126,6 +132,7 @@ async fn test_create_and_decompress_two_accounts() {
 
     rpc.warp_to_slot(200).unwrap();
 
+    println!("henlo? decompress multiple");
     test_decompress_multiple_pdas(
         &mut rpc,
         &combined_user,
@@ -211,15 +218,13 @@ async fn test_create_record(
     state_tree_queue: Option<Pubkey>,
 ) {
     let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
-    // Setup remaining accounts for Light Protocol
+
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
     let _ = remaining_accounts.add_system_accounts_small(system_config);
 
-    // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
-    // Create the instruction
     let accounts = anchor_compressible::accounts::CreateRecord {
         user: payer.pubkey(),
         user_record: *user_record_pda,
@@ -228,7 +233,6 @@ async fn test_create_record(
         rent_recipient: RENT_RECIPIENT,
     };
 
-    // Derive a new address for the compressed account
     let compressed_address = derive_address(
         &user_record_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),
@@ -263,6 +267,10 @@ async fn test_create_record(
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
+    println!("test-create-record, system_accounts all:");
+    for account in &system_accounts {
+        println!("{:?}", account);
+    }
     // Create instruction data
     let instruction_data = anchor_compressible::instruction::CreateRecord {
         name: "Test User".to_string(),
@@ -469,6 +477,14 @@ async fn test_decompress_multiple_pdas(
 
     let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
 
+    println!(
+        "test-decompress-multiple-pdas: c_user_record: {:?}",
+        c_user_record
+    );
+    println!(
+        "test-decompress-multiple-pdas: c_game_session: {:?}",
+        c_game_session
+    );
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash, c_game_pda.hash], vec![], None)
@@ -476,8 +492,16 @@ async fn test_decompress_multiple_pdas(
         .unwrap()
         .value;
 
+    println!(
+        "test-decompress-multiple-pdas: rpc_result: {:?}",
+        rpc_result
+    );
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
+    println!(
+        "test-decompress-multiple-pdas: output_state_tree_info: {:?}",
+        output_state_tree_info
+    );
     // Use the new SDK helper function with typed data
     let instruction =
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
@@ -503,6 +527,11 @@ async fn test_decompress_multiple_pdas(
             output_state_tree_info,
         )
         .unwrap();
+
+    println!(
+        "test-decompress-multiple-pdas: instruction: {:?}",
+        instruction
+    );
 
     let cu = simulate_cu(rpc, payer, &instruction).await;
     println!("decompress_multiple_pdas CU consumed: {}", cu);
@@ -568,6 +597,10 @@ async fn test_decompress_multiple_pdas(
 
     // Verify GameSession PDA is decompressed
     let game_pda_account = rpc.get_account(*game_session_pda).await.unwrap();
+    println!(
+        "game_pda_account after decompression: {:?}",
+        game_pda_account
+    );
     assert!(
         game_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
         "Game PDA account data len must be > 0 after decompression"
@@ -580,8 +613,10 @@ async fn test_decompress_multiple_pdas(
         "Game account anchor discriminator mismatch"
     );
 
+    println!("trying to deserialize gamesession...");
     let decompressed_game_session =
         anchor_compressible::GameSession::try_deserialize(&mut &game_pda_data[..]).unwrap();
+    println!("decompressed_game_session: {:?}", decompressed_game_session);
     assert_eq!(decompressed_game_session.session_id, session_id);
     assert_eq!(decompressed_game_session.game_type, expected_game_type);
     assert_eq!(decompressed_game_session.player, payer.pubkey());
@@ -600,6 +635,7 @@ async fn test_decompress_multiple_pdas(
         expected_slot
     );
 
+    println!("trying to get compressed game pda...");
     // Verify compressed accounts exist and have correct data
     let c_game_pda = rpc
         .get_compressed_account(game_compressed_address, None)
@@ -607,8 +643,11 @@ async fn test_decompress_multiple_pdas(
         .unwrap()
         .value;
 
+    println!("c_game_pda: {:?}", c_game_pda);
+
     assert!(c_game_pda.data.is_some());
     assert_eq!(c_game_pda.data.unwrap().data.len(), 0);
+    println!("test done!!");
 }
 
 async fn test_create_user_record_and_game_session(
@@ -620,36 +659,30 @@ async fn test_create_user_record_and_game_session(
     game_session_pda: &Pubkey,
     session_id: u64,
 ) {
+    let state_tree_info = rpc.get_random_state_tree_info().unwrap();
+    println!("PICKED state_tree_info: {:?}", state_tree_info);
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
-    let system_config = SystemAccountMetaConfig::new(*program_id);
+    let system_config = SystemAccountMetaConfig::new_with_cpi_context(
+        *program_id,
+        state_tree_info.cpi_context.unwrap(),
+    );
     let _ = remaining_accounts.add_system_accounts_small(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
     // Create a mint signer for the compressed mint
-    let mint_signer = solana_sdk::signature::Keypair::new();
+    let decimals = 6u8;
+    let mint_authority_keypair = Keypair::new();
+    let mint_authority = mint_authority_keypair.pubkey();
+    let freeze_authority = mint_authority; // Same as mint authority for this example
+    let mint_signer = Keypair::new();
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_signer.pubkey(), &address_tree_pubkey);
 
-    // Find mint PDA
-    let compressed_token_program_id =
-        solana_sdk::pubkey::Pubkey::new_from_array(light_sdk_types::constants::C_TOKEN_PROGRAM_ID);
-    let (mint_pda, mint_bump) = solana_sdk::pubkey::Pubkey::find_program_address(
-        &[
-            light_ctoken_types::COMPRESSED_MINT_SEED,
-            mint_signer.pubkey().as_ref(),
-        ],
-        &compressed_token_program_id,
-    );
-
-    // Derive the compressed mint address using the PDA as seed
-    let address_seed = mint_pda.to_bytes();
-    let mint_compressed_address = light_compressed_account::address::derive_address(
-        &address_seed,
-        &address_tree_pubkey.to_bytes(),
-        &compressed_token_program_id.to_bytes(),
-    );
-
+    // Find mint bump for the instruction
+    let (spl_mint, mint_bump) = find_spl_mint_address(&mint_signer.pubkey());
     // Create the instruction
     let accounts = anchor_compressible::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
@@ -660,6 +693,8 @@ async fn test_create_user_record_and_game_session(
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_recipient: RENT_RECIPIENT,
+        mint_authority,
+        compress_token_program_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
     };
 
     // Derive addresses for both compressed accounts
@@ -674,6 +709,7 @@ async fn test_create_user_record_and_game_session(
         &program_id.to_bytes(),
     );
 
+    println!("getting proof for 3 addresses...");
     // Get validity proof from RPC including mint address
     let rpc_result = rpc
         .get_validity_proof(
@@ -688,7 +724,7 @@ async fn test_create_user_record_and_game_session(
                     tree: address_tree_pubkey,
                 },
                 AddressWithTree {
-                    address: mint_compressed_address,
+                    address: compressed_mint_address,
                     tree: address_tree_pubkey,
                 },
             ],
@@ -705,15 +741,19 @@ async fn test_create_user_record_and_game_session(
     let user_address_tree_info = packed_tree_infos.address_trees[0];
     let game_address_tree_info = packed_tree_infos.address_trees[1];
     let mint_address_tree_info = packed_tree_infos.address_trees[2];
+    println!("user_address_tree_info: {:?}", user_address_tree_info);
+    println!("game_address_tree_info: {:?}", game_address_tree_info);
+    println!("mint_address_tree_info: {:?}", mint_address_tree_info);
 
     // Get output state tree indices
-    let user_output_state_tree_index =
-        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
-    let game_output_state_tree_index =
-        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
-    let mint_output_state_tree_index =
-        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+    let user_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
+    let game_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
+    let mint_output_state_tree_index = remaining_accounts.insert_or_get(state_tree_info.queue);
 
+    println!(
+        "mint_output_state_tree_index: {:?}",
+        mint_output_state_tree_index
+    );
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
@@ -729,18 +769,9 @@ async fn test_create_user_record_and_game_session(
             mint_uri: "https://example.com/token.json".to_string(),
             mint_decimals: 9,
             mint_supply: 1_000_000_000,
-            mint_update_authority: Some(user.pubkey()),
-            mint_freeze_authority: None,
-            additional_metadata: Some(vec![
-                (
-                    "description".to_string(),
-                    "A test token for the game".to_string(),
-                ),
-                (
-                    "image".to_string(),
-                    "https://example.com/token.png".to_string(),
-                ),
-            ]),
+            mint_update_authority: Some(mint_authority),
+            mint_freeze_authority: Some(freeze_authority),
+            additional_metadata: None,
         },
         compression_params: anchor_compressible::CompressionParams {
             proof: rpc_result.proof,
@@ -751,10 +782,23 @@ async fn test_create_user_record_and_game_session(
             game_address_tree_info,
             game_output_state_tree_index,
             // Add mint compression parameters
-            mint_compressed_address,
-            mint_address_tree_info,
-            mint_output_state_tree_index,
-            mint_signer_bump: mint_bump,
+            mint_bump,
+            mint_with_context: CompressedMintWithContext {
+                leaf_index: 0,
+                prove_by_index: false,
+                root_index: mint_address_tree_info.root_index,
+                address: compressed_mint_address,
+                mint: CompressedMintInstructionData {
+                    version: 1,
+                    spl_mint: spl_mint.into(),
+                    supply: 0,
+                    decimals,
+                    mint_authority: Some(mint_authority.into()),
+                    freeze_authority: Some(freeze_authority.into()),
+                    extensions: None,
+                    is_decompressed: false,
+                },
+            },
         },
     };
 
@@ -764,12 +808,19 @@ async fn test_create_user_record_and_game_session(
         accounts: [accounts.to_account_metas(None), system_accounts].concat(),
         data: instruction_data.data(),
     };
-    let cu = simulate_cu(rpc, user, &instruction).await;
-    println!("CreateUserRecordAndGameSession CU consumed: {}", cu);
+    // let cu = simulate_cu(rpc, user, &instruction).await;
+    // println!("CreateUserRecordAndGameSession CU consumed: {}", cu);
+    println!("creating and sending transaction...");
     // Create and send transaction
     let result = rpc
-        .create_and_send_transaction(&[instruction], &user.pubkey(), &[user, &mint_signer])
+        .create_and_send_transaction(
+            &[instruction],
+            &user.pubkey(),
+            &[user, &mint_signer, &mint_authority_keypair],
+        )
         .await;
+
+    println!("transaction result: {:?}", result);
 
     assert!(
         result.is_ok(),
