@@ -25,7 +25,17 @@ pub async fn fetch_queue_item_data<R: Rpc>(
     queue_length: u16,
 ) -> Result<Vec<QueueItemData>> {
     trace!("Fetching queue data for {:?}", queue_pubkey);
-    let mut account = rpc.get_account(*queue_pubkey).await?.unwrap();
+    let account = rpc.get_account(*queue_pubkey).await?;
+    let mut account = match account {
+        Some(acc) => acc,
+        None => {
+            tracing::warn!(
+                "Queue account {} not found - may have been deleted or not yet created",
+                queue_pubkey
+            );
+            return Ok(Vec::new());
+        }
+    };
     let queue: HashSet =
         unsafe { HashSet::from_bytes_copy(&mut account.data[8 + size_of::<QueueAccount>()..])? };
     let end_index = (start_index + processing_length).min(queue_length);
