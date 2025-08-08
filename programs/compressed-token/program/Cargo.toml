@@ -23,6 +23,9 @@ cpi-context = []
 cpi-without-program-ids = []
 
 [dependencies]
+light-token-22 = { package = "spl-token-2022", git = "https://github.com/Lightprotocol/token-2022", rev = "06d12f50a06db25d73857d253b9a82857d6f4cdf", features = [
+    "no-entrypoint",
+] }
 anchor-lang = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 account-compression = { workspace = true, features = ["cpi", "no-idl"] }
@@ -31,7 +34,7 @@ solana-security-txt = "1.1.0"
 light-hasher = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
-spl-token-2022 = { workspace = true }
+spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
 spl-pod = { workspace = true }
 light-zero-copy = { workspace = true, features = ["mut", "std", "derive"] }
 zerocopy = { workspace = true }

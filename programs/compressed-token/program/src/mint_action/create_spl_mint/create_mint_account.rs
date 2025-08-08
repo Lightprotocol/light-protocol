@@ -1,6 +1,8 @@
+use anchor_lang::prelude::msg;
 use anchor_lang::solana_program::{
     program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
 };
+use pinocchio::instruction::{Seed, Signer};
 
 use light_ctoken_types::COMPRESSED_MINT_SEED;
 
@@ -37,7 +39,6 @@ pub fn create_mint_account(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    use pinocchio::instruction::{Seed, Signer};
     let mint_signer_key = mint_signer.key();
     let bump_bytes = [mint_bump];
     let seed_array = [
@@ -57,6 +58,7 @@ pub fn create_mint_account(
             .ok_or(ProgramError::InvalidAccountData)?
             .key(),
     );
+
     let create_account_ix = system_instruction::create_account(
         &fee_payer_pubkey,
         &mint_pubkey,

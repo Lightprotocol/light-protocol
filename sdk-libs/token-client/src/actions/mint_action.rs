@@ -2,6 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
+use light_compressed_token_sdk::instructions::derive_compressed_mint_address;
 use light_compressed_token_sdk::instructions::mint_action::{MintActionType, MintToRecipient};
 use light_ctoken_types::instructions::mint_to_compressed::Recipient;
 use solana_keypair::Keypair;
@@ -56,6 +57,7 @@ pub async fn mint_action<R: Rpc + Indexer>(
         .await
 }
 
+// TODO: remove
 /// Convenience function to execute a comprehensive mint action
 ///
 /// This function simplifies calling mint_action by handling common patterns
@@ -73,9 +75,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     // Parameters for mint creation (required if create_spl_mint is true)
     new_mint: Option<crate::instructions::mint_action::NewMint>,
 ) -> Result<Signature, RpcError> {
-    use light_compressed_token_sdk::instructions::{
-        derive_compressed_mint_address, find_spl_mint_address,
-    };
+    use light_compressed_token_sdk::instructions::find_spl_mint_address;
 
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
@@ -84,9 +84,9 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
 
     // Build actions
     let mut actions = Vec::new();
-
     if create_spl_mint {
-        // actions.push(MintActionType::CreateSplMint { mint_bump });
+        let mint_bump = find_spl_mint_address(&mint_seed.pubkey()).1;
+        actions.push(MintActionType::CreateSplMint { mint_bump });
     }
 
     if !mint_to_recipients.is_empty() {

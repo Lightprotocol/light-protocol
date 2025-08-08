@@ -15,9 +15,9 @@ pub fn process_decompressed_token_transfer(
     match instruction {
         TokenInstruction::Transfer { amount } => {
             let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
-            let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-            spl_token_2022::processor::Processor::process_transfer(
-                &program_id_pubkey,
+            let spl_token_program_id = spl_token_2022::id();
+            light_token_22::processor::Processor::process_transfer(
+                &spl_token_program_id,
                 &account_infos,
                 amount,
                 None,

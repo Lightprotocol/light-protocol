@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::{
     program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
 };
+use pinocchio::instruction::{Seed, Signer};
 
 use crate::constants::POOL_SEED;
 
@@ -36,7 +37,6 @@ pub fn create_token_pool_account_manual(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    use pinocchio::instruction::{Seed, Signer};
     let bump_bytes = [bump];
     let seed_array = [
         Seed::from(POOL_SEED),

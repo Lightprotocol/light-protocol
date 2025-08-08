@@ -268,7 +268,7 @@ dependencies = [
  "solana-sdk",
  "solana-security-txt",
  "spl-token",
- "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "zerocopy",
 ]
 
@@ -3425,6 +3425,7 @@ dependencies = [
  "solana-security-txt",
  "spl-pod",
  "spl-token",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
  "zerocopy",
 ]
@@ -3450,7 +3451,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "spl-pod",
- "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.12",
 ]
 
@@ -3508,7 +3509,7 @@ dependencies = [
  "solana-pubkey",
  "solana-sysvar",
  "spl-pod",
- "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.12",
  "zerocopy",
 ]
@@ -3895,7 +3896,7 @@ dependencies = [
  "solana-banks-client",
  "solana-sdk",
  "spl-token",
- "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.12",
 ]
 
@@ -3917,7 +3918,7 @@ dependencies = [
  "solana-signature",
  "solana-signer",
  "spl-pod",
- "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -73,6 +73,18 @@ impl<'info> MintActionAccounts<'info> {
             let token_pool_pda = iter.next_option_mut("token_pool_pda", config.is_decompressed)?;
             let token_program = iter.next_option("token_program", config.is_decompressed)?;
 
+            if let Some(token_program) = token_program {
+                if solana_pubkey::Pubkey::new_from_array(*token_program.key()) != spl_token_2022::ID
+                {
+                    msg!(
+                        "invalid token program {:?} expected {:?}",
+                        solana_pubkey::Pubkey::new_from_array(*token_program.key()),
+                        spl_token_2022::ID
+                    );
+                    return Err(ProgramError::InvalidAccountData);
+                }
+            }
+
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
                 config.with_lamports,
