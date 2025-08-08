@@ -4,8 +4,11 @@ use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::instructions::{
-    create_associated_token_account, derive_compressed_mint_address, derive_ctoken_ata,
-    find_spl_mint_address,
+    create_associated_token_account::{
+        create_associated_token_account, create_compressible_associated_token_account,
+        CreateCompressibleAssociatedTokenAccountInputs,
+    },
+    derive_compressed_mint_address, derive_ctoken_ata, find_spl_mint_address,
 };
 use light_ctoken_types::{
     instructions::{
@@ -19,6 +22,7 @@ use light_ctoken_types::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
+    assert_decompressed_token_transfer::assert_decompressed_token_transfer,
     assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
     assert_spl_mint::assert_spl_mint,
     assert_transfer2::{
@@ -29,7 +33,9 @@ use light_test_utils::{
     Rpc,
 };
 use light_token_client::{
-    actions::{create_mint, create_spl_mint, mint_to_compressed, transfer2},
+    actions::{
+        create_mint, create_spl_mint, decompressed_token_transfer, mint_to_compressed, transfer2,
+    },
     instructions::transfer2::{
         create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
         DecompressInput, Transfer2InstructionType, TransferInput,
@@ -345,6 +351,7 @@ async fn test_create_compressed_mint() {
             output_queue,
         },
         pre_compress_spl_account,
+        &pre_compress_account_data.data,
     )
     .await;
 
@@ -824,10 +831,300 @@ async fn test_update_compressed_mint_authority() {
     .unwrap();
 
     println!("Revoked mint authority successfully");
+}
 
-    // The test passes if all operations complete without errors
-    // In a real scenario, you would verify the compressed mint state
-    // but for now we're testing that the instruction can be created and executed
+/// Test decompressed token transfer with mint action creating tokens in decompressed account
+#[tokio::test]
+#[serial]
+async fn test_decompressed_token_transfer() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test parameters
+    let decimals = 8u8;
+    let mint_seed = Keypair::new();
+    let mint_authority = payer.insecure_clone(); // Use payer as mint authority to avoid KeypairPubkeyMismatch
+    let freeze_authority = Keypair::new();
+
+    // Create recipient for decompressed tokens
+    let recipient_keypair = Keypair::new();
+    let transfer_amount = 500u64;
+
+    // Fund authority accounts
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&freeze_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&recipient_keypair.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // Derive addresses
+    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+
+    // Create compressed token ATA for recipient
+    let (recipient_ata, _) = derive_ctoken_ata(&recipient_keypair.pubkey(), &spl_mint_pda);
+    let create_ata_instruction = create_compressible_associated_token_account(
+        CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: recipient_keypair.pubkey(),
+            mint: spl_mint_pda,
+            rent_authority: solana_sdk::pubkey::Pubkey::new_unique(),
+            rent_recipient: solana_sdk::pubkey::Pubkey::new_unique(),
+            slots_until_compression: 1000,
+        },
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // === STEP 1: CREATE COMPRESSED MINT AND MINT TO DECOMPRESSED ACCOUNT ===
+    let decompressed_recipients = vec![
+        light_ctoken_types::instructions::mint_to_compressed::Recipient {
+            recipient: recipient_keypair.pubkey().to_bytes().into(),
+            amount: 100000000u64,
+        },
+    ];
+
+    let signature = light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        true,                    // create_spl_mint
+        vec![],                  // no compressed recipients
+        decompressed_recipients, // mint to decompressed recipients
+        None,                    // no mint authority update
+        None,                    // no freeze authority update
+        None,                    // no lamports
+        Some(light_token_client::instructions::mint_action::NewMint {
+            decimals,
+            supply: 0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: Some(freeze_authority.pubkey()),
+            metadata: None, // No metadata for simplicity
+            version: 1,
+        }),
+    )
+    .await
+    .unwrap();
+
+    println!(
+        "✅ Mint creation and decompressed minting signature: {}",
+        signature
+    );
+
+    // Verify the recipient ATA has the tokens (should have been minted by the mint action)
+    let recipient_account_data = rpc.get_account(recipient_ata).await.unwrap().unwrap();
+    let recipient_account =
+        spl_token_2022::state::Account::unpack(&recipient_account_data.data[..165]).unwrap();
+    println!("Recipient account balance: {}", recipient_account.amount);
+    assert_eq!(
+        recipient_account.amount, 100000000u64,
+        "Recipient should have 100000000u64 tokens"
+    );
+
+    // === CREATE SECOND RECIPIENT FOR TRANSFER TEST ===
+    let second_recipient_keypair = Keypair::new();
+    let (second_recipient_ata, _) =
+        derive_ctoken_ata(&second_recipient_keypair.pubkey(), &spl_mint_pda);
+
+    rpc.airdrop_lamports(&second_recipient_keypair.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let create_second_ata_instruction = create_associated_token_account(
+        payer.pubkey(),
+        second_recipient_keypair.pubkey(),
+        spl_mint_pda,
+    )
+    .unwrap();
+    rpc.create_and_send_transaction(&[create_second_ata_instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // === PERFORM DECOMPRESSED TOKEN TRANSFER ===
+    // Get account states before transfer
+    let sender_account_data = rpc.get_account(recipient_ata).await.unwrap().unwrap();
+    let sender_account_before =
+        spl_token_2022::state::Account::unpack(&sender_account_data.data[..165]).unwrap();
+
+    let recipient_account_data = rpc
+        .get_account(second_recipient_ata)
+        .await
+        .unwrap()
+        .unwrap();
+    let recipient_account_before =
+        spl_token_2022::state::Account::unpack(&recipient_account_data.data[..165]).unwrap();
+
+    println!(
+        "Sender balance before transfer: {}",
+        sender_account_before.amount
+    );
+    println!(
+        "Recipient balance before transfer: {}",
+        recipient_account_before.amount
+    );
+    rpc.context.warp_to_slot(2);
+    // Execute the decompressed transfer
+    let transfer_result = decompressed_token_transfer(
+        &mut rpc,
+        recipient_ata,        // Source account (has 1000 tokens)
+        second_recipient_ata, // Destination account
+        transfer_amount,      // Amount to transfer (500)
+        &recipient_keypair,   // Authority/owner
+        &payer,               // Transaction payer
+    )
+    .await;
+
+    match transfer_result {
+        Ok(signature) => {
+            println!(
+                "✅ Decompressed token transfer successful! Signature: {}",
+                signature
+            );
+
+            // Use comprehensive assertion helper
+            assert_decompressed_token_transfer(
+                &mut rpc,
+                recipient_ata,
+                second_recipient_ata,
+                transfer_amount,
+                &sender_account_data.data,
+                &recipient_account_data.data,
+            )
+            .await;
+        }
+        Err(e) => {
+            panic!("❌ Decompressed token transfer failed: {:?}", e);
+        }
+    }
+
+    // === COMPRESS TOKENS BACK TO COMPRESSED STATE ===
+    println!("🔄 Compressing tokens back to compressed state...");
+
+    // Create a compress recipient
+    let compress_recipient = Keypair::new();
+    let compress_amount = 200u64; // Compress 200 tokens from second_recipient_ata (which now has 500)
+
+    // Get output queue
+    let output_queue = rpc
+        .get_random_state_tree_info()
+        .unwrap()
+        .get_output_pubkey()
+        .unwrap();
+
+    // Create compress instruction
+    let compress_instruction = create_generic_transfer2_instruction(
+        &mut rpc,
+        vec![Transfer2InstructionType::Compress(CompressInput {
+            compressed_token_account: None, // No existing compressed tokens
+            solana_token_account: second_recipient_ata, // Source SPL token account
+            to: compress_recipient.pubkey(), // New recipient for compressed tokens
+            mint: spl_mint_pda,
+            amount: compress_amount,
+            authority: second_recipient_keypair.pubkey(), // Authority for compression
+            output_queue,
+        })],
+        payer.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    // Get account state before compression for assertion
+    let pre_compress_account_data = rpc
+        .get_account(second_recipient_ata)
+        .await
+        .unwrap()
+        .unwrap();
+    let pre_compress_spl_account =
+        spl_token_2022::state::Account::unpack(&pre_compress_account_data.data).unwrap();
+    println!(
+        "Account balance before compression: {}",
+        pre_compress_spl_account.amount
+    );
+
+    // Execute compression
+    let compress_signature = rpc
+        .create_and_send_transaction(
+            &[compress_instruction],
+            &payer.pubkey(),
+            &[&payer, &second_recipient_keypair],
+        )
+        .await
+        .unwrap();
+
+    println!(
+        "✅ Compression successful! Signature: {}",
+        compress_signature
+    );
+
+    // Use comprehensive compress assertion
+    assert_transfer2_compress(
+        &mut rpc,
+        light_token_client::instructions::transfer2::CompressInput {
+            compressed_token_account: None,
+            solana_token_account: second_recipient_ata,
+            to: compress_recipient.pubkey(),
+            mint: spl_mint_pda,
+            amount: compress_amount,
+            authority: second_recipient_keypair.pubkey(),
+            output_queue,
+        },
+        pre_compress_spl_account,
+        &pre_compress_account_data.data,
+    )
+    .await;
+
+    // Verify final balances
+    let final_account_data = rpc
+        .get_account(second_recipient_ata)
+        .await
+        .unwrap()
+        .unwrap();
+    let final_spl_account =
+        spl_token_2022::state::Account::unpack(&final_account_data.data).unwrap();
+    println!(
+        "Final account balance after compression: {}",
+        final_spl_account.amount
+    );
+    assert_eq!(
+        final_spl_account.amount, 300,
+        "Should have 300 tokens remaining (500 - 200)"
+    );
+
+    // Check that compressed tokens were created for the recipient
+    let compressed_tokens = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_token_accounts_by_owner(&compress_recipient.pubkey(), None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    assert!(
+        !compressed_tokens.is_empty(),
+        "Should have compressed tokens"
+    );
+    let total_compressed = compressed_tokens
+        .iter()
+        .map(|t| t.token.amount)
+        .sum::<u64>();
+    assert_eq!(
+        total_compressed, compress_amount,
+        "Should have {} compressed tokens",
+        compress_amount
+    );
+
+    println!(
+        "✅ Complete decompressed token transfer and compression test completed successfully!"
+    );
 }
 
 // TODO: add test case that can perform ever action on its own, with and without a decompressed mint.
@@ -880,7 +1177,7 @@ async fn test_mint_actions_comprehensive() {
     let compressed_mint_address =
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
     let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
-
+    rpc.context.warp_to_slot(1);
     // === SINGLE MINT ACTION INSTRUCTION ===
     // Execute ONE instruction with ALL actions
     let signature = light_token_client::actions::mint_action_comprehensive(
@@ -890,6 +1187,7 @@ async fn test_mint_actions_comprehensive() {
         &payer,
         true,                                // create_spl_mint
         recipients.clone(),                  // mint_to_recipients
+        vec![],                              // mint_to_decompressed_recipients
         Some(new_mint_authority.pubkey()),   // update_mint_authority
        None,// Some(new_freeze_authority.pubkey()), // update_freeze_authority
         None,                                // no lamports
@@ -1077,6 +1375,7 @@ async fn test_mint_actions_comprehensive() {
     let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
     let pre_spl_mint_for_second =
         spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
+    rpc.context.warp_to_slot(3);
     // Execute mint_action on existing mint (no creation)
     let signature2 = light_token_client::actions::mint_action_comprehensive(
         &mut rpc,
@@ -1085,6 +1384,7 @@ async fn test_mint_actions_comprehensive() {
         &payer,
         false,                               // create_spl_mint = false (already exists)
         additional_recipients.clone(),       // mint_to_recipients
+        vec![],                              // mint_to_decompressed_recipients
         Some(newer_mint_authority.pubkey()), // update_mint_authority to newer authority
         None,                                // update_freeze_authority (no change)
         None,                                // no lamports

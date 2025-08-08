@@ -25,7 +25,6 @@ pub fn process_mint_action<'c, 'info>(
         MintActionType::MintToDecompressed {
             account: ctx.accounts.token_account.key(),
             amount: input.token_recipients[0].amount,
-            compressible_config: None,
         },
     ];
 

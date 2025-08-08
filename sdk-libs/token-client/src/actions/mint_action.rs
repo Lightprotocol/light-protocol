@@ -66,6 +66,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     payer: &Keypair,
     create_spl_mint: bool,
     mint_to_recipients: Vec<Recipient>,
+    mint_to_decompressed_recipients: Vec<Recipient>,
     update_mint_authority: Option<Pubkey>,
     update_freeze_authority: Option<Pubkey>,
     lamports: Option<u64>,
@@ -80,13 +81,12 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (_, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
     // Build actions
     let mut actions = Vec::new();
 
     if create_spl_mint {
-        actions.push(MintActionType::CreateSplMint { mint_bump });
+        // actions.push(MintActionType::CreateSplMint { mint_bump });
     }
 
     if !mint_to_recipients.is_empty() {
@@ -94,7 +94,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
             .into_iter()
             .map(|recipient| MintToRecipient {
                 recipient: solana_pubkey::Pubkey::from(recipient.recipient.to_bytes()),
-                amount: recipient.amount
+                amount: recipient.amount,
             })
             .collect();
 
@@ -103,6 +103,22 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
             lamports,
             token_account_version: 2, // V2 for batched merkle trees
         });
+    }
+
+    if !mint_to_decompressed_recipients.is_empty() {
+        use light_compressed_token_sdk::instructions::{derive_ctoken_ata, find_spl_mint_address};
+
+        let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+
+        for recipient in mint_to_decompressed_recipients {
+            let recipient_pubkey = solana_pubkey::Pubkey::from(recipient.recipient.to_bytes());
+            let (ata_address, _) = derive_ctoken_ata(&recipient_pubkey, &spl_mint_pda);
+
+            actions.push(MintActionType::MintToDecompressed {
+                account: ata_address,
+                amount: recipient.amount,
+            });
+        }
     }
 
     if let Some(new_authority) = update_mint_authority {
@@ -128,7 +144,11 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
 
     // Determine if mint_signer is needed - matches onchain logic:
     // with_mint_signer = create_mint() | has_CreateSplMint_action
-    let mint_signer = if create_spl_mint { Some(mint_seed) } else { None };
+    let mint_signer = if create_spl_mint {
+        Some(mint_seed)
+    } else {
+        None
+    };
 
     mint_action(rpc, params, authority, payer, mint_signer).await
 }

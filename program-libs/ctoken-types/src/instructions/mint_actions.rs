@@ -27,9 +27,6 @@ pub struct CreateSplMintAction {
 pub struct DecompressedRecipient {
     pub account_index: u8, // Index into remaining accounts for the recipient token account
     pub amount: u64,
-    // TODO: double check why we need this
-    pub compressible_config:
-        Option<crate::instructions::extensions::compressible::CompressibleExtensionInstructionData>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

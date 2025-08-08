@@ -6,6 +6,8 @@ use light_token_client::instructions::transfer2::{
 };
 use solana_sdk::program_pack::Pack;
 
+use crate::assert_decompressed_token_transfer::assert_compressible_for_account;
+
 /// Comprehensive assertion for transfer2 operations that verifies all expected outcomes
 /// based on the actions performed. This validates:
 /// - Transfer recipients receive correct compressed token amounts
@@ -255,11 +257,30 @@ pub async fn assert_transfer2_compress<R: Rpc + Indexer>(
     rpc: &mut R,
     compress_input: CompressInput<'_>,
     pre_spl_token_account: spl_token_2022::state::Account,
+    pre_spl_account_data: &[u8],
 ) {
+    // Get current slot for compressible extension assertion
+    let current_slot = rpc.get_slot().await.unwrap();
+
     assert_transfer2(
         rpc,
-        vec![Transfer2InstructionType::Compress(compress_input)],
-        vec![Some(pre_spl_token_account)],
+        vec![Transfer2InstructionType::Compress(compress_input.clone())],
+        vec![Some(pre_spl_token_account.clone())],
     )
     .await;
+
+    // Get the account data after compression to check compressible extensions
+    let spl_account_data_after = rpc
+        .get_account(compress_input.solana_token_account.clone())
+        .await
+        .expect("Failed to get SPL token account after compression")
+        .expect("SPL token account should exist after compression");
+
+    // Assert compressible extension was updated if it exists
+    assert_compressible_for_account(
+        "SPL source account",
+        pre_spl_account_data,
+        &spl_account_data_after.data,
+        current_slot,
+    );
 }

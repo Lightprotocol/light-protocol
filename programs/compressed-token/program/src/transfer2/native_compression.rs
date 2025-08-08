@@ -1,16 +1,19 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::check_owner;
-use light_ctoken_types::instructions::transfer2::{
-    CompressionMode, ZCompressedTokenInstructionDataTransfer2, ZCompression,
+use light_ctoken_types::{
+    instructions::transfer2::{
+        CompressionMode, ZCompressedTokenInstructionDataTransfer2, ZCompression,
+    },
+    state::CompressedToken,
 };
+use light_zero_copy::borsh_mut::DeserializeMut;
 use pinocchio::account_info::AccountInfo;
 use solana_pubkey::Pubkey;
-use spl_pod::{bytemuck::pod_from_bytes_mut, solana_msg::msg};
-use spl_token_2022::pod::PodAccount;
+use spl_pod::solana_msg::msg;
 
 use crate::{
-    shared::owner_validation::verify_and_update_token_account_authority_with_pod,
+    shared::owner_validation::verify_and_update_token_account_authority_with_compressed_token,
     transfer2::accounts::ProgramPackedAccounts, LIGHT_CPI_SIGNER,
 };
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
@@ -102,29 +105,29 @@ pub fn native_compression(
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
-    // Use zero-copy PodAccount to access the token account
-    let pod_account = pod_from_bytes_mut::<PodAccount>(&mut token_account_data)
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+    // Use zero-copy deserialization to access the compressed token account
+    let (mut compressed_token, _) = CompressedToken::zero_copy_at_mut(&mut token_account_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if pod_account.mint != mint {
+    if compressed_token.mint.to_bytes() != mint.to_bytes() {
         msg!(
-            "mint mismatch account: pod_account.mint {:?}, mint {:?}",
-            pod_account.mint,
+            "mint mismatch account: compressed_token.mint {:?}, mint {:?}",
+            solana_pubkey::Pubkey::new_from_array(compressed_token.mint.to_bytes()),
             solana_pubkey::Pubkey::new_from_array(mint.to_bytes())
         );
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Get current balance
-    let current_balance: u64 = pod_account.amount.into();
+    let current_balance: u64 = u64::from(*compressed_token.amount);
 
     // Calculate new balance using effective amount
     let new_balance = match mode {
         CompressionMode::Compress => {
             // Verify authority for compression operations and update delegated amount if needed
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
-            verify_and_update_token_account_authority_with_pod(
-                pod_account,
+            verify_and_update_token_account_authority_with_compressed_token(
+                &mut compressed_token,
                 authority_account,
                 amount,
             )?;
@@ -142,8 +145,11 @@ pub fn native_compression(
         }
     };
 
-    // Update the balance in the pod account
-    pod_account.amount = new_balance.into();
+    // Update the balance in the compressed token account
+    *compressed_token.amount = new_balance.into();
 
+    compressed_token
+        .update_compressible_last_written_slot()
+        .map_err(|_| ProgramError::InvalidAccountData)?;
     Ok(())
 }

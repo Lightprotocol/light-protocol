@@ -2,7 +2,7 @@ use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::{
     instructions::{
-        create_associated_token_account::{create_associated_token_account, derive_ctoken_ata},
+        create_associated_token_account::{create_associated_token_account, create_compressible_associated_token_account, derive_ctoken_ata, CreateCompressibleAssociatedTokenAccountInputs},
         create_compressed_mint::find_spl_mint_address,
         derive_compressed_mint_address,
         mint_action::MintToRecipient,
@@ -201,8 +201,16 @@ pub async fn create_mint<R: Rpc + Indexer>(
     // Create compressed token associated token account for the mint authority
     let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &spl_mint);
     println!("Created token_account (ATA): {:?}", token_account);
-    let create_ata_instruction =
-        create_associated_token_account(payer.pubkey(), mint_authority.pubkey(), spl_mint).unwrap();
+    let create_ata_instruction = create_compressible_associated_token_account(
+        CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: mint_authority.pubkey(),
+            mint: spl_mint,
+            rent_authority: Pubkey::new_unique(),
+            rent_recipient: Pubkey::new_unique(),
+            slots_until_compression: 1000,
+        }
+    ).unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])
         .await
         .expect("Failed to create associated token account");

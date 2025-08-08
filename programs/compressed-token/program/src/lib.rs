@@ -3,23 +3,26 @@ use std::mem::ManuallyDrop;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::account_info::AccountInfo;
-use spl_token::instruction::TokenInstruction;
 
 pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
 pub mod create_token_account;
+pub mod decompressed_token_transfer;
 pub mod extensions;
 pub mod mint_action;
 pub mod shared;
 pub mod transfer2;
 
 // Reexport the wrapped anchor program.
-use crate::mint_action::processor::process_mint_action;
+use crate::{
+    convert_account_infos::convert_account_infos, mint_action::processor::process_mint_action,
+};
 pub use ::anchor_compressed_token::*;
 use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::processor::process_create_associated_token_account;
 use create_token_account::processor::process_create_token_account;
+use decompressed_token_transfer::process_decompressed_token_transfer;
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -56,9 +59,7 @@ impl From<u8> for InstructionType {
 #[cfg(not(feature = "cpi"))]
 use pinocchio::program_entrypoint;
 
-use crate::{
-    convert_account_infos::convert_account_infos, transfer2::processor::process_transfer2,
-};
+use crate::transfer2::processor::process_transfer2;
 
 #[cfg(not(feature = "cpi"))]
 program_entrypoint!(process_instruction);
@@ -71,20 +72,7 @@ pub fn process_instruction(
     let discriminator = InstructionType::from(instruction_data[0]);
     match discriminator {
         InstructionType::DecompressedTransfer => {
-            let instruction = TokenInstruction::unpack(instruction_data)?;
-            match instruction {
-                TokenInstruction::Transfer { amount } => {
-                    let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
-                    let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-                    spl_token::processor::Processor::process_transfer(
-                        &program_id_pubkey,
-                        &account_infos,
-                        amount,
-                        None,
-                    )?;
-                }
-                _ => return Err(ProgramError::InvalidInstructionData),
-            }
+            process_decompressed_token_transfer(program_id, accounts, instruction_data)?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
             anchor_lang::solana_program::msg!("CreateAssociatedTokenAccount");

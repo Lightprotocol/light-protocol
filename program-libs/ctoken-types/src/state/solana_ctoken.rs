@@ -420,15 +420,44 @@ impl DerefMut for ZCompressedTokenMut<'_> {
     }
 }
 
+impl ZCompressedTokenMut<'_> {
+    /// Update the last_written_slot for compressible extensions to current slot
+    pub fn update_compressible_last_written_slot(&mut self) -> Result<(), crate::CTokenError> {
+        #[cfg(target_os = "solana")]
+        if let Some(extensions) = self.extensions.as_deref_mut() {
+            for extension in extensions.iter_mut() {
+                if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
+                    {
+                        use pinocchio::sysvars::{clock::Clock, Sysvar};
+                        let current_slot = Clock::get()
+                            .map_err(|_| crate::CTokenError::SysvarAccessError)?
+                            .slot;
+                        compressible_extension.last_written_slot = current_slot.into();
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl<'a> Deserialize<'a> for CompressedToken {
     type Output = ZCompressedToken<'a>;
 
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         let (__meta, bytes) = <CompressedTokenMeta as Deserialize<'a>>::zero_copy_at(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {
-            let (extensions, bytes) =
-                <Option<Vec<ExtensionStruct>> as Deserialize<'a>>::zero_copy_at(bytes)?;
-            (extensions, bytes)
+            // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
+            let extension_start = if bytes.get(0) == Some(&2) {
+                // Skip AccountType::Account byte at position 165
+                &bytes[1..]
+            } else {
+                return Err(ZeroCopyError::Size);
+            };
+            
+            let (extensions, remaining_bytes) =
+                <Option<Vec<ExtensionStruct>> as Deserialize<'a>>::zero_copy_at(extension_start)?;
+            (extensions, remaining_bytes)
         } else {
             (None, bytes)
         };
@@ -444,9 +473,17 @@ impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for CompressedToken {
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         let (__meta, bytes) = <CompressedTokenMeta as light_zero_copy::borsh_mut::DeserializeMut<'a>>::zero_copy_at_mut(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {
-            let (extensions, bytes) =
-                <Option<Vec<ExtensionStruct>> as light_zero_copy::borsh_mut::DeserializeMut<'a>>::zero_copy_at_mut(bytes)?;
-            (extensions, bytes)
+            // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
+            let extension_start = if bytes.get(0) == Some(&2) {
+                // Skip AccountType::Account byte at position 165
+                &mut bytes[1..]
+            } else {
+                return Err(ZeroCopyError::Size);
+            };
+            
+            let (extensions, remaining_bytes) =
+                <Option<Vec<ExtensionStruct>> as light_zero_copy::borsh_mut::DeserializeMut<'a>>::zero_copy_at_mut(extension_start)?;
+            (extensions, remaining_bytes)
         } else {
             (None, bytes)
         };
@@ -611,9 +648,12 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
         // close_authority: 4 bytes discriminator + 32 bytes pubkey
         len += 36;
 
-        // Only add extension bytes if there are extensions
+        // Total: 165 bytes (SPL Token Account size)
+
+        // Add AccountType byte for SPL Token 2022 compatibility (always present if we have extensions)
         if !config.extensions.is_empty() {
-            len += 1;
+            len += 1; // AccountType::Account byte at position 165
+            len += 1; // Option discriminant for extensions (Some = 1) 
             len += <Vec<ExtensionStruct> as ZeroCopyNew<'a>>::byte_len(&config.extensions);
         }
 
@@ -647,11 +687,14 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
 
         // Initialize extensions if present
         if !config.extensions.is_empty() {
-            // Set Option discriminant for extensions (Some = 1) at position 165
-            bytes[165] = 1;
+            // Set AccountType::Account byte at position 165 for SPL Token 2022 compatibility
+            bytes[165] = 2; // AccountType::Account = 2
 
-            // Extensions Vec starts after the Option discriminant (166 bytes)
-            let extension_bytes = &mut bytes[166..];
+            // Set Option discriminant for extensions (Some = 1) at position 166
+            bytes[166] = 1;
+
+            // Extensions Vec starts after the Option discriminant (167 bytes)
+            let extension_bytes = &mut bytes[167..];
 
             // Write Vec length (4 bytes little-endian)
             let len = config.extensions.len() as u32;

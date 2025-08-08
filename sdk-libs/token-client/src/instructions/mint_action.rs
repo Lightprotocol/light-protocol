@@ -46,10 +46,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     params: MintActionParams,
 ) -> Result<Instruction, RpcError> {
     // Check if we're creating a new mint
-    let is_creating_mint = params
-        .actions
-        .iter()
-        .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
+    let is_creating_mint = params.new_mint.is_some();
 
     // Get address tree and output queue info
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;

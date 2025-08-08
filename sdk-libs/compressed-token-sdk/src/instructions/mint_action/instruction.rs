@@ -65,7 +65,6 @@ pub enum MintActionType {
     MintToDecompressed {
         account: Pubkey,
         amount: u64,
-        compressible_config: Option<light_ctoken_types::instructions::extensions::compressible::CompressibleExtensionInstructionData>,
     },
 }
 
@@ -155,11 +154,7 @@ pub fn create_mint_action_cpi(
                     new_authority: new_authority.map(|auth| auth.to_bytes().into()),
                 }));
             }
-            MintActionType::MintToDecompressed {
-                account,
-                amount,
-                compressible_config,
-            } => {
+            MintActionType::MintToDecompressed { account, amount } => {
                 use light_ctoken_types::instructions::mint_actions::{
                     DecompressedRecipient, MintToDecompressedAction,
                 };
@@ -173,7 +168,6 @@ pub fn create_mint_action_cpi(
                     recipient: DecompressedRecipient {
                         account_index: current_index,
                         amount,
-                        compressible_config,
                     },
                 }));
             }
@@ -334,11 +328,7 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
                     ),
                 );
             }
-            MintActionType::MintToDecompressed {
-                account,
-                amount,
-                compressible_config,
-            } => {
+            MintActionType::MintToDecompressed { account, amount } => {
                 use light_ctoken_types::instructions::mint_actions::{
                     DecompressedRecipient, MintToDecompressedAction,
                 };
@@ -354,7 +344,6 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
                             recipient: DecompressedRecipient {
                                 account_index: current_index,
                                 amount,
-                                compressible_config,
                             },
                         },
                     ),
