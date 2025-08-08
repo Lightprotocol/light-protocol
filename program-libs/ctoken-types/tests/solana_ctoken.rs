@@ -3,10 +3,12 @@ use light_ctoken_types::state::{
     solana_ctoken::{CompressedToken, CompressedTokenConfig, ZCompressedToken},
     ExtensionStructConfig,
 };
+use light_zero_copy::borsh_mut::DeserializeMut;
 use light_zero_copy::{borsh::Deserialize, init_mut::ZeroCopyNew};
 use rand::Rng;
 use spl_pod::{bytemuck::pod_from_bytes, primitives::PodU64, solana_program_option::COption};
 use spl_token_2022::{
+    extension::{PodStateWithExtensions, StateWithExtensions},
     pod::PodAccount,
     solana_program::program_pack::Pack,
     state::{Account, AccountState},
@@ -293,7 +295,6 @@ fn compare_compressed_token_mut_with_pod_account(
 
 #[test]
 fn test_compressed_token_equivalent_to_pod_account() {
-    use light_zero_copy::borsh_mut::DeserializeMut;
     let mut rng = rand::thread_rng();
 
     for _ in 0..10000 {
@@ -497,7 +498,7 @@ fn test_compressed_token_new_zero_copy_all_options() {
 #[test]
 fn test_compressed_token_with_compressible_extension() {
     use light_zero_copy::borsh_mut::DeserializeMut;
-    
+
     // Test configuration with compressible extension
     let config = CompressedTokenConfig {
         delegate: false,
@@ -508,63 +509,67 @@ fn test_compressed_token_with_compressible_extension() {
 
     // Calculate required buffer size (165 base + 1 AccountType + 1 Option + extension data)
     let required_size = CompressedToken::byte_len(&config);
-    println!("Required size for compressible extension: {}", required_size);
-    
+    println!(
+        "Required size for compressible extension: {}",
+        required_size
+    );
+
     // Should be more than 165 bytes due to AccountType byte and extension
     assert!(required_size > 165);
 
     // Create buffer and initialize
     let mut buffer = vec![0u8; required_size];
     {
-        let (compressed_token, remaining_bytes) = CompressedToken::new_zero_copy(&mut buffer, config)
-            .expect("Failed to initialize compressed token with compressible extension");
+        let (compressed_token, remaining_bytes) =
+            CompressedToken::new_zero_copy(&mut buffer, config)
+                .expect("Failed to initialize compressed token with compressible extension");
 
         // Verify the remaining bytes length
         assert_eq!(remaining_bytes.len(), 0);
-        
+
         // Verify extensions are present
         assert!(compressed_token.extensions.is_some());
         let extensions = compressed_token.extensions.as_ref().unwrap();
         assert_eq!(extensions.len(), 1);
     } // Drop the compressed_token reference here
-    
+
     // Now we can access buffer directly
     // Verify AccountType::Account byte is set at position 165
     assert_eq!(buffer[165], 2); // AccountType::Account = 2
-    
+
     // Verify extension option discriminant at position 166
     assert_eq!(buffer[166], 1); // Some = 1
 
     // Test zero-copy deserialization round-trip
     let (deserialized_token, _) = CompressedToken::zero_copy_at(&buffer)
         .expect("Failed to deserialize token with compressible extension");
-    
+
     assert!(deserialized_token.extensions.is_some());
     let deserialized_extensions = deserialized_token.extensions.as_ref().unwrap();
     assert_eq!(deserialized_extensions.len(), 1);
-    
+
     // Test mutable deserialization with a fresh buffer
     let mut buffer_copy = buffer.clone();
     let (mutable_token, _) = CompressedToken::zero_copy_at_mut(&mut buffer_copy)
         .expect("Failed to deserialize mutable token with compressible extension");
-        
+
     assert!(mutable_token.extensions.is_some());
-    
+
     // Test updating the compressible extension's last_written_slot
     // Note: This would normally be done via the update_compressible_last_written_slot method
     // but we can't test that here since it requires Solana runtime
-    
+
     println!("✅ Compressible extension test passed - AccountType byte correctly inserted at position 165");
     println!("✅ Extensions properly serialized and deserialized with AccountType compatibility");
 }
 
-#[test] 
+#[test]
 fn test_account_type_compatibility_with_spl_parsing() {
     // This test verifies our AccountType insertion makes accounts SPL Token 2022 compatible
-    
+
     let config = CompressedTokenConfig {
         delegate: false,
-        is_native: false, 
+        is_native: false,
         close_authority: false,
         extensions: vec![ExtensionStructConfig::Compressible],
     };
@@ -573,24 +578,34 @@ fn test_account_type_compatibility_with_spl_parsing() {
     let (_compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
         .expect("Failed to create token with extension");
 
-    // The first 165 bytes should be parseable as a standard SPL Token Account
-    let account_data = &buffer[..165];
-    let pod_account = pod_from_bytes::<PodAccount>(account_data)
+    let pod_account = pod_from_bytes::<PodAccount>(&buffer[..165])
         .expect("First 165 bytes should be valid SPL Token Account data");
-    
+    let pod_state = PodStateWithExtensions::<PodAccount>::unpack(&buffer)
+        .expect("Pod account with extensions should succeed.");
+    let base_account = pod_state.base;
+    assert_eq!(pod_account, base_account);
     // Verify account structure
     assert_eq!(pod_account.state, 1); // AccountState::Initialized
-    
-    // Verify AccountType byte is at position 165 
+
+    // Verify AccountType byte is at position 165
     assert_eq!(buffer[165], 2); // AccountType::Account = 2
-    
+
     // This demonstrates that:
     // 1. First 165 bytes are standard SPL Token format
     // 2. AccountType::Account byte at position 165 (as expected by SPL Token 2022)
     // 3. Our extensions start after the AccountType byte
-    
+
     println!("✅ Account layout is SPL Token 2022 compatible");
     println!("   - First 165 bytes: Standard SPL Token Account");
     println!("   - Byte 165: AccountType::Account (value = 2)");
     println!("   - Byte 166+: Our extension data");
+
+    // Deserialize with extensions
+    let token_account_data = StateWithExtensions::<Account>::unpack(&buffer)
+        .unwrap()
+        .base;
+
+    // Deserialize without extensions need to truncate buffer to correct length.
+    let token_account_data_no_extensions = Account::unpack(&buffer[..165]).unwrap();
+    assert_eq!(token_account_data, token_account_data_no_extensions);
 }

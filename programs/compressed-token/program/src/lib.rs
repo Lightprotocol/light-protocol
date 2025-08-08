@@ -1,6 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::account_info::AccountInfo;
 
@@ -70,9 +71,12 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let discriminator = InstructionType::from(instruction_data[0]);
+    if *program_id != COMPRESSED_TOKEN_PROGRAM_ID {
+        return Err(ProgramError::IncorrectProgramId);
+    }
     match discriminator {
         InstructionType::DecompressedTransfer => {
-            process_decompressed_token_transfer(program_id, accounts, instruction_data)?;
+            process_decompressed_token_transfer(accounts, instruction_data)?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
             anchor_lang::solana_program::msg!("CreateAssociatedTokenAccount");

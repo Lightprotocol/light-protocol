@@ -2,7 +2,10 @@ use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::{
     instructions::{
-        create_associated_token_account::{create_associated_token_account, create_compressible_associated_token_account, derive_ctoken_ata, CreateCompressibleAssociatedTokenAccountInputs},
+        create_associated_token_account::{
+            create_compressible_associated_token_account, derive_ctoken_ata,
+            CreateCompressibleAssociatedTokenAccountInputs,
+        },
         create_compressed_mint::find_spl_mint_address,
         derive_compressed_mint_address,
         mint_action::MintToRecipient,
@@ -21,7 +24,10 @@ use light_ctoken_types::{
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 
 use anchor_lang::solana_program::program_pack::Pack;
-use anchor_spl::token_interface::spl_token_2022;
+use anchor_spl::{
+    token::spl_token::state::Account, token_2022::spl_token_2022::extension::StateWithExtensions,
+    token_interface::spl_token_2022,
+};
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{
@@ -138,7 +144,8 @@ async fn test_pda_ctoken() {
     // 3. Verify decompressed tokens were minted to the token account
     let token_account_info = rpc.get_account(token_account).await.unwrap().unwrap();
     let token_account_data =
-        spl_token_2022::state::Account::unpack(&token_account_info.data).unwrap();
+        spl_token_2022::state::Account::unpack(&token_account_info.data[..165]).unwrap();
+
     assert_eq!(
         token_account_data.amount, 1000u64,
         "Token account should have 1000 tokens from MintToDecompressed action"
@@ -209,8 +216,9 @@ pub async fn create_mint<R: Rpc + Indexer>(
             rent_authority: Pubkey::new_unique(),
             rent_recipient: Pubkey::new_unique(),
             slots_until_compression: 1000,
-        }
-    ).unwrap();
+        },
+    )
+    .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])
         .await
         .expect("Failed to create associated token account");

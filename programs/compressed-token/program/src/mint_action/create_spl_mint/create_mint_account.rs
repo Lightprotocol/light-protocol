@@ -1,4 +1,3 @@
-use anchor_lang::prelude::msg;
 use anchor_lang::solana_program::{
     program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
 };
