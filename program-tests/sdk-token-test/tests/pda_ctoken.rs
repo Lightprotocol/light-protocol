@@ -24,10 +24,7 @@ use light_ctoken_types::{
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 
 use anchor_lang::solana_program::program_pack::Pack;
-use anchor_spl::{
-    token::spl_token::state::Account, token_2022::spl_token_2022::extension::StateWithExtensions,
-    token_interface::spl_token_2022,
-};
+use anchor_spl::token_interface::spl_token_2022;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{

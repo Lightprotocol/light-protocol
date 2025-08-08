@@ -1,7 +1,4 @@
-use anchor_lang::solana_program::{
-    program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
-};
-use pinocchio::instruction::{Seed, Signer};
+use anchor_lang::solana_program::program_error::ProgramError;
 
 use light_ctoken_types::COMPRESSED_MINT_SEED;
 
@@ -15,89 +12,35 @@ pub fn create_mint_account(
     mint_signer: &pinocchio::account_info::AccountInfo,
 ) -> Result<(), ProgramError> {
     let mint_account_size = 82; // Size of Token-2022 Mint account
-    let rent = Rent::get()?;
-    let lamports = rent.minimum_balance(mint_account_size);
-
-    // Derive the mint PDA seeds using provided bump
-    let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-    let expected_mint = solana_pubkey::Pubkey::create_program_address(
-        &[
-            COMPRESSED_MINT_SEED,
-            mint_signer.key().as_ref(),
-            &[mint_bump],
-        ],
-        &program_id_pubkey,
-    )
-    .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // Verify the provided mint account matches the expected PDA
     let mint_account = executing_accounts
         .mint
         .ok_or(ProgramError::InvalidAccountData)?;
-    if mint_account.key() != &expected_mint.to_bytes() {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    let token_program = executing_accounts
+        .token_program
+        .ok_or(ProgramError::InvalidAccountData)?;
 
-    let mint_signer_key = mint_signer.key();
-    let bump_bytes = [mint_bump];
-    let seed_array = [
-        Seed::from(COMPRESSED_MINT_SEED),
-        Seed::from(mint_signer_key.as_ref()),
-        Seed::from(bump_bytes.as_ref()),
+    // Verify the provided mint account matches the expected PDA
+    let seeds = &[
+        COMPRESSED_MINT_SEED,
+        mint_signer.key().as_ref(),
     ];
-    let signer = Signer::from(&seed_array);
+    crate::shared::verify_pda(mint_account.key(), seeds, mint_bump, program_id)?;
 
-    // Create account owned by token program but derived from our program
-    let fee_payer_pubkey =
-        solana_pubkey::Pubkey::new_from_array(*executing_accounts.system.fee_payer.key());
-    let mint_pubkey = solana_pubkey::Pubkey::new_from_array(*mint_account.key());
-    let token_program_pubkey = solana_pubkey::Pubkey::new_from_array(
-        *executing_accounts
-            .token_program
-            .ok_or(ProgramError::InvalidAccountData)?
-            .key(),
-    );
-
-    let create_account_ix = system_instruction::create_account(
-        &fee_payer_pubkey,
-        &mint_pubkey,
-        lamports,
-        mint_account_size as u64,
-        &token_program_pubkey, // Owned by token program
-    );
-
-    let pinocchio_instruction = pinocchio::instruction::Instruction {
-        program_id: &create_account_ix.program_id.to_bytes(),
-        accounts: &[
-            pinocchio::instruction::AccountMeta::new(
-                executing_accounts.system.fee_payer.key(),
-                true,
-                true,
-            ),
-            pinocchio::instruction::AccountMeta::new(mint_account.key(), true, true),
-            pinocchio::instruction::AccountMeta::readonly(
-                executing_accounts.system.system_program.key(),
-            ),
-        ],
-        data: &create_account_ix.data,
+    // Create account using shared function
+    let config = crate::shared::CreatePdaAccountConfig {
+        seeds,
+        bump: mint_bump,
+        account_size: mint_account_size,
+        owner_program_id: token_program.key(), // Owned by token program
+        derivation_program_id: program_id,
     };
 
-    match pinocchio::program::invoke_signed(
-        &pinocchio_instruction,
-        &[
-            executing_accounts.system.fee_payer,
-            mint_account,
-            executing_accounts.system.system_program,
-        ],
-        &[signer], // Signed with our program's PDA seeds
-    ) {
-        Ok(()) => {}
-        Err(e) => {
-            return Err(ProgramError::Custom(u64::from(e) as u32));
-        }
-    }
-
-    Ok(())
+    crate::shared::create_pda_account(
+        executing_accounts.system.fee_payer,
+        mint_account,
+        executing_accounts.system.system_program,
+        config,
+    )
 }
 
 /// Initializes the mint account using Token-2022's initialize_mint2 instruction

@@ -1,7 +1,4 @@
-use anchor_lang::solana_program::{
-    program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
-};
-use pinocchio::instruction::{Seed, Signer};
+use anchor_lang::solana_program::program_error::ProgramError;
 
 use crate::constants::POOL_SEED;
 
@@ -11,10 +8,8 @@ pub fn create_token_pool_account_manual(
     program_id: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let token_account_size = 165; // Size of Token account
-    let rent = Rent::get()?;
-    let lamports = rent.minimum_balance(token_account_size);
-
-    // Derive the token pool PDA seeds and bump
+    
+    // Get required accounts
     let mint_account = executing_accounts
         .mint
         .ok_or(ProgramError::InvalidAccountData)?;
@@ -25,6 +20,7 @@ pub fn create_token_pool_account_manual(
         .token_program
         .ok_or(ProgramError::InvalidAccountData)?;
 
+    // Find the bump for verification
     let mint_key = mint_account.key();
     let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
     let (expected_token_pool, bump) = solana_pubkey::Pubkey::find_program_address(
@@ -37,59 +33,22 @@ pub fn create_token_pool_account_manual(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let bump_bytes = [bump];
-    let seed_array = [
-        Seed::from(POOL_SEED),
-        Seed::from(mint_key.as_ref()),
-        Seed::from(bump_bytes.as_ref()),
-    ];
-    let signer = Signer::from(&seed_array);
-
-    // Create account owned by token program but derived from our program
-    let fee_payer_pubkey =
-        solana_pubkey::Pubkey::new_from_array(*executing_accounts.system.fee_payer.key());
-    let token_pool_pubkey = solana_pubkey::Pubkey::new_from_array(*token_pool_pda.key());
-    let token_program_pubkey = solana_pubkey::Pubkey::new_from_array(*token_program.key());
-    let create_account_ix = system_instruction::create_account(
-        &fee_payer_pubkey,
-        &token_pool_pubkey,
-        lamports,
-        token_account_size as u64,
-        &token_program_pubkey, // Owned by token program
-    );
-
-    let pinocchio_instruction = pinocchio::instruction::Instruction {
-        program_id: &create_account_ix.program_id.to_bytes(),
-        accounts: &[
-            pinocchio::instruction::AccountMeta::new(
-                executing_accounts.system.fee_payer.key(),
-                true,
-                true,
-            ),
-            pinocchio::instruction::AccountMeta::new(token_pool_pda.key(), true, true),
-            pinocchio::instruction::AccountMeta::readonly(
-                executing_accounts.system.system_program.key(),
-            ),
-        ],
-        data: &create_account_ix.data,
+    // Create account using shared function
+    let seeds = &[POOL_SEED, mint_key.as_ref()];
+    let config = crate::shared::CreatePdaAccountConfig {
+        seeds,
+        bump,
+        account_size: token_account_size,
+        owner_program_id: token_program.key(), // Owned by token program
+        derivation_program_id: program_id,
     };
 
-    match pinocchio::program::invoke_signed(
-        &pinocchio_instruction,
-        &[
-            executing_accounts.system.fee_payer,
-            token_pool_pda,
-            executing_accounts.system.system_program,
-        ],
-        &[signer], // Signed with our program's PDA seeds
-    ) {
-        Ok(()) => {}
-        Err(e) => {
-            return Err(ProgramError::Custom(u64::from(e) as u32));
-        }
-    }
-
-    Ok(())
+    crate::shared::create_pda_account(
+        executing_accounts.system.fee_payer,
+        token_pool_pda,
+        executing_accounts.system.system_program,
+        config,
+    )
 }
 
 /// Initializes the token pool account (assumes account already exists)
