@@ -422,6 +422,7 @@ impl DerefMut for ZCompressedTokenMut<'_> {
 
 impl ZCompressedTokenMut<'_> {
     /// Update the last_written_slot for compressible extensions to current slot
+    #[inline(always)]
     pub fn update_compressible_last_written_slot(&mut self) -> Result<(), crate::CTokenError> {
         #[cfg(target_os = "solana")]
         if let Some(extensions) = self.extensions.as_deref_mut() {
@@ -454,7 +455,7 @@ impl<'a> Deserialize<'a> for CompressedToken {
             } else {
                 return Err(ZeroCopyError::Size);
             };
-            
+
             let (extensions, remaining_bytes) =
                 <Option<Vec<ExtensionStruct>> as Deserialize<'a>>::zero_copy_at(extension_start)?;
             (extensions, remaining_bytes)
@@ -480,7 +481,7 @@ impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for CompressedToken {
             } else {
                 return Err(ZeroCopyError::Size);
             };
-            
+
             let (extensions, remaining_bytes) =
                 <Option<Vec<ExtensionStruct>> as light_zero_copy::borsh_mut::DeserializeMut<'a>>::zero_copy_at_mut(extension_start)?;
             (extensions, remaining_bytes)
@@ -653,7 +654,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
         // Add AccountType byte for SPL Token 2022 compatibility (always present if we have extensions)
         if !config.extensions.is_empty() {
             len += 1; // AccountType::Account byte at position 165
-            len += 1; // Option discriminant for extensions (Some = 1) 
+            len += 1; // Option discriminant for extensions (Some = 1)
             len += <Vec<ExtensionStruct> as ZeroCopyNew<'a>>::byte_len(&config.extensions);
         }
 

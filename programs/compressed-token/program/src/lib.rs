@@ -3,7 +3,7 @@ use std::mem::ManuallyDrop;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, msg};
 
 pub mod close_token_account;
 pub mod convert_account_infos;
@@ -76,26 +76,27 @@ pub fn process_instruction(
     }
     match discriminator {
         InstructionType::DecompressedTransfer => {
+            msg!("DecompressedTransfer");
             process_decompressed_token_transfer(accounts, instruction_data)?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
-            anchor_lang::solana_program::msg!("CreateAssociatedTokenAccount");
+            msg!("CreateAssociatedTokenAccount");
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateTokenAccount => {
-            anchor_lang::solana_program::msg!("CreateTokenAccount");
+            msg!("CreateTokenAccount");
             process_create_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::CloseTokenAccount => {
-            anchor_lang::solana_program::msg!("CloseTokenAccount");
+            msg!("CloseTokenAccount");
             process_close_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::Transfer2 => {
-            anchor_lang::solana_program::msg!("Transfer2");
+            msg!("Transfer2");
             process_transfer2(accounts, &instruction_data[1..])?;
         }
         InstructionType::MintAction => {
-            anchor_lang::solana_program::msg!("MintAction");
+            msg!("MintAction");
             process_mint_action(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType

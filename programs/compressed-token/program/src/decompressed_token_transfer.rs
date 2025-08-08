@@ -30,6 +30,7 @@ pub fn process_decompressed_token_transfer(
 
 /// Update last_written_slot for token accounts with compressible extensions
 /// SPL token transfer uses accounts[0] as source and accounts[1] as destination
+#[inline(always)]
 fn update_compressible_accounts_last_written_slot(
     accounts: &[anchor_lang::prelude::AccountInfo],
 ) -> Result<(), ProgramError> {
@@ -38,8 +39,8 @@ fn update_compressible_accounts_last_written_slot(
 
         // Update both sender (accounts[0]) and recipient (accounts[1]) if they have extensions
         for account in &accounts[..2] {
-            if let Ok(mut account_data) = account.try_borrow_mut_data() {
-                if account_data.len() > SPL_TOKEN_ACCOUNT_SIZE {
+            if account.data_len() > SPL_TOKEN_ACCOUNT_SIZE {
+                if let Ok(mut account_data) = account.try_borrow_mut_data() {
                     if let Ok((mut token, _)) = CompressedToken::zero_copy_at_mut(&mut account_data)
                     {
                         token
