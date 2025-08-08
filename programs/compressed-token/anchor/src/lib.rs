@@ -350,6 +350,24 @@ pub enum ErrorCode {
     #[msg("New mint must start as compressed")]
     MintActionInvalidCompressionState,
     MintActionUnsupportedOperation,
+    // Close account specific errors
+    #[msg("Cannot close account with non-zero token balance")]
+    NonNativeHasBalance,
+    #[msg("Authority signature does not match expected owner")]
+    OwnerMismatch,
+    #[msg("Account is frozen and cannot perform this operation")]
+    AccountFrozen,
+    // Account creation specific errors
+    #[msg("Account size insufficient for token account")]
+    InsufficientAccountSize,
+    #[msg("Account already initialized")]
+    AlreadyInitialized,
+    #[msg("Extension instruction data invalid")]
+    InvalidExtensionInstructionData,
+    #[msg("Lamports amount too large")]
+    MintActionLamportsAmountTooLarge,
+    #[msg("Invalid token program provided")]
+    InvalidTokenProgram,
 }
 
 impl From<ErrorCode> for ProgramError {

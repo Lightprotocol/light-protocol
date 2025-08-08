@@ -4,7 +4,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::instructions::{
-    create_mint_action, derive_compressed_mint_address, find_spl_mint_address,
+    create_mint_action, derive_compressed_mint_address, derive_token_pool, find_spl_mint_address,
     mint_action::{MintActionInputs, MintActionType, MintToRecipient},
 };
 use light_ctoken_types::{
@@ -134,6 +134,21 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         None
     };
 
+    // Check if we need token_pool (for SPL operations)
+    let needs_token_pool = params.actions.iter().any(|action| {
+        matches!(
+            action,
+            MintActionType::CreateSplMint { .. } | MintActionType::MintToDecompressed { .. }
+        )
+    }) || compressed_mint_inputs.mint.is_decompressed;
+
+    let token_pool = if needs_token_pool {
+        let spl_mint = find_spl_mint_address(&params.mint_seed).0;
+        Some(derive_token_pool(&spl_mint, 0))
+    } else {
+        None
+    };
+
     // Create the mint action instruction inputs
     let instruction_inputs = MintActionInputs {
         compressed_mint_inputs,
@@ -158,6 +173,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         },
         output_queue: state_tree_info.queue,
         tokens_out_queue: Some(state_tree_info.queue), // Output queue for tokens
+        token_pool,
     };
 
     // Create the instruction using the SDK

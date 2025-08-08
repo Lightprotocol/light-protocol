@@ -4,7 +4,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::instructions::{
-    create_spl_mint_instruction as sdk_create_spl_mint_instruction, find_spl_mint_address,
+    create_spl_mint_instruction as sdk_create_spl_mint_instruction, derive_token_pool, find_spl_mint_address,
     CreateSplMintInputs,
 };
 use light_ctoken_types::{
@@ -65,7 +65,10 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
         .value;
 
     // Derive SPL mint PDA and bump
-    let (_spl_mint_pda, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+
+    // Derive token pool for the SPL mint
+    let token_pool = derive_token_pool(&spl_mint_pda, 0);
 
     // Get tree and queue information
     let input_tree = compressed_mint_account.tree_info.tree;
@@ -100,6 +103,7 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
         input_output_queue: input_queue,
         output_queue,
         mint_authority,
+        token_pool,
     })
     .map_err(|e| RpcError::CustomError(format!("Failed to create SPL mint instruction: {}", e)))?;
     println!("instruction {:?}", instruction);

@@ -2,12 +2,13 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
+use light_ctoken_types::state::CompressedMintConfig;
 use light_ctoken_types::{
     instructions::{
         extensions::ZExtensionInstructionData,
         mint_actions::{ZAction, ZMintActionCompressedInstructionData},
     },
-    state::{CompressedMintConfig, ExtensionStructConfig},
+    state::ExtensionStructConfig,
 };
 
 use spl_pod::solana_msg::msg;
@@ -28,13 +29,10 @@ pub fn get_zero_copy_configs(
     ProgramError,
 > {
     let mut idempotent = false;
-    use light_ctoken_types::state::CompressedMintConfig;
-    msg!("get_zero_copy_configs");
     // Process extensions to get the proper config for CPI bytes allocation
     let (_, mut extensions_config, _) = crate::extensions::process_extensions_config(
         parsed_instruction_data.mint.extensions.as_ref(),
     )?;
-    msg!("get_zero_copy_configs1");
 
     // Calculate final authority states after processing all actions
     let mut final_mint_authority = parsed_instruction_data.mint.mint_authority.is_some();
@@ -112,7 +110,6 @@ pub fn get_zero_copy_configs(
             _ => {} // Other actions don't affect authority or extension states
         }
     }
-    msg!("get_zero_copy_configs2");
 
     // Output mint config (always present) with final authority states
     let output_mint_config = CompressedMintConfig {
@@ -130,7 +127,6 @@ pub fn get_zero_copy_configs(
             _ => 0,
         })
         .sum();
-    msg!("get_zero_copy_configs2");
 
     let input = CpiConfigInput {
         input_accounts: {
@@ -164,12 +160,9 @@ pub fn get_zero_copy_configs(
             0
         },
     };
-    msg!("get_zero_copy_configs5");
 
     let config = cpi_bytes_config(input);
-    msg!("get_zero_copy_configs6");
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
-    msg!("get_zero_copy_configs7");
 
     Ok((config, cpi_bytes, output_mint_config, idempotent))
 }

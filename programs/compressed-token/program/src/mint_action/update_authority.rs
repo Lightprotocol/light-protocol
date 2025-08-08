@@ -1,19 +1,27 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
-
 use light_compressed_account::Pubkey;
-
+use light_ctoken_types::instructions::mint_actions::ZUpdateAuthority;
+use light_zero_copy::borsh_mut::DeserializeMut;
 use spl_pod::solana_msg::msg;
 
-/// Helper function for processing authority update actions
-pub fn update_authority(
-    update_action: &light_ctoken_types::instructions::mint_actions::ZUpdateAuthority<'_>,
-    signer_key: &pinocchio::pubkey::Pubkey,
-    current_authority: Option<Pubkey>,
+/// Validates signer authority and updates the authority field in one operation
+pub fn validate_and_update_authority(
+    authority_field: &mut <Option<Pubkey> as DeserializeMut<'_>>::Output,
+    instruction_fallback: Option<Pubkey>,
+    update_action: &ZUpdateAuthority<'_>,
+    signer: &pinocchio::pubkey::Pubkey,
     authority_name: &str,
-) -> Result<Option<Pubkey>, ProgramError> {
-    // Verify that the signer is the current authority
-    let current_authority_pubkey = current_authority.ok_or(ProgramError::InvalidArgument)?;
-    if *signer_key != current_authority_pubkey.to_bytes() {
+) -> Result<(), ProgramError> {
+    // Get current authority (from field or instruction fallback)
+    let current_authority = authority_field
+        .as_ref()
+        .map(|a| **a)
+        .or(instruction_fallback)
+        .ok_or(ProgramError::InvalidArgument)?;
+
+    // Validate signer matches current authority
+    if *signer != current_authority.to_bytes() {
         msg!(
             "Invalid authority: signer does not match current {}",
             authority_name
@@ -21,6 +29,25 @@ pub fn update_authority(
         return Err(ProgramError::InvalidArgument);
     }
 
-    // Update the authority (None = revoke, Some(key) = set new authority)
-    Ok(update_action.new_authority.as_ref().map(|auth| **auth))
+    // Apply update based on allocation and requested change
+    let new_authority = update_action.new_authority.as_ref().map(|auth| **auth);
+    match (authority_field.as_mut(), new_authority) {
+        // Set new authority value in allocated field
+        (Some(field_ref), Some(new_auth)) => **field_ref = new_auth,
+        // Inconsistent state: allocated Some but trying to revoke
+        // This indicates allocation logic bug - revoke should allocate None
+        (Some(_), None) => {
+            msg!("Zero copy field is some but should be None");
+            return Err(ErrorCode::MintActionUnsupportedOperation.into());
+        }
+        // Invalid operation: cannot set authority when not allocated
+        (None, Some(_)) => {
+            msg!("Cannot set {} when none was allocated", authority_name);
+            return Err(ErrorCode::MintActionUnsupportedOperation.into());
+        }
+        // Already revoked - no operation needed
+        (None, None) => {}
+    }
+
+    Ok(())
 }

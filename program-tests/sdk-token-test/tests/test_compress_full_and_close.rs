@@ -90,7 +90,7 @@ async fn test_compress_full_and_close() {
     })
     .unwrap();
 
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer])
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &mint_signer, &mint_authority_keypair])
         .await
         .unwrap();
 
@@ -150,6 +150,7 @@ async fn test_compress_full_and_close() {
             output_queue_tokens: state_output_queue,
             decompressed_mint_config: None,
             token_account_version: 2,
+            token_pool: None,
         },
         None,
     )

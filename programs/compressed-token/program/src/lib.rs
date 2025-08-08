@@ -48,7 +48,7 @@ impl From<u8> for InstructionType {
         match value {
             3 => InstructionType::DecompressedTransfer,
             9 => InstructionType::CloseTokenAccount,
-            103 => InstructionType::CreateAssociatedTokenAccount, // TODO: double check compatibility
+            103 => InstructionType::CreateAssociatedTokenAccount,
             104 => InstructionType::Transfer2,
             106 => InstructionType::MintAction,
             18 => InstructionType::CreateTokenAccount,

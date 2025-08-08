@@ -20,10 +20,7 @@ pub fn create_mint_account(
         .ok_or(ProgramError::InvalidAccountData)?;
 
     // Verify the provided mint account matches the expected PDA
-    let seeds = &[
-        COMPRESSED_MINT_SEED,
-        mint_signer.key().as_ref(),
-    ];
+    let seeds = &[COMPRESSED_MINT_SEED, mint_signer.key().as_ref()];
     crate::shared::verify_pda(mint_account.key(), seeds, mint_bump, program_id)?;
 
     // Create account using shared function
@@ -59,12 +56,10 @@ pub fn initialize_mint_account_for_action(
         &solana_pubkey::Pubkey::new_from_array(*token_program.key()),
         &solana_pubkey::Pubkey::new_from_array(*mint_account.key()),
         // cpi_signer is spl mint authority for compressed mints.
+        // So that the program can ensure cmint and spl mint supply is consistent.
         &solana_pubkey::Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer),
-        mint_data
-            .freeze_authority
-            .as_ref()
-            .map(|f| solana_pubkey::Pubkey::new_from_array(f.to_bytes()))
-            .as_ref(),
+        // Control that the token pool cannot be frozen.
+        Some(&solana_pubkey::Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer)),
         mint_data.decimals,
     )?;
 
@@ -72,7 +67,7 @@ pub fn initialize_mint_account_for_action(
         program_id: token_program.key(),
         accounts: &[pinocchio::instruction::AccountMeta::new(
             mint_account.key(),
-            true, // is_writable: true (we're initializing the mint)
+            true,
             false,
         )],
         data: &spl_ix.data,

@@ -12,6 +12,7 @@ use crate::{
 pub struct AccountIterator<'info, T: AccountInfoTrait> {
     accounts: &'info [T],
     position: usize,
+    #[allow(unused)]
     owner: [u8; 32],
 }
 
@@ -170,6 +171,10 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     /// Check if the iterator is empty.
     pub fn is_empty(&self) -> bool {
         self.accounts.is_empty()
+    }
+
+    pub fn iterator_is_empty(&self) -> bool {
+        self.len() == self.position()
     }
 
     fn print_on_error(&self, error: &AccountError, account_name: &str, location: &Location) {

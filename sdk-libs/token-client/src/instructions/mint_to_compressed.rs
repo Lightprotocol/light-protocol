@@ -6,7 +6,7 @@ use light_client::{
 use light_compressed_token_sdk::{
     instructions::{
         create_mint_to_compressed_instruction, derive_compressed_mint_from_spl_mint,
-        DecompressedMintConfig, MintToCompressedInputs,
+        derive_token_pool, DecompressedMintConfig, MintToCompressedInputs,
     },
     token_pool::find_token_pool_pda_with_index,
 };
@@ -54,7 +54,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     // Get state tree info for outputs
     let state_tree_info = rpc.get_random_state_tree_info()?;
 
-    // Create decompressed mint config if mint is decompressed
+    // Create decompressed mint config and token pool if mint is decompressed
     let decompressed_mint_config = if compressed_mint.is_decompressed {
         let (token_pool_pda, _) = find_token_pool_pda_with_index(&spl_mint_pda, 0);
         Some(DecompressedMintConfig {
@@ -62,6 +62,13 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             token_pool_pda,
             token_program: spl_token_2022::ID,
         })
+    } else {
+        None
+    };
+
+    // Derive token pool if needed for decompressed mints
+    let token_pool = if compressed_mint.is_decompressed {
+        Some(derive_token_pool(&spl_mint_pda, 0))
     } else {
         None
     };
@@ -94,6 +101,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             decompressed_mint_config,
             proof: rpc_proof_result.proof.into(),
             token_account_version: 2, // V2 for batched merkle trees
+            token_pool,
         },
         None,
     )

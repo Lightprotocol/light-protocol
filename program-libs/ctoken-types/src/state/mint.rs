@@ -1,11 +1,12 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon, Sha256};
-use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use light_zero_copy::{borsh::Deserialize, ZeroCopy, ZeroCopyMut};
 use solana_msg::msg;
-use zerocopy::{little_endian::U64, IntoBytes};
+use zerocopy::IntoBytes;
 
 use crate::{
     hash_cache::HashCache,
+    instructions::create_compressed_mint::CompressedMintInstructionData,
     state::{ExtensionStruct, ZExtensionStructMut},
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
@@ -118,22 +119,22 @@ impl CompressedMint {
     ) -> std::result::Result<[u8; 32], CTokenError> {
         if version == 0 {
             Ok(CompressedMint::hash_with_hashed_values_inner::<Poseidon>(
-                &hashed_spl_mint,
-                &supply_bytes,
+                hashed_spl_mint,
+                supply_bytes,
                 decimals,
                 is_decompressed,
-                &hashed_mint_authority,
-                &hashed_freeze_authority,
+                hashed_mint_authority,
+                hashed_freeze_authority,
                 version,
             )?)
         } else if version == 1 {
             Ok(CompressedMint::hash_with_hashed_values_inner::<Sha256>(
-                &hashed_spl_mint,
-                &supply_bytes,
+                hashed_spl_mint,
+                supply_bytes,
                 decimals,
                 is_decompressed,
-                &hashed_mint_authority,
-                &hashed_freeze_authority,
+                hashed_mint_authority,
+                hashed_freeze_authority,
                 version,
             )?)
         } else {
@@ -316,35 +317,31 @@ impl ZCompressedMintMut<'_> {
 impl ZCompressedMintMut<'_> {
     /// Set all fields of the CompressedMint struct at once
     #[inline]
-    #[allow(clippy::too_many_arguments)]
     pub fn set(
         &mut self,
-        version: u8,
-        spl_mint: Pubkey,
-        supply: U64,
-        decimals: u8,
+        ix_data: &<CompressedMintInstructionData as Deserialize<'_>>::Output,
         is_decompressed: bool,
-        mint_authority: Option<Pubkey>,
-        freeze_authority: Option<Pubkey>,
     ) -> Result<(), CTokenError> {
-        self.version = version;
-        self.spl_mint = spl_mint;
-        self.supply = supply;
-        self.decimals = decimals;
+        self.version = ix_data.version;
+        self.spl_mint = ix_data.spl_mint;
+        self.supply = ix_data.supply;
+        self.decimals = ix_data.decimals;
         self.is_decompressed = if is_decompressed { 1 } else { 0 };
         if let Some(self_mint_authority) = self.mint_authority.as_deref_mut() {
-            *self_mint_authority =
-                mint_authority.ok_or(CTokenError::InstructionDataExpectedMintAuthority)?;
+            *self_mint_authority = *ix_data
+                .mint_authority
+                .ok_or(CTokenError::InstructionDataExpectedMintAuthority)?;
         }
-        if self.mint_authority.is_some() && mint_authority.is_none() {
+        if self.mint_authority.is_some() && ix_data.mint_authority.is_none() {
             return Err(CTokenError::ZeroCopyExpectedMintAuthority);
         }
 
         if let Some(self_freeze_authority) = self.freeze_authority.as_deref_mut() {
-            *self_freeze_authority =
-                freeze_authority.ok_or(CTokenError::InstructionDataExpectedFreezeAuthority)?;
+            *self_freeze_authority = *ix_data
+                .freeze_authority
+                .ok_or(CTokenError::InstructionDataExpectedFreezeAuthority)?;
         }
-        if self.freeze_authority.is_some() && freeze_authority.is_none() {
+        if self.freeze_authority.is_some() && ix_data.freeze_authority.is_none() {
             return Err(CTokenError::ZeroCopyExpectedFreezeAuthority);
         }
         // extensions are handled separately

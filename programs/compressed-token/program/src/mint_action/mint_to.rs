@@ -1,55 +1,102 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
-use light_ctoken_types::{hash_cache::HashCache, instructions::mint_to_compressed::ZMintToAction};
+use light_ctoken_types::{
+    hash_cache::HashCache, instructions::mint_to_compressed::ZMintToAction,
+    state::ZCompressedMintMut,
+};
 
 use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
-use spl_pod::solana_msg::msg;
 
 use crate::{
-    mint_action::accounts::MintActionAccounts,
+    mint_action::accounts::{AccountsConfig, MintActionAccounts},
     shared::{mint_to_token_pool, token_output::set_output_compressed_account},
 };
 
+#[inline(always)]
+pub fn mint_authority_check(
+    compressed_mint: &ZCompressedMintMut<'_>,
+    validated_accounts: &MintActionAccounts,
+    instruction_fallback: Option<Pubkey>,
+) -> Result<(), ErrorCode> {
+    // Get current authority (from field or instruction fallback)
+    let mint_authority = compressed_mint
+        .mint_authority
+        .as_ref()
+        .map(|a| **a)
+        .or(instruction_fallback)
+        .ok_or(ErrorCode::InvalidAuthorityMint)?;
+
+    if *validated_accounts.authority.key() != mint_authority.to_bytes() {
+        use anchor_lang::prelude::msg;
+        msg!(
+            "authority.key()  {:?} != mint {:?}",
+            solana_pubkey::Pubkey::new_from_array(*validated_accounts.authority.key()),
+            solana_pubkey::Pubkey::new_from_array(mint_authority.to_bytes())
+        );
+        Err(ErrorCode::InvalidAuthorityMint)
+    } else {
+        Ok(())
+    }
+}
+
+/// Processes a mint-to action by validating authority, calculating amounts, and creating compressed token accounts.
+///
+/// ## Process Steps
+/// 1. **Authority Validation**: Verify signer matches current mint authority from compressed mint state
+/// 2. **Amount Calculation**: Sum recipient amounts with overflow protection
+/// 3. **Lamports Calculation**: Calculate total lamports for compressed accounts (if specified)
+/// 4. **Supply Update**: Calculate new total supply with overflow protection
+/// 5. **SPL Mint Synchronization**: For decompressed mints, validate accounts and mint equivalent tokens to token pool via CPI
+/// 6. **Compressed Account Creation**: Create new compressed token account for each recipient
+///
+/// ## Decompressed Mint Handling
+/// Decompressed mint means that an spl mint exists for this compressed mint.
+/// When `accounts_config.is_decompressed` is true, the function maintains consistency between the compressed
+/// token supply and the underlying SPL mint supply by minting equivalent tokens to a program-controlled
+/// token pool account via CPI to SPL Token 2022.
+#[allow(clippy::too_many_arguments)]
 pub fn process_mint_to_action(
     action: &ZMintToAction,
-    current_supply: u64,
+    compressed_mint: &ZCompressedMintMut<'_>,
     validated_accounts: &MintActionAccounts,
-    accounts_config: &crate::mint_action::accounts::AccountsConfig,
+    accounts_config: &AccountsConfig,
     cpi_instruction_struct: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
     hash_cache: &mut HashCache,
     mint: Pubkey,
     out_token_queue_index: u8,
-) -> Result<(u64, u64), ProgramError> {
-    msg!("process_mint_to_action");
-    let sum_amounts = action
-        .recipients
-        .iter()
-        .map(|x| u64::from(x.amount))
-        .sum::<u64>();
-    let sum_lamports = if let Some(lamports) = action.lamports {
-        u64::from(*lamports) * action.recipients.len() as u64
-    } else {
-        0
-    };
-    let updated_supply = current_supply
-        .checked_add(sum_amounts)
+    instruction_mint_authority: Option<Pubkey>,
+) -> Result<u64, ProgramError> {
+    mint_authority_check(
+        compressed_mint,
+        validated_accounts,
+        instruction_mint_authority,
+    )?;
+
+    let mut sum_amounts: u64 = 0;
+    for recipient in &action.recipients {
+        sum_amounts = sum_amounts
+            .checked_add(u64::from(recipient.amount))
+            .ok_or(ErrorCode::MintActionAmountTooLarge)?;
+    }
+
+    let updated_supply = sum_amounts
+        .checked_add(compressed_mint.supply.into())
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
 
     if let Some(system_accounts) = validated_accounts.executing.as_ref() {
         // If mint is decompressed, mint tokens to the token pool to maintain SPL mint supply consistency
         if accounts_config.is_decompressed {
-            let sum_amounts: u64 = action.recipients.iter().map(|x| u64::from(x.amount)).sum();
             let mint_account = system_accounts
                 .mint
                 .ok_or(ErrorCode::MintActionMissingMintAccount)?;
+
             let token_pool_account = system_accounts
                 .token_pool_pda
                 .ok_or(ErrorCode::MintActionMissingTokenPoolAccount)?;
             let token_program = system_accounts
                 .token_program
                 .ok_or(ErrorCode::MintActionMissingTokenProgram)?;
-            msg!("minting {}", sum_amounts);
             mint_to_token_pool(
                 mint_account,
                 token_pool_account,
@@ -59,7 +106,6 @@ pub fn process_mint_to_action(
             )?;
         }
     }
-    msg!("pre create_output_compressed_token_accounts");
     // Create output token accounts
     create_output_compressed_token_accounts(
         action,
@@ -68,8 +114,7 @@ pub fn process_mint_to_action(
         mint,
         out_token_queue_index,
     )?;
-    msg!("post create_output_compressed_token_accounts");
-    Ok((updated_supply, sum_lamports))
+    Ok(updated_supply)
 }
 
 fn create_output_compressed_token_accounts(

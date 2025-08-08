@@ -34,6 +34,8 @@ pub struct MintToCompressedInputs {
     pub proof: Option<CompressedProof>,
     pub token_account_version: u8,
     pub cpi_context_pubkey: Option<Pubkey>,
+    /// Required if the mint is decompressed
+    pub token_pool: Option<crate::instructions::mint_action::TokenPool>,
 }
 
 /// Create a mint_to_compressed instruction (wrapper around mint_action)
@@ -55,6 +57,7 @@ pub fn create_mint_to_compressed_instruction(
         proof,
         token_account_version,
         cpi_context_pubkey,
+        token_pool,
     } = inputs;
 
     // Convert Recipients to MintToRecipients
@@ -86,6 +89,7 @@ pub fn create_mint_to_compressed_instruction(
         input_queue: Some(input_queue),         // Input queue from compressed mint tree
         output_queue: output_queue_cmint,       // Output queue for updated compressed mint
         tokens_out_queue: Some(output_queue_tokens), // Output queue for new token accounts
+        token_pool, // Required if the mint is decompressed for SPL operations
                                                 /*
                                                 cpi_context: cpi_context.map(|ctx| {
                                                     light_ctoken_types::instructions::mint_actions::CpiContext {

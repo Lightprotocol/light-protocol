@@ -57,10 +57,19 @@ pub struct RemoveMetadataKeyAction {
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub enum Action {
+    /// Mint compressed tokens to compressed accounts.
     MintTo(MintToAction),
+    /// Update mint authority of a compressed mint account.
     UpdateMintAuthority(UpdateAuthority),
+    /// Update freeze authority of a compressed mint account.
     UpdateFreezeAuthority(UpdateAuthority),
+    /// Create an spl mint for a cmint.
+    /// - existing supply is minted to a token pool account.
+    /// - mint and freeze authority are a ctoken pda.
+    /// - is an spl-token-2022 mint account.
     CreateSplMint(CreateSplMintAction),
+    /// Mint ctokens from a cmint to a ctoken solana account
+    /// (tokens are not compressed but not spl tokens).
     MintToDecompressed(MintToDecompressedAction),
     UpdateMetadataField(UpdateMetadataFieldAction),
     UpdateMetadataAuthority(UpdateMetadataAuthorityAction),
@@ -83,6 +92,8 @@ pub struct MintActionCompressedInstructionData {
     pub compressed_address: [u8; 32],
     /// If some -> no input because we create mint
     pub mint: CompressedMintInstructionData,
+    pub token_pool_bump: u8,
+    pub token_pool_index: u8,
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,

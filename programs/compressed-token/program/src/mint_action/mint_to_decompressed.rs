@@ -7,18 +7,23 @@ use light_ctoken_types::instructions::{
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    mint_action::accounts::MintActionAccounts, shared::mint_to_token_pool,
+    mint_action::{accounts::MintActionAccounts, mint_to::mint_authority_check},
+    shared::mint_to_token_pool,
     transfer2::native_compression::native_compression,
 };
 
 pub fn process_mint_to_decompressed_action(
     action: &ZMintToDecompressedAction,
     current_supply: u64,
+    compressed_mint: &light_ctoken_types::state::ZCompressedMintMut<'_>,
     validated_accounts: &MintActionAccounts,
     accounts_config: &crate::mint_action::accounts::AccountsConfig,
     packed_accounts: &crate::transfer2::accounts::ProgramPackedAccounts,
     mint: Pubkey,
+    instruction_mint_authority: Option<Pubkey>,
 ) -> Result<u64, ProgramError> {
+    mint_authority_check(compressed_mint, validated_accounts, instruction_mint_authority)?;
+
     let amount = u64::from(action.recipient.amount);
     let updated_supply = current_supply
         .checked_add(amount)
@@ -32,8 +37,7 @@ pub fn process_mint_to_decompressed_action(
         "decompressed mint to recipient",
     )?;
 
-    // For decompression (minting tokens into account), no authority check is needed
-    // The mint authority validation happens at the mint_action level
+    // Authority check now performed above - safe to proceed with decompression
     native_compression(
         None, // No authority needed for decompression
         amount,

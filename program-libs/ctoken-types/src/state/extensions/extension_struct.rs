@@ -338,7 +338,7 @@ impl ExtensionStruct {
     }
 }
 
-impl<'a> ZExtensionStructMut<'a> {
+impl ZExtensionStructMut<'_> {
     pub fn hash<H: Hasher>(&self) -> Result<[u8; 32], CTokenError> {
         match self {
             // ZExtensionStructMut::MetadataPointer(metadata_pointer) => Ok(metadata_pointer.hash::<H>()?),

@@ -40,8 +40,7 @@ impl<'info> CreateAssociatedTokenAccountAccounts<'info> {
                 return Err(ProgramError::IncorrectProgramId);
             }
 
-            let mint_data = AccountInfoTrait::try_borrow_data(mint_account_info)
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+            let mint_data = AccountInfoTrait::try_borrow_data(mint_account_info)?;
             let pod_mint = pod_from_bytes::<PodMint>(&mint_data)
                 .map_err(|_| ProgramError::InvalidAccountData)?;
 

@@ -263,6 +263,7 @@ async fn mint_compressed_tokens(
             decompressed_mint_config: None,
             lamports: None,
             token_account_version: 2,
+            token_pool: None,
         },
         None,
     )

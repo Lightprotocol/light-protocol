@@ -84,6 +84,7 @@ pub fn update_compressed_mint_cpi(
         input_queue: Some(input.in_output_queue),
         output_queue: input.out_output_queue,
         tokens_out_queue: None, // Not needed for authority updates
+        token_pool: None, // Not needed for authority updates
     };
 
     create_mint_action_cpi(mint_action_inputs, mint_action_cpi_context, None)

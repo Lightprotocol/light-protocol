@@ -5,7 +5,7 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     error::Result,
-    instructions::mint_action::{create_mint_action, MintActionInputs, MintActionType},
+    instructions::mint_action::{create_mint_action, MintActionInputs, MintActionType, TokenPool},
 };
 
 pub const POOL_SEED: &[u8] = b"pool";
@@ -20,6 +20,7 @@ pub struct CreateSplMintInputs {
     pub output_queue: Pubkey,
     pub mint_authority: Pubkey,
     pub proof: ValidityProof,
+    pub token_pool: TokenPool,
 }
 
 /// Creates an SPL mint instruction using the mint_action instruction as a wrapper
@@ -45,6 +46,7 @@ pub fn create_spl_mint_instruction_with_bump(
         input_output_queue, // Used for existing compressed mint input queue
         output_queue,
         mint_authority,
+        token_pool,
     } = inputs;
 
     // Create the mint_action instruction with CreateSplMint action
@@ -62,6 +64,7 @@ pub fn create_spl_mint_instruction_with_bump(
         input_queue: Some(input_output_queue), // Input queue for existing compressed mint
         output_queue,
         tokens_out_queue: None, // No tokens being minted in CreateSplMint
+        token_pool: Some(token_pool), // Required for CreateSplMint action
     };
 
     create_mint_action(mint_action_inputs)

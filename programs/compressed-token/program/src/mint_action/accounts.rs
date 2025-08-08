@@ -5,6 +5,7 @@ use crate::{
     },
     transfer2::accounts::ProgramPackedAccounts,
 };
+use anchor_compressed_token::{check_spl_token_pool_derivation_with_index, ErrorCode};
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_types::instructions::mint_actions::{
     ZAction, ZMintActionCompressedInstructionData,
@@ -36,27 +37,22 @@ impl<'info> MintActionAccounts<'info> {
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
         config: &AccountsConfig,
+        cmint_pubkey: &solana_pubkey::Pubkey,
+        token_pool_index: u8,
+        token_pool_bump: u8,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let light_system_program = iter.next_account("light_system_program")?;
         // TODO: make it option signer
         let mint_signer = iter.next_option("mint_signer", config.with_mint_signer)?;
         // Static non-CPI accounts first
-        // Authority only needs to sign if we have mint actions that require authority or if not creating mint
-        let authority_needs_to_sign = config.has_mint_to_actions || !config.create_mint;
-        let authority = if authority_needs_to_sign {
-            iter.next_signer("authority")?
-        } else {
-            iter.next_account("authority")?
-        };
+        // Authority is always required to sign
+        let authority = iter.next_signer("authority")?;
         if config.write_to_cpi_context {
             let write_to_cpi_context_system =
                 CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?;
 
-            if iter
-                .next_account("out of bounds account should not exist.")
-                .is_ok()
-            {
+            if !iter.iterator_is_empty() {
                 msg!("Too many accounts for write to cpi context.");
                 return Err(ProgramError::InvalidAccountData);
             }
@@ -73,15 +69,43 @@ impl<'info> MintActionAccounts<'info> {
             let token_pool_pda = iter.next_option_mut("token_pool_pda", config.is_decompressed)?;
             let token_program = iter.next_option("token_program", config.is_decompressed)?;
 
+            // Validate token program is SPL Token 2022
             if let Some(token_program) = token_program {
-                if solana_pubkey::Pubkey::new_from_array(*token_program.key()) != spl_token_2022::ID
-                {
+                if *token_program.key() != spl_token_2022::ID.to_bytes() {
                     msg!(
                         "invalid token program {:?} expected {:?}",
                         solana_pubkey::Pubkey::new_from_array(*token_program.key()),
                         spl_token_2022::ID
                     );
                     return Err(ProgramError::InvalidAccountData);
+                }
+            }
+            // Validate token pool PDA is correct using provided bump and index
+            if let Some(token_pool_pda) = token_pool_pda {
+                let token_pool_pubkey_solana =
+                    solana_pubkey::Pubkey::new_from_array(*token_pool_pda.key());
+
+                check_spl_token_pool_derivation_with_index(
+                    &token_pool_pubkey_solana,
+                    cmint_pubkey,
+                    token_pool_index,
+                    Some(token_pool_bump),
+                )
+                .map_err(|_| {
+                    msg!(
+                        "invalid token pool PDA {:?} for mint {:?} with index {} and bump {}",
+                        token_pool_pubkey_solana,
+                        cmint_pubkey,
+                        token_pool_index,
+                        token_pool_bump
+                    );
+                    ProgramError::InvalidAccountData
+                })?;
+            }
+            if let Some(mint_account) = mint {
+                // Verify mint account matches expected mint
+                if cmint_pubkey.to_bytes() != *mint_account.key() {
+                    return Err(ErrorCode::MintAccountMismatch.into());
                 }
             }
 
@@ -100,16 +124,7 @@ impl<'info> MintActionAccounts<'info> {
             // Only needed for minting to compressed token accounts
             let tokens_out_queue =
                 iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
-            msg!(
-                "in merkle tree {:?}",
-                solana_pubkey::Pubkey::new_from_array(*in_merkle_tree.key())
-            );
-            if let Some(tokens_out_queue) = tokens_out_queue {
-                msg!(
-                    "tokens_out_queue {:?}",
-                    solana_pubkey::Pubkey::new_from_array(*tokens_out_queue.key())
-                );
-            }
+
             Ok(MintActionAccounts {
                 mint_signer,
                 light_system_program,
@@ -160,13 +175,6 @@ impl<'info> MintActionAccounts<'info> {
                 }
             }
         }
-        msg!(
-            "Tree pubkeys {:?}",
-            pubkeys
-                .iter()
-                .map(|p| solana_pubkey::Pubkey::new_from_array(**p))
-                .collect::<Vec<_>>()
-        );
         pubkeys
     }
 
@@ -211,35 +219,43 @@ impl<'info> MintActionAccounts<'info> {
     }
 
     pub fn cpi_accounts_end_offset(&self, deduplicated: bool) -> usize {
-        let mut offset = self.cpi_accounts_start_offset();
-        if let Some(executing) = self.executing.as_ref() {
-            offset += 6;
-            if executing.system.sol_pool_pda.is_some() {
-                offset += 1;
+        if self.write_to_cpi_context_system.is_some() {
+            self.cpi_accounts_start_offset() + 3
+        } else {
+            let mut offset = self.cpi_accounts_start_offset();
+            if let Some(executing) = self.executing.as_ref() {
+                offset += 6;
+                if executing.system.sol_pool_pda.is_some() {
+                    offset += 1;
+                }
+                if executing.system.cpi_context.is_some() {
+                    offset += 1;
+                }
+                // + tree accounts
+                // out_output_queue (always present)
+                // in_merkle_tree (always present)
+                offset += 2;
+                if executing.in_output_queue.is_some() {
+                    offset += 1;
+                }
+                // When deduplicated=false, we need to include the extra queue account
+                // When deduplicated=true, the duplicate queue is in the outer instruction but not in CPI slice
+                if executing.tokens_out_queue.is_some() && !deduplicated {
+                    offset += 1;
+                }
             }
-            if executing.system.cpi_context.is_some() {
-                offset += 1;
-            }
-            // + tree accounts
-            // out_output_queue (always present)
-            // in_merkle_tree (always present)
-            offset += 2;
-            if executing.in_output_queue.is_some() {
-                offset += 1;
-            }
-            msg!(
-                "executing.tokens_out_queue.is_some() {:?}",
-                executing.tokens_out_queue.is_some()
-            );
-            msg!("deduplicated {:?}", deduplicated);
-            // When deduplicated=false, we need to include the extra queue account
-            // When deduplicated=true, the duplicate queue is in the outer instruction but not in CPI slice
-            if executing.tokens_out_queue.is_some() && !deduplicated {
-                offset += 1;
-            }
+            offset
         }
+    }
 
-        offset
+    pub fn get_cpi_accounts<'a>(
+        &self,
+        deduplicated: bool,
+        account_infos: &'a [AccountInfo],
+    ) -> &'a [AccountInfo] {
+        let start_offset = self.cpi_accounts_start_offset();
+        let end_offset = self.cpi_accounts_end_offset(deduplicated);
+        &account_infos[start_offset..end_offset]
     }
 }
 
@@ -266,11 +282,12 @@ impl AccountsConfig {
         .actions
         .iter()
         .any(|action| matches!(action, ZAction::MintTo(mint_to_action) if mint_to_action.lamports.is_some()));
-        // Check if we have MintTo actions - needed for tokens_out_queue
+        // Check if we have MintTo or MintToDecompressed actions - needed for tokens_out_queue and authority validation
         let has_mint_to_actions = parsed_instruction_data
             .actions
             .iter()
-            .any(|action| matches!(action, ZAction::MintTo(_)));
+            .any(|action| matches!(action, ZAction::MintTo(_) | ZAction::MintToDecompressed(_)));
+
         // TODO: differentiate between will be compressed or is compressed.
         let is_decompressed = parsed_instruction_data.mint.is_decompressed()
             | parsed_instruction_data

@@ -41,8 +41,7 @@ pub struct MintActionInputs {
     pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub output_queue: Pubkey,
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
-                                          //pub cpi_context: Option<CpiContext>,
-                                          // pub cpi_context_pubkey: Option<Pubkey>,
+    pub token_pool: Option<TokenPool>,
 }
 
 /// High-level action types for the mint action instruction
@@ -74,6 +73,13 @@ pub struct MintToRecipient {
     pub amount: u64,
 }
 
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+pub struct TokenPool {
+    pub pubkey: Pubkey,
+    pub bump: u8,
+    pub index: u8,
+}
+
 /// Creates a mint action instruction
 pub fn create_mint_action_cpi(
     input: MintActionInputs,
@@ -103,7 +109,7 @@ pub fn create_mint_action_cpi(
     let has_mint_to_actions = input
         .actions
         .iter()
-        .any(|action| matches!(action, MintActionType::MintTo { .. }));
+        .any(|action| matches!(action, MintActionType::MintTo { .. } | MintActionType::MintToDecompressed { .. }));
     // Match onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
     let with_mint_signer = create_mint
         || input
@@ -209,6 +215,8 @@ pub fn create_mint_action_cpi(
         root_index: input.compressed_mint_inputs.root_index,
         compressed_address: input.compressed_mint_inputs.address,
         mint: input.compressed_mint_inputs.mint,
+        token_pool_bump: input.token_pool.as_ref().map_or(0, |tp| tp.bump),
+        token_pool_index: input.token_pool.as_ref().map_or(0, |tp| tp.index),
         actions: program_actions,
         proof: input.proof,
         cpi_context,
@@ -360,6 +368,8 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
         root_index: input.compressed_mint_inputs.root_index,
         compressed_address: input.compressed_mint_inputs.address,
         mint: input.compressed_mint_inputs.mint,
+        token_pool_bump: 0, // Not used in CPI write context
+        token_pool_index: 0, // Not used in CPI write context
         actions: program_actions,
         proof: None, // No proof for CPI write context
         cpi_context: Some(input.cpi_context),

@@ -89,6 +89,7 @@ pub fn create_compressed_mint_cpi(
         input_queue: None,                              // Not needed for create_mint: true
         output_queue: input.output_queue,
         tokens_out_queue: None, // No tokens being minted
+        token_pool: None, // Not needed for simple compressed mint creation
     };
 
     create_mint_action_cpi(mint_action_inputs, mint_action_cpi_context, cpi_context_pubkey)

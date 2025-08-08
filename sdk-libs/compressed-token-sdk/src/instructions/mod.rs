@@ -32,7 +32,7 @@ pub use mint_action::{
     create_mint_action, create_mint_action_cpi, get_mint_action_instruction_account_metas,
     get_mint_action_instruction_account_metas_cpi_write, mint_action_cpi_write, MintActionInputs,
     MintActionInputsCpiWrite, MintActionMetaConfig, MintActionMetaConfigCpiWrite,
-    MINT_ACTION_DISCRIMINATOR,
+    MintActionType, MintToRecipient, TokenPool, MINT_ACTION_DISCRIMINATOR,
 };
 pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,
@@ -42,3 +42,13 @@ pub use update_compressed_mint::{
     update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,
     UPDATE_COMPRESSED_MINT_DISCRIMINATOR,
 };
+
+/// Derive token pool information for a given mint
+pub fn derive_token_pool(mint: &solana_pubkey::Pubkey, index: u8) -> mint_action::TokenPool {
+    let (pubkey, bump) = crate::token_pool::find_token_pool_pda_with_index(mint, index);
+    mint_action::TokenPool {
+        pubkey,
+        bump,
+        index,
+    }
+}

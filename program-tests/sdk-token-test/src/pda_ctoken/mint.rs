@@ -45,6 +45,7 @@ pub fn process_mint_action<'c, 'info>(
         input_queue: None,   // Not needed for create_mint: true
         output_queue,
         tokens_out_queue: Some(output_queue), // For MintTo actions
+        token_pool: None, // Not needed for compressed mint creation
                                               /*  cpi_context: Some(light_ctoken_types::instructions::mint_actions::CpiContext {
                                                   set_context: false,       // Read from CPI context written in PDA creation
                                                   first_set_context: false, // Not the first, we're reading

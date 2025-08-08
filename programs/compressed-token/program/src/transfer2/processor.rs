@@ -147,8 +147,6 @@ pub fn process_transfer2(
                 .iter()
                 .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
                 .collect::<Vec<_>>();
-            msg!("account infos {:?}", _cpi_accounts);
-            msg!("tree pubkeys {:?}", _solana_tree_accounts);
         }
         // Execute CPI call to light-system-program
         execute_cpi_invoke(

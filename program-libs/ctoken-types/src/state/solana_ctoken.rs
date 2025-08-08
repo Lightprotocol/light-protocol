@@ -672,7 +672,10 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
                 Self::byte_len(&config),
             ));
         }
-
+        if bytes[108] != 0 {
+            msg!("Account already initialized",);
+            return Err(ZeroCopyError::MemoryNotZeroed);
+        }
         // Set the state to Initialized (1) at offset 108 (32 mint + 32 owner + 8 amount + 36 delegate)
         bytes[108] = 1; // AccountState::Initialized
 

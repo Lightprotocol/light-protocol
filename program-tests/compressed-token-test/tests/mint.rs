@@ -83,7 +83,7 @@ async fn test_create_compressed_mint() {
             &mut rpc,
             &mint_seed,
             decimals,
-            mint_authority,
+            &mint_authority_keypair,
             Some(freeze_authority),
             None, // No metadata
             &payer,
@@ -586,7 +586,7 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
         &mut rpc,
         &mint_seed,
         decimals,
-        mint_authority,
+        &mint_authority_keypair,
         Some(freeze_authority),
         Some(token_metadata.clone()),
         &payer,
@@ -725,7 +725,7 @@ async fn test_update_compressed_mint_authority() {
         &mut rpc,
         &mint_seed,
         8, // decimals
-        initial_mint_authority.pubkey(),
+        &initial_mint_authority,
         Some(initial_freeze_authority.pubkey()),
         None, // no metadata
         &payer,
@@ -1274,7 +1274,14 @@ async fn test_mint_actions_comprehensive() {
         supply: 0, // Started with 0
         decimals,
         is_initialized: true, // Is initialized after creation
-        freeze_authority: Some(freeze_authority.pubkey()).into(),
+        freeze_authority: Some(
+            Pubkey::find_program_address(
+                &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
+                &light_compressed_token::ID,
+            )
+            .0,
+        )
+        .into(),
     };
 
     assert_mint_to_compressed(
@@ -1493,7 +1500,7 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
         &mut rpc,
         &mint_seed,
         decimals,
-        mint_authority,
+        &mint_authority_keypair,
         Some(freeze_authority),
         Some(token_metadata.clone()),
         &payer,

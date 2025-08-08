@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::{
     program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
 };
+use arrayvec::ArrayVec;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
@@ -20,13 +21,16 @@ pub struct CreatePdaAccountConfig<'a> {
     pub derivation_program_id: &'a pinocchio::pubkey::Pubkey,
 }
 
-/// Creates a PDA account with the specified configuration
+/// Creates a PDA account with the specified configuration.
 ///
-/// This function handles the common pattern of:
-/// 1. Calculating rent for the account size
-/// 2. Creating seeds array with bump
-/// 3. Creating the account via system program
-/// 4. Signing with PDA seeds
+/// This function abstracts the common PDA account creation pattern used across
+/// create_associated_token_account, create_mint_account, and create_token_pool.
+///
+/// ## Process
+/// 1. Calculates rent based on account size
+/// 2. Builds seed array with bump
+/// 3. Creates account via system program with specified owner
+/// 4. Signs transaction with derived PDA seeds
 pub fn create_pda_account(
     fee_payer: &AccountInfo,
     new_account: &AccountInfo,
@@ -37,23 +41,21 @@ pub fn create_pda_account(
     let rent = Rent::get()?;
     let lamports = rent.minimum_balance(config.account_size);
 
-    // Build seeds array with bump
     let bump_bytes = [config.bump];
-    let mut seed_vec: Vec<Seed> = config.seeds.iter().map(|&seed| Seed::from(seed)).collect();
+    let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
+    
+    for &seed in config.seeds {
+        seed_vec.push(Seed::from(seed));
+    }
     seed_vec.push(Seed::from(bump_bytes.as_ref()));
+    
     let signer = Signer::from(seed_vec.as_slice());
-
-    // Create the account
-    let fee_payer_pubkey = solana_pubkey::Pubkey::new_from_array(*fee_payer.key());
-    let new_account_pubkey = solana_pubkey::Pubkey::new_from_array(*new_account.key());
-    let owner_program_pubkey = solana_pubkey::Pubkey::new_from_array(*config.owner_program_id);
-
     let create_account_ix = system_instruction::create_account(
-        &fee_payer_pubkey,
-        &new_account_pubkey,
+        &solana_pubkey::Pubkey::new_from_array(*fee_payer.key()),
+        &solana_pubkey::Pubkey::new_from_array(*new_account.key()),
         lamports,
         config.account_size as u64,
-        &owner_program_pubkey,
+        &solana_pubkey::Pubkey::new_from_array(*config.owner_program_id),
     );
 
     let pinocchio_instruction = pinocchio::instruction::Instruction {
@@ -84,8 +86,13 @@ pub fn verify_pda(
     program_id: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-    let mut seeds_with_bump: Vec<&[u8]> = seeds.to_vec();
     let bump_bytes = [bump];
+    
+    let mut seeds_with_bump: ArrayVec<&[u8], 8> = ArrayVec::new();
+    
+    for &seed in seeds {
+        seeds_with_bump.push(seed);
+    }
     seeds_with_bump.push(&bump_bytes);
     
     let expected_pubkey = solana_pubkey::Pubkey::create_program_address(&seeds_with_bump, &program_id_pubkey)

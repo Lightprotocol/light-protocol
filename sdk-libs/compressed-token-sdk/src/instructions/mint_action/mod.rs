@@ -66,5 +66,5 @@ pub use account_metas::{
 
 pub use instruction::{
     create_mint_action, create_mint_action_cpi, mint_action_cpi_write, MintActionInputs,
-    MintActionInputsCpiWrite, MintActionType, MintToRecipient, MINT_ACTION_DISCRIMINATOR,
+    MintActionInputsCpiWrite, MintActionType, MintToRecipient, TokenPool, MINT_ACTION_DISCRIMINATOR,
 };
