@@ -97,12 +97,12 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             cache.add_with_timeout(&hash_str, Duration::from_secs(15));
             trace!("Added {} to cache with 15s timeout", hash_str);
         }
-        
+
         let work_item_hashes: Vec<String> = work_items
             .iter()
             .map(|item| bs58::encode(&item.queue_item_data.hash).into_string())
             .collect();
-        
+
         drop(cache);
 
         if work_items.is_empty() {
@@ -151,15 +151,18 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             .await?;
             transactions.push(transaction);
         }
-        
+
         if !transactions.is_empty() {
             let mut cache = self.processed_hash_cache.lock().await;
             for hash_str in work_item_hashes {
                 cache.extend_timeout(&hash_str, Duration::from_secs(30));
-                trace!("Extended cache timeout for {} to 30s after successful transaction creation", hash_str);
+                trace!(
+                    "Extended cache timeout for {} to 30s after successful transaction creation",
+                    hash_str
+                );
             }
         }
-        
+
         Ok((transactions, last_valid_block_height))
     }
 }
