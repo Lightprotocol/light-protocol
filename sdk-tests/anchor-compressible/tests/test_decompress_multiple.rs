@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::{thread::sleep, time::Duration};
+
 use anchor_compressible::{CompressedAccountVariant, GameSession, UserRecord};
 use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
@@ -37,7 +39,9 @@ pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7
 #[tokio::test]
 async fn test_create_and_decompress_two_accounts() {
     let program_id = anchor_compressible::ID;
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
+    let mut config =
+        ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
+    config = config.with_light_protocol_events();
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -132,6 +136,7 @@ async fn test_create_and_decompress_two_accounts() {
 
     rpc.warp_to_slot(200).unwrap();
 
+    // sleep(Duration::from_secs(10));
     println!("henlo? decompress multiple");
     test_decompress_multiple_pdas(
         &mut rpc,
@@ -485,6 +490,13 @@ async fn test_decompress_multiple_pdas(
         "test-decompress-multiple-pdas: c_game_session: {:?}",
         c_game_session
     );
+
+    println!("c_user_pda: {:?}", c_user_pda);
+    println!("c_user_pda hash: {:?}", c_user_pda.hash);
+    println!("c_user_pda tree_info: {:?}", c_user_pda.tree_info);
+    println!("c_game_pda: {:?}", c_game_pda);
+    println!("c_game_pda hash: {:?}", c_game_pda.hash);
+    println!("c_game_pda tree_info: {:?}", c_game_pda.tree_info);
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash, c_game_pda.hash], vec![], None)

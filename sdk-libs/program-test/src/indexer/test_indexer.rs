@@ -230,10 +230,34 @@ impl Indexer for TestIndexer {
             res
         };
 
-        let account_data = account
+        let mut account_data: CompressedAccount = account
             .ok_or(IndexerError::AccountNotFound)?
             .clone()
             .try_into()?;
+
+        // CRITICAL FIX: For V2 trees, if the account is found in the output queue by its leaf index,
+        // use the event hash from the queue instead of the calculated hash
+        // This ensures that the returned account hash matches what's in the output queue
+        if account_data.tree_info.tree_type == TreeType::StateV2 {
+            println!("using output queue");
+            if let Some(merkle_tree) = self
+                .state_merkle_trees
+                .iter()
+                .find(|t| t.accounts.merkle_tree == account_data.tree_info.tree)
+            {
+                println!("found merkle tree");
+                if let Some((event_hash, _)) = merkle_tree
+                    .output_queue_elements
+                    .iter()
+                    .find(|(_, leaf_idx)| *leaf_idx == account_data.leaf_index as u64)
+                {
+                    println!("found hash in output queue: {:?}", event_hash);
+                    // Found the account in output queue by leaf index - use the event hash
+                    // This allows the account to be found in output queue for prove_by_index
+                    account_data.hash = *event_hash;
+                }
+            }
+        }
 
         Ok(Response {
             context: Context {
@@ -445,6 +469,7 @@ impl Indexer for TestIndexer {
         new_addresses_with_trees: Vec<AddressWithTree>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError> {
+        // DEBUG: Only print essential info
         #[cfg(feature = "v2")]
         {
             // V2 implementation with queue handling
@@ -457,9 +482,11 @@ impl Indexer for TestIndexer {
             let mut proof_inputs = vec![];
 
             let mut indices_to_remove = Vec::new();
-            // for all accounts in batched trees, check whether values are in tree or queue
+            // For all accounts in batched trees, check whether values are in tree or queue.
+
             let compressed_accounts = if !hashes.is_empty() && !state_merkle_tree_pubkeys.is_empty()
             {
+                // Processing compressed accounts
                 let zipped_accounts = hashes.iter().zip(state_merkle_tree_pubkeys.iter());
 
                 for (i, (compressed_account, state_merkle_tree_pubkey)) in
@@ -469,7 +496,7 @@ impl Indexer for TestIndexer {
                         x.accounts.merkle_tree == *state_merkle_tree_pubkey
                             && x.tree_type == TreeType::StateV2
                     });
-
+                    // Check if account is in output queue
                     if let Some(accounts) = accounts {
                         let queue_element = accounts
                             .output_queue_elements
@@ -480,6 +507,8 @@ impl Indexer for TestIndexer {
                                 && accounts.leaf_index_in_queue_range(*index as usize)?
                             {
                                 use light_client::indexer::RootIndex;
+
+                                // Account found in output queue - use prove_by_index
 
                                 indices_to_remove.push(i);
                                 proof_inputs.push(AccountProofInputs {
@@ -500,8 +529,14 @@ impl Indexer for TestIndexer {
                                         tree_type: accounts.tree_type,
                                     },
                                 })
+                            } else {
+                                // Account found but not in valid queue range
                             }
+                        } else {
+                            // Account not found in output queue - will need merkle proof
                         }
+                    } else {
+                        // No StateV2 tree found
                     }
                 }
 
@@ -512,14 +547,21 @@ impl Indexer for TestIndexer {
                     .map(|(_, x)| *x)
                     .collect::<Vec<[u8; 32]>>();
 
+                // Final compressed_accounts that need merkle proofs
+
                 if compress_accounts.is_empty() {
                     None
                 } else {
                     Some(compress_accounts)
                 }
             } else {
+                println!(
+                    "No hashes or state_merkle_tree_pubkeys provided, skipping compressed_accounts computation."
+                );
                 None
             };
+
+            // Processing remaining accounts that need merkle proofs
 
             // Get the basic validity proof if needed
             let rpc_result: Option<ValidityProofWithContext> = if (compressed_accounts.is_some()
@@ -1920,6 +1962,7 @@ impl TestIndexer {
                 tree_types.push(bundle.tree_type);
                 println!("merkle_tree {:?}", merkle_tree);
                 println!("account {:?}", account);
+                println!("bundle {:?}", bundle.accounts);
                 let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
                 let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 
