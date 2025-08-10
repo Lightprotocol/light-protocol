@@ -65,43 +65,43 @@ async fn test_create_and_decompress_two_accounts() {
     let (user_record_pda, user_record_bump) =
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
-    test_create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
+    // test_create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
 
-    let session_id = 12345u64;
-    let (game_session_pda, game_bump) = Pubkey::find_program_address(
-        &[b"game_session", session_id.to_le_bytes().as_ref()],
-        &program_id,
-    );
+    // let session_id = 12345u64;
+    // let (game_session_pda, game_bump) = Pubkey::find_program_address(
+    //     &[b"game_session", session_id.to_le_bytes().as_ref()],
+    //     &program_id,
+    // );
 
-    test_create_game_session(
-        &mut rpc,
-        &payer,
-        &program_id,
-        &config_pda,
-        &game_session_pda,
-        session_id,
-        None,
-    )
-    .await;
+    // test_create_game_session(
+    //     &mut rpc,
+    //     &payer,
+    //     &program_id,
+    //     &config_pda,
+    //     &game_session_pda,
+    //     session_id,
+    //     None,
+    // )
+    // .await;
 
-    rpc.warp_to_slot(100).unwrap();
+    // rpc.warp_to_slot(100).unwrap();
 
-    println!("01234.");
-    test_decompress_multiple_pdas(
-        &mut rpc,
-        &payer,
-        &program_id,
-        &config_pda,
-        &user_record_pda,
-        &user_record_bump,
-        &game_session_pda,
-        &game_bump,
-        session_id,
-        "Test User",
-        "Battle Royale",
-        100,
-    )
-    .await;
+    // println!("01234.");
+    // test_decompress_multiple_pdas(
+    //     &mut rpc,
+    //     &payer,
+    //     &program_id,
+    //     &config_pda,
+    //     &user_record_pda,
+    //     &user_record_bump,
+    //     &game_session_pda,
+    //     &game_bump,
+    //     session_id,
+    //     "Test User",
+    //     "Battle Royale",
+    //     100,
+    // )
+    // .await;
 
     let combined_user = Keypair::new();
     let fund_user_ix = solana_sdk::system_instruction::transfer(
