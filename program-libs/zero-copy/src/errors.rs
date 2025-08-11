@@ -1,38 +1,70 @@
-use core::convert::Infallible;
+use core::{convert::Infallible, fmt};
+#[cfg(feature = "std")]
+use std::error::Error;
 
-use thiserror::Error;
-
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ZeroCopyError {
-    #[error("The vector is full, cannot push any new elements")]
     Full,
-    #[error("Requested array of size {0}, but the vector has {1} elements")]
     ArraySize(usize, usize),
-    #[error("The requested start index is out of bounds.")]
     IterFromOutOfBounds,
-    #[error("Memory allocated {0}, Memory required {0}")]
     InsufficientMemoryAllocated(usize, usize),
-    #[error("Unaligned pointer.")]
     UnalignedPointer,
-    #[error("Memory not zeroed.")]
     MemoryNotZeroed,
-    #[error("InvalidConversion.")]
     InvalidConversion,
-    #[error("Invalid data {0}.")]
     InvalidData(Infallible),
-    #[error("Invalid size.")]
     Size,
-    #[error("Invalid option byte {0} must be 0 (None) or 1 (Some).")]
     InvalidOptionByte(u8),
-    #[error("Invalid capacity. Capacity must be greater than 0.")]
     InvalidCapacity,
-    #[error("Length is greater than capacity.")]
     LengthGreaterThanCapacity,
-    #[error("Current index is greater than length.")]
     CurrentIndexGreaterThanLength,
-    #[error("InvalidEnumValue")]
     InvalidEnumValue,
+    InsufficientCapacity,
 }
+
+impl fmt::Display for ZeroCopyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ZeroCopyError::Full => write!(f, "The vector is full, cannot push any new elements"),
+            ZeroCopyError::ArraySize(expected, actual) => write!(
+                f,
+                "Requested array of size {}, but the vector has {} elements",
+                expected, actual
+            ),
+            ZeroCopyError::IterFromOutOfBounds => {
+                write!(f, "The requested start index is out of bounds")
+            }
+            ZeroCopyError::InsufficientMemoryAllocated(allocated, required) => write!(
+                f,
+                "Memory allocated {}, Memory required {}",
+                allocated, required
+            ),
+            ZeroCopyError::UnalignedPointer => write!(f, "Unaligned pointer"),
+            ZeroCopyError::MemoryNotZeroed => write!(f, "Memory not zeroed"),
+            ZeroCopyError::InvalidConversion => write!(f, "Invalid conversion"),
+            ZeroCopyError::InvalidData(_) => write!(f, "Invalid data"),
+            ZeroCopyError::Size => write!(f, "Invalid size"),
+            ZeroCopyError::InvalidOptionByte(byte) => write!(
+                f,
+                "Invalid option byte {} must be 0 (None) or 1 (Some)",
+                byte
+            ),
+            ZeroCopyError::InvalidCapacity => {
+                write!(f, "Invalid capacity. Capacity must be greater than 0")
+            }
+            ZeroCopyError::LengthGreaterThanCapacity => {
+                write!(f, "Length is greater than capacity")
+            }
+            ZeroCopyError::CurrentIndexGreaterThanLength => {
+                write!(f, "Current index is greater than length")
+            }
+            ZeroCopyError::InvalidEnumValue => write!(f, "Invalid enum value"),
+            ZeroCopyError::InsufficientCapacity => write!(f, "Insufficient capacity for operation"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl Error for ZeroCopyError {}
 
 impl From<ZeroCopyError> for u32 {
     fn from(e: ZeroCopyError) -> u32 {
@@ -51,6 +83,7 @@ impl From<ZeroCopyError> for u32 {
             ZeroCopyError::LengthGreaterThanCapacity => 15013,
             ZeroCopyError::CurrentIndexGreaterThanLength => 15014,
             ZeroCopyError::InvalidEnumValue => 15015,
+            ZeroCopyError::InsufficientCapacity => 15016,
         }
     }
 }

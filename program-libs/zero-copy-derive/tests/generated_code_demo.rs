@@ -23,8 +23,8 @@ pub enum ZAction<'a> {
 ```
 
 This solves both problems:
-1. ✅ No import issues - uses qualified Deserialize::Output internally  
-2. ✅ Pattern matching works - concrete types via type aliases
+1. No import issues - uses qualified Deserialize::Output internally
+2. Pattern matching works - concrete types via type aliases
 */
 
 use light_zero_copy_derive::ZeroCopy;
@@ -45,6 +45,7 @@ pub enum Action {
 #[cfg(test)]
 mod tests {
     use light_zero_copy::borsh::Deserialize;
+
     use super::*;
 
     #[test]
@@ -52,30 +53,30 @@ mod tests {
         // The macro should generate:
         // - pub type MintToType<'a> = <MintToAction as Deserialize<'a>>::Output;
         // - enum ZAction<'a> { MintTo(MintToType<'a>), Update, CreateSplMint }
-        
+
         // Test that we can deserialize without import issues
         let mut data = vec![0u8]; // MintTo discriminant
         data.extend_from_slice(&999u64.to_le_bytes());
         data.extend_from_slice(&4u32.to_le_bytes());
         data.extend_from_slice(b"user");
-        
+
         let (result, remaining) = Action::zero_copy_at(&data).unwrap();
         assert_eq!(remaining.len(), 0);
-        
+
         // The key insight: this should work without any imports because
         // the type alias MintToType<'a> resolves to the Deserialize::Output internally
-        println!("✅ Successfully deserialized with type aliases: {:?}", result);
+        println!("Successfully deserialized with type aliases: {:?}", result);
     }
-    
+
     #[test]
     fn test_pattern_matching_should_work() {
         // Test unit variant
         let data = [1u8]; // Update discriminant
         let (result, _) = Action::zero_copy_at(&data).unwrap();
-        
+
         // This demonstrates the usage pattern:
         println!("Got action variant: {:?}", result);
-        
+
         // In the user's code, this should work:
         // match result {
         //     ZAction::MintTo(mint_action) => {
@@ -106,7 +107,7 @@ pub enum ZAction<'a> {
 // Generated Deserialize impl
 impl<'a> light_zero_copy::borsh::Deserialize<'a> for Action {
     type Output = ZAction<'a>;
-    
+
     fn zero_copy_at(data: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         match data[0] {
             0 => {
@@ -122,7 +123,7 @@ impl<'a> light_zero_copy::borsh::Deserialize<'a> for Action {
 ```
 
 This approach:
-- ✅ Avoids import issues (uses qualified syntax in type alias)
-- ✅ Enables pattern matching (concrete types via aliases)  
-- ✅ Maintains type safety (proper Deserialize trait usage)
+- Avoids import issues (uses qualified syntax in type alias)
+- Enables pattern matching (concrete types via aliases)
+- Maintains type safety (proper Deserialize trait usage)
 */

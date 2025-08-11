@@ -26,7 +26,7 @@ pub enum ZAction<'a> {
 
 impl<'a> Deserialize<'a> for Action {
     type Output = ZAction<'a>;
-    
+
     fn zero_copy_at(data: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         match data[0] {
             0 => {
@@ -83,36 +83,41 @@ pub enum Action {
 #[cfg(test)]
 mod tests {
     use light_zero_copy::borsh::Deserialize;
+
     use super::*;
 
     #[test]
     fn test_generated_enum_structure() {
         // The macro should generate ZAction<'a> with concrete variants
-        
+
         // Test unit variants
-        for (discriminant, expected_name) in [(1u8, "Update"), (2u8, "CreateSplMint"), (3u8, "UpdateMetadata")] {
+        for (discriminant, expected_name) in [
+            (1u8, "Update"),
+            (2u8, "CreateSplMint"),
+            (3u8, "UpdateMetadata"),
+        ] {
             let data = [discriminant];
             let (result, remaining) = Action::zero_copy_at(&data).unwrap();
             assert_eq!(remaining.len(), 0);
             println!("✓ {}: {:?}", expected_name, result);
         }
-        
+
         // Test data variant
         let mut data = vec![0u8]; // MintTo discriminant
         data.extend_from_slice(&42u64.to_le_bytes()); // amount
         data.extend_from_slice(&4u32.to_le_bytes()); // recipient length
         data.extend_from_slice(b"test"); // recipient data
-        
+
         let (result, remaining) = Action::zero_copy_at(&data).unwrap();
         assert_eq!(remaining.len(), 0);
         println!("✓ MintTo: {:?}", result);
     }
-    
+
     #[test]
     fn test_pattern_matching_example() {
         // This demonstrates the exact usage pattern the user wants
         let mut actions_data = Vec::new();
-        
+
         // Create some test actions
         // Action 1: MintTo
         actions_data.push({
@@ -122,20 +127,20 @@ mod tests {
             data.extend_from_slice(b"alice");
             data
         });
-        
-        // Action 2: Update  
+
+        // Action 2: Update
         actions_data.push(vec![1u8]);
-        
+
         // Action 3: CreateSplMint
         actions_data.push(vec![2u8]);
 
         // Process each action (simulating the user's use case)
         for (i, action_data) in actions_data.iter().enumerate() {
             let (action, _) = Action::zero_copy_at(action_data).unwrap();
-            
+
             // This is what the user wants to be able to write:
             println!("Processing action {}: {:?}", i, action);
-            
+
             // In the user's real code, this would be:
             // match action {
             //     ZAction::MintTo(mint_action) => {

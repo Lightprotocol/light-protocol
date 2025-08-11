@@ -5,7 +5,9 @@ use std::{
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Attribute, Data, DataEnum, DeriveInput, Field, Fields, FieldsNamed, Ident, Type, TypePath};
+use syn::{
+    Attribute, Data, DataEnum, DeriveInput, Field, Fields, FieldsNamed, Ident, Type, TypePath,
+};
 
 // Global cache for storing whether a struct implements Copy
 lazy_static::lazy_static! {

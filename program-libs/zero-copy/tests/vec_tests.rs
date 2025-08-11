@@ -402,7 +402,8 @@ fn test_zero_copy_vec_to_array() {
     let capacity = 16;
     let mut data = vec![0; ZeroCopyVecU64::<u32>::required_size_for_capacity(capacity)];
     let mut vec = ZeroCopyVecU64::<u32>::new(capacity, &mut data).unwrap();
-    vec.extend_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+    vec.extend_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+        .unwrap();
 
     let arr: [u32; 16] = vec.try_into_array().unwrap();
     assert_eq!(arr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
@@ -506,26 +507,32 @@ fn test_new_memory_not_zeroed() {
     assert!(matches!(vec, Err(ZeroCopyError::MemoryNotZeroed)));
 }
 
-#[should_panic = "Capacity overflow. Cannot copy slice into ZeroCopyVec."]
 #[test]
 fn test_extend_from_slice_over_capacity() {
     let capacity = 5;
     let mut data = vec![0; ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity)];
     let mut vec = ZeroCopyVecU64::<u64>::new(capacity, &mut data).unwrap();
     let slice = [1, 2, 3, 4, 5, 6];
-    vec.extend_from_slice(&slice);
+    let result = vec.extend_from_slice(&slice);
+    assert_eq!(
+        result.unwrap_err(),
+        light_zero_copy::errors::ZeroCopyError::InsufficientCapacity
+    );
 }
 
-#[should_panic = "Capacity overflow. Cannot copy slice into ZeroCopyVec."]
 #[test]
 fn test_extend_from_slice_over_capacity_2() {
     let capacity = 5;
     let mut data = vec![0; ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity)];
     let mut vec = ZeroCopyVecU64::<u64>::new(capacity, &mut data).unwrap();
     let slice = [1, 2, 3, 4, 5];
-    vec.extend_from_slice(&slice);
+    vec.extend_from_slice(&slice).unwrap();
     let slice = [1];
-    vec.extend_from_slice(&slice);
+    let result = vec.extend_from_slice(&slice);
+    assert_eq!(
+        result.unwrap_err(),
+        light_zero_copy::errors::ZeroCopyError::InsufficientCapacity
+    );
 }
 
 #[test]
@@ -534,7 +541,7 @@ fn test_extend_from_slice() {
     let mut data = vec![0; ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity)];
     let mut vec = ZeroCopyVecU64::<u64>::new(capacity, &mut data).unwrap();
     let slice = [1, 2, 3, 4, 5];
-    vec.extend_from_slice(&slice);
+    vec.extend_from_slice(&slice).unwrap();
 }
 
 #[test]

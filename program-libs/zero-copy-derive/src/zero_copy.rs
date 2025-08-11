@@ -5,7 +5,9 @@ use syn::{parse_quote, DeriveInput, Field, Ident};
 
 use crate::shared::{
     meta_struct, utils,
-    z_enum::{generate_enum_deserialize_impl, generate_enum_zero_copy_struct_inner, generate_z_enum},
+    z_enum::{
+        generate_enum_deserialize_impl, generate_enum_zero_copy_struct_inner, generate_z_enum,
+    },
     z_struct::{analyze_struct_fields, generate_z_struct, FieldType},
 };
 
@@ -245,7 +247,11 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
             let (meta_fields, struct_fields) = utils::process_fields(fields);
 
             let meta_struct_def = if !meta_fields.is_empty() {
-                meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
+                meta_struct::generate_meta_struct::<false>(
+                    &z_struct_meta_name,
+                    &meta_fields,
+                    hasher,
+                )?
             } else {
                 quote! {}
             };
@@ -284,7 +290,8 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
 
             let z_enum_def = generate_z_enum(&z_enum_name, enum_data)?;
             let deserialize_impl = generate_enum_deserialize_impl(name, &z_enum_name, enum_data)?;
-            let zero_copy_struct_inner_impl = generate_enum_zero_copy_struct_inner(name, &z_enum_name)?;
+            let zero_copy_struct_inner_impl =
+                generate_enum_zero_copy_struct_inner(name, &z_enum_name)?;
 
             // Combine all implementations
             Ok(quote! {
