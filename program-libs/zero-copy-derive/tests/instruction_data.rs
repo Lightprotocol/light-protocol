@@ -69,8 +69,8 @@ impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for Pubkey {
     type ZeroCopyConfig = ();
     type Output = <Self as DeserializeMut<'a>>::Output;
 
-    fn byte_len(_config: &Self::ZeroCopyConfig) -> usize {
-        32 // Pubkey is always 32 bytes
+    fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
+        Ok(32) // Pubkey is always 32 bytes
     }
 
     fn new_zero_copy(
@@ -765,7 +765,7 @@ fn test_compressed_account_data_new_at() {
     let config = CompressedAccountDataConfig { data: 10 };
 
     // Calculate exact buffer size needed and allocate
-    let buffer_size = CompressedAccountData::byte_len(&config);
+    let buffer_size = CompressedAccountData::byte_len(&config).unwrap();
     let mut bytes = vec![0u8; buffer_size];
     let result = CompressedAccountData::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
@@ -822,7 +822,7 @@ fn test_compressed_account_new_at() {
     };
 
     // Calculate exact buffer size needed and allocate
-    let buffer_size = CompressedAccount::byte_len(&config);
+    let buffer_size = CompressedAccount::byte_len(&config).unwrap();
     let mut bytes = vec![0u8; buffer_size];
     let result = CompressedAccount::new_zero_copy(&mut bytes, config);
     assert!(result.is_ok());
@@ -939,7 +939,7 @@ fn test_instruction_data_invoke_new_at() {
     };
 
     // Calculate exact buffer size needed and allocate
-    let buffer_size = InstructionDataInvoke::byte_len(&config);
+    let buffer_size = InstructionDataInvoke::byte_len(&config).unwrap();
     let mut bytes = vec![0u8; buffer_size];
 
     let result = InstructionDataInvoke::new_zero_copy(&mut bytes, config);

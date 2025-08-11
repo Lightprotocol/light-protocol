@@ -553,7 +553,7 @@ fn test_invoke_ix_data_deserialize_rnd() {
         let config = generate_random_invoke_config(&invoke_ref);
 
         // 2. Calculate exact buffer size and allocate
-        let buffer_size = InstructionDataInvoke::byte_len(&config);
+        let buffer_size = InstructionDataInvoke::byte_len(&config).unwrap();
         let mut bytes = vec![0u8; buffer_size];
 
         // 3. Create mutable zero-copy structure and verify exact allocation
@@ -611,7 +611,7 @@ fn test_instruction_data_invoke_cpi_rnd() {
         let config = generate_random_invoke_cpi_config(&invoke_cpi_ref);
 
         // 3. Calculate exact buffer size and allocate
-        let buffer_size = InstructionDataInvokeCpi::byte_len(&config);
+        let buffer_size = InstructionDataInvokeCpi::byte_len(&config).unwrap();
         let mut bytes = vec![0u8; buffer_size];
 
         // 4. Create mutable zero-copy structure and verify exact allocation

@@ -89,8 +89,19 @@ pub fn generate_init_mut_impl(
             type ZeroCopyConfig = #config_name;
             type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
 
-            fn byte_len(config: &Self::ZeroCopyConfig) -> usize {
-                #meta_size_calculation #(+ #byte_len_calculations)*
+            fn byte_len(config: &Self::ZeroCopyConfig) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
+                let mut total: usize = #meta_size_calculation;
+                #(
+                    let field_len = match #byte_len_calculations {
+                        Ok(len) => len,
+                        Err(e) => return Err(e),
+                    };
+                    total = match total.checked_add(field_len) {
+                        Some(new_total) => new_total,
+                        None => return Err(light_zero_copy::errors::ZeroCopyError::Size),
+                    };
+                )*
+                Ok(total)
             }
 
             fn new_zero_copy(
@@ -320,7 +331,11 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
         // Vec types that require configuration
         FieldType::VecU8(field_name) => {
             quote! {
-                (4 + config.#field_name as usize) // 4 bytes for length + actual data
+                {
+                    let len = config.#field_name as usize;
+                    let element_bytes = len; // u8 has size 1, so no multiplication needed
+                    Ok(4 + element_bytes)
+                }
             }
         }
 
@@ -329,7 +344,11 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
                 {
                     let len = config.#field_name as usize;
                     let elem_size = core::mem::size_of::<#inner_type>();
-                    4 + len.checked_mul(elem_size).unwrap_or(usize::MAX) // Use max to indicate overflow
+                    let element_bytes = match len.checked_mul(elem_size) {
+                        Some(bytes) => bytes,
+                        None => return Err(light_zero_copy::errors::ZeroCopyError::Size),
+                    };
+                    Ok(4 + element_bytes)
                 }
             }
         }
@@ -369,26 +388,26 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
         FieldType::Primitive(_, field_type) => {
             let zerocopy_type = utils::convert_to_zerocopy_type(field_type);
             quote! {
-                core::mem::size_of::<#zerocopy_type>()
+                Ok(core::mem::size_of::<#zerocopy_type>())
             }
         }
 
         FieldType::Array(_, array_type) => {
             quote! {
-                core::mem::size_of::<#array_type>()
+                Ok(core::mem::size_of::<#array_type>())
             }
         }
 
         FieldType::Pubkey(_) => {
             quote! {
-                32  // Pubkey is always 32 bytes
+                Ok(32)  // Pubkey is always 32 bytes
             }
         }
 
         // Meta field types (should not appear in struct fields, but handle gracefully)
         FieldType::Copy(_, field_type) => {
             quote! {
-                core::mem::size_of::<#field_type>()
+                Ok(core::mem::size_of::<#field_type>())
             }
         }
 
