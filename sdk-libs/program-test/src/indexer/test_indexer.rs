@@ -1237,61 +1237,6 @@ impl TestIndexer {
         u64::MAX
     }
 
-    /// Fix leaf indices for all compressed accounts by checking against output queue elements
-    fn fix_leaf_indices_for_queue_accounts(&mut self) {
-        // For each compressed account, check if its leaf index needs to be corrected
-        for account in &mut self.compressed_accounts {
-            let tree_pubkey = account.merkle_context.merkle_tree_pubkey;
-            let tree_bundle = self
-                .state_merkle_trees
-                .iter()
-                .find(|tree| tree_pubkey.to_bytes() == tree.accounts.merkle_tree.to_bytes());
-
-            if let Some(tree_bundle) = tree_bundle {
-                // For each possible leaf_index in the queue, hash the account as if it had that leaf_index
-                // If the resulting hash matches a queue element, update the account's leaf_index
-                for (queue_hash, leaf_index) in &tree_bundle.output_queue_elements {
-                    let mut test_account = account.clone();
-                    test_account.merkle_context.leaf_index = *leaf_index as u32;
-                    if let Ok(hash) = test_account.hash() {
-                        if hash == *queue_hash {
-                            account.merkle_context.leaf_index = *leaf_index as u32;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Also fix token compressed accounts
-        for token_account in &mut self.token_compressed_accounts {
-            let tree_pubkey = token_account
-                .compressed_account
-                .merkle_context
-                .merkle_tree_pubkey;
-            let tree_bundle = self
-                .state_merkle_trees
-                .iter()
-                .find(|tree| tree_pubkey.to_bytes() == tree.accounts.merkle_tree.to_bytes());
-
-            if let Some(tree_bundle) = tree_bundle {
-                // For each possible leaf_index in the queue, hash the account as if it had that leaf_index
-                // If the resulting hash matches a queue element, update the account's leaf_index
-                for (queue_hash, leaf_index) in &tree_bundle.output_queue_elements {
-                    let mut test_account = token_account.compressed_account.clone();
-                    test_account.merkle_context.leaf_index = *leaf_index as u32;
-                    if let Ok(hash) = test_account.hash() {
-                        if hash == *queue_hash {
-                            token_account.compressed_account.merkle_context.leaf_index =
-                                *leaf_index as u32;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     pub async fn init_from_acounts(
         payer: &Keypair,
         env: &TestAccounts,
@@ -1786,11 +1731,8 @@ impl TestIndexer {
                     event.output_compressed_account_hashes[i],
                     event.output_leaf_indices[i].into(),
                 ));
-
-                // Fix leaf indices for accounts that go to output queue
-                self.fix_leaf_indices_for_queue_accounts();
-            }
         }
+    }
         if event.input_compressed_account_hashes.len() > i {
             let tx_hash: [u8; 32] = create_tx_hash(
                 &event.input_compressed_account_hashes,
@@ -2142,6 +2084,7 @@ impl TestIndexer {
         ))
     }
 }
+
 
 impl TestIndexer {
     async fn _get_validity_proof_v1_implementation(
