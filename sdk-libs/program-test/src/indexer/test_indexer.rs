@@ -194,68 +194,10 @@ impl Indexer for TestIndexer {
         let account = self
             .compressed_accounts
             .iter()
-            .find(|acc| acc.compressed_account.address == Some(address));
+            .find(|acc| acc.compressed_account.address == Some(address))
+            .ok_or(IndexerError::AccountNotFound)?;
 
-        if account.is_none() {
-            println!("ACCOUNT BY ADDRESS NOT FOUND IN COMPRESSED ACCOUNTS");
-            return Err(IndexerError::AccountNotFound);
-        }
-        let mut account = account.unwrap().clone();
-
-        println!("account found by address: {:?}", account);
-        // get all queue elements for the account's tree, for each
-        // self.compressed_accounts.len() (total number of leaves), calculate
-        // the hash of of the compressed_account. then find WHICH hash matches
-        // one of the output_queue_elements. then take the leaf_index of the
-        // queue element and SET our account's leaf_index to that. and it's hash
-        // to the queue element / calculated hash. then return the account.
-        // throw if no match is found.
-        let tree_pubkey = account.merkle_context.merkle_tree_pubkey;
-        let tree_bundle = self
-            .state_merkle_trees
-            .iter()
-            .find(|tree| tree_pubkey == tree.accounts.merkle_tree)
-            .unwrap();
-
-        // For each possible leaf_index, hash the returned account as if it had that leaf_index.
-        // If the resulting hash matches a queue element, set the account's leaf_index and hash accordingly.
-        let mut found = false;
-        println!("tree_bundle.output_queue_elements (bs58): [");
-        for (h, i) in tree_bundle.output_queue_elements.iter() {
-            println!("  (\"{}\", {}),", bs58::encode(h).into_string(), i);
-        }
-        println!("]");
-        for (_, leaf_index) in tree_bundle.output_queue_elements.iter() {
-            let mut test_account = account.clone();
-            test_account.merkle_context.leaf_index = *leaf_index as u32;
-            let hash = test_account.hash().unwrap();
-            if tree_bundle
-                .output_queue_elements
-                .iter()
-                .any(|(h, _)| h == &hash)
-            {
-                println!(
-                    "found matching hash. setting leaf index from account.merkle_context.leaf_index {} to {}",
-                    account.merkle_context.leaf_index, *leaf_index
-                );
-                account.merkle_context.leaf_index = *leaf_index as u32;
-                found = true;
-            }
-        }
-        println!(
-            "account after ALL loops: {:?}",
-            account.merkle_context.leaf_index
-        );
-        println!(
-            "account hash after ALL loops: {:?}",
-            bs58::encode(account.hash().unwrap()).into_string()
-        );
-        if !found {
-            println!("ACCOUNT NOT FOUND IN QUEUE ELEMENTS WITH ANY INDEX");
-            return Err(IndexerError::AccountNotFound);
-        }
-
-        let account_data: CompressedAccount = account.try_into()?;
+        let account_data: CompressedAccount = account.clone().try_into()?;
 
         Ok(Response {
             context: Context {
@@ -285,36 +227,6 @@ impl Indexer for TestIndexer {
         } else {
             res
         };
-
-        // // temporary fix: if account is not found, lookup the merkletree
-        // // bundles. output_queue_elements, (the passed hash will be found in the
-        // // queue elemnets)and get the leaf_index of the queue element, return
-        // // the account that was at that queue element' leaf index but update the
-        // // hash to the passed hash.
-        // if account.is_none() {
-        //     // Try to find the tree_pubkey from the output_queue_elements
-        //     let mut found_account = None;
-        //     'outer: for tree_bundle in self.state_merkle_trees.iter() {
-        //         if let Some((_, leaf_index)) = tree_bundle
-        //             .output_queue_elements
-        //             .iter()
-        //             .find(|(h, _)| h == &hash)
-        //         {
-        //             if let Some(acc) = self
-        //                 .compressed_accounts
-        //                 .iter()
-        //                 .find(|acc| acc.merkle_context.leaf_index == Some(*leaf_index))
-        //             {
-        //                 let mut acc_cloned = acc.clone();
-        //                 acc_cloned.merkle_context.leaf_index = Some(*leaf_index);
-        //                 found_account = Some(acc_cloned);
-        //                 break 'outer;
-        //             }
-        //         }
-        //     }
-        //     account = found_account;
-        // }
-        // println!("FALLBACK returning account: {:?}", account);
 
         let account_data = account
             .ok_or(IndexerError::AccountNotFound)?
@@ -1325,6 +1237,61 @@ impl TestIndexer {
         u64::MAX
     }
 
+    /// Fix leaf indices for all compressed accounts by checking against output queue elements
+    fn fix_leaf_indices_for_queue_accounts(&mut self) {
+        // For each compressed account, check if its leaf index needs to be corrected
+        for account in &mut self.compressed_accounts {
+            let tree_pubkey = account.merkle_context.merkle_tree_pubkey;
+            let tree_bundle = self
+                .state_merkle_trees
+                .iter()
+                .find(|tree| tree_pubkey.to_bytes() == tree.accounts.merkle_tree.to_bytes());
+
+            if let Some(tree_bundle) = tree_bundle {
+                // For each possible leaf_index in the queue, hash the account as if it had that leaf_index
+                // If the resulting hash matches a queue element, update the account's leaf_index
+                for (queue_hash, leaf_index) in &tree_bundle.output_queue_elements {
+                    let mut test_account = account.clone();
+                    test_account.merkle_context.leaf_index = *leaf_index as u32;
+                    if let Ok(hash) = test_account.hash() {
+                        if hash == *queue_hash {
+                            account.merkle_context.leaf_index = *leaf_index as u32;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also fix token compressed accounts
+        for token_account in &mut self.token_compressed_accounts {
+            let tree_pubkey = token_account
+                .compressed_account
+                .merkle_context
+                .merkle_tree_pubkey;
+            let tree_bundle = self
+                .state_merkle_trees
+                .iter()
+                .find(|tree| tree_pubkey.to_bytes() == tree.accounts.merkle_tree.to_bytes());
+
+            if let Some(tree_bundle) = tree_bundle {
+                // For each possible leaf_index in the queue, hash the account as if it had that leaf_index
+                // If the resulting hash matches a queue element, update the account's leaf_index
+                for (queue_hash, leaf_index) in &tree_bundle.output_queue_elements {
+                    let mut test_account = token_account.compressed_account.clone();
+                    test_account.merkle_context.leaf_index = *leaf_index as u32;
+                    if let Ok(hash) = test_account.hash() {
+                        if hash == *queue_hash {
+                            token_account.compressed_account.merkle_context.leaf_index =
+                                *leaf_index as u32;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub async fn init_from_acounts(
         payer: &Keypair,
         env: &TestAccounts,
@@ -1819,6 +1786,9 @@ impl TestIndexer {
                     event.output_compressed_account_hashes[i],
                     event.output_leaf_indices[i].into(),
                 ));
+
+                // Fix leaf indices for accounts that go to output queue
+                self.fix_leaf_indices_for_queue_accounts();
             }
         }
         if event.input_compressed_account_hashes.len() > i {
