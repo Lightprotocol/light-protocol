@@ -217,7 +217,6 @@ pub fn copy_cpi_context_outputs(
                 *data.data_hash = output_account.data_hash;
                 data.data.copy_from_slice(output_data.as_slice());
             }
-
             bytes = inner_bytes;
         }
     }

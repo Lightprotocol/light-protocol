@@ -2,6 +2,13 @@
 
 Unit tests in this repository test individual functions in isolation using mock account infos from `light-account-checks`. No SVM is involved.
 
+## General Requirements
+- don't create many files
+- don't use the word comprehensive in variable, test function and test file names, tests always must be compreshensive
+- we need a functional test for every usage flow
+- we need a failing test for each error
+- unwraps are ok in tests but not in sdks or other library code
+
 ## Test Organization
 
 ### Location
@@ -23,7 +30,7 @@ workspace-crate/
 
 Add feature flags only in `dev-dependencies`:
 ```toml
-[dev-dependencies] 
+[dev-dependencies]
 light-account-checks = { path = "...", features = ["solana"] }
 # or features = ["pinocchio"] depending on backend needed
 
@@ -52,7 +59,7 @@ fn test_account_info_init_success() {
 ```
 *Example: `/program-libs/account-checks/tests/tests.rs:100` - Tests successful account initialization workflow*
 
-• **Failing test for every error condition** - Every error case must have a test that verifies the expected failure  
+• **Failing test for every error condition** - Every error case must have a test that verifies the expected failure
 ```rust
 #[test]
 fn test_account_info_init_already_initialized() {
@@ -70,14 +77,14 @@ fn test_account_info_init_already_initialized() {
 #[test]
 fn test_complete_struct_verification() {
     let result = create_test_struct(params);
-    
+
     let expected = ExpectedStruct {
         field1: expected_value1,
         field2: expected_value2,
         field3: expected_value3,
         // ... all fields explicitly defined
     };
-    
+
     assert_eq!(result, expected);
 }
 ```
@@ -88,7 +95,7 @@ fn test_complete_struct_verification() {
 #[test]
 fn test_function_with_random_params() {
     let mut rng = StdRng::seed_from_u64(0);
-    
+
     for _ in 0..1000 {
         let params = create_random_params(&mut rng);
         let result = complex_function(params);
@@ -104,15 +111,15 @@ fn test_function_with_random_params() {
 #[test]
 fn test_zero_copy_struct_randomized() {
     let mut rng = StdRng::seed_from_u64(0);
-    
+
     for _ in 0..1000 {
         let test_data = create_random_struct_data(&mut rng);
         let mut bytes = Vec::new();
         test_data.serialize(&mut bytes).unwrap();
-        
+
         let (z_copy, remaining) = ZStructName::zero_copy_at(&bytes).unwrap();
         assert!(remaining.is_empty());
-        
+
         compare_structures(&test_data, &z_copy).unwrap();
     }
 }
@@ -134,7 +141,7 @@ pub fn get_fee_payer_account_info() -> AccountInfo {
         pubkey_unique(),
         Pubkey::default(),
         true,  // is_signer
-        true,  // is_writable  
+        true,  // is_writable
         false, // executable
         Vec::new(),
     )
@@ -168,16 +175,16 @@ fn functional_from_account_infos() {
     let fee_payer = get_fee_payer_account_info();
     let authority = get_authority_account_info();
     // ... create all required accounts
-    
+
     let account_info_array = [
         fee_payer.clone(),
         authority.clone(),
         // ... all accounts in correct order
     ];
-    
-    let (instruction_struct, _) = 
+
+    let (instruction_struct, _) =
         InstructionStruct::from_account_infos(account_info_array.as_slice()).unwrap();
-    
+
     // Verify each field is correctly parsed
     assert_eq!(instruction_struct.get_fee_payer().key(), fee_payer.key());
     assert_eq!(instruction_struct.get_authority().key(), authority.key());
@@ -188,9 +195,9 @@ fn functional_from_account_infos() {
 fn failing_from_account_infos() {
     // Create valid account array once
     let account_info_array = [/* all valid accounts */];
-    
+
     // Test each validation failure systematically
-    
+
     // 1. Authority account is mutable (should be read-only)
     {
         let mut test_accounts = account_info_array.clone();
@@ -198,7 +205,7 @@ fn failing_from_account_infos() {
         let result = InstructionStruct::from_account_infos(test_accounts.as_slice());
         assert_eq!(result.unwrap_err(), ProgramError::from(AccountError::AccountMutable));
     }
-    
+
     // 2. Program account not executable
     {
         let mut test_accounts = account_info_array.clone();
@@ -206,7 +213,7 @@ fn failing_from_account_infos() {
         let result = InstructionStruct::from_account_infos(test_accounts.as_slice());
         assert_eq!(result.unwrap_err(), ProgramError::from(AccountError::ProgramNotExecutable));
     }
-    
+
     // 3. Invalid program ID
     {
         let mut test_accounts = account_info_array.clone();
@@ -214,7 +221,7 @@ fn failing_from_account_infos() {
         let result = InstructionStruct::from_account_infos(test_accounts.as_slice());
         assert_eq!(result.unwrap_err(), ProgramError::from(AccountError::InvalidProgramId));
     }
-    
+
     // 4. Test panic scenarios using catch_unwind
     {
         let mut test_accounts = account_info_array.clone();
@@ -237,7 +244,7 @@ Document all test scenarios at the top of test files following the system progra
 /// 1. functional_from_account_infos - successful parsing with all valid accounts
 /// Failing tests - each validation rule tested systematically:
 /// 1. Authority mutable (should be read-only) → AccountMutable
-/// 2. Registered program PDA mutable → AccountMutable  
+/// 2. Registered program PDA mutable → AccountMutable
 /// 3. Account compression authority mutable → AccountMutable
 /// 4. Account compression program invalid ID → InvalidProgramId
 /// 5. Account compression program not executable → ProgramNotExecutable
@@ -280,7 +287,7 @@ Follow the account-checks pattern of documenting all test scenarios at the top:
 ```rust
 /// Tests for all functions in checks.rs:
 /// 1. account_info_init - 4 tests
-///    - Solana: Success + Failure (already initialized)  
+///    - Solana: Success + Failure (already initialized)
 ///    - Pinocchio: Success + Failure (already initialized)
 /// 2. check_signer - 3 tests
 ///    - Solana: Failure (TestAccount always returns false)
@@ -315,23 +322,23 @@ fn test_multi_sum_check() {
     // SUCCEED: Test mathematical properties that should hold
     multi_sum_check_test(&[100, 50], &[150], None, CompressionMode::Decompress).unwrap();
     multi_sum_check_test(&[75, 25, 25], &[25, 25, 25, 25, 12, 13], None, CompressionMode::Decompress).unwrap();
-    
+
     // FAIL: Test violations of mathematical properties
     multi_sum_check_test(&[100, 50], &[150 + 1], None, CompressionMode::Decompress).unwrap_err();
     multi_sum_check_test(&[100, 50], &[150 - 1], None, CompressionMode::Decompress).unwrap_err();
     multi_sum_check_test(&[], &[100, 50], None, CompressionMode::Decompress).unwrap_err();
-    
+
     // SUCCEED: Edge cases
     multi_sum_check_test(&[], &[], None, CompressionMode::Compress).unwrap();
     multi_sum_check_test(&[], &[], None, CompressionMode::Decompress).unwrap();
-    
-    // FAIL: Edge case violations  
+
+    // FAIL: Edge case violations
     multi_sum_check_test(&[], &[], Some(1), CompressionMode::Decompress).unwrap_err();
 }
 
 fn multi_sum_check_test(
     input_amounts: &[u64],
-    output_amounts: &[u64], 
+    output_amounts: &[u64],
     compress_or_decompress_amount: Option<u64>,
     compression_mode: CompressionMode,
 ) -> Result<()> {
@@ -340,7 +347,7 @@ fn multi_sum_check_test(
         .map(|&amount| MultiInputTokenDataWithContext { amount, ..Default::default() })
         .collect();
     let input_bytes = inputs.try_to_vec().unwrap();
-    
+
     // Deserialize as zero-copy and test function
     let (inputs_zc, _) = Vec::<MultiInputTokenDataWithContext>::zero_copy_at(&input_bytes).unwrap();
     sum_check_multi_mint(&inputs_zc, &outputs_zc, compressions_zc.as_deref())
@@ -352,7 +359,7 @@ fn multi_sum_check_test(
 Use custom LCG for reproducible randomized testing of complex scenarios:
 
 ```rust
-#[test] 
+#[test]
 fn test_multi_mint_randomized() {
     for scenario in 0..3000 {
         println!("Testing scenario {}", scenario);
@@ -363,17 +370,17 @@ fn test_multi_mint_randomized() {
 
 fn test_randomized_scenario(seed: u64) -> Result<()> {
     let mut rng_state = seed;
-    
+
     // Simple LCG for deterministic randomness
     let mut next_rand = || {
         rng_state = rng_state.wrapping_mul(1103515245).wrapping_add(12345);
         rng_state
     };
-    
+
     // Generate complex test parameters
     let num_mints = 2 + (next_rand() % 3) as usize;
     let mut mint_balances: HashMap<u8, i128> = HashMap::new();
-    
+
     // Generate inputs with balance tracking
     for _ in 0..(1 + next_rand() % 6) {
         let mint = (next_rand() % num_mints as u64) as u8;
@@ -381,7 +388,7 @@ fn test_randomized_scenario(seed: u64) -> Result<()> {
         inputs.push((mint, amount));
         *mint_balances.entry(mint).or_insert(0) += amount as i128;
     }
-    
+
     // Test mathematical invariants across all mints
     test_multi_mint_scenario(&inputs, &outputs, &compressions)
 }
@@ -398,16 +405,16 @@ Test precise memory allocation requirements and validate against expected struct
 #[test]
 fn test_exact_allocation_assertion() {
     println!("\n=== EXACT ALLOCATION TEST ===");
-    
+
     // Configure dynamic metadata sizes
     let name_len = 10u32;
-    let symbol_len = 5u32; 
+    let symbol_len = 5u32;
     let uri_len = 20u32;
     let additional_metadata_configs = vec![
         AdditionalMetadataConfig { key: 8, value: 15 },
         AdditionalMetadataConfig { key: 12, value: 25 },
     ];
-    
+
     // Calculate expected struct size
     let mint_config = CompressedMintConfig {
         mint_authority: (true, ()),
@@ -415,20 +422,20 @@ fn test_exact_allocation_assertion() {
         extensions: (true, extensions_config.clone()),
     };
     let expected_mint_size = CompressedMint::byte_len(&mint_config);
-    
+
     // Test allocation system
     let config = cpi_bytes_config(config_input);
     let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
-    let (cpi_instruction_struct, _) = 
+    let (cpi_instruction_struct, _) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
         .expect("Should create CPI instruction successfully");
-        
+
     // Get allocated space and verify exact match
     let available_space = cpi_instruction_struct.output_compressed_accounts[0]
         .compressed_account.data.as_ref().unwrap().data.len();
-    
+
     println!("Expected: {} bytes, Allocated: {} bytes", expected_mint_size, available_space);
-    
+
     // Critical assertion: exact allocation match
     assert_eq!(
         available_space, expected_mint_size,
@@ -450,14 +457,14 @@ Create comprehensive mock data with systematic parameter variations:
 fn test_rnd_create_input_compressed_account() {
     let mut rng = rand::thread_rng();
     let iter = 1000;
-    
+
     for _ in 0..iter {
-        // Generate realistic random parameters  
+        // Generate realistic random parameters
         let mint_pubkey = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
         let owner_pubkey = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
         let amount = rng.gen::<u64>();
         let with_delegate = rng.gen_bool(0.3); // 30% probability
-        
+
         // Create complex input structure
         let input_token_data = MultiInputTokenDataWithContext {
             amount,
@@ -471,17 +478,17 @@ fn test_rnd_create_input_compressed_account() {
             with_delegate,
             // ... complex conditional logic
         };
-        
+
         // Create systematic mock accounts based on parameters
         let mut mock_accounts = vec![
             create_mock_account(mint_pubkey, false),
             create_mock_account(owner_pubkey, !with_delegate), // signer logic
         ];
-        
+
         if with_delegate {
             mock_accounts.push(create_mock_account(delegate_pubkey, true));
         }
-        
+
         // Test both frozen and unfrozen states systematically
         for is_frozen in [false, true] {
             test_account_setup(&input_token_data, &mock_accounts, is_frozen);
@@ -512,11 +519,11 @@ fn test_comprehensive_api() {
     for capacity in 1..1024 {
         let mut data = vec![0; ZeroCopyVec::required_size_for_capacity(capacity)];
         let mut vec = ZeroCopyVec::new(capacity, &mut data).unwrap();
-        
+
         // Test all state transitions: empty -> filled -> full -> cleared
         test_empty_state(&vec, capacity);
         test_filling_state(&mut vec, capacity);
-        test_full_state(&mut vec, capacity);  
+        test_full_state(&mut vec, capacity);
         test_cleared_state(&mut vec, capacity);
     }
 }
@@ -535,15 +542,15 @@ fn test_empty_state<T>(vec: &ZeroCopyVec<T>, capacity: usize) {
 }
 
 // Generic testing across types
-#[test] 
+#[test]
 fn test_all_type_combinations() {
     test_vec_with_types::<u8, u32>();
-    test_vec_with_types::<u16, CustomStruct>();  
+    test_vec_with_types::<u16, CustomStruct>();
     test_vec_with_types::<u64, [u8; 32]>();
 }
 
 // Custom test structs with all required traits
-#[derive(Copy, Clone, PartialEq, Debug, Default, 
+#[derive(Copy, Clone, PartialEq, Debug, Default,
          Immutable, FromBytes, KnownLayout, IntoBytes)]
 struct TestStruct { /* fields */ }
 
@@ -561,7 +568,7 @@ impl Distribution<TestStruct> for Standard {
 - **Exact error verification**: Use `assert_eq!(result.unwrap_err(), SpecificError)` not `assert!(result.is_err())`
 - **Resource management**: Properly scope borrows with `{ }` blocks when testing account data
 - **Exhaustive API testing**: Test every public method in every state (empty/filling/full/cleared)
-- **Capacity range testing**: Test across wide range of capacity values (`1..1024`)  
+- **Capacity range testing**: Test across wide range of capacity values (`1..1024`)
 - **State transition verification**: Test complete lifecycle with invariant checks
 - **Memory layout validation**: Verify raw byte layout including padding and metadata
 - **Generic type testing**: Test same logic across multiple type combinations
@@ -614,7 +621,7 @@ cargo test -p light-batched-merkle-tree --features test-only -- --skip test_simu
 ```
 
 **Key Commands:**
-- **Always use** `cargo test -p <crate-name> --all-features` 
+- **Always use** `cargo test -p <crate-name> --all-features`
 - **Never use bare `cargo test`** - always specify the package to avoid running unintended tests
 - **Feature flags**: Always use `--all-features` unless specific testing scenario requires otherwise
 
@@ -624,7 +631,7 @@ cargo test -p light-batched-merkle-tree --features test-only -- --skip test_simu
 1. **Use descriptive test names** that explain the scenario
 2. **Create test accounts** using appropriate test utilities based on test type
 3. **Test multiple parameter sets** - use `test_default()`, `e2e_test_default()`, custom params
-4. **Test both backends** with `#[cfg(feature = "...")]` when applicable  
+4. **Test both backends** with `#[cfg(feature = "...")]` when applicable
 5. **Use property-based testing** for complex data structures with randomized parameters
 6. **Assert complete structures** or exact error types, not just success/failure
 7. **Verify memory layouts** - manually calculate expected sizes for zero-copy structures
@@ -642,7 +649,7 @@ cargo test -p light-batched-merkle-tree --features test-only -- --skip test_simu
    /// 1. functional_from_account_infos - successful parsing with all valid accounts
    /// Failing tests - each validation rule tested systematically:
    /// 1. Authority mutable (should be read-only) → AccountMutable
-   /// 2. Registered program PDA mutable → AccountMutable  
+   /// 2. Registered program PDA mutable → AccountMutable
    /// 3. Account compression authority mutable → AccountMutable
    /// 4. Account compression program invalid ID → InvalidProgramId
    /// 5. Account compression program not executable → ProgramNotExecutable
