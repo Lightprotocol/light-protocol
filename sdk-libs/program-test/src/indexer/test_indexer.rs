@@ -86,8 +86,9 @@ use crate::accounts::{
 use crate::{
     accounts::{
         address_tree::create_address_merkle_tree_and_queue_account,
-        state_tree::create_state_merkle_tree_and_queue_account, test_accounts::TestAccounts,
-        test_keypairs::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR,
+        state_tree::create_state_merkle_tree_and_queue_account,
+        test_accounts::TestAccounts,
+        test_keypairs::{BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR, BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2},
     },
     indexer::TestIndexerExtensions,
 };
@@ -195,10 +196,66 @@ impl Indexer for TestIndexer {
             .iter()
             .find(|acc| acc.compressed_account.address == Some(address));
 
-        let account_data = account
-            .ok_or(IndexerError::AccountNotFound)?
-            .clone()
-            .try_into()?;
+        if account.is_none() {
+            println!("ACCOUNT BY ADDRESS NOT FOUND IN COMPRESSED ACCOUNTS");
+            return Err(IndexerError::AccountNotFound);
+        }
+        let mut account = account.unwrap().clone();
+
+        println!("account found by address: {:?}", account);
+        // get all queue elements for the account's tree, for each
+        // self.compressed_accounts.len() (total number of leaves), calculate
+        // the hash of of the compressed_account. then find WHICH hash matches
+        // one of the output_queue_elements. then take the leaf_index of the
+        // queue element and SET our account's leaf_index to that. and it's hash
+        // to the queue element / calculated hash. then return the account.
+        // throw if no match is found.
+        let tree_pubkey = account.merkle_context.merkle_tree_pubkey;
+        let tree_bundle = self
+            .state_merkle_trees
+            .iter()
+            .find(|tree| tree_pubkey == tree.accounts.merkle_tree)
+            .unwrap();
+
+        // For each possible leaf_index, hash the returned account as if it had that leaf_index.
+        // If the resulting hash matches a queue element, set the account's leaf_index and hash accordingly.
+        let mut found = false;
+        println!("tree_bundle.output_queue_elements (bs58): [");
+        for (h, i) in tree_bundle.output_queue_elements.iter() {
+            println!("  (\"{}\", {}),", bs58::encode(h).into_string(), i);
+        }
+        println!("]");
+        for (_, leaf_index) in tree_bundle.output_queue_elements.iter() {
+            let mut test_account = account.clone();
+            test_account.merkle_context.leaf_index = *leaf_index as u32;
+            let hash = test_account.hash().unwrap();
+            if tree_bundle
+                .output_queue_elements
+                .iter()
+                .any(|(h, _)| h == &hash)
+            {
+                println!(
+                    "found matching hash. setting leaf index from account.merkle_context.leaf_index {} to {}",
+                    account.merkle_context.leaf_index, *leaf_index
+                );
+                account.merkle_context.leaf_index = *leaf_index as u32;
+                found = true;
+            }
+        }
+        println!(
+            "account after ALL loops: {:?}",
+            account.merkle_context.leaf_index
+        );
+        println!(
+            "account hash after ALL loops: {:?}",
+            bs58::encode(account.hash().unwrap()).into_string()
+        );
+        if !found {
+            println!("ACCOUNT NOT FOUND IN QUEUE ELEMENTS WITH ANY INDEX");
+            return Err(IndexerError::AccountNotFound);
+        }
+
+        let account_data: CompressedAccount = account.try_into()?;
 
         Ok(Response {
             context: Context {
@@ -228,6 +285,36 @@ impl Indexer for TestIndexer {
         } else {
             res
         };
+
+        // // temporary fix: if account is not found, lookup the merkletree
+        // // bundles. output_queue_elements, (the passed hash will be found in the
+        // // queue elemnets)and get the leaf_index of the queue element, return
+        // // the account that was at that queue element' leaf index but update the
+        // // hash to the passed hash.
+        // if account.is_none() {
+        //     // Try to find the tree_pubkey from the output_queue_elements
+        //     let mut found_account = None;
+        //     'outer: for tree_bundle in self.state_merkle_trees.iter() {
+        //         if let Some((_, leaf_index)) = tree_bundle
+        //             .output_queue_elements
+        //             .iter()
+        //             .find(|(h, _)| h == &hash)
+        //         {
+        //             if let Some(acc) = self
+        //                 .compressed_accounts
+        //                 .iter()
+        //                 .find(|acc| acc.merkle_context.leaf_index == Some(*leaf_index))
+        //             {
+        //                 let mut acc_cloned = acc.clone();
+        //                 acc_cloned.merkle_context.leaf_index = Some(*leaf_index);
+        //                 found_account = Some(acc_cloned);
+        //                 break 'outer;
+        //             }
+        //         }
+        //     }
+        //     account = found_account;
+        // }
+        // println!("FALLBACK returning account: {:?}", account);
 
         let account_data = account
             .ok_or(IndexerError::AccountNotFound)?
@@ -1287,9 +1374,12 @@ impl TestIndexer {
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
             let test_batched_output_queue =
                 Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap();
+            let test_batched_output_queue_2 =
+                Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2).unwrap();
             let (tree_type, merkle_tree, output_queue_batch_size) = if state_merkle_tree_account
                 .nullifier_queue
                 == test_batched_output_queue.pubkey()
+                || state_merkle_tree_account.nullifier_queue == test_batched_output_queue_2.pubkey()
             {
                 let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
                     DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
