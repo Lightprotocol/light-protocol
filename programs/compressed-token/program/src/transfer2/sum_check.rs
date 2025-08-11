@@ -3,6 +3,7 @@ use arrayvec::ArrayVec;
 use light_ctoken_types::instructions::transfer2::{
     CompressionMode, ZCompression, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
+use spl_pod::solana_msg::msg;
 
 /// Process inputs and add amounts to mint sums with order validation
 #[inline(always)]
@@ -50,7 +51,7 @@ fn sum_compressions(
         if let Some(entry) = mint_sums.iter_mut().find(|(idx, _)| *idx == mint_index) {
             entry.1 = compression
                 .new_balance_compressed_account(entry.1)
-                .map_err(ProgramError::from)?;
+                .map_err(|_| ErrorCode::SumCheckFailed)?;
         } else {
             // Create new entry if compressing
             if compression.mode == CompressionMode::Compress {

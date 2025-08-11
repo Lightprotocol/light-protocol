@@ -20,9 +20,12 @@ pub const COMPRESSED_TOKEN_PROGRAM_ID: [u8; 32] =
 
 /// Account size constants
 /// Size of a basic SPL token account
-pub const BASIC_TOKEN_ACCOUNT_SIZE: u64 = 165;
+pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = 165;
 
 /// Size of a token account with compressible extension
 pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 = 257;
+
+/// Size of a Token-2022 mint account
+pub const MINT_ACCOUNT_SIZE: u64 = 82;
 pub const COMPRESSED_MINT_SEED: &[u8] = b"compressed_mint";
 pub const NATIVE_MINT: [u8; 32] = pubkey_array!("So11111111111111111111111111111111111111112");

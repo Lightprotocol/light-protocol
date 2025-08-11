@@ -16,8 +16,9 @@ pub fn process_create_associated_token_account(
     account_infos: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let (instruction_inputs, _) = CreateAssociatedTokenAccountInstructionData::zero_copy_at(instruction_data)
-        .map_err(ProgramError::from)?;
+    let (instruction_inputs, _) =
+        CreateAssociatedTokenAccountInstructionData::zero_copy_at(instruction_data)
+            .map_err(ProgramError::from)?;
 
     let owner_bytes = instruction_inputs.owner.to_bytes();
     let mint_bytes = instruction_inputs.mint.to_bytes();
@@ -31,7 +32,7 @@ pub fn process_create_associated_token_account(
     let token_account_size = if instruction_inputs.compressible_config.is_some() {
         light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
     } else {
-        light_ctoken_types::BASIC_TOKEN_ACCOUNT_SIZE as usize
+        light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize
     };
 
     let seeds = &[

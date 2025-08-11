@@ -8,7 +8,7 @@ pub fn create_token_pool_account_manual(
     executing_accounts: &crate::mint_action::accounts::ExecutingAccounts<'_>,
     program_id: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
-    let token_account_size = 165; // Size of Token account
+    let token_account_size = light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize;
 
     // Get required accounts
     let mint_account = executing_accounts

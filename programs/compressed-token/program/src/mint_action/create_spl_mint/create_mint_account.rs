@@ -11,7 +11,7 @@ pub fn create_mint_account(
     mint_bump: u8,
     mint_signer: &pinocchio::account_info::AccountInfo,
 ) -> Result<(), ProgramError> {
-    let mint_account_size = 82; // Size of Token-2022 Mint account
+    let mint_account_size = light_ctoken_types::MINT_ACCOUNT_SIZE as usize;
     let mint_account = executing_accounts
         .mint
         .ok_or(ProgramError::InvalidAccountData)?;

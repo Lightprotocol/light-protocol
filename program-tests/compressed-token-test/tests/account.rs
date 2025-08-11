@@ -3,7 +3,7 @@
 use light_compressed_token_sdk::instructions::{
     close::close_account, create_associated_token_account::derive_ctoken_ata, create_token_account,
 };
-use light_ctoken_types::{BASIC_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
+use light_ctoken_types::{BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_close_token_account::assert_close_token_account,
@@ -265,7 +265,7 @@ async fn test_create_compressible_account_insufficient_size() {
 
     // Create system account with INSUFFICIENT size - too small for compressible extension
     let rent_exempt_lamports = rpc
-        .get_minimum_balance_for_rent_exemption(BASIC_TOKEN_ACCOUNT_SIZE as usize)
+        .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
         .await
         .unwrap();
 
@@ -273,7 +273,7 @@ async fn test_create_compressible_account_insufficient_size() {
         &payer_pubkey,
         &token_account_pubkey,
         rent_exempt_lamports,
-        light_ctoken_types::BASIC_TOKEN_ACCOUNT_SIZE, // Intentionally too small for compressible extension
+        light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE, // Intentionally too small for compressible extension
         &light_compressed_token::ID,
     );
 

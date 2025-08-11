@@ -552,6 +552,7 @@ impl ZCompressedTokenMetaMut<'_> {
         &mut self,
         close_authority: Option<Pubkey>,
     ) -> Result<(), ZeroCopyError> {
+        // TODO: create ZOption with 3 states 0. None not allocated, 1. Some(), 2. None allocated.
         match (&mut self.close_authority, close_authority) {
             (Some(authority), Some(new)) => {
                 **authority = new;
@@ -673,7 +674,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
             ));
         }
         if bytes[108] != 0 {
-            msg!("Account already initialized",);
+            msg!("Account already initialized");
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
         // Set the state to Initialized (1) at offset 108 (32 mint + 32 owner + 8 amount + 36 delegate)
