@@ -12,7 +12,6 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
 
         match &variant.fields {
             Fields::Unit => {
-                // Unit variant: Placeholder0,
                 Ok(quote! { #variant_name })
             }
             Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {

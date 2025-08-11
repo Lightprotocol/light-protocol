@@ -18,6 +18,9 @@ mod zero_copy_eq;
 #[cfg(feature = "mut")]
 mod zero_copy_mut;
 
+#[cfg(test)]
+mod tests;
+
 /// ZeroCopy derivation macro for zero-copy deserialization
 ///
 /// # Usage

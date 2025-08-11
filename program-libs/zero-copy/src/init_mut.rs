@@ -243,8 +243,7 @@ impl<'a, T: ZeroCopyNew<'a>> ZeroCopyNew<'a> for Vec<T> {
         let mut total = 4usize;
         for element_config in config {
             let element_len = T::byte_len(element_config)?;
-            total = total.checked_add(element_len)
-                .ok_or(ZeroCopyError::Size)?;
+            total = total.checked_add(element_len).ok_or(ZeroCopyError::Size)?;
         }
         Ok(total)
     }
