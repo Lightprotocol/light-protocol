@@ -17,6 +17,7 @@ mut = ["light-zero-copy-derive/mut"]
 [dependencies]
 solana-program-error = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
+thiserror = { workspace = true }
 zerocopy = { workspace = true }
 light-zero-copy-derive = { workspace = true, optional = true }
 

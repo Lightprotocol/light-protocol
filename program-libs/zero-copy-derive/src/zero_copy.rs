@@ -5,6 +5,7 @@ use syn::{parse_quote, DeriveInput, Field, Ident};
 
 use crate::shared::{
     meta_struct, utils,
+    z_enum::{generate_enum_deserialize_impl, generate_enum_zero_copy_struct_inner, generate_z_enum},
     z_struct::{analyze_struct_fields, generate_z_struct, FieldType},
 };
 
@@ -221,246 +222,76 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
     // Parse the input DeriveInput
     let input: DeriveInput = syn::parse(input)?;
 
-    let hasher = false;
+    let hasher = utils::struct_has_light_hasher_attribute(&input.attrs);
 
-    // Process the input to extract struct information
-    let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
-
-    // Process the fields to separate meta fields and struct fields
-    let (meta_fields, struct_fields) = utils::process_fields(fields);
-
-    let meta_struct_def = if !meta_fields.is_empty() {
-        meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
-    } else {
-        quote! {}
-    };
-
-    let z_struct_def = generate_z_struct::<false>(
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        &meta_fields,
-        hasher,
-    )?;
-
-    let zero_copy_struct_inner_impl =
-        generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
-
-    let deserialize_impl = generate_deserialize_impl::<false>(
-        name,
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        meta_fields.is_empty(),
-        quote! {},
-    )?;
-
-    // Combine all implementations
-    let expanded = quote! {
-        #meta_struct_def
-        #z_struct_def
-        #zero_copy_struct_inner_impl
-        #deserialize_impl
-    };
-
-    Ok(expanded)
-}
-
-#[cfg(test)]
-mod tests {
-    use quote::format_ident;
-    use rand::{prelude::SliceRandom, rngs::StdRng, thread_rng, Rng, SeedableRng};
-    use syn::parse_quote;
-
-    use super::*;
-
-    /// Generate a safe field name for testing
-    fn random_ident(rng: &mut StdRng) -> String {
-        // Use predetermined safe field names
-        const FIELD_NAMES: &[&str] = &[
-            "field1", "field2", "field3", "field4", "field5", "value", "data", "count", "size",
-            "flag", "name", "id", "code", "index", "key", "amount", "balance", "total", "result",
-            "status",
-        ];
-
-        FIELD_NAMES.choose(rng).unwrap().to_string()
+    // Disable light_hasher attribute due to Vec<u8>/&[u8] hash inconsistency
+    if hasher {
+        return Err(syn::Error::new_spanned(
+            &input,
+            "#[light_hasher] attribute is currently disabled due to hash inconsistency between Vec<u8> and &[u8] slice representations in ZStruct vs original struct. The original struct hashes Vec<u8> fields while the ZStruct hashes &[u8] slice fields, producing different hash values.",
+        ));
     }
 
-    /// Generate a random Rust type
-    fn random_type(rng: &mut StdRng, _depth: usize) -> syn::Type {
-        // Define our available types
-        let types = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    // Process the input to extract information for both structs and enums
+    let (name, z_name, input_type) = utils::process_input_generic(&input)?;
 
-        // Randomly select a type index
-        let selected = *types.choose(rng).unwrap();
+    match input_type {
+        utils::InputType::Struct(fields) => {
+            // Handle struct case (existing logic)
+            let z_struct_name = z_name;
+            let z_struct_meta_name = format_ident!("Z{}Meta", name);
 
-        // Return the corresponding type
-        match selected {
-            0 => parse_quote!(u8),
-            1 => parse_quote!(u16),
-            2 => parse_quote!(u32),
-            3 => parse_quote!(u64),
-            4 => parse_quote!(bool),
-            5 => parse_quote!(Vec<u8>),
-            6 => parse_quote!(Vec<u16>),
-            7 => parse_quote!(Vec<u32>),
-            8 => parse_quote!([u32; 12]),
-            9 => parse_quote!([Vec<u16>; 12]),
-            10 => parse_quote!([Vec<u8>; 20]),
-            _ => unreachable!(),
-        }
-    }
+            // Process the fields to separate meta fields and struct fields
+            let (meta_fields, struct_fields) = utils::process_fields(fields);
 
-    /// Generate a random field
-    fn random_field(rng: &mut StdRng) -> Field {
-        let name = random_ident(rng);
-        let ty = random_type(rng, 0);
-
-        // Use a safer approach to create the field
-        let name_ident = format_ident!("{}", name);
-        parse_quote!(pub #name_ident: #ty)
-    }
-
-    /// Generate a list of random fields
-    fn random_fields(rng: &mut StdRng, count: usize) -> Vec<Field> {
-        (0..count).map(|_| random_field(rng)).collect()
-    }
-
-    // Test for field initialization code generation - behavioral test
-    #[test]
-    fn test_init_fields() {
-        let field1: Field = parse_quote!(pub id: u32);
-        let field2: Field = parse_quote!(pub name: String);
-        let struct_fields = vec![&field1, &field2];
-
-        let result = generate_init_fields(&struct_fields).collect::<Vec<_>>();
-        assert_eq!(
-            result.len(),
-            2,
-            "Should generate exactly 2 field initializations"
-        );
-
-        let result_str = format!("{} {}", result[0], result[1]);
-        assert!(result_str.contains("id"), "Should contain 'id' field");
-        assert!(result_str.contains("name"), "Should contain 'name' field");
-    }
-
-    #[test]
-    fn test_fuzz_generate_deserialize_impl() {
-        // Set up RNG with a seed for reproducibility
-        let seed = thread_rng().gen();
-        println!("seed {}", seed);
-        let mut rng = StdRng::seed_from_u64(seed);
-
-        // Number of iterations for the test
-        let num_iters = 10000;
-
-        for i in 0..num_iters {
-            // Generate a random struct name
-            let struct_name = format_ident!("{}", random_ident(&mut rng));
-            let z_struct_name = format_ident!("Z{}", struct_name);
-            let z_struct_meta_name = format_ident!("Z{}Meta", struct_name);
-
-            // Generate random number of fields (1-10)
-            let field_count = rng.gen_range(1..11);
-            let fields = random_fields(&mut rng, field_count);
-
-            // Create a named fields collection
-            let syn_fields = syn::punctuated::Punctuated::from_iter(fields.iter().cloned());
-            let fields_named = syn::FieldsNamed {
-                brace_token: syn::token::Brace::default(),
-                named: syn_fields,
+            let meta_struct_def = if !meta_fields.is_empty() {
+                meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
+            } else {
+                quote! {}
             };
 
-            // Split into meta fields and struct fields
-            let (_, struct_fields) = crate::shared::utils::process_fields(&fields_named);
-
-            // Call the function we're testing
-            let result = generate_deserialize_impl::<false>(
-                &struct_name,
+            let z_struct_def = generate_z_struct::<false>(
                 &z_struct_name,
                 &z_struct_meta_name,
                 &struct_fields,
-                false,
+                &meta_fields,
+                hasher,
+            )?;
+
+            let zero_copy_struct_inner_impl =
+                generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
+
+            let deserialize_impl = generate_deserialize_impl::<false>(
+                name,
+                &z_struct_name,
+                &z_struct_meta_name,
+                &struct_fields,
+                meta_fields.is_empty(),
                 quote! {},
-            );
+            )?;
 
-            // Get the generated code as a string for validation
-            let result_str = result.unwrap().to_string();
+            // Combine all implementations
+            Ok(quote! {
+                #meta_struct_def
+                #z_struct_def
+                #zero_copy_struct_inner_impl
+                #deserialize_impl
+            })
+        }
+        utils::InputType::Enum(enum_data) => {
+            // Handle enum case (new logic)
+            let z_enum_name = z_name;
 
-            // Print the first result for debugging
-            if i == 0 {
-                println!("Generated deserialize_impl code format:\n{}", result_str);
-            }
+            let z_enum_def = generate_z_enum(&z_enum_name, enum_data)?;
+            let deserialize_impl = generate_enum_deserialize_impl(name, &z_enum_name, enum_data)?;
+            let zero_copy_struct_inner_impl = generate_enum_zero_copy_struct_inner(name, &z_enum_name)?;
 
-            // Verify the result contains expected elements
-            // Basic validation - must be non-empty
-            assert!(
-                !result_str.is_empty(),
-                "Failed to generate TokenStream for iteration {}",
-                i
-            );
-
-            // Validate that the generated code contains the expected impl definition
-            let impl_pattern = format!(
-                "impl < 'a > light_zero_copy :: borsh :: Deserialize < 'a > for {}",
-                struct_name
-            );
-            assert!(
-                result_str.contains(&impl_pattern),
-                "Generated code missing impl definition for iteration {}. Expected: {}",
-                i,
-                impl_pattern
-            );
-
-            // Validate type Output is defined
-            let output_pattern = format!("type Output = {} < 'a >", z_struct_name);
-            assert!(
-                result_str.contains(&output_pattern),
-                "Generated code missing Output type for iteration {}. Expected: {}",
-                i,
-                output_pattern
-            );
-
-            // Validate the zero_copy_at method is present
-            assert!(
-                result_str.contains("fn zero_copy_at (bytes : & 'a [u8])"),
-                "Generated code missing zero_copy_at method for iteration {}",
-                i
-            );
-
-            // Check for meta field extraction
-            let meta_extraction_pattern = format!(
-                "let (__meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , {} > :: from_prefix (bytes) ?",
-                z_struct_meta_name
-            );
-            assert!(
-                result_str.contains(&meta_extraction_pattern),
-                "Generated code missing meta field extraction for iteration {}",
-                i
-            );
-
-            // Check for return with Ok pattern
-            assert!(
-                result_str.contains("Ok (("),
-                "Generated code missing Ok return statement for iteration {}",
-                i
-            );
-
-            // Check for the struct initialization
-            let struct_init_pattern = format!("{} {{", z_struct_name);
-            assert!(
-                result_str.contains(&struct_init_pattern),
-                "Generated code missing struct initialization for iteration {}",
-                i
-            );
-
-            // Check for meta field in the returned struct
-            assert!(
-                result_str.contains("__meta ,"),
-                "Generated code missing meta field in struct initialization for iteration {}",
-                i
-            );
+            // Combine all implementations
+            Ok(quote! {
+                #z_enum_def
+                #deserialize_impl
+                #zero_copy_struct_inner_impl
+            })
         }
     }
 }

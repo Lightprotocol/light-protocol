@@ -5,7 +5,7 @@ use std::{
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Attribute, Data, DeriveInput, Field, Fields, FieldsNamed, Ident, Type, TypePath};
+use syn::{Attribute, Data, DataEnum, DeriveInput, Field, Fields, FieldsNamed, Ident, Type, TypePath};
 
 // Global cache for storing whether a struct implements Copy
 lazy_static::lazy_static! {
@@ -16,6 +16,12 @@ lazy_static::lazy_static! {
 /// between types with the same name from different modules/locations
 fn create_unique_type_key(ident: &Ident) -> String {
     format!("{}:{:?}", ident, ident.span())
+}
+
+/// Represents the type of input data (struct or enum)
+pub enum InputType<'a> {
+    Struct(&'a FieldsNamed),
+    Enum(&'a DataEnum),
 }
 
 /// Process the derive input to extract the struct information
@@ -53,6 +59,42 @@ pub fn process_input(
     };
 
     Ok((name, z_struct_name, z_struct_meta_name, fields))
+}
+
+/// Process the derive input to extract information for both structs and enums
+pub fn process_input_generic(
+    input: &DeriveInput,
+) -> syn::Result<(
+    &Ident,             // Original name
+    proc_macro2::Ident, // Z-name
+    InputType,          // Input type (struct or enum)
+)> {
+    let name = &input.ident;
+    let z_name = format_ident!("Z{}", name);
+
+    // Populate the cache by checking if this struct implements Copy
+    let _ = struct_implements_copy(input);
+
+    let input_type = match &input.data {
+        Data::Struct(data) => match &data.fields {
+            Fields::Named(fields) => InputType::Struct(fields),
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    &data.fields,
+                    "ZeroCopy only supports structs with named fields",
+                ))
+            }
+        },
+        Data::Enum(data) => InputType::Enum(data),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                input,
+                "ZeroCopy only supports structs and enums",
+            ))
+        }
+    };
+
+    Ok((name, z_name, input_type))
 }
 
 pub fn process_fields(fields: &FieldsNamed) -> (Vec<&Field>, Vec<&Field>) {
@@ -233,6 +275,13 @@ fn struct_has_copy_derive(attrs: &[Attribute]) -> bool {
                 && found_copy
         }
     })
+}
+
+/// Checks if a struct has a #[light_hasher] attribute
+pub fn struct_has_light_hasher_attribute(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("light_hasher"))
 }
 
 /// Determines whether a struct implements Copy by checking for the #[derive(Copy)] attribute.

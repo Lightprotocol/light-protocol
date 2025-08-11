@@ -155,12 +155,12 @@ where
     #[inline]
     pub fn data_size(capacity: L) -> usize {
         let usize_len: usize = u64::from(capacity) as usize;
-        usize_len.saturating_mul(size_of::<T>())
+        usize_len * size_of::<T>()
     }
 
     #[inline]
     pub fn required_size_for_capacity(capacity: L) -> usize {
-        Self::metadata_size().saturating_add(Self::data_size(capacity))
+        Self::metadata_size() + Self::data_size(capacity)
     }
 
     #[inline]
@@ -225,17 +225,17 @@ where
         &mut self.slice[..len]
     }
 
-    pub fn extend_from_slice(&mut self, slice: &[T]) -> Result<(), ZeroCopyError> {
+    pub fn extend_from_slice(&mut self, slice: &[T]) {
         let len = self.len();
         let new_len = len + slice.len();
         if new_len > self.capacity() {
-            return Err(ZeroCopyError::InsufficientCapacity);
+            panic!("Capacity overflow. Cannot copy slice into ZeroCopyVec.");
         }
         self.slice[len..].copy_from_slice(slice);
         *self.get_len_mut() = (new_len as u64)
             .try_into()
-            .map_err(|_| ZeroCopyError::InvalidConversion)?;
-        Ok(())
+            .map_err(|_| ZeroCopyError::InvalidConversion)
+            .unwrap();
     }
 
     #[cfg(feature = "std")]
