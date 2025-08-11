@@ -231,7 +231,14 @@ pub fn generate_field_initialization(field_type: &FieldType) -> syn::Result<Toke
                 }
                 // Split off the length prefix (4 bytes) and get the slice
                 let (_, bytes) = bytes.split_at_mut(4);
-                let (#field_name, bytes) = bytes.split_at_mut(config.#field_name as usize);
+                let slice_len = config.#field_name as usize;
+                if bytes.len() < slice_len {
+                    return Err(light_zero_copy::errors::ZeroCopyError::InsufficientMemoryAllocated(
+                        bytes.len(),
+                        slice_len
+                    ));
+                }
+                let (#field_name, bytes) = bytes.split_at_mut(slice_len);
             }
         }
 
@@ -319,7 +326,11 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
 
         FieldType::VecCopy(field_name, inner_type) => {
             quote! {
-                (4 + (config.#field_name as usize * core::mem::size_of::<#inner_type>()))
+                {
+                    let len = config.#field_name as usize;
+                    let elem_size = core::mem::size_of::<#inner_type>();
+                    4 + len.checked_mul(elem_size).unwrap_or(usize::MAX) // Use max to indicate overflow
+                }
             }
         }
 

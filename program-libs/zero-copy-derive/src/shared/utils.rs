@@ -299,18 +299,20 @@ pub fn struct_implements_copy(input: &DeriveInput) -> bool {
     let cache_key = create_unique_type_key(&input.ident);
 
     // Check the cache first
-    if let Some(implements_copy) = COPY_IMPL_CACHE.lock().unwrap().get(&cache_key) {
-        return *implements_copy;
+    if let Ok(cache) = COPY_IMPL_CACHE.lock() {
+        if let Some(implements_copy) = cache.get(&cache_key) {
+            return *implements_copy;
+        }
     }
+    // If mutex is poisoned, we can still continue without cache
 
     // Check if the struct has a derive(Copy) attribute
     let implements_copy = struct_has_copy_derive(&input.attrs);
 
-    // Cache the result
-    COPY_IMPL_CACHE
-        .lock()
-        .unwrap()
-        .insert(cache_key, implements_copy);
+    // Cache the result (ignore if mutex is poisoned)
+    if let Ok(mut cache) = COPY_IMPL_CACHE.lock() {
+        cache.insert(cache_key, implements_copy);
+    }
 
     implements_copy
 }
@@ -349,9 +351,12 @@ pub fn is_copy_type(ty: &Type) -> bool {
 
                 // Check if we have cached information about this type
                 let cache_key = create_unique_type_key(ident);
-                if let Some(implements_copy) = COPY_IMPL_CACHE.lock().unwrap().get(&cache_key) {
-                    return *implements_copy;
+                if let Ok(cache) = COPY_IMPL_CACHE.lock() {
+                    if let Some(implements_copy) = cache.get(&cache_key) {
+                        return *implements_copy;
+                    }
                 }
+                // If mutex is poisoned, continue without cache
             }
         }
         // Handle array types (which are always Copy if the element type is Copy)
@@ -379,7 +384,9 @@ mod tests {
     #[test]
     fn test_struct_implements_copy() {
         // Ensure the cache is cleared and the lock is released immediately
-        COPY_IMPL_CACHE.lock().unwrap().clear();
+        if let Ok(mut cache) = COPY_IMPL_CACHE.lock() {
+            cache.clear();
+        }
         // Test case 1: Empty struct with #[derive(Copy)]
         let input: syn::DeriveInput = parse_quote! {
             #[derive(Copy, Clone)]

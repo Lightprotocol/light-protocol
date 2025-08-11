@@ -17,7 +17,12 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
             }
             Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                 // Single unnamed field: TokenMetadata(TokenMetadataInstructionData)
-                let field_type = &fields.unnamed.first().unwrap().ty;
+                let field_type = &fields.unnamed.first()
+                    .ok_or_else(|| syn::Error::new_spanned(
+                        fields,
+                        "Internal error: expected exactly one unnamed field but found none"
+                    ))?
+                    .ty;
 
                 // Create a type alias for this variant to enable pattern matching
                 let alias_name = format_ident!("{}Type", variant_name);
@@ -68,40 +73,46 @@ pub fn generate_enum_deserialize_impl(
     enum_data: &DataEnum,
 ) -> syn::Result<TokenStream> {
     // Generate match arms for each variant
-    let match_arms = enum_data.variants.iter().enumerate().map(|(index, variant)| {
+    let match_arms_result: Result<Vec<TokenStream>, syn::Error> = enum_data.variants.iter().enumerate().map(|(index, variant)| {
         let variant_name = &variant.ident;
         let discriminant = index as u8; // Borsh uses sequential discriminants starting from 0
 
         match &variant.fields {
             Fields::Unit => {
                 // Unit variant
-                quote! {
+                Ok(quote! {
                     #discriminant => {
                         Ok((#z_enum_name::#variant_name, remaining_data))
                     }
-                }
+                })
             }
             Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                 // Single unnamed field
-                let field_type = &fields.unnamed.first().unwrap().ty;
-                quote! {
+                let field_type = &fields.unnamed.first()
+                    .ok_or_else(|| syn::Error::new_spanned(
+                        fields,
+                        "Internal error: expected exactly one unnamed field but found none"
+                    ))?
+                    .ty;
+                Ok(quote! {
                     #discriminant => {
                         let (value, remaining_bytes) =
                             <#field_type as light_zero_copy::borsh::Deserialize>::zero_copy_at(remaining_data)?;
                         Ok((#z_enum_name::#variant_name(value), remaining_bytes))
                     }
-                }
+                })
             }
             _ => {
                 // Other cases already handled in generate_z_enum
-                quote! {
+                Ok(quote! {
                     #discriminant => {
                         Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion)
                     }
-                }
+                })
             }
         }
-    }).collect::<Vec<_>>();
+    }).collect();
+    let match_arms = match_arms_result?;
 
     Ok(quote! {
         impl<'a> light_zero_copy::borsh::Deserialize<'a> for #original_name {
