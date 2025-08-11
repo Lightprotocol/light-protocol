@@ -1,5 +1,6 @@
 pub mod accounts;
 pub mod change_account;
+pub mod config;
 pub mod cpi;
 pub mod native_compression;
 pub mod processor;

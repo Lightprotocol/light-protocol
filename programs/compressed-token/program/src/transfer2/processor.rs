@@ -8,15 +8,14 @@ use light_ctoken_types::{
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
 
 use crate::{
     shared::cpi::execute_cpi_invoke,
     transfer2::{
         accounts::Transfer2Accounts, change_account::process_change_lamports,
-        cpi::allocate_cpi_bytes, native_compression::process_token_compression,
-        sum_check::sum_check_multi_mint, token_inputs::set_input_compressed_accounts,
-        token_outputs::set_output_compressed_accounts,
+        config::Transfer2Config, cpi::allocate_cpi_bytes,
+        native_compression::process_token_compression, sum_check::sum_check_multi_mint,
+        token_inputs::set_input_compressed_accounts, token_outputs::set_output_compressed_accounts,
     },
 };
 
@@ -41,45 +40,16 @@ pub fn process_transfer2(
         .map_err(ProgramError::from)?;
 
     // Check CPI  context validity (multi-transfer modifies Solana account state)
-    check_cpi_context(&inputs.cpi_context).map_err(ProgramError::from)?;
+    check_cpi_context(&inputs.cpi_context)?;
 
-    let total_input_lamports = if let Some(inputs) = inputs.in_lamports.as_ref() {
-        inputs.iter().map(|input| u64::from(**input)).sum()
-    } else {
-        0
-    };
-    let total_output_lamports = if let Some(inputs) = inputs.out_lamports.as_ref() {
-        inputs.iter().map(|input| u64::from(**input)).sum()
-    } else {
-        0
-    };
+    // Create configuration from instruction data (replaces manual boolean derivation)
+    let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
 
-    // Determine optional account flags from instruction data
-    let with_sol_pool = total_input_lamports != total_output_lamports;
-    let decompress_sol = total_input_lamports < total_output_lamports;
-    let with_cpi_context = inputs.cpi_context.is_some();
-    msg!("with_cpi_context: {}", with_cpi_context);
-    let write_to_cpi_context = inputs
-        .cpi_context
-        .as_ref()
-        .map(|x| x.first_set_context || x.set_context)
-        .unwrap_or_default();
-    msg!("write_to_cpi_context: {}", write_to_cpi_context);
-    // Skip first account (light-system-program) and validate remaining accounts
-    let validated_accounts = Transfer2Accounts::validate_and_parse(
-        &accounts,
-        with_sol_pool,
-        decompress_sol,
-        with_cpi_context,
-        write_to_cpi_context,
-    )?;
+    // Validate accounts using clean config interface
+    let validated_accounts = Transfer2Accounts::validate_and_parse(&accounts, &transfer_config)?;
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
     bench_sbf_start!("t_context_and_check_sig");
-    // anchor_lang::solana_program::log::msg!("inputs {:?}", inputs);
-
-    // Create HashCache for hash caching
-    let mut hash_cache = HashCache::new();
 
     // Allocate CPI bytes and create zero-copy structure
     let (mut cpi_bytes, config) = allocate_cpi_bytes(&inputs);
@@ -93,6 +63,9 @@ pub fn process_transfer2(
         inputs.proof,
         &inputs.cpi_context,
     )?;
+
+    // Create HashCache for hash caching
+    let mut hash_cache = HashCache::new();
 
     // Process input compressed accounts
     set_input_compressed_accounts(
@@ -110,14 +83,12 @@ pub fn process_transfer2(
         &validated_accounts.packed_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
-    //msg!("cpi_instruction_struct {:?}", cpi_instruction_struct);
 
     process_change_lamports(
         &inputs,
         &validated_accounts.packed_accounts,
         cpi_instruction_struct,
-        total_input_lamports,
-        total_output_lamports,
+        &transfer_config,
     )?;
     // Process token compressions/decompressions
     // TODO: support spl
@@ -131,9 +102,7 @@ pub fn process_transfer2(
     )
     .map_err(|e| ProgramError::Custom(e as u32))?;
     bench_sbf_end!("t_sum_check");
-    msg!("here");
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
-        msg!("here");
         // Get CPI accounts slice and tree accounts for light-system-program invocation
         let (cpi_accounts, tree_pubkeys) =
             validated_accounts.cpi_accounts(accounts, &inputs, &validated_accounts.packed_accounts);
@@ -153,13 +122,13 @@ pub fn process_transfer2(
             cpi_accounts,
             cpi_bytes,
             tree_pubkeys.as_slice(),
-            with_sol_pool,
+            transfer_config.sol_pool_required,
             system_accounts.sol_decompression_recipient.map(|x| x.key()),
             system_accounts.cpi_context.map(|x| *x.key()),
             false,
         )?;
     } else if let Some(system_accounts) = validated_accounts.write_to_cpi_context_system.as_ref() {
-        if with_sol_pool {
+        if transfer_config.sol_pool_required {
             unimplemented!("")
         }
         // Execute CPI call to light-system-program

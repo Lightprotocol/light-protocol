@@ -72,7 +72,7 @@ fn process_native_compressions(
     validate_compression_mode_fields(compression)?;
     // Get authority account and effective compression amount
     let authority_account = packed_accounts.get_u8(compression.authority, "authority")?;
-    // TODO: add get_checked_account from  PackedAccounts.
+
     let mint_account = *packed_accounts
         .get_u8(compression.mint, "token mint")?
         .key();

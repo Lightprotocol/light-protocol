@@ -4,6 +4,8 @@ use light_compressed_account::instruction_data::with_readonly::ZInstructionDataI
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::account_info::AccountInfo;
 
+use crate::transfer2::config::Transfer2Config;
+
 /// Create a change account for excess lamports (following anchor program pattern)
 pub fn assign_change_account(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
@@ -58,9 +60,10 @@ pub fn process_change_lamports(
     inputs: &ZCompressedTokenInstructionDataTransfer2<'_>,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mut cpi_instruction_struct: ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
-    total_input_lamports: u64,
-    total_output_lamports: u64,
+    transfer_config: &Transfer2Config,
 ) -> Result<(), ProgramError> {
+    let total_input_lamports = transfer_config.total_input_lamports;
+    let total_output_lamports = transfer_config.total_output_lamports;
     if total_input_lamports != total_output_lamports {
         let (change_lamports, is_compress) = if total_input_lamports > total_output_lamports {
             (

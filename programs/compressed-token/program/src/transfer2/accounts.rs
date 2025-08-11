@@ -4,9 +4,12 @@ use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionData
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
-use crate::shared::{
-    accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
-    AccountIterator,
+use crate::{
+    shared::{
+        accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
+        AccountIterator,
+    },
+    transfer2::config::Transfer2Config,
 };
 
 pub struct Transfer2Accounts<'info> {
@@ -22,25 +25,22 @@ impl<'info> Transfer2Accounts<'info> {
     /// Validate and parse accounts from the instruction accounts slice
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
-        with_sol_pool: bool,
-        decompress_sol: bool,
-        with_cpi_context: bool,
-        write_cpi_context: bool,
+        config: &Transfer2Config,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-        // Unusedjust for readability
+        // Unused, just for readability
         let light_system_program = iter.next_account("light_system_program")?;
-        let system = if write_cpi_context {
+        let system = if config.cpi_context_write_required {
             None
         } else {
             Some(LightSystemAccounts::validate_and_parse(
                 &mut iter,
-                with_sol_pool,
-                decompress_sol,
-                with_cpi_context,
+                config.sol_pool_required,
+                config.sol_decompression_required,
+                config.cpi_context_required,
             )?)
         };
-        let write_to_cpi_context_system = if write_cpi_context {
+        let write_to_cpi_context_system = if config.cpi_context_write_required {
             Some(CpiContextLightSystemAccounts::validate_and_parse(
                 &mut iter,
             )?)
