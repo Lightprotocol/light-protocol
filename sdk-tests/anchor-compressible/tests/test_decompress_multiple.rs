@@ -432,7 +432,6 @@ async fn test_create_game_session(
 
     let game_session = GameSession::deserialize(&mut &buf[..]).unwrap();
 
-    println!("COMPRESSED game_session: {:?}", game_session);
     assert_eq!(game_session.session_id, session_id);
     assert_eq!(game_session.game_type, "Battle Royale");
     assert_eq!(game_session.player, payer.pubkey());
@@ -488,92 +487,9 @@ async fn test_decompress_multiple_pdas(
 
     let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
 
-    // Fetch queue elements from the test indexer and check if computed hash is found
-    let indexer = rpc.indexer().expect("Indexer should be available");
-    let tree_pubkey = c_user_pda.tree_info.tree;
-
-    // Find the state merkle tree bundle for our PDA's tree
-    let state_tree_bundle = indexer
-        .get_state_merkle_trees()
-        .iter()
-        .find(|bundle| bundle.accounts.merkle_tree == tree_pubkey)
-        .expect("State merkle tree bundle should exist for PDA tree");
-
-    println!(
-        "🔍 Output queue elements count: {}",
-        state_tree_bundle.output_queue_elements.len()
-    );
-    println!("🔍 Output queue elements hashes:");
-    for (i, (hash, index)) in state_tree_bundle.output_queue_elements.iter().enumerate() {
-        println!(
-            "   {}. Hash: {:?}, Index: {}",
-            i,
-            bs58::encode(hash).into_string(),
-            index
-        );
-    }
-
-    // Temporary fix: compute hash manually with different leaf indices
-    // Compute the hash client-side and compare with the returned hash
-    // Recreate the compressed account structure for hash computation
-    let client_user_compressed_account = ProgramCompressedAccount {
-        owner: light_compressed_account::Pubkey::new_from_array(c_user_pda.owner.to_bytes()),
-        lamports: c_user_pda.lamports,
-        address: Some(user_compressed_address),
-        data: c_user_pda.data.clone().map(|d| CompressedAccountData {
-            discriminator: d.discriminator,
-            data: d.data,
-            data_hash: d.data_hash,
-        }),
-    };
-    let merkle_tree_pubkey =
-        light_compressed_account::Pubkey::new_from_array(c_user_pda.tree_info.tree.to_bytes());
-    let leaf_index = 0 as u32;
-
-    // Compute the hash client-side with the actual leaf index
-    let fixed_user_hash = client_user_compressed_account
-        .hash(&merkle_tree_pubkey, &leaf_index, true)
-        .expect("Failed to compute account hash");
-
-    println!("fixed_user_hash: {:?}", fixed_user_hash);
-
-    // Temporary fix: compute hash manually with different leaf indices
-    // Compute the hash client-side and compare with the returned hash
-    // Recreate the compressed account structure for hash computation
-    let client_game_compressed_account = ProgramCompressedAccount {
-        owner: light_compressed_account::Pubkey::new_from_array(c_game_pda.owner.to_bytes()),
-        lamports: c_game_pda.lamports,
-        address: Some(game_compressed_address),
-        data: c_game_pda.data.clone().map(|d| CompressedAccountData {
-            discriminator: d.discriminator,
-            data: d.data,
-            data_hash: d.data_hash,
-        }),
-    };
-    let merkle_tree_pubkey =
-        light_compressed_account::Pubkey::new_from_array(c_game_pda.tree_info.tree.to_bytes());
-    let leaf_index = 1 as u32;
-    let fixed_game_hash = client_game_compressed_account
-        .hash(&merkle_tree_pubkey, &leaf_index, true)
-        .expect("Failed to compute account hash");
-
-    println!(
-        "fixed_game_hash: {:?}",
-        bs58::encode(fixed_game_hash).into_string()
-    );
-
-    // Create fixed compressed accounts with correct leaf_index and hash values
-    let mut fixed_c_user_pda = c_user_pda.clone();
-    fixed_c_user_pda.leaf_index = 0;
-    fixed_c_user_pda.hash = fixed_user_hash;
-
-    let mut fixed_c_game_pda = c_game_pda.clone();
-    fixed_c_game_pda.leaf_index = 1;
-    fixed_c_game_pda.hash = fixed_game_hash;
-
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
-        .get_validity_proof(vec![fixed_user_hash, fixed_game_hash], vec![], None)
+        .get_validity_proof(vec![c_user_pda.hash, c_game_pda.hash], vec![], None)
         .await
         .unwrap()
         .value;
@@ -590,12 +506,12 @@ async fn test_decompress_multiple_pdas(
             &[*user_record_pda, *game_session_pda],
             &[
                 (
-                    fixed_c_user_pda,
+                    c_user_pda,
                     CompressedAccountVariant::UserRecord(c_user_record),
                     vec![b"user_record".to_vec(), payer.pubkey().to_bytes().to_vec()],
                 ),
                 (
-                    fixed_c_game_pda,
+                    c_game_pda,
                     CompressedAccountVariant::GameSession(c_game_session),
                     vec![b"game_session".to_vec(), session_id.to_le_bytes().to_vec()],
                 ),
@@ -605,10 +521,6 @@ async fn test_decompress_multiple_pdas(
             output_state_tree_info,
         )
         .unwrap();
-
-    // let cu = simulate_cu(rpc, payer, &instruction).await;
-    // println!("decompress_multiple_pdas CU consumed: {}", cu);
-    println!("built decompress instruction");
 
     // Verify PDAs are uninitialized before decompression
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
@@ -635,10 +547,6 @@ async fn test_decompress_multiple_pdas(
 
     // Verify UserRecord PDA is decompressed
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
-    println!(
-        "user_pda_account after decompression: {:?}",
-        user_pda_account
-    );
     assert!(
         user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
         "User PDA account data len must be > 0 after decompression"
@@ -671,10 +579,6 @@ async fn test_decompress_multiple_pdas(
 
     // Verify GameSession PDA is decompressed
     let game_pda_account = rpc.get_account(*game_session_pda).await.unwrap();
-    println!(
-        "game_pda_account after decompression: {:?}",
-        game_pda_account
-    );
     assert!(
         game_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
         "Game PDA account data len must be > 0 after decompression"
@@ -687,10 +591,8 @@ async fn test_decompress_multiple_pdas(
         "Game account anchor discriminator mismatch"
     );
 
-    println!("trying to deserialize gamesession...");
     let decompressed_game_session =
         anchor_compressible::GameSession::try_deserialize(&mut &game_pda_data[..]).unwrap();
-    println!("decompressed_game_session: {:?}", decompressed_game_session);
     assert_eq!(decompressed_game_session.session_id, session_id);
     assert_eq!(decompressed_game_session.game_type, expected_game_type);
     assert_eq!(decompressed_game_session.player, payer.pubkey());
@@ -709,7 +611,6 @@ async fn test_decompress_multiple_pdas(
         expected_slot
     );
 
-    println!("trying to get compressed game pda...");
     // Verify compressed accounts exist and have correct data
     let c_game_pda = rpc
         .get_compressed_account(game_compressed_address, None)
@@ -717,11 +618,8 @@ async fn test_decompress_multiple_pdas(
         .unwrap()
         .value;
 
-    println!("c_game_pda: {:?}", c_game_pda);
-
     assert!(c_game_pda.data.is_some());
     assert_eq!(c_game_pda.data.unwrap().data.len(), 0);
-    println!("test done!!");
 }
 
 async fn test_create_user_record_and_game_session(
@@ -734,7 +632,7 @@ async fn test_create_user_record_and_game_session(
     session_id: u64,
 ) {
     let state_tree_info = rpc.get_random_state_tree_info().unwrap();
-    println!("PICKED state_tree_info: {:?}", state_tree_info);
+
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new_with_cpi_context(
@@ -783,7 +681,6 @@ async fn test_create_user_record_and_game_session(
         &program_id.to_bytes(),
     );
 
-    println!("getting proof for 3 addresses...");
     // Get validity proof from RPC including mint address
     let rpc_result = rpc
         .get_validity_proof(
@@ -819,18 +716,7 @@ async fn test_create_user_record_and_game_session(
     let user_address_tree_info = packed_tree_infos.address_trees[0];
     let game_address_tree_info = packed_tree_infos.address_trees[1];
     let mint_address_tree_info = packed_tree_infos.address_trees[2];
-    println!("user_address_tree_info: {:?}", user_address_tree_info);
-    println!("game_address_tree_info: {:?}", game_address_tree_info);
-    println!("mint_address_tree_info: {:?}", mint_address_tree_info);
 
-    // Get output state tree indices
-    // TODO: remove after debug.
-    // let state_tree_idx = remaining_accounts.insert_or_get(state_tree_info.tree);
-
-    println!(
-        "mint_output_state_tree_index: {:?}",
-        mint_output_state_tree_index
-    );
     // Get system accounts for the instruction
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
@@ -886,17 +772,8 @@ async fn test_create_user_record_and_game_session(
         data: instruction_data.data(),
     };
 
-    println!(
-        "instruction accounts pubkeys:  {:?}",
-        instruction
-            .accounts
-            .iter()
-            .map(|a| a.pubkey)
-            .collect::<Vec<_>>()
-    );
     // let cu = simulate_cu(rpc, user, &instruction).await;
     // println!("CreateUserRecordAndGameSession CU consumed: {}", cu);
-    println!("creating and sending transaction...");
     // Create and send transaction
     let result = rpc
         .create_and_send_transaction(
@@ -1164,10 +1041,6 @@ async fn test_decompress_single_user_record(
         "User PDA account data len must be 0 before decompression"
     );
 
-    // let cu = simulate_cu(rpc, &payer, &instruction).await;
-    // println!("DecompressSingleUserRecord CU consumed: {}", cu);
-    println!("skipping cu sim");
-
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await;
@@ -1175,10 +1048,6 @@ async fn test_decompress_single_user_record(
 
     // Verify UserRecord PDA is decompressed
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
-    println!(
-        "user_pda_account after decompression: {:?}",
-        user_pda_account
-    );
     assert!(
         user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
         "User PDA account data len must be > 0 after decompression"
@@ -1393,7 +1262,6 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     .await;
 
     rpc.warp_to_slot(100).unwrap();
-    println!("created game session!, now decompressing...");
 
     // Now decompress both accounts together - they come from different state trees
     // This should succeed and validate that our decompression can handle mixed state tree sources
@@ -1657,13 +1525,6 @@ async fn test_compress_game_session_with_custom_data(
         "Score should be RESET to 0"
     );
 
-    println!("✅ CompressAs trait test passed!");
-    println!(
-        "   Original: start_time={}, end_time={:?}, score={}",
-        original_game_session.start_time,
-        original_game_session.end_time,
-        original_game_session.score
-    );
     println!(
         "   Custom:   start_time={}, end_time={:?}, score={}",
         custom_compressed_data.start_time,
@@ -1851,10 +1712,6 @@ async fn test_create_empty_compressed_account() {
 
     // This demonstrates the key difference from regular compression:
     // The PDA still exists with data, and an empty compressed account was created
-    println!("✅ Empty compressed account creation test passed!");
-    println!("   - PDA remains intact with data");
-    println!("   - Empty compressed account was created as placeholder");
-    println!("   - No account closure occurred");
 
     // Step 2: Now compress the PDA (this will close the PDA and put data into the compressed account)
     rpc.warp_to_slot(200).unwrap(); // Wait past compression delay
