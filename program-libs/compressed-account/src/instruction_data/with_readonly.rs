@@ -291,7 +291,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     }
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
-        &self.new_address_params.as_slice()
+        self.new_address_params.as_slice()
     }
 
     fn new_address_owner(&self) -> Vec<Option<Pubkey>> {

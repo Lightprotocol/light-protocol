@@ -300,16 +300,14 @@ impl ZCompressedMintMut<'_> {
             } else {
                 Err(CTokenError::InvalidTokenDataVersion)
             }
+        } else if self.version == 0 {
+            Ok(mint_hash)
+        } else if self.version == 1 {
+            // Truncate hash to 248 bits
+            mint_hash[0] = 0;
+            Ok(mint_hash)
         } else {
-            if self.version == 0 {
-                Ok(mint_hash)
-            } else if self.version == 1 {
-                // Truncate hash to 248 bits
-                mint_hash[0] = 0;
-                Ok(mint_hash)
-            } else {
-                Err(CTokenError::InvalidTokenDataVersion)
-            }
+            Err(CTokenError::InvalidTokenDataVersion)
         }
     }
 }

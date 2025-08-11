@@ -18,6 +18,7 @@ use crate::{
     transfer2::native_compression::native_compression,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub fn process_mint_to_decompressed_action(
     action: &ZMintToDecompressedAction,
     current_supply: u64,

@@ -56,23 +56,21 @@ pub fn validate_token_account(accounts: &CloseTokenAccountAccounts) -> Result<()
     // Check if account has compressible extension and if authority is rent authority
     if compressed_token.owner.to_bytes() == authority_key {
         return Ok(());
-    } else {
-        if let Some(extensions) = compressed_token.extensions.as_ref() {
-            // Look for compressible extension
-            for extension in extensions {
-                if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                    // Check if authority is the rent authority && rent_recipient is the destination account
-                    if compressible_ext.rent_authority.to_bytes() == authority_key
-                        && compressible_ext.rent_recipient.to_bytes() == *accounts.destination.key()
-                    {
-                        // For rent authority, check timing constraints
-                        #[cfg(target_os = "solana")]
-                        if !compressible_ext.is_compressible()? {
-                            msg!("Not compressible yet.");
-                            return Err(ProgramError::InvalidAccountData);
-                        } else {
-                            return Ok(());
-                        }
+    } else if let Some(extensions) = compressed_token.extensions.as_ref() {
+        // Look for compressible extension
+        for extension in extensions {
+            if let ZExtensionStruct::Compressible(compressible_ext) = extension {
+                // Check if authority is the rent authority && rent_recipient is the destination account
+                if compressible_ext.rent_authority.to_bytes() == authority_key
+                    && compressible_ext.rent_recipient.to_bytes() == *accounts.destination.key()
+                {
+                    // For rent authority, check timing constraints
+                    #[cfg(target_os = "solana")]
+                    if !compressible_ext.is_compressible()? {
+                        msg!("Not compressible yet.");
+                        return Err(ProgramError::InvalidAccountData);
+                    } else {
+                        return Ok(());
                     }
                 }
             }

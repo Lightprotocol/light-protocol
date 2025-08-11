@@ -102,13 +102,13 @@ pub fn process_update_metadata_field_action(
             match action.field_type {
                 0 => {
                     // Update name
-                    safe_copy_metadata_value(&mut metadata.metadata.name, action.value, "name")?;
+                    safe_copy_metadata_value(metadata.metadata.name, action.value, "name")?;
                     msg!("Updated metadata name");
                 }
                 1 => {
                     // Update symbol
                     safe_copy_metadata_value(
-                        &mut metadata.metadata.symbol,
+                        metadata.metadata.symbol,
                         action.value,
                         "symbol",
                     )?;
@@ -116,7 +116,7 @@ pub fn process_update_metadata_field_action(
                 }
                 2 => {
                     // Update uri
-                    safe_copy_metadata_value(&mut metadata.metadata.uri, action.value, "uri")?;
+                    safe_copy_metadata_value(metadata.metadata.uri, action.value, "uri")?;
                     msg!("Updated metadata uri");
                 }
                 _ => {
@@ -130,7 +130,7 @@ pub fn process_update_metadata_field_action(
                     for metadata_pair in metadata.additional_metadata.iter_mut() {
                         if metadata_pair.key == action.key {
                             safe_copy_metadata_value(
-                                &mut metadata_pair.value,
+                                metadata_pair.value,
                                 action.value,
                                 "custom field",
                             )?;

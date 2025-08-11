@@ -10,7 +10,7 @@ pub struct CpiContextWriteAccounts<'a, T: AccountInfoTrait + Clone> {
     pub cpi_signer: CpiSigner,
 }
 
-impl<'a, T: AccountInfoTrait + Clone> CpiContextWriteAccounts<'a, T> {
+impl<T: AccountInfoTrait + Clone> CpiContextWriteAccounts<'_, T> {
     pub fn bump(&self) -> u8 {
         self.cpi_signer.bump
     }

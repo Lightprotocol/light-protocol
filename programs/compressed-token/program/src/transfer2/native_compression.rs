@@ -77,7 +77,7 @@ fn process_native_compressions(
         .get_u8(compression.mint, "token mint")?
         .key();
     native_compression(
-        Some(&authority_account),
+        Some(authority_account),
         (*compression.amount).into(),
         mint_account.into(),
         token_account_info,

@@ -258,7 +258,7 @@ pub fn process_actions<'a>(
                 let new_supply = process_mint_to_decompressed_action(
                     mint_to_decompressed_action,
                     u64::from(compressed_mint.supply),
-                    &compressed_mint,
+                    compressed_mint,
                     validated_accounts,
                     accounts_config,
                     packed_accounts,

@@ -449,7 +449,7 @@ impl<'a> Deserialize<'a> for CompressedToken {
         let (__meta, bytes) = <CompressedTokenMeta as Deserialize<'a>>::zero_copy_at(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {
             // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
-            let extension_start = if bytes.get(0) == Some(&2) {
+            let extension_start = if bytes.first() == Some(&2) {
                 // Skip AccountType::Account byte at position 165
                 &bytes[1..]
             } else {
@@ -475,7 +475,7 @@ impl<'a> light_zero_copy::borsh_mut::DeserializeMut<'a> for CompressedToken {
         let (__meta, bytes) = <CompressedTokenMeta as light_zero_copy::borsh_mut::DeserializeMut<'a>>::zero_copy_at_mut(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {
             // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
-            let extension_start = if bytes.get(0) == Some(&2) {
+            let extension_start = if bytes.first() == Some(&2) {
                 // Skip AccountType::Account byte at position 165
                 &mut bytes[1..]
             } else {

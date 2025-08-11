@@ -46,7 +46,7 @@ pub fn process_transfer2(
     let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
 
     // Validate accounts using clean config interface
-    let validated_accounts = Transfer2Accounts::validate_and_parse(&accounts, &transfer_config)?;
+    let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
     bench_sbf_start!("t_context_and_check_sig");
