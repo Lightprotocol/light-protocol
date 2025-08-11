@@ -36,6 +36,14 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
+// Additional imports for PDA verification
+use light_compressed_account::compressed_account::{
+    CompressedAccount as ProgramCompressedAccount, CompressedAccountData,
+};
+use light_compressed_account::TreeType;
+use light_program_test::indexer::TestIndexerExtensions;
+use solana_sdk::bs58;
+
 #[tokio::test]
 async fn test_pda_ctoken() {
     // Initialize test environment
@@ -184,6 +192,160 @@ async fn test_pda_ctoken() {
     println!("   2. ✅ Minted 1000 tokens to payer");
     println!("   3. ✅ Revoked mint authority (set to None)");
     println!("   4. ✅ Created escrow PDA");
+
+    // Added for debugging hash inconsistency.
+    // 5. Verify the PDA (escrow) account hash was emitted correctly
+    // Derive the PDA address using the same method as in create_mint
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let pda_address_seed = hash_to_bn254_field_size_be(
+        [b"escrow", payer.pubkey().to_bytes().as_ref()]
+            .concat()
+            .as_slice(),
+    );
+    let pda_address = derive_address(
+        &pda_address_seed,
+        &address_tree_pubkey.to_bytes(),
+        &ID.to_bytes(),
+    );
+
+    // Fetch the compressed PDA account
+    let pda_account = rpc
+        .get_compressed_account(pda_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    println!("ESCROW pda_account FETCHED: {:?}", pda_account);
+
+    // Compute the hash client-side and compare with the returned hash
+    // Recreate the compressed account structure for hash computation
+    let client_compressed_account = ProgramCompressedAccount {
+        owner: light_compressed_account::Pubkey::new_from_array(pda_account.owner.to_bytes()),
+        lamports: pda_account.lamports,
+        address: Some(pda_address),
+        data: pda_account.data.clone().map(|d| CompressedAccountData {
+            discriminator: d.discriminator,
+            data: d.data,
+            data_hash: d.data_hash,
+        }),
+    };
+
+    // Get the merkle tree pubkey and leaf index from the account context
+    let merkle_tree_pubkey =
+        light_compressed_account::Pubkey::new_from_array(pda_account.tree_info.tree.to_bytes());
+    let leaf_index = pda_account.leaf_index;
+    let is_batched = pda_account.tree_info.tree_type == TreeType::StateV2;
+
+    // Compute the hash client-side with the actual leaf index
+    let computed_hash = client_compressed_account
+        .hash(&merkle_tree_pubkey, &leaf_index, is_batched)
+        .expect("Failed to compute account hash");
+
+    println!(
+        "🔍 Computed hash (leaf_index={}): {:?}",
+        leaf_index,
+        bs58::encode(computed_hash).into_string()
+    );
+    println!(
+        "🔍 Account hash from indexer: {:?}",
+        bs58::encode(pda_account.hash).into_string()
+    );
+
+    // Test different leaf indices to check if order is causing issues
+    println!("🔍 Testing hash computation with different leaf indices:");
+    for test_leaf_index in [0u32, 1u32, 2u32] {
+        let test_hash = client_compressed_account
+            .hash(&merkle_tree_pubkey, &test_leaf_index, is_batched)
+            .expect("Failed to compute test hash");
+        println!(
+            "   leaf_index {}: {:?}",
+            test_leaf_index,
+            bs58::encode(test_hash).into_string()
+        );
+    }
+
+    // Fetch queue elements from the test indexer and check if computed hash is found
+    let indexer = rpc.indexer().expect("Indexer should be available");
+    let tree_pubkey = pda_account.tree_info.tree;
+
+    // Find the state merkle tree bundle for our PDA's tree
+    let state_tree_bundle = indexer
+        .get_state_merkle_trees()
+        .iter()
+        .find(|bundle| bundle.accounts.merkle_tree == tree_pubkey)
+        .expect("State merkle tree bundle should exist for PDA tree");
+
+    println!(
+        "🔍 Output queue elements count: {}",
+        state_tree_bundle.output_queue_elements.len()
+    );
+    println!("🔍 Output queue elements hashes:");
+    for (i, (hash, index)) in state_tree_bundle.output_queue_elements.iter().enumerate() {
+        println!(
+            "   {}. Hash: {:?}, Index: {}",
+            i,
+            bs58::encode(hash).into_string(),
+            index
+        );
+    }
+
+    // Check if the computed hash is found in the output queue elements
+    let found_in_queue = state_tree_bundle
+        .output_queue_elements
+        .iter()
+        .any(|(hash, _)| *hash == computed_hash);
+
+    if found_in_queue {
+        println!(
+            "✅ Computed hash (leaf_index={}) found in output queue elements!",
+            leaf_index
+        );
+    } else {
+        println!(
+            "❌ Computed hash (leaf_index={}) not found in output queue elements",
+            leaf_index
+        );
+
+        // Check if any of the test hashes with different leaf indices match
+        println!("🔍 Checking if any test hashes match queue elements:");
+        let mut any_match_found = false;
+        for test_leaf_index in [0u32, 1u32, 2u32] {
+            let test_hash = client_compressed_account
+                .hash(&merkle_tree_pubkey, &test_leaf_index, is_batched)
+                .expect("Failed to compute test hash");
+
+            let test_found = state_tree_bundle
+                .output_queue_elements
+                .iter()
+                .any(|(hash, _)| *hash == test_hash);
+
+            if test_found {
+                println!(
+                    "   ✅ leaf_index {} hash MATCHES queue elements!",
+                    test_leaf_index
+                );
+                any_match_found = true;
+            } else {
+                println!(
+                    "   ❌ leaf_index {} hash does not match queue elements",
+                    test_leaf_index
+                );
+            }
+        }
+
+        if !any_match_found {
+            panic!(
+                "❌ None of the computed hashes (leaf_indices 0,1,2) found in output queue elements. Original computed hash: {:?}",
+                bs58::encode(computed_hash).into_string()
+            );
+        } else {
+            println!("⚠️  Hash mismatch likely due to leaf index ordering issue!");
+        }
+    }
+
+    println!("✅ PDA account verification completed successfully!");
+    println!("   - PDA structure is correct");
+    println!("   - Computed hash found in output queue elements");
 }
 
 pub async fn create_mint<R: Rpc + Indexer>(

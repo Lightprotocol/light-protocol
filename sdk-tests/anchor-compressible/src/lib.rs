@@ -460,7 +460,7 @@ pub mod anchor_compressible {
         all_compressed_infos.extend(game_compressed_infos);
 
         let cpi_inputs = CpiInputs {
-            proof: ValidityProof(None), //compression_params.proof,
+            proof: ValidityProof(None),
             account_infos: Some(all_compressed_infos),
             new_assigned_addresses: Some(vec![user_new_address_params, game_new_address_params]),
             cpi_context: Some(CompressedCpiContext {
