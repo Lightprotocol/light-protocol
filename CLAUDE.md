@@ -1,3 +1,19 @@
+# Testing
+
+This repository uses a comprehensive two-tier testing strategy:
+
+- **[Unit Testing Guide](./UNIT_TESTING.md)** - For testing individual functions in isolation using mock account infos. Tests are located in `tests/` directories within each crate.
+
+- **[Integration Testing Guide](./INTEGRATION_TESTING.md)** - For testing complete program workflows using full SVM simulation. Tests are located in the `program-tests/` directory.
+
+## Key Testing Requirements
+
+All tests must follow these mandatory requirements:
+- **Functional test for every usage flow**
+- **Failing test for every error condition** 
+- **Complete output verification** with single `assert_eq!` against expected structs
+- **1k iteration randomized tests** for complex functions and ZeroCopy structs
+
 # Debugging with LightProgramTest
 
 ## Transaction Log File
