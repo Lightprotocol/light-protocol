@@ -93,7 +93,6 @@ impl<'info> Transfer2Accounts<'info> {
 
         // Calculate static accounts count after skipping index 0 (system accounts only)
         let static_accounts_count = self.static_accounts_count()?;
-        // TODO: validate all_accounts len
 
         // Include static CPI accounts + tree accounts based on highest tree index
         let cpi_accounts_end = 1 + static_accounts_count + tree_accounts_count;

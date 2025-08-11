@@ -50,7 +50,7 @@ fn sum_compressions(
         if let Some(entry) = mint_sums.iter_mut().find(|(idx, _)| *idx == mint_index) {
             entry.1 = compression
                 .new_balance_compressed_account(entry.1)
-                .map_err(|_| ErrorCode::SumCheckFailed)?; // TODO propagate error
+                .map_err(ProgramError::from)?;
         } else {
             // Create new entry if compressing
             if compression.mode == CompressionMode::Compress {
@@ -59,7 +59,7 @@ fn sum_compressions(
                 }
                 mint_sums.push((mint_index, (*compression.amount).into()));
             } else {
-                // Cannot decompress if no balance exists
+                msg!("Cannot decompress if no balance exists");
                 return Err(ErrorCode::SumCheckFailed);
             }
         }

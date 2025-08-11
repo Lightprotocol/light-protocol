@@ -284,7 +284,9 @@ pub enum ErrorCode {
     CpiContextSetNotUsable,
     MintIsNone,
     InvalidMintPda,
+    #[msg("Sum inputs mint indices not in ascending order.")]
     InputsOutOfOrder,
+    #[msg("Sum check, too many mints (max 5).")]
     TooManyMints,
     InvalidExtensionType,
     InstructionDataExpectedDelegate,
@@ -368,6 +370,13 @@ pub enum ErrorCode {
     MintActionLamportsAmountTooLarge,
     #[msg("Invalid token program provided")]
     InvalidTokenProgram,
+    // Transfer2 specific errors
+    #[msg("Cannot access system accounts for CPI context write operations")]
+    Transfer2CpiContextWriteInvalidAccess,
+    #[msg("SOL pool operations not supported with CPI context write")]
+    Transfer2CpiContextWriteWithSolPool,
+    #[msg("Change account must not contain token data")]
+    Transfer2InvalidChangeAccountData,
 }
 
 impl From<ErrorCode> for ProgramError {

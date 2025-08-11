@@ -143,7 +143,6 @@ impl From<CTokenError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
 #[cfg(all(feature = "solana", not(feature = "anchor")))]
 impl From<CTokenError> for solana_program_error::ProgramError {
     fn from(e: CTokenError) -> Self {
