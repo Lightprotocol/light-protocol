@@ -14,9 +14,7 @@ pub fn set_output_compressed_accounts(
     hash_cache: &mut HashCache,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
-) -> Result<u64, ProgramError> {
-    let mut total_output_lamports = 0u64;
-
+) -> Result<(), ProgramError> {
     for (i, output_data) in inputs.out_token_data.iter().enumerate() {
         let output_lamports = if let Some(lamports) = inputs.out_lamports.as_ref() {
             if let Some(lamports) = lamports.get(i) {
@@ -28,20 +26,18 @@ pub fn set_output_compressed_accounts(
             0
         };
 
-        total_output_lamports += output_lamports;
-
         let mint_index = output_data.mint;
-        let mint_account = packed_accounts.get_u8(mint_index, "token mint")?;
+        let mint_account = packed_accounts.get_u8(mint_index, "out token mint")?;
         let hashed_mint = hash_cache.get_or_hash_pubkey(mint_account.key());
 
         // Get owner account using owner index
-        let owner_account = packed_accounts.get_u8(output_data.owner, "token owner")?;
+        let owner_account = packed_accounts.get_u8(output_data.owner, "out token owner")?;
         let owner_pubkey = *owner_account.key();
 
         // Get delegate if present
         let delegate_pubkey = if output_data.delegate != 0 {
             let delegate_account =
-                packed_accounts.get_u8(output_data.delegate, "token delegete")?;
+                packed_accounts.get_u8(output_data.delegate, "out token delegete")?;
             Some(*delegate_account.key())
         } else {
             None
@@ -68,5 +64,5 @@ pub fn set_output_compressed_accounts(
         )?;
     }
 
-    Ok(total_output_lamports)
+    Ok(())
 }

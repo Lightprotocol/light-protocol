@@ -1,5 +1,5 @@
 use crate::{convert_account_infos::convert_account_infos, MAX_ACCOUNTS};
-use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_ctoken_types::state::CompressedToken;
 use light_zero_copy::borsh_mut::DeserializeMut;
 use pinocchio::account_info::AccountInfo;
@@ -34,21 +34,18 @@ pub fn process_decompressed_token_transfer(
 fn update_compressible_accounts_last_written_slot(
     accounts: &[anchor_lang::prelude::AccountInfo],
 ) -> Result<(), ProgramError> {
-    if accounts.len() >= 2 {
-        const SPL_TOKEN_ACCOUNT_SIZE: usize = 165; // Standard SPL token account size
+    if accounts.len() != 2 {
+        msg!("Expected 2 accounts received {}", accounts.len());
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    const SPL_TOKEN_ACCOUNT_SIZE: usize = 165; // Standard SPL token account size
 
-        // Update both sender (accounts[0]) and recipient (accounts[1]) if they have extensions
-        for account in &accounts[..2] {
-            if account.data_len() > SPL_TOKEN_ACCOUNT_SIZE {
-                if let Ok(mut account_data) = account.try_borrow_mut_data() {
-                    if let Ok((mut token, _)) = CompressedToken::zero_copy_at_mut(&mut account_data)
-                    {
-                        token
-                            .update_compressible_last_written_slot()
-                            .map_err(|_| ProgramError::InvalidAccountData)?;
-                    }
-                }
-            }
+    // Update both sender (accounts[0]) and recipient (accounts[1]) if they have extensions
+    for account in &accounts[..2] {
+        if account.data_len() > SPL_TOKEN_ACCOUNT_SIZE {
+            let mut account_data = account.try_borrow_mut_data()?;
+            let (mut token, _) = CompressedToken::zero_copy_at_mut(&mut account_data)?;
+            token.update_compressible_last_written_slot()?;
         }
     }
     Ok(())

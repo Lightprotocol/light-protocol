@@ -99,15 +99,13 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
             TokenData::new_zero_copy(compressed_account_data.data, token_config)
                 .map_err(ProgramError::from)?;
 
-        token_data
-            .set(
-                mint_pubkey,
-                owner,
-                amount,
-                delegate,
-                AccountState::Initialized,
-            )
-            .map_err(|e| ProgramError::Custom(e.into()))?;
+        token_data.set(
+            mint_pubkey,
+            owner,
+            amount,
+            delegate,
+            AccountState::Initialized,
+        )?;
     }
     let token_version = TokenAccountVersion::try_from(version)?;
     // 2. Create TokenData using zero-copy to compute the data hash
@@ -125,7 +123,6 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
                 &amount_bytes,
                 &hashed_delegate.as_ref(),
             )
-            .map_err(ProgramError::from)?
         } else {
             AnchorTokenData::hash_frozen_with_hashed_values(
                 hashed_mint,
@@ -133,21 +130,18 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
                 &amount_bytes,
                 &hashed_delegate.as_ref(),
             )
-            .map_err(ProgramError::from)?
         }
-    };
+    }?;
     // 3. Set output compressed account
     let lamports_value = lamports.unwrap_or(0u64.into()).into();
-    output_compressed_account
-        .set(
-            crate::ID.into(),
-            lamports_value,
-            None, // Token accounts don't have addresses
-            merkle_tree_index,
-            token_version.discriminator(),
-            data_hash,
-        )
-        .map_err(ProgramError::from)?;
+    output_compressed_account.set(
+        crate::ID.into(),
+        lamports_value,
+        None, // Token accounts don't have addresses
+        merkle_tree_index,
+        token_version.discriminator(),
+        data_hash,
+    )?;
 
     Ok(())
 }

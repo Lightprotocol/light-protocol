@@ -14,9 +14,7 @@ pub fn set_input_compressed_accounts(
     hash_cache: &mut HashCache,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
-) -> Result<u64, ProgramError> {
-    let mut total_input_lamports = 0u64;
-
+) -> Result<(), ProgramError> {
     for (i, input_data) in inputs.in_token_data.iter().enumerate() {
         let input_lamports = if let Some(lamports) = inputs.in_lamports.as_ref() {
             if let Some(input_lamports) = lamports.get(i) {
@@ -27,8 +25,6 @@ pub fn set_input_compressed_accounts(
         } else {
             0
         };
-
-        total_input_lamports += input_lamports;
 
         set_input_compressed_account::<false>(
             cpi_instruction_struct
@@ -42,5 +38,5 @@ pub fn set_input_compressed_accounts(
         )?;
     }
 
-    Ok(total_input_lamports)
+    Ok(())
 }

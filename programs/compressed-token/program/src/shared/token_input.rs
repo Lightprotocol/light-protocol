@@ -50,28 +50,24 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
             &hashed_owner,
             &amount_bytes,
             &hashed_delegate.as_ref(),
-        )
-        .map_err(ProgramError::from)?
+        )?
     } else {
         TokenData::hash_frozen_with_hashed_values(
             &hashed_mint,
             &hashed_owner,
             &amount_bytes,
             &hashed_delegate.as_ref(),
-        )
-        .map_err(ProgramError::from)?
+        )?
     };
 
-    input_compressed_account
-        .set_z(
-            version.discriminator(),
-            data_hash,
-            &input_token_data.merkle_context,
-            *input_token_data.root_index,
-            lamports,
-            None, // Token accounts don't have addresses
-        )
-        .map_err(ProgramError::from)?;
+    input_compressed_account.set_z(
+        version.discriminator(),
+        data_hash,
+        &input_token_data.merkle_context,
+        *input_token_data.root_index,
+        lamports,
+        None, // Token accounts don't have addresses
+    )?;
 
     Ok(())
 }
