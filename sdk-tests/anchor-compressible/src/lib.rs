@@ -483,16 +483,10 @@ pub mod anchor_compressible {
         let actions = vec![];
 
         // TODO: pass.
-        msg!("TREE ACCOUNTS {:?}", cpi_accounts.tree_accounts().unwrap());
+
         let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key; // Same tree as PDA
         let address_tree_pubkey = *cpi_accounts.tree_accounts().unwrap()[1].key; // Same tree as PDA
 
-        msg!("output_queue {:?}", output_queue);
-        msg!("address_tree_pubkey {:?}", address_tree_pubkey);
-        msg!("mint_authority {:?}", ctx.accounts.mint_authority.key);
-        msg!("mint_authority {:?}", ctx.accounts.mint_authority.is_signer);
-        msg!("mint_signer {:?}", ctx.accounts.mint_signer.key);
-        msg!("mint_signer {:?}", ctx.accounts.mint_signer.is_signer);
         let mint_action_inputs = MintActionInputs {
             compressed_mint_inputs: compression_params.mint_with_context.clone().into(),
             mint_seed: ctx.accounts.mint_signer.key(),
@@ -506,6 +500,7 @@ pub mod anchor_compressible {
             output_queue,
             tokens_out_queue: Some(output_queue), // For MintTo actions
             address_tree_pubkey,
+            token_pool: None, // Not needed for simple compressed mint creation
         };
 
         let mint_action_instruction = create_mint_action_cpi(

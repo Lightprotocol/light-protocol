@@ -21,7 +21,7 @@ use light_client::{
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
         IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
         NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
-        RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
+        RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, TreeInfo,
         ValidityProofWithContext,
     },
     rpc::{Rpc, RpcError},
@@ -104,6 +104,9 @@ pub struct TestIndexer {
     pub token_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
+    // TEMP WORKAROUND: Map leaf indices to event hashes for V2 trees in output queues
+    // Key: (merkle_tree_pubkey, leaf_index), Value: event_hash
+    pub v2_event_hashes: std::collections::HashMap<(Pubkey, u32), [u8; 32]>,
 }
 
 impl Clone for TestIndexer {
@@ -118,6 +121,7 @@ impl Clone for TestIndexer {
             token_compressed_accounts: self.token_compressed_accounts.clone(),
             token_nullified_compressed_accounts: self.token_nullified_compressed_accounts.clone(),
             events: self.events.clone(),
+            v2_event_hashes: self.v2_event_hashes.clone(),
         }
     }
 }
@@ -196,10 +200,10 @@ impl Indexer for TestIndexer {
             .iter()
             .find(|acc| acc.compressed_account.address == Some(address));
 
-        let account_data = account
-            .ok_or(IndexerError::AccountNotFound)?
-            .clone()
-            .try_into()?;
+        let account_with_context = account.ok_or(IndexerError::AccountNotFound)?.clone();
+
+        // TEMP WORKAROUND: Use custom conversion for V2 trees to use event hash
+        let account_data = self.convert_to_compressed_account(account_with_context)?;
 
         Ok(Response {
             context: Context {
@@ -214,50 +218,62 @@ impl Indexer for TestIndexer {
         hash: Hash,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<CompressedAccount>, IndexerError> {
-        let res = self
-            .compressed_accounts
-            .iter()
-            .find(|acc| acc.hash() == Ok(hash));
+        // TEMP WORKAROUND: For V2 trees, also search by event hash
+        let res = self.compressed_accounts.iter().find(|acc| {
+            // Try original calculated hash first
+            if acc.hash() == Ok(hash) {
+                return true;
+            }
+
+            // For V2 trees, also try event hash
+            if acc.merkle_context.tree_type == TreeType::StateV2 {
+                let key = (
+                    Pubkey::new_from_array(acc.merkle_context.merkle_tree_pubkey.to_bytes()),
+                    acc.merkle_context.leaf_index,
+                );
+                if let Some(&event_hash) = self.v2_event_hashes.get(&key) {
+                    return event_hash == hash;
+                }
+            }
+
+            false
+        });
 
         // TODO: unify token accounts with compressed accounts.
         let account = if res.is_none() {
-            let res = self
-                .token_compressed_accounts
-                .iter()
-                .find(|acc| acc.compressed_account.hash() == Ok(hash));
+            let res = self.token_compressed_accounts.iter().find(|acc| {
+                // Try original calculated hash first
+                if acc.compressed_account.hash() == Ok(hash) {
+                    return true;
+                }
+
+                // For V2 trees, also try event hash
+                if acc.compressed_account.merkle_context.tree_type == TreeType::StateV2 {
+                    let key = (
+                        Pubkey::new_from_array(
+                            acc.compressed_account
+                                .merkle_context
+                                .merkle_tree_pubkey
+                                .to_bytes(),
+                        ),
+                        acc.compressed_account.merkle_context.leaf_index,
+                    );
+                    if let Some(&event_hash) = self.v2_event_hashes.get(&key) {
+                        return event_hash == hash;
+                    }
+                }
+
+                false
+            });
             res.map(|x| &x.compressed_account)
         } else {
             res
         };
 
-        let mut account_data: CompressedAccount = account
-            .ok_or(IndexerError::AccountNotFound)?
-            .clone()
-            .try_into()?;
+        let account_with_context = account.ok_or(IndexerError::AccountNotFound)?.clone();
 
-        // CRITICAL FIX: For V2 trees, if the account is found in the output queue by its leaf index,
-        // use the event hash from the queue instead of the calculated hash
-        // This ensures that the returned account hash matches what's in the output queue
-        if account_data.tree_info.tree_type == TreeType::StateV2 {
-            println!("using output queue");
-            if let Some(merkle_tree) = self
-                .state_merkle_trees
-                .iter()
-                .find(|t| t.accounts.merkle_tree == account_data.tree_info.tree)
-            {
-                println!("found merkle tree");
-                if let Some((event_hash, _)) = merkle_tree
-                    .output_queue_elements
-                    .iter()
-                    .find(|(_, leaf_idx)| *leaf_idx == account_data.leaf_index as u64)
-                {
-                    println!("found hash in output queue: {:?}", event_hash);
-                    // Found the account in output queue by leaf index - use the event hash
-                    // This allows the account to be found in output queue for prove_by_index
-                    account_data.hash = *event_hash;
-                }
-            }
-        }
+        // TEMP WORKAROUND: Use custom conversion for V2 trees to use event hash
+        let account_data = self.convert_to_compressed_account(account_with_context)?;
 
         Ok(Response {
             context: Context {
@@ -476,7 +492,12 @@ impl Indexer for TestIndexer {
             let mut state_merkle_tree_pubkeys = Vec::new();
 
             for hash in hashes.iter() {
+                println!("get_validity_proof - hash {:?}", hash);
                 let account = self.get_compressed_account_by_hash(*hash, None).await?;
+                println!(
+                    "get_validity_proof - get_compressed_account_by_hash response {:?}",
+                    account.value
+                );
                 state_merkle_tree_pubkeys.push(account.value.tree_info.tree);
             }
             let mut proof_inputs = vec![];
@@ -496,6 +517,16 @@ impl Indexer for TestIndexer {
                         x.accounts.merkle_tree == *state_merkle_tree_pubkey
                             && x.tree_type == TreeType::StateV2
                     });
+                    println!(
+                        "output_queue_elements hashes: {:?}",
+                        accounts
+                            .unwrap()
+                            .output_queue_elements
+                            .iter()
+                            .map(|(hash, _)| hash)
+                            .collect::<Vec<_>>()
+                    );
+
                     // Check if account is in output queue
                     if let Some(accounts) = accounts {
                         let queue_element = accounts
@@ -563,11 +594,14 @@ impl Indexer for TestIndexer {
 
             // Processing remaining accounts that need merkle proofs
 
+            println!("compressed_accounts: {:?}", compressed_accounts);
+            println!("new_addresses_with_trees: {:?}", new_addresses_with_trees);
             // Get the basic validity proof if needed
             let rpc_result: Option<ValidityProofWithContext> = if (compressed_accounts.is_some()
                 && !compressed_accounts.as_ref().unwrap().is_empty())
                 || !new_addresses_with_trees.is_empty()
             {
+                println!("calling validity proof v1...");
                 Some(
                     self._get_validity_proof_v1_implementation(
                         compressed_accounts.unwrap_or_default(),
@@ -1281,6 +1315,52 @@ impl TestIndexer {
         u64::MAX
     }
 
+    // TEMP WORKAROUND: Custom conversion method that uses event hashes for V2 trees
+    fn convert_to_compressed_account(
+        &self,
+        account: CompressedAccountWithMerkleContext,
+    ) -> Result<CompressedAccount, IndexerError> {
+        // Check if this is a V2 tree account and we have an event hash for it
+        let hash = if account.merkle_context.tree_type == TreeType::StateV2 {
+            let key = (
+                Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
+                account.merkle_context.leaf_index,
+            );
+            if let Some(&event_hash) = self.v2_event_hashes.get(&key) {
+                event_hash
+            } else {
+                // Fallback to calculated hash
+                account
+                    .hash()
+                    .map_err(|_| IndexerError::InvalidResponseData)?
+            }
+        } else {
+            // For V1 trees, use the calculated hash
+            account
+                .hash()
+                .map_err(|_| IndexerError::InvalidResponseData)?
+        };
+
+        Ok(CompressedAccount {
+            address: account.compressed_account.address,
+            data: account.compressed_account.data,
+            hash,
+            lamports: account.compressed_account.lamports,
+            leaf_index: account.merkle_context.leaf_index,
+            tree_info: TreeInfo {
+                tree: Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
+                queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
+                tree_type: account.merkle_context.tree_type,
+                cpi_context: None,
+                next_tree_info: None,
+            },
+            owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),
+            prove_by_index: account.merkle_context.prove_by_index,
+            seq: None,
+            slot_created: u64::MAX,
+        })
+    }
+
     pub async fn init_from_acounts(
         payer: &Keypair,
         env: &TestAccounts,
@@ -1386,6 +1466,7 @@ impl TestIndexer {
             token_compressed_accounts: vec![],
             token_nullified_compressed_accounts: vec![],
             group_pda,
+            v2_event_hashes: std::collections::HashMap::new(),
         }
     }
 
@@ -1685,7 +1766,7 @@ impl TestIndexer {
                         && (is_v1_token || is_v2_token)
                     {
                         if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
-                            let token_account = TokenDataWithMerkleContext {
+                            let mut token_account = TokenDataWithMerkleContext {
                                 token_data,
                                 compressed_account: CompressedAccountWithMerkleContext {
                                     compressed_account: compressed_account
@@ -1700,11 +1781,14 @@ impl TestIndexer {
                                     },
                                 },
                             };
+
+                            // Note: Token accounts hash fix will be applied after determining tree vs queue below
+
                             token_compressed_accounts.push(token_account.clone());
                             self.token_compressed_accounts.insert(0, token_account);
                         }
                     } else {
-                        let compressed_account = CompressedAccountWithMerkleContext {
+                        let mut compressed_account = CompressedAccountWithMerkleContext {
                             compressed_account: compressed_account.compressed_account.clone(),
                             merkle_context: MerkleContext {
                                 leaf_index: event.output_leaf_indices[i],
@@ -1714,12 +1798,15 @@ impl TestIndexer {
                                 tree_type: merkle_tree.tree_type,
                             },
                         };
+
+                        // Note: Regular accounts hash fix will be applied after determining tree vs queue below
+
                         compressed_accounts.push(compressed_account.clone());
                         self.compressed_accounts.insert(0, compressed_account);
                     }
                 }
                 None => {
-                    let compressed_account = CompressedAccountWithMerkleContext {
+                    let mut compressed_account = CompressedAccountWithMerkleContext {
                         compressed_account: compressed_account.compressed_account.clone(),
                         merkle_context: MerkleContext {
                             leaf_index: event.output_leaf_indices[i],
@@ -1729,6 +1816,9 @@ impl TestIndexer {
                             tree_type: merkle_tree.tree_type,
                         },
                     };
+
+                    // Note: Hash fix will be applied after determining tree vs queue below
+
                     compressed_accounts.push(compressed_account.clone());
                     self.compressed_accounts.insert(0, compressed_account);
                 }
@@ -1775,6 +1865,18 @@ impl TestIndexer {
                     event.output_compressed_account_hashes[i],
                     event.output_leaf_indices[i].into(),
                 ));
+
+                // TEMP WORKAROUND: For V2 trees that go to output queue, store the event hash mapping
+                // to ensure consistency until root cause is fixed
+                if merkle_tree.tree_type == TreeType::StateV2 {
+                    // Store the mapping of (merkle_tree_pubkey, leaf_index) -> event_hash
+                    let key = (
+                        merkle_tree.accounts.merkle_tree,
+                        event.output_leaf_indices[i],
+                    );
+                    self.v2_event_hashes
+                        .insert(key, event.output_compressed_account_hashes[i]);
+                }
             }
         }
         if event.input_compressed_account_hashes.len() > i {
@@ -1960,9 +2062,9 @@ impl TestIndexer {
                 queues.push(bundle.accounts.nullifier_queue);
                 cpi_contextes.push(bundle.accounts.cpi_context);
                 tree_types.push(bundle.tree_type);
-                println!("merkle_tree {:?}", merkle_tree);
+                // println!("merkle_tree {:?}", merkle_tree);
                 println!("account {:?}", account);
-                println!("bundle {:?}", bundle.accounts);
+                // println!("bundle {:?}", bundle.accounts);
                 let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
                 let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 
@@ -2149,6 +2251,10 @@ impl TestIndexer {
     ) -> Result<ValidityProofWithContext, IndexerError> {
         let mut state_merkle_tree_pubkeys = Vec::new();
 
+        println!(
+            "_get_validity_proof_v1_implementation - hashes: {:?}",
+            hashes
+        );
         for hash in hashes.iter() {
             state_merkle_tree_pubkeys.push(
                 self.get_compressed_account_by_hash(*hash, None)

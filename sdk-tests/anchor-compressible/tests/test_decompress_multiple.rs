@@ -492,11 +492,8 @@ async fn test_decompress_multiple_pdas(
     );
 
     println!("c_user_pda: {:?}", c_user_pda);
-    println!("c_user_pda hash: {:?}", c_user_pda.hash);
-    println!("c_user_pda tree_info: {:?}", c_user_pda.tree_info);
     println!("c_game_pda: {:?}", c_game_pda);
-    println!("c_game_pda hash: {:?}", c_game_pda.hash);
-    println!("c_game_pda tree_info: {:?}", c_game_pda.tree_info);
+
     // Get validity proof for both compressed accounts
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash, c_game_pda.hash], vec![], None)
