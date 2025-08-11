@@ -482,10 +482,14 @@ fn create_batched_transaction_event(
                 .iter()
                 .map(|x| x.leaf)
                 .collect(),
-            output_compressed_accounts: associated_instructions
-                .executing_system_instruction
-                .output_compressed_accounts
-                .clone(),
+            output_compressed_accounts: [
+                associated_instructions.cpi_context_outputs.clone(),
+                associated_instructions
+                    .executing_system_instruction
+                    .output_compressed_accounts
+                    .clone(),
+            ]
+            .concat(),
             output_leaf_indices: associated_instructions
                 .insert_into_queues_instruction
                 .output_leaf_indices
@@ -597,13 +601,6 @@ fn create_batched_transaction_event(
         .for_each(|(context, index)| {
             context.queue_index = *index;
         });
-
-    for output_compressed_account in associated_instructions.cpi_context_outputs.iter() {
-        batched_transaction_event
-            .event
-            .output_compressed_accounts
-            .push(output_compressed_account.clone());
-    }
 
     Ok(batched_transaction_event)
 }
