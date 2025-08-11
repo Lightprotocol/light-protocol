@@ -232,7 +232,7 @@ mod tests {
             invoke_cpi::InstructionDataInvokeCpi, zero_copy::ZInstructionDataInvokeCpi,
         },
     };
-    use light_zero_copy::borsh::Deserialize;
+    use light_zero_copy::traits::ZeroCopyAt;
     use pinocchio::pubkey::Pubkey;
 
     use super::*;

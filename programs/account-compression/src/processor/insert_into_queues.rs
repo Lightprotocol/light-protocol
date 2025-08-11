@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionData;
-use light_zero_copy::borsh::Deserialize;
+use light_zero_copy::traits::ZeroCopyAt;
 
 use super::{
     insert_addresses::insert_addresses, insert_leaves::insert_leaves,

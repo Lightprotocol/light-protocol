@@ -5,7 +5,9 @@ use syn::{parse_quote, DeriveInput, Field, Ident};
 
 use crate::shared::{
     meta_struct, utils,
-    z_enum::{generate_enum_deserialize_impl, generate_enum_zero_copy_struct_inner, generate_z_enum},
+    z_enum::{
+        generate_enum_deserialize_impl, generate_enum_zero_copy_struct_inner, generate_z_enum,
+    },
     z_struct::{analyze_struct_fields, generate_z_struct, FieldType},
 };
 
@@ -16,13 +18,13 @@ fn generate_deserialize_call<const MUT: bool>(
 ) -> TokenStream {
     let field_type = utils::convert_to_zerocopy_type(field_type);
     let trait_path = if MUT {
-        quote!( as light_zero_copy::borsh_mut::DeserializeMut>::zero_copy_at_mut)
+        quote!( as ::light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut)
     } else {
-        quote!( as light_zero_copy::borsh::Deserialize>::zero_copy_at)
+        quote!( as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at)
     };
 
     quote! {
-        let (#field_name, bytes) = <#field_type #trait_path(bytes)?;
+        let (#field_name, __remaining_bytes) = <#field_type #trait_path(__remaining_bytes)?;
     }
 }
 
@@ -43,24 +45,35 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::VecU8(field_name) => {
                 if MUT {
                     quote! {
-                        let (#field_name, bytes) = light_zero_copy::borsh_mut::borsh_vec_u8_as_slice_mut(bytes)?;
+                        let (#field_name, __remaining_bytes) = ::light_zero_copy::traits::borsh_vec_u8_as_slice_mut(__remaining_bytes)?;
                     }
                 } else {
                     quote! {
-                        let (#field_name, bytes) = light_zero_copy::borsh::borsh_vec_u8_as_slice(bytes)?;
+                        let (#field_name, __remaining_bytes) = ::light_zero_copy::traits::borsh_vec_u8_as_slice(__remaining_bytes)?;
                     }
                 }
             },
             FieldType::VecCopy(field_name, inner_type) => {
-                let inner_type = utils::convert_to_zerocopy_type(inner_type);
+                let converted_type = utils::convert_to_zerocopy_type(inner_type);
 
-                let trait_path = if MUT {
-                    quote!(light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<'a, <#inner_type as light_zero_copy::borsh_mut::ZeroCopyStructInnerMut>::ZeroCopyInnerMut>)
+                // Determine if type needs ZeroCopyStructInner trait or can be used directly
+                let trait_path = if utils::needs_struct_inner_trait(inner_type) {
+                    // Custom structs need to use the trait's associated type
+                    if MUT {
+                        quote!(::light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<'a, <#converted_type as ::light_zero_copy::traits::ZeroCopyStructInnerMut>::ZeroCopyInnerMut>)
+                    } else {
+                        quote!(::light_zero_copy::slice::ZeroCopySliceBorsh::<'a, <#converted_type as ::light_zero_copy::traits::ZeroCopyStructInner>::ZeroCopyInner>)
+                    }
                 } else {
-                    quote!(light_zero_copy::slice::ZeroCopySliceBorsh::<'a, <#inner_type as light_zero_copy::borsh::ZeroCopyStructInner>::ZeroCopyInner>)
+                    // Arrays and primitives can be used directly after type conversion
+                    if MUT {
+                        quote!(::light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<'a, #converted_type>)
+                    } else {
+                        quote!(::light_zero_copy::slice::ZeroCopySliceBorsh::<'a, #converted_type>)
+                    }
                 };
                 quote! {
-                    let (#field_name, bytes) = #trait_path::from_bytes_at(bytes)?;
+                    let (#field_name, __remaining_bytes) = #trait_path::from_bytes_at(__remaining_bytes)?;
                 }
             },
             FieldType::VecDynamicZeroCopy(field_name, field_type) => {
@@ -69,7 +82,7 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::Array(field_name, field_type) => {
                 let field_type = utils::convert_to_zerocopy_type(field_type);
                 quote! {
-                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_type>::from_prefix(bytes)?;
+                    let (#field_name, __remaining_bytes) = ::light_zero_copy::Ref::<#mutability_tokens, #field_type>::from_prefix(__remaining_bytes)?;
                 }
             },
             FieldType::Option(field_name, field_type) => {
@@ -81,18 +94,18 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::Primitive(field_name, field_type) => {
                 if MUT {
                     quote! {
-                        let (#field_name, bytes) = <#field_type as light_zero_copy::borsh_mut::DeserializeMut>::zero_copy_at_mut(bytes)?;
+                        let (#field_name, __remaining_bytes) = <#field_type as ::light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut(__remaining_bytes)?;
                     }
                 } else {
                     quote! {
-                        let (#field_name, bytes) = <#field_type as light_zero_copy::borsh::Deserialize>::zero_copy_at(bytes)?;
+                        let (#field_name, __remaining_bytes) = <#field_type as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at(__remaining_bytes)?;
                     }
                 }
             },
             FieldType::Copy(field_name, field_type) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(field_type);
                 quote! {
-                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
+                    let (#field_name, __remaining_bytes) = ::light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(__remaining_bytes)?;
                 }
             },
             FieldType::DynamicZeroCopy(field_name, field_type) => {
@@ -109,6 +122,10 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::OptionU16(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
                 generate_deserialize_call::<MUT>(field_name, &parse_quote!(Option<#field_ty_zerocopy>))
+            },
+            FieldType::OptionArray(field_name, array_type) => {
+                let array_type_zerocopy = utils::convert_to_zerocopy_type(array_type);
+                generate_deserialize_call::<MUT>(field_name, &parse_quote!(Option<#array_type_zerocopy>))
             }
         }
     });
@@ -147,17 +164,19 @@ pub fn generate_deserialize_impl<const MUT: bool>(
     };
 
     // Define trait and types based on mutability
-    let (trait_name, mutability, method_name) = if MUT {
+    let (trait_name, mutability, method_name, associated_type) = if MUT {
         (
-            quote!(light_zero_copy::borsh_mut::DeserializeMut),
+            quote!(::light_zero_copy::traits::ZeroCopyAtMut),
             quote!(mut),
             quote!(zero_copy_at_mut),
+            quote!(ZeroCopyAtMut),
         )
     } else {
         (
-            quote!(light_zero_copy::borsh::Deserialize),
+            quote!(::light_zero_copy::traits::ZeroCopyAt),
             quote!(),
             quote!(zero_copy_at),
+            quote!(ZeroCopyAt),
         )
     };
     let (meta_des, meta) = if meta_is_empty {
@@ -165,7 +184,7 @@ pub fn generate_deserialize_impl<const MUT: bool>(
     } else {
         (
             quote! {
-                let (__meta, bytes) = light_zero_copy::Ref::< &'a #mutability [u8], #z_struct_meta_name>::from_prefix(bytes)?;
+                let (__meta, __remaining_bytes) = ::light_zero_copy::Ref::< &'a #mutability [u8], #z_struct_meta_name>::from_prefix(__remaining_bytes)?;
             },
             quote!(__meta,),
         )
@@ -175,9 +194,9 @@ pub fn generate_deserialize_impl<const MUT: bool>(
 
     let result = quote! {
         impl<'a> #trait_name<'a> for #name {
-            type Output = #z_struct_name<'a>;
+            type #associated_type = #z_struct_name<'a>;
 
-            fn #method_name(bytes: &'a #mutability [u8]) -> Result<(Self::Output, &'a #mutability [u8]), light_zero_copy::errors::ZeroCopyError> {
+            fn #method_name(__remaining_bytes: &'a #mutability [u8]) -> Result<(Self::#associated_type, &'a #mutability [u8]), ::light_zero_copy::errors::ZeroCopyError> {
                 #meta_des
                 #(#deserialize_fields)*
                 Ok((
@@ -185,7 +204,7 @@ pub fn generate_deserialize_impl<const MUT: bool>(
                         #meta
                         #(#init_fields,)*
                     },
-                    bytes
+                    __remaining_bytes
                 ))
             }
 
@@ -203,14 +222,14 @@ pub fn generate_zero_copy_struct_inner<const MUT: bool>(
     let result = if MUT {
         quote! {
             // ZeroCopyStructInner implementation
-            impl light_zero_copy::borsh_mut::ZeroCopyStructInnerMut for #name {
+            impl ::light_zero_copy::traits::ZeroCopyStructInnerMut for #name {
                 type ZeroCopyInnerMut = #z_struct_name<'static>;
             }
         }
     } else {
         quote! {
             // ZeroCopyStructInner implementation
-            impl light_zero_copy::borsh::ZeroCopyStructInner for #name {
+            impl ::light_zero_copy::traits::ZeroCopyStructInner for #name {
                 type ZeroCopyInner = #z_struct_name<'static>;
             }
         }
@@ -219,8 +238,10 @@ pub fn generate_zero_copy_struct_inner<const MUT: bool>(
 }
 
 pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2::TokenStream> {
-    // Parse the input DeriveInput
     let input: DeriveInput = syn::parse(input)?;
+
+    // Validate that struct/enum has #[repr(C)] attribute
+    utils::validate_repr_c_required(&input.attrs, "ZeroCopy")?;
 
     let hasher = utils::struct_has_light_hasher_attribute(&input.attrs);
 
@@ -237,15 +258,17 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
 
     match input_type {
         utils::InputType::Struct(fields) => {
-            // Handle struct case (existing logic)
             let z_struct_name = z_name;
             let z_struct_meta_name = format_ident!("Z{}Meta", name);
 
-            // Process the fields to separate meta fields and struct fields
             let (meta_fields, struct_fields) = utils::process_fields(fields);
 
             let meta_struct_def = if !meta_fields.is_empty() {
-                meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
+                meta_struct::generate_meta_struct::<false>(
+                    &z_struct_meta_name,
+                    &meta_fields,
+                    hasher,
+                )?
             } else {
                 quote! {}
             };
@@ -270,7 +293,6 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
                 quote! {},
             )?;
 
-            // Combine all implementations
             Ok(quote! {
                 #meta_struct_def
                 #z_struct_def
@@ -279,14 +301,13 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
             })
         }
         utils::InputType::Enum(enum_data) => {
-            // Handle enum case (new logic)
             let z_enum_name = z_name;
 
             let z_enum_def = generate_z_enum(&z_enum_name, enum_data)?;
             let deserialize_impl = generate_enum_deserialize_impl(name, &z_enum_name, enum_data)?;
-            let zero_copy_struct_inner_impl = generate_enum_zero_copy_struct_inner(name, &z_enum_name)?;
+            let zero_copy_struct_inner_impl =
+                generate_enum_zero_copy_struct_inner(name, &z_enum_name, enum_data)?;
 
-            // Combine all implementations
             Ok(quote! {
                 #z_enum_def
                 #deserialize_impl

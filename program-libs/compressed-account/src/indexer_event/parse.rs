@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use light_zero_copy::borsh::Deserialize;
+use light_zero_copy::traits::ZeroCopyAt;
 
 use super::{
     error::ParseIndexerEventError,

@@ -22,7 +22,7 @@ use light_compressed_account::instruction_data::{
     zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
 };
 use light_macros::pubkey_array;
-use light_zero_copy::borsh::Deserialize;
+use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };

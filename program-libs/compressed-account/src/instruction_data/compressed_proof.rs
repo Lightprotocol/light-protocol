@@ -1,4 +1,4 @@
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
+use light_zero_copy::{errors::ZeroCopyError, traits::ZeroCopyAt};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -34,9 +34,9 @@ impl Default for CompressedProof {
     }
 }
 
-impl<'a> Deserialize<'a> for CompressedProof {
-    type Output = Ref<&'a [u8], Self>;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+impl<'a> ZeroCopyAt<'a> for CompressedProof {
+    type ZeroCopyAt = Ref<&'a [u8], Self>;
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         Ok(Ref::<&[u8], CompressedProof>::from_prefix(bytes)?)
     }
 }

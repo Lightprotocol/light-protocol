@@ -1,0 +1,5 @@
+error: ZeroCopy only supports structs with named fields
+ --> tests/ui/fail/08_newtype_pattern.rs:6:19
+  |
+6 | pub struct NewType(pub Vec<u8>);
+  |                   ^^^^^^^^^^^^^

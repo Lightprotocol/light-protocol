@@ -1,6 +1,6 @@
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
+use light_zero_copy::{errors::ZeroCopyError, traits::ZeroCopyAt};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -83,8 +83,8 @@ impl PartialEq<anchor_lang::prelude::Pubkey> for Pubkey {
     }
 }
 
-impl<'a> Deserialize<'a> for Pubkey {
-    type Output = Ref<&'a [u8], Pubkey>;
+impl<'a> ZeroCopyAt<'a> for Pubkey {
+    type ZeroCopyAt = Ref<&'a [u8], Pubkey>;
 
     #[inline]
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Ref<&'a [u8], Pubkey>, &'a [u8]), ZeroCopyError> {

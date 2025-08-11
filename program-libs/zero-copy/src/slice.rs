@@ -79,12 +79,12 @@ where
     #[inline]
     pub fn data_size(length: L) -> usize {
         let usize_len: usize = u64::from(length) as usize;
-        usize_len * size_of::<T>()
+        usize_len.saturating_mul(size_of::<T>())
     }
 
     #[inline]
     pub fn required_size_for_capacity(capacity: L) -> usize {
-        Self::metadata_size() + Self::data_size(capacity)
+        Self::metadata_size().saturating_add(Self::data_size(capacity))
     }
 
     #[inline]
@@ -196,10 +196,10 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<'a, T: ZeroCopyTraits + crate::borsh::Deserialize<'a>> crate::borsh::Deserialize<'a>
+impl<'a, T: ZeroCopyTraits + crate::traits::ZeroCopyAt<'a>> crate::traits::ZeroCopyAt<'a>
     for ZeroCopySliceBorsh<'a, T>
 {
-    type Output = Self;
+    type ZeroCopyAt = Self;
 
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
         ZeroCopySliceBorsh::from_bytes_at(bytes)

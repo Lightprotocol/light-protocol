@@ -379,7 +379,7 @@ impl ZCompressedAccount<'_> {
 #[cfg(test)]
 mod tests {
     use light_hasher::Poseidon;
-    use light_zero_copy::borsh::Deserialize;
+    use light_zero_copy::traits::ZeroCopyAt;
     use num_bigint::BigUint;
     use rand::Rng;
 

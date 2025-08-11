@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
 use zerocopy::{
     little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -336,9 +336,9 @@ impl<'a> Deref for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     }
 }
 
-impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
-    type Output = ZInstructionDataInvokeCpiWithReadOnly<'a>;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+impl<'a> ZeroCopyAt<'a> for InstructionDataInvokeCpiWithReadOnly {
+    type ZeroCopyAt = ZInstructionDataInvokeCpiWithReadOnly<'a>;
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) =
             Ref::<&[u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>::from_prefix(bytes)?;
         let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;
@@ -365,10 +365,9 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
             (slices, bytes)
         };
 
-        let (output_compressed_accounts, bytes) =
-            <Vec<ZOutputCompressedAccountWithPackedContext<'a>> as Deserialize<'a>>::zero_copy_at(
-                bytes,
-            )?;
+        let (output_compressed_accounts, bytes) = <Vec<
+            ZOutputCompressedAccountWithPackedContext<'a>,
+        > as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
 
         let (read_only_addresses, bytes) =
             ZeroCopySliceBorsh::<'a, ZPackedReadOnlyAddress>::from_bytes_at(bytes)?;

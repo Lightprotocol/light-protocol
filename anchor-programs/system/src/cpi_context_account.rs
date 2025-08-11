@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     invoke_cpi::InstructionDataInvokeCpi, zero_copy::ZInstructionDataInvokeCpi,
 };
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
+use light_zero_copy::{errors::ZeroCopyError, traits::ZeroCopyAt};
 use zerocopy::{little_endian::U32, Ref};
 
 /// Collects instruction data without executing a compressed transaction.

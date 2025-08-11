@@ -34,7 +34,7 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
-    use light_zero_copy::borsh::Deserialize;
+    use light_zero_copy::traits::ZeroCopyAt;
     use spl_compression::check_spl_token_pool_derivation_with_index;
 
     use super::*;
