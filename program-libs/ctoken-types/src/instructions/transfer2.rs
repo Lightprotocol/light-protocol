@@ -160,7 +160,10 @@ pub struct Compression {
     pub amount: u64,
     pub mint: u8,
     pub source_or_recipient: u8,
-    pub authority: u8, // Index of owner or delegate account
+    pub authority: u8,          // Index of owner or delegate account
+    pub pool_account_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
+    pub pool_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
+    pub bump: u8, // This account is not necessary to decompress ctokens because there are no token pools
 }
 
 impl Compression {
@@ -171,6 +174,29 @@ impl Compression {
             mint,
             source_or_recipient,
             authority,
+            pool_account_index: 0,
+            pool_index: 0,
+            bump: 0,
+        }
+    }
+    pub fn compress_spl(
+        amount: u64,
+        mint: u8,
+        source_or_recipient: u8,
+        authority: u8,
+        pool_account_index: u8,
+        pool_index: u8,
+        bump: u8,
+    ) -> Self {
+        Compression {
+            amount,
+            mode: CompressionMode::Compress,
+            mint,
+            source_or_recipient,
+            authority,
+            pool_account_index,
+            pool_index,
+            bump,
         }
     }
     pub fn decompress(amount: u64, mint: u8, source_or_recipient: u8) -> Self {
@@ -180,6 +206,28 @@ impl Compression {
             mint,
             source_or_recipient,
             authority: 0,
+            pool_account_index: 0,
+            pool_index: 0,
+            bump: 0,
+        }
+    }
+    pub fn decompress_spl(
+        amount: u64,
+        mint: u8,
+        source_or_recipient: u8,
+        pool_account_index: u8,
+        pool_index: u8,
+        bump: u8,
+    ) -> Self {
+        Compression {
+            amount,
+            mode: CompressionMode::Decompress,
+            mint,
+            source_or_recipient,
+            authority: 0,
+            pool_account_index,
+            pool_index,
+            bump,
         }
     }
 }

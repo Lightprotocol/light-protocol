@@ -14,13 +14,14 @@ impl<A: AccountInfoTrait> ProgramPackedAccounts<'_, A> {
     #[inline(always)]
     pub fn get(&self, index: usize, name: &str) -> Result<&A, AccountError> {
         let location = Location::caller();
-        self.accounts.get(index).ok_or({
+        if index >= self.accounts.len() {
             solana_msg::msg!(
                 "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
                 name, index, self.accounts.len(), location.file(), location.line(), location.column()
             );
-            AccountError::NotEnoughAccountKeys
-        })
+            return Err(AccountError::NotEnoughAccountKeys);
+        }
+        Ok(&self.accounts[index])
     }
 
     // TODO: add get_checked_account from  PackedAccounts.

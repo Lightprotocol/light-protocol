@@ -161,6 +161,35 @@ impl CTokenAccount2 {
         Ok(())
     }
 
+    pub fn compress_spl(
+        &mut self,
+        amount: u64,
+        source_or_recipient_index: u8,
+        authority: u8,
+        pool_account_index: u8,
+        pool_index: u8,
+        bump: u8,
+    ) -> Result<(), TokenSdkError> {
+        // Check if there's already a compression set
+        if self.compression.is_some() {
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
+        }
+
+        self.output.amount += amount;
+        self.compression = Some(Compression::compress_spl(
+            amount,
+            self.output.mint,
+            source_or_recipient_index,
+            authority,
+            pool_account_index,
+            pool_index,
+            bump,
+        ));
+        self.method_used = true;
+
+        Ok(())
+    }
+
     // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
     pub fn decompress(&mut self, amount: u64, source_index: u8) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
@@ -177,6 +206,37 @@ impl CTokenAccount2 {
             amount,
             self.output.mint,
             source_index,
+        ));
+        self.method_used = true;
+
+        Ok(())
+    }
+
+    pub fn decompress_spl(
+        &mut self,
+        amount: u64,
+        source_index: u8,
+        pool_account_index: u8,
+        pool_index: u8,
+        bump: u8,
+    ) -> Result<(), TokenSdkError> {
+        // Check if there's already a compression set
+        if self.compression.is_some() {
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
+        }
+
+        if self.output.amount < amount {
+            return Err(TokenSdkError::InsufficientBalance);
+        }
+        self.output.amount -= amount;
+
+        self.compression = Some(Compression::decompress_spl(
+            amount,
+            self.output.mint,
+            source_index,
+            pool_account_index,
+            pool_index,
+            bump,
         ));
         self.method_used = true;
 
@@ -207,6 +267,9 @@ impl CTokenAccount2 {
             mint: self.output.mint,
             source_or_recipient: source_or_recipient_index,
             authority,
+            pool_account_index: 0,
+            pool_index: 0,
+            bump: 0,
         });
         self.method_used = true;
 

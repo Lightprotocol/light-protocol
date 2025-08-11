@@ -1,14 +1,3 @@
-use anchor_compressed_token::{check_cpi_context, ErrorCode};
-use anchor_lang::prelude::ProgramError;
-use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
-use light_ctoken_types::{
-    hash_cache::HashCache,
-    instructions::transfer2::{validate_instruction_data, CompressedTokenInstructionDataTransfer2},
-};
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
-use pinocchio::account_info::AccountInfo;
-
 use crate::{
     shared::cpi::execute_cpi_invoke,
     transfer2::{
@@ -18,6 +7,17 @@ use crate::{
         token_inputs::set_input_compressed_accounts, token_outputs::set_output_compressed_accounts,
     },
 };
+use anchor_compressed_token::{check_cpi_context, ErrorCode};
+use anchor_lang::prelude::msg;
+use anchor_lang::prelude::ProgramError;
+use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
+use light_ctoken_types::{
+    hash_cache::HashCache,
+    instructions::transfer2::{validate_instruction_data, CompressedTokenInstructionDataTransfer2},
+};
+use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_zero_copy::{borsh::Deserialize, ZeroCopyNew};
+use pinocchio::account_info::AccountInfo;
 
 /// Process a token transfer instruction
 /// build inputs -> sum check -> build outputs -> add token data to inputs -> invoke cpi
@@ -50,6 +50,14 @@ pub fn process_transfer2(
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
     bench_sbf_start!("t_context_and_check_sig");
+
+    let packed_accounts_pubkeys = validated_accounts
+        .packed_accounts
+        .accounts
+        .iter()
+        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
+        .collect::<Vec<solana_pubkey::Pubkey>>();
+    msg!("packed_accounts_pubkeys {:?}", packed_accounts_pubkeys);
 
     // Allocate CPI bytes and create zero-copy structure
     let (mut cpi_bytes, config) = allocate_cpi_bytes(&inputs);
@@ -91,7 +99,17 @@ pub fn process_transfer2(
         &transfer_config,
     )?;
     // Process token compressions/decompressions (native tokens supported, SPL framework added)
-    process_token_compression(&inputs, &validated_accounts.packed_accounts)?;
+    if let Some(system) = validated_accounts.system.as_ref() {
+        process_token_compression(
+            &inputs,
+            &validated_accounts.packed_accounts,
+            system.cpi_authority_pda,
+        )?;
+    } else if inputs.compressions.is_some() {
+        pinocchio::msg!("Compressions must not be set for write to cpi context.");
+        // TODO: add correct error
+        return Err(ErrorCode::OwnerMismatch.into());
+    }
     bench_sbf_end!("t_context_and_check_sig");
     bench_sbf_start!("t_sum_check");
     sum_check_multi_mint(
@@ -103,8 +121,11 @@ pub fn process_transfer2(
     bench_sbf_end!("t_sum_check");
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Get CPI accounts slice and tree accounts for light-system-program invocation
-        let (cpi_accounts, tree_pubkeys) =
-            validated_accounts.cpi_accounts(accounts, &inputs, &validated_accounts.packed_accounts)?;
+        let (cpi_accounts, tree_pubkeys) = validated_accounts.cpi_accounts(
+            accounts,
+            &inputs,
+            &validated_accounts.packed_accounts,
+        )?;
         // Debug prints keep for now.
         {
             let _solana_tree_accounts = tree_pubkeys

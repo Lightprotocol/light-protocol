@@ -9,8 +9,11 @@ use light_compressed_token_sdk::{
         account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
         Transfer2Inputs,
     },
+    token_pool::find_token_pool_pda_with_index,
 };
-use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
+use light_ctoken_types::{
+    instructions::transfer2::MultiInputTokenDataWithContext, COMPRESSED_TOKEN_PROGRAM_ID,
+};
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -172,7 +175,41 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_token_account);
                 let authority_index =
                     packed_tree_accounts.insert_or_get_config(input.authority, true, false);
-                token_account.compress(input.amount, source_index, authority_index)?;
+                
+                // Check if source account is an SPL token account
+                let source_account_owner = rpc
+                    .get_account(input.solana_token_account)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .owner;
+
+                if source_account_owner.to_bytes() != COMPRESSED_TOKEN_PROGRAM_ID {
+                    // For SPL compression, get mint first
+                    let mint = input.mint;
+
+                    // Add SPL Token 2022 program for SPL operations
+                    let _token_program_index =
+                        packed_tree_accounts.insert_or_get_read_only(spl_token_2022::ID);
+
+                    // Add token pool account (index 0 for now, could be extended for multiple pools)
+                    let pool_index = 0u8;
+                    let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, pool_index);
+                    let pool_account_index = packed_tree_accounts.insert_or_get(token_pool_pda);
+
+                    // Use the new SPL-specific compress method
+                    token_account.compress_spl(
+                        input.amount,
+                        source_index,
+                        authority_index,
+                        pool_account_index,
+                        pool_index,
+                        bump,
+                    )?;
+                } else {
+                    // Regular compression for compressed token accounts
+                    token_account.compress(input.amount, source_index, authority_index)?;
+                }
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Decompress(input) => {
@@ -205,9 +242,42 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         .unwrap()
                         .output_tree_index,
                 )?;
+                // Add recipient SPL token account
                 let recipient_index =
                     packed_tree_accounts.insert_or_get(input.solana_token_account);
-                token_account.decompress(input.decompress_amount, recipient_index)?;
+                let recipient_account_owner = rpc
+                    .get_account(input.solana_token_account)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .owner;
+
+                if recipient_account_owner.to_bytes() != COMPRESSED_TOKEN_PROGRAM_ID {
+                    // For SPL decompression, get mint first
+                    let mint = input.compressed_token_account[0].token.mint;
+
+                    // Add SPL Token 2022 program for SPL operations
+                    let _token_program_index =
+                        packed_tree_accounts.insert_or_get_read_only(spl_token_2022::ID);
+
+                    // Add token pool account (index 0 for now, could be extended for multiple pools)
+                    let pool_index = 0u8;
+                    let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, pool_index);
+                    let pool_account_index = packed_tree_accounts.insert_or_get(token_pool_pda);
+
+                    // Use the new SPL-specific decompress method
+                    token_account.decompress_spl(
+                        input.decompress_amount,
+                        recipient_index,
+                        pool_account_index,
+                        pool_index,
+                        bump,
+                    )?;
+                } else {
+                    // Use the new SPL-specific decompress method
+                    token_account.decompress(input.decompress_amount, recipient_index)?;
+                }
+
                 out_lamports.push(
                     input
                         .compressed_token_account
