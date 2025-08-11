@@ -1,6 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_account_checks::checks::check_owner;
+use light_account_checks::{checks::check_owner, packed_accounts::ProgramPackedAccounts};
 use light_ctoken_types::{
     instructions::transfer2::{
         CompressionMode, ZCompressedTokenInstructionDataTransfer2, ZCompression,
@@ -14,13 +14,13 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     shared::owner_validation::verify_and_update_token_account_authority_with_compressed_token,
-    transfer2::accounts::ProgramPackedAccounts, LIGHT_CPI_SIGNER,
+    LIGHT_CPI_SIGNER,
 };
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 /// Process native compressions/decompressions with token accounts
 pub fn process_token_compression(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &ProgramPackedAccounts,
+    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
         for compression in compressions {
@@ -64,7 +64,7 @@ fn validate_compression_mode_fields(compression: &ZCompression) -> Result<(), Pr
 fn process_native_compressions(
     compression: &ZCompression,
     token_account_info: &AccountInfo,
-    packed_accounts: &ProgramPackedAccounts,
+    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<(), ProgramError> {
     let mode = compression.mode;
 

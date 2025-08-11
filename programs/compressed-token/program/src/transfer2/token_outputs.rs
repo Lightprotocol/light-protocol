@@ -1,19 +1,19 @@
 use anchor_lang::prelude::ProgramError;
+use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::transfer2::ZCompressedTokenInstructionDataTransfer2,
 };
+use pinocchio::account_info::AccountInfo;
 
-use crate::{
-    shared::token_output::set_output_compressed_account, transfer2::accounts::ProgramPackedAccounts,
-};
+use crate::shared::token_output::set_output_compressed_account;
 
 /// Process output compressed accounts and return total output lamports
 pub fn set_output_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     hash_cache: &mut HashCache,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &ProgramPackedAccounts,
+    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<u64, ProgramError> {
     let mut total_output_lamports = 0u64;
 

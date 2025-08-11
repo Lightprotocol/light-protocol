@@ -1,13 +1,19 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
-use light_ctoken_types::instructions::{
-    mint_actions::ZMintToDecompressedAction, transfer2::CompressionMode,
+use light_ctoken_types::{
+    instructions::{mint_actions::ZMintToDecompressedAction, transfer2::CompressionMode},
+    state::ZCompressedMintMut,
 };
+use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    mint_action::{accounts::MintActionAccounts, mint_to::mint_authority_check},
+    mint_action::{
+        accounts::{AccountsConfig, MintActionAccounts},
+        mint_to::mint_authority_check,
+    },
     shared::mint_to_token_pool,
     transfer2::native_compression::native_compression,
 };
@@ -15,14 +21,18 @@ use crate::{
 pub fn process_mint_to_decompressed_action(
     action: &ZMintToDecompressedAction,
     current_supply: u64,
-    compressed_mint: &light_ctoken_types::state::ZCompressedMintMut<'_>,
+    compressed_mint: &ZCompressedMintMut<'_>,
     validated_accounts: &MintActionAccounts,
-    accounts_config: &crate::mint_action::accounts::AccountsConfig,
-    packed_accounts: &crate::transfer2::accounts::ProgramPackedAccounts,
+    accounts_config: &AccountsConfig,
+    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mint: Pubkey,
     instruction_mint_authority: Option<Pubkey>,
 ) -> Result<u64, ProgramError> {
-    mint_authority_check(compressed_mint, validated_accounts, instruction_mint_authority)?;
+    mint_authority_check(
+        compressed_mint,
+        validated_accounts,
+        instruction_mint_authority,
+    )?;
 
     let amount = u64::from(action.recipient.amount);
     let updated_supply = current_supply

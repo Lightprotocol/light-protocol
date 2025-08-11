@@ -1,12 +1,10 @@
-use crate::{
-    shared::{
-        accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
-        AccountIterator,
-    },
-    transfer2::accounts::ProgramPackedAccounts,
+use crate::shared::{
+    accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
+    AccountIterator,
 };
 use anchor_compressed_token::{check_spl_token_pool_derivation_with_index, ErrorCode};
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::instructions::mint_actions::{
     ZAction, ZMintActionCompressedInstructionData,
 };
@@ -19,7 +17,7 @@ pub struct MintActionAccounts<'info> {
     pub authority: &'info AccountInfo,
     pub executing: Option<ExecutingAccounts<'info>>,
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
-    pub packed_accounts: ProgramPackedAccounts<'info>,
+    pub packed_accounts: ProgramPackedAccounts<'info, AccountInfo>,
 }
 
 pub struct ExecutingAccounts<'info> {

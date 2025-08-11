@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::{
     data::ZOutputCompressedAccountWithPackedContextMut,
     with_readonly::InstructionDataInvokeCpiWithReadOnly,
@@ -35,7 +36,6 @@ use crate::{
         zero_copy_config::get_zero_copy_configs,
     },
     shared::cpi::execute_cpi_invoke,
-    transfer2::accounts::ProgramPackedAccounts,
 };
 
 // Create mint - no input
@@ -192,7 +192,7 @@ pub fn process_actions<'a>(
     cpi_instruction_struct: &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
-    packed_accounts: &ProgramPackedAccounts,
+    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compressed_mint: &mut ZCompressedMintMut<'a>,
 ) -> Result<(), ProgramError> {
     for (index, action) in parsed_instruction_data.actions.iter().enumerate() {
@@ -209,7 +209,11 @@ pub fn process_actions<'a>(
                     hash_cache,
                     parsed_instruction_data.mint.spl_mint,
                     queue_indices.out_token_queue_index,
-                    parsed_instruction_data.mint.mint_authority.as_ref().map(|a| **a),
+                    parsed_instruction_data
+                        .mint
+                        .mint_authority
+                        .as_ref()
+                        .map(|a| **a),
                 )?;
                 compressed_mint.supply = new_supply.into();
             }
@@ -259,7 +263,11 @@ pub fn process_actions<'a>(
                     accounts_config,
                     packed_accounts,
                     parsed_instruction_data.mint.spl_mint,
-                    parsed_instruction_data.mint.mint_authority.as_ref().map(|a| **a),
+                    parsed_instruction_data
+                        .mint
+                        .mint_authority
+                        .as_ref()
+                        .map(|a| **a),
                 )?;
                 compressed_mint.supply = new_supply.into();
                 msg!("done Processing MintToDecompressed action");
