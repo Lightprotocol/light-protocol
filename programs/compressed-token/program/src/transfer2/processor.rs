@@ -90,8 +90,7 @@ pub fn process_transfer2(
         cpi_instruction_struct,
         &transfer_config,
     )?;
-    // Process token compressions/decompressions
-    // TODO: support spl
+    // Process token compressions/decompressions (native tokens supported, SPL framework added)
     process_token_compression(&inputs, &validated_accounts.packed_accounts)?;
     bench_sbf_end!("t_context_and_check_sig");
     bench_sbf_start!("t_sum_check");
