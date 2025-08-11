@@ -9,20 +9,37 @@ Integration tests are placed in the `program-tests/` directory:
 
 ```
 program-tests/
-├── compressed-token-test/    # Integration tests
-│   ├── tests/
-│   │   ├── mint.rs
-│   │   ├── transfer.rs  
-│   │   └── compression.rs
-│   └── Cargo.toml
-└── utils/
-    └── light-test-utils/     # Shared assertion utilities
-        ├── src/
-        │   ├── lib.rs
-        │   ├── assert_mint.rs
-        │   └── assert_transfer.rs
-        └── Cargo.toml
+├── account-compression-test/    # Account compression program integration tests
+├── client-test/                 # Client SDK integration tests
+├── compressed-token-test/       # Compressed token program integration tests
+├── e2e-test/                   # End-to-end integration tests
+├── registry-test/              # Registry program integration tests
+├── sdk-anchor-test/            # SDK anchor integration tests
+├── sdk-pinocchio-test/         # SDK pinocchio integration tests
+├── sdk-test/                   # Core SDK integration tests
+├── sdk-token-test/             # SDK token integration tests
+├── system-cpi-test/            # System CPI integration tests
+├── system-cpi-v2-test/         # System CPI v2 integration tests
+├── system-test/                # System program integration tests
+└── utils/                      # Shared test utilities
+    ├── assert_*.rs             # Assertion helper functions
+    └── test_*.rs               # Test setup and utilities
 ```
+
+### Coverage
+
+**All programs in `programs/**` have corresponding integration test programs:**
+
+- **Account Compression Program** (`programs/account-compression/`) → `program-tests/account-compression-test/`
+- **Compressed Token Program** (`programs/compressed-token/`) → `program-tests/compressed-token-test/` 
+- **Registry Program** (`programs/registry/`) → `program-tests/registry-test/`
+- **System Program** (`programs/system/`) → `program-tests/system-test/`
+
+**SDK libraries also have dedicated integration tests:**
+
+- **Core SDK** (`sdk-libs/sdk/`) → `program-tests/sdk-test/`
+- **Compressed Token SDK** (`sdk-libs/compressed-token-sdk/`) → `program-tests/sdk-token-test/`
+- **Client SDK** (`sdk-libs/client/`) → `program-tests/client-test/`
 
 ### Basic Test Structure
 ```rust
