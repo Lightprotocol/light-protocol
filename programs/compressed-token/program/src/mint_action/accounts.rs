@@ -253,6 +253,7 @@ impl<'info> MintActionAccounts<'info> {
     ) -> &'a [AccountInfo] {
         let start_offset = self.cpi_accounts_start_offset();
         let end_offset = self.cpi_accounts_end_offset(deduplicated);
+        // TODO: validate len.
         &account_infos[start_offset..end_offset]
     }
 }

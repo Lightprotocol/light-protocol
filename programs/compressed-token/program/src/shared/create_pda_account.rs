@@ -4,7 +4,7 @@ use anchor_lang::solana_program::{
 use arrayvec::ArrayVec;
 use pinocchio::{
     account_info::AccountInfo,
-    instruction::{Seed, Signer},
+    instruction::{AccountMeta, Seed, Signer},
 };
 
 /// Configuration for creating a PDA account
@@ -43,12 +43,12 @@ pub fn create_pda_account(
 
     let bump_bytes = [config.bump];
     let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
-    
+
     for &seed in config.seeds {
         seed_vec.push(Seed::from(seed));
     }
     seed_vec.push(Seed::from(bump_bytes.as_ref()));
-    
+
     let signer = Signer::from(seed_vec.as_slice());
     let create_account_ix = system_instruction::create_account(
         &solana_pubkey::Pubkey::new_from_array(*fee_payer.key()),
@@ -61,8 +61,8 @@ pub fn create_pda_account(
     let pinocchio_instruction = pinocchio::instruction::Instruction {
         program_id: &create_account_ix.program_id.to_bytes(),
         accounts: &[
-            pinocchio::instruction::AccountMeta::new(fee_payer.key(), true, true),
-            pinocchio::instruction::AccountMeta::new(new_account.key(), true, true),
+            AccountMeta::new(fee_payer.key(), true, true),
+            AccountMeta::new(new_account.key(), true, true),
             pinocchio::instruction::AccountMeta::readonly(system_program.key()),
         ],
         data: &create_account_ix.data,
@@ -87,20 +87,21 @@ pub fn verify_pda(
 ) -> Result<(), ProgramError> {
     let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
     let bump_bytes = [bump];
-    
+
     let mut seeds_with_bump: ArrayVec<&[u8], 8> = ArrayVec::new();
-    
+
     for &seed in seeds {
         seeds_with_bump.push(seed);
     }
     seeds_with_bump.push(&bump_bytes);
-    
-    let expected_pubkey = solana_pubkey::Pubkey::create_program_address(&seeds_with_bump, &program_id_pubkey)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-    
+
+    let expected_pubkey =
+        solana_pubkey::Pubkey::create_program_address(&seeds_with_bump, &program_id_pubkey)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
     if account_key != &expected_pubkey.to_bytes() {
         return Err(ProgramError::InvalidAccountData);
     }
-    
+
     Ok(())
 }

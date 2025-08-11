@@ -1,4 +1,4 @@
-use anchor_compressed_token::check_cpi_context;
+use anchor_compressed_token::{check_cpi_context, ErrorCode};
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
@@ -105,7 +105,7 @@ pub fn process_transfer2(
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Get CPI accounts slice and tree accounts for light-system-program invocation
         let (cpi_accounts, tree_pubkeys) =
-            validated_accounts.cpi_accounts(accounts, &inputs, &validated_accounts.packed_accounts);
+            validated_accounts.cpi_accounts(accounts, &inputs, &validated_accounts.packed_accounts)?;
         // Debug prints keep for now.
         {
             let _solana_tree_accounts = tree_pubkeys
@@ -129,7 +129,7 @@ pub fn process_transfer2(
         )?;
     } else if let Some(system_accounts) = validated_accounts.write_to_cpi_context_system.as_ref() {
         if transfer_config.sol_pool_required {
-            unimplemented!("")
+            return Err(ErrorCode::Transfer2CpiContextWriteWithSolPool.into());
         }
         // Execute CPI call to light-system-program
         execute_cpi_invoke(

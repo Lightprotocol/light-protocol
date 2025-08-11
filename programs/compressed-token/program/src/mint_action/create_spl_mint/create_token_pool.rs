@@ -1,4 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
+use pinocchio::instruction::AccountMeta;
 
 use crate::constants::POOL_SEED;
 
@@ -8,7 +9,7 @@ pub fn create_token_pool_account_manual(
     program_id: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let token_account_size = 165; // Size of Token account
-    
+
     // Get required accounts
     let mint_account = executing_accounts
         .mint
@@ -68,8 +69,8 @@ pub fn initialize_token_pool_account_for_action(
     let initialize_account_ix = pinocchio::instruction::Instruction {
         program_id: token_program.key(),
         accounts: &[
-            pinocchio::instruction::AccountMeta::new(token_pool_pda.key(), true, false), // writable=true for initialization
-            pinocchio::instruction::AccountMeta::readonly(mint_account.key()),
+            AccountMeta::new(token_pool_pda.key(), true, false), // writable=true for initialization
+            AccountMeta::readonly(mint_account.key()),
         ],
         data: &spl_token_2022::instruction::initialize_account3(
             &solana_pubkey::Pubkey::new_from_array(*token_program.key()),

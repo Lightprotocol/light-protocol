@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
@@ -62,19 +63,19 @@ impl<'info> Transfer2Accounts<'info> {
     /// Calculate static accounts count after skipping index 0 (system accounts only)
     /// Returns the count of fixed accounts based on optional features
     #[inline(always)]
-    pub fn static_accounts_count(&self) -> usize {
-        // TODO: remove unwrap
-        let with_sol_pool = self.system.as_ref().unwrap().sol_pool_pda.is_some();
-        let decompressing_sol = self
+    pub fn static_accounts_count(&self) -> Result<usize, ProgramError> {
+        let system = self
             .system
             .as_ref()
-            .unwrap()
-            .sol_decompression_recipient
-            .is_some();
-        let with_cpi_context = self.system.as_ref().unwrap().cpi_context.is_some();
-        6 + if with_sol_pool { 1 } else { 0 }
+            .ok_or(ErrorCode::Transfer2CpiContextWriteInvalidAccess)?;
+
+        let with_sol_pool = system.sol_pool_pda.is_some();
+        let decompressing_sol = system.sol_decompression_recipient.is_some();
+        let with_cpi_context = system.cpi_context.is_some();
+
+        Ok(6 + if with_sol_pool { 1 } else { 0 }
             + if decompressing_sol { 1 } else { 0 }
-            + if with_cpi_context { 1 } else { 0 }
+            + if with_cpi_context { 1 } else { 0 })
     }
 
     /// Extract CPI accounts slice for light-system-program invocation
@@ -86,18 +87,27 @@ impl<'info> Transfer2Accounts<'info> {
         all_accounts: &'info [AccountInfo],
         inputs: &ZCompressedTokenInstructionDataTransfer2,
         packed_accounts: &'info ProgramPackedAccounts<'info, AccountInfo>,
-    ) -> (&'info [AccountInfo], Vec<&'info Pubkey>) {
+    ) -> Result<(&'info [AccountInfo], Vec<&'info Pubkey>), ProgramError> {
         // Extract tree accounts using highest index approach
-        let (tree_accounts, tree_accounts_count) = extract_tree_accounts(inputs, packed_accounts);
+        let (tree_accounts, tree_accounts_count) = extract_tree_accounts(inputs, packed_accounts)?;
 
         // Calculate static accounts count after skipping index 0 (system accounts only)
-        let static_accounts_count = self.static_accounts_count();
+        let static_accounts_count = self.static_accounts_count()?;
+        // TODO: validate all_accounts len
 
         // Include static CPI accounts + tree accounts based on highest tree index
         let cpi_accounts_end = 1 + static_accounts_count + tree_accounts_count;
+        if all_accounts.len() < cpi_accounts_end {
+            msg!(
+                "Accounts len {} < expected cpi accounts len {}",
+                all_accounts.len(),
+                cpi_accounts_end
+            );
+            return Err(ProgramError::NotEnoughAccountKeys);
+        }
         let cpi_accounts_slice = &all_accounts[1..cpi_accounts_end];
 
-        (cpi_accounts_slice, tree_accounts)
+        Ok((cpi_accounts_slice, tree_accounts))
     }
 }
 
@@ -106,7 +116,7 @@ impl<'info> Transfer2Accounts<'info> {
 pub fn extract_tree_accounts<'info>(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &'info ProgramPackedAccounts<'info, AccountInfo>,
-) -> (Vec<&'info Pubkey>, usize) {
+) -> Result<(Vec<&'info Pubkey>, usize), ProgramError> {
     // Find highest tree index from input and output data to determine tree accounts range
     let mut highest_tree_index = 0u8;
     for input_data in inputs.in_token_data.iter() {
@@ -119,15 +129,14 @@ pub fn extract_tree_accounts<'info>(
     }
 
     // Tree accounts span from index 0 to highest_tree_index in remaining accounts
-    let tree_accounts_count = highest_tree_index as usize + 1;
-    msg!("Tree accounts count: {}", tree_accounts_count);
+    let tree_accounts_count = highest_tree_index + 1;
     // Extract tree account pubkeys from the determined range
-    let mut tree_accounts = Vec::new();
+    // Note: Don't switch to ArrayVec it results in weird memory access with non deterministic values.
+    let mut tree_accounts = Vec::with_capacity(tree_accounts_count.into());
     for i in 0..tree_accounts_count {
-        if let Some(account) = packed_accounts.accounts.get(i) {
-            tree_accounts.push(account.key());
-        }
+        let account_key = packed_accounts.get_u8(i, "tree account")?.key();
+        tree_accounts.push(account_key);
     }
 
-    (tree_accounts, tree_accounts_count)
+    Ok((tree_accounts, tree_accounts_count.into()))
 }
