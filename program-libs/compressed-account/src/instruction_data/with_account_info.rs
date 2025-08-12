@@ -337,7 +337,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     }
 
     fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
-        vec![Some(self.invoking_program_id)]
+        vec![Some(self.invoking_program_id);   self.new_address_params.len() ]
     }
 
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {

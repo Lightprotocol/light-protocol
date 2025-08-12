@@ -1,9 +1,13 @@
 use light_sdk_types::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CpiAccountsSmall as GenericCpiAccountsSmall,
-    REGISTERED_PROGRAM_PDA, SMALL_SYSTEM_ACCOUNTS_LEN, SOL_POOL_PDA,
+    CpiAccountsSmall as GenericCpiAccountsSmall, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+    ACCOUNT_COMPRESSION_PROGRAM_ID, REGISTERED_PROGRAM_PDA, SMALL_SYSTEM_ACCOUNTS_LEN,
+    SOL_POOL_PDA,
 };
 
-use crate::{error::{LightSdkError, Result}, AccountInfo, AccountMeta, Pubkey};
+use crate::{
+    error::{LightSdkError, Result},
+    AccountInfo, AccountMeta, Pubkey,
+};
 
 #[derive(Debug)]
 pub struct CpiInstructionConfigSmall<'a, 'info> {
@@ -17,7 +21,9 @@ pub struct CpiInstructionConfigSmall<'a, 'info> {
 
 pub type CpiAccountsSmall<'c, 'info> = GenericCpiAccountsSmall<'c, AccountInfo<'info>>;
 
-pub fn get_account_metas_from_config_small(config: CpiInstructionConfigSmall<'_, '_>) -> Vec<AccountMeta> {
+pub fn get_account_metas_from_config_small(
+    config: CpiInstructionConfigSmall<'_, '_>,
+) -> Vec<AccountMeta> {
     let mut account_metas = Vec::with_capacity(1 + SMALL_SYSTEM_ACCOUNTS_LEN);
 
     // 1. Fee payer (signer, writable)

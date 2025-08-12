@@ -475,7 +475,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
     }
 
     fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
-        vec![None]
+        vec![None; self.new_address_params.len()]
     }
 
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
@@ -604,7 +604,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
     }
 
     fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
-        vec![None]
+        vec![None; self.new_address_params.len()]
     }
 
     fn output_accounts(&self) -> &[impl OutputAccount<'a>] {

@@ -1,7 +1,8 @@
 use light_account_checks::AccountIterator;
 use light_compressed_account::instruction_data::traits::AccountOptions;
 use pinocchio::account_info::AccountInfo;
-
+use pinocchio::msg;
+use pinocchio::pubkey::Pubkey;
 use crate::{
     accounts::{
         account_checks::{
@@ -75,11 +76,21 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
         };
 
         let cpi_context_account = check_option_cpi_context_account(&mut accounts, account_options)?;
+        // msg!(&format!("!account_options.write_to_cpi_context: {:?}", !account_options.write_to_cpi_context));
         let remaining_accounts = if !account_options.write_to_cpi_context {
             accounts.remaining()?
         } else {
             &[]
         };
+        // msg!(
+        //     &format!(
+        //         "remaining_accounts 0: {:?}",
+        //         remaining_accounts
+        //             .iter()
+        //             .map(|a| Pubkey::try_from(a.key().as_ref()).unwrap())
+        //             .collect::<Vec<_>>()
+        //     )
+        // );        
         Ok((
             Self {
                 fee_payer,

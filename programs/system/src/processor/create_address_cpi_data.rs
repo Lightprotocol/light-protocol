@@ -26,38 +26,38 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
     for (i, new_address_params) in new_address_params.enumerate() {
         let tree_index = new_address_params.address_merkle_tree_account_index() as usize;
 
-        let account_type = match &accounts[tree_index] {
-            AcpAccount::Authority(_) => "Authority",
-            AcpAccount::RegisteredProgramPda(_) => "RegisteredProgramPda",
-            AcpAccount::SystemProgram(_) => "SystemProgram",
-            AcpAccount::OutputQueue(_) => "OutputQueue",
-            AcpAccount::BatchedStateTree(_) => "BatchedStateTree",
-            AcpAccount::BatchedAddressTree(_) => "BatchedAddressTree",
-            AcpAccount::StateTree(_) => "StateTree",
-            AcpAccount::AddressTree(_) => "AddressTree",
-            AcpAccount::AddressQueue(_, _) => "AddressQueue",
-            AcpAccount::V1Queue(_) => "V1Queue",
-            AcpAccount::Unknown() => "Unknown",
-        };
-        msg!(&format!("accounts[{}] type: {}", tree_index, account_type));
-        let pubkey = match &accounts[tree_index] {
-            AcpAccount::AddressTree((pubkey, _)) => pubkey,
-            AcpAccount::BatchedAddressTree(tree) => tree.pubkey(),
-            _ => {
-                msg!(&format!(
-                    "Account at index {:?} is not an address tree",
-                    tree_index
-                ));
+        // let account_type = match &accounts[tree_index] {
+        //     AcpAccount::Authority(_) => "Authority",
+        //     AcpAccount::RegisteredProgramPda(_) => "RegisteredProgramPda",
+        //     AcpAccount::SystemProgram(_) => "SystemProgram",
+        //     AcpAccount::OutputQueue(_) => "OutputQueue",
+        //     AcpAccount::BatchedStateTree(_) => "BatchedStateTree",
+        //     AcpAccount::BatchedAddressTree(_) => "BatchedAddressTree",
+        //     AcpAccount::StateTree(_) => "StateTree",
+        //     AcpAccount::AddressTree(_) => "AddressTree",
+        //     AcpAccount::AddressQueue(_, _) => "AddressQueue",
+        //     AcpAccount::V1Queue(_) => "V1Queue",
+        //     AcpAccount::Unknown() => "Unknown",
+        // };
+        // msg!(&format!("accounts[{}] type: {}", tree_index, account_type));
+        // let pubkey = match &accounts[tree_index] {
+        //     AcpAccount::AddressTree((pubkey, _)) => pubkey,
+        //     AcpAccount::BatchedAddressTree(tree) => tree.pubkey(),
+        //     _ => {
+        //         msg!(&format!(
+        //             "Account at index {:?} is not an address tree",
+        //             tree_index
+        //         ));
 
-                return Err(
-                    SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
-                );
-            }
-        };
-        msg!(&format!(
-            "new_address_params: address_merkle_tree_account_index = {}, pubkey = {:?}",
-            tree_index, pubkey
-        ));
+        //         return Err(
+        //             SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+        //         );
+        //     }
+        // };
+        // msg!(&format!(
+        //     "new_address_params: address_merkle_tree_account_index = {}, pubkey = {:?}",
+        //     tree_index, pubkey
+        // ));
         let (address, rollover_fee) =
             match &accounts[new_address_params.address_merkle_tree_account_index() as usize] {
                 AcpAccount::AddressTree((pubkey, _)) => {
@@ -80,6 +80,7 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     )
                 }
                 AcpAccount::BatchedAddressTree(tree) => {
+                    // msg!("is batched address tree yes");
                     let invoking_program_id_bytes = if let Some(ref bytes) = address_owners[i] {
                         Ok(bytes.to_bytes())
                     } else if let Some(ref bytes) = invoking_program_id_clone {
@@ -88,22 +89,26 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                         Err(SystemProgramError::DeriveAddressError)
                     }?;
 
+                    // msg!("get_index_or_insert");
                     cpi_ix_data.addresses[i].tree_index = context.get_index_or_insert(
                         new_address_params.address_merkle_tree_account_index(),
                         remaining_accounts,
                     );
 
+                    // msg!("set_address_fee");
                     context.set_address_fee(
                         tree.metadata.rollover_metadata.network_fee,
                         new_address_params.address_merkle_tree_account_index(),
                     );
 
+                    // msg!("insert_address_sequence_number");
                     cpi_ix_data.insert_address_sequence_number(
                         &mut seq_index,
                         tree.pubkey(),
                         tree.queue_batches.next_index,
                     );
 
+                    // msg!("derive_address");
                     (
                         derive_address(
                             &new_address_params.seed(),
@@ -114,6 +119,8 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     )
                 }
                 _ => {
+                    // msg!(&format!("Account at index {:?} is not an address tree", tree_index));
+                    msg!("mofo");
                     return Err(ProgramError::from(
                         SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch,
                     ))
@@ -134,6 +141,8 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
         //     context.addresses.push(Some(address));
         // }
         cpi_ix_data.addresses[i].address = address;
+
+        // msg!("setting rollover fee");
 
         context.set_rollover_fee(new_address_params.address_queue_index(), rollover_fee);
     }

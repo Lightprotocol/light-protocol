@@ -11,6 +11,7 @@ use light_sdk_types::{
     constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID},
     cpi_context_write::CpiContextWriteAccounts,
 };
+use solana_msg::msg;
 
 use crate::{
     cpi::{
@@ -37,13 +38,13 @@ pub struct CpiInputs {
 }
 
 /// Builder pattern implementation for CpiInputs.
-/// 
+///
 /// This provides a fluent API for constructing CPI inputs with various configurations.
 /// The most common pattern is to use one of the constructor methods and then chain
 /// builder methods to add additional configuration.
-/// 
+///
 /// # Examples
-/// 
+///
 /// Most common CPI context usage (no proof, assigned addresses):
 /// ```rust
 /// let cpi_inputs = CpiInputs::new_for_cpi_context(
@@ -51,7 +52,7 @@ pub struct CpiInputs {
 ///     vec![pool_new_address_params, observation_new_address_params],
 /// );
 /// ```
-/// 
+///
 /// Basic usage with CPI context and custom proof:
 /// ```rust
 /// let cpi_inputs = CpiInputs::new_with_assigned_address(
@@ -61,7 +62,7 @@ pub struct CpiInputs {
 /// )
 /// .with_first_set_cpi_context();
 /// ```
-/// 
+///
 /// Advanced usage with multiple configurations:
 /// ```rust
 /// let cpi_inputs = CpiInputs::new(proof, account_infos)
@@ -104,12 +105,12 @@ impl CpiInputs {
     }
 
     // TODO: check if always unused!
-    /// Creates CpiInputs for the common CPI context pattern: no proof (None), 
+    /// Creates CpiInputs for the common CPI context pattern: no proof (None),
     /// assigned addresses, and first set CPI context.
-    /// 
+    ///
     /// This is the most common pattern when using CPI context for cross-program
     /// compressed account operations.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let cpi_inputs = CpiInputs::new_for_cpi_context(
@@ -135,7 +136,7 @@ impl CpiInputs {
     }
 
     /// Sets a custom CPI context.
-    /// 
+    ///
     /// # Example
     /// ```
     /// let cpi_inputs = CpiInputs::new_with_assigned_address(proof, infos, addresses)
@@ -153,7 +154,7 @@ impl CpiInputs {
     // TODO: check if always unused!
     /// Sets CPI context to first set context (clears any existing context).
     /// This is the most common pattern for initializing CPI context.
-    /// 
+    ///
     /// # Example
     /// ```
     /// let cpi_inputs = CpiInputs::new_with_assigned_address(proof, infos, addresses)
@@ -170,7 +171,7 @@ impl CpiInputs {
 
     /// Sets CPI context to set context (updates existing context).
     /// Use this when you want to update an existing CPI context.
-    /// 
+    ///
     /// # Example
     /// ```
     /// let cpi_inputs = CpiInputs::new_with_assigned_address(proof, infos, addresses)
@@ -184,7 +185,6 @@ impl CpiInputs {
         });
         self
     }
-
 
     pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts<'_, '_>) -> Result<()> {
         let bump = cpi_accounts.bump();
@@ -201,8 +201,10 @@ impl CpiInputs {
         let account_infos = cpi_accounts.to_account_infos();
         let instruction =
             create_light_system_progam_instruction_invoke_cpi_small(self, cpi_accounts)?;
+        // msg!("instruction.accounts: {:?}", instruction.accounts);
         invoke_light_system_program(account_infos.as_slice(), instruction, bump)
     }
+
     pub fn invoke_light_system_program_cpi_context(
         self,
         cpi_accounts: CpiContextWriteAccounts<AccountInfo>,
@@ -248,6 +250,14 @@ pub fn create_light_system_progam_instruction_invoke_cpi_small(
         &light_compressed_account::discriminators::INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION,
     );
     data.extend(inputs);
+    // msg!(
+    //     "cpi_accounts.tree_accounts sdk: {:?}",
+    //     cpi_accounts
+    //         .tree_accounts()
+    //         .unwrap()
+    //         .into_iter()
+    //         .map(|a| a.key)
+    // );
 
     let account_metas = to_account_metas_small(cpi_accounts)?;
 

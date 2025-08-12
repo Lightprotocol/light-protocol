@@ -185,12 +185,12 @@ where
         compressed_account_infos.push(compressed_account.to_account_info()?);
 
         // Close both PDA accounts
-        solana_account
-            .close(rent_recipient.clone())
-            .map_err(|err| {
-                msg!("Failed to close solana account: {:?}", err);
-                LightSdkError::ConstraintViolation
-            })?;
+        // solana_account
+        //     .close(rent_recipient.clone())
+        //     .map_err(|err| {
+        //         msg!("Failed to close solana account: {:?}", err);
+        //         LightSdkError::ConstraintViolation
+        //     })?;
     }
 
     Ok(compressed_account_infos)
