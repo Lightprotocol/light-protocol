@@ -482,10 +482,7 @@ fn generate_random_invoke_cpi_config(
             .collect(),
         relay_fee: invoke_cpi_ref.relay_fee.is_some(),
         compress_or_decompress_lamports: invoke_cpi_ref.compress_or_decompress_lamports.is_some(),
-        cpi_context: (
-            invoke_cpi_ref.cpi_context.is_some(),
-            (),
-        ),
+        cpi_context: (invoke_cpi_ref.cpi_context.is_some(), ()),
     }
 }
 

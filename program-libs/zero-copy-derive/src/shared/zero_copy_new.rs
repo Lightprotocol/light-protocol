@@ -7,6 +7,13 @@ use crate::shared::{
     z_struct::{analyze_struct_fields, FieldType},
 };
 
+/// Detailed analysis of field complexity for better error messages and optimization
+#[derive(Debug, Clone)]
+pub enum FieldStrategy {
+    FixedSize,
+    DynamicKnownBounds,
+}
+
 /// Generate ZeroCopyNew implementation with new_at method for a struct
 /// Handles both complex configs (with fields) and unit configs (for fixed-size structs)
 pub fn generate_init_mut_impl(
@@ -21,8 +28,19 @@ pub fn generate_init_mut_impl(
     // Use the pre-separated fields from utils::process_fields (consistent with other derives)
     let struct_field_types = analyze_struct_fields(struct_fields)?;
 
-    // Check if this is a unit config (all fields are fixed-size)
-    let is_unit_config = !struct_field_types.iter().any(requires_config);
+    // Analyze field strategies for detailed error messages and optimization
+    let field_strategies: Vec<_> = struct_field_types
+        .iter()
+        .map(analyze_field_strategy)
+        .collect();
+
+    // Note: Error checking for unsupported fields removed since FieldStrategy
+    // was simplified to only include supported variants
+
+    // Determine if unit config based on detailed analysis
+    let is_unit_config = field_strategies
+        .iter()
+        .all(|strategy| matches!(strategy, FieldStrategy::FixedSize));
 
     // Generate field initialization code for struct fields only (meta fields are part of __meta)
     let field_initializations: Result<Vec<proc_macro2::TokenStream>, syn::Error> =
@@ -127,27 +145,24 @@ pub fn generate_init_mut_impl(
     Ok(result)
 }
 
-// Configuration system functions moved from config.rs
-
-/// Determine if this field type requires configuration for initialization
-pub fn requires_config(field_type: &FieldType) -> bool {
+/// Analyze field strategy with simplified categorization
+pub fn analyze_field_strategy(field_type: &FieldType) -> FieldStrategy {
     match field_type {
-        // Vec types always need length configuration
-        FieldType::VecU8(_) | FieldType::VecCopy(_, _) | FieldType::VecDynamicZeroCopy(_, _) => {
-            true
-        }
-        // Option types need Some/None configuration
-        FieldType::Option(_, _) => true,
-        // Fixed-size types don't need configuration
-        FieldType::Array(_, _)
+        // Fixed-size fields that don't require configuration
+        FieldType::Primitive(_, _)
+        | FieldType::Copy(_, _)
         | FieldType::Pubkey(_)
-        | FieldType::Primitive(_, _)
-        | FieldType::Copy(_, _) => false,
-        // DynamicZeroCopy types: Be conservative and assume they need config
-        // This follows zerocopy-derive's pattern of always implementing traits
-        FieldType::DynamicZeroCopy(_, _) => true,
-        // Option integer types need config to determine if they're enabled
-        FieldType::OptionU64(_) | FieldType::OptionU32(_) | FieldType::OptionU16(_) => true,
+        | FieldType::Array(_, _) => FieldStrategy::FixedSize,
+
+        // Dynamic fields that require configuration
+        FieldType::VecU8(_)
+        | FieldType::VecCopy(_, _)
+        | FieldType::VecDynamicZeroCopy(_, _)
+        | FieldType::Option(_, _)
+        | FieldType::OptionU64(_)
+        | FieldType::OptionU32(_)
+        | FieldType::OptionU16(_)
+        | FieldType::DynamicZeroCopy(_, _) => FieldStrategy::DynamicKnownBounds,
     }
 }
 
@@ -204,10 +219,13 @@ pub fn generate_config_struct(
     let config_name = quote::format_ident!("{}Config", struct_name);
 
     // Generate config fields only for fields that require configuration
+    let field_strategies: Vec<_> = field_types.iter().map(analyze_field_strategy).collect();
+
     let config_fields: Result<Vec<TokenStream2>, syn::Error> = field_types
         .iter()
-        .filter(|field_type| requires_config(field_type))
-        .map(|field_type| -> syn::Result<TokenStream2> {
+        .zip(&field_strategies)
+        .filter(|(_, strategy)| !matches!(strategy, FieldStrategy::FixedSize))
+        .map(|(field_type, _)| -> syn::Result<TokenStream2> {
             let field_name = field_type.name();
             let config_type = config_type(field_type)?;
             Ok(quote! {
@@ -231,13 +249,11 @@ pub fn generate_config_struct(
     Ok(result)
 }
 
-/// Generate initialization logic for a field based on its configuration
-pub fn generate_field_initialization(field_type: &FieldType) -> syn::Result<TokenStream2> {
-    generate_field_initialization_for_config(field_type, false)
-}
-
 /// Generate initialization logic for a field, with support for unit configs
-pub fn generate_field_initialization_for_config(field_type: &FieldType, _is_unit_config: bool) -> syn::Result<TokenStream2> {
+pub fn generate_field_initialization_for_config(
+    field_type: &FieldType,
+    _is_unit_config: bool,
+) -> syn::Result<TokenStream2> {
     let result = match field_type {
         FieldType::VecU8(field_name) => {
             quote! {

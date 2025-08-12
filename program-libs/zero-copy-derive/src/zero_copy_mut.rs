@@ -62,14 +62,21 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
 
     // Analyze only struct fields for ZeroCopyNew (meta fields are always fixed-size)
     let struct_field_types = analyze_struct_fields(&struct_fields)?;
-    
+
     // Always generate ZeroCopyNew, but use unit config for fixed-size types
     // This follows zerocopy-derive pattern of always implementing traits
-    let has_dynamic_fields = struct_field_types.iter().any(|ft| {
-        use crate::shared::zero_copy_new::requires_config;
-        requires_config(ft)
+    let field_strategies: Vec<_> = struct_field_types
+        .iter()
+        .map(crate::shared::zero_copy_new::analyze_field_strategy)
+        .collect();
+
+    let has_dynamic_fields = !field_strategies.iter().all(|strategy| {
+        matches!(
+            strategy,
+            crate::shared::zero_copy_new::FieldStrategy::FixedSize
+        )
     });
-    
+
     let (config_struct, init_mut_impl) = if has_dynamic_fields {
         // Generate complex config struct for dynamic fields
         let config = generate_config_struct(name, &struct_field_types)?;
@@ -85,19 +92,37 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
         (unit_config, Some(init_impl))
     };
 
-    // Combine all mutable implementations
+    // Combine all mutable implementations with selective hygiene isolation
+    // Types must be public for trait associated types, but implementations are isolated
     let expanded = quote! {
+        // Public types that need to be accessible from trait implementations
         #config_struct
-
-        #init_mut_impl
-
         #meta_struct_def_mut
-
         #z_struct_def_mut
 
-        #zero_copy_struct_inner_impl_mut
+        // Isolate only the implementations to prevent pollution while keeping types accessible
+        const _: () = {
+            // Import all necessary items within the isolated scope
+            #[allow(unused_imports)]
+            use core::{mem::size_of, ops::Deref};
 
-        #deserialize_impl_mut
+            #[allow(unused_imports)]
+            use light_zero_copy::{
+                errors::ZeroCopyError,
+                slice_mut::ZeroCopySliceMutBorsh,
+            };
+
+            #[allow(unused_imports)]
+            use zerocopy::{
+                little_endian::{U16, U32, U64},
+                FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
+            };
+
+            // Implementations are isolated to prevent helper function pollution
+            #zero_copy_struct_inner_impl_mut
+            #deserialize_impl_mut
+            #init_mut_impl
+        };
     };
 
     Ok(expanded)
