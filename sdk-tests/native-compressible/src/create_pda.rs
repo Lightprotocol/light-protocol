@@ -5,9 +5,10 @@ use light_sdk::{
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    LightDiscriminator, LightHasher,
 };
 use solana_program::account_info::AccountInfo;
+
+use crate::MyPdaAccount;
 
 /// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
 /// CU usage:
@@ -52,7 +53,7 @@ pub fn create_pda<const BATCHED: bool>(
     };
     let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
-    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
+    let mut my_compressed_account = LightAccount::<'_, MyPdaAccount>::new_init(
         &crate::ID,
         Some(address),
         instruction_data.output_merkle_tree_index,
@@ -67,13 +68,6 @@ pub fn create_pda<const BATCHED: bool>(
     );
     cpi_inputs.invoke_light_system_program(cpi_accounts)?;
     Ok(())
-}
-
-#[derive(
-    Clone, Debug, Default, LightHasher, LightDiscriminator, BorshDeserialize, BorshSerialize,
-)]
-pub struct MyCompressedAccount {
-    pub data: [u8; 31],
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]

@@ -78,6 +78,8 @@ impl From<PoseidonSyscallError> for u64 {
 pub struct Poseidon;
 
 impl Hasher for Poseidon {
+    const ID: u8 = 0;
+
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
         Self::hashv(&[val])
     }

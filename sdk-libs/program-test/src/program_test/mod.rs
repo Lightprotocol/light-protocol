@@ -1,3 +1,4 @@
+pub mod compressible_setup;
 pub mod config;
 #[cfg(feature = "devenv")]
 pub mod extensions;
@@ -7,4 +8,5 @@ pub mod test_rpc;
 
 pub use light_program_test::LightProgramTest;
 pub mod indexer;
+pub use compressible_setup::*;
 pub use test_rpc::TestRpc;
