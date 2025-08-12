@@ -459,17 +459,11 @@ pub mod anchor_compressible {
         )?;
         all_compressed_infos.extend(game_compressed_infos);
 
-        let cpi_inputs = CpiInputs {
-            proof: ValidityProof(None),
-            account_infos: Some(all_compressed_infos),
-            new_assigned_addresses: Some(vec![user_new_address_params, game_new_address_params]),
-            cpi_context: Some(CompressedCpiContext {
-                set_context: false,
-                first_set_context: true,
-                cpi_context_account_index: 0, // Unused
-            }),
-            ..Default::default()
-        };
+        let cpi_inputs = CpiInputs::new_first_cpi(
+            all_compressed_infos,
+            vec![user_new_address_params, game_new_address_params],
+        );
+
         msg!("invoke .pda");
 
         let cpi_context_accounts = CpiContextWriteAccounts {

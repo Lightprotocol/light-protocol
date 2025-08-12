@@ -17,7 +17,7 @@ import {
     PackedStateTreeInfo,
 } from '../../state/compressed-account';
 import { featureFlags } from '../../constants';
-import { PackedAccounts } from '../../utils';
+import { PackedAccounts, PackedAccountsSmall } from '../../utils';
 
 /**
  * @internal Finds the index of a PublicKey in an array, or adds it if not
@@ -385,7 +385,7 @@ export type PackedTreeInfos = {
  */
 function packOutputTreeIndex(
     treeInfo: TreeInfo,
-    packedAccounts: PackedAccounts,
+    packedAccounts: PackedAccounts | PackedAccountsSmall,
 ): number {
     switch (treeInfo.treeType) {
         case TreeType.StateV1:
@@ -450,12 +450,12 @@ function convertValidityProofToV2(
  * TypeScript equivalent of the Rust pack_tree_infos method.
  *
  * @param validityProof - The validity proof with context (flat format)
- * @param packedAccounts - The packed accounts manager
+ * @param packedAccounts - The packed accounts manager (supports both PackedAccounts and PackedAccountsSmall)
  * @returns Packed tree infos
  */
 export function packTreeInfos(
     validityProof: ValidityProofWithContext,
-    packedAccounts: PackedAccounts,
+    packedAccounts: PackedAccounts | PackedAccountsSmall,
 ): PackedTreeInfos;
 
 /**
@@ -463,17 +463,17 @@ export function packTreeInfos(
  * a TypeScript equivalent of the Rust pack_tree_infos method.
  *
  * @param validityProof - The validity proof with context (structured format)
- * @param packedAccounts - The packed accounts manager
+ * @param packedAccounts - The packed accounts manager (supports both PackedAccounts and PackedAccountsSmall)
  * @returns Packed tree infos
  */
 export function packTreeInfos(
     validityProof: ValidityProofWithContextV2,
-    packedAccounts: PackedAccounts,
+    packedAccounts: PackedAccounts | PackedAccountsSmall,
 ): PackedTreeInfos;
 
 export function packTreeInfos(
     validityProof: ValidityProofWithContext | ValidityProofWithContextV2,
-    packedAccounts: PackedAccounts,
+    packedAccounts: PackedAccounts | PackedAccountsSmall,
 ): PackedTreeInfos {
     // Convert flat format to structured format if needed
     const structuredProof =
