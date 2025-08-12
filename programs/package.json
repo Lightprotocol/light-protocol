@@ -12,7 +12,7 @@
     "test-compressed-token": "cargo test-sbf -p compressed-token-test",
     "e2e-test": "cargo-test-sbf -p e2e-test",
     "test-registry": "cargo-test-sbf -p registry-test",
-    "sdk-test-program": "cargo test-sbf -p sdk-test",
+    "sdk-test-program": "cargo test-sbf -p native-compressible",
     "test-system": "cargo test-sbf -p system-test",
     "test-system-cpi": "cargo test-sbf -p system-cpi-test",
     "ignored-program-owned-account-test": "cargo-test-sbf -p program-owned-account-test"

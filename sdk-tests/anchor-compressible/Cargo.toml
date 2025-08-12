@@ -1,0 +1,47 @@
+[package]
+name = "anchor-compressible"
+version = "0.1.0"
+description = "Simple Anchor program template with user records"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "anchor_compressible"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = ["idl-build"]
+idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
+test-sbf = []
+
+[dependencies]
+light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor-discriminator-compat"] }
+light-sdk-types = { workspace = true, features = ["v2"] }
+light-hasher = { workspace = true, features = ["solana"] }
+solana-program = { workspace = true }
+light-macros = { workspace = true, features = ["solana"] }
+borsh = { workspace = true }
+light-compressed-account = { workspace = true, features = ["solana"] }
+anchor-lang = { workspace = true, features = ["idl-build"] }
+light-ctoken-types = { workspace = true }
+light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
+light-compressed-token-types = { workspace = true, features = ["anchor"] }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["v2"] }
+light-client = { workspace = true, features = ["v2"] }
+light-compressible-client = { workspace = true, features = ["anchor"] }
+light-test-utils = { workspace = true}
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+solana-logger = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

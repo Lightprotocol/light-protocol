@@ -5,7 +5,7 @@ use light_compressed_account::{
     },
     Pubkey,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
     accounts::remaining_account_checks::AcpAccount, context::SystemContext,
@@ -24,6 +24,40 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
     let invoking_program_id_clone = context.invoking_program_id;
 
     for (i, new_address_params) in new_address_params.enumerate() {
+        let tree_index = new_address_params.address_merkle_tree_account_index() as usize;
+
+        let account_type = match &accounts[tree_index] {
+            AcpAccount::Authority(_) => "Authority",
+            AcpAccount::RegisteredProgramPda(_) => "RegisteredProgramPda",
+            AcpAccount::SystemProgram(_) => "SystemProgram",
+            AcpAccount::OutputQueue(_) => "OutputQueue",
+            AcpAccount::BatchedStateTree(_) => "BatchedStateTree",
+            AcpAccount::BatchedAddressTree(_) => "BatchedAddressTree",
+            AcpAccount::StateTree(_) => "StateTree",
+            AcpAccount::AddressTree(_) => "AddressTree",
+            AcpAccount::AddressQueue(_, _) => "AddressQueue",
+            AcpAccount::V1Queue(_) => "V1Queue",
+            AcpAccount::Unknown() => "Unknown",
+        };
+        msg!(&format!("accounts[{}] type: {}", tree_index, account_type));
+        let pubkey = match &accounts[tree_index] {
+            AcpAccount::AddressTree((pubkey, _)) => pubkey,
+            AcpAccount::BatchedAddressTree(tree) => tree.pubkey(),
+            _ => {
+                msg!(&format!(
+                    "Account at index {:?} is not an address tree",
+                    tree_index
+                ));
+
+                return Err(
+                    SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+                );
+            }
+        };
+        msg!(&format!(
+            "new_address_params: address_merkle_tree_account_index = {}, pubkey = {:?}",
+            tree_index, pubkey
+        ));
         let (address, rollover_fee) =
             match &accounts[new_address_params.address_merkle_tree_account_index() as usize] {
                 AcpAccount::AddressTree((pubkey, _)) => {

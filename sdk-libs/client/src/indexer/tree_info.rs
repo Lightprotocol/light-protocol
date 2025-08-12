@@ -292,6 +292,30 @@ lazy_static! {
             },
         );
 
+        // v2 queue 2
+        m.insert(
+            "12wJT3xYd46rtjeqDU6CrtT8unqLjPiheggzqhN9YsyB".to_string(),
+            TreeInfo {
+                tree: pubkey!("2Yb3fGo2E9aWLjY8KuESaqurYpGGhEeJr7eynKrSgXwS"),
+                queue: pubkey!("12wJT3xYd46rtjeqDU6CrtT8unqLjPiheggzqhN9YsyB"),
+                cpi_context: None,
+                tree_type: TreeType::StateV2,
+                next_tree_info: None,
+            },
+        );
+
+        // v2 tree 2
+        m.insert(
+            "2Yb3fGo2E9aWLjY8KuESaqurYpGGhEeJr7eynKrSgXwS".to_string(),
+            TreeInfo {
+                tree: pubkey!("2Yb3fGo2E9aWLjY8KuESaqurYpGGhEeJr7eynKrSgXwS"),
+                queue: pubkey!("12wJT3xYd46rtjeqDU6CrtT8unqLjPiheggzqhN9YsyB"),
+                cpi_context: None,
+                tree_type: TreeType::StateV2,
+                next_tree_info: None,
+            },
+        );
+
         m
     };
 }

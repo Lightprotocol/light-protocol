@@ -16,7 +16,7 @@ mod process_decompress_tokens;
 mod process_four_invokes;
 pub mod process_four_transfer2;
 mod process_transfer_tokens;
-mod process_update_deposit;
+pub mod process_update_deposit;
 
 use light_sdk::{cpi::CpiAccounts, instruction::account_meta::CompressedAccountMeta};
 pub use pda_ctoken::*;

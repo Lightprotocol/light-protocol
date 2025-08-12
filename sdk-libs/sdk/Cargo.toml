@@ -18,6 +18,7 @@ anchor = [
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
 ]
+anchor-discriminator-compat = ["light-sdk-macros/anchor-discriminator-compat"]
 v2 = ["light-sdk-types/v2"]
 
 
@@ -28,6 +29,13 @@ solana-msg = { workspace = true }
 solana-cpi = { workspace = true }
 solana-program-error = { workspace = true }
 solana-instruction = { workspace = true }
+solana-system-interface = { workspace = true }
+solana-clock = { workspace = true }
+solana-sysvar = { workspace = true }
+solana-rent = { workspace = true }
+# TODO: find a way to not depend on solana-program
+solana-program = { workspace = true }
+bincode = { workspace = true }
 
 anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }
@@ -35,6 +43,7 @@ num-bigint = { workspace = true }
 # only needed with solana-program
 borsh = { workspace = true, optional = true }
 thiserror = { workspace = true }
+arrayvec = { workspace = true }
 
 light-sdk-macros = { workspace = true }
 light-sdk-types = { workspace = true }

@@ -102,6 +102,17 @@ pub fn process<
 
     let cpi_outputs_data_len =
         inputs.get_cpi_context_outputs_end_offset() - inputs.get_cpi_context_outputs_start_offset();
+    msg!(&format!("cpi_outputs_data_len {:?}", cpi_outputs_data_len));
+    msg!(&format!(
+        "cpi_context_inputs_len {:?}",
+        cpi_context_inputs_len
+    ));
+    msg!(&format!("num_new_addresses {:?}", num_new_addresses));
+    msg!(&format!("num_input_accounts {:?}", num_input_accounts));
+    msg!(&format!(
+        "num_output_compressed_accounts {:?}",
+        num_output_compressed_accounts
+    ));
     // 1. Allocate cpi data and initialize context
     let (mut context, mut cpi_ix_bytes) = create_cpi_data_and_context(
         ctx,

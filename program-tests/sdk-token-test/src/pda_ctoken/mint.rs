@@ -82,13 +82,13 @@ pub fn process_mint_action<'c, 'info>(
     account_infos.push(ctx.accounts.payer.to_account_info());
     account_infos.push(ctx.accounts.token_account.to_account_info());
     msg!("mint_action_instruction {:?}", mint_action_instruction);
-    msg!(
-        "account infos pubkeys {:?}",
-        account_infos
-            .iter()
-            .map(|info| info.key)
-            .collect::<Vec<_>>()
-    );
+    // msg!(
+    //     "account infos pubkeys {:?}",
+    //     account_infos
+    //         .iter()
+    //         .map(|info| info.key)
+    //         .collect::<Vec<_>>()
+    // );
     // Invoke the mint action instruction directly
     invoke(&mint_action_instruction, &account_infos)?;
 
