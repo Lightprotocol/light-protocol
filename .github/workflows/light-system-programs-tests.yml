@@ -75,7 +75,7 @@ jobs:
             sub-tests: '["cargo-test-sbf -p e2e-test"]'
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
