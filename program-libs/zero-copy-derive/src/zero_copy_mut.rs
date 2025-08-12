@@ -60,19 +60,30 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
     // Use the same field processing logic as other derive macros for consistency
     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
-    // Process ALL fields uniformly by type (no position dependency for config generation)
-    let all_fields: Vec<&syn::Field> = meta_fields
-        .iter()
-        .chain(struct_fields.iter())
-        .cloned()
-        .collect();
-    let all_field_types = analyze_struct_fields(&all_fields)?;
-
-    // Generate configuration struct based on all fields that need config (type-based)
-    let config_struct = generate_config_struct(name, &all_field_types)?;
-
-    // Generate ZeroCopyNew implementation using the existing field separation
-    let init_mut_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields)?;
+    // Analyze only struct fields for ZeroCopyNew (meta fields are always fixed-size)
+    let struct_field_types = analyze_struct_fields(&struct_fields)?;
+    
+    // Always generate ZeroCopyNew, but use unit config for fixed-size types
+    // This follows zerocopy-derive pattern of always implementing traits
+    let has_dynamic_fields = struct_field_types.iter().any(|ft| {
+        use crate::shared::zero_copy_new::requires_config;
+        requires_config(ft)
+    });
+    
+    let (config_struct, init_mut_impl) = if has_dynamic_fields {
+        // Generate complex config struct for dynamic fields
+        let config = generate_config_struct(name, &struct_field_types)?;
+        let init_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields)?;
+        (config, Some(init_impl))
+    } else {
+        // Generate unit type alias for fixed-size fields
+        let config_name = quote::format_ident!("{}Config", name);
+        let unit_config = Some(quote! {
+            pub type #config_name = ();
+        });
+        let init_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields)?;
+        (unit_config, Some(init_impl))
+    };
 
     // Combine all mutable implementations
     let expanded = quote! {

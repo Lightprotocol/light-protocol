@@ -8,6 +8,7 @@ use crate::shared::{
 };
 
 /// Generate ZeroCopyNew implementation with new_at method for a struct
+/// Handles both complex configs (with fields) and unit configs (for fixed-size structs)
 pub fn generate_init_mut_impl(
     struct_name: &syn::Ident,
     meta_fields: &[&syn::Field],
@@ -20,11 +21,14 @@ pub fn generate_init_mut_impl(
     // Use the pre-separated fields from utils::process_fields (consistent with other derives)
     let struct_field_types = analyze_struct_fields(struct_fields)?;
 
+    // Check if this is a unit config (all fields are fixed-size)
+    let is_unit_config = !struct_field_types.iter().any(requires_config);
+
     // Generate field initialization code for struct fields only (meta fields are part of __meta)
     let field_initializations: Result<Vec<proc_macro2::TokenStream>, syn::Error> =
         struct_field_types
             .iter()
-            .map(|field_type| generate_field_initialization(field_type))
+            .map(|field_type| generate_field_initialization_for_config(field_type, is_unit_config))
             .collect();
     let field_initializations = field_initializations?;
 
@@ -139,8 +143,9 @@ pub fn requires_config(field_type: &FieldType) -> bool {
         | FieldType::Pubkey(_)
         | FieldType::Primitive(_, _)
         | FieldType::Copy(_, _) => false,
-        // DynamicZeroCopy types might need configuration if they contain Vec/Option
-        FieldType::DynamicZeroCopy(_, _) => true, // Conservative: assume they need config
+        // DynamicZeroCopy types: Be conservative and assume they need config
+        // This follows zerocopy-derive's pattern of always implementing traits
+        FieldType::DynamicZeroCopy(_, _) => true,
         // Option integer types need config to determine if they're enabled
         FieldType::OptionU64(_) | FieldType::OptionU32(_) | FieldType::OptionU16(_) => true,
     }
@@ -191,10 +196,11 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
 }
 
 /// Generate a configuration struct for a given struct
+/// Returns None if no configuration is needed (no dynamic fields)
 pub fn generate_config_struct(
     struct_name: &Ident,
     field_types: &[FieldType],
-) -> syn::Result<TokenStream2> {
+) -> syn::Result<Option<TokenStream2>> {
     let config_name = quote::format_ident!("{}Config", struct_name);
 
     // Generate config fields only for fields that require configuration
@@ -212,24 +218,26 @@ pub fn generate_config_struct(
     let config_fields = config_fields?;
 
     let result = if config_fields.is_empty() {
-        // If no fields require configuration, create an empty config struct
-        quote! {
-            #[derive(Debug, Clone, PartialEq)]
-            pub struct #config_name;
-        }
+        // If no fields require configuration, don't generate any config struct
+        None
     } else {
-        quote! {
+        Some(quote! {
             #[derive(Debug, Clone, PartialEq)]
             pub struct #config_name {
                 #(#config_fields)*
             }
-        }
+        })
     };
     Ok(result)
 }
 
 /// Generate initialization logic for a field based on its configuration
 pub fn generate_field_initialization(field_type: &FieldType) -> syn::Result<TokenStream2> {
+    generate_field_initialization_for_config(field_type, false)
+}
+
+/// Generate initialization logic for a field, with support for unit configs
+pub fn generate_field_initialization_for_config(field_type: &FieldType, _is_unit_config: bool) -> syn::Result<TokenStream2> {
     let result = match field_type {
         FieldType::VecU8(field_name) => {
             quote! {

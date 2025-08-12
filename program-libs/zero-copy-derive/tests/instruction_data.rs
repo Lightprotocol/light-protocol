@@ -121,7 +121,7 @@ pub struct InstructionDataInvoke {
 //                     address: (compressed_account_config.address_enabled, ()),
 //                     data: (compressed_account_config.data_enabled, CompressedAccountDataConfig { data: compressed_account_config.data_capacity }),
 //                 },
-//                 merkle_context: PackedMerkleContextConfig {},
+//
 //             })
 //             .collect();
 //         let (input_compressed_accounts_with_merkle_context, bytes) = <Vec<PackedCompressedAccountWithMerkleContext> as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(
@@ -879,7 +879,7 @@ fn test_instruction_data_invoke_new_at() {
     };
 
     let config = InstructionDataInvokeConfig {
-        proof: (true, CompressedProofConfig {}), // Enable proof
+        proof: (true, ()), // Enable proof
         input_compressed_accounts_with_merkle_context: vec![
             PackedCompressedAccountWithMerkleContextConfig {
                 compressed_account: CompressedAccountConfig {
@@ -891,7 +891,7 @@ fn test_instruction_data_invoke_new_at() {
                         },
                     ),
                 },
-                merkle_context: PackedMerkleContextConfig {},
+                merkle_context: (), // Unit config for fixed-size struct
             },
             PackedCompressedAccountWithMerkleContextConfig {
                 compressed_account: CompressedAccountConfig {
@@ -903,7 +903,7 @@ fn test_instruction_data_invoke_new_at() {
                         },
                     ),
                 },
-                merkle_context: PackedMerkleContextConfig {},
+                merkle_context: (), // Unit config for fixed-size struct
             },
         ],
         output_compressed_accounts: vec![
@@ -930,11 +930,8 @@ fn test_instruction_data_invoke_new_at() {
                 },
             },
         ],
-        relay_fee: true, // Enable relay fee
-        new_address_params: vec![
-            NewAddressParamsPackedConfig {},
-            NewAddressParamsPackedConfig {},
-        ], // Length 2
+        relay_fee: true,                       // Enable relay fee
+        new_address_params: vec![(), ()],      // Length 2, unit configs
         compress_or_decompress_lamports: true, // Enable decompress lamports
     };
 
