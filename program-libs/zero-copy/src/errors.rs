@@ -19,6 +19,7 @@ pub enum ZeroCopyError {
     CurrentIndexGreaterThanLength,
     InvalidEnumValue,
     InsufficientCapacity,
+    PlatformSizeOverflow,
 }
 
 impl fmt::Display for ZeroCopyError {
@@ -59,6 +60,7 @@ impl fmt::Display for ZeroCopyError {
             }
             ZeroCopyError::InvalidEnumValue => write!(f, "Invalid enum value"),
             ZeroCopyError::InsufficientCapacity => write!(f, "Insufficient capacity for operation"),
+            ZeroCopyError::PlatformSizeOverflow => write!(f, "Value too large for platform usize"),
         }
     }
 }
@@ -84,6 +86,7 @@ impl From<ZeroCopyError> for u32 {
             ZeroCopyError::CurrentIndexGreaterThanLength => 15014,
             ZeroCopyError::InvalidEnumValue => 15015,
             ZeroCopyError::InsufficientCapacity => 15016,
+            ZeroCopyError::PlatformSizeOverflow => 15017,
         }
     }
 }

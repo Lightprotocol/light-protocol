@@ -32,6 +32,16 @@ pub fn add_padding<LEN, T>(offset: &mut usize) {
     let padding = align_of::<T>().saturating_sub(size_of::<LEN>());
     *offset += padding;
 }
+
+/// Safely converts u32 to usize with platform overflow detection.
+#[inline]
+pub fn u32_to_usize(value: u32) -> Result<usize, errors::ZeroCopyError> {
+    let result = value as usize;
+    if result as u32 != value {
+        return Err(errors::ZeroCopyError::PlatformSizeOverflow);
+    }
+    Ok(result)
+}
 pub trait ZeroCopyTraits: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
 
 impl<T> ZeroCopyTraits for T where T: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}

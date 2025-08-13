@@ -1,14 +1,55 @@
-//! Procedural macros for zero-copy deserialization.
+//! Procedural macros for borsh compatible zero copy serialization.
 //!
-//! This crate provides derive macros that generate efficient zero-copy data structures
-//! and deserialization code, eliminating the need for data copying during parsing.
+//!
 //!
 //! ## Main Macros
 //!
-//! - `ZeroCopy`: Generates zero-copy structs and deserialization traits
-//! - `ZeroCopyMut`: Adds mutable zero-copy support
-//! - `ZeroCopyEq`: Adds PartialEq implementation for comparing with original structs
-//! - `ZeroCopyNew`: Generates configuration structs for initialization
+//! - `ZeroCopy`: Derives ZeroCopyAt
+//! - `ZeroCopyMut`: Derives ZeroCopyAtMut, ZeroCopyNew
+//! - `ZeroCopyEq`: Derives PartialEq for <StructName>::ZeroCopy == StructName
+//!
+//!
+//! ## Macro Rules
+//! 1. Create zero copy structs Z<StructName> for the struct
+//!    1.1. The first consecutive fixed-size fields are extracted into a meta struct Z<StructName>Meta
+//!    1.2. Meta extraction stops at first Vec, Option, or non-Copy type
+//!    1.3. Primitive types are converted to little-endian equivalents (u16→U16, u32→U32, u64→U64, bool→u8)
+//!    1.4. Fields after meta are included directly in the Z-struct and deserialized sequentially
+//!    1.5. Vec<u8> uses optimized slice operations, other Vec<T> types use ZeroCopySlice
+//!    1.6. Option<u64/u32/u16> are optimized, other Option<T> delegate to T's ZeroCopyAt
+//!    1.7. Non-Copy types must implement ZeroCopyAt trait
+//!    Examples:
+//!     ```rust
+//!     use light_zero_copy::slice::ZeroCopySliceBorsh;
+//!     use light_zero_copy::slice_mut::ZeroCopySliceMutBorsh;
+//!
+//!    pub struct Struct1 {
+//!        a: Vec<u8>,
+//!    }
+//!
+//!    pub struct ZStruct1<'a> {
+//!        a: &'a [u8]
+//!    }
+//!    pub struct ZStruct1Mut<'a> {
+//!         a: &'a mut [u8]
+//!    }
+//!
+//!     pub struct Struct2 {
+//!        a: Vec<u64>,
+//!    }
+//!
+//!     pub struct ZStruct2<'a> {
+//!         a: ZeroCopySliceBorsh<'a, u64>,
+//!     }
+//!     pub struct ZStruct2Mut<'a> {
+//!         a: ZeroCopySliceMutBorsh<'a, u64>,
+//!     }
+//!     ```
+//! 2. Implement ZeroCopyAt trait which returns Z<StructName>
+//! 3. ZeroCopyMut (separate derive) adds:
+//!    3.1. Mutable variants with 'Mut' suffix (Z<StructName>Mut, Z<StructName>MetaMut)
+//!    3.2. ZeroCopyAtMut trait implementation
+//!    3.3. ZeroCopyNew trait with configuration struct for dynamic field initialization
 
 use proc_macro::TokenStream;
 
@@ -43,33 +84,6 @@ mod tests;
 /// }
 /// ```
 ///
-/// To derive LightHasher for the generated ZStruct, use the #[light_hasher] attribute:
-/// ```ignore
-/// use light_zero_copy_derive::ZeroCopy;
-/// #[derive(ZeroCopy)]
-/// #[light_hasher]  // Currently disabled due to Vec<u8>/&[u8] hash inconsistency
-/// pub struct MyStruct {
-///     pub a: u8,
-/// }
-/// ```
-///
-/// Note: #[light_hasher] is currently disabled due to hash inconsistency between
-/// Vec<u8> fields in the original struct and &[u8] slice fields in the generated ZStruct.
-///
-/// # Macro Rules
-/// 1. Create zero copy structs Z<StructName> and Z<StructName>Mut for the struct
-///    1.1. The first fields are extracted into a meta struct until we reach a Vec, Option or type that does not implement Copy
-///    1.2. Represent vectors to ZeroCopySlice & don't include these into the meta struct
-///    1.3. Replace u16 with U16, u32 with U32, etc
-///    1.4. Every field after the first vector is directly included in the ZStruct and deserialized 1 by 1
-///    1.5. If a vector contains a nested vector (does not implement Copy) it must implement Deserialize
-///    1.6. Elements in an Option must implement Deserialize
-///    1.7. A type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
-///    1.8. is u8 deserialized as u8::zero_copy_at instead of Ref<&'a [u8], u8> for non  mut, for mut it is Ref<&'a mut [u8], u8>
-/// 2. Implement Deserialize and ZeroCopyAtMut which return Z<StructName> and Z<StructName>Mut
-/// 3. Implement From<Z<StructName>> for StructName and From<Z<StructName>Mut> for StructName
-///
-/// Note: Options are not supported in ZeroCopyEq
 #[proc_macro_derive(ZeroCopy, attributes(light_hasher, hash, skip))]
 pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
     let res = zero_copy::derive_zero_copy_impl(input);
@@ -90,6 +104,7 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
 ///       pub a: u8,
 /// }
 /// ```
+/// Note: Options are not supported in ZeroCopyEq
 #[proc_macro_derive(ZeroCopyEq)]
 pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
     let res = zero_copy_eq::derive_zero_copy_eq_impl(input);
@@ -103,9 +118,10 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 ///
 /// This macro generates mutable zero-copy implementations including:
 /// - ZeroCopyAtMut trait implementation
-/// - Mutable Z-struct with `Mut` suffix
-/// - byte_len() method implementation
-/// - Mutable ZeroCopyStructInner implementation
+/// - Mutable Z-struct with `Mut` suffix (Z<StructName>Mut)
+/// - Mutable meta struct if there are fixed-size fields (Z<StructName>MetaMut)
+/// - ZeroCopyNew trait implementation with configuration support
+/// - Configuration struct for dynamic fields or unit type for fixed-size structs
 ///
 /// # Usage
 ///
@@ -120,9 +136,21 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// This will generate:
-/// - `MyStruct::zero_copy_at_mut()` method
 /// - `ZMyStructMut<'a>` type for mutable zero-copy access
-/// - `MyStruct::byte_len()` method
+/// - `MyStructConfig` struct with `vec: u32` field for Vec length
+/// - `ZeroCopyAtMut` trait implementation for deserialization
+/// - `ZeroCopyNew` trait implementation for initialization with config
+///
+/// For fixed-size structs, generates unit config:
+/// ```rust
+/// use light_zero_copy_derive::ZeroCopyMut;
+/// #[derive(ZeroCopyMut)]
+/// pub struct FixedStruct {
+///     pub a: u8,
+///     pub b: u16,
+/// }
+/// // Generates: pub type FixedStructConfig = ();
+/// ```
 ///
 /// For both immutable and mutable functionality, use both derives:
 /// ```rust
@@ -142,41 +170,3 @@ pub fn derive_zero_copy_mut(input: TokenStream) -> TokenStream {
         Err(err) => err.to_compile_error(),
     })
 }
-
-// /// ZeroCopyNew derivation macro for configuration-based zero-copy initialization
-// ///
-// /// This macro generates configuration structs and initialization methods for structs
-// /// with Vec and Option fields that need to be initialized with specific configurations.
-// ///
-// /// # Usage
-// ///
-// /// ```ignore
-// /// use light_zero_copy_derive::ZeroCopyNew;
-// ///
-// /// #[derive(ZeroCopyNew)]
-// /// pub struct MyStruct {
-// ///     pub a: u8,
-// ///     pub vec: Vec<u8>,
-// ///     pub option: Option<u64>,
-// /// }
-// /// ```
-// ///
-// /// This will generate:
-// /// - `MyStructConfig` struct with configuration fields
-// /// - `ZeroCopyNew` implementation for `MyStruct`
-// /// - `new_zero_copy(bytes, config)` method for initialization
-// ///
-// /// The configuration struct will have fields based on the complexity of the original fields:
-// /// - `Vec<Primitive>` → `field_name: u32` (length)
-// /// - `Option<Primitive>` → `field_name: bool` (is_some)
-// /// - `Vec<Complex>` → `field_name: Vec<ComplexConfig>` (config per element)
-// /// - `Option<Complex>` → `field_name: Option<ComplexConfig>` (config if some)
-// #[cfg(feature = "mut")]
-// #[proc_macro_derive(ZeroCopyNew)]
-// pub fn derive_zero_copy_config(input: TokenStream) -> TokenStream {
-//     let res = zero_copy_new::derive_zero_copy_config_impl(input);
-//     TokenStream::from(match res {
-//         Ok(res) => res,
-//         Err(err) => err.to_compile_error(),
-//     })
-// }

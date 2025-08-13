@@ -259,7 +259,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     let field_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: light_zero_copy::Ref<#mutability , #field_type>
+                        pub #field_name: ::light_zero_copy::Ref<#mutability , #field_type>
                     }
                 }
                 FieldType::Option(field_name, field_type) => {
@@ -273,21 +273,21 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u64));
                     quote! {
                         #(#attributes)*
-                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
                     }
                 }
                 FieldType::OptionU32(field_name) => {
                     let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u32));
                     quote! {
                         #(#attributes)*
-                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
                     }
                 }
                 FieldType::OptionU16(field_name) => {
                     let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
                     quote! {
                         #(#attributes)*
-                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
                     }
                 }
                 FieldType::Pubkey(field_name) => {
@@ -306,7 +306,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     let zerocopy_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: light_zero_copy::Ref<#mutability , #zerocopy_type>
+                        pub #field_name: ::light_zero_copy::Ref<#mutability , #zerocopy_type>
                     }
                 }
                 FieldType::DynamicZeroCopy(field_name, field_type) => {
@@ -404,11 +404,11 @@ pub fn generate_z_struct<const MUT: bool>(
             #[derive(Debug #partial_eq_derive #derive_clone #derive_hasher)]
             pub struct #z_struct_name<'a> {
                 #hasher_flatten
-                __meta: light_zero_copy::Ref<#mutability, #z_struct_meta_name>,
+                __meta: ::light_zero_copy::Ref<#mutability, #z_struct_meta_name>,
                 #(#struct_fields_with_zerocopy_types,)*
             }
-            impl<'a> core::ops::Deref for #z_struct_name<'a> {
-                type Target =  light_zero_copy::Ref<#mutability  , #z_struct_meta_name>;
+            impl<'a> ::core::ops::Deref for #z_struct_name<'a> {
+                type Target =  ::light_zero_copy::Ref<#mutability  , #z_struct_meta_name>;
 
                 fn deref(&self) -> &Self::Target {
                     &self.__meta
@@ -418,7 +418,7 @@ pub fn generate_z_struct<const MUT: bool>(
 
         if MUT {
             tokens.append_all(quote! {
-                impl<'a> core::ops::DerefMut for #z_struct_name<'a> {
+                impl<'a> ::core::ops::DerefMut for #z_struct_name<'a> {
                     fn deref_mut(&mut self) ->  &mut Self::Target {
                         &mut self.__meta
                     }
@@ -428,24 +428,25 @@ pub fn generate_z_struct<const MUT: bool>(
         tokens
     };
 
-    if !meta_fields.is_empty() {
+    // Only generate impl block if there are boolean fields that need accessors
+    let has_bool_in_meta = meta_fields.iter().any(|f| utils::is_bool_type(&f.ty));
+    if has_bool_in_meta {
         let meta_bool_accessor_methods = generate_bool_accessor_methods::<false>(meta_fields);
         z_struct.append_all(quote! {
-            // Implement methods for ZStruct
             impl<'a> #z_struct_name<'a> {
                 #(#meta_bool_accessor_methods)*
             }
         })
-    };
+    }
 
-    if !struct_fields.is_empty() {
+    // Only generate impl block if there are boolean fields that need accessors
+    let has_bool_in_struct = struct_fields.iter().any(|f| utils::is_bool_type(&f.ty));
+    if has_bool_in_struct {
         let bool_accessor_methods = generate_bool_accessor_methods::<MUT>(struct_fields);
         z_struct.append_all(quote! {
-            // Implement methods for ZStruct
             impl<'a> #z_struct_name<'a> {
                 #(#bool_accessor_methods)*
             }
-
         });
     }
     Ok(z_struct)

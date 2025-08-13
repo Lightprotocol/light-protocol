@@ -118,7 +118,7 @@ impl<'a, T: ZeroCopyAt<'a>> ZeroCopyAt<'a> for Vec<T> {
     #[inline]
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
-        let num_slices = u32::from(*num_slices) as usize;
+        let num_slices = crate::u32_to_usize(u32::from(*num_slices))?;
         // Prevent heap exhaustion attacks by checking if num_slices is reasonable
         // Each element needs at least 1 byte when serialized
         if bytes.len() < num_slices {
@@ -179,7 +179,7 @@ impl<const N: usize> ZeroCopyStructInner for [u8; N] {
 
 pub fn borsh_vec_u8_as_slice(bytes: &[u8]) -> Result<(&[u8], &[u8]), ZeroCopyError> {
     let (num_slices, bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
-    let num_slices = u32::from(*num_slices) as usize;
+    let num_slices = crate::u32_to_usize(u32::from(*num_slices))?;
     if num_slices > bytes.len() {
         return Err(ZeroCopyError::ArraySize(num_slices, bytes.len()));
     }

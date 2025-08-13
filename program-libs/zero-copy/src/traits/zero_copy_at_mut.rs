@@ -96,7 +96,7 @@ impl<'a, T: ZeroCopyAtMut<'a>> ZeroCopyAtMut<'a> for Vec<T> {
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
         let (num_slices, mut bytes) = Ref::<&mut [u8], U32>::from_prefix(bytes)?;
-        let num_slices = u32::from(*num_slices) as usize;
+        let num_slices = crate::u32_to_usize(u32::from(*num_slices))?;
         // Prevent heap exhaustion attacks by checking if num_slices is reasonable
         // Each element needs at least 1 byte when serialized
         if bytes.len() < num_slices {
@@ -149,7 +149,7 @@ pub fn borsh_vec_u8_as_slice_mut(
     bytes: &mut [u8],
 ) -> Result<(&mut [u8], &mut [u8]), ZeroCopyError> {
     let (num_slices, bytes) = Ref::<&mut [u8], U32>::from_prefix(bytes)?;
-    let num_slices = u32::from(*num_slices) as usize;
+    let num_slices = crate::u32_to_usize(u32::from(*num_slices))?;
     if num_slices > bytes.len() {
         return Err(ZeroCopyError::ArraySize(num_slices, bytes.len()));
     }
@@ -401,7 +401,8 @@ pub mod test {
                 len.try_into()
                     .map_err(|_| ZeroCopyError::ArraySize(4, len.len()))?,
             );
-            let (vec, bytes) = bytes.split_at_mut(u32::from(len) as usize);
+            let vec_len = crate::u32_to_usize(u32::from(len))?;
+            let (vec, bytes) = bytes.split_at_mut(vec_len);
             Ok((ZStruct2 { meta, vec }, bytes))
         }
     }

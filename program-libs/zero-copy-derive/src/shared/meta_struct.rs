@@ -48,7 +48,7 @@ pub fn generate_meta_struct<const MUT: bool>(
     // Return the complete meta struct definition
     let result = quote! {
         #[repr(C)]
-        #[derive(Debug, PartialEq, light_zero_copy::KnownLayout, light_zero_copy::Immutable, light_zero_copy::Unaligned, light_zero_copy::FromBytes, light_zero_copy::IntoBytes #hasher)]
+        #[derive(Debug, PartialEq, ::light_zero_copy::KnownLayout, ::light_zero_copy::Immutable, ::light_zero_copy::Unaligned, ::light_zero_copy::FromBytes, ::light_zero_copy::IntoBytes #hasher)]
         pub struct #z_struct_meta_name {
             #(#meta_fields_with_converted_types,)*
         }

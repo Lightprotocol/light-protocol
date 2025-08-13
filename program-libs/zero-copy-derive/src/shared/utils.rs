@@ -225,9 +225,9 @@ pub fn convert_to_zerocopy_type(ty: &Type) -> TokenStream {
 
                 // Handle primitive types first
                 match ident.to_string().as_str() {
-                    "u16" => quote! { light_zero_copy::little_endian::U16 },
-                    "u32" => quote! { light_zero_copy::little_endian::U32 },
-                    "u64" => quote! { light_zero_copy::little_endian::U64 },
+                    "u16" => quote! { ::light_zero_copy::little_endian::U16 },
+                    "u32" => quote! { ::light_zero_copy::little_endian::U32 },
+                    "u64" => quote! { ::light_zero_copy::little_endian::U64 },
                     "bool" => quote! { u8 },
                     _ => {
                         // Handle container types recursively

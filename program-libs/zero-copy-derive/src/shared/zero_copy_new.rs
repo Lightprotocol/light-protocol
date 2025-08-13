@@ -100,18 +100,18 @@ pub fn generate_init_mut_impl(
     // Calculate meta size if there are meta fields
     let meta_size_calculation = if has_meta_fields {
         quote! {
-            core::mem::size_of::<#z_meta_name>()
+            ::core::mem::size_of::<#z_meta_name>()
         }
     } else {
         quote! { 0 }
     };
 
     let result = quote! {
-        impl<'a> light_zero_copy::traits::ZeroCopyNew<'a> for #struct_name {
+        impl<'a> ::light_zero_copy::traits::ZeroCopyNew<'a> for #struct_name {
             type ZeroCopyConfig = #config_name;
-            type Output = <Self as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
+            type Output = <Self as ::light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
 
-            fn byte_len(config: &Self::ZeroCopyConfig) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
+            fn byte_len(config: &Self::ZeroCopyConfig) -> Result<usize, ::light_zero_copy::errors::ZeroCopyError> {
                 let mut total: usize = #meta_size_calculation;
                 #(
                     let field_len = match #byte_len_calculations {
@@ -120,7 +120,7 @@ pub fn generate_init_mut_impl(
                     };
                     total = match total.checked_add(field_len) {
                         Some(new_total) => new_total,
-                        None => return Err(light_zero_copy::errors::ZeroCopyError::Size),
+                        None => return Err(::light_zero_copy::errors::ZeroCopyError::Size),
                     };
                 )*
                 Ok(total)
@@ -129,8 +129,8 @@ pub fn generate_init_mut_impl(
             fn new_zero_copy(
                 bytes: &'a mut [u8],
                 config: Self::ZeroCopyConfig,
-            ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-                use zerocopy::Ref;
+            ) -> Result<(Self::Output, &'a mut [u8]), ::light_zero_copy::errors::ZeroCopyError> {
+                use ::zerocopy::Ref;
 
                 #meta_initialization
 
@@ -176,7 +176,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
         // Complex Vec types: need config for each element
         FieldType::VecDynamicZeroCopy(_, vec_type) => {
             if let Some(inner_type) = utils::get_vec_inner_type(vec_type) {
-                quote! { Vec<<#inner_type as light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig> }
+                quote! { Vec<<#inner_type as ::light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig> }
             } else {
                 return Err(syn::Error::new_spanned(
                     vec_type,
@@ -187,7 +187,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
 
         // Option types: delegate to the Option's Config type
         FieldType::Option(_, option_type) => {
-            quote! { <#option_type as light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig }
+            quote! { <#option_type as ::light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig }
         }
 
         // Fixed-size types don't need configuration
@@ -204,7 +204,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
         // DynamicZeroCopy types: delegate to their Config type (Config is typically 'static)
         FieldType::DynamicZeroCopy(_, field_type) => {
             let field_type = utils::convert_to_zerocopy_type(field_type);
-            quote! { <#field_type as light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig }
+            quote! { <#field_type as ::light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig }
         }
     };
     Ok(result)
@@ -259,16 +259,25 @@ pub fn generate_field_initialization_for_config(
             quote! {
                 // Initialize the length prefix but don't use the returned ZeroCopySliceMut
                 {
-                    light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<u8>::new_at(
+                    ::light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<u8>::new_at(
                         config.#field_name.into(),
                         bytes
                     )?;
                 }
                 // Split off the length prefix (4 bytes) and get the slice
+                if bytes.len() < 4 {
+                    return Err(::light_zero_copy::errors::ZeroCopyError::InsufficientMemoryAllocated(
+                        bytes.len(),
+                        4
+                    ));
+                }
                 let (_, bytes) = bytes.split_at_mut(4);
-                let slice_len = config.#field_name as usize;
+                let slice_len = match ::light_zero_copy::u32_to_usize(config.#field_name) {
+                    Ok(len) => len,
+                    Err(e) => return Err(e),
+                };
                 if bytes.len() < slice_len {
-                    return Err(light_zero_copy::errors::ZeroCopyError::InsufficientMemoryAllocated(
+                    return Err(::light_zero_copy::errors::ZeroCopyError::InsufficientMemoryAllocated(
                         bytes.len(),
                         slice_len
                     ));
@@ -278,8 +287,9 @@ pub fn generate_field_initialization_for_config(
         }
 
         FieldType::VecCopy(field_name, inner_type) => {
+            let zerocopy_type = crate::shared::utils::convert_to_zerocopy_type(inner_type);
             quote! {
-                let (#field_name, bytes) = light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<#inner_type>::new_at(
+                let (#field_name, bytes) = ::light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<#zerocopy_type>::new_at(
                     config.#field_name.into(),
                     bytes
                 )?;
@@ -290,7 +300,7 @@ pub fn generate_field_initialization_for_config(
         | FieldType::DynamicZeroCopy(field_name, vec_type)
         | FieldType::Option(field_name, vec_type) => {
             quote! {
-                let (#field_name, bytes) = <#vec_type as light_zero_copy::traits::ZeroCopyNew<'a>>::new_zero_copy(
+                let (#field_name, bytes) = <#vec_type as ::light_zero_copy::traits::ZeroCopyNew<'a>>::new_zero_copy(
                     bytes,
                     config.#field_name
                 )?;
@@ -307,7 +317,7 @@ pub fn generate_field_initialization_for_config(
                 _ => unreachable!(),
             };
             quote! {
-                let (#field_name, bytes) = <#option_type as light_zero_copy::traits::ZeroCopyNew>::new_zero_copy(
+                let (#field_name, bytes) = <#option_type as ::light_zero_copy::traits::ZeroCopyNew>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -317,14 +327,14 @@ pub fn generate_field_initialization_for_config(
         // Fixed-size types that are struct fields (not meta fields) need initialization with () config
         FieldType::Primitive(field_name, field_type) => {
             quote! {
-                let (#field_name, bytes) = <#field_type as light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut(bytes)?;
+                let (#field_name, bytes) = <#field_type as ::light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut(bytes)?;
             }
         }
 
         // Array fields that are struct fields (come after Vec/Option)
         FieldType::Array(field_name, array_type) => {
             quote! {
-                let (#field_name, bytes) = light_zero_copy::Ref::<
+                let (#field_name, bytes) = ::light_zero_copy::Ref::<
                     &'a mut [u8],
                     #array_type
                 >::from_prefix(bytes)?;
@@ -333,7 +343,7 @@ pub fn generate_field_initialization_for_config(
 
         FieldType::Pubkey(field_name) => {
             quote! {
-                let (#field_name, bytes) = light_zero_copy::Ref::<
+                let (#field_name, bytes) = ::light_zero_copy::Ref::<
                     &'a mut [u8],
                     Pubkey
                 >::from_prefix(bytes)?;
@@ -342,7 +352,7 @@ pub fn generate_field_initialization_for_config(
 
         FieldType::Copy(field_name, field_type) => {
             quote! {
-                let (#field_name, bytes) = <#field_type as light_zero_copy::traits::ZeroCopyNew>::new_zero_copy(bytes)?;
+                let (#field_name, bytes) = <#field_type as ::light_zero_copy::traits::ZeroCopyNew>::new_zero_copy(bytes)?;
             }
         }
     };
@@ -356,9 +366,15 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
         FieldType::VecU8(field_name) => {
             quote! {
                 {
-                    let len = config.#field_name as usize;
-                    let element_bytes = len; // u8 has size 1, so no multiplication needed
-                    Ok(4 + element_bytes)
+                    let len = match ::light_zero_copy::u32_to_usize(config.#field_name) {
+                        Ok(l) => l,
+                        Err(e) => return Err(e),
+                    };
+                    let element_bytes = len;
+                    match 4usize.checked_add(element_bytes) {
+                        Some(total) => Ok(total),
+                        None => Err(light_zero_copy::errors::ZeroCopyError::Size),
+                    }
                 }
             }
         }
@@ -366,13 +382,19 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
         FieldType::VecCopy(field_name, inner_type) => {
             quote! {
                 {
-                    let len = config.#field_name as usize;
-                    let elem_size = core::mem::size_of::<#inner_type>();
+                    let len = match ::light_zero_copy::u32_to_usize(config.#field_name) {
+                        Ok(l) => l,
+                        Err(e) => return Err(e),
+                    };
+                    let elem_size = ::core::mem::size_of::<#inner_type>();
                     let element_bytes = match len.checked_mul(elem_size) {
                         Some(bytes) => bytes,
-                        None => return Err(light_zero_copy::errors::ZeroCopyError::Size),
+                        None => return Err(::light_zero_copy::errors::ZeroCopyError::Size),
                     };
-                    Ok(4 + element_bytes)
+                    match 4usize.checked_add(element_bytes) {
+                        Some(total) => Ok(total),
+                        None => Err(light_zero_copy::errors::ZeroCopyError::Size),
+                    }
                 }
             }
         }
@@ -412,13 +434,13 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
         FieldType::Primitive(_, field_type) => {
             let zerocopy_type = utils::convert_to_zerocopy_type(field_type);
             quote! {
-                Ok(core::mem::size_of::<#zerocopy_type>())
+                Ok(::core::mem::size_of::<#zerocopy_type>())
             }
         }
 
         FieldType::Array(_, array_type) => {
             quote! {
-                Ok(core::mem::size_of::<#array_type>())
+                Ok(::core::mem::size_of::<#array_type>())
             }
         }
 

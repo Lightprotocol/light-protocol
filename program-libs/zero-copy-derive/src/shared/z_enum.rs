@@ -26,7 +26,7 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
                 // Create a type alias for this variant to enable pattern matching
                 let alias_name = format_ident!("{}Type", variant_name);
                 type_aliases.push(quote! {
-                    pub type #alias_name<'a> = <#field_type as light_zero_copy::traits::ZeroCopyAt<'a>>::ZeroCopyAt;
+                    pub type #alias_name<'a> = <#field_type as ::light_zero_copy::traits::ZeroCopyAt<'a>>::ZeroCopyAt;
                 });
 
                 Ok(quote! { #variant_name(#alias_name<'a>) })
@@ -96,7 +96,7 @@ pub fn generate_enum_deserialize_impl(
                 Ok(quote! {
                     #discriminant => {
                         let (value, remaining_bytes) =
-                            <#field_type as light_zero_copy::traits::ZeroCopyAt>::zero_copy_at(remaining_data)?;
+                            <#field_type as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at(remaining_data)?;
                         Ok((#z_enum_name::#variant_name(value), remaining_bytes))
                     }
                 })
@@ -105,7 +105,7 @@ pub fn generate_enum_deserialize_impl(
                 // Other cases already handled in generate_z_enum
                 Ok(quote! {
                     #discriminant => {
-                        Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion)
+                        Err(::light_zero_copy::errors::ZeroCopyError::InvalidConversion)
                     }
                 })
             }
@@ -114,15 +114,15 @@ pub fn generate_enum_deserialize_impl(
     let match_arms = match_arms_result?;
 
     Ok(quote! {
-        impl<'a> light_zero_copy::traits::ZeroCopyAt<'a> for #original_name {
+        impl<'a> ::light_zero_copy::traits::ZeroCopyAt<'a> for #original_name {
             type ZeroCopyAt = #z_enum_name<'a>;
 
             fn zero_copy_at(
                 data: &'a [u8],
-            ) -> Result<(Self::ZeroCopyAt, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
+            ) -> Result<(Self::ZeroCopyAt, &'a [u8]), ::light_zero_copy::errors::ZeroCopyError> {
                 // Read discriminant (first 1 byte for borsh enum)
                 if data.is_empty() {
-                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
+                    return Err(::light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
                         data.len(),
                     ));
@@ -133,7 +133,7 @@ pub fn generate_enum_deserialize_impl(
 
                 match discriminant {
                     #(#match_arms)*
-                    _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
+                    _ => Err(::light_zero_copy::errors::ZeroCopyError::InvalidConversion),
                 }
             }
         }
@@ -146,7 +146,7 @@ pub fn generate_enum_zero_copy_struct_inner(
     z_enum_name: &Ident,
 ) -> syn::Result<TokenStream> {
     Ok(quote! {
-        impl light_zero_copy::traits::ZeroCopyStructInner for #original_name {
+        impl ::light_zero_copy::traits::ZeroCopyStructInner for #original_name {
             type ZeroCopyInner = #z_enum_name<'static>;
         }
     })

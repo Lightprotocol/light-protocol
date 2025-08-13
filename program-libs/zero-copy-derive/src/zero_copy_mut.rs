@@ -12,8 +12,8 @@ use crate::{
 };
 
 pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
-    // Parse the input DeriveInput
-    let input: DeriveInput = syn::parse(fn_input.clone())?;
+    // Parse the input DeriveInput once
+    let input: DeriveInput = syn::parse(fn_input)?;
 
     let hasher = false;
 
@@ -50,15 +50,6 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
         meta_fields.is_empty(),
         quote! {},
     )?;
-
-    // Parse the input DeriveInput
-    let input: DeriveInput = syn::parse(fn_input)?;
-
-    // Process the input to extract struct information
-    let (name, _z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input)?;
-
-    // Use the same field processing logic as other derive macros for consistency
-    let (meta_fields, struct_fields) = utils::process_fields(fields);
 
     // Analyze only struct fields for ZeroCopyNew (meta fields are always fixed-size)
     let struct_field_types = analyze_struct_fields(&struct_fields)?;
@@ -104,16 +95,16 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
         const _: () = {
             // Import all necessary items within the isolated scope
             #[allow(unused_imports)]
-            use core::{mem::size_of, ops::Deref};
+            use ::core::{mem::size_of, ops::Deref};
 
             #[allow(unused_imports)]
-            use light_zero_copy::{
+            use ::light_zero_copy::{
                 errors::ZeroCopyError,
                 slice_mut::ZeroCopySliceMutBorsh,
             };
 
             #[allow(unused_imports)]
-            use zerocopy::{
+            use ::zerocopy::{
                 little_endian::{U16, U32, U64},
                 FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
             };

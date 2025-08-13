@@ -122,8 +122,8 @@ fn test_fuzz_generate_z_struct() {
             );
             // Validate Deref implementation
             assert!(
-                !result_str.contains("impl < 'a > core :: ops :: Deref"),
-                "Generated code missing Deref implementation for iteration {}",
+                !result_str.contains("impl < 'a > :: core :: ops :: Deref"),
+                "Generated code has unexpected Deref implementation for iteration {}",
                 i
             );
         } else {
@@ -135,7 +135,7 @@ fn test_fuzz_generate_z_struct() {
             );
             // Validate Deref implementation
             assert!(
-                result_str.contains("impl < 'a > core :: ops :: Deref"),
+                result_str.contains("impl < 'a > :: core :: ops :: Deref"),
                 "Generated code missing Deref implementation for iteration {}",
                 i
             );
@@ -154,7 +154,7 @@ fn test_fuzz_generate_z_struct() {
 
             // Check for light_zero_copy::Ref reference
             assert!(
-                result_str.contains("light_zero_copy :: Ref"),
+                result_str.contains(":: light_zero_copy :: Ref"),
                 "Generated code missing light_zero_copy::Ref for iteration {}",
                 i
             );
