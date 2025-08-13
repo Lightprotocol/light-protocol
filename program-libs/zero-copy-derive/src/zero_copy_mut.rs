@@ -15,6 +15,9 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
     // Parse the input DeriveInput once
     let input: DeriveInput = syn::parse(fn_input)?;
 
+    // Validate that struct has #[repr(C)] attribute
+    utils::validate_repr_c_required(&input.attrs, "ZeroCopyMut")?;
+
     let hasher = false;
 
     // Process the input to extract struct information

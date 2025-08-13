@@ -87,6 +87,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyNew<'a> for Pubkey {
 #[derive(
     ZeroCopy, ZeroCopyMut, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
 )]
+#[repr(C)]
 pub struct InstructionDataInvoke {
     pub proof: Option<CompressedProof>,
     pub input_compressed_accounts_with_merkle_context:
@@ -196,6 +197,7 @@ pub struct InstructionDataInvoke {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct OutputCompressedAccountWithContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree: Pubkey,
@@ -212,6 +214,7 @@ pub struct OutputCompressedAccountWithContext {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
@@ -251,6 +254,7 @@ pub struct OutputCompressedAccountWithPackedContext {
     Clone,
     Copy,
 )]
+#[repr(C)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -282,6 +286,7 @@ pub struct NewAddressParamsPacked {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct NewAddressParams {
     pub seed: [u8; 32],
     pub address_queue_pubkey: Pubkey,
@@ -301,6 +306,7 @@ pub struct NewAddressParams {
     Clone,
     Copy,
 )]
+#[repr(C)]
 pub struct PackedReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_root_index: u16,
@@ -318,6 +324,7 @@ pub struct PackedReadOnlyAddress {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct ReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_pubkey: Pubkey,
@@ -335,6 +342,7 @@ pub struct ReadOnlyAddress {
     Clone,
     Copy,
 )]
+#[repr(C)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -377,6 +385,7 @@ impl Default for CompressedProof {
     Eq,
     Default,
 )]
+#[repr(C)]
 pub struct CompressedCpiContext {
     /// Is set by the program that is invoking the CPI to signal that is should
     /// set the cpi context.
@@ -399,6 +408,7 @@ pub struct CompressedCpiContext {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
@@ -446,6 +456,7 @@ pub struct PackedCompressedAccountWithMerkleContext {
     PartialEq,
     Default,
 )]
+#[repr(C)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
@@ -483,6 +494,7 @@ pub struct MerkleContext {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct CompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: MerkleContext,
@@ -499,6 +511,7 @@ pub struct CompressedAccountWithMerkleContext {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct ReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: MerkleContext,
@@ -516,6 +529,7 @@ pub struct ReadOnlyCompressedAccount {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: PackedMerkleContext,
@@ -534,6 +548,7 @@ pub struct PackedReadOnlyCompressedAccount {
     PartialEq,
     Default,
 )]
+#[repr(C)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
@@ -566,6 +581,7 @@ pub struct CompressedAccountZeroCopyNew {
 #[derive(
     ZeroCopy, ZeroCopyMut, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
 )]
+#[repr(C)]
 pub struct CompressedAccount {
     pub owner: [u8; 32],
     pub lamports: u64,
@@ -724,6 +740,7 @@ impl PartialEq<ZCompressedAccount<'_>> for CompressedAccount {
     Default,
     Clone,
 )]
+#[repr(C)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
@@ -1141,6 +1158,7 @@ fn readme() {
 #[derive(
     ZeroCopy, ZeroCopyMut, BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Clone,
 )]
+#[repr(C)]
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,

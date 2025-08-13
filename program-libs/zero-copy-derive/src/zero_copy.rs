@@ -225,6 +225,9 @@ pub fn generate_zero_copy_struct_inner<const MUT: bool>(
 pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let input: DeriveInput = syn::parse(input)?;
 
+    // Validate that struct/enum has #[repr(C)] attribute
+    utils::validate_repr_c_required(&input.attrs, "ZeroCopy")?;
+
     let hasher = utils::struct_has_light_hasher_attribute(&input.attrs);
 
     // Disable light_hasher attribute due to Vec<u8>/&[u8] hash inconsistency
@@ -240,11 +243,9 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
 
     match input_type {
         utils::InputType::Struct(fields) => {
-            // Handle struct case (existing logic)
             let z_struct_name = z_name;
             let z_struct_meta_name = format_ident!("Z{}Meta", name);
 
-            // Process the fields to separate meta fields and struct fields
             let (meta_fields, struct_fields) = utils::process_fields(fields);
 
             let meta_struct_def = if !meta_fields.is_empty() {
@@ -277,7 +278,6 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
                 quote! {},
             )?;
 
-            // Combine all implementations
             Ok(quote! {
                 #meta_struct_def
                 #z_struct_def
@@ -286,15 +286,13 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
             })
         }
         utils::InputType::Enum(enum_data) => {
-            // Handle enum case (new logic)
             let z_enum_name = z_name;
 
             let z_enum_def = generate_z_enum(&z_enum_name, enum_data)?;
             let deserialize_impl = generate_enum_deserialize_impl(name, &z_enum_name, enum_data)?;
             let zero_copy_struct_inner_impl =
-                generate_enum_zero_copy_struct_inner(name, &z_enum_name)?;
+                generate_enum_zero_copy_struct_inner(name, &z_enum_name, enum_data)?;
 
-            // Combine all implementations
             Ok(quote! {
                 #z_enum_def
                 #deserialize_impl

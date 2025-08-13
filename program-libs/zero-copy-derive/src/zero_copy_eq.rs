@@ -239,6 +239,9 @@ pub fn derive_zero_copy_eq_impl(input: ProcTokenStream) -> syn::Result<proc_macr
     // Parse the input DeriveInput
     let input: DeriveInput = syn::parse(input)?;
 
+    // Validate that struct has #[repr(C)] attribute
+    utils::validate_repr_c_required(&input.attrs, "ZeroCopyEq")?;
+
     // Process the input to extract struct information
     let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
 

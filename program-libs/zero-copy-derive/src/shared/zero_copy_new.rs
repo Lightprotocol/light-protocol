@@ -28,25 +28,11 @@ pub fn generate_init_mut_impl(
     // Use the pre-separated fields from utils::process_fields (consistent with other derives)
     let struct_field_types = analyze_struct_fields(struct_fields)?;
 
-    // Analyze field strategies for detailed error messages and optimization
-    let field_strategies: Vec<_> = struct_field_types
-        .iter()
-        .map(analyze_field_strategy)
-        .collect();
-
-    // Note: Error checking for unsupported fields removed since FieldStrategy
-    // was simplified to only include supported variants
-
-    // Determine if unit config based on detailed analysis
-    let is_unit_config = field_strategies
-        .iter()
-        .all(|strategy| matches!(strategy, FieldStrategy::FixedSize));
-
     // Generate field initialization code for struct fields only (meta fields are part of __meta)
     let field_initializations: Result<Vec<proc_macro2::TokenStream>, syn::Error> =
         struct_field_types
             .iter()
-            .map(|field_type| generate_field_initialization_for_config(field_type, is_unit_config))
+            .map(|field_type| generate_field_initialization_for_config(field_type))
             .collect();
     let field_initializations = field_initializations?;
 
@@ -252,7 +238,6 @@ pub fn generate_config_struct(
 /// Generate initialization logic for a field, with support for unit configs
 pub fn generate_field_initialization_for_config(
     field_type: &FieldType,
-    _is_unit_config: bool,
 ) -> syn::Result<TokenStream2> {
     let result = match field_type {
         FieldType::VecU8(field_name) => {

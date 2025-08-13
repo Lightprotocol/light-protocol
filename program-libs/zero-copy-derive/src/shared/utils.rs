@@ -369,3 +369,33 @@ pub fn is_copy_type(ty: &Type) -> bool {
     }
     false
 }
+
+/// Check if a struct has #[repr(C)] attribute
+pub fn has_repr_c_attribute(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        if attr.path().is_ident("repr") {
+            // Parse the repr attribute to check for C
+            if let Ok(list) = attr.parse_args::<syn::Meta>() {
+                matches!(list, syn::Meta::Path(path) if path.is_ident("C"))
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    })
+}
+
+/// Validate that the input has #[repr(C)] attribute for memory layout safety
+pub fn validate_repr_c_required(attrs: &[syn::Attribute], item_type: &str) -> syn::Result<()> {
+    if !has_repr_c_attribute(attrs) {
+        return Err(syn::Error::new_spanned(
+            attrs.first().unwrap_or(&syn::parse_quote!(#[dummy])),
+            format!(
+                "{} requires #[repr(C)] attribute for memory layout safety. Add #[repr(C)] above the {} declaration.",
+                item_type, item_type.to_lowercase()
+            )
+        ));
+    }
+    Ok(())
+}

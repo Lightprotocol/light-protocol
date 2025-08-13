@@ -6,6 +6,7 @@ use syn::{DataEnum, Fields, Ident};
 pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result<TokenStream> {
     // Collect type aliases for complex variants
     let mut type_aliases = Vec::new();
+    let mut has_lifetime_dependent_variants = false;
 
     let variants = enum_data.variants.iter().map(|variant| {
         let variant_name = &variant.ident;
@@ -22,6 +23,9 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
                         "Internal error: expected exactly one unnamed field but found none"
                     ))?
                     .ty;
+
+                // This variant uses lifetime
+                has_lifetime_dependent_variants = true;
 
                 // Create a type alias for this variant to enable pattern matching
                 let alias_name = format_ident!("{}Type", variant_name);
@@ -54,14 +58,28 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
         }
     }).collect::<Result<Vec<_>, _>>()?;
 
+    // Conditionally add lifetime parameter only if needed
+    let enum_declaration = if has_lifetime_dependent_variants {
+        quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub enum #z_enum_name<'a> {
+                #(#variants,)*
+            }
+        }
+    } else {
+        quote! {
+            #[derive(Debug, Clone, PartialEq)]
+            pub enum #z_enum_name {
+                #(#variants,)*
+            }
+        }
+    };
+
     Ok(quote! {
         // Generate type aliases for complex variants
         #(#type_aliases)*
 
-        #[derive(Debug, Clone, PartialEq)]
-        pub enum #z_enum_name<'a> {
-            #(#variants,)*
-        }
+        #enum_declaration
     })
 }
 
@@ -71,6 +89,9 @@ pub fn generate_enum_deserialize_impl(
     z_enum_name: &Ident,
     enum_data: &DataEnum,
 ) -> syn::Result<TokenStream> {
+    // Check if any variants need lifetime parameters
+    let mut has_lifetime_dependent_variants = false;
+
     // Generate match arms for each variant
     let match_arms_result: Result<Vec<TokenStream>, syn::Error> = enum_data.variants.iter().enumerate().map(|(index, variant)| {
         let variant_name = &variant.ident;
@@ -86,7 +107,9 @@ pub fn generate_enum_deserialize_impl(
                 })
             }
             Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
-                // Single unnamed field
+                // Single unnamed field needs lifetime
+                has_lifetime_dependent_variants = true;
+
                 let field_type = &fields.unnamed.first()
                     .ok_or_else(|| syn::Error::new_spanned(
                         fields,
@@ -113,9 +136,16 @@ pub fn generate_enum_deserialize_impl(
     }).collect();
     let match_arms = match_arms_result?;
 
+    // Conditional type annotation based on whether lifetime is needed
+    let type_annotation = if has_lifetime_dependent_variants {
+        quote! { #z_enum_name<'a> }
+    } else {
+        quote! { #z_enum_name }
+    };
+
     Ok(quote! {
         impl<'a> ::light_zero_copy::traits::ZeroCopyAt<'a> for #original_name {
-            type ZeroCopyAt = #z_enum_name<'a>;
+            type ZeroCopyAt = #type_annotation;
 
             fn zero_copy_at(
                 data: &'a [u8],
@@ -144,10 +174,23 @@ pub fn generate_enum_deserialize_impl(
 pub fn generate_enum_zero_copy_struct_inner(
     original_name: &Ident,
     z_enum_name: &Ident,
+    enum_data: &DataEnum,
 ) -> syn::Result<TokenStream> {
+    // Check if any variants need lifetime parameters
+    let has_lifetime_dependent_variants = enum_data.variants.iter().any(|variant| {
+        matches!(&variant.fields, Fields::Unnamed(fields) if fields.unnamed.len() == 1)
+    });
+
+    // Conditional type annotation based on whether lifetime is needed
+    let type_annotation = if has_lifetime_dependent_variants {
+        quote! { #z_enum_name<'static> }
+    } else {
+        quote! { #z_enum_name }
+    };
+
     Ok(quote! {
         impl ::light_zero_copy::traits::ZeroCopyStructInner for #original_name {
-            type ZeroCopyInner = #z_enum_name<'static>;
+            type ZeroCopyInner = #type_annotation;
         }
     })
 }
