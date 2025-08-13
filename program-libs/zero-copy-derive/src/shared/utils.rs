@@ -228,6 +228,9 @@ pub fn convert_to_zerocopy_type(ty: &Type) -> TokenStream {
                     "u16" => quote! { ::light_zero_copy::little_endian::U16 },
                     "u32" => quote! { ::light_zero_copy::little_endian::U32 },
                     "u64" => quote! { ::light_zero_copy::little_endian::U64 },
+                    "i16" => quote! { ::light_zero_copy::little_endian::I16 },
+                    "i32" => quote! { ::light_zero_copy::little_endian::I32 },
+                    "i64" => quote! { ::light_zero_copy::little_endian::I64 },
                     "bool" => quote! { u8 },
                     _ => {
                         // Handle container types recursively
@@ -253,6 +256,12 @@ pub fn convert_to_zerocopy_type(ty: &Type) -> TokenStream {
             } else {
                 quote! { #ty }
             }
+        }
+        Type::Array(array) => {
+            // Recursively convert the element type
+            let elem = convert_to_zerocopy_type(&array.elem);
+            let len = &array.len;
+            quote! { [#elem; #len] }
         }
         _ => {
             quote! { #ty }
@@ -368,6 +377,24 @@ pub fn is_copy_type(ty: &Type) -> bool {
         _ => {}
     }
     false
+}
+
+/// Check if a type needs to use the ZeroCopyStructInner trait.
+/// Arrays and primitive types can be used directly after type conversion,
+/// while custom structs need to go through the trait's associated type.
+pub fn needs_struct_inner_trait(ty: &Type) -> bool {
+    // Arrays don't implement ZeroCopyStructInner - use directly
+    if matches!(ty, Type::Array(_)) {
+        return false;
+    }
+
+    // Primitive types and bool are used directly after conversion
+    if is_primitive_integer(ty) || is_bool_type(ty) || is_pubkey_type(ty) {
+        return false;
+    }
+
+    // All other types (custom structs) need the trait
+    true
 }
 
 /// Check if a struct has #[repr(C)] attribute

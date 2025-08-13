@@ -6,17 +6,17 @@ use super::utils;
 
 /// Enum representing the different field types for zero-copy struct
 /// (Name, Type)
-/// Note: Arrays with Option elements are not currently supported
 #[derive(Debug)]
 pub enum FieldType<'a> {
     VecU8(&'a Ident),
     VecCopy(&'a Ident, &'a Type),
     VecDynamicZeroCopy(&'a Ident, &'a Type),
-    Array(&'a Ident, &'a Type), // Static arrays only - no Option elements supported
+    Array(&'a Ident, &'a Type),
     Option(&'a Ident, &'a Type),
     OptionU64(&'a Ident),
     OptionU32(&'a Ident),
     OptionU16(&'a Ident),
+    OptionArray(&'a Ident, &'a Type),
     Pubkey(&'a Ident),
     Primitive(&'a Ident, &'a Type),
     Copy(&'a Ident, &'a Type),
@@ -35,6 +35,7 @@ impl<'a> FieldType<'a> {
             FieldType::OptionU64(name) => name,
             FieldType::OptionU32(name) => name,
             FieldType::OptionU16(name) => name,
+            FieldType::OptionArray(name, _) => name,
             FieldType::Pubkey(name) => name,
             FieldType::Primitive(name, _) => name,
             FieldType::Copy(name, _) => name,
@@ -134,7 +135,13 @@ fn classify_field<'a>(field_name: &'a Ident, field_type: &'a Type) -> syn::Resul
     // Option types
     if utils::is_option_type(field_type) {
         return match utils::get_option_inner_type(field_type) {
-            Some(inner_type) => Ok(classify_option_type(field_name, field_type, inner_type)),
+            Some(inner_type) => {
+                // Special handling for Option<[T; N]>
+                if matches!(inner_type, Type::Array(_)) {
+                    return Ok(FieldType::OptionArray(field_name, inner_type));
+                }
+                Ok(classify_option_type(field_name, field_type, inner_type))
+            }
             None => Ok(FieldType::Option(field_name, field_type)),
         };
     }
@@ -232,19 +239,19 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     }
                 }
                 FieldType::VecCopy(field_name, inner_type) => {
-                    // For primitive Copy types, use the zerocopy converted type directly
-                    // For complex Copy types, use the ZeroCopyStructInner trait
-                    if utils::is_primitive_integer(inner_type) || utils::is_bool_type(inner_type) || utils::is_pubkey_type(inner_type) {
-                        let zerocopy_type = utils::convert_to_zerocopy_type(inner_type);
+                    let zerocopy_type = utils::convert_to_zerocopy_type(inner_type);
+
+                    if utils::needs_struct_inner_trait(inner_type) {
+                        // Custom structs need to use the trait's associated type
+                        quote! {
+                            #(#attributes)*
+                            pub #field_name: #slice_name<'a, <#zerocopy_type as #struct_inner_trait_name>::#associated_type_ident>
+                        }
+                    } else {
+                        // Arrays and primitives can be used directly after type conversion
                         quote! {
                             #(#attributes)*
                             pub #field_name: #slice_name<'a, #zerocopy_type>
-                        }
-                    } else {
-                        let inner_type = utils::convert_to_zerocopy_type(inner_type);
-                        quote! {
-                            #(#attributes)*
-                            pub #field_name: #slice_name<'a, <#inner_type as #struct_inner_trait_name>>
                         }
                     }
                 }
@@ -288,6 +295,13 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     quote! {
                         #(#attributes)*
                         pub #field_name: Option<::light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                    }
+                }
+                FieldType::OptionArray(field_name, array_type) => {
+                    let array_type_zerocopy = utils::convert_to_zerocopy_type(array_type);
+                    quote! {
+                        #(#attributes)*
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #array_type_zerocopy>>
                     }
                 }
                 FieldType::Pubkey(field_name) => {

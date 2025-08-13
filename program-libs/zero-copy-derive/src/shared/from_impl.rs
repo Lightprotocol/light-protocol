@@ -136,6 +136,9 @@ pub fn generate_from_impl<const MUT: bool>(
                 FieldType::OptionU16(field_name) => {
                     quote! { #field_name: value.#field_name.as_ref().map(|x| u16::from(**x)), }
                 }
+                FieldType::OptionArray(field_name, _) => {
+                    quote! { #field_name: value.#field_name.as_ref().map(|x| **x), }
+                }
                 FieldType::DynamicZeroCopy(field_name, field_type) => {
                     // For complex non-copy types, dereference and clone directly
                     quote! { #field_name: #field_type::from(&value.#field_name), }

@@ -1,103 +1,81 @@
 # Light-Zero-Copy-Derive
 
-A procedural macro for deriving zero-copy deserialization for Rust structs used with Solana programs.
+Procedural macros for borsh compatible zero copy serialization.
 
-## Features
+## Main Macros
 
-This crate provides two key derive macros:
+- `ZeroCopy`: Derives ZeroCopyAt
+- `ZeroCopyMut`: Derives ZeroCopyAtMut, ZeroCopyNew
+- `ZeroCopyEq`: Derives PartialEq for <StructName>::ZeroCopy == StructName
 
-1. `#[derive(ZeroCopy)]` - Implements zero-copy deserialization with:
-   - The `zero_copy_at` and `zero_copy_at_mut` methods for deserialization
-   - Full Borsh compatibility for serialization/deserialization
-   - Efficient memory representation with no copying of data
-   - `From<Z<StructName>>` and `From<Z<StructName>Mut>` implementations for easy conversion back to the original struct
+## Macro Rules
 
-2. `#[derive(ZeroCopyEq)]` - Adds equality comparison support:
-   - Compare zero-copy instances with regular struct instances
-   - Can be used alongside `ZeroCopy` for complete functionality
-   - Derivation for Options<struct> is not robust and may not compile.
+1. Create zero copy structs Z<StructName> for the struct
+   1.1. The first consecutive fixed-size fields are extracted into a meta struct Z<StructName>Meta
+   1.2. Meta extraction stops at first Vec, Option, or non-Copy type
+   1.3. Primitive types are converted to little-endian equivalents (u16→U16, u32→U32, u64→U64, bool→u8)
+   1.4. Fields after meta are included directly in the Z-struct and deserialized sequentially
+   1.5. Vec<u8> uses optimized slice operations, other Vec<T> types use ZeroCopySlice
+   1.6. Option<u64/u32/u16> are optimized, other Option<T> delegate to T's ZeroCopyAt
+   1.7. Non-Copy types must implement ZeroCopyAt trait
 
-## Rules for Zero-Copy Deserialization
+## Supported Types
 
-The macro follows these rules when generating code:
+### Primitives
+- **Unsigned integers**: u8, u16, u32, u64
+- **Signed integers**: i8, i16, i32, i64
+- **Boolean**: bool
 
-1. Creates a `ZStruct` for your struct that follows zero-copy principles
-   1. Fields are extracted into a meta struct until reaching a `Vec`, `Option` or non-`Copy` type
-   2. Vectors are represented as `ZeroCopySlice` and not included in the meta struct
-   3. Integer types are replaced with their zerocopy equivalents (e.g., `u16` → `U16`)
-   4. Fields after the first vector are directly included in the `ZStruct` and deserialized one by one
-   5. If a vector contains a nested vector (non-`Copy` type), it must implement `Deserialize`
-   6. Elements in an `Option` must implement `Deserialize`
-   7. Types that don't implement `Copy` must implement `Deserialize` and are deserialized one by one
+### Collections
+- Vec<T> where T is a supported type
+- Arrays [T; N] where T is a supported type
+- Option<T> where T is a supported type (optimized for u16/u32/u64)
 
-## Usage
+### Custom Types
+- Any type that implements ZeroCopyAt trait
+- Nested structs with #[derive(ZeroCopy)]
+- Enums with unit variants or single unnamed field variants
 
-### Basic Usage
+## Limitations
+
+### Type Support
+- **usize/isize**: Platform-dependent size types are not supported for cross-platform consistency
+- **f32/f64**: Floating point types are not supported
+- **char**: Character type is not supported
+
+### Structural Limitations
+- **Tuple structs**: Not supported - only structs with named fields are allowed
+- **Empty structs**: Not supported - structs must have at least one field for zero-copy serialization
+- **Enum support**:
+  - `ZeroCopy` supports enums with unit variants or single unnamed field variants
+  - `ZeroCopyMut` does NOT support enums (structs only)
+  - `ZeroCopyEq` does NOT support enums (structs only)
+
+### Special Type Handling
+- **Arrays in Vec**: `Vec<[T; N]>` is supported. Arrays are Copy types that don't implement the `ZeroCopyStructInner` trait, so they are handled directly after type conversion (e.g., `[u32; N]` → `[U32; N]`) rather than through the trait's associated type.
+- **Primitive type conversion**: Integer types are automatically converted to their aligned equivalents for zero-copy safety (e.g., `u32` → `U32`, `i64` → `I64`)
+
+## Requirements
+
+- All structs and enums must have `#[repr(C)]` attribute for memory layout safety
+- Fields must implement appropriate traits (Copy for meta fields, ZeroCopyAt for others)
+
+## Basic Usage
 
 ```rust
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy_derive::ZeroCopy;
-use light_zero_copy::{borsh::Deserialize, borsh_mut::ZeroCopyAtMut};
-
-#[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]
+#[derive(ZeroCopy)]
 pub struct MyStruct {
     pub a: u8,
-    pub b: u16,
-    pub vec: Vec<u8>,
-    pub c: u64,
 }
-let my_struct = MyStruct {
-    a: 1,
-    b: 2,
-    vec: vec![1u8; 32],
-    c: 3,
-};
-// Use the struct with zero-copy deserialization
-let mut bytes = my_struct.try_to_vec().unwrap();
-
-// Immutable zero-copy deserialization
-let (zero_copy, _remaining) = MyStruct::zero_copy_at(&bytes).unwrap();
-
-// Convert back to original struct using From implementation
-let converted: MyStruct = zero_copy.clone().into();
-assert_eq!(converted, my_struct);
-
-// Mutable zero-copy deserialization with modification
-let (mut zero_copy_mut, _remaining) = MyStruct::zero_copy_at_mut(&mut bytes).unwrap();
-zero_copy_mut.a = 42;
-
-// The change is reflected when we convert back to the original struct
-let modified: MyStruct = zero_copy_mut.into();
-assert_eq!(modified.a, 42);
-
-// And also when we deserialize directly from the modified bytes
-let borsh = MyStruct::try_from_slice(&bytes).unwrap();
-assert_eq!(borsh.a, 42u8);
 ```
 
-### With Equality Comparison
+To derive PartialEq as well, use ZeroCopyEq in addition to ZeroCopy:
 
 ```rust
-use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy_derive::ZeroCopy;
-
-#[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]
+use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
+#[derive(ZeroCopy, ZeroCopyEq)]
 pub struct MyStruct {
-    pub a: u8,
-    pub b: u16,
-    pub vec: Vec<u8>,
-    pub c: u64,
+      pub a: u8,
 }
-let my_struct = MyStruct {
-    a: 1,
-    b: 2,
-    vec: vec![1u8; 32],
-    c: 3,
-};
-// Use the struct with zero-copy deserialization
-let mut bytes = my_struct.try_to_vec().unwrap();
-let (zero_copy, _remaining) = MyStruct::zero_copy_at(&bytes).unwrap();
-assert_eq!(zero_copy, my_struct);
 ```

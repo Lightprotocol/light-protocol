@@ -1,0 +1,7 @@
+error: ZeroCopyMut requires #[repr(C)] attribute for memory layout safety. Add #[repr(C)] above the zerocopymut declaration.
+ --> tests/ui/fail_mut/missing_repr_c_mut.rs:4:10
+  |
+4 | #[derive(ZeroCopyMut)]
+  |          ^^^^^^^^^^^
+  |
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)

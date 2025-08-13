@@ -8,6 +8,24 @@ use crate::shared::{
     z_struct::{analyze_struct_fields, FieldType},
 };
 
+/// Helper function to generate Option field comparison with custom comparison expression
+fn generate_option_comparison(
+    field_name: &syn::Ident,
+    comparison_expr: TokenStream,
+) -> TokenStream {
+    quote! {
+        match (&self.#field_name, &other.#field_name) {
+            (Some(z_ref), Some(other_val)) => {
+                if #comparison_expr {
+                    return false;
+                }
+            }
+            (None, None) => {},
+            _ => return false,
+        }
+    }
+}
+
 /// Generates meta field comparisons for PartialEq implementation
 pub fn generate_meta_field_comparisons<'a>(
     meta_fields: &'a [&'a Field],
@@ -186,14 +204,17 @@ pub fn generate_struct_field_comparisons<'a, const MUT: bool>(
                     }
                 }
             },
-            FieldType::OptionU64(field_name)
-            | FieldType::OptionU32(field_name)
-            | FieldType::OptionU16(field_name) => {
-                quote! {
-                    if self.#field_name != other.#field_name {
-                        return false;
-                    }
-                }
+            FieldType::OptionU64(field_name) => {
+                generate_option_comparison(field_name, quote! { u64::from(**z_ref) != *other_val })
+            }
+            FieldType::OptionU32(field_name) => {
+                generate_option_comparison(field_name, quote! { u32::from(**z_ref) != *other_val })
+            }
+            FieldType::OptionU16(field_name) => {
+                generate_option_comparison(field_name, quote! { u16::from(**z_ref) != *other_val })
+            }
+            FieldType::OptionArray(field_name, _) => {
+                generate_option_comparison(field_name, quote! { **z_ref != *other_val })
             }
         }
     });

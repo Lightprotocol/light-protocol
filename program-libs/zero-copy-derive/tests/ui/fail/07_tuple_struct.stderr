@@ -1,0 +1,5 @@
+error: ZeroCopy only supports structs with named fields
+ --> tests/ui/fail/07_tuple_struct.rs:6:23
+  |
+6 | pub struct TupleStruct(pub u32, pub Vec<u8>, pub Option<u64>);
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

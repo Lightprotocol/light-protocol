@@ -242,6 +242,7 @@ pub struct Struct8Derived {
     pub a: Vec<NestedStructDerived>,
 }
 
+#[repr(C)]
 #[derive(
     Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq,
 )]
@@ -301,6 +302,7 @@ fn test_array_struct() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[repr(C)]
 #[derive(
     Debug,
     PartialEq,

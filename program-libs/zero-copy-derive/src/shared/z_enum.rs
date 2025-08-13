@@ -177,9 +177,9 @@ pub fn generate_enum_zero_copy_struct_inner(
     enum_data: &DataEnum,
 ) -> syn::Result<TokenStream> {
     // Check if any variants need lifetime parameters
-    let has_lifetime_dependent_variants = enum_data.variants.iter().any(|variant| {
-        matches!(&variant.fields, Fields::Unnamed(fields) if fields.unnamed.len() == 1)
-    });
+    let has_lifetime_dependent_variants = enum_data.variants.iter().any(
+        |variant| matches!(&variant.fields, Fields::Unnamed(fields) if fields.unnamed.len() == 1),
+    );
 
     // Conditional type annotation based on whether lifetime is needed
     let type_annotation = if has_lifetime_dependent_variants {
