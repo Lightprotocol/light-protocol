@@ -4,7 +4,7 @@ use std::{
 };
 
 use light_zero_copy::{
-    borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySlice, slice_mut::ZeroCopySliceMut,
+    errors::ZeroCopyError, slice::ZeroCopySlice, slice_mut::ZeroCopySliceMut, traits::ZeroCopyAt,
 };
 use zerocopy::{
     little_endian::{U32, U64},
@@ -87,8 +87,8 @@ impl Deref for InsertIntoQueuesInstructionData<'_> {
     }
 }
 
-impl<'a> Deserialize<'a> for InsertIntoQueuesInstructionData<'a> {
-    type Output = Self;
+impl<'a> ZeroCopyAt<'a> for InsertIntoQueuesInstructionData<'a> {
+    type ZeroCopyAt = Self;
     fn zero_copy_at(bytes: &'a [u8]) -> std::result::Result<(Self, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) = Ref::<&[u8], InsertIntoQueuesInstructionDataMeta>::from_prefix(bytes)?;
 

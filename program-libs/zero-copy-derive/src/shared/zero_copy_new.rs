@@ -107,9 +107,9 @@ pub fn generate_init_mut_impl(
     };
 
     let result = quote! {
-        impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for #struct_name {
+        impl<'a> light_zero_copy::traits::ZeroCopyNew<'a> for #struct_name {
             type ZeroCopyConfig = #config_name;
-            type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
+            type Output = <Self as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
 
             fn byte_len(config: &Self::ZeroCopyConfig) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
                 let mut total: usize = #meta_size_calculation;
@@ -176,7 +176,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
         // Complex Vec types: need config for each element
         FieldType::VecDynamicZeroCopy(_, vec_type) => {
             if let Some(inner_type) = utils::get_vec_inner_type(vec_type) {
-                quote! { Vec<<#inner_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::ZeroCopyConfig> }
+                quote! { Vec<<#inner_type as light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig> }
             } else {
                 return Err(syn::Error::new_spanned(
                     vec_type,
@@ -187,7 +187,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
 
         // Option types: delegate to the Option's Config type
         FieldType::Option(_, option_type) => {
-            quote! { <#option_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::ZeroCopyConfig }
+            quote! { <#option_type as light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig }
         }
 
         // Fixed-size types don't need configuration
@@ -204,7 +204,7 @@ pub fn config_type(field_type: &FieldType) -> syn::Result<TokenStream2> {
         // DynamicZeroCopy types: delegate to their Config type (Config is typically 'static)
         FieldType::DynamicZeroCopy(_, field_type) => {
             let field_type = utils::convert_to_zerocopy_type(field_type);
-            quote! { <#field_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::ZeroCopyConfig }
+            quote! { <#field_type as light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig }
         }
     };
     Ok(result)
@@ -290,7 +290,7 @@ pub fn generate_field_initialization_for_config(
         | FieldType::DynamicZeroCopy(field_name, vec_type)
         | FieldType::Option(field_name, vec_type) => {
             quote! {
-                let (#field_name, bytes) = <#vec_type as light_zero_copy::init_mut::ZeroCopyNew<'a>>::new_zero_copy(
+                let (#field_name, bytes) = <#vec_type as light_zero_copy::traits::ZeroCopyNew<'a>>::new_zero_copy(
                     bytes,
                     config.#field_name
                 )?;
@@ -307,7 +307,7 @@ pub fn generate_field_initialization_for_config(
                 _ => unreachable!(),
             };
             quote! {
-                let (#field_name, bytes) = <#option_type as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(
+                let (#field_name, bytes) = <#option_type as light_zero_copy::traits::ZeroCopyNew>::new_zero_copy(
                     bytes,
                     (config.#field_name, ())
                 )?;
@@ -317,7 +317,7 @@ pub fn generate_field_initialization_for_config(
         // Fixed-size types that are struct fields (not meta fields) need initialization with () config
         FieldType::Primitive(field_name, field_type) => {
             quote! {
-                let (#field_name, bytes) = <#field_type as light_zero_copy::borsh_mut::DeserializeMut>::zero_copy_at_mut(bytes)?;
+                let (#field_name, bytes) = <#field_type as light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut(bytes)?;
             }
         }
 
@@ -342,7 +342,7 @@ pub fn generate_field_initialization_for_config(
 
         FieldType::Copy(field_name, field_type) => {
             quote! {
-                let (#field_name, bytes) = <#field_type as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(bytes)?;
+                let (#field_name, bytes) = <#field_type as light_zero_copy::traits::ZeroCopyNew>::new_zero_copy(bytes)?;
             }
         }
     };
@@ -379,32 +379,32 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
 
         FieldType::VecDynamicZeroCopy(field_name, vec_type) => {
             quote! {
-                <#vec_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
+                <#vec_type as light_zero_copy::traits::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
             }
         }
 
         // Option types
         FieldType::Option(field_name, option_type) => {
             quote! {
-                <#option_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
+                <#option_type as light_zero_copy::traits::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
             }
         }
 
         FieldType::OptionU64(field_name) => {
             quote! {
-                <Option<u64> as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
+                <Option<u64> as light_zero_copy::traits::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
             }
         }
 
         FieldType::OptionU32(field_name) => {
             quote! {
-                <Option<u32> as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
+                <Option<u32> as light_zero_copy::traits::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
             }
         }
 
         FieldType::OptionU16(field_name) => {
             quote! {
-                <Option<u16> as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
+                <Option<u16> as light_zero_copy::traits::ZeroCopyNew<'static>>::byte_len(&(config.#field_name, ()))
             }
         }
 
@@ -437,7 +437,7 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
 
         FieldType::DynamicZeroCopy(field_name, field_type) => {
             quote! {
-                <#field_type as light_zero_copy::init_mut::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
+                <#field_type as light_zero_copy::traits::ZeroCopyNew<'static>>::byte_len(&config.#field_name)
             }
         }
     };

@@ -1,7 +1,4 @@
-use core::{
-    mem::size_of,
-    ops::{Deref, DerefMut},
-};
+use core::mem::size_of;
 use std::vec::Vec;
 
 use zerocopy::{
@@ -11,17 +8,17 @@ use zerocopy::{
 
 use crate::errors::ZeroCopyError;
 
-pub trait Deserialize<'a>
+pub trait ZeroCopyAt<'a>
 where
     Self: Sized,
 {
-    type Output;
+    type ZeroCopyAt;
 
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError>;
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError>;
 }
 
-impl<'a, T: KnownLayout + Immutable + FromBytes> Deserialize<'a> for Ref<&'a [u8], T> {
-    type Output = Ref<&'a [u8], T>;
+impl<'a, T: KnownLayout + Immutable + FromBytes> ZeroCopyAt<'a> for Ref<&'a [u8], T> {
+    type ZeroCopyAt = Ref<&'a [u8], T>;
 
     #[inline]
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
@@ -30,10 +27,10 @@ impl<'a, T: KnownLayout + Immutable + FromBytes> Deserialize<'a> for Ref<&'a [u8
     }
 }
 
-impl<'a, T: Deserialize<'a>> Deserialize<'a> for Option<T> {
-    type Output = Option<T::Output>;
+impl<'a, T: ZeroCopyAt<'a>> ZeroCopyAt<'a> for Option<T> {
+    type ZeroCopyAt = Option<T::ZeroCopyAt>;
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         if bytes.len() < size_of::<u8>() {
             return Err(ZeroCopyError::ArraySize(1, bytes.len()));
         }
@@ -49,8 +46,8 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Option<T> {
     }
 }
 
-impl Deserialize<'_> for u8 {
-    type Output = Self;
+impl ZeroCopyAt<'_> for u8 {
+    type ZeroCopyAt = Self;
 
     #[inline]
     fn zero_copy_at(bytes: &[u8]) -> Result<(u8, &[u8]), ZeroCopyError> {
@@ -62,11 +59,11 @@ impl Deserialize<'_> for u8 {
     }
 }
 
-impl<'a> Deserialize<'a> for bool {
-    type Output = u8;
+impl<'a> ZeroCopyAt<'a> for bool {
+    type ZeroCopyAt = u8;
 
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         if bytes.len() < size_of::<u8>() {
             return Err(ZeroCopyError::ArraySize(1, bytes.len()));
         }
@@ -78,11 +75,11 @@ impl<'a> Deserialize<'a> for bool {
 macro_rules! impl_deserialize_for_primitive {
     ($(($native:ty, $zerocopy:ty)),*) => {
         $(
-            impl<'a> Deserialize<'a> for $native {
-                type Output = Ref<&'a [u8], $zerocopy>;
+            impl<'a> ZeroCopyAt<'a> for $native {
+                type ZeroCopyAt = Ref<&'a [u8], $zerocopy>;
 
                 #[inline]
-                fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+                fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
                     Ref::<&'a [u8], $zerocopy>::from_prefix(bytes).map_err(ZeroCopyError::from)
                 }
             }
@@ -105,21 +102,21 @@ impl_deserialize_for_primitive!(
     (I64, I64)
 );
 
-// Implement Deserialize for fixed-size array types
-impl<'a, T: KnownLayout + Immutable + FromBytes, const N: usize> Deserialize<'a> for [T; N] {
-    type Output = Ref<&'a [u8], [T; N]>;
+// Implement ZeroCopyAt for fixed-size array types
+impl<'a, T: KnownLayout + Immutable + FromBytes, const N: usize> ZeroCopyAt<'a> for [T; N] {
+    type ZeroCopyAt = Ref<&'a [u8], [T; N]>;
 
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (bytes, remaining_bytes) = Ref::<&'a [u8], [T; N]>::from_prefix(bytes)?;
         Ok((bytes, remaining_bytes))
     }
 }
 
-impl<'a, T: Deserialize<'a>> Deserialize<'a> for Vec<T> {
-    type Output = Vec<T::Output>;
+impl<'a, T: ZeroCopyAt<'a>> ZeroCopyAt<'a> for Vec<T> {
+    type ZeroCopyAt = Vec<T::ZeroCopyAt>;
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
         let num_slices = u32::from(*num_slices) as usize;
         // Prevent heap exhaustion attacks by checking if num_slices is reasonable
@@ -130,44 +127,6 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Vec<T> {
                 num_slices,
             ));
         }
-        let mut slices = Vec::with_capacity(num_slices);
-        for _ in 0..num_slices {
-            let (slice, _bytes) = T::zero_copy_at(bytes)?;
-            bytes = _bytes;
-            slices.push(slice);
-        }
-        Ok((slices, bytes))
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct VecU8<T>(Vec<T>);
-impl<T> VecU8<T> {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-}
-
-impl<T> Deref for VecU8<T> {
-    type Target = Vec<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for VecU8<u8> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'a, T: Deserialize<'a>> Deserialize<'a> for VecU8<T> {
-    type Output = Vec<T::Output>;
-
-    #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
-        let (num_slices, mut bytes) = Ref::<&[u8], u8>::from_prefix(bytes)?;
-        let num_slices = u32::from(*num_slices) as usize;
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
             let (slice, _bytes) = T::zero_copy_at(bytes)?;
@@ -225,15 +184,6 @@ pub fn borsh_vec_u8_as_slice(bytes: &[u8]) -> Result<(&[u8], &[u8]), ZeroCopyErr
         return Err(ZeroCopyError::ArraySize(num_slices, bytes.len()));
     }
     Ok(bytes.split_at(num_slices))
-}
-
-#[test]
-fn test_vecu8() {
-    use std::vec;
-    let bytes = vec![8, 1u8, 2, 3, 4, 5, 6, 7, 8];
-    let (vec, remaining_bytes) = VecU8::<u8>::zero_copy_at(&bytes).unwrap();
-    assert_eq!(vec, vec![1u8, 2, 3, 4, 5, 6, 7, 8]);
-    assert_eq!(remaining_bytes, &[]);
 }
 
 #[test]
@@ -295,28 +245,9 @@ fn test_deserialize_vec() {
     assert_eq!(remaining, &[]);
 }
 
-#[test]
-fn test_vecu8_deref() {
-    let data = std::vec![1, 2, 3];
-    let vec_u8 = VecU8(data.clone());
-    assert_eq!(&*vec_u8, &data);
-
-    let mut vec = VecU8::new();
-    vec.push(1u8);
-    assert_eq!(*vec, std::vec![1u8]);
-}
-
-#[test]
-fn test_deserialize_vecu8() {
-    let bytes = [3, 4, 5, 6]; // Length 3, followed by values 4, 5, 6
-    let (vec, remaining) = VecU8::<u8>::zero_copy_at(&bytes).unwrap();
-    assert_eq!(vec, std::vec![4, 5, 6]);
-    assert_eq!(remaining, &[]);
-}
-
 #[cfg(test)]
 pub mod test {
-    use std::vec;
+    use std::{ops::Deref, vec};
 
     use borsh::{BorshDeserialize, BorshSerialize};
     use zerocopy::{
@@ -333,13 +264,13 @@ pub mod test {
     //      1.2. represent vectors to ZeroCopySlice & don't include these into the meta struct
     //      1.3. replace u16 with U16, u32 with U32, etc
     //      1.4. every field after the first vector is directly included in the ZStruct and deserialized 1 by 1
-    //      1.5. If a vector contains a nested vector (does not implement Copy) it  must implement Deserialize
-    //      1.6. Elements in an Option must implement Deserialize
-    //      1.7. a type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
+    //      1.5. If a vector contains a nested vector (does not implement Copy) it  must implement ZeroCopyAt
+    //      1.6. Elements in an Option must implement ZeroCopyAt
+    //      1.7. a type that does not implement Copy must implement ZeroCopyAt, and is deserialized 1 by 1
 
     // Derive Macro needs to derive:
     //  1. ZeroCopyStructInner
-    // 2. Deserialize
+    // 2. ZeroCopyAt
     // 3. PartialEq<Struct> for ZStruct<'_>
     //
     // For every struct1 - struct7 create struct_derived1 - struct_derived7 and replicate the tests for the new structs.
@@ -377,10 +308,10 @@ pub mod test {
         }
     }
 
-    impl<'a> Deserialize<'a> for Struct1 {
-        type Output = ZStruct1<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct1 {
+        type ZeroCopyAt = ZStruct1<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&[u8], ZStruct1Meta>::from_prefix(bytes)?;
             Ok((ZStruct1 { meta }, bytes))
         }
@@ -435,12 +366,12 @@ pub mod test {
         }
     }
 
-    impl<'a> Deserialize<'a> for Struct2 {
-        type Output = ZStruct2<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct2 {
+        type ZeroCopyAt = ZStruct2<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&[u8], ZStruct2Meta>::from_prefix(bytes)?;
-            let (vec, bytes) = <Vec<u8> as Deserialize>::zero_copy_at(bytes)?;
+            let (vec, bytes) = <Vec<u8> as ZeroCopyAt>::zero_copy_at(bytes)?;
             Ok((ZStruct2 { meta, vec }, bytes))
         }
     }
@@ -492,14 +423,14 @@ pub mod test {
         }
     }
 
-    impl<'a> Deserialize<'a> for Struct3 {
-        type Output = ZStruct3<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct3 {
+        type ZeroCopyAt = ZStruct3<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&[u8], ZStruct3Meta>::from_prefix(bytes)?;
             let (vec, bytes) = ZeroCopySliceBorsh::zero_copy_at(bytes)?;
             let (c, bytes) = Ref::<&[u8], U64>::from_prefix(bytes)?;
-            Ok((Self::Output { meta, vec, c }, bytes))
+            Ok((Self::ZeroCopyAt { meta, vec, c }, bytes))
         }
     }
 
@@ -574,17 +505,17 @@ pub mod test {
         }
     }
 
-    impl<'a> Deserialize<'a> for Struct4 {
-        type Output = ZStruct4<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct4 {
+        type ZeroCopyAt = ZStruct4<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&[u8], ZStruct4Meta>::from_prefix(bytes)?;
             let (vec, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
             let (c, bytes) =
                 Ref::<&[u8], <u64 as ZeroCopyStructInner>::ZeroCopyInner>::from_prefix(bytes)?;
             let (vec_2, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
             Ok((
-                Self::Output {
+                Self::ZeroCopyAt {
                     meta,
                     vec,
                     c,
@@ -630,10 +561,10 @@ pub mod test {
         pub a: Vec<ZeroCopySliceBorsh<'a, <u8 as ZeroCopyStructInner>::ZeroCopyInner>>,
     }
 
-    impl<'a> Deserialize<'a> for Struct5 {
-        type Output = ZStruct5<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct5 {
+        type ZeroCopyAt = ZStruct5<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (a, bytes) = Vec::<ZeroCopySliceBorsh::<<u8 as ZeroCopyStructInner>::ZeroCopyInner>>::zero_copy_at(bytes)?;
             Ok((ZStruct5 { a }, bytes))
         }
@@ -654,7 +585,7 @@ pub mod test {
         assert_eq!(remaining, &[]);
     }
 
-    // If a struct inside a vector contains a vector it must implement Deserialize.
+    // If a struct inside a vector contains a vector it must implement ZeroCopyAt.
     #[repr(C)]
     #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize)]
     pub struct Struct6 {
@@ -664,13 +595,13 @@ pub mod test {
     #[repr(C)]
     #[derive(Debug, PartialEq)]
     pub struct ZStruct6<'a> {
-        pub a: Vec<<Struct2 as Deserialize<'a>>::Output>,
+        pub a: Vec<<Struct2 as ZeroCopyAt<'a>>::ZeroCopyAt>,
     }
 
-    impl<'a> Deserialize<'a> for Struct6 {
-        type Output = ZStruct6<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct6 {
+        type ZeroCopyAt = ZStruct6<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (a, bytes) = Vec::<Struct2>::zero_copy_at(bytes)?;
             Ok((ZStruct6 { a }, bytes))
         }
@@ -745,12 +676,12 @@ pub mod test {
         }
     }
 
-    impl<'a> Deserialize<'a> for Struct7 {
-        type Output = ZStruct7<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct7 {
+        type ZeroCopyAt = ZStruct7<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (meta, bytes) = Ref::<&[u8], ZStruct7Meta>::from_prefix(bytes)?;
-            let (option, bytes) = <Option<u8> as Deserialize>::zero_copy_at(bytes)?;
+            let (option, bytes) = <Option<u8> as ZeroCopyAt>::zero_copy_at(bytes)?;
             Ok((ZStruct7 { meta, option }, bytes))
         }
     }
@@ -784,7 +715,7 @@ pub mod test {
         assert_eq!(remaining, &[]);
     }
 
-    // If a struct inside a vector contains a vector it must implement Deserialize.
+    // If a struct inside a vector contains a vector it must implement ZeroCopyAt.
     #[repr(C)]
     #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize)]
     pub struct Struct8 {
@@ -801,15 +732,15 @@ pub mod test {
     #[derive(Debug, PartialEq)]
     pub struct ZNestedStruct<'a> {
         pub a: <u8 as ZeroCopyStructInner>::ZeroCopyInner,
-        pub b: <Struct2 as Deserialize<'a>>::Output,
+        pub b: <Struct2 as ZeroCopyAt<'a>>::ZeroCopyAt,
     }
 
-    impl<'a> Deserialize<'a> for NestedStruct {
-        type Output = ZNestedStruct<'a>;
+    impl<'a> ZeroCopyAt<'a> for NestedStruct {
+        type ZeroCopyAt = ZNestedStruct<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (a, bytes) = <u8 as ZeroCopyStructInner>::ZeroCopyInner::zero_copy_at(bytes)?;
-            let (b, bytes) = <Struct2 as Deserialize>::zero_copy_at(bytes)?;
+            let (b, bytes) = <Struct2 as ZeroCopyAt>::zero_copy_at(bytes)?;
             Ok((ZNestedStruct { a, b }, bytes))
         }
     }
@@ -823,13 +754,13 @@ pub mod test {
     #[repr(C)]
     #[derive(Debug, PartialEq)]
     pub struct ZStruct8<'a> {
-        pub a: Vec<<NestedStruct as Deserialize<'a>>::Output>,
+        pub a: Vec<<NestedStruct as ZeroCopyAt<'a>>::ZeroCopyAt>,
     }
 
-    impl<'a> Deserialize<'a> for Struct8 {
-        type Output = ZStruct8<'a>;
+    impl<'a> ZeroCopyAt<'a> for Struct8 {
+        type ZeroCopyAt = ZStruct8<'a>;
 
-        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
             let (a, bytes) = Vec::<NestedStruct>::zero_copy_at(bytes)?;
             Ok((ZStruct8 { a }, bytes))
         }

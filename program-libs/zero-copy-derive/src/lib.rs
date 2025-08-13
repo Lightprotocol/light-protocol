@@ -66,7 +66,7 @@ mod tests;
 ///    1.6. Elements in an Option must implement Deserialize
 ///    1.7. A type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
 ///    1.8. is u8 deserialized as u8::zero_copy_at instead of Ref<&'a [u8], u8> for non  mut, for mut it is Ref<&'a mut [u8], u8>
-/// 2. Implement Deserialize and DeserializeMut which return Z<StructName> and Z<StructName>Mut
+/// 2. Implement Deserialize and ZeroCopyAtMut which return Z<StructName> and Z<StructName>Mut
 /// 3. Implement From<Z<StructName>> for StructName and From<Z<StructName>Mut> for StructName
 ///
 /// Note: Options are not supported in ZeroCopyEq
@@ -102,7 +102,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// ZeroCopyMut derivation macro for mutable zero-copy deserialization
 ///
 /// This macro generates mutable zero-copy implementations including:
-/// - DeserializeMut trait implementation
+/// - ZeroCopyAtMut trait implementation
 /// - Mutable Z-struct with `Mut` suffix
 /// - byte_len() method implementation
 /// - Mutable ZeroCopyStructInner implementation

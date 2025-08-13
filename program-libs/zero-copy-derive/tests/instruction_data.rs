@@ -2,7 +2,10 @@
 use std::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, errors::ZeroCopyError};
+use light_zero_copy::{
+    errors::ZeroCopyError,
+    traits::{ZeroCopyAt, ZeroCopyAtMut},
+};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
@@ -36,38 +39,38 @@ impl Pubkey {
     }
 }
 
-impl<'a> Deserialize<'a> for Pubkey {
-    type Output = Ref<&'a [u8], Pubkey>;
+impl<'a> ZeroCopyAt<'a> for Pubkey {
+    type ZeroCopyAt = Ref<&'a [u8], Pubkey>;
 
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         Ok(Ref::<&'a [u8], Pubkey>::from_prefix(bytes)?)
     }
 }
 
-impl<'a> DeserializeMut<'a> for Pubkey {
-    type Output = Ref<&'a mut [u8], Pubkey>;
+impl<'a> ZeroCopyAtMut<'a> for Pubkey {
+    type ZeroCopyAtMut = Ref<&'a mut [u8], Pubkey>;
 
     #[inline]
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
         Ok(Ref::<&'a mut [u8], Pubkey>::from_prefix(bytes)?)
     }
 }
 
-// We should not implement DeserializeMut for primitive types directly
+// We should not implement ZeroCopyAtMut for primitive types directly
 // The implementation should be in the zero-copy crate
 
-impl PartialEq<<Pubkey as Deserialize<'_>>::Output> for Pubkey {
-    fn eq(&self, other: &<Pubkey as Deserialize<'_>>::Output) -> bool {
+impl PartialEq<<Pubkey as ZeroCopyAt<'_>>::ZeroCopyAt> for Pubkey {
+    fn eq(&self, other: &<Pubkey as ZeroCopyAt<'_>>::ZeroCopyAt) -> bool {
         self.0 == other.0
     }
 }
 
-impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for Pubkey {
+impl<'a> light_zero_copy::traits::ZeroCopyNew<'a> for Pubkey {
     type ZeroCopyConfig = ();
-    type Output = <Self as DeserializeMut<'a>>::Output;
+    type Output = <Self as ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
 
     fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
         Ok(32) // Pubkey is always 32 bytes
@@ -97,18 +100,18 @@ pub struct InstructionDataInvoke {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for InstructionDataInvoke {
 //     type Config = InstructionDataInvokeConfig;
-//     type Output = <Self as light_zero_copy::borsh_mut::DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as light_zero_copy::borsh_mut::ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         config: Self::Config
-//     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
 //         use zerocopy::Ref;
 //
 //         // First handle the meta struct (empty for InstructionDataInvoke)
 //         let (__meta, bytes) = Ref::<&mut [u8], ZInstructionDataInvokeMetaMut>::from_prefix(bytes)?;
 //
-//         // Initialize each field using the corresponding config, following DeserializeMut order
+//         // Initialize each field using the corresponding config, following ZeroCopyAtMut order
 //         let (proof, bytes) = <Option<CompressedProof> as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(
 //             bytes,
 //             (config.proof_config.is_some(), CompressedProofConfig {})
@@ -216,12 +219,12 @@ pub struct OutputCompressedAccountWithPackedContext {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for OutputCompressedAccountWithPackedContext {
 //     type Config = CompressedAccountZeroCopyNew;
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         config: Self::Config
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZOutputCompressedAccountWithPackedContextMetaMut>::from_prefix(bytes)?;
 //         let (compressed_account, bytes) = <CompressedAccount as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(bytes, config)?;
 //         let (merkle_tree_index, bytes) = <u8 as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(bytes, ())?;
@@ -257,12 +260,12 @@ pub struct NewAddressParamsPacked {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for NewAddressParamsPacked {
 //     type Config = ();
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         _config: Self::Config
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZNewAddressParamsPackedMetaMut>::from_prefix(bytes)?;
 //         Ok((ZNewAddressParamsPackedMut { __meta }, bytes))
 //     }
@@ -350,12 +353,12 @@ impl Default for CompressedProof {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for CompressedProof {
 //     type Config = ();
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         _config: Self::Config
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedProofMetaMut>::from_prefix(bytes)?;
 //         Ok((ZCompressedProofMut { __meta }, bytes))
 //     }
@@ -407,12 +410,12 @@ pub struct PackedCompressedAccountWithMerkleContext {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for PackedCompressedAccountWithMerkleContext {
 //     type Config = CompressedAccountZeroCopyNew;
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         config: Self::Config
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZPackedCompressedAccountWithMerkleContextMetaMut>::from_prefix(bytes)?;
 //         let (compressed_account, bytes) = <CompressedAccount as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(bytes, config)?;
 //         let (merkle_context, bytes) = <PackedMerkleContext as light_zero_copy::init_mut::ZeroCopyNew>::new_zero_copy(bytes, ())?;
@@ -452,12 +455,12 @@ pub struct MerkleContext {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for MerkleContext {
 //     type Config = ();
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         _config: Self::Config
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZMerkleContextMetaMut>::from_prefix(bytes)?;
 //
 //         Ok((
@@ -540,12 +543,12 @@ pub struct PackedMerkleContext {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for PackedMerkleContext {
 //     type Config = ();
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         _config: Self::Config
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZPackedMerkleContextMetaMut>::from_prefix(bytes)?;
 //         Ok((ZPackedMerkleContextMut { __meta }, bytes))
 //     }
@@ -572,12 +575,12 @@ pub struct CompressedAccount {
 
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for CompressedAccount {
 //     type Config = CompressedAccountZeroCopyNew;
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 //
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         config: Self::Config,
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountMetaMut>::from_prefix(bytes)?;
 //
 //         // Use generic Option implementation for address field
@@ -730,12 +733,12 @@ pub struct CompressedAccountData {
 // COMMENTED OUT: Now using ZeroCopyNew derive macro instead
 // impl<'a> light_zero_copy::init_mut::ZeroCopyNew<'a> for CompressedAccountData {
 //     type Config = u32; // data_capacity
-//     type Output = <Self as DeserializeMut<'a>>::Output;
+//     type ZeroCopyAt = <Self as ZeroCopyAtMut<'a>>::Output;
 
 //     fn new_zero_copy(
 //         bytes: &'a mut [u8],
 //         data_capacity: Self::Config,
-//     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+//     ) -> Result<(Self::ZeroCopyAt, &'a mut [u8]), ZeroCopyError> {
 //         let (__meta, bytes) = Ref::<&mut [u8], ZCompressedAccountDataMetaMut>::from_prefix(bytes)?;
 //         // For u8 slices we just use &mut [u8] so we init the len and the split mut separately.
 //         {
@@ -761,7 +764,7 @@ pub struct CompressedAccountData {
 
 #[test]
 fn test_compressed_account_data_new_at() {
-    use light_zero_copy::init_mut::ZeroCopyNew;
+    use light_zero_copy::traits::ZeroCopyNew;
     let config = CompressedAccountDataConfig { data: 10 };
 
     // Calculate exact buffer size needed and allocate
@@ -815,7 +818,7 @@ fn test_compressed_account_data_new_at() {
 
 #[test]
 fn test_compressed_account_new_at() {
-    use light_zero_copy::init_mut::ZeroCopyNew;
+    use light_zero_copy::traits::ZeroCopyNew;
     let config = CompressedAccountConfig {
         address: (true, ()),
         data: (true, CompressedAccountDataConfig { data: 10 }),
@@ -852,7 +855,7 @@ fn test_compressed_account_new_at() {
 
 #[test]
 fn test_instruction_data_invoke_new_at() {
-    use light_zero_copy::init_mut::ZeroCopyNew;
+    use light_zero_copy::traits::ZeroCopyNew;
     // Create different configs to test various combinations
     let compressed_account_config1 = CompressedAccountZeroCopyNew {
         address_enabled: true,

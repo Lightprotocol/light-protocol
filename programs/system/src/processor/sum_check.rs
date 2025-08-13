@@ -80,7 +80,7 @@ mod test {
         },
         pubkey::Pubkey,
     };
-    use light_zero_copy::{borsh::Deserialize, slice::ZeroCopySliceBorsh};
+    use light_zero_copy::{slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
     use zerocopy::{little_endian::U64, Ref};
 
     use super::*;

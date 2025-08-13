@@ -476,7 +476,7 @@ fn test_data_as_ptr_and_data_as_mut_ptr() {
         assert_eq!(slice.as_slice(), &values);
     }
 }
-use light_zero_copy::borsh::Deserialize;
+use light_zero_copy::traits::ZeroCopyAt;
 #[test]
 fn test_zero_copy_at() {
     let mut buffer = vec![0u8; 32];

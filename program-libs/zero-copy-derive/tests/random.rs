@@ -2,7 +2,7 @@
 use std::assert_eq;
 
 use borsh::BorshDeserialize;
-use light_zero_copy::{borsh::Deserialize, init_mut::ZeroCopyNew};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 use rand::{
     rngs::{StdRng, ThreadRng},
     Rng,

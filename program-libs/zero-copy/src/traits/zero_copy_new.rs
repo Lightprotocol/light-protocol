@@ -1,7 +1,7 @@
 use core::mem::size_of;
 use std::vec::Vec;
 
-use crate::{borsh_mut::DeserializeMut, errors::ZeroCopyError};
+use crate::{errors::ZeroCopyError, traits::ZeroCopyAtMut};
 
 /// Trait for types that can be initialized in mutable byte slices with configuration
 ///
@@ -129,7 +129,7 @@ impl<'a> ZeroCopyNew<'a> for u16 {
 
 impl<'a> ZeroCopyNew<'a> for u8 {
     type ZeroCopyConfig = ();
-    type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    type Output = <Self as crate::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
 
     fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
         Ok(size_of::<u8>())
@@ -139,14 +139,14 @@ impl<'a> ZeroCopyNew<'a> for u8 {
         bytes: &'a mut [u8],
         _config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Use the DeserializeMut trait to create the proper output
-        Self::zero_copy_at_mut(bytes)
+        // Use the ZeroCopyAtMut trait to create the proper output
+        <Self as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)
     }
 }
 
 impl<'a> ZeroCopyNew<'a> for bool {
     type ZeroCopyConfig = ();
-    type Output = <u8 as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    type Output = <u8 as crate::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
 
     fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
         Ok(size_of::<u8>()) // bool is serialized as u8
@@ -157,7 +157,7 @@ impl<'a> ZeroCopyNew<'a> for bool {
         _config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         // Treat bool as u8
-        u8::zero_copy_at_mut(bytes)
+        <u8 as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)
     }
 }
 
@@ -169,7 +169,7 @@ impl<
     > ZeroCopyNew<'a> for [T; N]
 {
     type ZeroCopyConfig = ();
-    type Output = <Self as crate::borsh_mut::DeserializeMut<'a>>::Output;
+    type Output = <Self as crate::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
 
     fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
         Ok(size_of::<Self>())
@@ -179,8 +179,8 @@ impl<
         bytes: &'a mut [u8],
         _config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
-        // Use the DeserializeMut trait to create the proper output
-        Self::zero_copy_at_mut(bytes)
+        // Use the ZeroCopyAtMut trait to create the proper output
+        <Self as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)
     }
 }
 

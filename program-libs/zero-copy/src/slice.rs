@@ -196,10 +196,10 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<'a, T: ZeroCopyTraits + crate::borsh::Deserialize<'a>> crate::borsh::Deserialize<'a>
+impl<'a, T: ZeroCopyTraits + crate::traits::ZeroCopyAt<'a>> crate::traits::ZeroCopyAt<'a>
     for ZeroCopySliceBorsh<'a, T>
 {
-    type Output = Self;
+    type ZeroCopyAt = Self;
 
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
         ZeroCopySliceBorsh::from_bytes_at(bytes)

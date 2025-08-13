@@ -37,7 +37,7 @@ The macro follows these rules when generating code:
 ```rust
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy_derive::ZeroCopy;
-use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut};
+use light_zero_copy::{borsh::Deserialize, borsh_mut::ZeroCopyAtMut};
 
 #[repr(C)]
 #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]

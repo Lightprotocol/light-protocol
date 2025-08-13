@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, AnchorDeserialize, AnchorSerialize};
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
 use zerocopy::{little_endian::U64, Ref};
 
 #[derive(Debug, Default, Clone, PartialEq, AnchorSerialize, AnchorDeserialize)]
@@ -23,10 +23,12 @@ pub struct BatchCompressInstructionData<'a> {
     pub bump: u8,
 }
 
-impl<'a> Deserialize<'a> for BatchCompressInstructionData<'a> {
-    type Output = Self;
+impl<'a> ZeroCopyAt<'a> for BatchCompressInstructionData<'a> {
+    type ZeroCopyAt = Self;
 
-    fn zero_copy_at(bytes: &'a [u8]) -> std::result::Result<(Self, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at(
+        bytes: &'a [u8],
+    ) -> std::result::Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (pubkeys, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
         let (amounts, bytes) = Option::<ZeroCopySliceBorsh<U64>>::zero_copy_at(bytes)?;
         let (lamports, bytes) = Option::<U64>::zero_copy_at(bytes)?;

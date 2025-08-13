@@ -196,19 +196,28 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
             ) = if MUT {
                 (
                     parse_quote!(&'a mut [u8]),
-                    format_ident!("borsh_mut"),
+                    format_ident!("traits"),
                     format_ident!("slice_mut"),
                     String::from("Mut"),
                 )
             } else {
                 (
                     parse_quote!(&'a [u8]),
-                    format_ident!("borsh"),
+                    format_ident!("traits"),
                     format_ident!("slice"),
                     String::new(),
                 )
             };
-            let deserialize_ident = format_ident!("Deserialize{}", camel_case_suffix);
+            let deserialize_ident = if MUT {
+                format_ident!("ZeroCopyAtMut")
+            } else {
+                format_ident!("ZeroCopyAt")
+            };
+            let associated_type_ident = if MUT {
+                format_ident!("ZeroCopyAtMut")
+            } else {
+                format_ident!("ZeroCopyAt")
+            };
             let trait_name: syn::Type = parse_quote!(light_zero_copy::#import_path::#deserialize_ident);
             let slice_ident = format_ident!("ZeroCopySlice{}Borsh", camel_case_suffix);
             let slice_name: syn::Type = parse_quote!(light_zero_copy::#import_slice::#slice_ident);
@@ -243,7 +252,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     let field_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::Array(field_name, field_type) => {
@@ -257,7 +266,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     let field_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::OptionU64(field_name) => {
@@ -284,13 +293,13 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                 FieldType::Pubkey(field_name) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <Pubkey as #trait_name<'a>>::Output
+                        pub #field_name: <Pubkey as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::Primitive(field_name, field_type) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::Copy(field_name, field_type) => {
@@ -303,7 +312,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                 FieldType::DynamicZeroCopy(field_name, field_type) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
             }

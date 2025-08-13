@@ -1,7 +1,8 @@
 #![cfg(all(feature = "std", feature = "derive", feature = "mut"))]
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{
-    borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopy, ZeroCopyEq, ZeroCopyMut,
+    traits::{ZeroCopyAt, ZeroCopyAtMut},
+    ZeroCopy, ZeroCopyEq, ZeroCopyMut,
 };
 
 #[repr(C)]
