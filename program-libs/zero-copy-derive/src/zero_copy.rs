@@ -5,6 +5,9 @@ use syn::{parse_quote, DeriveInput, Field, Ident};
 
 use crate::shared::{
     meta_struct, utils,
+    z_enum::{
+        generate_enum_deserialize_impl, generate_enum_zero_copy_struct_inner, generate_z_enum,
+    },
     z_struct::{analyze_struct_fields, generate_z_struct, FieldType},
 };
 
@@ -15,13 +18,13 @@ fn generate_deserialize_call<const MUT: bool>(
 ) -> TokenStream {
     let field_type = utils::convert_to_zerocopy_type(field_type);
     let trait_path = if MUT {
-        quote!( as light_zero_copy::borsh_mut::DeserializeMut>::zero_copy_at_mut)
+        quote!( as ::light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut)
     } else {
-        quote!( as light_zero_copy::borsh::Deserialize>::zero_copy_at)
+        quote!( as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at)
     };
 
     quote! {
-        let (#field_name, bytes) = <#field_type #trait_path(bytes)?;
+        let (#field_name, __remaining_bytes) = <#field_type #trait_path(__remaining_bytes)?;
     }
 }
 
@@ -42,24 +45,35 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::VecU8(field_name) => {
                 if MUT {
                     quote! {
-                        let (#field_name, bytes) = light_zero_copy::borsh_mut::borsh_vec_u8_as_slice_mut(bytes)?;
+                        let (#field_name, __remaining_bytes) = ::light_zero_copy::traits::borsh_vec_u8_as_slice_mut(__remaining_bytes)?;
                     }
                 } else {
                     quote! {
-                        let (#field_name, bytes) = light_zero_copy::borsh::borsh_vec_u8_as_slice(bytes)?;
+                        let (#field_name, __remaining_bytes) = ::light_zero_copy::traits::borsh_vec_u8_as_slice(__remaining_bytes)?;
                     }
                 }
             },
             FieldType::VecCopy(field_name, inner_type) => {
-                let inner_type = utils::convert_to_zerocopy_type(inner_type);
+                let converted_type = utils::convert_to_zerocopy_type(inner_type);
 
-                let trait_path = if MUT {
-                    quote!(light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<'a, <#inner_type as light_zero_copy::borsh_mut::ZeroCopyStructInnerMut>::ZeroCopyInnerMut>)
+                // Determine if type needs ZeroCopyStructInner trait or can be used directly
+                let trait_path = if utils::needs_struct_inner_trait(inner_type) {
+                    // Custom structs need to use the trait's associated type
+                    if MUT {
+                        quote!(::light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<'a, <#converted_type as ::light_zero_copy::traits::ZeroCopyStructInnerMut>::ZeroCopyInnerMut>)
+                    } else {
+                        quote!(::light_zero_copy::slice::ZeroCopySliceBorsh::<'a, <#converted_type as ::light_zero_copy::traits::ZeroCopyStructInner>::ZeroCopyInner>)
+                    }
                 } else {
-                    quote!(light_zero_copy::slice::ZeroCopySliceBorsh::<'a, <#inner_type as light_zero_copy::borsh::ZeroCopyStructInner>::ZeroCopyInner>)
+                    // Arrays and primitives can be used directly after type conversion
+                    if MUT {
+                        quote!(::light_zero_copy::slice_mut::ZeroCopySliceMutBorsh::<'a, #converted_type>)
+                    } else {
+                        quote!(::light_zero_copy::slice::ZeroCopySliceBorsh::<'a, #converted_type>)
+                    }
                 };
                 quote! {
-                    let (#field_name, bytes) = #trait_path::from_bytes_at(bytes)?;
+                    let (#field_name, __remaining_bytes) = #trait_path::from_bytes_at(__remaining_bytes)?;
                 }
             },
             FieldType::VecDynamicZeroCopy(field_name, field_type) => {
@@ -68,7 +82,7 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::Array(field_name, field_type) => {
                 let field_type = utils::convert_to_zerocopy_type(field_type);
                 quote! {
-                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_type>::from_prefix(bytes)?;
+                    let (#field_name, __remaining_bytes) = ::light_zero_copy::Ref::<#mutability_tokens, #field_type>::from_prefix(__remaining_bytes)?;
                 }
             },
             FieldType::Option(field_name, field_type) => {
@@ -80,18 +94,18 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::Primitive(field_name, field_type) => {
                 if MUT {
                     quote! {
-                        let (#field_name, bytes) = <#field_type as light_zero_copy::borsh_mut::DeserializeMut>::zero_copy_at_mut(bytes)?;
+                        let (#field_name, __remaining_bytes) = <#field_type as ::light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut(__remaining_bytes)?;
                     }
                 } else {
                     quote! {
-                        let (#field_name, bytes) = <#field_type as light_zero_copy::borsh::Deserialize>::zero_copy_at(bytes)?;
+                        let (#field_name, __remaining_bytes) = <#field_type as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at(__remaining_bytes)?;
                     }
                 }
             },
             FieldType::Copy(field_name, field_type) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(field_type);
                 quote! {
-                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
+                    let (#field_name, __remaining_bytes) = ::light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(__remaining_bytes)?;
                 }
             },
             FieldType::DynamicZeroCopy(field_name, field_type) => {
@@ -108,6 +122,10 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::OptionU16(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
                 generate_deserialize_call::<MUT>(field_name, &parse_quote!(Option<#field_ty_zerocopy>))
+            },
+            FieldType::OptionArray(field_name, array_type) => {
+                let array_type_zerocopy = utils::convert_to_zerocopy_type(array_type);
+                generate_deserialize_call::<MUT>(field_name, &parse_quote!(Option<#array_type_zerocopy>))
             }
         }
     });
@@ -146,17 +164,19 @@ pub fn generate_deserialize_impl<const MUT: bool>(
     };
 
     // Define trait and types based on mutability
-    let (trait_name, mutability, method_name) = if MUT {
+    let (trait_name, mutability, method_name, associated_type) = if MUT {
         (
-            quote!(light_zero_copy::borsh_mut::DeserializeMut),
+            quote!(::light_zero_copy::traits::ZeroCopyAtMut),
             quote!(mut),
             quote!(zero_copy_at_mut),
+            quote!(ZeroCopyAtMut),
         )
     } else {
         (
-            quote!(light_zero_copy::borsh::Deserialize),
+            quote!(::light_zero_copy::traits::ZeroCopyAt),
             quote!(),
             quote!(zero_copy_at),
+            quote!(ZeroCopyAt),
         )
     };
     let (meta_des, meta) = if meta_is_empty {
@@ -164,7 +184,7 @@ pub fn generate_deserialize_impl<const MUT: bool>(
     } else {
         (
             quote! {
-                let (__meta, bytes) = light_zero_copy::Ref::< &'a #mutability [u8], #z_struct_meta_name>::from_prefix(bytes)?;
+                let (__meta, __remaining_bytes) = ::light_zero_copy::Ref::< &'a #mutability [u8], #z_struct_meta_name>::from_prefix(__remaining_bytes)?;
             },
             quote!(__meta,),
         )
@@ -174,9 +194,9 @@ pub fn generate_deserialize_impl<const MUT: bool>(
 
     let result = quote! {
         impl<'a> #trait_name<'a> for #name {
-            type Output = #z_struct_name<'a>;
+            type #associated_type = #z_struct_name<'a>;
 
-            fn #method_name(bytes: &'a #mutability [u8]) -> Result<(Self::Output, &'a #mutability [u8]), light_zero_copy::errors::ZeroCopyError> {
+            fn #method_name(__remaining_bytes: &'a #mutability [u8]) -> Result<(Self::#associated_type, &'a #mutability [u8]), ::light_zero_copy::errors::ZeroCopyError> {
                 #meta_des
                 #(#deserialize_fields)*
                 Ok((
@@ -184,7 +204,7 @@ pub fn generate_deserialize_impl<const MUT: bool>(
                         #meta
                         #(#init_fields,)*
                     },
-                    bytes
+                    __remaining_bytes
                 ))
             }
 
@@ -202,14 +222,14 @@ pub fn generate_zero_copy_struct_inner<const MUT: bool>(
     let result = if MUT {
         quote! {
             // ZeroCopyStructInner implementation
-            impl light_zero_copy::borsh_mut::ZeroCopyStructInnerMut for #name {
+            impl ::light_zero_copy::traits::ZeroCopyStructInnerMut for #name {
                 type ZeroCopyInnerMut = #z_struct_name<'static>;
             }
         }
     } else {
         quote! {
             // ZeroCopyStructInner implementation
-            impl light_zero_copy::borsh::ZeroCopyStructInner for #name {
+            impl ::light_zero_copy::traits::ZeroCopyStructInner for #name {
                 type ZeroCopyInner = #z_struct_name<'static>;
             }
         }
@@ -218,249 +238,81 @@ pub fn generate_zero_copy_struct_inner<const MUT: bool>(
 }
 
 pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2::TokenStream> {
-    // Parse the input DeriveInput
     let input: DeriveInput = syn::parse(input)?;
 
-    let hasher = false;
+    // Validate that struct/enum has #[repr(C)] attribute
+    utils::validate_repr_c_required(&input.attrs, "ZeroCopy")?;
 
-    // Process the input to extract struct information
-    let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
+    let hasher = utils::struct_has_light_hasher_attribute(&input.attrs);
 
-    // Process the fields to separate meta fields and struct fields
-    let (meta_fields, struct_fields) = utils::process_fields(fields);
-
-    let meta_struct_def = if !meta_fields.is_empty() {
-        meta_struct::generate_meta_struct::<false>(&z_struct_meta_name, &meta_fields, hasher)?
-    } else {
-        quote! {}
-    };
-
-    let z_struct_def = generate_z_struct::<false>(
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        &meta_fields,
-        hasher,
-    )?;
-
-    let zero_copy_struct_inner_impl =
-        generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
-
-    let deserialize_impl = generate_deserialize_impl::<false>(
-        name,
-        &z_struct_name,
-        &z_struct_meta_name,
-        &struct_fields,
-        meta_fields.is_empty(),
-        quote! {},
-    )?;
-
-    // Combine all implementations
-    let expanded = quote! {
-        #meta_struct_def
-        #z_struct_def
-        #zero_copy_struct_inner_impl
-        #deserialize_impl
-    };
-
-    Ok(expanded)
-}
-
-#[cfg(test)]
-mod tests {
-    use quote::format_ident;
-    use rand::{prelude::SliceRandom, rngs::StdRng, thread_rng, Rng, SeedableRng};
-    use syn::parse_quote;
-
-    use super::*;
-
-    /// Generate a safe field name for testing
-    fn random_ident(rng: &mut StdRng) -> String {
-        // Use predetermined safe field names
-        const FIELD_NAMES: &[&str] = &[
-            "field1", "field2", "field3", "field4", "field5", "value", "data", "count", "size",
-            "flag", "name", "id", "code", "index", "key", "amount", "balance", "total", "result",
-            "status",
-        ];
-
-        FIELD_NAMES.choose(rng).unwrap().to_string()
+    // Disable light_hasher attribute due to Vec<u8>/&[u8] hash inconsistency
+    if hasher {
+        return Err(syn::Error::new_spanned(
+            &input,
+            "#[light_hasher] attribute is currently disabled due to hash inconsistency between Vec<u8> and &[u8] slice representations in ZStruct vs original struct. The original struct hashes Vec<u8> fields while the ZStruct hashes &[u8] slice fields, producing different hash values.",
+        ));
     }
 
-    /// Generate a random Rust type
-    fn random_type(rng: &mut StdRng, _depth: usize) -> syn::Type {
-        // Define our available types
-        let types = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    // Process the input to extract information for both structs and enums
+    let (name, z_name, input_type) = utils::process_input_generic(&input)?;
 
-        // Randomly select a type index
-        let selected = *types.choose(rng).unwrap();
+    match input_type {
+        utils::InputType::Struct(fields) => {
+            let z_struct_name = z_name;
+            let z_struct_meta_name = format_ident!("Z{}Meta", name);
 
-        // Return the corresponding type
-        match selected {
-            0 => parse_quote!(u8),
-            1 => parse_quote!(u16),
-            2 => parse_quote!(u32),
-            3 => parse_quote!(u64),
-            4 => parse_quote!(bool),
-            5 => parse_quote!(Vec<u8>),
-            6 => parse_quote!(Vec<u16>),
-            7 => parse_quote!(Vec<u32>),
-            8 => parse_quote!([u32; 12]),
-            9 => parse_quote!([Vec<u16>; 12]),
-            10 => parse_quote!([Vec<u8>; 20]),
-            _ => unreachable!(),
-        }
-    }
+            let (meta_fields, struct_fields) = utils::process_fields(fields);
 
-    /// Generate a random field
-    fn random_field(rng: &mut StdRng) -> Field {
-        let name = random_ident(rng);
-        let ty = random_type(rng, 0);
-
-        // Use a safer approach to create the field
-        let name_ident = format_ident!("{}", name);
-        parse_quote!(pub #name_ident: #ty)
-    }
-
-    /// Generate a list of random fields
-    fn random_fields(rng: &mut StdRng, count: usize) -> Vec<Field> {
-        (0..count).map(|_| random_field(rng)).collect()
-    }
-
-    // Test for field initialization code generation - behavioral test
-    #[test]
-    fn test_init_fields() {
-        let field1: Field = parse_quote!(pub id: u32);
-        let field2: Field = parse_quote!(pub name: String);
-        let struct_fields = vec![&field1, &field2];
-
-        let result = generate_init_fields(&struct_fields).collect::<Vec<_>>();
-        assert_eq!(
-            result.len(),
-            2,
-            "Should generate exactly 2 field initializations"
-        );
-
-        let result_str = format!("{} {}", result[0], result[1]);
-        assert!(result_str.contains("id"), "Should contain 'id' field");
-        assert!(result_str.contains("name"), "Should contain 'name' field");
-    }
-
-    #[test]
-    fn test_fuzz_generate_deserialize_impl() {
-        // Set up RNG with a seed for reproducibility
-        let seed = thread_rng().gen();
-        println!("seed {}", seed);
-        let mut rng = StdRng::seed_from_u64(seed);
-
-        // Number of iterations for the test
-        let num_iters = 10000;
-
-        for i in 0..num_iters {
-            // Generate a random struct name
-            let struct_name = format_ident!("{}", random_ident(&mut rng));
-            let z_struct_name = format_ident!("Z{}", struct_name);
-            let z_struct_meta_name = format_ident!("Z{}Meta", struct_name);
-
-            // Generate random number of fields (1-10)
-            let field_count = rng.gen_range(1..11);
-            let fields = random_fields(&mut rng, field_count);
-
-            // Create a named fields collection
-            let syn_fields = syn::punctuated::Punctuated::from_iter(fields.iter().cloned());
-            let fields_named = syn::FieldsNamed {
-                brace_token: syn::token::Brace::default(),
-                named: syn_fields,
+            let meta_struct_def = if !meta_fields.is_empty() {
+                meta_struct::generate_meta_struct::<false>(
+                    &z_struct_meta_name,
+                    &meta_fields,
+                    hasher,
+                )?
+            } else {
+                quote! {}
             };
 
-            // Split into meta fields and struct fields
-            let (_, struct_fields) = crate::shared::utils::process_fields(&fields_named);
-
-            // Call the function we're testing
-            let result = generate_deserialize_impl::<false>(
-                &struct_name,
+            let z_struct_def = generate_z_struct::<false>(
                 &z_struct_name,
                 &z_struct_meta_name,
                 &struct_fields,
-                false,
+                &meta_fields,
+                hasher,
+            )?;
+
+            let zero_copy_struct_inner_impl =
+                generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
+
+            let deserialize_impl = generate_deserialize_impl::<false>(
+                name,
+                &z_struct_name,
+                &z_struct_meta_name,
+                &struct_fields,
+                meta_fields.is_empty(),
                 quote! {},
-            );
+            )?;
 
-            // Get the generated code as a string for validation
-            let result_str = result.unwrap().to_string();
+            Ok(quote! {
+                #meta_struct_def
+                #z_struct_def
+                #zero_copy_struct_inner_impl
+                #deserialize_impl
+            })
+        }
+        utils::InputType::Enum(enum_data) => {
+            let z_enum_name = z_name;
 
-            // Print the first result for debugging
-            if i == 0 {
-                println!("Generated deserialize_impl code format:\n{}", result_str);
-            }
+            let z_enum_def = generate_z_enum(&z_enum_name, enum_data)?;
+            let deserialize_impl = generate_enum_deserialize_impl(name, &z_enum_name, enum_data)?;
+            let zero_copy_struct_inner_impl =
+                generate_enum_zero_copy_struct_inner(name, &z_enum_name, enum_data)?;
 
-            // Verify the result contains expected elements
-            // Basic validation - must be non-empty
-            assert!(
-                !result_str.is_empty(),
-                "Failed to generate TokenStream for iteration {}",
-                i
-            );
-
-            // Validate that the generated code contains the expected impl definition
-            let impl_pattern = format!(
-                "impl < 'a > light_zero_copy :: borsh :: Deserialize < 'a > for {}",
-                struct_name
-            );
-            assert!(
-                result_str.contains(&impl_pattern),
-                "Generated code missing impl definition for iteration {}. Expected: {}",
-                i,
-                impl_pattern
-            );
-
-            // Validate type Output is defined
-            let output_pattern = format!("type Output = {} < 'a >", z_struct_name);
-            assert!(
-                result_str.contains(&output_pattern),
-                "Generated code missing Output type for iteration {}. Expected: {}",
-                i,
-                output_pattern
-            );
-
-            // Validate the zero_copy_at method is present
-            assert!(
-                result_str.contains("fn zero_copy_at (bytes : & 'a [u8])"),
-                "Generated code missing zero_copy_at method for iteration {}",
-                i
-            );
-
-            // Check for meta field extraction
-            let meta_extraction_pattern = format!(
-                "let (__meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , {} > :: from_prefix (bytes) ?",
-                z_struct_meta_name
-            );
-            assert!(
-                result_str.contains(&meta_extraction_pattern),
-                "Generated code missing meta field extraction for iteration {}",
-                i
-            );
-
-            // Check for return with Ok pattern
-            assert!(
-                result_str.contains("Ok (("),
-                "Generated code missing Ok return statement for iteration {}",
-                i
-            );
-
-            // Check for the struct initialization
-            let struct_init_pattern = format!("{} {{", z_struct_name);
-            assert!(
-                result_str.contains(&struct_init_pattern),
-                "Generated code missing struct initialization for iteration {}",
-                i
-            );
-
-            // Check for meta field in the returned struct
-            assert!(
-                result_str.contains("__meta ,"),
-                "Generated code missing meta field in struct initialization for iteration {}",
-                i
-            );
+            Ok(quote! {
+                #z_enum_def
+                #deserialize_impl
+                #zero_copy_struct_inner_impl
+            })
         }
     }
 }

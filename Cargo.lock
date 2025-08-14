@@ -3806,7 +3806,6 @@ dependencies = [
  "pinocchio",
  "rand 0.8.5",
  "solana-program-error",
- "thiserror 2.0.12",
  "zerocopy",
 ]
 

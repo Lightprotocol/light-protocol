@@ -104,12 +104,12 @@ where
     #[inline]
     pub fn data_size(length: L) -> usize {
         let usize_len: usize = u64::from(length) as usize;
-        usize_len * size_of::<T>()
+        usize_len.saturating_mul(size_of::<T>())
     }
 
     #[inline]
     pub fn required_size_for_capacity(capacity: L) -> usize {
-        Self::metadata_size() + Self::data_size(capacity)
+        Self::metadata_size().saturating_add(Self::data_size(capacity))
     }
 
     #[inline]
@@ -278,14 +278,14 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<'a, T: ZeroCopyTraits + crate::borsh_mut::DeserializeMut<'a>>
-    crate::borsh_mut::DeserializeMut<'a> for ZeroCopySliceMutBorsh<'_, T>
+impl<'a, T: ZeroCopyTraits + crate::traits::ZeroCopyAtMut<'a>> crate::traits::ZeroCopyAtMut<'a>
+    for ZeroCopySliceMutBorsh<'_, T>
 {
-    type Output = ZeroCopySliceMutBorsh<'a, T>;
+    type ZeroCopyAtMut = ZeroCopySliceMutBorsh<'a, T>;
 
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
         ZeroCopySliceMutBorsh::from_bytes_at(bytes)
     }
 }

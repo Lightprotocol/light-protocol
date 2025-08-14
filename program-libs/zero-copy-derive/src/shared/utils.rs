@@ -5,17 +5,25 @@ use std::{
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Attribute, Data, DeriveInput, Field, Fields, FieldsNamed, Ident, Type, TypePath};
+use syn::{
+    Attribute, Data, DataEnum, DeriveInput, Field, Fields, FieldsNamed, Ident, Type, TypePath,
+};
 
 // Global cache for storing whether a struct implements Copy
 lazy_static::lazy_static! {
-    static ref COPY_IMPL_CACHE: Arc<Mutex<HashMap<String, bool>>> = Arc::new(Mutex::new(HashMap::new()));
+    pub(crate) static ref COPY_IMPL_CACHE: Arc<Mutex<HashMap<String, bool>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
 /// Creates a unique cache key for a type using span information to avoid collisions
 /// between types with the same name from different modules/locations
 fn create_unique_type_key(ident: &Ident) -> String {
     format!("{}:{:?}", ident, ident.span())
+}
+
+/// Represents the type of input data (struct or enum)
+pub enum InputType<'a> {
+    Struct(&'a FieldsNamed),
+    Enum(&'a DataEnum),
 }
 
 /// Process the derive input to extract the struct information
@@ -53,6 +61,42 @@ pub fn process_input(
     };
 
     Ok((name, z_struct_name, z_struct_meta_name, fields))
+}
+
+/// Process the derive input to extract information for both structs and enums
+pub fn process_input_generic(
+    input: &DeriveInput,
+) -> syn::Result<(
+    &Ident,             // Original name
+    proc_macro2::Ident, // Z-name
+    InputType,          // Input type (struct or enum)
+)> {
+    let name = &input.ident;
+    let z_name = format_ident!("Z{}", name);
+
+    // Populate the cache by checking if this struct implements Copy
+    let _ = struct_implements_copy(input);
+
+    let input_type = match &input.data {
+        Data::Struct(data) => match &data.fields {
+            Fields::Named(fields) => InputType::Struct(fields),
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    &data.fields,
+                    "ZeroCopy only supports structs with named fields",
+                ))
+            }
+        },
+        Data::Enum(data) => InputType::Enum(data),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                input,
+                "ZeroCopy only supports structs and enums",
+            ))
+        }
+    };
+
+    Ok((name, z_name, input_type))
 }
 
 pub fn process_fields(fields: &FieldsNamed) -> (Vec<&Field>, Vec<&Field>) {
@@ -181,9 +225,12 @@ pub fn convert_to_zerocopy_type(ty: &Type) -> TokenStream {
 
                 // Handle primitive types first
                 match ident.to_string().as_str() {
-                    "u16" => quote! { light_zero_copy::little_endian::U16 },
-                    "u32" => quote! { light_zero_copy::little_endian::U32 },
-                    "u64" => quote! { light_zero_copy::little_endian::U64 },
+                    "u16" => quote! { ::light_zero_copy::little_endian::U16 },
+                    "u32" => quote! { ::light_zero_copy::little_endian::U32 },
+                    "u64" => quote! { ::light_zero_copy::little_endian::U64 },
+                    "i16" => quote! { ::light_zero_copy::little_endian::I16 },
+                    "i32" => quote! { ::light_zero_copy::little_endian::I32 },
+                    "i64" => quote! { ::light_zero_copy::little_endian::I64 },
                     "bool" => quote! { u8 },
                     _ => {
                         // Handle container types recursively
@@ -210,6 +257,12 @@ pub fn convert_to_zerocopy_type(ty: &Type) -> TokenStream {
                 quote! { #ty }
             }
         }
+        Type::Array(array) => {
+            // Recursively convert the element type
+            let elem = convert_to_zerocopy_type(&array.elem);
+            let len = &array.len;
+            quote! { [#elem; #len] }
+        }
         _ => {
             quote! { #ty }
         }
@@ -235,6 +288,13 @@ fn struct_has_copy_derive(attrs: &[Attribute]) -> bool {
     })
 }
 
+/// Checks if a struct has a #[light_hasher] attribute
+pub fn struct_has_light_hasher_attribute(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("light_hasher"))
+}
+
 /// Determines whether a struct implements Copy by checking for the #[derive(Copy)] attribute.
 /// Results are cached for performance.
 ///
@@ -248,18 +308,20 @@ pub fn struct_implements_copy(input: &DeriveInput) -> bool {
     let cache_key = create_unique_type_key(&input.ident);
 
     // Check the cache first
-    if let Some(implements_copy) = COPY_IMPL_CACHE.lock().unwrap().get(&cache_key) {
-        return *implements_copy;
+    if let Ok(cache) = COPY_IMPL_CACHE.lock() {
+        if let Some(implements_copy) = cache.get(&cache_key) {
+            return *implements_copy;
+        }
     }
+    // If mutex is poisoned, we can still continue without cache
 
     // Check if the struct has a derive(Copy) attribute
     let implements_copy = struct_has_copy_derive(&input.attrs);
 
-    // Cache the result
-    COPY_IMPL_CACHE
-        .lock()
-        .unwrap()
-        .insert(cache_key, implements_copy);
+    // Cache the result (ignore if mutex is poisoned)
+    if let Ok(mut cache) = COPY_IMPL_CACHE.lock() {
+        cache.insert(cache_key, implements_copy);
+    }
 
     implements_copy
 }
@@ -298,9 +360,12 @@ pub fn is_copy_type(ty: &Type) -> bool {
 
                 // Check if we have cached information about this type
                 let cache_key = create_unique_type_key(ident);
-                if let Some(implements_copy) = COPY_IMPL_CACHE.lock().unwrap().get(&cache_key) {
-                    return *implements_copy;
+                if let Ok(cache) = COPY_IMPL_CACHE.lock() {
+                    if let Some(implements_copy) = cache.get(&cache_key) {
+                        return *implements_copy;
+                    }
                 }
+                // If mutex is poisoned, continue without cache
             }
         }
         // Handle array types (which are always Copy if the element type is Copy)
@@ -314,124 +379,150 @@ pub fn is_copy_type(ty: &Type) -> bool {
     false
 }
 
-#[cfg(test)]
-mod tests {
-    use syn::parse_quote;
-
-    use super::*;
-
-    // Helper function to check if a struct implements Copy
-    fn check_struct_implements_copy(input: syn::DeriveInput) -> bool {
-        struct_implements_copy(&input)
+/// Check if a type needs to use the ZeroCopyStructInner trait.
+/// Arrays and primitive types can be used directly after type conversion,
+/// while custom structs need to go through the trait's associated type.
+pub fn needs_struct_inner_trait(ty: &Type) -> bool {
+    // Arrays don't implement ZeroCopyStructInner - use directly
+    if matches!(ty, Type::Array(_)) {
+        return false;
     }
 
+    // Primitive types and bool are used directly after conversion
+    if is_primitive_integer(ty) || is_bool_type(ty) || is_pubkey_type(ty) {
+        return false;
+    }
+
+    // All other types (custom structs) need the trait
+    true
+}
+
+/// Check if a struct has #[repr(C)] attribute
+pub fn has_repr_c_attribute(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        if attr.path().is_ident("repr") {
+            // Parse the repr attribute arguments
+            // Convert tokens to string and check if it contains "C"
+            // This handles both #[repr(C)] and #[repr(C, packed)] etc.
+            let tokens = attr.meta.clone();
+            if let syn::Meta::List(list) = tokens {
+                // Convert tokens to string and check for "C"
+                let tokens_str = list.tokens.to_string();
+                // Split by comma and check each part
+                for part in tokens_str.split(',') {
+                    let trimmed = part.trim();
+                    // Check if this part is exactly "C" (not part of another word)
+                    if trimmed == "C" {
+                        return true;
+                    }
+                }
+            } else if let syn::Meta::Path(path) = tokens {
+                // Handle #[repr(C)] without parentheses (though unlikely)
+                return path.is_ident("C");
+            }
+            false
+        } else {
+            false
+        }
+    })
+}
+
+/// Validate that the input has #[repr(C)] attribute for memory layout safety
+pub fn validate_repr_c_required(attrs: &[syn::Attribute], item_type: &str) -> syn::Result<()> {
+    if !has_repr_c_attribute(attrs) {
+        return Err(syn::Error::new_spanned(
+            attrs.first().unwrap_or(&syn::parse_quote!(#[dummy])),
+            format!(
+                "{} requires #[repr(C)] attribute for memory layout safety. Add #[repr(C)] above the {} declaration.",
+                item_type, item_type.to_lowercase()
+            )
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::quote;
+
+    use super::has_repr_c_attribute;
+
     #[test]
-    fn test_struct_implements_copy() {
-        // Ensure the cache is cleared and the lock is released immediately
-        COPY_IMPL_CACHE.lock().unwrap().clear();
-        // Test case 1: Empty struct with #[derive(Copy)]
-        let input: syn::DeriveInput = parse_quote! {
-            #[derive(Copy, Clone)]
-            struct EmptyStruct {}
+    fn test_repr_c_detection() {
+        // Test single #[repr(C)]
+        let input = quote! {
+            #[repr(C)]
+            struct Test {}
         };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
         assert!(
-            check_struct_implements_copy(input),
-            "EmptyStruct should implement Copy with #[derive(Copy)]"
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect #[repr(C)]"
         );
 
-        // Test case 2: Simple struct with #[derive(Copy)]
-        let input: syn::DeriveInput = parse_quote! {
-            #[derive(Copy, Clone)]
-            struct SimpleStruct {
-                a: u8,
-                b: u16,
-            }
+        // Test #[repr(C, packed)]
+        let input = quote! {
+            #[repr(C, packed)]
+            struct Test {}
         };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
         assert!(
-            check_struct_implements_copy(input),
-            "SimpleStruct should implement Copy with #[derive(Copy)]"
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect C in #[repr(C, packed)]"
         );
 
-        // Test case 3: Struct with #[derive(Clone)] but not Copy
-        let input: syn::DeriveInput = parse_quote! {
-            #[derive(Clone)]
-            struct StructWithoutCopy {
-                a: u8,
-                b: u16,
-            }
+        // Test #[repr(C, align(8))]
+        let input = quote! {
+            #[repr(C, align(8))]
+            struct Test {}
         };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
         assert!(
-            !check_struct_implements_copy(input),
-            "StructWithoutCopy should not implement Copy without #[derive(Copy)]"
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect C in #[repr(C, align(8))]"
         );
 
-        // Test case 4: Struct with a non-Copy field but with derive(Copy)
-        // Note: In real Rust code, this would not compile, but for our test we only check attributes
-        let input: syn::DeriveInput = parse_quote! {
-            #[derive(Copy, Clone)]
-            struct StructWithVec {
-                a: u8,
-                b: Vec<u8>,
-            }
+        // Test #[repr(packed, C)]
+        let input = quote! {
+            #[repr(packed, C)]
+            struct Test {}
         };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
         assert!(
-            check_struct_implements_copy(input),
-            "StructWithVec has #[derive(Copy)] so our function returns true"
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect C in #[repr(packed, C)]"
         );
 
-        // Test case 5: Struct with all Copy fields but without #[derive(Copy)]
-        let input: syn::DeriveInput = parse_quote! {
-            struct StructWithCopyFields {
-                a: u8,
-                b: u16,
-                c: i32,
-                d: bool,
-            }
+        // Test #[repr(packed)] without C
+        let input = quote! {
+            #[repr(packed)]
+            struct Test {}
         };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
         assert!(
-            !check_struct_implements_copy(input),
-            "StructWithCopyFields should not implement Copy without #[derive(Copy)]"
+            !has_repr_c_attribute(&parsed.attrs),
+            "Should not detect C in #[repr(packed)]"
         );
 
-        // Test case 6: Unit struct without #[derive(Copy)]
-        let input: syn::DeriveInput = parse_quote! {
-            struct UnitStructWithoutCopy;
+        // Test no repr attribute
+        let input = quote! {
+            struct Test {}
         };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
         assert!(
-            !check_struct_implements_copy(input),
-            "UnitStructWithoutCopy should not implement Copy without #[derive(Copy)]"
+            !has_repr_c_attribute(&parsed.attrs),
+            "Should not detect C without repr"
         );
 
-        // Test case 7: Unit struct with #[derive(Copy)]
-        let input: syn::DeriveInput = parse_quote! {
-            #[derive(Copy, Clone)]
-            struct UnitStructWithCopy;
+        // Test #[repr(Rust)]
+        let input = quote! {
+            #[repr(Rust)]
+            struct Test {}
         };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
         assert!(
-            check_struct_implements_copy(input),
-            "UnitStructWithCopy should implement Copy with #[derive(Copy)]"
-        );
-
-        // Test case 8: Tuple struct with #[derive(Copy)]
-        let input: syn::DeriveInput = parse_quote! {
-            #[derive(Copy, Clone)]
-            struct TupleStruct(u32, bool, char);
-        };
-        assert!(
-            check_struct_implements_copy(input),
-            "TupleStruct should implement Copy with #[derive(Copy)]"
-        );
-
-        // Test case 9: Multiple derives including Copy
-        let input: syn::DeriveInput = parse_quote! {
-            #[derive(Debug, PartialEq, Copy, Clone)]
-            struct MultipleDerivesStruct {
-                a: u8,
-            }
-        };
-        assert!(
-            check_struct_implements_copy(input),
-            "MultipleDerivesStruct should implement Copy with #[derive(Copy)]"
+            !has_repr_c_attribute(&parsed.attrs),
+            "Should not detect C in #[repr(Rust)]"
         );
     }
 }

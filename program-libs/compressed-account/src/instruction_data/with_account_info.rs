@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
 use zerocopy::{
     little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -198,10 +198,10 @@ pub struct ZOutAccountInfo<'a> {
     pub data: &'a [u8],
 }
 
-impl<'a> Deserialize<'a> for ZOutAccountInfo<'a> {
-    type Output = ZOutAccountInfo<'a>;
+impl<'a> ZeroCopyAt<'a> for ZOutAccountInfo<'a> {
+    type ZeroCopyAt = ZOutAccountInfo<'a>;
 
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) = Ref::<&[u8], ZOutAccountInfoMeta>::from_prefix(bytes)?;
         let (len, bytes) = Ref::<&'a [u8], U32>::from_prefix(bytes)?;
         let (data, bytes) = bytes.split_at(u64::from(*len) as usize);
@@ -388,9 +388,9 @@ impl<'a> Deref for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     }
 }
 
-impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithAccountInfo {
-    type Output = ZInstructionDataInvokeCpiWithAccountInfo<'a>;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+impl<'a> ZeroCopyAt<'a> for InstructionDataInvokeCpiWithAccountInfo {
+    type ZeroCopyAt = ZInstructionDataInvokeCpiWithAccountInfo<'a>;
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) =
             Ref::<&[u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>::from_prefix(bytes)?;
         let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;

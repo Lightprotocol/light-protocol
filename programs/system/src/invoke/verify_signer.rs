@@ -37,7 +37,7 @@ mod test {
     use light_compressed_account::compressed_account::{
         CompressedAccount, PackedCompressedAccountWithMerkleContext,
     };
-    use light_zero_copy::borsh::Deserialize;
+    use light_zero_copy::traits::ZeroCopyAt;
 
     use super::*;
 

@@ -1,7 +1,8 @@
 #![cfg(all(feature = "std", feature = "derive", feature = "mut"))]
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{
-    borsh::Deserialize, borsh_mut::DeserializeMut, ZeroCopy, ZeroCopyEq, ZeroCopyMut,
+    traits::{ZeroCopyAt, ZeroCopyAtMut},
+    ZeroCopy, ZeroCopyEq, ZeroCopyMut,
 };
 
 #[repr(C)]
@@ -241,6 +242,7 @@ pub struct Struct8Derived {
     pub a: Vec<NestedStructDerived>,
 }
 
+#[repr(C)]
 #[derive(
     Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyMut, ZeroCopyEq,
 )]
@@ -300,6 +302,7 @@ fn test_array_struct() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[repr(C)]
 #[derive(
     Debug,
     PartialEq,

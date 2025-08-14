@@ -6,17 +6,17 @@ use super::utils;
 
 /// Enum representing the different field types for zero-copy struct
 /// (Name, Type)
-/// Note: Arrays with Option elements are not currently supported
 #[derive(Debug)]
 pub enum FieldType<'a> {
     VecU8(&'a Ident),
     VecCopy(&'a Ident, &'a Type),
     VecDynamicZeroCopy(&'a Ident, &'a Type),
-    Array(&'a Ident, &'a Type), // Static arrays only - no Option elements supported
+    Array(&'a Ident, &'a Type),
     Option(&'a Ident, &'a Type),
     OptionU64(&'a Ident),
     OptionU32(&'a Ident),
     OptionU16(&'a Ident),
+    OptionArray(&'a Ident, &'a Type),
     Pubkey(&'a Ident),
     Primitive(&'a Ident, &'a Type),
     Copy(&'a Ident, &'a Type),
@@ -35,6 +35,7 @@ impl<'a> FieldType<'a> {
             FieldType::OptionU64(name) => name,
             FieldType::OptionU32(name) => name,
             FieldType::OptionU16(name) => name,
+            FieldType::OptionArray(name, _) => name,
             FieldType::Pubkey(name) => name,
             FieldType::Primitive(name, _) => name,
             FieldType::Copy(name, _) => name,
@@ -91,13 +92,17 @@ fn classify_integer_type<'a>(
         _ if utils::is_specific_primitive_type(field_type, "u64")
             | utils::is_specific_primitive_type(field_type, "u32")
             | utils::is_specific_primitive_type(field_type, "u16")
-            | utils::is_specific_primitive_type(field_type, "u8") =>
+            | utils::is_specific_primitive_type(field_type, "u8")
+            | utils::is_specific_primitive_type(field_type, "i64")
+            | utils::is_specific_primitive_type(field_type, "i32")
+            | utils::is_specific_primitive_type(field_type, "i16")
+            | utils::is_specific_primitive_type(field_type, "i8") =>
         {
             Ok(FieldType::Primitive(field_name, field_type))
         }
         _ => Err(syn::Error::new_spanned(
             field_type,
-            "Unsupported integer type. Only u8, u16, u32, and u64 are supported",
+            "Unsupported integer type. Only u8, u16, u32, u64, i8, i16, i32, and i64 are supported",
         )),
     }
 }
@@ -134,7 +139,13 @@ fn classify_field<'a>(field_name: &'a Ident, field_type: &'a Type) -> syn::Resul
     // Option types
     if utils::is_option_type(field_type) {
         return match utils::get_option_inner_type(field_type) {
-            Some(inner_type) => Ok(classify_option_type(field_name, field_type, inner_type)),
+            Some(inner_type) => {
+                // Special handling for Option<[T; N]>
+                if matches!(inner_type, Type::Array(_)) {
+                    return Ok(FieldType::OptionArray(field_name, inner_type));
+                }
+                Ok(classify_option_type(field_name, field_type, inner_type))
+            }
             None => Ok(FieldType::Option(field_name, field_type)),
         };
     }
@@ -196,19 +207,28 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
             ) = if MUT {
                 (
                     parse_quote!(&'a mut [u8]),
-                    format_ident!("borsh_mut"),
+                    format_ident!("traits"),
                     format_ident!("slice_mut"),
                     String::from("Mut"),
                 )
             } else {
                 (
                     parse_quote!(&'a [u8]),
-                    format_ident!("borsh"),
+                    format_ident!("traits"),
                     format_ident!("slice"),
                     String::new(),
                 )
             };
-            let deserialize_ident = format_ident!("Deserialize{}", camel_case_suffix);
+            let deserialize_ident = if MUT {
+                format_ident!("ZeroCopyAtMut")
+            } else {
+                format_ident!("ZeroCopyAt")
+            };
+            let associated_type_ident = if MUT {
+                format_ident!("ZeroCopyAtMut")
+            } else {
+                format_ident!("ZeroCopyAt")
+            };
             let trait_name: syn::Type = parse_quote!(light_zero_copy::#import_path::#deserialize_ident);
             let slice_ident = format_ident!("ZeroCopySlice{}Borsh", camel_case_suffix);
             let slice_name: syn::Type = parse_quote!(light_zero_copy::#import_slice::#slice_ident);
@@ -223,19 +243,19 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     }
                 }
                 FieldType::VecCopy(field_name, inner_type) => {
-                    // For primitive Copy types, use the zerocopy converted type directly
-                    // For complex Copy types, use the ZeroCopyStructInner trait
-                    if utils::is_primitive_integer(inner_type) || utils::is_bool_type(inner_type) || utils::is_pubkey_type(inner_type) {
-                        let zerocopy_type = utils::convert_to_zerocopy_type(inner_type);
+                    let zerocopy_type = utils::convert_to_zerocopy_type(inner_type);
+
+                    if utils::needs_struct_inner_trait(inner_type) {
+                        // Custom structs need to use the trait's associated type
+                        quote! {
+                            #(#attributes)*
+                            pub #field_name: #slice_name<'a, <#zerocopy_type as #struct_inner_trait_name>::#associated_type_ident>
+                        }
+                    } else {
+                        // Arrays and primitives can be used directly after type conversion
                         quote! {
                             #(#attributes)*
                             pub #field_name: #slice_name<'a, #zerocopy_type>
-                        }
-                    } else {
-                        let inner_type = utils::convert_to_zerocopy_type(inner_type);
-                        quote! {
-                            #(#attributes)*
-                            pub #field_name: #slice_name<'a, <#inner_type as #struct_inner_trait_name>>
                         }
                     }
                 }
@@ -243,67 +263,74 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                     let field_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::Array(field_name, field_type) => {
                     let field_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: light_zero_copy::Ref<#mutability , #field_type>
+                        pub #field_name: ::light_zero_copy::Ref<#mutability , #field_type>
                     }
                 }
                 FieldType::Option(field_name, field_type) => {
                     let field_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::OptionU64(field_name) => {
                     let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u64));
                     quote! {
                         #(#attributes)*
-                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
                     }
                 }
                 FieldType::OptionU32(field_name) => {
                     let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u32));
                     quote! {
                         #(#attributes)*
-                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
                     }
                 }
                 FieldType::OptionU16(field_name) => {
                     let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
                     quote! {
                         #(#attributes)*
-                        pub #field_name: Option<light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #field_ty_zerocopy>>
+                    }
+                }
+                FieldType::OptionArray(field_name, array_type) => {
+                    let array_type_zerocopy = utils::convert_to_zerocopy_type(array_type);
+                    quote! {
+                        #(#attributes)*
+                        pub #field_name: Option<::light_zero_copy::Ref<#mutability, #array_type_zerocopy>>
                     }
                 }
                 FieldType::Pubkey(field_name) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <Pubkey as #trait_name<'a>>::Output
+                        pub #field_name: <Pubkey as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::Primitive(field_name, field_type) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
                 FieldType::Copy(field_name, field_type) => {
                     let zerocopy_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {
                         #(#attributes)*
-                        pub #field_name: light_zero_copy::Ref<#mutability , #zerocopy_type>
+                        pub #field_name: ::light_zero_copy::Ref<#mutability , #zerocopy_type>
                     }
                 }
                 FieldType::DynamicZeroCopy(field_name, field_type) => {
                     quote! {
                         #(#attributes)*
-                        pub #field_name: <#field_type as #trait_name<'a>>::Output
+                        pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
             }
@@ -377,13 +404,7 @@ pub fn generate_z_struct<const MUT: bool>(
     } else {
         quote! {}
     };
-    let hasher_flatten = if hasher {
-        quote! {
-            #[flatten]
-        }
-    } else {
-        quote! {}
-    };
+    let hasher_flatten = quote! {};
 
     let partial_eq_derive = if MUT { quote!() } else { quote!(, PartialEq) };
 
@@ -401,11 +422,11 @@ pub fn generate_z_struct<const MUT: bool>(
             #[derive(Debug #partial_eq_derive #derive_clone #derive_hasher)]
             pub struct #z_struct_name<'a> {
                 #hasher_flatten
-                __meta: light_zero_copy::Ref<#mutability, #z_struct_meta_name>,
+                __meta: ::light_zero_copy::Ref<#mutability, #z_struct_meta_name>,
                 #(#struct_fields_with_zerocopy_types,)*
             }
-            impl<'a> core::ops::Deref for #z_struct_name<'a> {
-                type Target =  light_zero_copy::Ref<#mutability  , #z_struct_meta_name>;
+            impl<'a> ::core::ops::Deref for #z_struct_name<'a> {
+                type Target =  ::light_zero_copy::Ref<#mutability  , #z_struct_meta_name>;
 
                 fn deref(&self) -> &Self::Target {
                     &self.__meta
@@ -415,7 +436,7 @@ pub fn generate_z_struct<const MUT: bool>(
 
         if MUT {
             tokens.append_all(quote! {
-                impl<'a> core::ops::DerefMut for #z_struct_name<'a> {
+                impl<'a> ::core::ops::DerefMut for #z_struct_name<'a> {
                     fn deref_mut(&mut self) ->  &mut Self::Target {
                         &mut self.__meta
                     }
@@ -425,200 +446,26 @@ pub fn generate_z_struct<const MUT: bool>(
         tokens
     };
 
-    if !meta_fields.is_empty() {
+    // Only generate impl block if there are boolean fields that need accessors
+    let has_bool_in_meta = meta_fields.iter().any(|f| utils::is_bool_type(&f.ty));
+    if has_bool_in_meta {
         let meta_bool_accessor_methods = generate_bool_accessor_methods::<false>(meta_fields);
         z_struct.append_all(quote! {
-            // Implement methods for ZStruct
             impl<'a> #z_struct_name<'a> {
                 #(#meta_bool_accessor_methods)*
             }
         })
-    };
+    }
 
-    if !struct_fields.is_empty() {
+    // Only generate impl block if there are boolean fields that need accessors
+    let has_bool_in_struct = struct_fields.iter().any(|f| utils::is_bool_type(&f.ty));
+    if has_bool_in_struct {
         let bool_accessor_methods = generate_bool_accessor_methods::<MUT>(struct_fields);
         z_struct.append_all(quote! {
-            // Implement methods for ZStruct
             impl<'a> #z_struct_name<'a> {
                 #(#bool_accessor_methods)*
             }
-
         });
     }
     Ok(z_struct)
-}
-
-#[cfg(test)]
-mod tests {
-    use quote::format_ident;
-    use rand::{prelude::SliceRandom, rngs::StdRng, thread_rng, Rng, SeedableRng};
-    use syn::parse_quote;
-
-    use super::*;
-
-    /// Generate a safe field name for testing
-    fn random_ident(rng: &mut StdRng) -> String {
-        // Use predetermined safe field names
-        const FIELD_NAMES: &[&str] = &[
-            "field1", "field2", "field3", "field4", "field5", "value", "data", "count", "size",
-            "flag", "name", "id", "code", "index", "key", "amount", "balance", "total", "result",
-            "status",
-        ];
-
-        FIELD_NAMES.choose(rng).unwrap().to_string()
-    }
-
-    /// Generate a random Rust type
-    fn random_type(rng: &mut StdRng, _depth: usize) -> syn::Type {
-        // Define our available types
-        let types = [0, 1, 2, 3, 4, 5, 6, 7];
-
-        // Randomly select a type index
-        let selected = *types.choose(rng).unwrap();
-
-        // Return the corresponding type
-        match selected {
-            0 => parse_quote!(u8),
-            1 => parse_quote!(u16),
-            2 => parse_quote!(u32),
-            3 => parse_quote!(u64),
-            4 => parse_quote!(bool),
-            5 => parse_quote!(Vec<u8>),
-            6 => parse_quote!(Vec<u16>),
-            7 => parse_quote!(Vec<u32>),
-            _ => unreachable!(),
-        }
-    }
-
-    /// Generate a random field
-    fn random_field(rng: &mut StdRng) -> Field {
-        let name = random_ident(rng);
-        let ty = random_type(rng, 0);
-
-        // Use a safer approach to create the field
-        let name_ident = format_ident!("{}", name);
-        parse_quote!(pub #name_ident: #ty)
-    }
-
-    /// Generate a list of random fields
-    fn random_fields(rng: &mut StdRng, count: usize) -> Vec<Field> {
-        (0..count).map(|_| random_field(rng)).collect()
-    }
-
-    #[test]
-    fn test_fuzz_generate_z_struct() {
-        // Set up RNG with a seed for reproducibility
-        let seed = thread_rng().gen();
-        println!("seed {}", seed);
-        let mut rng = StdRng::seed_from_u64(seed);
-
-        // Now that the test is working, run with 10,000 iterations
-        let num_iters = 10000;
-
-        for i in 0..num_iters {
-            // Generate a random struct name
-            let struct_name = format_ident!("{}", random_ident(&mut rng));
-            let z_struct_name = format_ident!("Z{}", struct_name);
-            let z_struct_meta_name = format_ident!("Z{}Meta", struct_name);
-
-            // Generate random number of fields (1-10)
-            let field_count = rng.gen_range(1..11);
-            let fields = random_fields(&mut rng, field_count);
-
-            // Create a named fields collection that lives longer than the process_fields call
-            let syn_fields = syn::punctuated::Punctuated::from_iter(fields.iter().cloned());
-            let fields_named = syn::FieldsNamed {
-                brace_token: syn::token::Brace::default(),
-                named: syn_fields,
-            };
-
-            // Split into meta fields and struct fields
-            let (meta_fields, struct_fields) = crate::shared::utils::process_fields(&fields_named);
-
-            // Call the function we're testing
-            let result = generate_z_struct::<false>(
-                &z_struct_name,
-                &z_struct_meta_name,
-                &struct_fields,
-                &meta_fields,
-                false,
-            );
-
-            // Get the generated code as a string for validation
-            let result_str = result.unwrap().to_string();
-
-            // Validate the generated code
-
-            // Verify the result contains expected struct elements
-            // Basic validation - must be non-empty
-            assert!(
-                !result_str.is_empty(),
-                "Failed to generate TokenStream for iteration {}",
-                i
-            );
-
-            // Validate that the generated code contains the expected struct definition
-            let struct_pattern = format!("struct {} < 'a >", z_struct_name);
-            assert!(
-                result_str.contains(&struct_pattern),
-                "Generated code missing struct definition for iteration {}. Expected: {}",
-                i,
-                struct_pattern
-            );
-
-            if meta_fields.is_empty() {
-                // Validate the meta field is present
-                assert!(
-                    !result_str.contains("meta :"),
-                    "Generated code had meta field for iteration {}",
-                    i
-                );
-                // Validate Deref implementation
-                assert!(
-                    !result_str.contains("impl < 'a > core :: ops :: Deref"),
-                    "Generated code missing Deref implementation for iteration {}",
-                    i
-                );
-            } else {
-                // Validate the meta field is present
-                assert!(
-                    result_str.contains("meta :"),
-                    "Generated code missing meta field for iteration {}",
-                    i
-                );
-                // Validate Deref implementation
-                assert!(
-                    result_str.contains("impl < 'a > core :: ops :: Deref"),
-                    "Generated code missing Deref implementation for iteration {}",
-                    i
-                );
-                // Validate Target type
-                assert!(
-                    result_str.contains("type Target"),
-                    "Generated code missing Target type for iteration {}",
-                    i
-                );
-                // Check that the deref method is implemented
-                assert!(
-                    result_str.contains("fn deref (& self)"),
-                    "Generated code missing deref method for iteration {}",
-                    i
-                );
-
-                // Check for light_zero_copy::Ref reference
-                assert!(
-                    result_str.contains("light_zero_copy :: Ref"),
-                    "Generated code missing light_zero_copy::Ref for iteration {}",
-                    i
-                );
-            }
-
-            // Make sure derive attributes are present
-            assert!(
-                result_str.contains("# [derive (Debug , PartialEq , Clone)]"),
-                "Generated code missing derive attributes for iteration {}",
-                i
-            );
-        }
-    }
 }

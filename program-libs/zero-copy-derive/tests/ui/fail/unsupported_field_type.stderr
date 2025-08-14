@@ -1,0 +1,7 @@
+error: ZeroCopy requires #[repr(C)] attribute for memory layout safety. Add #[repr(C)] above the zerocopy declaration.
+ --> tests/ui/fail/unsupported_field_type.rs:3:10
+  |
+3 | #[derive(ZeroCopy)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `ZeroCopy` (in Nightly builds, run with -Z macro-backtrace for more info)

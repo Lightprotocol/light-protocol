@@ -12,8 +12,11 @@ use crate::{
 };
 
 pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
-    // Parse the input DeriveInput
-    let input: DeriveInput = syn::parse(fn_input.clone())?;
+    // Parse the input DeriveInput once
+    let input: DeriveInput = syn::parse(fn_input)?;
+
+    // Validate that struct has #[repr(C)] attribute
+    utils::validate_repr_c_required(&input.attrs, "ZeroCopyMut")?;
 
     let hasher = false;
 
@@ -51,42 +54,69 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
         quote! {},
     )?;
 
-    // Parse the input DeriveInput
-    let input: DeriveInput = syn::parse(fn_input)?;
+    // Analyze only struct fields for ZeroCopyNew (meta fields are always fixed-size)
+    let struct_field_types = analyze_struct_fields(&struct_fields)?;
 
-    // Process the input to extract struct information
-    let (name, _z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input)?;
-
-    // Use the same field processing logic as other derive macros for consistency
-    let (meta_fields, struct_fields) = utils::process_fields(fields);
-
-    // Process ALL fields uniformly by type (no position dependency for config generation)
-    let all_fields: Vec<&syn::Field> = meta_fields
+    // Always generate ZeroCopyNew, but use unit config for fixed-size types
+    // This follows zerocopy-derive pattern of always implementing traits
+    let field_strategies: Vec<_> = struct_field_types
         .iter()
-        .chain(struct_fields.iter())
-        .cloned()
+        .map(crate::shared::zero_copy_new::analyze_field_strategy)
         .collect();
-    let all_field_types = analyze_struct_fields(&all_fields)?;
 
-    // Generate configuration struct based on all fields that need config (type-based)
-    let config_struct = generate_config_struct(name, &all_field_types)?;
+    let has_dynamic_fields = !field_strategies.iter().all(|strategy| {
+        matches!(
+            strategy,
+            crate::shared::zero_copy_new::FieldStrategy::FixedSize
+        )
+    });
 
-    // Generate ZeroCopyNew implementation using the existing field separation
-    let init_mut_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields)?;
+    let (config_struct, init_mut_impl) = if has_dynamic_fields {
+        // Generate complex config struct for dynamic fields
+        let config = generate_config_struct(name, &struct_field_types)?;
+        let init_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields)?;
+        (config, Some(init_impl))
+    } else {
+        // Generate unit type alias for fixed-size fields
+        let config_name = quote::format_ident!("{}Config", name);
+        let unit_config = Some(quote! {
+            pub type #config_name = ();
+        });
+        let init_impl = generate_init_mut_impl(name, &meta_fields, &struct_fields)?;
+        (unit_config, Some(init_impl))
+    };
 
-    // Combine all mutable implementations
+    // Combine all mutable implementations with selective hygiene isolation
+    // Types must be public for trait associated types, but implementations are isolated
     let expanded = quote! {
+        // Public types that need to be accessible from trait implementations
         #config_struct
-
-        #init_mut_impl
-
         #meta_struct_def_mut
-
         #z_struct_def_mut
 
-        #zero_copy_struct_inner_impl_mut
+        // Isolate only the implementations to prevent pollution while keeping types accessible
+        const _: () = {
+            // Import all necessary items within the isolated scope
+            #[allow(unused_imports)]
+            use ::core::{mem::size_of, ops::Deref};
 
-        #deserialize_impl_mut
+            #[allow(unused_imports)]
+            use ::light_zero_copy::{
+                errors::ZeroCopyError,
+                slice_mut::ZeroCopySliceMutBorsh,
+            };
+
+            #[allow(unused_imports)]
+            use ::zerocopy::{
+                little_endian::{U16, U32, U64},
+                FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
+            };
+
+            // Implementations are isolated to prevent helper function pollution
+            #zero_copy_struct_inner_impl_mut
+            #deserialize_impl_mut
+            #init_mut_impl
+        };
     };
 
     Ok(expanded)

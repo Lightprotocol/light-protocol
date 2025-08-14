@@ -54,7 +54,9 @@ jobs:
               cargo test -p light-verifier --all-features
               cargo test -p light-merkle-tree-metadata --all-features
               cargo test -p light-zero-copy --features "std, mut, derive"
-              cargo test -p light-zero-copy-derive --features "mut"
+              cargo test -p light-zero-copy --no-default-features  # Test no_std compatibility
+              cargo build -p light-zero-copy --no-default-features  # Ensure no_std builds
+              cargo test -p light-zero-copy-derive --all-features
               cargo test -p light-hash-set --all-features
           - name: program-libs-slow
             packages: light-bloom-filter light-indexed-merkle-tree light-batched-merkle-tree

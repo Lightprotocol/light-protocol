@@ -10,7 +10,7 @@ use light_compressed_account::instruction_data::{
         ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
     },
 };
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use zerocopy::{little_endian::U32, Ref};
 
