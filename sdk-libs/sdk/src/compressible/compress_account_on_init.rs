@@ -48,6 +48,7 @@ where
         + Default
         + Clone
         + HasCompressionInfo,
+    A: std::fmt::Debug,
 {
     let mut solana_accounts: [&mut Account<'info, A>; 1] = [solana_account];
     let addresses: [[u8; 32]; 1] = [*address];
@@ -114,6 +115,7 @@ where
         + Default
         + Clone
         + HasCompressionInfo,
+    A: std::fmt::Debug,
 {
     if solana_accounts.len() != addresses.len()
         || solana_accounts.len() != new_address_params.len()
@@ -166,7 +168,7 @@ where
 
         *solana_account.compression_info_mut_opt() =
             Some(super::CompressionInfo::new_decompressed()?);
-        solana_account.compression_info_mut().set_compressed();
+        solana_account.compression_info_mut().set_compressed(); // TODO: remove.
 
         let owner_program_id = cpi_accounts.self_program_id();
         // Create the compressed account with the PDA data
@@ -179,10 +181,18 @@ where
         // Clone the PDA data and set compression_info to None for compressed
         // storage
         let mut compressed_data = (***solana_account).clone();
+
         compressed_data.set_compression_info_none();
         compressed_account.account = compressed_data;
 
+        msg!(
+            "Compressed Account discriminator(): {:?}",
+            compressed_account.discriminator()
+        );
+
         compressed_account_infos.push(compressed_account.to_account_info()?);
+        msg!("Type discriminator(): {:?}", A::discriminator());
+        msg!("Type LIGHT_DISCRIMINATOR: {:?}", A::LIGHT_DISCRIMINATOR);
 
         // Close both PDA accounts
         // solana_account

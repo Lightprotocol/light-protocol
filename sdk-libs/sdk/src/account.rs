@@ -75,6 +75,7 @@ use light_compressed_account::{
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
 use light_sdk_types::{instruction::account_meta::CompressedAccountMetaTrait, DEFAULT_DATA_HASH};
+use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -119,6 +120,7 @@ impl<
         address: Option<[u8; 32]>,
         output_state_tree_index: u8,
     ) -> Self {
+        msg!("A::LIGHT_DISCRIMINATOR: {:?}", A::LIGHT_DISCRIMINATOR);
         let output_account_info = OutAccountInfo {
             output_merkle_tree_index: output_state_tree_index,
             discriminator: A::LIGHT_DISCRIMINATOR,

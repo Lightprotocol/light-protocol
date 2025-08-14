@@ -163,9 +163,6 @@ pub fn process<
         context.addresses.push(account.address());
     });
 
-    msg!(&format!("new_addresses_owners: {:?}", inputs.new_addresses_owners().as_slice()));
-    msg!(&format!("new_addresses: {:?}", inputs.new_addresses().collect::<Vec<_>>()));
-
     // msg!("trying derive new addresses");
     // 7. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
