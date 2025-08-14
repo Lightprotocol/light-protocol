@@ -1,7 +1,7 @@
 // Edge case: Triple nested Option
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 #[derive(Debug, ZeroCopy, ZeroCopyMut, BorshSerialize, BorshDeserialize)]
@@ -27,6 +27,31 @@ fn main() {
     let mut serialized_mut = serialized.clone();
     let _zero_copy_mut = TripleNestedOption::zero_copy_at_mut(&mut serialized_mut).unwrap();
 
-    // Note: Cannot use assert_eq! due to Vec fields in nested Options not implementing ZeroCopyEq
-    println!("Borsh compatibility test passed for TripleNestedOption");
+    // assert byte len
+    let config = TripleNestedOptionConfig {
+        deeply_nested: (true, (true, (true, ()))),
+        also_nested: (true, (true, vec![(); 4])),
+    };
+    let byte_len = TripleNestedOption::byte_len(&config).unwrap();
+    assert_eq!(serialized.len(), byte_len);
+    let mut new_bytes = vec![0u8; byte_len];
+    let (mut struct_copy_mut, _remaining) = TripleNestedOption::new_zero_copy(&mut new_bytes, config).unwrap();
+    // set field values
+    if let Some(ref mut second_level) = struct_copy_mut.deeply_nested {
+        if let Some(ref mut third_level) = second_level {
+            if let Some(ref mut val) = third_level {
+                **val = 42.into();
+            }
+        }
+    }
+    if let Some(ref mut second_level) = struct_copy_mut.also_nested {
+        if let Some(ref mut data) = *second_level {
+            *data[0] = 1;
+            *data[1] = 2;
+            *data[2] = 3;
+            *data[3] = 4;
+        }
+    }
+    assert_eq!(new_bytes, serialized);
+
 }

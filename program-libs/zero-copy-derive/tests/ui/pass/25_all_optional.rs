@@ -1,7 +1,7 @@
 // Edge case: All fields are optional
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 #[derive(Debug, ZeroCopy, ZeroCopyMut, BorshSerialize, BorshDeserialize)]
@@ -29,4 +29,24 @@ fn main() {
     let mut bytes_mut = bytes.clone();
     let (_struct_copy_mut, remaining) = AllOptional::zero_copy_at_mut(&mut bytes_mut).unwrap();
     assert!(remaining.is_empty());
+
+    // Test ZeroCopyNew
+    let config = AllOptionalConfig {
+        maybe_a: true,
+        maybe_b: false,
+        maybe_c: (true, vec![(); 3]),
+    };
+    let byte_len = AllOptional::byte_len(&config).unwrap();
+    assert_eq!(bytes.len(), byte_len);
+    let mut new_bytes = vec![0u8; byte_len];
+    let (mut struct_copy_mut, _remaining) = AllOptional::new_zero_copy(&mut new_bytes, config).unwrap();
+    if let Some(ref mut val) = struct_copy_mut.maybe_a {
+        **val = 42u32.into();
+    }
+    if let Some(ref mut vec_val) = struct_copy_mut.maybe_c {
+        *vec_val[0] = 1;
+        *vec_val[1] = 2;
+        *vec_val[2] = 3;
+    }
+    assert_eq!(new_bytes, bytes);
 }

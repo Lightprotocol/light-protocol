@@ -1,6 +1,6 @@
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 // Create a simple Pubkey type for testing with all required traits
@@ -35,4 +35,20 @@ fn main() {
     let mut bytes_mut = bytes.clone();
     let (_struct_copy_mut, remaining) = WithPubkey::zero_copy_at_mut(&mut bytes_mut).unwrap();
     assert!(remaining.is_empty());
+
+    // assert byte len
+    let config = WithPubkeyConfig {
+        flags: 3,
+    };
+    let byte_len = WithPubkey::byte_len(&config).unwrap();
+    assert_eq!(bytes.len(), byte_len);
+    let mut new_bytes = vec![0u8; byte_len];
+    let (mut struct_copy_mut, _remaining) = WithPubkey::new_zero_copy(&mut new_bytes, config).unwrap();
+    // set field values
+    struct_copy_mut.owner = Pubkey([1; 32]);
+    struct_copy_mut.amount = 1000.into();
+    struct_copy_mut.flags[0] = 1; // true as u8
+    struct_copy_mut.flags[1] = 0; // false as u8
+    struct_copy_mut.flags[2] = 1; // true as u8
+    assert_eq!(new_bytes, bytes);
 }

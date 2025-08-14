@@ -1,7 +1,7 @@
 // Edge case: Struct starting with Option (affects meta boundary)
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 #[derive(Debug, ZeroCopy, ZeroCopyMut, BorshSerialize, BorshDeserialize)]
@@ -31,6 +31,28 @@ fn main() {
     // Test zero_copy_at_mut (mutable)
     let mut serialized_mut = serialized.clone();
     let _zero_copy_mut = OptionFirstField::zero_copy_at_mut(&mut serialized_mut).unwrap();
+    
+    // assert byte len
+    let config = OptionFirstFieldConfig {
+        optional: true,
+        data: 5,
+    };
+    let byte_len = OptionFirstField::byte_len(&config).unwrap();
+    assert_eq!(serialized.len(), byte_len);
+    let mut new_bytes = vec![0u8; byte_len];
+    let (mut struct_copy_mut, _remaining) = OptionFirstField::new_zero_copy(&mut new_bytes, config).unwrap();
+    // set field values
+    if let Some(ref mut val) = struct_copy_mut.optional {
+        **val = 42.into();
+    }
+    *struct_copy_mut.value = 123456789.into();
+    *struct_copy_mut.more = 987654321.into();
+    struct_copy_mut.data[0] = 1;
+    struct_copy_mut.data[1] = 2;
+    struct_copy_mut.data[2] = 3;
+    struct_copy_mut.data[3] = 4;
+    struct_copy_mut.data[4] = 5;
+    assert_eq!(new_bytes, serialized);
     
     // Note: Cannot use assert_eq! due to Vec fields not implementing ZeroCopyEq
     println!("Borsh compatibility test passed for OptionFirstField");

@@ -1,7 +1,7 @@
 // Edge case: Maximum consecutive meta fields before Vec
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 #[derive(Debug, ZeroCopy, ZeroCopyMut, BorshSerialize, BorshDeserialize)]
@@ -56,6 +56,35 @@ fn main() {
     zero_copy_mut.m1 = 100;
     assert_eq!(zero_copy_mut.m1, 100);
     assert!(remaining.is_empty());
+    
+    // assert byte len
+    let config = MaxMetaFieldsConfig {
+        data: 3,
+    };
+    let byte_len = MaxMetaFields::byte_len(&config).unwrap();
+    assert_eq!(bytes.len(), byte_len);
+    let mut new_bytes = vec![0u8; byte_len];
+    let (mut struct_copy_mut, _remaining) = MaxMetaFields::new_zero_copy(&mut new_bytes, config).unwrap();
+    // set field values
+    struct_copy_mut.m1 = 1;
+    struct_copy_mut.m2 = 2.into();
+    struct_copy_mut.m3 = 3.into();
+    struct_copy_mut.m4 = 4.into();
+    struct_copy_mut.m5 = 5.into();
+    struct_copy_mut.m6 = 6.into();
+    struct_copy_mut.m7 = 7.into();
+    struct_copy_mut.m8 = 8.into();
+    struct_copy_mut.m9 = 1; // true as u8
+    for i in 0..32 {
+        struct_copy_mut.m10[i] = 42;
+    }
+    struct_copy_mut.m11 = 11.into();
+    struct_copy_mut.m12 = 12.into();
+    struct_copy_mut.data[0] = 1;
+    struct_copy_mut.data[1] = 2;
+    struct_copy_mut.data[2] = 3;
+    *struct_copy_mut.after = 999.into();
+    assert_eq!(new_bytes, bytes);
 
     // Note: Cannot use assert_eq! with entire structs due to array and Vec fields
     println!("✓ MaxMetaFields Borsh compatibility test passed");

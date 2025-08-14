@@ -1,7 +1,7 @@
 // Edge case: Combination of all features
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
 // Import Pubkey from the test helper
@@ -67,6 +67,51 @@ fn main() {
     let (_zero_copy_mut, remaining) =
         CombinationAllFeatures::zero_copy_at_mut(&mut bytes_mut).unwrap();
     assert!(remaining.is_empty());
+
+    // assert byte len
+    let config = CombinationAllFeaturesConfig {
+        vec1: 3,
+        opt1: true,
+        vec2: 2,
+        opt2: true,
+        vec3: 2,
+        opt3: (true, vec![(); 2]),
+    };
+    let byte_len = CombinationAllFeatures::byte_len(&config).unwrap();
+    assert_eq!(bytes.len(), byte_len);
+    let mut new_bytes = vec![0u8; byte_len];
+    let (mut struct_copy_mut, _remaining) = CombinationAllFeatures::new_zero_copy(&mut new_bytes, config).unwrap();
+    // set field values
+    struct_copy_mut.meta1 = 42.into();
+    struct_copy_mut.meta2 = 1; // true as u8
+    struct_copy_mut.meta3[0] = 1;
+    struct_copy_mut.meta3[1] = 2;
+    struct_copy_mut.meta3[2] = 3;
+    struct_copy_mut.meta3[3] = 4;
+    struct_copy_mut.vec1[0] = 10;
+    struct_copy_mut.vec1[1] = 20;
+    struct_copy_mut.vec1[2] = 30;
+    if let Some(ref mut val) = struct_copy_mut.opt1 {
+        **val = 100.into();
+    }
+    struct_copy_mut.vec2[0] = 200.into();
+    struct_copy_mut.vec2[1] = 300.into();
+    if let Some(ref mut val) = struct_copy_mut.opt2 {
+        **val = 400.into();
+    }
+    *struct_copy_mut.pubkey = Pubkey([1; 32]);
+    struct_copy_mut.vec3[0] = 1; // true as u8
+    struct_copy_mut.vec3[1] = 0; // false as u8
+    if let Some(ref mut data) = struct_copy_mut.opt3 {
+        *data[0] = 50;
+        *data[1] = 60;
+    }
+    for i in 0..16 {
+        struct_copy_mut.arr1[i] = 999.into();
+    }
+    *struct_copy_mut.final1 = 777.into();
+    *struct_copy_mut.final2 = 0; // false as u8
+    assert_eq!(new_bytes, bytes);
 
     // Note: Cannot use assert_eq! with entire structs due to array, Vec, and Pubkey fields
     println!("✓ CombinationAllFeatures Borsh compatibility test passed");

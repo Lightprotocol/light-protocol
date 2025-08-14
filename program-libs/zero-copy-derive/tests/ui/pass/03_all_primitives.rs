@@ -1,7 +1,7 @@
 // Edge case: All primitive types
 #![cfg(feature = "mut")]
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 
 #[derive(Debug, ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshSerialize, BorshDeserialize)]
@@ -40,4 +40,22 @@ fn main() {
     let mut bytes_mut = bytes.clone();
     let (_struct_copy_mut, remaining) = AllPrimitives::zero_copy_at_mut(&mut bytes_mut).unwrap();
     assert!(remaining.is_empty());
+    
+    // assert byte len
+    let config = ();
+    let byte_len = AllPrimitives::byte_len(&config).unwrap();
+    assert_eq!(bytes.len(), byte_len);
+    let mut new_bytes = vec![0u8; byte_len];
+    let (mut struct_copy_mut, remaining) = AllPrimitives::new_zero_copy(&mut new_bytes, config).unwrap();
+    // convert primitives to zero copy types
+    struct_copy_mut.a = 1.into();
+    struct_copy_mut.b = 2.into();
+    struct_copy_mut.c = 3.into();
+    struct_copy_mut.d = 4.into();
+    struct_copy_mut.e = (-1).into();
+    struct_copy_mut.f = (-2).into();
+    struct_copy_mut.g = (-3).into();
+    struct_copy_mut.h = (-4).into();
+    struct_copy_mut.i = 1; // true as u8
+    assert_eq!(new_bytes, bytes);
 }
