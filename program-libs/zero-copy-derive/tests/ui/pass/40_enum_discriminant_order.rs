@@ -1,7 +1,11 @@
 // Edge case: Many enum variants (testing discriminant handling)
+#![cfg(feature = "mut")]
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_zero_copy::traits::ZeroCopyAt;
 use light_zero_copy_derive::ZeroCopy;
 
-#[derive(ZeroCopy)]
+#[derive(Debug, ZeroCopy, BorshSerialize, BorshDeserialize)]
+// Note: ZeroCopyEq not supported for enums
 #[repr(C)]
 pub enum ManyVariants {
     V0,
@@ -16,4 +20,13 @@ pub enum ManyVariants {
     V9,
 }
 
-fn main() {}
+fn main() {
+    // Test Borsh compatibility
+    let ref_enum = ManyVariants::V5;
+    let bytes = ref_enum.try_to_vec().unwrap();
+
+    let (_enum_copy, remaining) = ManyVariants::zero_copy_at(&bytes).unwrap();
+    // Note: Can't use assert_eq! due to ZeroCopyEq limitation for enums
+    assert!(remaining.is_empty());
+
+}

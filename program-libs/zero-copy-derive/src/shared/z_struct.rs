@@ -92,13 +92,17 @@ fn classify_integer_type<'a>(
         _ if utils::is_specific_primitive_type(field_type, "u64")
             | utils::is_specific_primitive_type(field_type, "u32")
             | utils::is_specific_primitive_type(field_type, "u16")
-            | utils::is_specific_primitive_type(field_type, "u8") =>
+            | utils::is_specific_primitive_type(field_type, "u8")
+            | utils::is_specific_primitive_type(field_type, "i64")
+            | utils::is_specific_primitive_type(field_type, "i32")
+            | utils::is_specific_primitive_type(field_type, "i16")
+            | utils::is_specific_primitive_type(field_type, "i8") =>
         {
             Ok(FieldType::Primitive(field_name, field_type))
         }
         _ => Err(syn::Error::new_spanned(
             field_type,
-            "Unsupported integer type. Only u8, u16, u32, and u64 are supported",
+            "Unsupported integer type. Only u8, u16, u32, u64, i8, i16, i32, and i64 are supported",
         )),
     }
 }

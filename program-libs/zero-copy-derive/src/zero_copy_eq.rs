@@ -241,6 +241,12 @@ pub fn generate_partial_eq_impl<const MUT: bool>(
                     true
                 }
             }
+
+            impl<'a> PartialEq<#z_struct_name<'a>> for #name {
+                fn eq(&self, other: &#z_struct_name<'a>) -> bool {
+                    other.eq(self)
+                }
+            }
         }
     } else {
         quote! {
@@ -248,6 +254,12 @@ pub fn generate_partial_eq_impl<const MUT: bool>(
                 fn eq(&self, other: &#name) -> bool {
                     #(#struct_field_comparisons)*
                     true
+                }
+            }
+
+            impl<'a> PartialEq<#z_struct_name<'a>> for #name {
+                fn eq(&self, other: &#z_struct_name<'a>) -> bool {
+                    other.eq(self)
                 }
             }
 

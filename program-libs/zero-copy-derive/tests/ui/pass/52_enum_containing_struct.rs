@@ -1,14 +1,17 @@
 // Edge case: Enum containing struct type
-use light_zero_copy_derive::ZeroCopy;
+#![cfg(feature = "mut")]
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
-#[derive(ZeroCopy)]
+#[derive(Debug, ZeroCopy, ZeroCopyMut, BorshSerialize, BorshDeserialize)]
 #[repr(C)]
 pub struct InnerData {
     pub field1: u32,
     pub field2: u64,
 }
 
-#[derive(ZeroCopy)]
+#[derive(Debug, ZeroCopy, BorshSerialize, BorshDeserialize)]
 #[repr(C)]
 pub enum EnumWithStruct {
     Empty,
@@ -16,4 +19,21 @@ pub enum EnumWithStruct {
     Another,
 }
 
-fn main() {}
+fn main() {
+    let instance = EnumWithStruct::WithStruct(InnerData {
+        field1: 42,
+        field2: 12345,
+    });
+
+    // Test Borsh serialization
+    let bytes = instance.try_to_vec().unwrap();
+    let deserialized = EnumWithStruct::try_from_slice(&bytes).unwrap();
+    
+    // Test zero_copy_at
+    let (zero_copy_instance, remaining) = EnumWithStruct::zero_copy_at(&bytes).unwrap();
+    assert!(remaining.is_empty());
+    // Note: Can't use assert_eq! due to ZeroCopyEq limitation for enums
+    
+    // Note: Enums do not support ZeroCopyEq
+    println!("✓ EnumWithStruct Borsh compatibility test passed");
+}

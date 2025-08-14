@@ -45,7 +45,7 @@ where
         if *enabled {
             // 1 byte for Some discriminant + inner type's byte_len
             let inner_len = T::byte_len(inner_config)?;
-            Ok(1 + inner_len)
+            inner_len.checked_add(1).ok_or(ZeroCopyError::Size)
         } else {
             // Just 1 byte for None discriminant
             Ok(1)

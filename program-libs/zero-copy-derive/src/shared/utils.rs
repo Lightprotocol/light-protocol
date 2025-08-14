@@ -401,12 +401,26 @@ pub fn needs_struct_inner_trait(ty: &Type) -> bool {
 pub fn has_repr_c_attribute(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         if attr.path().is_ident("repr") {
-            // Parse the repr attribute to check for C
-            if let Ok(list) = attr.parse_args::<syn::Meta>() {
-                matches!(list, syn::Meta::Path(path) if path.is_ident("C"))
-            } else {
-                false
+            // Parse the repr attribute arguments
+            // Convert tokens to string and check if it contains "C"
+            // This handles both #[repr(C)] and #[repr(C, packed)] etc.
+            let tokens = attr.meta.clone();
+            if let syn::Meta::List(list) = tokens {
+                // Convert tokens to string and check for "C"
+                let tokens_str = list.tokens.to_string();
+                // Split by comma and check each part
+                for part in tokens_str.split(',') {
+                    let trimmed = part.trim();
+                    // Check if this part is exactly "C" (not part of another word)
+                    if trimmed == "C" {
+                        return true;
+                    }
+                }
+            } else if let syn::Meta::Path(path) = tokens {
+                // Handle #[repr(C)] without parentheses (though unlikely)
+                return path.is_ident("C");
             }
+            false
         } else {
             false
         }
@@ -425,4 +439,90 @@ pub fn validate_repr_c_required(attrs: &[syn::Attribute], item_type: &str) -> sy
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::quote;
+
+    use super::has_repr_c_attribute;
+
+    #[test]
+    fn test_repr_c_detection() {
+        // Test single #[repr(C)]
+        let input = quote! {
+            #[repr(C)]
+            struct Test {}
+        };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
+        assert!(
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect #[repr(C)]"
+        );
+
+        // Test #[repr(C, packed)]
+        let input = quote! {
+            #[repr(C, packed)]
+            struct Test {}
+        };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
+        assert!(
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect C in #[repr(C, packed)]"
+        );
+
+        // Test #[repr(C, align(8))]
+        let input = quote! {
+            #[repr(C, align(8))]
+            struct Test {}
+        };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
+        assert!(
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect C in #[repr(C, align(8))]"
+        );
+
+        // Test #[repr(packed, C)]
+        let input = quote! {
+            #[repr(packed, C)]
+            struct Test {}
+        };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
+        assert!(
+            has_repr_c_attribute(&parsed.attrs),
+            "Should detect C in #[repr(packed, C)]"
+        );
+
+        // Test #[repr(packed)] without C
+        let input = quote! {
+            #[repr(packed)]
+            struct Test {}
+        };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
+        assert!(
+            !has_repr_c_attribute(&parsed.attrs),
+            "Should not detect C in #[repr(packed)]"
+        );
+
+        // Test no repr attribute
+        let input = quote! {
+            struct Test {}
+        };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
+        assert!(
+            !has_repr_c_attribute(&parsed.attrs),
+            "Should not detect C without repr"
+        );
+
+        // Test #[repr(Rust)]
+        let input = quote! {
+            #[repr(Rust)]
+            struct Test {}
+        };
+        let parsed: syn::DeriveInput = syn::parse2(input).unwrap();
+        assert!(
+            !has_repr_c_attribute(&parsed.attrs),
+            "Should not detect C in #[repr(Rust)]"
+        );
+    }
 }

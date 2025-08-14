@@ -1,6 +1,9 @@
-use light_zero_copy_derive::ZeroCopy;
+#![cfg(feature = "mut")]
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 
-#[derive(ZeroCopy)]
+#[derive(Debug, ZeroCopy, ZeroCopyMut, BorshSerialize, BorshDeserialize)]
 #[repr(C)]
 pub struct WithOptions {
     pub maybe_value: Option<u64>,
@@ -8,4 +11,20 @@ pub struct WithOptions {
     pub maybe_small: Option<u16>,
 }
 
-fn main() {}
+fn main() {
+    // Test Borsh compatibility
+    let ref_struct = WithOptions {
+        maybe_value: Some(42),
+        maybe_flag: Some(true),
+        maybe_small: None,
+    };
+    let bytes = ref_struct.try_to_vec().unwrap();
+
+    let (_struct_copy, remaining) = WithOptions::zero_copy_at(&bytes).unwrap();
+    // Note: Can't use assert_eq! due to ZeroCopyEq limitation with Option fields
+    assert!(remaining.is_empty());
+    
+    let mut bytes_mut = bytes.clone();
+    let (_struct_copy_mut, remaining) = WithOptions::zero_copy_at_mut(&mut bytes_mut).unwrap();
+    assert!(remaining.is_empty());
+}

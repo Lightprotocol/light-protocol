@@ -67,7 +67,11 @@ impl PartialEq<<Pubkey as ZeroCopyAt<'_>>::ZeroCopyAt> for Pubkey {
         self.0 == other.0
     }
 }
-
+impl PartialEq<Pubkey> for <Pubkey as ZeroCopyAt<'_>>::ZeroCopyAt {
+    fn eq(&self, other: &Pubkey) -> bool {
+        self.0 == other.0
+    }
+}
 impl<'a> light_zero_copy::traits::ZeroCopyNew<'a> for Pubkey {
     type ZeroCopyConfig = ();
     type Output = <Self as ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
@@ -1286,134 +1290,5 @@ impl PartialEq<ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
 impl PartialEq<InstructionDataInvokeCpi> for ZInstructionDataInvokeCpi<'_> {
     fn eq(&self, other: &InstructionDataInvokeCpi) -> bool {
         other.eq(self)
-    }
-}
-
-impl PartialEq<ZPackedCompressedAccountWithMerkleContext<'_>>
-    for PackedCompressedAccountWithMerkleContext
-{
-    fn eq(&self, other: &ZPackedCompressedAccountWithMerkleContext) -> bool {
-        // Compare compressed_account
-        if self.compressed_account.owner != other.compressed_account.__meta.owner
-            || self.compressed_account.lamports
-                != u64::from(other.compressed_account.__meta.lamports)
-        {
-            return false;
-        }
-
-        // Compare optional address
-        match (
-            &self.compressed_account.address,
-            &other.compressed_account.address,
-        ) {
-            (Some(self_addr), Some(other_addr)) => {
-                if *self_addr != **other_addr {
-                    return false;
-                }
-            }
-            (None, None) => {}
-            _ => return false,
-        }
-
-        // Compare optional data
-        match (
-            &self.compressed_account.data,
-            &other.compressed_account.data,
-        ) {
-            (Some(self_data), Some(other_data)) => {
-                if self_data.discriminator != other_data.__meta.discriminator
-                    || self_data.data_hash != *other_data.data_hash
-                    || self_data.data.len() != other_data.data.len()
-                {
-                    return false;
-                }
-                // Compare data contents
-                for (self_byte, other_byte) in self_data.data.iter().zip(other_data.data.iter()) {
-                    if *self_byte != *other_byte {
-                        return false;
-                    }
-                }
-            }
-            (None, None) => {}
-            _ => return false,
-        }
-
-        // Compare merkle_context
-        if self.merkle_context.merkle_tree_pubkey_index
-            != other.merkle_context.__meta.merkle_tree_pubkey_index
-            || self.merkle_context.nullifier_queue_pubkey_index
-                != other.merkle_context.__meta.nullifier_queue_pubkey_index
-            || self.merkle_context.leaf_index != u32::from(other.merkle_context.__meta.leaf_index)
-            || self.merkle_context.prove_by_index != other.merkle_context.prove_by_index()
-        {
-            return false;
-        }
-
-        // Compare root_index and read_only
-        if self.root_index != u16::from(*other.root_index)
-            || self.read_only != (other.read_only != 0)
-        {
-            return false;
-        }
-
-        true
-    }
-}
-
-impl PartialEq<ZOutputCompressedAccountWithPackedContext<'_>>
-    for OutputCompressedAccountWithPackedContext
-{
-    fn eq(&self, other: &ZOutputCompressedAccountWithPackedContext) -> bool {
-        // Compare compressed_account
-        if self.compressed_account.owner != other.compressed_account.__meta.owner
-            || self.compressed_account.lamports
-                != u64::from(other.compressed_account.__meta.lamports)
-        {
-            return false;
-        }
-
-        // Compare optional address
-        match (
-            &self.compressed_account.address,
-            &other.compressed_account.address,
-        ) {
-            (Some(self_addr), Some(other_addr)) => {
-                if *self_addr != **other_addr {
-                    return false;
-                }
-            }
-            (None, None) => {}
-            _ => return false,
-        }
-
-        // Compare optional data
-        match (
-            &self.compressed_account.data,
-            &other.compressed_account.data,
-        ) {
-            (Some(self_data), Some(other_data)) => {
-                if self_data.discriminator != other_data.__meta.discriminator
-                    || self_data.data_hash != *other_data.data_hash
-                    || self_data.data.len() != other_data.data.len()
-                {
-                    return false;
-                }
-                // Compare data contents
-                for (self_byte, other_byte) in self_data.data.iter().zip(other_data.data.iter()) {
-                    if *self_byte != *other_byte {
-                        return false;
-                    }
-                }
-            }
-            (None, None) => {}
-            _ => return false,
-        }
-
-        // Compare merkle_tree_index
-        if self.merkle_tree_index != other.merkle_tree_index {
-            return false;
-        }
-
-        true
     }
 }

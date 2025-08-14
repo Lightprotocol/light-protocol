@@ -1,8 +1,10 @@
 // Edge case: All primitive types
 #![cfg(feature = "mut")]
-use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 
-#[derive(ZeroCopy, ZeroCopyMut)]
+#[derive(Debug, ZeroCopy, ZeroCopyMut, ZeroCopyEq, BorshSerialize, BorshDeserialize)]
 #[repr(C)]
 pub struct AllPrimitives {
     pub a: u8,
@@ -16,4 +18,26 @@ pub struct AllPrimitives {
     pub i: bool,
 }
 
-fn main() {}
+fn main() {
+    // Test Borsh compatibility
+    let ref_struct = AllPrimitives {
+        a: 1,
+        b: 2,
+        c: 3,
+        d: 4,
+        e: -1,
+        f: -2,
+        g: -3,
+        h: -4,
+        i: true,
+    };
+    let bytes = ref_struct.try_to_vec().unwrap();
+
+    let (struct_copy, remaining) = AllPrimitives::zero_copy_at(&bytes).unwrap();
+    assert_eq!(ref_struct, struct_copy);
+    assert!(remaining.is_empty());
+
+    let mut bytes_mut = bytes.clone();
+    let (_struct_copy_mut, remaining) = AllPrimitives::zero_copy_at_mut(&mut bytes_mut).unwrap();
+    assert!(remaining.is_empty());
+}

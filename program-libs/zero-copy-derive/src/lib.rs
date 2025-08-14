@@ -12,7 +12,7 @@
 //! ## Macro Rules
 //! 1. Create zero copy structs Z<StructName> for the struct
 //!    1.1. The first consecutive fixed-size fields are extracted into a meta struct Z<StructName>Meta
-//!    1.2. Meta extraction stops at first Vec, Option, or non-Copy type
+//!    1.2. Meta extraction stops at first Vec, non-optimized Option (i.e., non-u16/u32/u64 Options), or non-Copy type
 //!    1.3. Primitive types are converted to little-endian equivalents (u16→U16, u32→U32, u64→U64, bool→u8)
 //!    1.4. Fields after meta are included directly in the Z-struct and deserialized sequentially
 //!    1.5. Vec<u8> uses optimized slice operations, other Vec<T> types use ZeroCopySlice
@@ -48,8 +48,9 @@
 //! - **Empty structs**: Not supported - structs must have at least one field for zero-copy serialization
 //! - **Enum support**:
 //!   - `ZeroCopy` supports enums with unit variants or single unnamed field variants
-//!   - `ZeroCopyMut` does NOT support enums (structs only)
-//!   - `ZeroCopyEq` does NOT support enums (structs only)
+//!   - `ZeroCopyMut` does NOT support enums
+//!   - `ZeroCopyEq` does NOT support enums
+//! - `ZeroCopyEq` does NOT support enums, vectors, arrays)
 //!
 //! ### Special Type Handling
 //! - **Arrays in Vec**: `Vec<[T; N]>` is supported. Arrays are Copy types that don't implement
@@ -113,6 +114,7 @@ mod tests;
 /// ```rust
 /// use light_zero_copy_derive::ZeroCopy;
 /// #[derive(ZeroCopy)]
+/// #[repr(C)]
 /// pub struct MyStruct {
 ///     pub a: u8,
 /// }
@@ -122,6 +124,7 @@ mod tests;
 /// ```rust
 /// use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
 /// #[derive(ZeroCopy, ZeroCopyEq)]
+/// #[repr(C)]
 /// pub struct MyStruct {
 ///       pub a: u8,
 /// }
@@ -143,6 +146,7 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
 /// ```rust
 /// use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
 /// #[derive(ZeroCopy, ZeroCopyEq)]
+/// #[repr(C)]
 /// pub struct MyStruct {
 ///       pub a: u8,
 /// }
@@ -172,6 +176,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// use light_zero_copy_derive::ZeroCopyMut;
 ///
 /// #[derive(ZeroCopyMut)]
+/// #[repr(C)]
 /// pub struct MyStruct {
 ///     pub a: u8,
 ///     pub vec: Vec<u8>,
@@ -188,6 +193,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// ```rust
 /// use light_zero_copy_derive::ZeroCopyMut;
 /// #[derive(ZeroCopyMut)]
+/// #[repr(C)]
 /// pub struct FixedStruct {
 ///     pub a: u8,
 ///     pub b: u16,
@@ -200,6 +206,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 ///
 /// #[derive(ZeroCopy, ZeroCopyMut)]
+/// #[repr(C)]
 /// pub struct MyStruct {
 ///     pub a: u8,
 /// }

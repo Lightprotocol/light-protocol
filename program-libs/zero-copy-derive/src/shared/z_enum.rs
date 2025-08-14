@@ -95,7 +95,11 @@ pub fn generate_enum_deserialize_impl(
     // Generate match arms for each variant
     let match_arms_result: Result<Vec<TokenStream>, syn::Error> = enum_data.variants.iter().enumerate().map(|(index, variant)| {
         let variant_name = &variant.ident;
-        let discriminant = index as u8; // Borsh uses sequential discriminants starting from 0
+        let discriminant = u8::try_from(index)
+            .map_err(|_| syn::Error::new_spanned(
+                variant,
+                format!("Enum variant index {} exceeds u8 maximum (255)", index)
+            ))?;
 
         match &variant.fields {
             Fields::Unit => {
