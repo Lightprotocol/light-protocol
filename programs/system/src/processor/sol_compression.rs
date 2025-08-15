@@ -30,7 +30,7 @@ pub fn compress_or_decompress_lamports<
     ctx: &A,
 ) -> crate::Result<()> {
     if inputs.compress_or_decompress_lamports().is_some() {
-        if inputs.is_compress() && ctx.get_decompression_recipient().is_some() {
+        if inputs.is_compress() && ctx.get_decompression_recipient()?.is_some() {
             return Err(SystemProgramError::DecompressionRecipientDefined.into());
         }
         let decompression_lamports = inputs.compress_or_decompress_lamports();
@@ -39,9 +39,9 @@ pub fn compress_or_decompress_lamports<
         } else {
             decompress_lamports(decompression_lamports, ctx)?;
         }
-    } else if ctx.get_decompression_recipient().is_some() {
+    } else if ctx.get_decompression_recipient()?.is_some() {
         return Err(SystemProgramError::DecompressionRecipientDefined.into());
-    } else if ctx.get_sol_pool_pda().is_some() {
+    } else if ctx.get_sol_pool_pda()?.is_some() {
         return Err(SystemProgramError::SolPoolPdaDefined.into());
     }
     Ok(())
@@ -57,13 +57,13 @@ pub fn decompress_lamports<
     decompression_lamports: Option<u64>,
     ctx: &'a A,
 ) -> crate::Result<()> {
-    let recipient = match ctx.get_decompression_recipient() {
+    let recipient = match ctx.get_decompression_recipient()? {
         Some(decompression_recipient) => decompression_recipient,
         None => {
             return Err(SystemProgramError::DecompressRecipientUndefinedForDecompressSol.into())
         }
     };
-    let sol_pool_pda = match ctx.get_sol_pool_pda() {
+    let sol_pool_pda = match ctx.get_sol_pool_pda()? {
         Some(sol_pool_pda) => sol_pool_pda,
         None => return Err(SystemProgramError::CompressedSolPdaUndefinedForDecompressSol.into()),
     };
@@ -85,7 +85,7 @@ pub fn compress_lamports<
     decompression_lamports: Option<u64>,
     ctx: &'a A,
 ) -> crate::Result<()> {
-    let recipient = match ctx.get_sol_pool_pda() {
+    let recipient = match ctx.get_sol_pool_pda()? {
         Some(sol_pool_pda) => sol_pool_pda,
         None => return Err(SystemProgramError::CompressedSolPdaUndefinedForCompressSol.into()),
     };
