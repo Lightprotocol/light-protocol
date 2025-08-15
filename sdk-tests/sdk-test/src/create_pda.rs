@@ -1,4 +1,3 @@
-use crate::ARRAY_LEN;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
@@ -8,9 +7,9 @@ use light_sdk::{
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
     LightDiscriminator, LightHasher,
 };
+use solana_program::{account_info::AccountInfo, msg};
 
-use solana_program::account_info::AccountInfo;
-use solana_program::msg;
+use crate::ARRAY_LEN;
 
 /// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
 /// CU usage:
