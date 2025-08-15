@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+//#![cfg(feature = "test-sbf")]
 
 use borsh::BorshSerialize;
 use light_compressed_account::{
@@ -14,6 +14,7 @@ use light_sdk::instruction::{
 use sdk_test::{
     create_pda::CreatePdaInstructionData,
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
+    ARRAY_LEN,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -28,7 +29,7 @@ async fn test_sdk_test() {
     let payer = rpc.get_payer().insecure_clone();
 
     let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
-    let account_data = [1u8; 31];
+    let account_data = [1u8; ARRAY_LEN];
 
     // // V1 trees
     // let (address, _) = light_sdk::address::derive_address(
@@ -65,7 +66,7 @@ async fn test_sdk_test() {
         .clone();
     assert_eq!(compressed_pda.address.unwrap(), address);
 
-    update_pda(&payer, &mut rpc, [2u8; 31], compressed_pda.into())
+    update_pda(&payer, &mut rpc, [2u8; ARRAY_LEN], compressed_pda.into())
         .await
         .unwrap();
 }
@@ -74,7 +75,7 @@ pub async fn create_pda(
     payer: &Keypair,
     rpc: &mut LightProgramTest,
     merkle_tree_pubkey: &Pubkey,
-    account_data: [u8; 31],
+    account_data: [u8; ARRAY_LEN],
     address_tree_pubkey: Pubkey,
     address: [u8; 32],
 ) -> Result<(), RpcError> {
@@ -123,7 +124,7 @@ pub async fn create_pda(
 pub async fn update_pda(
     payer: &Keypair,
     rpc: &mut LightProgramTest,
-    new_account_data: [u8; 31],
+    new_account_data: [u8; ARRAY_LEN],
     compressed_account: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
