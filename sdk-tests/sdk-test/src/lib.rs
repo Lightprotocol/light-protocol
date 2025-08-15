@@ -7,6 +7,8 @@ use solana_program::{
 pub mod create_pda;
 pub mod update_pda;
 
+pub const ARRAY_LEN: usize = 2200;
+
 pub const ID: Pubkey = pubkey!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
