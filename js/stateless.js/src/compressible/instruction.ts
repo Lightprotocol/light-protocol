@@ -212,7 +212,7 @@ export function createCompressAccountInstruction(
  * @param bumps                     Array of PDA bumps
  * @param validityProof             Validity proof for decompression
  * @param systemAccounts            Additional system accounts (optional)
- * @param dataSchema                Borsh schema for account data
+ * @param coder                Borsh schema for account data
  * @returns                         TransactionInstruction
  */
 export function createDecompressAccountsIdempotentInstruction<T = any>(
@@ -225,7 +225,7 @@ export function createDecompressAccountsIdempotentInstruction<T = any>(
     bumps: number[],
     validityProof: import('../state/types').ValidityProof,
     systemAccounts: AccountMeta[] = [],
-    dataSchema?: any,
+    coder: (data: any) => Buffer,
 ): TransactionInstruction {
     // Validation
     if (solanaAccounts.length !== compressedAccountsData.length) {
@@ -255,15 +255,7 @@ export function createDecompressAccountsIdempotentInstruction<T = any>(
         systemAccountsOffset: solanaAccounts.length,
     };
 
-    // Serialize instruction data with discriminator
-    let data: Buffer;
-    if (dataSchema) {
-        const schema =
-            createDecompressMultipleAccountsIdempotentDataSchema(dataSchema);
-        data = serializeInstructionData(schema, instructionData, discriminator);
-    } else {
-        throw new Error('dataSchema is required for proper serialization');
-    }
+    const data = coder(instructionData);
 
     return new TransactionInstruction({
         programId,
