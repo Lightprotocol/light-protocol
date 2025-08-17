@@ -84,6 +84,7 @@ pub fn forester_config() -> ForesterConfig {
             ws_rpc_url: Some("ws://localhost:8900".to_string()),
             indexer_url: Some("http://localhost:8784".to_string()),
             prover_url: Some("http://localhost:3001".to_string()),
+            prover_api_key: None,
             photon_api_key: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,

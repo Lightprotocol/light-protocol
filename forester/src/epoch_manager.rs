@@ -1199,6 +1199,7 @@ impl<R: Rpc> EpochManager<R> {
                 .prover_url
                 .clone()
                 .unwrap_or_else(|| "http://127.0.0.1:3001".to_string()),
+            prover_api_key: self.config.external_services.prover_api_key.clone(),
             prover_polling_interval: Duration::from_secs(1),
             prover_max_wait_time: Duration::from_secs(120),
             ops_cache: self.ops_cache.clone(),

@@ -41,6 +41,7 @@ pub struct BatchContext<R: Rpc> {
     pub output_queue: Pubkey,
     pub ixs_per_tx: usize,
     pub prover_url: String,
+    pub prover_api_key: Option<String>,
     pub prover_polling_interval: Duration,
     pub prover_max_wait_time: Duration,
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,

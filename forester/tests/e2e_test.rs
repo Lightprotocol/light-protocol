@@ -114,10 +114,17 @@ fn get_prover_url() -> String {
     }
 }
 
-fn get_api_key() -> Option<String> {
+fn get_photon_api_key() -> Option<String> {
     match TestMode::from_env() {
         TestMode::Local => None,
         TestMode::Devnet => Some(get_env_var("PHOTON_API_KEY")),
+    }
+}
+
+fn get_prover_api_key() -> Option<String> {
+    match TestMode::from_env() {
+        TestMode::Local => None,
+        TestMode::Devnet => Some(get_env_var("PROVER_API_KEY")),
     }
 }
 
@@ -189,7 +196,8 @@ async fn e2e_test() {
             ws_rpc_url: Some(get_ws_rpc_url()),
             indexer_url: Some(get_indexer_url()),
             prover_url: Some(get_prover_url()),
-            photon_api_key: get_api_key(),
+            prover_api_key: get_prover_api_key(),
+            photon_api_key: get_photon_api_key(),
             pushgateway_url: None,
             pagerduty_routing_key: None,
             rpc_rate_limit: None,
@@ -453,7 +461,7 @@ async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
     let mut rpc = LightClient::new(if TestMode::from_env() == TestMode::Local {
         LightClientConfig::local()
     } else {
-        LightClientConfig::new(get_rpc_url(), Some(get_indexer_url()), get_api_key())
+        LightClientConfig::new(get_rpc_url(), Some(get_indexer_url()), get_photon_api_key())
     })
     .await
     .unwrap();
