@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"light/light-prover/logging"
@@ -65,28 +66,28 @@ func runCli() {
 					batchAddressAppendBatchSize := uint32(context.Uint("address-append-batch-size"))
 
 					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.InclusionCircuitType {
-						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
+						return errors.New("inclusion tree height and number of compressed accounts must be provided")
 					}
 
 					if (nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == prover.NonInclusionCircuitType {
-						return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
+						return errors.New("non-inclusion tree height and number of compressed accounts must be provided")
 					}
 
 					if circuit == prover.CombinedCircuitType {
 						if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
+							return errors.New("inclusion tree height and number of compressed accounts must be provided")
 						}
 						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
+							return errors.New("non-inclusion tree height and number of compressed accounts must be provided")
 						}
 					}
 
 					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdateCircuitType {
-						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
+						return errors.New("[Batch update]: tree height and batch size must be provided")
 					}
 
 					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == prover.BatchAddressAppendCircuitType {
-						return fmt.Errorf("[Batch address append]: tree height and batch size must be provided")
+						return errors.New("[Batch address append]: tree height and batch size must be provided")
 					}
 
 					logging.Logger().Info().Msg("Running setup")
@@ -168,28 +169,28 @@ func runCli() {
 					batchAddressAppendBatchSize := uint32(context.Uint("address-append-batch-size"))
 
 					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
-						return fmt.Errorf("[Inclusion]: tree height and number of compressed accounts must be provided")
+						return errors.New("[Inclusion]: tree height and number of compressed accounts must be provided")
 					}
 
 					if (nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == "non-inclusion" {
-						return fmt.Errorf("[Non-inclusion]: tree height and number of compressed accounts must be provided")
+						return errors.New("[Non-inclusion]: tree height and number of compressed accounts must be provided")
 					}
 
 					if circuit == "combined" {
 						if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("[Combined]: tree height and number of compressed accounts must be provided")
+							return errors.New("[Combined]: tree height and number of compressed accounts must be provided")
 						}
 						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
-							return fmt.Errorf("[Combined]: tree height and number of compressed accounts must be provided")
+							return errors.New("[Combined]: tree height and number of compressed accounts must be provided")
 						}
 					}
 
 					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdateCircuitType {
-						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
+						return errors.New("[Batch update]: tree height and batch size must be provided")
 					}
 
 					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == prover.BatchAddressAppendCircuitType {
-						return fmt.Errorf("[Batch address append]: tree height and batch size must be provided")
+						return errors.New("[Batch address append]: tree height and batch size must be provided")
 					}
 
 					logging.Logger().Info().Msg("Building R1CS")
@@ -274,7 +275,7 @@ func runCli() {
 
 					if circuit == "append" {
 						if batchAppendTreeHeight == 0 || batchAppendBatchSize == 0 {
-							return fmt.Errorf("append tree height and batch size must be provided")
+							return errors.New("append tree height and batch size must be provided")
 						}
 						var system *prover.ProvingSystemV2
 						system, err = prover.ImportBatchAppendSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
@@ -284,7 +285,7 @@ func runCli() {
 						err = prover.WriteProvingSystem(system, path, "")
 					} else if circuit == "update" {
 						if batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0 {
-							return fmt.Errorf("append tree height and batch size must be provided")
+							return errors.New("append tree height and batch size must be provided")
 						}
 						var system *prover.ProvingSystemV2
 						system, err = prover.ImportBatchUpdateSetup(batchUpdateTreeHeight, batchUpdateBatchSize, pk, vk)
@@ -294,7 +295,7 @@ func runCli() {
 						err = prover.WriteProvingSystem(system, path, "")
 					} else if circuit == "address-append" {
 						if batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0 {
-							return fmt.Errorf("append tree height and batch size must be provided")
+							return errors.New("append tree height and batch size must be provided")
 						}
 						var system *prover.ProvingSystemV2
 						system, err = prover.ImportBatchAddressAppendSetup(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk)
@@ -305,12 +306,12 @@ func runCli() {
 					} else {
 						if circuit == "inclusion" || circuit == "combined" {
 							if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
-								return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
+								return errors.New("inclusion tree height and number of compressed accounts must be provided")
 							}
 						}
 						if circuit == "non-inclusion" || circuit == "combined" {
 							if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
-								return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
+								return errors.New("non-inclusion tree height and number of compressed accounts must be provided")
 							}
 						}
 
@@ -359,7 +360,7 @@ func runCli() {
 					case *prover.ProvingSystemV2:
 						vk = s.VerifyingKey
 					default:
-						return fmt.Errorf("unknown proving system type")
+						return errors.New("unknown proving system type")
 					}
 
 					var buf bytes.Buffer
@@ -466,7 +467,7 @@ func runCli() {
 					}
 
 					if len(psv1) == 0 && len(psv2) == 0 {
-						return fmt.Errorf("no proving systems loaded")
+						return errors.New("no proving systems loaded")
 					}
 
 					redisURL := context.String("redis-url")
@@ -499,7 +500,7 @@ func runCli() {
 
 					if enableQueue {
 						if redisURL == "" {
-							return fmt.Errorf("Redis URL is required for queue mode. Use --redis-url or set REDIS_URL environment variable")
+							return errors.New("Redis URL is required for queue mode. Use --redis-url or set REDIS_URL environment variable")
 						}
 
 						redisQueue, err = server.NewRedisQueue(redisURL)
@@ -580,7 +581,7 @@ func runCli() {
 					}
 
 					if !enableServer && !enableQueue {
-						return fmt.Errorf("at least one of server or queue mode must be enabled")
+						return errors.New("at least one of server or queue mode must be enabled")
 					}
 
 					sigint := make(chan os.Signal, 1)
@@ -652,7 +653,7 @@ func runCli() {
 					}
 
 					if len(psv1) == 0 && len(psv2) == 0 {
-						return fmt.Errorf("no proving systems loaded")
+						return errors.New("no proving systems loaded")
 					}
 
 					logging.Logger().Info().Msg("Reading params from stdin")
@@ -836,7 +837,7 @@ func runCli() {
 							return fmt.Errorf("invalid circuit type for ProvingSystemV1: %s", circuit)
 						}
 					default:
-						return fmt.Errorf("unknown proving system type")
+						return errors.New("unknown proving system type")
 					}
 
 					if verifyErr != nil {
