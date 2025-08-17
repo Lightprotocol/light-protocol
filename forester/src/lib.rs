@@ -5,6 +5,7 @@ pub mod config;
 pub mod epoch_manager;
 pub mod errors;
 pub mod forester_status;
+pub mod health_check;
 pub mod helius_priority_fee_types;
 pub mod metrics;
 pub mod pagerduty;
