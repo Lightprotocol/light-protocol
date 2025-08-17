@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - uses: chainguard-dev/actions/setup-gitsign@main
 
@@ -92,7 +92,7 @@ jobs:
 
       - name: Checkout the PR branch all
         if: inputs.crate == 'all'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: "bump-all-rust"
           fetch-depth: 0
@@ -134,7 +134,7 @@ jobs:
 
       - name: Checkout the PR branch for single crate
         if: inputs.crate != 'all'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: "bump-${{ inputs.crate }}"
           fetch-depth: 0
