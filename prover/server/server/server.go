@@ -15,7 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/gorilla/handlers"
-	//"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type proofStatusHandler struct {
@@ -460,6 +460,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 		logging.Logger().Warn().Msg("No API key configured - server will accept all requests. Set PROVER_API_KEY environment variable to enable authentication.")
 	}
 	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
 	metricsServer := &http.Server{Addr: config.MetricsAddress, Handler: metricsMux}
 	metricsJob := spawnServerJob(metricsServer, "metrics server")
 	logging.Logger().Info().Str("addr", config.MetricsAddress).Msg("metrics server started")
@@ -634,6 +635,9 @@ type healthHandler struct {
 func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta prover.ProofRequestMeta) {
 	jobID := uuid.New().String()
 
+	ProofRequestsTotal.WithLabelValues(string(meta.CircuitType)).Inc()
+	RecordCircuitInputSize(string(meta.CircuitType), len(buf))
+
 	job := &ProofJob{
 		ID:        jobID,
 		Type:      "zk_proof",
@@ -714,7 +718,23 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 	resultChan := make(chan proofResult, 1)
 
 	go func() {
+		timer := StartProofTimer(string(meta.CircuitType))
+		RecordCircuitInputSize(string(meta.CircuitType), len(buf))
+
 		proof, proofError := handler.processProofSync(buf)
+
+		if proofError != nil {
+			timer.ObserveError(proofError.Code)
+			RecordJobComplete(false)
+		} else {
+			timer.ObserveDuration()
+			RecordJobComplete(true)
+			if proof != nil {
+				proofBytes, _ := json.Marshal(proof)
+				RecordProofSize(string(meta.CircuitType), len(proofBytes))
+			}
+		}
+
 		resultChan <- proofResult{proof: proof, err: proofError}
 	}()
 

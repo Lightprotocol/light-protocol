@@ -112,6 +112,19 @@ func (w *BaseQueueWorker) processJobs() {
 		return
 	}
 
+	if !job.CreatedAt.IsZero() {
+		queueWaitTime := time.Since(job.CreatedAt).Seconds()
+		circuitType := "unknown"
+		if w.queueName == "zk_update_queue" {
+			circuitType = "update"
+		} else if w.queueName == "zk_append_queue" {
+			circuitType = "append"
+		} else if w.queueName == "zk_address_append_queue" {
+			circuitType = "address-append"
+		}
+		QueueWaitTime.WithLabelValues(circuitType).Observe(queueWaitTime)
+	}
+
 	logging.Logger().Info().
 		Str("job_id", job.ID).
 		Str("job_type", job.Type).
@@ -170,6 +183,9 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 		return fmt.Errorf("failed to parse proof request: %w", err)
 	}
 
+	timer := StartProofTimer(string(proofRequestMeta.CircuitType))
+	RecordCircuitInputSize(string(proofRequestMeta.CircuitType), len(job.Payload))
+
 	var proof *prover.Proof
 	var proofError error
 
@@ -193,7 +209,17 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 	}
 
 	if proofError != nil {
+		timer.ObserveError("proof_generation_failed")
+		RecordJobComplete(false)
 		return proofError
+	}
+
+	timer.ObserveDuration()
+	RecordJobComplete(true)
+
+	if proof != nil {
+		proofBytes, _ := json.Marshal(proof)
+		RecordProofSize(string(proofRequestMeta.CircuitType), len(proofBytes))
 	}
 
 	resultData, _ := json.Marshal(proof)
