@@ -32,7 +32,8 @@ where
     let (stream, size) = get_nullify_instruction_stream(
         ctx.rpc_pool.clone(),
         ctx.merkle_tree,
-        ctx.prover_url.clone(),
+        ctx.prover_update_url.clone(),
+        ctx.prover_api_key.clone(),
         ctx.prover_polling_interval,
         ctx.prover_max_wait_time,
         merkle_tree_data,
@@ -58,7 +59,8 @@ where
     let (stream, size) = get_append_instruction_stream(
         ctx.rpc_pool.clone(),
         ctx.merkle_tree,
-        ctx.prover_url.clone(),
+        ctx.prover_append_url.clone(),
+        ctx.prover_api_key.clone(),
         ctx.prover_polling_interval,
         ctx.prover_max_wait_time,
         merkle_tree_data,

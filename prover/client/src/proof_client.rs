@@ -51,6 +51,7 @@ pub struct ProofClient {
     server_address: String,
     polling_interval: Duration,
     max_wait_time: Duration,
+    api_key: Option<String>,
 }
 
 impl ProofClient {
@@ -60,6 +61,7 @@ impl ProofClient {
             server_address: DEFAULT_LOCAL_SERVER.to_string(),
             polling_interval: Duration::from_secs(DEFAULT_POLLING_INTERVAL_SECS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
+            api_key: None,
         }
     }
 
@@ -68,12 +70,14 @@ impl ProofClient {
         server_address: String,
         polling_interval: Duration,
         max_wait_time: Duration,
+        api_key: Option<String>,
     ) -> Self {
         Self {
             client: Client::new(),
             server_address,
             polling_interval,
             max_wait_time,
+            api_key,
         }
     }
 
@@ -157,9 +161,16 @@ impl ProofClient {
     ) -> Result<reqwest::Response, ProverClientError> {
         let url = format!("{}{}", self.server_address, PROVE_PATH);
 
-        self.client
+        let mut request = self
+            .client
             .post(&url)
-            .header("Content-Type", "application/json")
+            .header("Content-Type", "application/json");
+
+        if let Some(api_key) = &self.api_key {
+            request = request.header("X-API-Key", api_key);
+        }
+
+        request
             .body(inputs_json.to_string())
             .send()
             .await
@@ -369,7 +380,13 @@ impl ProofClient {
         job_id: &str,
         poll_count: u32,
     ) -> Result<JobStatusResponse, ProverClientError> {
-        let response = self.client.get(status_url).send().await.map_err(|e| {
+        let mut request = self.client.get(status_url);
+
+        if let Some(api_key) = &self.api_key {
+            request = request.header("X-API-Key", api_key);
+        }
+
+        let response = request.send().await.map_err(|e| {
             error!("Failed to send status request for job {}: {}", job_id, e);
             ProverClientError::ProverServerError(format!("Failed to check job status: {}", e))
         })?;

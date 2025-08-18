@@ -35,6 +35,30 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_PROVER_URL")]
     pub prover_url: Option<String>,
 
+    #[arg(
+        long,
+        env = "FORESTER_PROVER_APPEND_URL",
+        help = "Prover URL for append operations. If not specified, uses prover_url"
+    )]
+    pub prover_append_url: Option<String>,
+
+    #[arg(
+        long,
+        env = "FORESTER_PROVER_UPDATE_URL",
+        help = "Prover URL for update operations. If not specified, uses prover_url"
+    )]
+    pub prover_update_url: Option<String>,
+
+    #[arg(
+        long,
+        env = "FORESTER_PROVER_ADDRESS_APPEND_URL",
+        help = "Prover URL for address-append operations. If not specified, uses prover_url"
+    )]
+    pub prover_address_append_url: Option<String>,
+
+    #[arg(long, env = "FORESTER_PROVER_API_KEY")]
+    pub prover_api_key: Option<String>,
+
     #[arg(long, env = "FORESTER_PAYER")]
     pub payer: Option<String>,
 

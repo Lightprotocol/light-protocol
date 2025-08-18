@@ -48,6 +48,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
+    prover_api_key: Option<String>,
     polling_interval: Duration,
     max_wait_time: Duration,
     merkle_tree_data: ParsedMerkleTreeData,
@@ -126,7 +127,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
         }
 
         let mut all_changelogs: Vec<ChangelogEntry<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>> = Vec::new();
-        let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time));
+        let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time, prover_api_key.clone()));
         let mut futures_ordered = FuturesOrdered::new();
         let mut pending_count = 0;
 

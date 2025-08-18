@@ -29,6 +29,7 @@ pub struct AddressUpdateConfig<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
     pub merkle_tree_pubkey: Pubkey,
     pub prover_url: String,
+    pub prover_api_key: Option<String>,
     pub polling_interval: Duration,
     pub max_wait_time: Duration,
     pub ixs_per_tx: usize,
@@ -39,6 +40,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
     rpc_pool: Arc<SolanaRpcPool<R>>,
     merkle_tree_pubkey: Pubkey,
     prover_url: String,
+    prover_api_key: Option<String>,
     polling_interval: Duration,
     max_wait_time: Duration,
     leaves_hash_chains: Vec<[u8; 32]>,
@@ -49,7 +51,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
 ) -> impl Stream<Item = Result<Vec<InstructionDataAddressAppendInputs>, ForesterUtilsError>> + Send + 'a
 {
     stream! {
-        let proof_client = Arc::new(ProofClient::with_config(prover_url, polling_interval, max_wait_time));
+        let proof_client = Arc::new(ProofClient::with_config(prover_url, polling_interval, max_wait_time, prover_api_key));
         let max_zkp_batches_per_call = calculate_max_zkp_batches_per_call(zkp_batch_size);
         let total_chunks = leaves_hash_chains.len().div_ceil(max_zkp_batches_per_call);
 
@@ -324,6 +326,7 @@ pub async fn get_address_update_instruction_stream<'a, R: Rpc>(
         config.rpc_pool,
         config.merkle_tree_pubkey,
         config.prover_url,
+        config.prover_api_key,
         config.polling_interval,
         config.max_wait_time,
         leaves_hash_chains,
