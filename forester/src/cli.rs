@@ -12,6 +12,7 @@ pub struct Cli {
 pub enum Commands {
     Start(StartArgs),
     Status(StatusArgs),
+    Health(HealthArgs),
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -211,6 +212,41 @@ impl StatusArgs {
     pub fn enable_metrics(&self) -> bool {
         self.push_gateway_url.is_some()
     }
+}
+
+#[derive(Parser, Clone, Debug)]
+pub struct HealthArgs {
+    #[arg(long, help = "Check wallet balance")]
+    pub check_balance: bool,
+
+    #[arg(long, help = "Check forester registration for current epoch")]
+    pub check_registration: bool,
+
+    #[arg(long, env = "FORESTER_RPC_URL")]
+    pub rpc_url: Option<String>,
+
+    #[arg(long, env = "FORESTER_PAYER")]
+    pub payer: Option<String>,
+
+    #[arg(long, env = "FORESTER_DERIVATION_PUBKEY")]
+    pub derivation: Option<String>,
+
+    #[arg(
+        long,
+        help = "Minimum balance threshold in SOL",
+        default_value = "0.01"
+    )]
+    pub min_balance: f64,
+
+    #[arg(
+        long,
+        help = "Exit with non-zero code on failure",
+        default_value = "true"
+    )]
+    pub exit_on_failure: bool,
+
+    #[arg(long, help = "Output format: text or json", default_value = "text")]
+    pub output: String,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

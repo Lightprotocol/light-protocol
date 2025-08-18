@@ -5,6 +5,7 @@ use forester::{
     cli::{Cli, Commands},
     errors::ForesterError,
     forester_status,
+    health_check::run_health_check,
     metrics::register_metrics,
     run_pipeline,
     telemetry::setup_telemetry,
@@ -69,6 +70,12 @@ async fn main() -> Result<(), ForesterError> {
         }
         Commands::Status(args) => {
             forester_status::fetch_forester_status(args).await?;
+        }
+        Commands::Health(args) => {
+            let result = run_health_check(args).await?;
+            if !result && args.exit_on_failure {
+                std::process::exit(1);
+            }
         }
     }
     Ok(())
