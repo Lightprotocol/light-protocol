@@ -1185,6 +1185,7 @@ impl<R: Rpc> EpochManager<R> {
     }
 
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
+        let default_prover_url = "http://127.0.0.1:3001".to_string();
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.config.payer_keypair.insecure_clone(),
@@ -1193,12 +1194,24 @@ impl<R: Rpc> EpochManager<R> {
             merkle_tree: tree_accounts.merkle_tree,
             output_queue: tree_accounts.queue,
             ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
-            prover_url: self
+            prover_append_url: self
                 .config
                 .external_services
-                .prover_url
+                .prover_append_url
                 .clone()
-                .unwrap_or_else(|| "http://127.0.0.1:3001".to_string()),
+                .unwrap_or_else(|| default_prover_url.clone()),
+            prover_update_url: self
+                .config
+                .external_services
+                .prover_update_url
+                .clone()
+                .unwrap_or_else(|| default_prover_url.clone()),
+            prover_address_append_url: self
+                .config
+                .external_services
+                .prover_address_append_url
+                .clone()
+                .unwrap_or_else(|| default_prover_url.clone()),
             prover_api_key: self.config.external_services.prover_api_key.clone(),
             prover_polling_interval: Duration::from_secs(1),
             prover_max_wait_time: Duration::from_secs(120),

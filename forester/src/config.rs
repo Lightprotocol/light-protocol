@@ -35,6 +35,9 @@ pub struct ExternalServicesConfig {
     pub ws_rpc_url: Option<String>,
     pub indexer_url: Option<String>,
     pub prover_url: Option<String>,
+    pub prover_append_url: Option<String>,
+    pub prover_update_url: Option<String>,
+    pub prover_address_append_url: Option<String>,
     pub prover_api_key: Option<String>,
     pub photon_api_key: Option<String>,
     pub pushgateway_url: Option<String>,
@@ -211,6 +214,18 @@ impl ForesterConfig {
                 ws_rpc_url: args.ws_rpc_url.clone(),
                 indexer_url: args.indexer_url.clone(),
                 prover_url: args.prover_url.clone(),
+                prover_append_url: args
+                    .prover_append_url
+                    .clone()
+                    .or_else(|| args.prover_url.clone()),
+                prover_update_url: args
+                    .prover_update_url
+                    .clone()
+                    .or_else(|| args.prover_url.clone()),
+                prover_address_append_url: args
+                    .prover_address_append_url
+                    .clone()
+                    .or_else(|| args.prover_url.clone()),
                 prover_api_key: args.prover_api_key.clone(),
                 photon_api_key: args.photon_api_key.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
@@ -282,6 +297,9 @@ impl ForesterConfig {
                 ws_rpc_url: None,
                 indexer_url: None,
                 prover_url: None,
+                prover_append_url: None,
+                prover_update_url: None,
+                prover_address_append_url: None,
                 prover_api_key: None,
                 photon_api_key: None,
                 pushgateway_url: args.push_gateway_url.clone(),

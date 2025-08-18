@@ -17,7 +17,7 @@ use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
 
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData, ParsedQueueData};
-use crate::{utils::construct_prover_url, Result};
+use crate::Result;
 
 async fn create_nullify_stream_future<R>(
     ctx: &BatchContext<R>,
@@ -32,7 +32,7 @@ where
     let (stream, size) = get_nullify_instruction_stream(
         ctx.rpc_pool.clone(),
         ctx.merkle_tree,
-        construct_prover_url(&ctx.prover_url, "/update"),
+        ctx.prover_update_url.clone(),
         ctx.prover_api_key.clone(),
         ctx.prover_polling_interval,
         ctx.prover_max_wait_time,
@@ -59,7 +59,7 @@ where
     let (stream, size) = get_append_instruction_stream(
         ctx.rpc_pool.clone(),
         ctx.merkle_tree,
-        construct_prover_url(&ctx.prover_url, "/append"),
+        ctx.prover_append_url.clone(),
         ctx.prover_api_key.clone(),
         ctx.prover_polling_interval,
         ctx.prover_max_wait_time,

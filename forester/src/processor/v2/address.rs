@@ -12,7 +12,7 @@ use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
 
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData};
-use crate::{utils::construct_prover_url, Result};
+use crate::Result;
 
 async fn create_stream_future<R>(
     ctx: &BatchContext<R>,
@@ -27,7 +27,7 @@ where
     let config = AddressUpdateConfig {
         rpc_pool: ctx.rpc_pool.clone(),
         merkle_tree_pubkey: ctx.merkle_tree,
-        prover_url: construct_prover_url(&ctx.prover_url, "/address-append"),
+        prover_url: ctx.prover_address_append_url.clone(),
         prover_api_key: ctx.prover_api_key.clone(),
         polling_interval: ctx.prover_polling_interval,
         max_wait_time: ctx.prover_max_wait_time,
