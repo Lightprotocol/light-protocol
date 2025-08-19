@@ -7,7 +7,7 @@ use light_sdk::{
 };
 use solana_program::{account_info::AccountInfo, log::sol_log_compute_units};
 
-use crate::create_pda::MyCompressedAccount;
+use crate::{create_pda::MyCompressedAccount, ARRAY_LEN};
 
 /// CU usage:
 /// - sdk pre system program  9,183k CU
@@ -50,16 +50,35 @@ pub fn update_pda<const BATCHED: bool>(
     Ok(())
 }
 
-#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct UpdatePdaInstructionData {
     pub proof: ValidityProof,
     pub my_compressed_account: UpdateMyCompressedAccount,
-    pub new_data: [u8; 31],
+    pub new_data: [u8; ARRAY_LEN],
     pub system_accounts_offset: u8,
 }
+impl Default for UpdatePdaInstructionData {
+    fn default() -> Self {
+        Self {
+            new_data: [0u8; ARRAY_LEN],
+            my_compressed_account: UpdateMyCompressedAccount::default(),
+            system_accounts_offset: 0,
+            proof: ValidityProof::default(),
+        }
+    }
+}
 
-#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 pub struct UpdateMyCompressedAccount {
     pub meta: CompressedAccountMeta,
-    pub data: [u8; 31],
+    pub data: [u8; ARRAY_LEN],
+}
+
+impl Default for UpdateMyCompressedAccount {
+    fn default() -> Self {
+        Self {
+            meta: CompressedAccountMeta::default(),
+            data: [0u8; ARRAY_LEN],
+        }
+    }
 }
