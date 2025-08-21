@@ -47,9 +47,8 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     #[track_caller]
     #[inline(always)]
     pub fn next_account(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
-        let location = Location::caller();
-
         if self.position >= self.accounts.len() {
+            let location = Location::caller();
             solana_msg::msg!(
                 "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
                 account_name, self.position, self.accounts.len(), location.file(), location.line(), location.column()
@@ -96,38 +95,36 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     #[inline(always)]
     #[track_caller]
     pub fn next_signer_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
-        let location = Location::caller();
         let account_info = self.next_signer(account_name)?;
-        check_mut(account_info).inspect_err(|e| self.print_on_error(e, account_name, location))?;
+        check_mut(account_info)
+            .inspect_err(|e| self.print_on_error(e, account_name, Location::caller()))?;
         Ok(account_info)
     }
 
     #[inline(always)]
     #[track_caller]
     pub fn next_signer(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
-        let location = Location::caller();
         let account_info = self.next_account(account_name)?;
         check_signer(account_info)
-            .inspect_err(|e| self.print_on_error(e, account_name, location))?;
+            .inspect_err(|e| self.print_on_error(e, account_name, Location::caller()))?;
         Ok(account_info)
     }
 
     #[inline(always)]
     #[track_caller]
     pub fn next_non_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
-        let location = Location::caller();
         let account_info = self.next_account(account_name)?;
         check_non_mut(account_info)
-            .inspect_err(|e| self.print_on_error(e, account_name, location))?;
+            .inspect_err(|e| self.print_on_error(e, account_name, Location::caller()))?;
         Ok(account_info)
     }
 
     #[inline(always)]
     #[track_caller]
     pub fn next_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
-        let location = Location::caller();
         let account_info = self.next_account(account_name)?;
-        check_mut(account_info).inspect_err(|e| self.print_on_error(e, account_name, location))?;
+        check_mut(account_info)
+            .inspect_err(|e| self.print_on_error(e, account_name, Location::caller()))?;
         Ok(account_info)
     }
 
@@ -135,8 +132,8 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     #[inline(always)]
     #[track_caller]
     pub fn remaining(&self) -> Result<&'info [T], AccountError> {
-        let location = Location::caller();
         if self.position >= self.accounts.len() {
+            let location = Location::caller();
             let account_name = "remaining accounts";
             solana_msg::msg!(
                 "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",

@@ -5,10 +5,14 @@ use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::ZMintToAction, state::ZCompressedMintMut,
 };
 use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
+use spl_pod::solana_msg::msg;
 
 use crate::{
-    mint_action::accounts::{AccountsConfig, MintActionAccounts},
-    shared::{mint_to_token_pool, token_output::set_output_compressed_account},
+    mint_action::{
+        accounts::{AccountsConfig, MintActionAccounts},
+        mint_to_decompressed::handle_decompressed_mint_to_token_pool,
+    },
+    shared::token_output::set_output_compressed_account,
 };
 
 #[inline(always)]
@@ -82,28 +86,8 @@ pub fn process_mint_to_action(
         .checked_add(compressed_mint.supply.into())
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
 
-    if let Some(system_accounts) = validated_accounts.executing.as_ref() {
-        // If mint is decompressed, mint tokens to the token pool to maintain SPL mint supply consistency
-        if accounts_config.is_decompressed {
-            let mint_account = system_accounts
-                .mint
-                .ok_or(ErrorCode::MintActionMissingMintAccount)?;
+    handle_decompressed_mint_to_token_pool(validated_accounts, accounts_config, sum_amounts, mint)?;
 
-            let token_pool_account = system_accounts
-                .token_pool_pda
-                .ok_or(ErrorCode::MintActionMissingTokenPoolAccount)?;
-            let token_program = system_accounts
-                .token_program
-                .ok_or(ErrorCode::MintActionMissingTokenProgram)?;
-            mint_to_token_pool(
-                mint_account,
-                token_pool_account,
-                token_program,
-                validated_accounts.cpi_authority()?,
-                sum_amounts,
-            )?;
-        }
-    }
     // Create output token accounts
     create_output_compressed_token_accounts(
         action,

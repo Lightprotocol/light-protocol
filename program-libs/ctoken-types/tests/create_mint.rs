@@ -5,8 +5,7 @@ use anchor_lang::{
 use light_compressed_account::hash_to_bn254_field_size_be;
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
 
-// TODO: add is native_compressed, this means that the compressed mint is always synced with the spl mint
-//      compressed mint accounts which are not native_compressed can be not in sync the spl mint account is the source of truth
+// TODO: use as template to test compressed mint hashing of ctoken-types hash functions
 // Order is optimized for hashing.
 // freeze_authority option is skipped if None.
 #[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone)]

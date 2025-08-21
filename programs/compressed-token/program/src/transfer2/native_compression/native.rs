@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_owner, packed_accounts::ProgramPackedAccounts};
 use light_ctoken_types::{
-    instructions::transfer2::{CompressionMode, ZCompression},
+    instructions::transfer2::{ZCompression, ZCompressionMode},
     state::CompressedToken,
 };
 use light_zero_copy::traits::ZeroCopyAtMut;
@@ -19,7 +19,7 @@ pub(super) fn process_native_compressions(
     token_account_info: &AccountInfo,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<(), ProgramError> {
-    let mode = compression.mode;
+    let mode = &compression.mode;
 
     // Validate compression fields for the given mode
     validate_compression_mode_fields(compression)?;
@@ -49,7 +49,7 @@ pub fn native_compression(
     amount: u64,
     mint: Pubkey,
     token_account_info: &AccountInfo,
-    mode: CompressionMode,
+    mode: &ZCompressionMode,
 ) -> Result<(), ProgramError> {
     check_owner(&crate::LIGHT_CPI_SIGNER.program_id, token_account_info)?;
     let mut token_account_data = token_account_info
@@ -73,7 +73,7 @@ pub fn native_compression(
 
     // Calculate new balance using effective amount
     let new_balance = match mode {
-        CompressionMode::Compress => {
+        ZCompressionMode::Compress => {
             // Verify authority for compression operations and update delegated amount if needed
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
             verify_and_update_token_account_authority_with_compressed_token(
@@ -87,7 +87,7 @@ pub fn native_compression(
                 .checked_sub(amount)
                 .ok_or(ProgramError::ArithmeticOverflow)?
         }
-        CompressionMode::Decompress => {
+        ZCompressionMode::Decompress => {
             // Decompress: add to solana account
             current_balance
                 .checked_add(amount)

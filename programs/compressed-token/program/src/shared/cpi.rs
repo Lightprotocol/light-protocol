@@ -106,7 +106,7 @@ pub fn execute_cpi_invoke(
         .iter()
         .map(|x| solana_pubkey::Pubkey::new_from_array(*x.pubkey))
         .collect::<Vec<_>>();
-    msg!("_cpi_accounts {:?}", _cpi_accounts);
+
     let instruction = Instruction {
         program_id: &LIGHT_SYSTEM_PROGRAM_ID,
         accounts: account_metas.as_slice(),
@@ -132,6 +132,9 @@ pub fn execute_cpi_invoke(
     Ok(())
 }
 
+/// Eqivalent to pinocchio::cpi::slice_invoke_signed except:
+/// 1. account_infos: &[&AccountInfo] ->  &[AccountInfo]
+/// 2. Error prints
 #[inline]
 pub fn slice_invoke_signed(
     instruction: &Instruction,
@@ -157,10 +160,7 @@ pub fn slice_invoke_signed(
     let mut len = 0;
 
     for (account_info, account_meta) in account_infos.iter().zip(
-        instruction
-            .accounts
-            .iter()
-            .filter(|x| x.pubkey != instruction.program_id),
+        instruction.accounts.iter(), //   .filter(|x| x.pubkey != instruction.program_id),
     ) {
         if account_info.key() != account_meta.pubkey {
             use std::format;
@@ -174,7 +174,6 @@ pub fn slice_invoke_signed(
                 solana_pubkey::Pubkey::new_from_array(*account_meta.pubkey)
             )
             .as_str());
-
             return Err(ProgramError::InvalidArgument);
         }
 

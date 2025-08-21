@@ -1,4 +1,3 @@
-// pub mod metadata_pointer;
 pub mod processor;
 pub mod token_metadata;
 
@@ -32,7 +31,7 @@ pub fn process_extensions_config_with_actions(
                         token_metadata_data,
                         actions,
                         extension_index,
-                    )
+                    )?
                 }
                 _ => return Err(CTokenError::UnsupportedExtension),
             }
@@ -49,7 +48,7 @@ fn process_token_metadata_config_with_actions(
     token_metadata_data: &light_ctoken_types::instructions::extensions::ZTokenMetadataInstructionData<'_>,
     actions: &[ZAction],
     extension_index: usize,
-) {
+) -> Result<(), CTokenError> {
     // Calculate final sizes by applying actions sequentially to determine the actual final state
     let mut final_name_len = token_metadata_data.metadata.name.len();
     let mut final_symbol_len = token_metadata_data.metadata.symbol.len();
@@ -108,7 +107,8 @@ fn process_token_metadata_config_with_actions(
         },
         additional_metadata: additional_metadata_configs,
     };
-    let byte_len = TokenMetadata::byte_len(&config).unwrap();
+    let byte_len = TokenMetadata::byte_len(&config)?;
     *additional_mint_data_len += byte_len;
     config_vec.push(ExtensionStructConfig::TokenMetadata(config));
+    Ok(())
 }

@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use arrayvec::ArrayVec;
 use light_ctoken_types::instructions::transfer2::{
-    CompressionMode, ZCompression, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
+    ZCompression, ZCompressionMode, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
 use spl_pod::solana_msg::msg;
 
@@ -54,7 +54,7 @@ fn sum_compressions(
                 .map_err(|_| ErrorCode::SumCheckFailed)?;
         } else {
             // Create new entry if compressing
-            if compression.mode == CompressionMode::Compress {
+            if compression.mode == ZCompressionMode::Compress {
                 if mint_sums.is_full() {
                     return Err(ErrorCode::TooManyMints);
                 }

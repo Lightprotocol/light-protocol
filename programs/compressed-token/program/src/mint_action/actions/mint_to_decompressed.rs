@@ -3,7 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{
-    instructions::{mint_action::ZMintToDecompressedAction, transfer2::CompressionMode},
+    instructions::{mint_action::ZMintToDecompressedAction, transfer2::ZCompressionMode},
     state::ZCompressedMintMut,
 };
 use pinocchio::account_info::AccountInfo;
@@ -54,12 +54,12 @@ pub fn process_mint_to_decompressed_action(
         amount,
         mint.into(),
         token_account_info,
-        CompressionMode::Decompress,
+        &ZCompressionMode::Decompress,
     )?;
     Ok(updated_supply)
 }
 
-fn handle_decompressed_mint_to_token_pool(
+pub fn handle_decompressed_mint_to_token_pool(
     validated_accounts: &MintActionAccounts,
     accounts_config: &crate::mint_action::accounts::AccountsConfig,
     amount: u64,
@@ -95,6 +95,9 @@ fn handle_decompressed_mint_to_token_pool(
                 amount,
             )?;
         }
+    } else if accounts_config.is_decompressed {
+        msg!("if mint is decompressed executing accounts must be present");
+        return Err(ErrorCode::Transfer2CpiContextWriteInvalidAccess.into());
     }
     Ok(())
 }

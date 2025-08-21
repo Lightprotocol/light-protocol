@@ -3,7 +3,9 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::{
     data::ZOutputCompressedAccountWithPackedContextMut,
-    with_readonly::InstructionDataInvokeCpiWithReadOnly,
+    with_readonly::{
+        InstructionDataInvokeCpiWithReadOnly, ZInstructionDataInvokeCpiWithReadOnlyMut,
+    },
 };
 use light_ctoken_types::{
     hash_cache::HashCache,
@@ -96,22 +98,10 @@ pub fn process_mint_action(
     let mut hash_cache = HashCache::new();
     // TODO: unify with cpi context
     let queue_indices = QueueIndices::new(&parsed_instruction_data, &validated_accounts)?;
-    // TODO: refactor into separate function
-    // Set compressed lamports.
-    {
-        let mut compressed_lamports: u64 = 0;
-        for action in parsed_instruction_data.actions.iter() {
-            if let ZAction::MintTo(action) = action {
-                if let Some(lamports) = action.lamports {
-                    compressed_lamports = compressed_lamports
-                        .checked_add(u64::from(*lamports))
-                        .ok_or(ProgramError::InvalidInstructionData)?;
-                }
-            }
-        }
-        cpi_instruction_struct.compress_or_decompress_lamports = compressed_lamports.into();
-        cpi_instruction_struct.is_compress = if compressed_lamports > 0 { 1 } else { 0 };
-    }
+    set_compressed_lamports(
+        &parsed_instruction_data.actions,
+        &mut cpi_instruction_struct,
+    )?;
     // If create mint
     // 1. derive spl mint pda
     // 2. set create address
@@ -357,5 +347,25 @@ pub fn process_actions<'a>(
         }
     }
 
+    Ok(())
+}
+
+/// Sets compressed lamports by summing all MintTo action lamports
+fn set_compressed_lamports(
+    actions: &[ZAction],
+    cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
+) -> Result<(), ProgramError> {
+    let mut compressed_lamports: u64 = 0;
+    for action in actions.iter() {
+        if let ZAction::MintTo(action) = action {
+            if let Some(lamports) = action.lamports {
+                compressed_lamports = compressed_lamports
+                    .checked_add(u64::from(*lamports))
+                    .ok_or(ProgramError::InvalidInstructionData)?;
+            }
+        }
+    }
+    cpi_instruction_struct.compress_or_decompress_lamports = compressed_lamports.into();
+    cpi_instruction_struct.is_compress = if compressed_lamports > 0 { 1 } else { 0 };
     Ok(())
 }

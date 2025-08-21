@@ -1,5 +1,5 @@
 use anchor_compressed_token::{check_cpi_context, ErrorCode};
-use anchor_lang::prelude::{msg, ProgramError};
+use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     hash_cache::HashCache,
@@ -50,14 +50,6 @@ pub fn process_transfer2(
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
     bench_sbf_start!("t_context_and_check_sig");
-
-    let packed_accounts_pubkeys = validated_accounts
-        .packed_accounts
-        .accounts
-        .iter()
-        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
-        .collect::<Vec<solana_pubkey::Pubkey>>();
-    msg!("packed_accounts_pubkeys {:?}", packed_accounts_pubkeys);
 
     // Allocate CPI bytes and create zero-copy structure
     let (mut cpi_bytes, config) = allocate_cpi_bytes(&inputs);

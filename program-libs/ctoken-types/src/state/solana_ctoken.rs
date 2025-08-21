@@ -322,29 +322,6 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                                 return false;
                             }
                         }
-                        /*(
-                            crate::state::extensions::ZExtensionStruct::MetadataPointer(zc_mp),
-                            crate::state::extensions::ExtensionStruct::MetadataPointer(regular_mp),
-                        ) => {
-                            match (&zc_mp.authority, &regular_mp.authority) {
-                                (Some(zc_auth), Some(regular_auth)) => {
-                                    if zc_auth.to_bytes() != regular_auth.to_bytes() {
-                                        return false;
-                                    }
-                                }
-                                (None, None) => {}
-                                _ => return false,
-                            }
-                            match (&zc_mp.metadata_address, &regular_mp.metadata_address) {
-                                (Some(zc_addr), Some(regular_addr)) => {
-                                    if zc_addr.to_bytes() != regular_addr.to_bytes() {
-                                        return false;
-                                    }
-                                }
-                                (None, None) => {}
-                                _ => return false,
-                            }
-                        }*/
                         (
                             crate::state::extensions::ZExtensionStruct::TokenMetadata(zc_tm),
                             crate::state::extensions::ExtensionStruct::TokenMetadata(regular_tm),

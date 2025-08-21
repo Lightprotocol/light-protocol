@@ -6,7 +6,7 @@ use zerocopy::{little_endian::U16, FromBytes, Immutable, IntoBytes, KnownLayout,
     Debug, Default, PartialEq, Clone, Copy, FromBytes, IntoBytes, KnownLayout, Immutable, Unaligned,
 )]
 pub struct CpiContextNewAddressParamsAssignedPacked {
-    pub owner: [u8; 32], // TODO: expose owner
+    pub owner: [u8; 32],
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
     pub address_merkle_tree_account_index: u8,

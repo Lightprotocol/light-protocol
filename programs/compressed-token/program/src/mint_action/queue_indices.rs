@@ -35,17 +35,6 @@ impl QueueIndices {
                 if let Some(tokens_out_queue) = system_accounts.tokens_out_queue {
                     let out_queue_key = system_accounts.out_output_queue.key();
                     let tokens_queue_key = tokens_out_queue.key();
-                    msg!("Comparing queues:");
-                    msg!(
-                        "  out_output_queue: {:?}",
-                        solana_pubkey::Pubkey::new_from_array(*out_queue_key)
-                    );
-                    msg!(
-                        "  tokens_out_queue: {:?}",
-                        solana_pubkey::Pubkey::new_from_array(*tokens_queue_key)
-                    );
-                    msg!("  are_equal: {}", out_queue_key == tokens_queue_key);
-
                     if out_queue_key == tokens_queue_key {
                         0
                     } else {

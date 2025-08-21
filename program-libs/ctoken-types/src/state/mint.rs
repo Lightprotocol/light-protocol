@@ -40,7 +40,6 @@ pub struct CompressedMint {
 
 // TODO: unify code if possible
 // use nested token metadata layout for data extension
-// pub extension_hash: [u8; 32],
 impl CompressedMint {
     #[allow(dead_code)]
     pub fn hash(&self) -> std::result::Result<[u8; 32], CTokenError> {

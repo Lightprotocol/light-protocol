@@ -130,52 +130,7 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
 
     Ok(())
 }
-/*
-pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
-    fee_payer: Pubkey,
-    cpi_context_account_info: &'info AccountInfo,
-    instruction_data: WrappedInstructionData<'a, T>,
-) -> Result<()> {
-    // SAFETY Assumptions:
-    // -  previous data in cpi_context_account
-    //   -> we require the account to be cleared in the beginning of a
-    //   transaction
-    // - leaf over data: There cannot be any leftover data in the
-    //   account since if the transaction fails the account doesn't change.
 
-    // Expected usage:
-    // 1. The first invocation is marked with
-    // No need to store the proof (except in first invocation),
-    // cpi context, compress_or_decompress_lamports,
-    // relay_fee
-    // 2. Subsequent invocations check the proof and fee payer
-    use borsh::{BorshDeserialize, BorshSerialize};
-    let cpi_context_account = {
-        let data = cpi_context_account_info.try_borrow_data()?;
-        let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..])
-            .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
-        if instruction_data.cpi_context().unwrap().first_set_context {
-            cpi_context_account.context.clear();
-            cpi_context_account.fee_payer = fee_payer;
-
-            let mut new_cpi_context_data = InstructionDataInvokeCpi::default();
-            instruction_data.into_instruction_data_invoke_cpi(&mut new_cpi_context_data);
-            cpi_context_account.context.push(new_cpi_context_data);
-        } else if cpi_context_account.fee_payer == fee_payer
-            && !cpi_context_account.context.is_empty()
-        {
-            instruction_data.into_instruction_data_invoke_cpi(&mut cpi_context_account.context[0]);
-        } else {
-            msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
-            return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
-        }
-        cpi_context_account
-    };
-    let mut data = cpi_context_account_info.try_borrow_mut_data()?;
-    cpi_context_account.serialize(&mut &mut data[8..]).unwrap();
-    Ok(())
-}
-*/
 /// Copy CPI context outputs to the provided buffer.
 /// This way we ensure that all data involved in the instruction is emitted in this transaction.
 /// This prevents an edge case where users misuse the cpi context over multiple transactions

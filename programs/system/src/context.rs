@@ -175,12 +175,7 @@ where
         })
     }
 
-    pub fn set_cpi_context(
-        &mut self,
-        cpi_context: ZCpiContextAccount<'a>,
-        // outputs_start_offset: usize,
-        // outputs_end_offset: usize,
-    ) -> Result<()> {
+    pub fn set_cpi_context(&mut self, cpi_context: ZCpiContextAccount<'a>) -> Result<()> {
         if self.cpi_context.is_none() {
             self.outputs_len += cpi_context.out_accounts.len();
             if self.outputs_len > MAX_OUTPUT_ACCOUNTS {
@@ -189,7 +184,7 @@ where
             self.address_len += cpi_context.new_addresses.len();
             self.input_len += cpi_context.in_accounts.len();
             self.cpi_context = Some(cpi_context);
-            // TODO: check what these are used for
+            // TODO: set correctly for correct cpi data allocation
             // self.cpi_context_outputs_start_offset = outputs_start_offset;
             // self.cpi_context_outputs_end_offset = outputs_end_offset;
         } else {
@@ -338,58 +333,6 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
             chain_inputs(empty_slice, self.instruction_data.input_accounts())
         }
     }
-    /*
-    pub fn into_instruction_data_invoke_cpi(
-        &self,
-        cpi_account_data: &mut InstructionDataInvokeCpi,
-    ) {
-        for input in self.instruction_data.input_accounts() {
-            if input.skip() {
-                continue;
-            }
-            let input_account = PackedCompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: *input.owner(),
-                    lamports: input.lamports(),
-                    address: input.address(),
-                    data: input.data(),
-                },
-                merkle_context: input.merkle_context().into(),
-                read_only: false,
-                root_index: input.root_index(),
-            };
-            cpi_account_data
-                .input_compressed_accounts_with_merkle_context
-                .push(input_account);
-        }
-
-        for output in self.instruction_data.output_accounts() {
-            if output.skip() {
-                continue;
-            }
-            let output_account = OutputCompressedAccountWithPackedContext {
-                compressed_account: CompressedAccount {
-                    owner: output.owner(),
-                    lamports: output.lamports(),
-                    address: output.address(),
-                    data: output.data(),
-                },
-                merkle_tree_index: output.merkle_tree_index(),
-            };
-            cpi_account_data
-                .output_compressed_accounts
-                .push(output_account);
-        }
-        for address in self.instruction_data.new_addresses() {
-            let new_address_params = NewAddressParamsPacked {
-                seed: address.seed(),
-                address_merkle_tree_account_index: address.address_merkle_tree_account_index(),
-                address_merkle_tree_root_index: address.address_merkle_tree_root_index(),
-                address_queue_account_index: address.address_queue_index(),
-            };
-            cpi_account_data.new_address_params.push(new_address_params);
-        }
-    }*/
 
     pub fn cpi_context(&self) -> Option<CompressedCpiContext> {
         self.instruction_data.cpi_context()

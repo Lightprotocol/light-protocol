@@ -11,8 +11,10 @@ pub fn create_output_token_metadata(
     mint: Pubkey,
 ) -> Result<(), ProgramError> {
     msg!("create_output_token_metadata 1");
-    if let Some(ref mut authority) = token_metadata.update_authority {
-        **authority = *token_metadata_data
+    // We assume token_metadata is allocated correctly.
+    // We cannot fail on None since if we remove the update authority we allocate None.
+    if let Some(authority) = token_metadata.update_authority.as_deref_mut() {
+        *authority = *token_metadata_data
             .update_authority
             .ok_or(ProgramError::InvalidInstructionData)?;
     }

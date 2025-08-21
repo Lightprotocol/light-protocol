@@ -17,7 +17,6 @@ fn check_validated_metadata_authority(
     operation_name: &str,
 ) -> Result<(), ProgramError> {
     if let Some(validated_metadata_authority) = validated_metadata_authority {
-        msg!("authority {:?} ", authority);
         let authority = authority.as_ref().ok_or(ProgramError::from(
             ErrorCode::MintActionInvalidMintAuthority,
         ))?;
@@ -37,10 +36,6 @@ fn check_validated_metadata_authority(
         );
         return Err(ErrorCode::MintActionInvalidMintAuthority.into());
     }
-    msg!(
-        "Metadata authority validation passed for {}",
-        operation_name
-    );
     Ok(())
 }
 
@@ -63,17 +58,10 @@ pub fn process_update_metadata_field_action(
     compressed_mint: &mut ZCompressedMintMut<'_>,
     validated_metadata_authority: &Option<light_compressed_account::Pubkey>,
 ) -> Result<(), ProgramError> {
-    msg!("update_metadata_field_action: ENTRY");
-    msg!(
-        "extension_index={}, field_type={}",
-        action.extension_index,
-        action.field_type
-    );
     let extensions = compressed_mint.extensions.as_mut().ok_or_else(|| {
         msg!("No extensions found - cannot update metadata");
         ErrorCode::MintActionMissingMetadataExtension
     })?;
-    msg!("Found {} extensions", extensions.len());
 
     // Validate extension index bounds
     let extension_index = action.extension_index as usize;
@@ -85,13 +73,10 @@ pub fn process_update_metadata_field_action(
         );
         return Err(ErrorCode::MintActionInvalidExtensionIndex.into());
     }
-    msg!("Extension index {} is valid", extension_index);
 
     // Get the metadata extension
-    msg!("About to match on extension type");
     match &mut extensions.as_mut_slice()[extension_index] {
         ZExtensionStructMut::TokenMetadata(ref mut metadata) => {
-            msg!("Matched TokenMetadata extension");
             // Simple authority check: validated_metadata_authority must be Some
             check_validated_metadata_authority(
                 validated_metadata_authority,
@@ -137,8 +122,6 @@ pub fn process_update_metadata_field_action(
             return Err(ErrorCode::MintActionInvalidExtensionType.into());
         }
     }
-
-    msg!("Successfully updated metadata field");
 
     // Invariant check: Verify metadata state is valid after update
     validate_metadata_invariants(compressed_mint, "field update")?;
@@ -205,14 +188,13 @@ pub fn process_update_metadata_authority_action(
         msg!("No extensions found - cannot update metadata authority");
         ErrorCode::MintActionMissingMetadataExtension
     })?;
-    msg!("here");
 
     let extension_index = action.extension_index as usize;
     if extension_index >= extensions.len() {
         msg!("Extension index {} out of bounds", extension_index);
         return Err(ErrorCode::MintActionInvalidExtensionIndex.into());
     }
-    msg!("here1");
+
     // Get the metadata extension and update the authority
     match &mut extensions.as_mut_slice()[extension_index] {
         ZExtensionStructMut::TokenMetadata(ref mut metadata) => {
@@ -221,10 +203,8 @@ pub fn process_update_metadata_authority_action(
             } else {
                 Some(action.new_authority)
             };
-            msg!("here2");
 
             if metadata.update_authority.is_none() {
-                msg!("here3");
                 let instruction_data_mint_authority = instruction_data_mint_authority
                     .ok_or(ErrorCode::MintActionInvalidMintAuthority)?;
                 msg!(
@@ -251,7 +231,6 @@ pub fn process_update_metadata_authority_action(
                     }
                 }
             } else {
-                msg!("here4");
                 // Simple authority check: validated_metadata_authority must be Some to perform authority operations
                 check_validated_metadata_authority(
                     validated_metadata_authority,

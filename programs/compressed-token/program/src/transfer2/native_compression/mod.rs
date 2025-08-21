@@ -2,7 +2,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::pubkey::AsPubkey;
 use light_ctoken_types::instructions::transfer2::{
-    CompressionMode, ZCompressedTokenInstructionDataTransfer2, ZCompression,
+    ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
 };
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
@@ -71,16 +71,14 @@ pub fn process_token_compression(
 pub(crate) fn validate_compression_mode_fields(
     compression: &ZCompression,
 ) -> Result<(), ProgramError> {
-    let mode = compression.mode;
-
-    match mode {
-        CompressionMode::Decompress => {
+    match compression.mode {
+        ZCompressionMode::Decompress => {
             if compression.authority != 0 {
                 msg!("authority must be 0 for Decompress mode");
                 return Err(ProgramError::InvalidInstructionData);
             }
         }
-        CompressionMode::Compress => {
+        ZCompressionMode::Compress => {
             // No additional validation needed for regular compress
         }
     }

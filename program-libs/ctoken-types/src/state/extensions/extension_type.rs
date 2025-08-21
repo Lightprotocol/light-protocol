@@ -65,7 +65,7 @@ pub enum ExtensionType {
     Placeholder15,
     Placeholder16,
     Placeholder17,
-    Placeholder18, //MetadataPointer = 18,
+    Placeholder18,
     /// Mint contains token-metadata.
     /// Unlike token22 there is no metadata pointer.
     TokenMetadata = 19,
@@ -102,7 +102,6 @@ impl TryFrom<u8> for ExtensionType {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            // 18 => Ok(ExtensionType::MetadataPointer),
             19 => Ok(ExtensionType::TokenMetadata),
             26 => Ok(ExtensionType::Compressible),
             _ => Err(crate::CTokenError::UnsupportedExtension),

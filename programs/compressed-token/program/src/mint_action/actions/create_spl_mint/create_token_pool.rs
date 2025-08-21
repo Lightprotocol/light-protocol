@@ -69,7 +69,7 @@ pub fn initialize_token_pool_account_for_action(
     let initialize_account_ix = pinocchio::instruction::Instruction {
         program_id: token_program.key(),
         accounts: &[
-            AccountMeta::new(token_pool_pda.key(), true, false), // writable=true for initialization
+            AccountMeta::new(token_pool_pda.key(), true, false),
             AccountMeta::readonly(mint_account.key()),
         ],
         data: &spl_token_2022::instruction::initialize_account3(

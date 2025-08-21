@@ -30,7 +30,7 @@ pub enum ExtensionStruct {
     Placeholder15,
     Placeholder16,
     Placeholder17,
-    Placeholder18, // MetadataPointer(MetadataPointer),
+    Placeholder18,
     TokenMetadata(TokenMetadata),
     Placeholder20,
     Placeholder21,
@@ -62,7 +62,7 @@ pub enum ZExtensionStructMut<'a> {
     Placeholder15,
     Placeholder16,
     Placeholder17,
-    Placeholder18, //  MetadataPointer(ZMetadataPointerMut<'a>),
+    Placeholder18,
     TokenMetadata(ZTokenMetadataMut<'a>),
     Placeholder20,
     Placeholder21,
@@ -93,15 +93,6 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
         let discriminant = data[0];
         let remaining_data = &mut data[1..];
         match discriminant {
-            /* 18 => {
-                // MetadataPointer variant
-                let (metadata_pointer, remaining_bytes) =
-                    MetadataPointer::zero_copy_at_mut(remaining_data)?;
-                Ok((
-                    ZExtensionStructMut::MetadataPointer(metadata_pointer),
-                    remaining_bytes,
-                ))
-            }*/
             19 => {
                 let (token_metadata, remaining_bytes) =
                     TokenMetadata::zero_copy_at_mut(remaining_data)?;
@@ -127,15 +118,11 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
 impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
     type ZeroCopyConfig = ExtensionStructConfig;
     type Output = ZExtensionStructMut<'a>;
-    // TODO: return Result
+
     fn byte_len(
         config: &Self::ZeroCopyConfig,
     ) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
         Ok(match config {
-            /* ExtensionStructConfig::MetadataPointer(metadata_config) => {
-                // 1 byte for discriminant + MetadataPointer size
-                1 + MetadataPointer::byte_len(metadata_config)?
-            } */
             ExtensionStructConfig::TokenMetadata(token_metadata_config) => {
                 // 1 byte for discriminant + TokenMetadata size
                 1 + TokenMetadata::byte_len(token_metadata_config)?
@@ -156,24 +143,6 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
         match config {
-            /* ExtensionStructConfig::MetadataPointer(metadata_config) => {
-                // Write discriminant (18 for MetadataPointer)
-                if bytes.is_empty() {
-                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
-                        1,
-                        bytes.len(),
-                    ));
-                }
-                bytes[0] = 18u8;
-
-                // Create MetadataPointer at offset 1
-                let (metadata_pointer, remaining_bytes) =
-                    MetadataPointer::new_zero_copy(&mut bytes[1..], metadata_config)?;
-                Ok((
-                    ZExtensionStructMut::MetadataPointer(metadata_pointer),
-                    remaining_bytes,
-                ))
-            } */
             ExtensionStructConfig::TokenMetadata(config) => {
                 // Write discriminant (19 for TokenMetadata)
                 if bytes.is_empty() {
@@ -247,7 +216,6 @@ pub enum ExtensionStructConfig {
 impl ExtensionStruct {
     pub fn hash<H: Hasher>(&self) -> Result<[u8; 32], CTokenError> {
         match self {
-            // ExtensionStruct::MetadataPointer(metadata_pointer) => Ok(metadata_pointer.hash::<H>()?),
             ExtensionStruct::TokenMetadata(token_metadata) => {
                 // hash function is defined on the metadata level
                 Ok(token_metadata.hash()?)
@@ -260,7 +228,6 @@ impl ExtensionStruct {
 impl ZExtensionStructMut<'_> {
     pub fn hash<H: Hasher>(&self) -> Result<[u8; 32], CTokenError> {
         match self {
-            // ZExtensionStructMut::MetadataPointer(metadata_pointer) => Ok(metadata_pointer.hash::<H>()?),
             ZExtensionStructMut::TokenMetadata(token_metadata) => {
                 // hash function is defined on the metadata level
                 use light_hasher::DataHasher;

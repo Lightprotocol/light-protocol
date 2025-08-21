@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_ctoken_types::instructions::extensions::compressible::CompressibleExtensionInstructionData;
 use light_zero_copy::ZeroCopy;
-
+// TODO: move to ctoken-types
 #[repr(C)]
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct CreateTokenAccountInstructionData {

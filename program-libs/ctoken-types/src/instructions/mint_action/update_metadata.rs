@@ -28,11 +28,10 @@ pub struct RemoveMetadataKeyAction {
 }
 
 /// Authority types for compressed mint updates, following SPL Token-2022 pattern
-#[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
-#[repr(C)]
+#[repr(C, u8)]
 pub enum MetadataUpdate {
-    UpdateAuthority(UpdateMetdataAuthority),
+    UpdateAuthority(UpdateMetadataAuthority),
     UpdateKey(UpdateKey),
     RemoveKey(RemoveKey),
 }
@@ -55,7 +54,7 @@ pub struct RemoveKey {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
-pub struct UpdateMetdataAuthority {
+pub struct UpdateMetadataAuthority {
     pub extension_index: u8,
     pub new_authority: Pubkey,
 }

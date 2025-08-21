@@ -7,7 +7,6 @@ use light_ctoken_types::{
     state::{CompressedMint, CompressedMintConfig},
 };
 use light_zero_copy::ZeroCopyNew;
-use pinocchio::msg;
 
 use crate::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
@@ -28,7 +27,6 @@ pub fn process_output_compressed_account<'a>(
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
 ) -> Result<(), ProgramError> {
-    msg!("process_output_compressed_account: ENTRY");
     let (mint_account, token_accounts): (
         &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
         &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
@@ -39,7 +37,6 @@ pub fn process_output_compressed_account<'a>(
         (&mut mint_account[0], token_accounts)
     };
 
-    msg!("About to call mint_account.set");
     mint_account.set(
         crate::LIGHT_CPI_SIGNER.program_id.into(),
         0,
@@ -48,24 +45,17 @@ pub fn process_output_compressed_account<'a>(
         COMPRESSED_MINT_DISCRIMINATOR,
         [0u8; 32],
     )?;
-    msg!("mint_account.set completed");
 
-    msg!("About to get compressed_account_data");
     let compressed_account_data = mint_account
         .compressed_account
         .data
         .as_mut()
         .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
-    msg!(
-        "compressed_account_data obtained, data len: {}",
-        compressed_account_data.data.len()
-    );
 
-    msg!("About to create CompressedMint::new_zero_copy with mint_size_config");
     let (mut compressed_mint, _) =
         CompressedMint::new_zero_copy(compressed_account_data.data, mint_size_config)
             .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
-    msg!("CompressedMint::new_zero_copy completed successfully");
+
     {
         compressed_mint.set(
             &parsed_instruction_data.mint,
@@ -86,10 +76,6 @@ pub fn process_output_compressed_account<'a>(
             )?;
         }
     }
-    msg!(
-        "About to call process_actions with {} actions",
-        parsed_instruction_data.actions.len()
-    );
     process_actions(
         parsed_instruction_data,
         validated_accounts,

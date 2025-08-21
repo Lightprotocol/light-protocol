@@ -90,38 +90,16 @@ pub struct MultiTokenTransferOutputData {
     pub mint: u8,
     pub version: u8,
 }
-// TODO: allow repr(u8) in zero copy derive macro
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
-#[repr(u8)]
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+#[repr(C)]
 pub enum CompressionMode {
-    Compress = COMPRESS,
-    Decompress = DECOMPRESS,
-    // CompressFull = COMPRESS_FULL, // Ignores the amount, we keep the amount for efficient zero copy
-    //CompressAndClose = COMPRESS_AND_CLOSE, // Compresses the token and closes the account
+    Compress,
+    Decompress,
 }
 
 pub const COMPRESS: u8 = 0u8;
 pub const DECOMPRESS: u8 = 1u8;
-//pub const COMPRESS_FULL: u8 = 2u8;
-//pub const COMPRESS_AND_CLOSE: u8 = 3u8;
-
-impl<'a> light_zero_copy::traits::ZeroCopyAt<'a> for CompressionMode {
-    type ZeroCopyAt = CompressionMode;
-    fn zero_copy_at(
-        bytes: &'a [u8],
-    ) -> Result<(Self::ZeroCopyAt, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
-        let (mode, bytes) = bytes.split_at(1);
-        let enm = match mode[0] {
-            COMPRESS => Ok(CompressionMode::Compress),
-            DECOMPRESS => Ok(CompressionMode::Decompress),
-            // COMPRESS_FULL => Ok(CompressionMode::CompressFull),
-            // COMPRESS_AND_CLOSE => Ok(CompressionMode::CompressAndClose),
-            // TODO: add enum error
-            _ => Err(light_zero_copy::errors::ZeroCopyError::IterFromOutOfBounds),
-        }?;
-        Ok((enm, bytes))
-    }
-}
 
 impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for CompressionMode {
     type ZeroCopyAtMut = Ref<&'a mut [u8], u8>;
@@ -240,8 +218,6 @@ impl ZCompressionMut<'_> {
         match *self.mode {
             COMPRESS => Ok(CompressionMode::Compress),
             DECOMPRESS => Ok(CompressionMode::Decompress),
-            // COMPRESS_FULL => Ok(CompressionMode::CompressFull),
-            // COMPRESS_AND_CLOSE => Ok(CompressionMode::CompressAndClose),
             _ => Err(CTokenError::InvalidCompressionMode),
         }
     }
@@ -250,58 +226,36 @@ impl ZCompressionMut<'_> {
 impl ZCompression<'_> {
     pub fn new_balance_compressed_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
         let new_balance = match self.mode {
-            CompressionMode::Compress => {
+            ZCompressionMode::Compress => {
                 // Compress: add to balance (tokens are being added to compressed pool)
                 current_balance
                     .checked_add((*self.amount).into())
                     .ok_or(CTokenError::ArithmeticOverflow)
             }
-            CompressionMode::Decompress => {
+            ZCompressionMode::Decompress => {
                 // Decompress: subtract from balance (tokens are being removed from compressed pool)
                 current_balance
                     .checked_sub((*self.amount).into())
                     .ok_or(CTokenError::CompressInsufficientFunds)
-            } //   CompressionMode::CompressFull => {
-              //       // CompressFull: add entire amount to compressed pool (amount will be set to actual balance in preprocessing)
-              //       current_balance
-              //            .checked_add((*self.amount).into())
-              //            .ok_or(CTokenError::ArithmeticOverflow)
-              //    }
-              // CompressionMode::CompressAndClose => {
-              //      // CompressAndClose: add entire amount to compressed pool (amount will be set to actual balance in preprocessing)
-              //     current_balance
-              //          .checked_add((*self.amount).into())
-              //          .ok_or(CTokenError::ArithmeticOverflow)
-              //  }
+            }
         }?;
         Ok(new_balance)
     }
 
     pub fn new_balance_solana_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
         let new_balance = match self.mode {
-            CompressionMode::Compress => {
+            ZCompressionMode::Compress => {
                 // Compress: add to balance (tokens are being added to compressed pool)
                 current_balance
                     .checked_sub((*self.amount).into())
                     .ok_or(CTokenError::InsufficientSupply)
             }
-            CompressionMode::Decompress => {
+            ZCompressionMode::Decompress => {
                 // Decompress: subtract from balance (tokens are being removed from compressed pool)
                 current_balance
                     .checked_add((*self.amount).into())
                     .ok_or(CTokenError::ArithmeticOverflow)
-            } //     CompressionMode::CompressFull => {
-              //        // CompressFull: subtract entire amount from solana account (amount will be set to actual balance in preprocessing)
-              //        current_balance
-              ////            .checked_sub((*self.amount).into())
-              //             .ok_or(CTokenError::ArithmeticOverflow)
-              //     }
-              //    CompressionMode::CompressAndClose => {
-              //       // CompressAndClose: subtract entire amount from solana account (amount will be set to actual balance in preprocessing)
-              //         current_balance
-              //             .checked_sub((*self.amount).into())
-              //             .ok_or(CTokenError::ArithmeticOverflow)
-              //       }
+            }
         }?;
         Ok(new_balance)
     }

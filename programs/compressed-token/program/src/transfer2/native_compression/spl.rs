@@ -1,7 +1,7 @@
 use anchor_compressed_token::check_spl_token_pool_derivation_with_index;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_types::instructions::transfer2::{CompressionMode, ZCompression};
+use light_ctoken_types::instructions::transfer2::{ZCompression, ZCompressionMode};
 use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
 
@@ -16,7 +16,7 @@ pub(super) fn process_spl_compressions(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     cpi_authority: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    let mode = compression.mode;
+    let mode = &compression.mode;
 
     validate_compression_mode_fields(compression)?;
 
@@ -34,7 +34,7 @@ pub(super) fn process_spl_compressions(
         Some(compression.bump),
     )?;
     match mode {
-        CompressionMode::Compress => {
+        ZCompressionMode::Compress => {
             let authority = packed_accounts.get_u8(
                 compression.authority,
                 "process_spl_compression: authority account",
@@ -47,7 +47,7 @@ pub(super) fn process_spl_compressions(
                 u64::from(*compression.amount),
             )
         }
-        CompressionMode::Decompress => spl_token_transfer_invoke_cpi(
+        ZCompressionMode::Decompress => spl_token_transfer_invoke_cpi(
             token_program,
             token_pool_account_info,
             token_account_info,

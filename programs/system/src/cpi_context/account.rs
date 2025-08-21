@@ -71,7 +71,6 @@ impl InputAccount<'_> for CpiContextInAccount {
     }
 
     fn has_data(&self) -> bool {
-        // Check if discriminator indicates data presence
         self.discriminator != [0; 8]
     }
 

@@ -104,6 +104,8 @@ pub enum CTokenError {
 
     #[error("Invalid token metadata version")]
     InvalidTokenMetadataVersion,
+    #[error("InvalidExtensionConfig")]
+    InvalidExtensionConfig,
 }
 
 impl From<CTokenError> for u32 {
@@ -140,6 +142,7 @@ impl From<CTokenError> for u32 {
             CTokenError::InvalidAuthorityType => 18029,
             CTokenError::ExpectedMintSignerAccount => 18030,
             CTokenError::InvalidTokenMetadataVersion => 18031,
+            CTokenError::InvalidExtensionConfig => 18032,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

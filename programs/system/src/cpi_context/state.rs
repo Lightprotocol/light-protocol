@@ -81,7 +81,6 @@ impl<'a> ZCpiContextAccount<'a> {
                     as u8
                     + pre_address_len as u8,
             };
-            // msg!(format!("cpi context new address {:?}", new_address).as_str());
             self.new_addresses.push(new_address)?;
         }
 

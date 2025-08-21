@@ -9,15 +9,28 @@ pub fn verify_owner_or_delegate_signer<'a>(
     delegate_account: Option<&'a AccountInfo>,
 ) -> Result<Option<&'a AccountInfo>, ProgramError> {
     if let Some(delegate_account) = delegate_account {
-        // If delegate is used, delegate must be signer
-        check_signer(delegate_account).map_err(|e| {
-            anchor_lang::solana_program::msg!(
-                "Delegate signer: {:?}",
-                solana_pubkey::Pubkey::new_from_array(*delegate_account.key())
-            );
-            anchor_lang::solana_program::msg!("Delegate signer check failed: {:?}", e);
-            ProgramError::from(e)
-        })?;
+        // If delegate is used, delegate or owner must be signer
+        match check_signer(delegate_account) {
+            Ok(()) => {}
+            Err(delegate_error) => {
+                check_signer(owner_account).map_err(|e| {
+                    anchor_lang::solana_program::msg!(
+                        "Checking owner signer: {:?}",
+                        solana_pubkey::Pubkey::new_from_array(*owner_account.key())
+                    );
+                    anchor_lang::solana_program::msg!("Owner signer check failed: {:?}", e);
+                    anchor_lang::solana_program::msg!(
+                        "Delegate signer: {:?}",
+                        solana_pubkey::Pubkey::new_from_array(*delegate_account.key())
+                    );
+                    anchor_lang::solana_program::msg!(
+                        "Delegate signer check failed: {:?}",
+                        delegate_error
+                    );
+                    ProgramError::from(e)
+                })?;
+            }
+        }
         Ok(Some(delegate_account))
     } else {
         // If no delegate, owner must be signer

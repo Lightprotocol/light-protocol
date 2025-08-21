@@ -253,7 +253,7 @@ impl<'info> MintActionAccounts<'info> {
                 if executing.system.cpi_context.is_some() {
                     offset += 1;
                 }
-                // + tree accounts
+
                 // out_output_queue (always present)
                 // in_merkle_tree (always present)
                 offset += 2;
