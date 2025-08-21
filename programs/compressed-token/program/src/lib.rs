@@ -19,7 +19,9 @@ pub mod transfer2;
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
 use close_token_account::processor::process_close_token_account;
-use create_associated_token_account::processor::process_create_associated_token_account;
+use create_associated_token_account::{
+    process_create_associated_token_account, process_create_associated_token_account_idempotent,
+};
 use create_token_account::processor::process_create_token_account;
 use decompressed_token_transfer::process_decompressed_token_transfer;
 
@@ -45,6 +47,7 @@ pub enum InstructionType {
     // TODO: start at 100
     CreateAssociatedTokenAccount = 103,
     Transfer2 = 104,
+    CreateAssociatedTokenAccountIdempotent = 105,
     /// Batch instruction for operation on one compressed Mint account:
     ///     1. CreateMint
     ///     2. MintTo
@@ -60,6 +63,7 @@ pub enum InstructionType {
 }
 
 impl From<u8> for InstructionType {
+    #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
             3 => InstructionType::DecompressedTransfer,
@@ -67,6 +71,7 @@ impl From<u8> for InstructionType {
             18 => InstructionType::CreateTokenAccount,
             103 => InstructionType::CreateAssociatedTokenAccount,
             104 => InstructionType::Transfer2,
+            105 => InstructionType::CreateAssociatedTokenAccountIdempotent,
             106 => InstructionType::MintAction,
             _ => InstructionType::Other,
         }
@@ -98,6 +103,10 @@ pub fn process_instruction(
         InstructionType::CreateAssociatedTokenAccount => {
             msg!("CreateAssociatedTokenAccount");
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CreateAssociatedTokenAccountIdempotent => {
+            msg!("CreateAssociatedTokenAccountIdempotent");
+            process_create_associated_token_account_idempotent(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateTokenAccount => {
             msg!("CreateTokenAccount");

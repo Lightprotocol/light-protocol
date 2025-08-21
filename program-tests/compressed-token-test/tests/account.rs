@@ -1,7 +1,8 @@
 // #![cfg(feature = "test-sbf")]
 
 use light_compressed_token_sdk::instructions::{
-    close::close_account, create_associated_token_account::derive_ctoken_ata, create_token_account,
+    close::close_account, create_associated_token_account::derive_ctoken_ata,
+    create_associated_token_account_idempotent, create_token_account,
 };
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -406,6 +407,93 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         Some(&account_data_before_close),
         rent_recipient_pubkey,
         initial_recipient_lamports,
+    )
+    .await;
+
+    Ok(())
+}
+/// Test:
+/// 1. SUCCESS: Create ATA using non-idempotent instruction
+/// 2. FAIL: Attempt to create same ATA again using non-idempotent instruction (should fail)
+/// 3. SUCCESS: Create same ATA using idempotent instruction (should succeed)
+#[tokio::test]
+#[serial]
+async fn test_create_ata_idempotent() -> Result<(), RpcError> {
+    let mut context = setup_account_test().await?;
+    let payer_pubkey = context.payer.pubkey();
+    let owner_pubkey = context.owner_keypair.pubkey();
+    // Create ATA using non-idempotent instruction (first creation)
+    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account::create_associated_token_account(
+        payer_pubkey,
+        owner_pubkey,
+        context.mint_pubkey,
+    )
+    .map_err(|e| {
+        RpcError::AssertRpcError(format!("Failed to create non-idempotent ATA instruction: {}", e))
+    })?;
+
+    context
+        .rpc
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&context.payer])
+        .await?;
+
+    // Verify ATA creation
+    assert_create_associated_token_account(
+        &mut context.rpc,
+        owner_pubkey,
+        context.mint_pubkey,
+        None,
+    )
+    .await;
+
+    // Attempt to create the same ATA again using non-idempotent instruction (should fail)
+    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account::create_associated_token_account(
+        payer_pubkey,
+        owner_pubkey,
+        context.mint_pubkey,
+    )
+    .map_err(|e| {
+        RpcError::AssertRpcError(format!("Failed to create non-idempotent ATA instruction: {}", e))
+    })?;
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&context.payer])
+        .await;
+
+    // This should fail because account already exists
+    assert!(
+        result.is_err(),
+        "Non-idempotent ATA creation should fail when account already exists"
+    );
+
+    // Now try with idempotent instruction (should succeed)
+    let instruction =
+        create_associated_token_account_idempotent(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!(
+                    "Failed to create idempotent ATA instruction: {}",
+                    e
+                ))
+            })?;
+
+    context
+        .rpc
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&context.payer])
+        .await
+        .map_err(|e| {
+            RpcError::AssertRpcError(format!(
+                "Idempotent ATA creation should succeed even when account exists: {}",
+                e
+            ))
+        })?;
+
+    // Verify ATA is still correct
+    assert_create_associated_token_account(
+        &mut context.rpc,
+        owner_pubkey,
+        context.mint_pubkey,
+        None,
     )
     .await;
 

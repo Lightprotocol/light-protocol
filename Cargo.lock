@@ -3433,6 +3433,7 @@ dependencies = [
  "light-zero-copy",
  "num-bigint 0.4.6",
  "pinocchio 0.8.4",
+ "pinocchio-pubkey 0.3.0",
  "rand 0.8.5",
  "solana-pubkey",
  "solana-security-txt",

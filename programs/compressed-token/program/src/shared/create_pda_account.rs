@@ -5,6 +5,7 @@ use arrayvec::ArrayVec;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Seed, Signer},
+    pubkey::Pubkey,
 };
 
 /// Configuration for creating a PDA account
@@ -79,27 +80,15 @@ pub fn create_pda_account(
 }
 
 /// Verifies that the provided account matches the expected PDA
-pub fn verify_pda(
+pub fn verify_pda<const N: usize>(
     account_key: &[u8; 32],
-    seeds: &[&[u8]],
+    seeds: &[&[u8]; N],
     bump: u8,
-    program_id: &pinocchio::pubkey::Pubkey,
+    program_id: &Pubkey,
 ) -> Result<(), ProgramError> {
-    let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-    let bump_bytes = [bump];
+    let expected_pubkey = pinocchio_pubkey::derive_address(seeds, Some(bump), program_id);
 
-    let mut seeds_with_bump: ArrayVec<&[u8], 8> = ArrayVec::new();
-
-    for &seed in seeds {
-        seeds_with_bump.push(seed);
-    }
-    seeds_with_bump.push(&bump_bytes);
-
-    let expected_pubkey =
-        solana_pubkey::Pubkey::create_program_address(&seeds_with_bump, &program_id_pubkey)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    if account_key != &expected_pubkey.to_bytes() {
+    if account_key != &expected_pubkey {
         return Err(ProgramError::InvalidAccountData);
     }
 
