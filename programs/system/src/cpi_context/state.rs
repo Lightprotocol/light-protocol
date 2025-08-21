@@ -1,5 +1,6 @@
 use std::slice;
 
+use borsh::BorshDeserialize;
 use light_account_checks::{checks::check_owner, discriminator::Discriminator};
 use light_compressed_account::instruction_data::zero_copy::{
     ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
@@ -13,24 +14,21 @@ use crate::{
         account::{CpiContextInAccount, CpiContextOutAccount},
         address::CpiContextNewAddressParamsAssignedPacked,
     },
-    CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, ID,
+    CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR_V1, ID,
 };
-/*
+
 /// Collects instruction data without executing a compressed transaction.
 /// Signer checks are performed on instruction data.
 /// Collected instruction data is combined with the instruction data of the executing cpi,
 /// and executed as a single transaction.
 /// This enables to use input compressed accounts that are owned by multiple programs,
 /// with one zero-knowledge proof.
-#[aligned_sized(anchor)]
-#[derive(Debug, PartialEq, Default, BorshSerialize, BorshDeserialize, Clone)]
+#[derive(Debug, PartialEq, Default, BorshDeserialize, Clone)]
 #[repr(C)]
-pub struct CpiContextAccount {
+pub struct CpiContextAccountLegacy {
     pub fee_payer: Pubkey,
     pub associated_merkle_tree: Pubkey,
-    // Offset 72
-    pub context: Vec<InstructionDataInvokeCpi>,
-}*/
+}
 
 #[derive(Debug)]
 pub struct ZCpiContextAccount<'a> {
@@ -276,31 +274,39 @@ impl CpiContextAccountInitParams {
 /// 8. Set readonly accounts length.
 /// 9. Set in accounts length.
 /// 10. Set out accounts length.
-pub fn cpi_context_account_new<'a>(
+pub fn cpi_context_account_new<'a, const RE_INIT: bool>(
     account_info: &AccountInfo,
     params: CpiContextAccountInitParams,
 ) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
     check_owner(&ID, account_info).map_err(|_| {
-        println!("Invalid cpi context account owner.");
+        msg!("Invalid cpi context account owner.");
         ZeroCopyError::IterFromOutOfBounds
     })?;
     println!("Checked owner");
     let mut account_data = account_info.try_borrow_mut_data().map_err(|_| {
-        println!("Cpi context account data borrow failed.");
+        msg!("Cpi context account data borrow failed.");
         ZeroCopyError::IterFromOutOfBounds
     })?;
 
     let data = unsafe { slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len()) };
     let (discriminator, data) = data.split_at_mut(8);
-    if discriminator != [0u8; 8] {
-        println!("Invalid cpi context account discriminator.");
+    if RE_INIT {
+        // Check discriminator matches
+        if discriminator != CPI_CONTEXT_ACCOUNT_DISCRIMINATOR_V1 {
+            msg!("Invalid cpi context account discriminator.");
+            return Err(ZeroCopyError::IterFromOutOfBounds);
+        }
+        // Zero out account data
+        data.fill(0);
+    } else if discriminator != [0u8; 8] {
+        msg!("Invalid cpi context account discriminator.");
         return Err(ZeroCopyError::IterFromOutOfBounds);
     }
     discriminator.copy_from_slice(&CPI_CONTEXT_ACCOUNT_DISCRIMINATOR);
 
     let (mut fee_payer, data) =
         Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)?;
-    *fee_payer = Pubkey::default().into(); // Initialize empty CPI context with default fee payer
+    *fee_payer = [0u8; 32].into(); // Is set during operation.
 
     let (mut associated_merkle_tree, data) =
         Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)?;

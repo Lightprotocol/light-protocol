@@ -28,6 +28,8 @@ use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 
+#[cfg(feature = "reinit")]
+use crate::accounts::init_context_account::reinit_cpi_context_account;
 use crate::{
     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
 };
@@ -51,6 +53,7 @@ pub enum InstructionDiscriminator {
     InvokeCpi,
     InvokeCpiWithReadOnly,
     InvokeCpiWithAccountInfo,
+    ReInitCpiContextAccount,
 }
 #[cfg(not(feature = "no-entrypoint"))]
 use pinocchio::entrypoint;
@@ -81,6 +84,8 @@ pub fn process_instruction(
         InstructionDiscriminator::InvokeCpiWithAccountInfo => {
             invoke_cpi_with_account_info(accounts, instruction_data)
         }
+        #[cfg(feature = "reinit")]
+        InstructionDiscriminator::ReInitCpiContextAccount => reinit_cpi_context_account(accounts),
     }?;
     Ok(())
 }

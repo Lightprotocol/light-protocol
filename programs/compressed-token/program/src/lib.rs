@@ -14,7 +14,6 @@ pub mod extensions;
 pub mod mint_action;
 pub mod shared;
 pub mod transfer2;
-// TODO: move ErrorCode -> pinocchio program and rename to CTokenError
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;

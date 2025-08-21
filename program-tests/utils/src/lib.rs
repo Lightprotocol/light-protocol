@@ -36,6 +36,7 @@ pub mod batched_address_tree;
 pub mod conversions;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
+pub mod legacy_cpi_context_account;
 pub mod mint_assert;
 pub mod mock_batched_forester;
 pub mod pack;

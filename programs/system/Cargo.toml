@@ -14,7 +14,14 @@ no-entrypoint = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 mem-profiling = []
-default = ["debug", "readonly"]
+# The reinit feature enables CPI context account migration from V1 to current version.
+# Deployment process:
+# 1. Deploy program WITH reinit feature enabled
+# 2. Execute all necessary CPI context account reinitializations
+# 3. Recompile program WITHOUT reinit feature
+# 4. Redeploy program to remove migration code
+reinit = []
+default = ["debug", "readonly", "reinit"]
 test-sbf = []
 debug = []
 readonly = []

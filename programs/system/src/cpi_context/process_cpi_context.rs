@@ -290,7 +290,7 @@ mod tests {
             false,
             vec![0u8; 20000],
         );
-        cpi_context_account_new(&account_info, params).unwrap();
+        cpi_context_account_new::<false>(&account_info, params).unwrap();
         account_info
     }
 

@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use light_account_checks::{
     checks::{check_owner, check_signer},
     discriminator::Discriminator,
@@ -9,7 +10,9 @@ use light_compressed_account::constants::{
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
-    cpi_context::state::{cpi_context_account_new, CpiContextAccountInitParams},
+    cpi_context::state::{
+        cpi_context_account_new, CpiContextAccountInitParams, CpiContextAccountLegacy,
+    },
     errors::SystemProgramError,
     Result,
 };
@@ -56,7 +59,25 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
     let ctx = InitializeCpiContextAccount::from_account_infos(accounts)?;
     let params: CpiContextAccountInitParams =
         CpiContextAccountInitParams::new(*ctx.associated_merkle_tree.key());
-    cpi_context_account_new(ctx.cpi_context_account, params)?;
+    cpi_context_account_new::<false>(ctx.cpi_context_account, params)?;
+
+    Ok(())
+}
+
+pub fn reinit_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
+    if accounts.is_empty() {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    let cpi_context_account = &accounts[0];
+    let associated_merkle_tree = {
+        let data = cpi_context_account.try_borrow_data()?;
+        CpiContextAccountLegacy::deserialize(&mut &data[8..])
+            .map_err(|_| ProgramError::BorshIoError)?
+            .associated_merkle_tree
+    };
+    let params: CpiContextAccountInitParams =
+        CpiContextAccountInitParams::new(associated_merkle_tree);
+    cpi_context_account_new::<true>(cpi_context_account, params)?;
 
     Ok(())
 }
