@@ -48,7 +48,7 @@ Procedural macros for borsh compatible zero copy serialization.
 - **Empty structs**: Not supported - structs must have at least one field for zero-copy serialization
 - **Enum support**:
   - `ZeroCopy` supports enums with unit variants or single unnamed field variants
-  - `ZeroCopyMut` does NOT support enums (structs only)
+  - `ZeroCopyMut` supports enums with unit variants or single unnamed field variants
   - `ZeroCopyEq` does NOT support enums (structs only)
 
 ### Special Type Handling
