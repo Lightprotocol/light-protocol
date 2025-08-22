@@ -14,7 +14,7 @@ use crate::models;
 pub struct AccountProofInputs {
     #[serde(rename = "hash")]
     pub hash: String,
-    #[serde(rename = "leafIndex")]
+    #[serde(rename = "leafIndex", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
     pub leaf_index: u64,
     #[serde(rename = "merkleContext")]
     pub merkle_context: Box<models::MerkleContextV2>,

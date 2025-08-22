@@ -41,6 +41,37 @@ pub struct MintActionInputs {
     pub token_pool: Option<TokenPool>,
 }
 
+impl MintActionInputs {
+    /// Creates a new MintActionInputs for creating a compressed mint
+    pub fn new_for_create_mint(
+        compressed_mint_inputs: CompressedMintWithContext,
+        actions: Vec<MintActionType>,
+        output_queue: Pubkey,
+        address_tree_pubkey: Pubkey,
+        mint_seed: Pubkey,
+        mint_bump: Option<u8>,
+        authority: Pubkey,
+        payer: Pubkey,
+        proof: Option<CompressedProof>,
+    ) -> Self {
+        Self {
+            compressed_mint_inputs,
+            mint_seed,
+            create_mint: true, // Always true for create mint
+            mint_bump,
+            authority,
+            payer,
+            proof,
+            actions,
+            address_tree_pubkey,
+            input_queue: None, // No input queue when creating new mint
+            output_queue,
+            tokens_out_queue: Some(output_queue), // Default to None, can be set separately if needed
+            token_pool: None, // Default to None, can be set separately if needed
+        }
+    }
+}
+
 /// High-level action types for the mint action instruction
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub enum MintActionType {

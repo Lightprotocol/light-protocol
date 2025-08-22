@@ -286,7 +286,7 @@ pub mod anchor_compressible {
                             &[&solana_accounts[i]],
                             vec![light_account],
                             &[seeds_refs.as_slice()],
-                            &cpi_accounts,
+                            s&cpi_accounts,
                             &ctx.accounts.rent_payer,
                             address_space,
                         )?;

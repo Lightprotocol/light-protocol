@@ -8,12 +8,8 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-<<<<<<<< HEAD:sdk-tests/sdk-native-test/Cargo.toml
-name = "sdk_native_test"
-========
 name = "native_compressible"
 doctest = false
->>>>>>>> 514d94a2d (feat: ctoken pinocchio):sdk-tests/native-compressible/Cargo.toml
 
 [features]
 no-entrypoint = []
@@ -30,14 +26,9 @@ light-hasher = { workspace = true, features = ["solana"], default-features = fal
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"], default-features = false }
 borsh = { workspace = true }
-<<<<<<<< HEAD:sdk-tests/sdk-native-test/Cargo.toml
-light-compressed-account = { workspace = true, features = ["solana"] }
-light-zero-copy = { workspace = true }
-========
 light-compressed-account = { workspace = true, features = ["solana"], default-features = false }
 solana-clock = { workspace = true }
 solana-sysvar = { workspace = true }
->>>>>>>> 514d94a2d (feat: ctoken pinocchio):sdk-tests/native-compressible/Cargo.toml
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["v2"], default-features = false }

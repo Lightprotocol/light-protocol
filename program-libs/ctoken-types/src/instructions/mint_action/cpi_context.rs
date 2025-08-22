@@ -34,3 +34,22 @@ impl CompressedCpiContextTrait for ZCpiContext<'_> {
         }
     }
 }
+
+impl CpiContext {
+    /// Specific helper for creating a cmint as last use of cpi context.
+    pub fn last_cpi_create_mint(
+        address_tree_index: usize,
+        output_state_queue_index: usize,
+        mint_account_index: usize,
+    ) -> Self {
+        Self {
+            set_context: false,
+            first_set_context: false,
+            in_tree_index: address_tree_index as u8,
+            in_queue_index: 0, // unused
+            out_queue_index: output_state_queue_index as u8,
+            token_out_queue_index: output_state_queue_index as u8,
+            assigned_account_index: mint_account_index as u8,
+        }
+    }
+}

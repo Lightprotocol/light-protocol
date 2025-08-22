@@ -18,7 +18,7 @@ pub struct MerkleContextWithNewAddressProof {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "higherRangeAddress")]
     pub higher_range_address: String,
-    #[serde(rename = "lowElementLeafIndex")]
+    #[serde(rename = "lowElementLeafIndex", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
     pub low_element_leaf_index: u64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "lowerRangeAddress")]
@@ -26,14 +26,14 @@ pub struct MerkleContextWithNewAddressProof {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "merkleTree")]
     pub merkle_tree: String,
-    #[serde(rename = "nextIndex")]
+    #[serde(rename = "nextIndex", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
     pub next_index: u64,
     #[serde(rename = "proof")]
     pub proof: Vec<String>,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "root")]
     pub root: String,
-    #[serde(rename = "rootSeq")]
+    #[serde(rename = "rootSeq", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
     pub root_seq: u64,
 }
 

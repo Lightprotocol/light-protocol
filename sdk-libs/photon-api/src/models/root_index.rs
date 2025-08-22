@@ -14,7 +14,7 @@ use crate::models;
 pub struct RootIndex {
     #[serde(rename = "proveByIndex")]
     pub prove_by_index: bool,
-    #[serde(rename = "rootIndex")]
+    #[serde(rename = "rootIndex", deserialize_with = "crate::string_u64::u16_direct::deserialize", serialize_with = "crate::string_u64::u16_direct::serialize")]
     pub root_index: u16,
 }
 

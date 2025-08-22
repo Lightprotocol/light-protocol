@@ -7,11 +7,7 @@ use light_sdk::{
 };
 use solana_program::{account_info::AccountInfo, log::sol_log_compute_units};
 
-<<<<<<<< HEAD:sdk-tests/sdk-native-test/src/update_pda.rs
-use crate::{create_pda::MyCompressedAccount, ARRAY_LEN};
-========
 use crate::MyPdaAccount;
->>>>>>>> 514d94a2d (feat: ctoken pinocchio):sdk-tests/native-compressible/src/update_pda.rs
 
 /// CU usage:
 /// - sdk pre system program  9,183k CU

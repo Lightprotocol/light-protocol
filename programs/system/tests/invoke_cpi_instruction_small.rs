@@ -326,10 +326,6 @@ fn test_decompression_recipient_and_cpi_context_validation() {
 
     let account_compression_program = get_account_compression_program_account_info();
     let system_program = get_system_program_account_info();
-<<<<<<< HEAD
-
-=======
->>>>>>> 514d94a2d (feat: ctoken pinocchio)
     let account_info_array = [
         fee_payer.clone(),
         authority.clone(),
@@ -391,10 +387,6 @@ fn failing_from_account_infos_small() {
 
     let account_compression_program = get_account_compression_program_account_info();
     let system_program = get_system_program_account_info();
-<<<<<<< HEAD
-
-=======
->>>>>>> 514d94a2d (feat: ctoken pinocchio)
     // Base array for tests
     let account_info_array = [
         fee_payer.clone(),

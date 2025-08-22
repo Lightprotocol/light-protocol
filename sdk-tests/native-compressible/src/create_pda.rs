@@ -53,13 +53,7 @@ pub fn create_pda<const BATCHED: bool>(
         )
     };
     let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
-<<<<<<<< HEAD:sdk-tests/sdk-native-test/src/create_pda.rs
-    msg!("pre account");
-    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
-========
-
     let mut my_compressed_account = LightAccount::<'_, MyPdaAccount>::new_init(
->>>>>>>> 514d94a2d (feat: ctoken pinocchio):sdk-tests/native-compressible/src/create_pda.rs
         &crate::ID,
         Some(address),
         instruction_data.output_merkle_tree_index,
@@ -76,7 +70,6 @@ pub fn create_pda<const BATCHED: bool>(
     Ok(())
 }
 
-<<<<<<<< HEAD:sdk-tests/sdk-native-test/src/create_pda.rs
 #[derive(Clone, Debug, LightHasher, LightDiscriminator, BorshDeserialize, BorshSerialize)]
 pub struct MyCompressedAccount {
     #[hash]
@@ -93,9 +86,6 @@ impl Default for MyCompressedAccount {
 
 #[derive(Clone, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
-========
-#[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
->>>>>>>> 514d94a2d (feat: ctoken pinocchio):sdk-tests/native-compressible/src/create_pda.rs
 pub struct CreatePdaInstructionData {
     pub proof: ValidityProof,
     pub address_tree_info: PackedAddressTreeInfo,

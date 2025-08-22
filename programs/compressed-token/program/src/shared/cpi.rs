@@ -106,10 +106,7 @@ pub fn execute_cpi_invoke(
         .iter()
         .map(|x| solana_pubkey::Pubkey::new_from_array(*x.pubkey))
         .collect::<Vec<_>>();
-<<<<<<< HEAD
     msg!("_cpi_accounts {:?}", _cpi_accounts);
-=======
->>>>>>> 514d94a2d (feat: ctoken pinocchio)
     let instruction = Instruction {
         program_id: &LIGHT_SYSTEM_PROGRAM_ID,
         accounts: account_metas.as_slice(),

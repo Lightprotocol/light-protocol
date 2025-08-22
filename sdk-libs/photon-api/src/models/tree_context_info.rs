@@ -21,7 +21,7 @@ pub struct TreeContextInfo {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,
-    #[serde(rename = "treeType")]
+    #[serde(rename = "treeType", deserialize_with = "crate::string_u64::u16_direct::deserialize", serialize_with = "crate::string_u64::u16_direct::serialize")]
     pub tree_type: u16,
 }
 
