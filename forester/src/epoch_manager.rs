@@ -1052,7 +1052,7 @@ impl<R: Rpc> EpochManager<R> {
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
             // Add polling interval to reduce RPC pressure and improve response time
-            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
         Ok(())
     }
