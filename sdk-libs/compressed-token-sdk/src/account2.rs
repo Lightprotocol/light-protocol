@@ -10,10 +10,10 @@ use crate::{error::TokenSdkError, utils::get_token_account_balance};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount2 {
-    inputs: Vec<MultiInputTokenDataWithContext>,
-    output: MultiTokenTransferOutputData,
-    compression: Option<Compression>,
-    delegate_is_set: bool,
+    pub inputs: Vec<MultiInputTokenDataWithContext>,
+    pub output: MultiTokenTransferOutputData,
+    pub compression: Option<Compression>,
+    pub delegate_is_set: bool,
     pub(crate) method_used: bool,
 }
 

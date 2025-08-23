@@ -91,6 +91,8 @@ pub fn process_transfer2(
         &validated_accounts.packed_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
+    let compressed_accounts_are_empty = cpi_instruction_struct.input_compressed_accounts.is_empty()
+        && cpi_instruction_struct.output_compressed_accounts.is_empty();
 
     process_change_lamports(
         &inputs,
@@ -118,6 +120,12 @@ pub fn process_transfer2(
         inputs.compressions.as_deref(),
     )
     .map_err(|e| ProgramError::Custom(e as u32))?;
+
+    if compressed_accounts_are_empty {
+        msg!("compressed_accounts_are_empty");
+        return Ok(());
+    }
+
     bench_sbf_end!("t_sum_check");
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Get CPI accounts slice and tree accounts for light-system-program invocation
