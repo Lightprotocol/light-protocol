@@ -22,7 +22,7 @@ members = [
     "programs/registry",
     "anchor-programs/system",
     "sdk-libs/client",
-    "sdk-libs/light-compressible-client",
+    "sdk-libs/compressible-client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
     "sdk-libs/sdk-pinocchio",
@@ -172,7 +172,7 @@ light-indexed-merkle-tree = { version = "2.1.0", path = "program-libs/indexed-me
 light-concurrent-merkle-tree = { version = "2.1.0", path = "program-libs/concurrent-merkle-tree" }
 light-sparse-merkle-tree = { version = "0.1.0", path = "sparse-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.13.1" }
-light-compressible-client = { path = "sdk-libs/light-compressible-client", version = "0.13.1" }
+light-compressible-client = { path = "sdk-libs/compressible-client", version = "0.13.1" }
 light-hasher = { path = "program-libs/hasher", version = "3.1.0" }
 light-macros = { path = "program-libs/macros", version = "2.1.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "2.0.0" }

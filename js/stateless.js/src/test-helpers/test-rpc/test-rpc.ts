@@ -1,4 +1,9 @@
-import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
+import {
+    AccountInfo,
+    Connection,
+    ConnectionConfig,
+    PublicKey,
+} from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     getCompressedAccountByHashTest,
@@ -39,6 +44,7 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
+    MerkleContext,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     TreeType,
@@ -949,6 +955,20 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return this.getValidityProof(
             hashes.map(hash => hash.hash),
             newAddresses.map(address => address.address),
+        );
+    }
+
+    async getCompressibleAccountInfo(
+        address: PublicKey,
+        programId: PublicKey,
+        addressTreeInfo: TreeInfo,
+        rpc: TestRpc,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        merkleContext?: MerkleContext;
+    } | null> {
+        throw new Error(
+            'getCompressibleAccountInfo not implemented in test-rpc',
         );
     }
 }

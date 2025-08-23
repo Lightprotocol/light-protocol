@@ -1,4 +1,5 @@
 import {
+    AccountInfo,
     Connection,
     ConnectionConfig,
     PublicKey,
@@ -65,6 +66,7 @@ import {
     TreeType,
     AddressTreeInfo,
     CompressedAccount,
+    MerkleContext,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -89,7 +91,7 @@ import {
     getTreeInfoByPubkey,
 } from './utils/get-state-tree-infos';
 import { TreeInfo } from './state/types';
-import { validateNumbersForProof } from './utils';
+import { deriveAddressV2, validateNumbersForProof } from './utils';
 
 /** @internal */
 export function parseAccountData({
@@ -1939,5 +1941,77 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 context: res.result.context,
             };
         }
+    }
+
+    /**
+     * Get account info from either compressed or onchain storage.
+     * @param address         The account address to fetch.
+     * @param programId       The owner program ID.
+     * @param addressTreeInfo The address tree info used to store the account.
+     * @param rpc             The RPC client to use.
+     *
+     * @returns               Account info with compression info, or null if account
+     *                        doesn't exist.
+     */
+    async getCompressibleAccountInfo(
+        address: PublicKey,
+        programId: PublicKey,
+        addressTreeInfo: TreeInfo,
+        rpc: Rpc,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        merkleContext?: MerkleContext;
+    } | null> {
+        const cAddress = deriveAddressV2(
+            address.toBytes(),
+            addressTreeInfo.tree.toBytes(),
+            programId.toBytes(),
+        );
+
+        // Execute both calls in parallel
+        const [onchainResult, compressedResult] = await Promise.allSettled([
+            rpc.getAccountInfo(address),
+            rpc.getCompressedAccount(bn(Array.from(cAddress))),
+        ]);
+
+        const onchainAccount =
+            onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+        const compressedAccount =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value
+                : null;
+
+        if (onchainAccount) {
+            return { accountInfo: onchainAccount, merkleContext: undefined };
+        }
+
+        // is compressed.
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0
+        ) {
+            const accountInfo: AccountInfo<Buffer> = {
+                executable: false,
+                owner: compressedAccount.owner,
+                lamports: compressedAccount.lamports.toNumber(),
+                data: Buffer.concat([
+                    Buffer.from(compressedAccount.data!.discriminator),
+                    compressedAccount.data!.data,
+                ]),
+            };
+            return {
+                accountInfo,
+                merkleContext: {
+                    treeInfo: addressTreeInfo,
+                    hash: compressedAccount.hash,
+                    leafIndex: compressedAccount.leafIndex,
+                    proveByIndex: compressedAccount.proveByIndex,
+                },
+            };
+        }
+
+        // account does not exist.
+        return null;
     }
 }

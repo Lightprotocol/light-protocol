@@ -6,6 +6,7 @@ pub mod create_compressed_mint;
 mod create_spl_mint;
 pub mod create_token_account;
 pub mod ctoken_accounts;
+pub mod decompressed_transfer;
 pub mod mint_action;
 pub mod mint_to_compressed;
 pub mod transfer;
@@ -41,6 +42,10 @@ pub use mint_to_compressed::{
 pub use update_compressed_mint::{
     update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,
     UPDATE_COMPRESSED_MINT_DISCRIMINATOR,
+};
+
+pub use decompressed_transfer::{
+    create_decompressed_token_transfer_instruction, transfer, transfer_signed,
 };
 
 /// Derive token pool information for a given mint

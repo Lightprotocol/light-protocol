@@ -9,7 +9,6 @@ use solana_program::{account_info::AccountInfo, log::sol_log_compute_units};
 
 use crate::{create_pda::MyCompressedAccount, ARRAY_LEN};
 
-
 /// CU usage:
 /// - sdk pre system program  9,183k CU
 /// - total with V2 tree: 50,194 CU (proof by index)
@@ -23,10 +22,10 @@ pub fn update_pda<const BATCHED: bool>(
     let instruction_data = UpdatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
 
-    let mut my_compressed_account = LightAccount::<'_, MyPdaAccount>::new_mut(
+    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
         &crate::ID,
         &instruction_data.my_compressed_account.meta,
-        MyPdaAccount {
+        MyCompressedAccount {
             compression_info: None,
             data: instruction_data.my_compressed_account.data,
         },

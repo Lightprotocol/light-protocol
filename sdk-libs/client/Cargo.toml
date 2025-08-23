@@ -35,6 +35,7 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bytemuck",
     "bincode",
 ] }
+solana-message = "2.2"
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 
 # Light Protocol dependencies

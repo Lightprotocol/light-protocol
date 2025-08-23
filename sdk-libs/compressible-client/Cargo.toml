@@ -13,6 +13,7 @@ anchor = ["anchor-lang", "light-sdk/anchor"]
 # Solana dependencies
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }
+solana-account = { workspace = true }
 
 # Light Protocol dependencies  
 light-client = { workspace = true, features = ["v2"] }

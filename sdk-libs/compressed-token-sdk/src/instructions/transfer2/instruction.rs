@@ -150,7 +150,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     // for packed_pubkey in packed_pubkeys {
     //     account_metas.push(AccountMeta::new(packed_pubkey, false));
     // }
-    println!("account metas {:?}", account_metas);
+
     Ok(Instruction {
         program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: account_metas,
