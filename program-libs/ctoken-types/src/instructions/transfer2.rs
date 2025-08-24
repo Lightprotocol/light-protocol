@@ -180,6 +180,18 @@ impl Compression {
             bump,
         }
     }
+    pub fn compress_ctoken(amount: u64, mint: u8, source_or_recipient: u8, authority: u8) -> Self {
+        Compression {
+            amount,
+            mode: CompressionMode::Compress,
+            mint,
+            source_or_recipient,
+            authority,
+            pool_account_index: 0,
+            pool_index: 0,
+            bump: 0,
+        }
+    }
     pub fn decompress(amount: u64, mint: u8, source_or_recipient: u8) -> Self {
         Compression {
             amount,
@@ -209,6 +221,19 @@ impl Compression {
             pool_account_index,
             pool_index,
             bump,
+        }
+    }
+
+    pub fn decompress_ctoken(amount: u64, mint: u8, source_or_recipient: u8) -> Self {
+        Compression {
+            amount,
+            mode: CompressionMode::Decompress,
+            mint,
+            source_or_recipient,
+            authority: 0,
+            pool_account_index: 0,
+            pool_index: 0,
+            bump: 0,
         }
     }
 }

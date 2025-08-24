@@ -18,6 +18,7 @@ pub struct Transfer2Config {
     pub total_input_lamports: u64,
     /// Total output lamports (checked arithmetic).
     pub total_output_lamports: u64,
+    pub no_compressed_accounts: bool,
 }
 
 impl Transfer2Config {
@@ -27,7 +28,8 @@ impl Transfer2Config {
         inputs: &ZCompressedTokenInstructionDataTransfer2,
     ) -> Result<Self, ProgramError> {
         let (input_lamports, output_lamports) = Self::calculate_lamport_totals(inputs)?;
-
+        let no_compressed_accounts =
+            inputs.in_token_data.is_empty() && inputs.out_token_data.is_empty();
         Ok(Self {
             sol_pool_required: input_lamports != output_lamports,
             sol_decompression_required: input_lamports < output_lamports,
@@ -39,6 +41,7 @@ impl Transfer2Config {
                 .unwrap_or_default(),
             total_input_lamports: input_lamports,
             total_output_lamports: output_lamports,
+            no_compressed_accounts,
         })
     }
 
