@@ -287,6 +287,14 @@ export class PackedAccountsSmall {
         return instance;
     }
 
+    /**
+     * Returns the internal map of pubkey to [index, AccountMeta].
+     * For debugging purposes only.
+     */
+    getNamedMetas(): Map<string, [number, AccountMeta]> {
+        return this.map;
+    }
+
     addPreAccountsSigner(pubkey: PublicKey): void {
         this.preAccounts.push({ pubkey, isSigner: true, isWritable: false });
     }

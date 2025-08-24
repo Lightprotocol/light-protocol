@@ -1,16 +1,14 @@
 use crate::{
-    account2::CTokenAccount2, error::Result,
+    account2::CTokenAccount2, error::TokenSdkError,
     instructions::transfer2::account_metas::Transfer2AccountsMetaConfig,
 };
 use light_compressed_token_types::ValidityProof;
-use light_ctoken_types::{
-    instructions::transfer2::{Compression, CompressionMode, MultiTokenTransferOutputData},
-    COMPRESSED_TOKEN_PROGRAM_ID,
+use light_ctoken_types::instructions::transfer2::{
+    Compression, CompressionMode, MultiTokenTransferOutputData,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
-use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
@@ -24,63 +22,60 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     mint: Pubkey,
     payer: Pubkey,
     token_pool_pda: Pubkey,
-) -> Result<Instruction> {
+    token_pool_pda_bump: u8,
+) -> Result<Instruction, TokenSdkError> {
     let mut packed_accounts = Vec::new();
 
-    // Tree account placeholer (index 0)
-    packed_accounts.push(AccountMeta::new(Pubkey::new_from_array([2; 32]), false));
-
-    // Mint (index 1)
+    // Mint (index 0)
     packed_accounts.push(AccountMeta::new_readonly(mint, false));
 
-    // Destination owner (index 2) // or to??
-    packed_accounts.push(AccountMeta::new_readonly(to, false));
+    // Destination token account (index 1)
+    packed_accounts.push(AccountMeta::new(to, false));
 
-    // Authority for compression (index 3) - signer
-    packed_accounts.push(AccountMeta::new_readonly(authority, true));
+    // Authority for compression (index 2) - signer
+    packed_accounts.push(AccountMeta::new(authority, true));
 
-    // Source SPL token account (index 4) - writable
+    // Source SPL token account (index 3) - writable
     packed_accounts.push(AccountMeta::new(source_spl_token_account, false));
 
-    // Token pool PDA (index 5) - writable
+    // Token pool PDA (index 4) - writable
     packed_accounts.push(AccountMeta::new(token_pool_pda, false));
 
-    let (derived_token_pool_pda, bump) = Pubkey::find_program_address(
-        &[
-            b"token_pool",
-            mint.as_ref(),
-            &0u8.to_le_bytes(), // Usually 0
-        ],
-        &COMPRESSED_TOKEN_PROGRAM_ID.into(),
-    );
-    msg!("bump: {:?}", bump);
-    if derived_token_pool_pda != token_pool_pda {
-        msg!(
-            "Token pool PDA mismatch: {:?}, {:?}",
-            derived_token_pool_pda,
-            token_pool_pda
-        );
-        panic!("Token pool PDA mismatch");
-    }
-    let ctoken_account = CTokenAccount2 {
+    // SPL Token program (index 5) - needed for CPI
+    packed_accounts.push(AccountMeta::new_readonly(
+        Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
+        false,
+    ));
+    // println!("packed_accounts {:?}", packed_accounts);
+    let wrap_spl_to_ctoken_account = CTokenAccount2 {
         inputs: vec![],
-        output: MultiTokenTransferOutputData {
-            owner: 2, // recipient of output
-            amount: 0,
-            merkle_tree: 0,
-            delegate: 0,
-            mint: 1,
-            version: 0,
-        },
+        output: MultiTokenTransferOutputData::default(),
         compression: Some(Compression {
             amount,
             mode: CompressionMode::Compress,
-            mint: 1,
-            source_or_recipient: 4, // index of source
-            authority: 3,
-            pool_account_index: 5,
+            mint: 0,
+            source_or_recipient: 3, // index of source
+            authority: 2,
+            pool_account_index: 4,
             pool_index: 0, // TODO: make dynamic.
-            bump,
+            bump: token_pool_pda_bump,
+        }),
+        delegate_is_set: false,
+        method_used: true,
+    };
+
+    let ctoken_account = CTokenAccount2 {
+        inputs: vec![],
+        output: MultiTokenTransferOutputData::default(),
+        compression: Some(Compression {
+            amount,
+            mode: CompressionMode::Decompress,
+            mint: 0,
+            source_or_recipient: 1, // index of destination
+            authority: 0,           // unchecked.
+            pool_account_index: 0,  // unused.
+            pool_index: 0,          // unused.
+            bump: 0,
         }),
         delegate_is_set: false,
         method_used: true,
@@ -90,10 +85,13 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     let inputs = Transfer2Inputs {
         validity_proof: ValidityProof::default(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
-        meta_config: Transfer2AccountsMetaConfig::new(payer, packed_accounts),
+        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+            payer,
+            packed_accounts,
+        ),
         in_lamports: None,
         out_lamports: None,
-        token_accounts: vec![ctoken_account],
+        token_accounts: vec![wrap_spl_to_ctoken_account, ctoken_account],
     };
 
     // Create the actual transfer2 instruction
@@ -105,124 +103,238 @@ pub fn create_spl_to_ctoken_transfer_instruction(
 /// This function creates the instruction and immediately invokes it.
 /// Similar to SPL Token's transfer wrapper functions.
 pub fn transfer_spl_to_ctoken<'info>(
-    from: &'info AccountInfo<'info>,
-    to: &'info AccountInfo<'info>,
+    from: AccountInfo<'info>,
+    to: AccountInfo<'info>,
     amount: u64,
-    authority: &'info AccountInfo<'info>,
-    mint: &'info AccountInfo<'info>,
-    payer: &'info AccountInfo<'info>,
-    remaining_accounts: &'info [AccountInfo<'info>],
-) -> std::result::Result<(), ProgramError> {
-    // Validate minimum accounts required
-    if remaining_accounts.len() < 8 {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    // Derive token pool PDA
-    let (token_pool_pda, _bump) = Pubkey::find_program_address(
-        &[b"token_pool", mint.key.as_ref(), &0u8.to_le_bytes()],
-        &COMPRESSED_TOKEN_PROGRAM_ID.into(),
-    );
-
-    // Find the token pool account in remaining accounts
-    let token_pool_account = remaining_accounts
-        .iter()
-        .find(|acc| acc.key == &token_pool_pda)
-        .ok_or(ProgramError::InvalidAccountData)?;
-
-    // Create the instruction
+    authority: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    token_pool_pda: AccountInfo<'info>,
+    token_pool_pda_bump: u8,
+    token_program_authority: AccountInfo<'info>,
+    spl_program: AccountInfo<'info>,
+) -> Result<(), ProgramError> {
     let instruction = create_spl_to_ctoken_transfer_instruction(
         *from.key,
         *to.key,
         amount,
         *authority.key,
         *mint.key,
-        *payer.key,
-        token_pool_pda,
+        *authority.key,
+        *token_pool_pda.key,
+        token_pool_pda_bump,
     )
     .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    // Build account infos and invoke
+    // let mut account_infos = remaining_accounts.to_vec();
     let account_infos = vec![
-        remaining_accounts[0].clone(), // light_system_program
-        payer.clone(),
-        remaining_accounts[2].clone(), // cpi_authority_pda
-        remaining_accounts[3].clone(), // registered_program_pda
-        remaining_accounts[4].clone(), // account_compression_authority
-        remaining_accounts[5].clone(), // account_compression_program
-        remaining_accounts[6].clone(), // system_program
-        // Packed accounts (matching the order in create_spl_to_ctoken_transfer_instruction)
-        remaining_accounts[7].clone(), // placeholder_tree_account (not used for decompressed)
-        mint.clone(),                  // Index 1: Mint
-        to.clone(),                    // Index 2: Destination owner
-        authority.clone(),             // Index 3: Authority (signer)
-        from.clone(),                  // Index 4: Source SPL token account
-        token_pool_account.clone(),    // Index 5: Token pool PDA
+        authority.clone(),
+        spl_program,
+        token_program_authority,
+        mint,           // Index 0: Mint
+        to,             // Index 1: Destination owner
+        authority,      // Index 2: Authority (signer)
+        from,           // Index 3: Source SPL token account
+        token_pool_pda, // Index 4: Token pool PDA
     ];
 
-    invoke(&instruction, &account_infos)
+    invoke(&instruction, &account_infos)?;
+    Ok(())
 }
 
-/// Transfer SPL tokens to compressed tokens with program signature
+/// Transfer SPL tokens to compressed tokens via CPI signer.
 ///
-/// This function creates the instruction and invokes it with signer seeds.
-/// Used when calling from a program that needs to sign as a PDA.
+/// This function creates the instruction and invokes it with the provided
+/// signer seeds.
 pub fn transfer_spl_to_ctoken_signed<'info>(
-    from: &'info AccountInfo<'info>,
-    to: &'info AccountInfo<'info>,
+    from: AccountInfo<'info>,
+    to: AccountInfo<'info>,
     amount: u64,
-    authority: &'info AccountInfo<'info>,
-    mint: &'info AccountInfo<'info>,
-    payer: &'info AccountInfo<'info>,
-    remaining_accounts: &'info [AccountInfo<'info>],
-    signers_seeds: &[&[&[u8]]],
-) -> std::result::Result<(), ProgramError> {
-    // Validate minimum accounts required
-    if remaining_accounts.len() < 8 {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    // Derive token pool PDA
-    let (token_pool_pda, _bump) = Pubkey::find_program_address(
-        &[b"token_pool", mint.key.as_ref(), &0u8.to_le_bytes()],
-        &COMPRESSED_TOKEN_PROGRAM_ID.into(),
-    );
-
-    // Find the token pool account in remaining accounts
-    let token_pool_account = remaining_accounts
-        .iter()
-        .find(|acc| acc.key == &token_pool_pda)
-        .ok_or(ProgramError::InvalidAccountData)?;
-
-    // Create the instruction
+    authority: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    token_pool_pda: AccountInfo<'info>,
+    spl_program: AccountInfo<'info>,
+    signer_seeds: &[&[&[u8]]],
+) -> Result<(), TokenSdkError> {
     let instruction = create_spl_to_ctoken_transfer_instruction(
         *from.key,
         *to.key,
         amount,
         *authority.key,
         *mint.key,
-        *payer.key,
-        token_pool_pda,
+        *authority.key,
+        *token_pool_pda.key,
+        0,
+    )
+    .map_err(|_| TokenSdkError::MethodUsed)?;
+
+    let account_infos = vec![
+        authority.clone(),
+        mint,           // Index 0: Mint
+        to,             // Index 1: Destination owner
+        authority,      // Index 2: Authority (signer)
+        from,           // Index 3: Source SPL token account
+        token_pool_pda, // Index 4: Token pool PDA
+        spl_program,    // Index 5: SPL Token program
+    ];
+
+    invoke_signed(&instruction, &account_infos, signer_seeds)
+        .map_err(|_| TokenSdkError::MethodUsed)?;
+    Ok(())
+}
+
+pub fn create_ctoken_to_spl_transfer_instruction(
+    source_ctoken_account: Pubkey,
+    destination_spl_token_account: Pubkey,
+    amount: u64,
+    authority: Pubkey,
+    mint: Pubkey,
+    payer: Pubkey,
+    token_pool_pda: Pubkey,
+    token_pool_pda_bump: u8,
+) -> Result<Instruction, TokenSdkError> {
+    let mut packed_accounts = Vec::new();
+
+    // Mint (index 0)
+    packed_accounts.push(AccountMeta::new_readonly(mint, false));
+
+    // Source ctoken account (index 1) - writable
+    packed_accounts.push(AccountMeta::new(source_ctoken_account, false));
+
+    // Destination SPL token account (index 2) - writable
+    packed_accounts.push(AccountMeta::new(destination_spl_token_account, false));
+
+    // Authority (index 3) - signer
+    packed_accounts.push(AccountMeta::new_readonly(authority, true));
+
+    // Token pool PDA (index 4) - writable
+    packed_accounts.push(AccountMeta::new(token_pool_pda, false));
+
+    // SPL Token program (index 5) - needed for CPI
+    packed_accounts.push(AccountMeta::new_readonly(
+        Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
+        false,
+    ));
+
+    // First operation: compress from ctoken account to pool using compress_spl
+    let compress_to_pool = CTokenAccount2 {
+        inputs: vec![],
+        output: MultiTokenTransferOutputData::default(),
+        compression: Some(Compression::compress_spl(
+            amount,
+            0, // mint index
+            1, // source ctoken account index
+            3, // authority index
+            4, // pool_account_index
+            0, // pool_index (TODO: make dynamic)
+            token_pool_pda_bump,
+        )),
+        delegate_is_set: false,
+        method_used: true,
+    };
+
+    // Second operation: decompress from pool to SPL token account using decompress_spl
+    let decompress_to_spl = CTokenAccount2 {
+        inputs: vec![],
+        output: MultiTokenTransferOutputData::default(),
+        compression: Some(Compression::decompress_spl(
+            amount,
+            0, // mint index
+            2, // destination SPL token account index
+            4, // pool_account_index
+            0, // pool_index (TODO: make dynamic)
+            token_pool_pda_bump,
+        )),
+        delegate_is_set: false,
+        method_used: true,
+    };
+
+    // Create Transfer2Inputs
+    let inputs = Transfer2Inputs {
+        validity_proof: ValidityProof::default(),
+        transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
+        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+            payer,
+            packed_accounts,
+        ),
+        in_lamports: None,
+        out_lamports: None,
+        token_accounts: vec![compress_to_pool, decompress_to_spl],
+    };
+
+    // Create the actual transfer2 instruction
+    create_transfer2_instruction(inputs)
+}
+
+/// Transfer compressed tokens to SPL tokens
+///
+/// This function creates the instruction and invokes it.
+pub fn transfer_ctoken_to_spl<'info>(
+    from: AccountInfo<'info>,
+    to: AccountInfo<'info>,
+    amount: u64,
+    authority: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    token_pool_pda: AccountInfo<'info>,
+) -> Result<(), TokenSdkError> {
+    let instruction = create_ctoken_to_spl_transfer_instruction(
+        *from.key,
+        *to.key,
+        amount,
+        *authority.key,
+        *mint.key,
+        *authority.key,
+        *token_pool_pda.key,
+        0,
+    )
+    .map_err(|_| TokenSdkError::MethodUsed)?;
+
+    let account_infos = vec![
+        authority.clone(),
+        mint,           // Index 0: Mint
+        to,             // Index 1: Destination owner
+        authority,      // Index 2: Authority (signer)
+        from,           // Index 3: Source SPL token account
+        token_pool_pda, // Index 4: Token pool PDA
+    ];
+
+    invoke(&instruction, &account_infos).map_err(|_| TokenSdkError::MethodUsed)?;
+    Ok(())
+}
+
+/// Transfer compressed tokens to SPL tokens via CPI signer.
+///
+/// This function creates the instruction and invokes it with the provided
+/// signer seeds.
+pub fn transfer_ctoken_to_spl_signed<'info>(
+    from: AccountInfo<'info>,
+    to: AccountInfo<'info>,
+    amount: u64,
+    authority: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    token_pool_pda: AccountInfo<'info>,
+    signer_seeds: &[&[&[u8]]],
+) -> Result<(), ProgramError> {
+    let instruction = create_ctoken_to_spl_transfer_instruction(
+        *from.key,
+        *to.key,
+        amount,
+        *authority.key,
+        *mint.key,
+        *authority.key,
+        *token_pool_pda.key,
+        0,
     )
     .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    // Build account infos and invoke with signer seeds
     let account_infos = vec![
-        remaining_accounts[0].clone(), // light_system_program
-        payer.clone(),
-        remaining_accounts[2].clone(), // cpi_authority_pda
-        remaining_accounts[3].clone(), // registered_program_pda
-        remaining_accounts[4].clone(), // account_compression_authority
-        remaining_accounts[5].clone(), // account_compression_program
-        remaining_accounts[6].clone(), // system_program
-        // Packed accounts (matching the order in create_spl_to_ctoken_transfer_instruction)
-        remaining_accounts[7].clone(), // placeholder_tree_account (not used for decompressed)
-        mint.clone(),                  // Index 1: Mint
-        to.clone(),                    // Index 2: Destination owner
-        authority.clone(),             // Index 3: Authority (signer)
-        from.clone(),                  // Index 4: Source SPL token account
-        token_pool_account.clone(),    // Index 5: Token pool PDA
+        authority.clone(),
+        mint,           // Index 0: Mint
+        to,             // Index 1: Destination owner
+        authority,      // Index 2: Authority (signer)
+        from,           // Index 3: Source SPL token account
+        token_pool_pda, // Index 4: Token pool PDA
     ];
 
-    invoke_signed(&instruction, &account_infos, signers_seeds)
+    invoke_signed(&instruction, &account_infos, signer_seeds)?;
+    Ok(())
 }

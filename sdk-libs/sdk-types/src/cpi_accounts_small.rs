@@ -162,6 +162,16 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
             ))
     }
 
+    // TODO: unify with get_tree_account_info
+    pub fn get_tree_address(&self, tree_index: u8) -> Result<&'a T> {
+        let tree_accounts = self.tree_accounts()?;
+        tree_accounts.get(tree_index as usize).ok_or(
+            LightSdkTypesError::CpiAccountsIndexOutOfBounds(
+                self.system_accounts_end_offset() + tree_index as usize,
+            ),
+        )
+    }
+
     /// Create a vector of account info references
     pub fn to_account_infos(&self) -> Vec<T> {
         let mut account_infos = Vec::with_capacity(1 + self.accounts.len());
