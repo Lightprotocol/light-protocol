@@ -477,3 +477,132 @@ pub fn generate_byte_len_calculation(field_type: &FieldType) -> syn::Result<Toke
     };
     Ok(result)
 }
+
+/// Generate ZeroCopyNew for enums with fixed variant selection
+pub fn generate_enum_zero_copy_new(
+    enum_name: &syn::Ident,
+    enum_data: &syn::DataEnum,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let config_name = quote::format_ident!("{}Config", enum_name);
+    let z_enum_mut_name = quote::format_ident!("Z{}Mut", enum_name);
+
+    // Generate config enum that mirrors the original enum structure
+    let config_variants = enum_data.variants.iter().map(|variant| {
+        let variant_name = &variant.ident;
+        match &variant.fields {
+            syn::Fields::Unit => Ok(quote! { #variant_name }),
+            syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                let field_type = &fields.unnamed.first()
+                    .ok_or_else(|| syn::Error::new_spanned(
+                        fields,
+                        "Internal error: expected exactly one unnamed field but found none"
+                    ))?
+                    .ty;
+                // Get the config type for the inner field
+                Ok(quote! {
+                    #variant_name(<#field_type as ::light_zero_copy::traits::ZeroCopyNew<'static>>::ZeroCopyConfig)
+                })
+            }
+            _ => Err(syn::Error::new_spanned(variant, "Unsupported enum variant format for ZeroCopyMut")),
+        }
+    }).collect::<Result<Vec<_>, _>>()?;
+
+    // Generate byte_len match arms
+    let byte_len_arms = enum_data.variants.iter().map(|variant| {
+        let variant_name = &variant.ident;
+        let discriminant_size = 1usize; // Always 1 byte for borsh
+
+        match &variant.fields {
+            syn::Fields::Unit => {
+                Ok(quote! {
+                    #config_name::#variant_name => Ok(#discriminant_size)
+                })
+            }
+            syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                let field_type = &fields.unnamed.first()
+                    .ok_or_else(|| syn::Error::new_spanned(
+                        fields,
+                        "Internal error: expected exactly one unnamed field but found none"
+                    ))?
+                    .ty;
+                Ok(quote! {
+                    #config_name::#variant_name(ref config) => {
+                        <#field_type as ::light_zero_copy::traits::ZeroCopyNew>::byte_len(config)
+                            .map(|len| #discriminant_size + len)
+                    }
+                })
+            }
+            _ => Err(syn::Error::new_spanned(variant, "Unsupported enum variant format for ZeroCopyMut")),
+        }
+    }).collect::<Result<Vec<_>, _>>()?;
+
+    // Generate new_zero_copy match arms
+    let new_arms = enum_data.variants.iter().enumerate().map(|(idx, variant)| {
+        let variant_name = &variant.ident;
+        let discriminant = idx as u8;
+
+        match &variant.fields {
+            syn::Fields::Unit => {
+                Ok(quote! {
+                    #config_name::#variant_name => {
+                        bytes[0] = #discriminant;
+                        let remaining = &mut bytes[1..];
+                        Ok((#z_enum_mut_name::#variant_name, remaining))
+                    }
+                })
+            }
+            syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                let field_type = &fields.unnamed.first()
+                    .ok_or_else(|| syn::Error::new_spanned(
+                        fields,
+                        "Internal error: expected exactly one unnamed field but found none"
+                    ))?
+                    .ty;
+                Ok(quote! {
+                    #config_name::#variant_name(config) => {
+                        bytes[0] = #discriminant;
+                        let remaining = &mut bytes[1..];
+                        let (value, remaining) =
+                            <#field_type as ::light_zero_copy::traits::ZeroCopyNew>::new_zero_copy(
+                                remaining, config
+                            )?;
+                        Ok((#z_enum_mut_name::#variant_name(value), remaining))
+                    }
+                })
+            }
+            _ => Err(syn::Error::new_spanned(variant, "Unsupported enum variant format for ZeroCopyMut")),
+        }
+    }).collect::<Result<Vec<_>, _>>()?;
+
+    Ok(quote! {
+        // Config enum that specifies which variant to create
+        #[derive(Debug, Clone)]
+        pub enum #config_name {
+            #(#config_variants,)*
+        }
+
+        impl<'a> ::light_zero_copy::traits::ZeroCopyNew<'a> for #enum_name {
+            type ZeroCopyConfig = #config_name;
+            type Output = <Self as ::light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
+
+            fn byte_len(config: &Self::ZeroCopyConfig) -> Result<usize, ::light_zero_copy::errors::ZeroCopyError> {
+                match config {
+                    #(#byte_len_arms,)*
+                }
+            }
+
+            fn new_zero_copy(
+                bytes: &'a mut [u8],
+                config: Self::ZeroCopyConfig,
+            ) -> Result<(Self::Output, &'a mut [u8]), ::light_zero_copy::errors::ZeroCopyError> {
+                if bytes.is_empty() {
+                    return Err(::light_zero_copy::errors::ZeroCopyError::ArraySize(1, bytes.len()));
+                }
+
+                match config {
+                    #(#new_arms,)*
+                }
+            }
+        }
+    })
+}

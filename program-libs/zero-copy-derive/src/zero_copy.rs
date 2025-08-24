@@ -303,10 +303,12 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
         utils::InputType::Enum(enum_data) => {
             let z_enum_name = z_name;
 
-            let z_enum_def = generate_z_enum(&z_enum_name, enum_data)?;
-            let deserialize_impl = generate_enum_deserialize_impl(name, &z_enum_name, enum_data)?;
+            // Use refactored const generic functions with MUT=false
+            let z_enum_def = generate_z_enum::<false>(&z_enum_name, enum_data)?;
+            let deserialize_impl =
+                generate_enum_deserialize_impl::<false>(name, &z_enum_name, enum_data)?;
             let zero_copy_struct_inner_impl =
-                generate_enum_zero_copy_struct_inner(name, &z_enum_name, enum_data)?;
+                generate_enum_zero_copy_struct_inner::<false>(name, &z_enum_name, enum_data)?;
 
             Ok(quote! {
                 #z_enum_def

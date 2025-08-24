@@ -3,7 +3,18 @@ use quote::{format_ident, quote};
 use syn::{DataEnum, Fields, Ident};
 
 /// Generate the zero-copy enum definition with type aliases for pattern matching
-pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result<TokenStream> {
+/// The `MUT` parameter controls whether to generate mutable or immutable variants
+pub fn generate_z_enum<const MUT: bool>(
+    z_enum_name: &Ident,
+    enum_data: &DataEnum,
+) -> syn::Result<TokenStream> {
+    // Add Mut suffix when MUT is true
+    let z_enum_name = if MUT {
+        format_ident!("{}Mut", z_enum_name)
+    } else {
+        z_enum_name.clone()
+    };
+
     // Collect type aliases for complex variants
     let mut type_aliases = Vec::new();
     let mut has_lifetime_dependent_variants = false;
@@ -28,9 +39,21 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
                 has_lifetime_dependent_variants = true;
 
                 // Create a type alias for this variant to enable pattern matching
-                let alias_name = format_ident!("{}Type", variant_name);
-                type_aliases.push(quote! {
-                    pub type #alias_name<'a> = <#field_type as ::light_zero_copy::traits::ZeroCopyAt<'a>>::ZeroCopyAt;
+                let alias_name = if MUT {
+                    format_ident!("{}TypeMut", variant_name)
+                } else {
+                    format_ident!("{}Type", variant_name)
+                };
+
+                // Generate appropriate type based on MUT
+                type_aliases.push(if MUT {
+                    quote! {
+                        pub type #alias_name<'a> = <#field_type as ::light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
+                    }
+                } else {
+                    quote! {
+                        pub type #alias_name<'a> = <#field_type as ::light_zero_copy::traits::ZeroCopyAt<'a>>::ZeroCopyAt;
+                    }
                 });
 
                 Ok(quote! { #variant_name(#alias_name<'a>) })
@@ -58,17 +81,24 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
         }
     }).collect::<Result<Vec<_>, _>>()?;
 
+    // For mutable enums, we don't derive Clone (can't clone mutable references)
+    let derive_attrs = if MUT {
+        quote! { #[derive(Debug, PartialEq)] }
+    } else {
+        quote! { #[derive(Debug, Clone, PartialEq)] }
+    };
+
     // Conditionally add lifetime parameter only if needed
     let enum_declaration = if has_lifetime_dependent_variants {
         quote! {
-            #[derive(Debug, Clone, PartialEq)]
+            #derive_attrs
             pub enum #z_enum_name<'a> {
                 #(#variants,)*
             }
         }
     } else {
         quote! {
-            #[derive(Debug, Clone, PartialEq)]
+            #derive_attrs
             pub enum #z_enum_name {
                 #(#variants,)*
             }
@@ -84,11 +114,36 @@ pub fn generate_z_enum(z_enum_name: &Ident, enum_data: &DataEnum) -> syn::Result
 }
 
 /// Generate the deserialize implementation for the enum
-pub fn generate_enum_deserialize_impl(
+/// The `MUT` parameter controls whether to generate mutable or immutable deserialization
+pub fn generate_enum_deserialize_impl<const MUT: bool>(
     original_name: &Ident,
     z_enum_name: &Ident,
     enum_data: &DataEnum,
 ) -> syn::Result<TokenStream> {
+    // Add Mut suffix when MUT is true
+    let z_enum_name = if MUT {
+        format_ident!("{}Mut", z_enum_name)
+    } else {
+        z_enum_name.clone()
+    };
+
+    // Choose trait and method based on MUT
+    let (trait_name, mutability, method_name, associated_type) = if MUT {
+        (
+            quote!(::light_zero_copy::traits::ZeroCopyAtMut),
+            quote!(mut),
+            quote!(zero_copy_at_mut),
+            quote!(ZeroCopyAtMut),
+        )
+    } else {
+        (
+            quote!(::light_zero_copy::traits::ZeroCopyAt),
+            quote!(),
+            quote!(zero_copy_at),
+            quote!(ZeroCopyAt),
+        )
+    };
+
     // Check if any variants need lifetime parameters
     let mut has_lifetime_dependent_variants = false;
 
@@ -120,10 +175,21 @@ pub fn generate_enum_deserialize_impl(
                         "Internal error: expected exactly one unnamed field but found none"
                     ))?
                     .ty;
+
+                // Use appropriate trait method based on MUT
+                let deserialize_call = if MUT {
+                    quote! {
+                        <#field_type as ::light_zero_copy::traits::ZeroCopyAtMut>::zero_copy_at_mut(remaining_data)?
+                    }
+                } else {
+                    quote! {
+                        <#field_type as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at(remaining_data)?
+                    }
+                };
+
                 Ok(quote! {
                     #discriminant => {
-                        let (value, remaining_bytes) =
-                            <#field_type as ::light_zero_copy::traits::ZeroCopyAt>::zero_copy_at(remaining_data)?;
+                        let (value, remaining_bytes) = #deserialize_call;
                         Ok((#z_enum_name::#variant_name(value), remaining_bytes))
                     }
                 })
@@ -148,13 +214,14 @@ pub fn generate_enum_deserialize_impl(
     };
 
     Ok(quote! {
-        impl<'a> ::light_zero_copy::traits::ZeroCopyAt<'a> for #original_name {
-            type ZeroCopyAt = #type_annotation;
+        impl<'a> #trait_name<'a> for #original_name {
+            type #associated_type = #type_annotation;
 
-            fn zero_copy_at(
-                data: &'a [u8],
-            ) -> Result<(Self::ZeroCopyAt, &'a [u8]), ::light_zero_copy::errors::ZeroCopyError> {
+            fn #method_name(
+                data: &'a #mutability [u8],
+            ) -> Result<(Self::#associated_type, &'a #mutability [u8]), ::light_zero_copy::errors::ZeroCopyError> {
                 // Read discriminant (first 1 byte for borsh enum)
+                // Note: Discriminant is ALWAYS immutable for safety, even in mutable deserialization
                 if data.is_empty() {
                     return Err(::light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
@@ -163,7 +230,7 @@ pub fn generate_enum_deserialize_impl(
                 }
 
                 let discriminant = data[0];
-                let remaining_data = &data[1..];
+                let remaining_data = &#mutability data[1..];
 
                 match discriminant {
                     #(#match_arms)*
@@ -175,11 +242,19 @@ pub fn generate_enum_deserialize_impl(
 }
 
 /// Generate the ZeroCopyStructInner implementation for the enum
-pub fn generate_enum_zero_copy_struct_inner(
+/// The `MUT` parameter controls whether to generate mutable or immutable struct inner trait
+pub fn generate_enum_zero_copy_struct_inner<const MUT: bool>(
     original_name: &Ident,
     z_enum_name: &Ident,
     enum_data: &DataEnum,
 ) -> syn::Result<TokenStream> {
+    // Add Mut suffix when MUT is true
+    let z_enum_name = if MUT {
+        format_ident!("{}Mut", z_enum_name)
+    } else {
+        z_enum_name.clone()
+    };
+
     // Check if any variants need lifetime parameters
     let has_lifetime_dependent_variants = enum_data.variants.iter().any(
         |variant| matches!(&variant.fields, Fields::Unnamed(fields) if fields.unnamed.len() == 1),
@@ -192,9 +267,18 @@ pub fn generate_enum_zero_copy_struct_inner(
         quote! { #z_enum_name }
     };
 
-    Ok(quote! {
-        impl ::light_zero_copy::traits::ZeroCopyStructInner for #original_name {
-            type ZeroCopyInner = #type_annotation;
+    // Generate appropriate trait impl based on MUT
+    Ok(if MUT {
+        quote! {
+            impl ::light_zero_copy::traits::ZeroCopyStructInnerMut for #original_name {
+                type ZeroCopyInnerMut = #type_annotation;
+            }
+        }
+    } else {
+        quote! {
+            impl ::light_zero_copy::traits::ZeroCopyStructInner for #original_name {
+                type ZeroCopyInner = #type_annotation;
+            }
         }
     })
 }
