@@ -42,22 +42,9 @@ pub fn process_transfer2(
     // Check CPI  context validity (multi-transfer modifies Solana account state)
     check_cpi_context(&inputs.cpi_context)?;
 
-    // Create configuration from instruction data (replaces manual boolean derivation)
-    let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
-
-    // Validate accounts using clean config interface
-    let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
     // Validate instruction data consistency
     validate_instruction_data(&inputs)?;
     bench_sbf_start!("t_context_and_check_sig");
-
-    let packed_accounts_pubkeys = validated_accounts
-        .packed_accounts
-        .accounts
-        .iter()
-        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
-        .collect::<Vec<solana_pubkey::Pubkey>>();
-    msg!("packed_accounts_pubkeys {:?}", packed_accounts_pubkeys);
 
     // Allocate CPI bytes and create zero-copy structure
     let (mut cpi_bytes, config) = allocate_cpi_bytes(&inputs);
@@ -71,7 +58,18 @@ pub fn process_transfer2(
         inputs.proof,
         &inputs.cpi_context,
     )?;
+    // Create configuration from instruction data (replaces manual boolean derivation)
+    let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
 
+    // Validate accounts using clean config interface
+    let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
+    let packed_accounts_pubkeys = validated_accounts
+        .packed_accounts
+        .accounts
+        .iter()
+        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
+        .collect::<Vec<solana_pubkey::Pubkey>>();
+    msg!("packed_accounts_pubkeys {:?}", packed_accounts_pubkeys);
     // Create HashCache for hash caching
     let mut hash_cache = HashCache::new();
 
@@ -91,8 +89,6 @@ pub fn process_transfer2(
         &validated_accounts.packed_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
-    let compressed_accounts_are_empty = cpi_instruction_struct.input_compressed_accounts.is_empty()
-        && cpi_instruction_struct.output_compressed_accounts.is_empty();
 
     process_change_lamports(
         &inputs,
@@ -107,7 +103,16 @@ pub fn process_transfer2(
             &validated_accounts.packed_accounts,
             system.cpi_authority_pda,
         )?;
-    } else if inputs.compressions.is_some() {
+    } else if let Some(cpi_authority_pda) = validated_accounts
+        .decompressed_only_cpi_authority_pda
+        .as_ref()
+    {
+        process_token_compression(
+            &inputs,
+            &validated_accounts.packed_accounts,
+            cpi_authority_pda,
+        )?;
+    } else if inputs.compressions.is_some() && !transfer_config.no_compressed_accounts {
         pinocchio::msg!("Compressions must not be set for write to cpi context.");
         // TODO: add correct error
         return Err(ErrorCode::OwnerMismatch.into());
@@ -120,12 +125,11 @@ pub fn process_transfer2(
         inputs.compressions.as_deref(),
     )
     .map_err(|e| ProgramError::Custom(e as u32))?;
-
-    if compressed_accounts_are_empty {
-        msg!("compressed_accounts_are_empty");
+    // No compressed accounts are invalidated or created in this transaction
+    //  -> no need to invoke the light system program.
+    if transfer_config.no_compressed_accounts {
         return Ok(());
     }
-
     bench_sbf_end!("t_sum_check");
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Get CPI accounts slice and tree accounts for light-system-program invocation

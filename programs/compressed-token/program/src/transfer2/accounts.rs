@@ -14,9 +14,10 @@ use crate::{
 };
 
 pub struct Transfer2Accounts<'info> {
-    _light_system_program: &'info AccountInfo,
+    //_light_system_program: &'info AccountInfo,
     pub system: Option<LightSystemAccounts<'info>>,
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
+    pub decompressed_only_cpi_authority_pda: Option<&'info AccountInfo>,
     /// Contains mint, owner, delegate, merkle tree, and queue accounts
     /// tree and queue accounts come last.
     pub packed_accounts: ProgramPackedAccounts<'info, AccountInfo>,
@@ -30,8 +31,9 @@ impl<'info> Transfer2Accounts<'info> {
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         // Unused, just for readability
-        let light_system_program = iter.next_account("light_system_program")?;
-        let system = if config.cpi_context_write_required {
+        let _light_system_program =
+            iter.next_option("light_system_program", !config.no_compressed_accounts)?;
+        let system = if config.cpi_context_write_required || config.no_compressed_accounts {
             None
         } else {
             Some(LightSystemAccounts::validate_and_parse(
@@ -41,19 +43,22 @@ impl<'info> Transfer2Accounts<'info> {
                 config.cpi_context_required,
             )?)
         };
-        let write_to_cpi_context_system = if config.cpi_context_write_required {
-            Some(CpiContextLightSystemAccounts::validate_and_parse(
-                &mut iter,
-            )?)
-        } else {
-            None
-        };
+        let write_to_cpi_context_system =
+            if config.cpi_context_write_required && !config.no_compressed_accounts {
+                Some(CpiContextLightSystemAccounts::validate_and_parse(
+                    &mut iter,
+                )?)
+            } else {
+                None
+            };
+        let decompressed_only_cpi_authority_pda =
+            iter.next_option("cpi authority pda", config.no_compressed_accounts)?;
         // Extract remaining accounts slice for dynamic indexing
         let packed_accounts = iter.remaining()?;
         Ok(Transfer2Accounts {
-            _light_system_program: light_system_program,
             system,
             write_to_cpi_context_system,
+            decompressed_only_cpi_authority_pda,
             packed_accounts: ProgramPackedAccounts {
                 accounts: packed_accounts,
             },

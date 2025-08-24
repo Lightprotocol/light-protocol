@@ -29,6 +29,7 @@ light-zero-copy = { workspace = true }
 tokio = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }
 spl-token = { workspace = true }
+spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 anchor-spl = { workspace = true }
 rand = { workspace = true }

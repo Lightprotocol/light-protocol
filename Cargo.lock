@@ -1419,6 +1419,7 @@ dependencies = [
  "solana-sdk",
  "spl-pod",
  "spl-token",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
 ]
 

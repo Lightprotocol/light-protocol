@@ -5,6 +5,8 @@ use light_compressed_token_sdk::instructions::{
 };
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_test_utils::airdrop_lamports;
+use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
 use light_test_utils::{
     assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
@@ -12,8 +14,10 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
+use light_token_client::actions::transfer2;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction};
+use spl_token_2022::pod::PodAccount;
 
 /// Shared test context for account operations
 struct AccountTestContext {
@@ -408,6 +412,252 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         initial_recipient_lamports,
     )
     .await;
+
+    Ok(())
+}
+
+/// Test:
+/// 1. SUCCESS: Create ATA using non-idempotent instruction
+/// 2. FAIL: Attempt to create same ATA again using non-idempotent instruction (should fail)
+/// 3. SUCCESS: Create same ATA using idempotent instruction (should succeed)
+#[tokio::test]
+#[serial]
+async fn test_create_ata_idempotent() -> Result<(), RpcError> {
+    let mut context = setup_account_test().await?;
+    let payer_pubkey = context.payer.pubkey();
+    let owner_pubkey = context.owner_keypair.pubkey();
+    // Create ATA using non-idempotent instruction (first creation)
+    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account::create_associated_token_account(
+        payer_pubkey,
+        owner_pubkey,
+        context.mint_pubkey,
+    )
+    .map_err(|e| {
+        RpcError::AssertRpcError(format!("Failed to create non-idempotent ATA instruction: {}", e))
+    })?;
+
+    context
+        .rpc
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&context.payer])
+        .await?;
+
+    // Verify ATA creation
+    assert_create_associated_token_account(
+        &mut context.rpc,
+        owner_pubkey,
+        context.mint_pubkey,
+        None,
+    )
+    .await;
+
+    // Attempt to create the same ATA again using non-idempotent instruction (should fail)
+    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account::create_associated_token_account(
+        payer_pubkey,
+        owner_pubkey,
+        context.mint_pubkey,
+    )
+    .map_err(|e| {
+        RpcError::AssertRpcError(format!("Failed to create non-idempotent ATA instruction: {}", e))
+    })?;
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&context.payer])
+        .await;
+
+    // This should fail because account already exists
+    assert!(
+        result.is_err(),
+        "Non-idempotent ATA creation should fail when account already exists"
+    );
+
+    // Now try with idempotent instruction (should succeed)
+    let instruction =
+        create_associated_token_account_idempotent(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!(
+                    "Failed to create idempotent ATA instruction: {}",
+                    e
+                ))
+            })?;
+
+    context
+        .rpc
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&context.payer])
+        .await
+        .map_err(|e| {
+            RpcError::AssertRpcError(format!(
+                "Idempotent ATA creation should succeed even when account exists: {}",
+                e
+            ))
+        })?;
+
+    // Verify ATA is still correct
+    assert_create_associated_token_account(
+        &mut context.rpc,
+        owner_pubkey,
+        context.mint_pubkey,
+        None,
+    )
+    .await;
+    Ok(())
+}
+// FIXME: the test is not representative of CPI usage.
+#[tokio::test]
+async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    let transfer_amount = 5000u64;
+
+    // Create SPL token account and mint tokens
+    let spl_token_account_keypair = Keypair::new();
+    create_token_2022_account(&mut rpc, &mint, &spl_token_account_keypair, &sender, false)
+        .await
+        .unwrap();
+    mint_spl_tokens(
+        &mut rpc,
+        &mint,
+        &spl_token_account_keypair.pubkey(),
+        &payer.pubkey(),
+        &payer,
+        amount,
+        false,
+    )
+    .await
+    .unwrap();
+    println!(
+        "spl_token_account_keypair {:?}",
+        spl_token_account_keypair.pubkey()
+    );
+    // Create recipient for compressed tokens
+    let recipient = Keypair::new();
+    airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    // Create compressed token ATA for recipient
+    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
+        payer.pubkey(),
+        recipient.pubkey(),
+        mint,
+    )
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))?;
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await?;
+    let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+
+    // Get initial SPL token balance
+    let spl_account_data = rpc
+        .get_account(spl_token_account_keypair.pubkey())
+        .await?
+        .unwrap();
+    let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
+        .map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+        })?;
+    let initial_spl_balance: u64 = spl_account.amount.into();
+    assert_eq!(initial_spl_balance, amount);
+
+    // Use the new spl_to_ctoken_transfer action from light-token-client
+    transfer2::spl_to_ctoken_transfer(
+        &mut rpc,
+        spl_token_account_keypair.pubkey(),
+        associated_token_account,
+        transfer_amount,
+        &sender,
+        &payer,
+    )
+    .await?;
+
+    {
+        // Verify SPL token balance decreased
+        let spl_account_data = rpc
+            .get_account(spl_token_account_keypair.pubkey())
+            .await?
+            .unwrap();
+        let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
+            .map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+        })?;
+        let final_spl_balance: u64 = spl_account.amount.into();
+        assert_eq!(final_spl_balance, amount - transfer_amount);
+    }
+    {
+        // Verify compressed token balance increased
+        let spl_account_data = rpc.get_account(associated_token_account).await?.unwrap();
+        let spl_account =
+            spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data[..165])
+                .map_err(|e| {
+                    RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+                })?;
+        assert_eq!(
+            u64::from(spl_account.amount),
+            transfer_amount,
+            "Recipient should have {} compressed tokens",
+            transfer_amount
+        );
+    }
+
+    // Now transfer back from compressed token to SPL token account
+    println!("Testing reverse transfer: ctoken to SPL");
+
+    // Transfer from recipient's compressed token account back to sender's SPL token account
+    transfer2::ctoken_to_spl_transfer(
+        &mut rpc,
+        associated_token_account,
+        spl_token_account_keypair.pubkey(),
+        transfer_amount,
+        &recipient,
+        mint,
+        &payer,
+    )
+    .await?;
+
+    // Verify final balances
+    {
+        // Verify SPL token balance is restored
+        let spl_account_data = rpc
+            .get_account(spl_token_account_keypair.pubkey())
+            .await?
+            .unwrap();
+        let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
+            .map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+        })?;
+        let restored_spl_balance: u64 = spl_account.amount.into();
+        assert_eq!(
+            restored_spl_balance, amount,
+            "SPL token balance should be restored to original amount"
+        );
+    }
+
+    {
+        // Verify compressed token balance is now 0
+        let ctoken_account_data = rpc.get_account(associated_token_account).await?.unwrap();
+        let ctoken_account =
+            spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165])
+                .map_err(|e| {
+                    RpcError::AssertRpcError(format!(
+                        "Failed to parse compressed token account: {}",
+                        e
+                    ))
+                })?;
+        assert_eq!(
+            u64::from(ctoken_account.amount),
+            0,
+            "Compressed token account should be empty after transfer back"
+        );
+    }
+
+    println!("Successfully completed round-trip transfer: SPL -> CToken -> SPL");
 
     Ok(())
 }

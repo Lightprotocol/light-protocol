@@ -1,5 +1,5 @@
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
-use light_sdk::constants::{C_TOKEN_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID};
+use light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
@@ -21,11 +21,11 @@ impl Transfer2AccountsMetaConfig {
     pub fn new(fee_payer: Pubkey, packed_accounts: Vec<AccountMeta>) -> Self {
         Self {
             fee_payer: Some(fee_payer),
+            decompressed_accounts_only: false,
             sol_pool_pda: None,
             sol_decompression_recipient: None,
             cpi_context: None,
             with_sol_pool: false,
-            decompressed_accounts_only: false,
             packed_accounts: Some(packed_accounts),
         }
     }
@@ -59,36 +59,16 @@ pub fn get_transfer2_instruction_account_metas(
 
     // Build the account metas following the order expected by Transfer2ValidatedAccounts
     let mut metas = Vec::with_capacity(10 + packed_accounts_len);
-
     if !config.decompressed_accounts_only {
         metas.push(AccountMeta::new_readonly(
-            default_pubkeys.compressed_token_program,
+            Pubkey::new_from_array(LIGHT_SYSTEM_PROGRAM_ID),
             false,
         ));
-    } else {
-        // Dummy accounts for alignment.
-        // TODO: remove once ctoken program has a decompressed_accounts_only mode.
-        metas.push(AccountMeta::new_readonly(
-            Pubkey::new_from_array(C_TOKEN_PROGRAM_ID),
-            false,
-        ));
-    }
-    // Add fee payer and authority if provided (for direct invoke)
-    if let Some(fee_payer) = config.fee_payer {
-        metas.push(AccountMeta::new(fee_payer, true));
-    }
-
-    // TODO: Replace with better error.
-    if config.decompressed_accounts_only {
-        if config.with_sol_pool
-            || config.sol_pool_pda.is_some()
-            || config.sol_decompression_recipient.is_some()
-            || config.cpi_context.is_some()
-        {
-            panic!("If decompressed_accounts_only is true, with_sol_pool must be false and sol_pool_pda, sol_decompression_recipient, cpi_context must be None");
+        // Add fee payer and authority if provided (for direct invoke)
+        if let Some(fee_payer) = config.fee_payer {
+            metas.push(AccountMeta::new(fee_payer, true));
         }
-    }
-    if !config.decompressed_accounts_only {
+
         // Core system accounts (always present)
         metas.extend([
             AccountMeta::new_readonly(Pubkey::new_from_array(CPI_AUTHORITY_PDA), false),
@@ -118,15 +98,14 @@ pub fn get_transfer2_instruction_account_metas(
         if let Some(cpi_context) = config.cpi_context {
             metas.push(AccountMeta::new(cpi_context, false));
         }
+    } else if config.cpi_context.is_some() || config.with_sol_pool || config.fee_payer.is_some() {
+        // TODO: replace with error
+        unimplemented!("config.cpi_context.is_some() {}, config.with_sol_pool {}, config.fee_payer.is_some() {} must all be false", config.cpi_context.is_some(), config.with_sol_pool,config.fee_payer.is_some());
     } else {
-        // Dummy accounts for alignment.
-        // TODO: remove once ctoken program has a decompressed_accounts_only mode.
-        metas.extend(
-            std::iter::repeat_with(|| {
-                AccountMeta::new_readonly(Pubkey::new_from_array(C_TOKEN_PROGRAM_ID), false)
-            })
-            .take(5),
-        );
+        metas.push(AccountMeta::new_readonly(
+            Pubkey::new_from_array(CPI_AUTHORITY_PDA),
+            false,
+        ));
     }
     // always add packed accounts
     if let Some(packed_accounts) = config.packed_accounts.as_ref() {
