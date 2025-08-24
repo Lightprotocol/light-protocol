@@ -1,15 +1,3 @@
-use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, ValidityProof};
-use light_ctoken_types::{
-    instructions::transfer2::{
-        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
-        MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
-    },
-    COMPRESSED_TOKEN_PROGRAM_ID,
-};
-use light_sdk::cpi::{CpiAccountsConfig, CpiSigner};
-use solana_instruction::{AccountMeta, Instruction};
-use solana_pubkey::Pubkey;
-
 use crate::{
     account2::CTokenAccount2,
     error::{Result, TokenSdkError},
@@ -18,6 +6,20 @@ use crate::{
     },
     AnchorSerialize,
 };
+use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, ValidityProof};
+use light_ctoken_types::{
+    instructions::transfer2::{
+        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
+        MultiTokenTransferOutputData,
+    },
+    COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use solana_account_info::AccountInfo;
+use solana_cpi::{invoke, invoke_signed};
+use solana_instruction::{AccountMeta, Instruction};
+use solana_msg::msg;
+use solana_program_error::ProgramError;
+use solana_pubkey::Pubkey;
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
 pub struct Transfer2Config {
@@ -72,70 +74,6 @@ pub struct Transfer2Inputs {
     // pub packed_pubkeys: Vec<Pubkey>, // Owners, Delegates, Mints
     pub in_lamports: Option<Vec<u64>>,
     pub out_lamports: Option<Vec<u64>>,
-}
-
-pub fn create_spl_to_ctoken_transfer_instruction(
-    source: u8,
-    destination: u8,
-    amount: u64,
-    authority: Pubkey,
-    mint: u8,
-    payer: Pubkey,
-    packed_accounts: CpiAccountsSmall,
-    cpi_signer: CpiSigner,
-) -> Result<Instruction> {
-    let cpi_accounts = CpiAccountsSmall::new_with_config(
-        &payer,
-        packed_accounts,
-        CpiAccountsConfig::new(cpi_signer),
-    );
-    // every value in Transfer2Inputs is default or none or 0 except for token_accounts
-    // so we can just create the instruction with the given values
-
-    let ctoken_account = CTokenAccount2 {
-        inputs: vec![],
-        output: MultiTokenTransferOutputData {
-            owner: destination, // recipeitn of output
-            amount: 0,
-            merkle_tree: 0,
-            delegate: 0,
-            mint: 0,
-            version: 0,
-        },
-        compression: Some(Compression {
-            amount,
-            mode: CompressionMode::Compress,
-            mint,
-            source_or_recipient: source, // index of account source
-            authority: 0,
-            pool_account_index: 0,
-            pool_index: 0,
-            bump: 0,
-        }),
-        delegate_is_set: false,
-        method_used: true,
-    };
-
-    let transfer2_inputs = Transfer2Inputs {
-        token_accounts: vec![ctoken_account],
-        validity_proof: ValidityProof::default(),
-        transfer_config: Transfer2Config::default(),
-        meta_config: Transfer2AccountsMetaConfig::default(),
-        in_lamports: None,
-        out_lamports: None,
-    };
-
-    let instruction = Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
-        accounts: vec![
-            AccountMeta::new(source, false),
-            AccountMeta::new(destination, false),
-            AccountMeta::new_readonly(authority, true),
-        ],
-        data: vec![3u8, 3u8, amount.to_le_bytes()],
-    };
-
-    Ok(instruction)
 }
 
 /// Create the instruction for compressed token multi-transfer operations
