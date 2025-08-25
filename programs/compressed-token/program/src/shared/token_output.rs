@@ -1,69 +1,11 @@
 // Import the anchor TokenData for hash computation
-use anchor_compressed_token::{ErrorCode, TokenData as AnchorTokenData};
-use anchor_lang::{
-    prelude::{borsh, ProgramError},
-    AnchorDeserialize, AnchorSerialize,
-};
+use anchor_lang::prelude::ProgramError;
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
+use light_ctoken_types::state::{AccountState, TokenData, TokenDataConfig};
 use light_ctoken_types::{hash_cache::HashCache, state::TokenDataVersion};
-use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
-#[repr(u8)]
-pub enum AccountState {
-    Initialized,
-    Frozen,
-}
-
-#[repr(C)]
-#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, ZeroCopyMut)]
-pub struct TokenData {
-    /// The mint associated with this account
-    pub mint: Pubkey,
-    /// The owner of this account.
-    pub owner: Pubkey,
-    /// The amount of tokens this account holds.
-    pub amount: u64,
-    /// If `delegate` is `Some` then `delegated_amount` represents
-    /// the amount authorized by the delegate
-    pub delegate: Option<Pubkey>,
-    /// The account's state (u8: 0 = Initialized, 1 = Frozen)
-    pub state: u8,
-    /// Placeholder for TokenExtension tlv data (unimplemented)
-    pub tlv: Option<Vec<u8>>,
-}
-
-// Implementation for zero-copy mutable TokenData
-impl ZTokenDataMut<'_> {
-    /// Set all fields of the TokenData struct at once
-    #[inline]
-    pub fn set(
-        &mut self,
-        mint: Pubkey,
-        owner: Pubkey,
-        amount: impl ZeroCopyNumTrait,
-        delegate: Option<Pubkey>,
-        state: AccountState,
-    ) -> Result<(), ErrorCode> {
-        self.mint = mint;
-        self.owner = owner;
-        self.amount.set(amount.into());
-        if let Some(z_delegate) = self.delegate.as_deref_mut() {
-            *z_delegate = delegate.ok_or(ErrorCode::InstructionDataExpectedDelegate)?;
-        }
-        if self.delegate.is_none() && delegate.is_some() {
-            return Err(ErrorCode::ZeroCopyExpectedDelegate);
-        }
-        *self.state = state as u8;
-
-        if self.tlv.is_some() {
-            return Err(ErrorCode::TokenDataTlvUnimplemented);
-        }
-        Ok(())
-    }
-}
+use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 
 /// 1. Set token account data
 /// 2. Create token account data hash
@@ -118,14 +60,14 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
             delegate.map(|delegate_pubkey| hash_cache.get_or_hash_pubkey(&delegate_pubkey.into()));
 
         if !IS_FROZEN {
-            AnchorTokenData::hash_with_hashed_values(
+            TokenData::hash_with_hashed_values(
                 hashed_mint,
                 &hashed_owner,
                 &amount_bytes,
                 &hashed_delegate.as_ref(),
             )
         } else {
-            AnchorTokenData::hash_frozen_with_hashed_values(
+            TokenData::hash_frozen_with_hashed_values(
                 hashed_mint,
                 &hashed_owner,
                 &amount_bytes,

@@ -534,12 +534,10 @@ mod test {
             data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
         },
     };
+    use light_ctoken_types::state::{AccountState, TokenData};
 
     use super::*;
-    use crate::{
-        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-        token_data::{AccountState, TokenData},
-    };
+    use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 
     #[test]
     fn test_manual_ix_data_serialization_borsh_compat() {
@@ -551,11 +549,11 @@ mod test {
         for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
             let mut token_data_bytes = Vec::with_capacity(std::mem::size_of::<TokenData>());
             let token_data = TokenData {
-                mint: mint_pubkey,
-                owner: *pubkey,
+                mint: mint_pubkey.into(),
+                owner: (*pubkey).into(),
                 amount: *amount,
                 delegate: None,
-                state: AccountState::Initialized,
+                state: AccountState::Initialized as u8,
                 tlv: None,
             };
 
@@ -616,11 +614,11 @@ mod test {
             for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
                 let mut token_data_bytes = Vec::with_capacity(std::mem::size_of::<TokenData>());
                 let token_data = TokenData {
-                    mint: mint_pubkey,
-                    owner: *pubkey,
+                    mint: mint_pubkey.into(),
+                    owner: (*pubkey).into(),
                     amount: *amount,
                     delegate: None,
-                    state: AccountState::Initialized,
+                    state: AccountState::Initialized as u8,
                     tlv: None,
                 };
 

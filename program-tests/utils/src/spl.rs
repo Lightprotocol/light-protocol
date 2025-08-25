@@ -994,7 +994,7 @@ pub async fn perform_compress_spl_token_account<R: Rpc, I: Indexer + TestIndexer
         amount: pre_token_account_amount - remaining_amount.unwrap_or_default(),
         mint: (*mint).into(),
         owner: token_owner.pubkey().into(),
-        state: AccountState::Initialized,
+        state: AccountState::Initialized as u8,
         delegate: None,
         tlv: None,
     };
@@ -1251,7 +1251,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
         owner: authority.pubkey().into(),
         amount: delegated_amount,
         delegate: Some((*delegate).into()),
-        state: AccountState::Initialized,
+        state: AccountState::Initialized as u8,
         tlv: None,
     };
 
@@ -1267,7 +1267,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
             owner: authority.pubkey().into(),
             amount: change_amount,
             delegate: None,
-            state: AccountState::Initialized,
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         assert_eq!(
@@ -1388,7 +1388,7 @@ pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
         owner: authority.pubkey().into(),
         amount: input_amount,
         delegate: None,
-        state: AccountState::Initialized,
+        state: AccountState::Initialized as u8,
         tlv: None,
     };
     assert_eq!(
@@ -1551,9 +1551,9 @@ pub async fn freeze_or_thaw_test<
     let mut expected_output_accounts = Vec::new();
     for account in input_compressed_accounts.iter() {
         let state = if FREEZE {
-            AccountState::Frozen
+            AccountState::Frozen as u8
         } else {
-            AccountState::Initialized
+            AccountState::Initialized as u8
         };
         let expected_token_data = TokenData {
             mint: mint.into(),
@@ -1693,7 +1693,7 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
             owner: input_compressed_accounts[0].token_data.owner.into(),
             amount: output_amount,
             delegate: delegate.map(|d| d.into()),
-            state: AccountState::Initialized,
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         if let Some(delegate) = expected_token_data.delegate {

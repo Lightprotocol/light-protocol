@@ -551,7 +551,7 @@ mod test {
             owner: authority.into(),
             amount: 151,
             delegate: None,
-            state: AccountState::Initialized,
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         let expected_delegated_token_data = TokenData {
@@ -559,7 +559,7 @@ mod test {
             owner: authority.into(),
             amount: 50,
             delegate: Some(delegate.into()),
-            state: AccountState::Initialized,
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -666,7 +666,7 @@ mod test {
             owner: authority.into(),
             amount: 201,
             delegate: None,
-            state: AccountState::Initialized,
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         let expected_compressed_output_accounts =
@@ -725,7 +725,7 @@ mod test {
             owner: authority.into(),
             amount: 201,
             delegate: None,
-            state: AccountState::Initialized,
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         let mut expected_compressed_output_accounts =

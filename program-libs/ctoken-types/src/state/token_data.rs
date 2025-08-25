@@ -1,61 +1,34 @@
-use std::vec;
-
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
+use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
-use crate::{AnchorDeserialize, AnchorSerialize, NATIVE_MINT};
-
-/// TokenDataVersion is recorded in the token account discriminator.
-#[repr(u8)]
-pub enum TokenDataVersion {
-    V1 = 1u8,
-    V2 = 2u8,
-}
-
-impl TokenDataVersion {
-    pub fn discriminator(&self) -> [u8; 8] {
-        match self {
-            TokenDataVersion::V1 => [2, 0, 0, 0, 0, 0, 0, 0], // 2 le
-            TokenDataVersion::V2 => [0, 0, 0, 0, 0, 0, 0, 3], // 3 be
-        }
-    }
-
-    /// Serializes amount to bytes using version-specific endianness
-    /// V1: little-endian, V2: big-endian
-    pub fn serialize_amount_bytes(&self, amount: u64) -> [u8; 32] {
-        let mut amount_bytes = [0u8; 32];
-        match self {
-            TokenDataVersion::V1 => {
-                amount_bytes[24..].copy_from_slice(&amount.to_le_bytes());
-            }
-            TokenDataVersion::V2 => {
-                amount_bytes[24..].copy_from_slice(&amount.to_be_bytes());
-            }
-        }
-        amount_bytes
-    }
-}
-
-impl TryFrom<u8> for TokenDataVersion {
-    type Error = crate::CTokenError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(TokenDataVersion::V1),
-            2 => Ok(TokenDataVersion::V2),
-            _ => Err(crate::CTokenError::InvalidTokenDataVersion),
-        }
-    }
-}
+use crate::{AnchorDeserialize, AnchorSerialize, CTokenError, NATIVE_MINT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
 pub enum AccountState {
+    //Uninitialized,
     Initialized,
     Frozen,
 }
 
-#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone)]
+impl TryFrom<u8> for AccountState {
+    type Error = CTokenError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            //0 => Ok(AccountState::Uninitialized), TODO: check with main that we don't create breaking changes for v1 token data.
+            0 => Ok(AccountState::Initialized),
+            1 => Ok(AccountState::Frozen),
+            _ => Err(CTokenError::InvalidAccountState),
+        }
+    }
+}
+
+#[derive(
+    Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, ZeroCopy, ZeroCopyMut,
+)]
+#[repr(C)]
 pub struct TokenData {
     /// The mint associated with this account
     pub mint: Pubkey,
@@ -67,9 +40,15 @@ pub struct TokenData {
     /// the amount authorized by the delegate
     pub delegate: Option<Pubkey>,
     /// The account's state
-    pub state: AccountState,
+    pub state: u8,
     /// Placeholder for TokenExtension tlv data (unimplemented)
     pub tlv: Option<Vec<u8>>,
+}
+
+impl TokenData {
+    pub fn state(&self) -> Result<AccountState, CTokenError> {
+        AccountState::try_from(self.state)
+    }
 }
 
 /// Hashing schema: H(mint, owner, amount, delegate, delegated_amount,
@@ -98,7 +77,7 @@ impl TokenData {
         hashed_owner: &[u8; 32],
         amount_bytes: &[u8; 32],
         hashed_delegate: &Option<&[u8; 32]>,
-    ) -> std::result::Result<[u8; 32], HasherError> {
+    ) -> Result<[u8; 32], HasherError> {
         Self::hash_inputs_with_hashed_values::<false>(
             hashed_mint,
             hashed_owner,
@@ -112,7 +91,7 @@ impl TokenData {
         hashed_owner: &[u8; 32],
         amount_bytes: &[u8; 32],
         hashed_delegate: &Option<&[u8; 32]>,
-    ) -> std::result::Result<[u8; 32], HasherError> {
+    ) -> Result<[u8; 32], HasherError> {
         Self::hash_inputs_with_hashed_values::<true>(
             hashed_mint,
             hashed_owner,
@@ -129,7 +108,7 @@ impl TokenData {
         owner: &[u8; 32],
         amount_bytes: &[u8],
         hashed_delegate: &Option<&[u8; 32]>,
-    ) -> std::result::Result<[u8; 32], HasherError> {
+    ) -> Result<[u8; 32], HasherError> {
         let mut hash_inputs = vec![mint.as_slice(), owner.as_slice(), amount_bytes];
         if let Some(hashed_delegate) = hashed_delegate {
             hash_inputs.push(hashed_delegate.as_slice());
@@ -148,16 +127,17 @@ impl TokenData {
     ///
     /// Note, hashing changed for token account data in batched Merkle trees.
     /// For hashing of token account data stored in concurrent Merkle trees use hash_legacy().
-    pub fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
+    pub fn hash(&self) -> Result<[u8; 32], HasherError> {
         self._hash::<true>()
     }
-
+    // TODO: rename to v1
+    // TODO: add hard coded v1 compat test
     /// Hashes token data of token accounts stored in concurrent Merkle trees.
-    pub fn hash_legacy(&self) -> std::result::Result<[u8; 32], HasherError> {
+    pub fn hash_legacy(&self) -> Result<[u8; 32], HasherError> {
         self._hash::<false>()
     }
 
-    fn _hash<const BATCHED: bool>(&self) -> std::result::Result<[u8; 32], HasherError> {
+    fn _hash<const BATCHED: bool>(&self) -> Result<[u8; 32], HasherError> {
         let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice());
         let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice());
         let mut amount_bytes = [0u8; 32];
@@ -173,7 +153,7 @@ impl TokenData {
         } else {
             None
         };
-        if self.state != AccountState::Initialized {
+        if self.state != AccountState::Initialized as u8 {
             Self::hash_inputs_with_hashed_values::<true>(
                 &hashed_mint,
                 &hashed_owner,
@@ -188,5 +168,36 @@ impl TokenData {
                 &hashed_delegate_option,
             )
         }
+    }
+}
+
+// Implementation for zero-copy mutable TokenData
+impl ZTokenDataMut<'_> {
+    /// Set all fields of the TokenData struct at once
+    #[inline]
+    pub fn set(
+        &mut self,
+        mint: Pubkey,
+        owner: Pubkey,
+        amount: impl ZeroCopyNumTrait,
+        delegate: Option<Pubkey>,
+        state: AccountState,
+    ) -> Result<(), CTokenError> {
+        self.mint = mint;
+        self.owner = owner;
+        self.amount.set(amount.into());
+        if let Some(z_delegate) = self.delegate.as_deref_mut() {
+            *z_delegate = delegate.ok_or(CTokenError::InstructionDataExpectedDelegate)?;
+        }
+        if self.delegate.is_none() && delegate.is_some() {
+            return Err(CTokenError::ZeroCopyExpectedDelegate);
+        }
+
+        *self.state = state as u8;
+
+        if self.tlv.is_some() {
+            return Err(CTokenError::TokenDataTlvUnimplemented);
+        }
+        Ok(())
     }
 }

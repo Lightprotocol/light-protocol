@@ -92,12 +92,11 @@ pub fn sdk_to_program_account_state(sdk_state: sdk::token::AccountState) -> Prog
     }
 }
 
-pub fn program_to_sdk_account_state(
-    program_state: ProgramAccountState,
-) -> sdk::token::AccountState {
+pub fn program_to_sdk_account_state(program_state: u8) -> sdk::token::AccountState {
     match program_state {
-        ProgramAccountState::Initialized => sdk::token::AccountState::Initialized,
-        ProgramAccountState::Frozen => sdk::token::AccountState::Frozen,
+        0 => sdk::token::AccountState::Initialized,
+        1 => sdk::token::AccountState::Frozen,
+        _ => panic!("program_to_sdk_account_state: invalid account state"),
     }
 }
 
@@ -107,7 +106,7 @@ pub fn sdk_to_program_token_data(sdk_token: sdk::token::TokenData) -> ProgramTok
         owner: sdk_token.owner.into(),
         amount: sdk_token.amount,
         delegate: sdk_token.delegate.map(|d| d.into()),
-        state: sdk_to_program_account_state(sdk_token.state),
+        state: sdk_to_program_account_state(sdk_token.state) as u8,
         tlv: sdk_token.tlv,
     }
 }
