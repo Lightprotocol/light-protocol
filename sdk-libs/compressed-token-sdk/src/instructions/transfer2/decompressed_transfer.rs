@@ -9,6 +9,7 @@ use light_ctoken_types::instructions::transfer2::{
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
+use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
@@ -141,6 +142,7 @@ pub fn transfer_spl_to_ctoken<'info>(
     Ok(())
 }
 
+// TODO: must test this.
 /// Transfer SPL tokens to compressed tokens via CPI signer.
 ///
 /// This function creates the instruction and invokes it with the provided
@@ -152,6 +154,8 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
     authority: AccountInfo<'info>,
     mint: AccountInfo<'info>,
     token_pool_pda: AccountInfo<'info>,
+    token_pool_pda_bump: u8,
+    payer: AccountInfo<'info>,
     spl_program: AccountInfo<'info>,
     signer_seeds: &[&[&[u8]]],
 ) -> Result<(), TokenSdkError> {
@@ -163,12 +167,12 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
         *mint.key,
         *authority.key,
         *token_pool_pda.key,
-        0,
+        token_pool_pda_bump,
     )
     .map_err(|_| TokenSdkError::MethodUsed)?;
 
     let account_infos = vec![
-        authority.clone(),
+        payer.clone(),
         mint,           // Index 0: Mint
         to,             // Index 1: Destination owner
         authority,      // Index 2: Authority (signer)
@@ -215,40 +219,42 @@ pub fn create_ctoken_to_spl_transfer_instruction(
         false,
     ));
 
-    // First operation: compress from ctoken account to pool using compress_spl
-    let compress_to_pool = CTokenAccount2 {
+    let ctoken_account = CTokenAccount2 {
         inputs: vec![],
         output: MultiTokenTransferOutputData::default(),
-        compression: Some(Compression::compress_spl(
+        compression: Some(Compression {
             amount,
-            0, // mint index
-            1, // source ctoken account index
-            3, // authority index
-            4, // pool_account_index
-            0, // pool_index (TODO: make dynamic)
-            token_pool_pda_bump,
-        )),
+            mode: CompressionMode::Compress,
+            mint: 0,
+            source_or_recipient: 1, // index of source ctoken account
+            authority: 3,           // index of authority
+            pool_account_index: 0,  // unused.
+            pool_index: 0,          // unused.
+            bump: 0,
+        }),
         delegate_is_set: false,
         method_used: true,
     };
 
-    // Second operation: decompress from pool to SPL token account using decompress_spl
-    let decompress_to_spl = CTokenAccount2 {
+    let unwrap_ctoken_to_spl_account = CTokenAccount2 {
         inputs: vec![],
         output: MultiTokenTransferOutputData::default(),
-        compression: Some(Compression::decompress_spl(
+        compression: Some(Compression {
             amount,
-            0, // mint index
-            2, // destination SPL token account index
-            4, // pool_account_index
-            0, // pool_index (TODO: make dynamic)
-            token_pool_pda_bump,
-        )),
+            mode: CompressionMode::Decompress,
+            mint: 0,
+            source_or_recipient: 2, // index of recipient spl token account
+            authority: 0,           // unchecked?
+            pool_account_index: 4,
+            pool_index: 0, // TODO: make dynamic.
+            bump: token_pool_pda_bump,
+        }),
         delegate_is_set: false,
         method_used: true,
     };
-
-    // Create Transfer2Inputs
+    msg!("packed_accounts len {:?}", &packed_accounts.len());
+    msg!("packed_accounts {:?}", &packed_accounts);
+    // Create Transfer2Inputs following the test pattern
     let inputs = Transfer2Inputs {
         validity_proof: ValidityProof::default(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
@@ -258,7 +264,7 @@ pub fn create_ctoken_to_spl_transfer_instruction(
         ),
         in_lamports: None,
         out_lamports: None,
-        token_accounts: vec![compress_to_pool, decompress_to_spl],
+        token_accounts: vec![ctoken_account, unwrap_ctoken_to_spl_account],
     };
 
     // Create the actual transfer2 instruction
@@ -310,8 +316,12 @@ pub fn transfer_ctoken_to_spl_signed<'info>(
     to: AccountInfo<'info>,
     amount: u64,
     authority: AccountInfo<'info>,
+    payer: AccountInfo<'info>,
     mint: AccountInfo<'info>,
     token_pool_pda: AccountInfo<'info>,
+    token_pool_pda_bump: u8,
+    token_program_authority: AccountInfo<'info>,
+    spl_program: AccountInfo<'info>,
     signer_seeds: &[&[&[u8]]],
 ) -> Result<(), ProgramError> {
     let instruction = create_ctoken_to_spl_transfer_instruction(
@@ -320,14 +330,16 @@ pub fn transfer_ctoken_to_spl_signed<'info>(
         amount,
         *authority.key,
         *mint.key,
-        *authority.key,
+        *payer.key,
         *token_pool_pda.key,
-        0,
+        token_pool_pda_bump,
     )
     .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     let account_infos = vec![
-        authority.clone(),
+        payer.clone(),
+        spl_program,
+        token_program_authority,
         mint,           // Index 0: Mint
         to,             // Index 1: Destination owner
         authority,      // Index 2: Authority (signer)
