@@ -83,7 +83,9 @@ pub mod anchor_compressible_derived {
         user_record.score = score;
 
         // 1. Must manually set compression info
-        user_record.compression_info_mut().set_last_written_slot()?;
+        user_record
+            .compression_info_mut()
+            .bump_last_written_slot()?;
 
         Ok(())
     }

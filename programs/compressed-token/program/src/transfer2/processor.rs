@@ -63,13 +63,14 @@ pub fn process_transfer2(
 
     // Validate accounts using clean config interface
     let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
-    let packed_accounts_pubkeys = validated_accounts
-        .packed_accounts
-        .accounts
-        .iter()
-        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
-        .collect::<Vec<solana_pubkey::Pubkey>>();
-    msg!("packed_accounts_pubkeys {:?}", packed_accounts_pubkeys);
+    // TODO: remove print
+    // let packed_accounts_pubkeys = validated_accounts
+    //     .packed_accounts
+    //     .accounts
+    //     .iter()
+    //     .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
+    //     .collect::<Vec<solana_pubkey::Pubkey>>();
+
     // Create HashCache for hash caching
     let mut hash_cache = HashCache::new();
 

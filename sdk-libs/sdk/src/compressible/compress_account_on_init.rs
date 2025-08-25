@@ -709,7 +709,7 @@ where
             Some(super::CompressionInfo::new_decompressed()?);
         pda_account_data
             .compression_info_mut()
-            .set_last_written_slot()?;
+            .bump_last_written_slot()?;
 
         let owner_program_id = cpi_accounts.self_program_id();
         let mut light_account = LightAccount::<'_, A>::new_init(

@@ -116,13 +116,13 @@ impl CompressionInfo {
     }
 
     /// Updates the last written slot to the current slot
-    pub fn set_last_written_slot(&mut self) -> Result<(), crate::ProgramError> {
+    pub fn bump_last_written_slot(&mut self) -> Result<(), crate::ProgramError> {
         self.last_written_slot = Clock::get()?.slot;
         Ok(())
     }
 
     /// Sets the last written slot to a specific value
-    pub fn set_last_written_slot_value(&mut self, slot: u64) {
+    pub fn set_last_written_slot(&mut self, slot: u64) {
         self.last_written_slot = slot;
     }
 

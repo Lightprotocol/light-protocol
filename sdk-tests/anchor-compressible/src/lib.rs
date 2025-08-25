@@ -91,7 +91,9 @@ pub mod anchor_compressible {
         user_record.score = score;
 
         // 1. Must manually set compression info
-        user_record.compression_info_mut().set_last_written_slot()?;
+        user_record
+            .compression_info_mut()
+            .bump_last_written_slot()?;
 
         Ok(())
     }
@@ -109,7 +111,7 @@ pub mod anchor_compressible {
         // Must manually set compression info
         game_session
             .compression_info_mut()
-            .set_last_written_slot()?;
+            .bump_last_written_slot()?;
 
         Ok(())
     }
@@ -286,7 +288,7 @@ pub mod anchor_compressible {
                             &[&solana_accounts[i]],
                             vec![light_account],
                             &[seeds_refs.as_slice()],
-                            s&cpi_accounts,
+                            s & cpi_accounts,
                             &ctx.accounts.rent_payer,
                             address_space,
                         )?;
@@ -641,7 +643,7 @@ pub mod anchor_compressible {
             Some(super::CompressionInfo::new_decompressed()?);
         placeholder_record
             .compression_info_mut()
-            .set_last_written_slot()?;
+            .bump_last_written_slot()?;
 
         // Verify rent recipient matches config
         if ctx.accounts.rent_recipient.key() != config.rent_recipient {

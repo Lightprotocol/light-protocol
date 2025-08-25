@@ -30,11 +30,11 @@ impl Transfer2AccountsMetaConfig {
         }
     }
     pub fn new_decompressed_accounts_only(
-        fee_payer: Pubkey,
+        _fee_payer: Pubkey,
         packed_accounts: Vec<AccountMeta>,
     ) -> Self {
         Self {
-            fee_payer: Some(fee_payer),
+            fee_payer: None, // TODO: make it some once we add fee_per_write!
             sol_pool_pda: None,
             sol_decompression_recipient: None,
             cpi_context: None,
