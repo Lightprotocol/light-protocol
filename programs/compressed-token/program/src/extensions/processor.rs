@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_ctoken_types::{hash_cache::HashCache, state::ZExtensionStructMut};
-use light_hasher::{Hasher, Poseidon, Sha256};
+use light_hasher::{sha256::Sha256BE, Hasher, Poseidon};
 use pinocchio::{msg, pubkey::Pubkey};
 
 use crate::extensions::{token_metadata::create_output_token_metadata, ZExtensionInstructionData};
@@ -49,9 +49,9 @@ pub fn create_extension_hash_chain(
         }
     } else if version == 1 {
         for extension in extensions {
-            let extension_hash = extension.hash::<Sha256>(hashed_spl_mint, hash_cache)?;
+            let extension_hash = extension.hash::<Sha256BE>(hashed_spl_mint, hash_cache)?;
             extension_hashchain =
-                Sha256::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
+                Sha256BE::hashv(&[extension_hashchain.as_slice(), extension_hash.as_slice()])?;
         }
     } else {
         msg!("Invalid version");

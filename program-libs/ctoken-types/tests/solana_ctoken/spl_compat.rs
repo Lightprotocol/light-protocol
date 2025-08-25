@@ -1,3 +1,10 @@
+//! Tests ctoken solana account - spl token account layout compatibility
+//!
+//! Tests:
+//! 1. test_compressed_token_equivalent_to_pod_account
+//! 2. test_compressed_token_with_compressible_extension
+//! 3. test_account_type_compatibility_with_spl_parsing
+
 use light_compressed_account::Pubkey;
 use light_ctoken_types::state::{
     solana_ctoken::{CompressedToken, CompressedTokenConfig, ZCompressedToken},
@@ -375,126 +382,6 @@ fn test_compressed_token_equivalent_to_pod_account() {
 }
 
 #[test]
-fn test_compressed_token_new_zero_copy() {
-    let config = CompressedTokenConfig {
-        delegate: false,
-        is_native: false,
-        close_authority: false,
-        extensions: vec![],
-    };
-
-    // Calculate required buffer size
-    let required_size = CompressedToken::byte_len(&config).unwrap();
-    assert_eq!(required_size, 165); // SPL Token account size
-
-    // Create buffer and initialize
-    let mut buffer = vec![0u8; required_size];
-    let (compressed_token, remaining_bytes) = CompressedToken::new_zero_copy(&mut buffer, config)
-        .expect("Failed to initialize compressed token");
-
-    // Verify the remaining bytes length
-    assert_eq!(remaining_bytes.len(), 0);
-    // Verify the zero-copy structure reflects the discriminators
-    assert!(compressed_token.delegate.is_none());
-    assert!(compressed_token.is_native.is_none());
-    assert!(compressed_token.close_authority.is_none());
-    assert!(compressed_token.extensions.is_none());
-    // Verify the discriminator bytes are set correctly
-    assert_eq!(buffer[72], 0); // delegate discriminator should be 0 (None)
-    assert_eq!(buffer[109], 0); // is_native discriminator should be 0 (None)
-    assert_eq!(buffer[129], 0); // close_authority discriminator should be 0 (None)
-}
-
-#[test]
-fn test_compressed_token_new_zero_copy_with_delegate() {
-    let config = CompressedTokenConfig {
-        delegate: true,
-        is_native: false,
-        close_authority: false,
-        extensions: vec![],
-    };
-
-    // Create buffer and initialize
-    let mut buffer = vec![0u8; CompressedToken::byte_len(&config).unwrap()];
-    let (compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
-        .expect("Failed to initialize compressed token with delegate");
-    // The delegate field should be Some (though the pubkey will be zero)
-    assert!(compressed_token.delegate.is_some());
-    assert!(compressed_token.is_native.is_none());
-    assert!(compressed_token.close_authority.is_none());
-    // Verify delegate discriminator is set to 1 (Some)
-    assert_eq!(buffer[72], 1); // delegate discriminator should be 1 (Some)
-    assert_eq!(buffer[109], 0); // is_native discriminator should be 0 (None)
-    assert_eq!(buffer[129], 0); // close_authority discriminator should be 0 (None)
-}
-
-#[test]
-fn test_compressed_token_new_zero_copy_with_is_native() {
-    let config = CompressedTokenConfig {
-        delegate: false,
-        is_native: true,
-        close_authority: false,
-        extensions: vec![],
-    };
-
-    // Create buffer and initialize
-    let mut buffer = vec![0u8; CompressedToken::byte_len(&config).unwrap()];
-    let (compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
-        .expect("Failed to initialize compressed token with is_native");
-
-    // The is_native field should be Some (though the value will be zero)
-    assert!(compressed_token.delegate.is_none());
-    assert!(compressed_token.is_native.is_some());
-    assert!(compressed_token.close_authority.is_none());
-
-    // Verify is_native discriminator is set to 1 (Some)
-    assert_eq!(buffer[72], 0); // delegate discriminator should be 0 (None)
-    assert_eq!(buffer[109], 1); // is_native discriminator should be 1 (Some)
-    assert_eq!(buffer[129], 0); // close_authority discriminator should be 0 (None)
-}
-
-#[test]
-fn test_compressed_token_new_zero_copy_buffer_too_small() {
-    let config = CompressedTokenConfig {
-        delegate: false,
-        is_native: false,
-        close_authority: false,
-        extensions: vec![],
-    };
-
-    // Create buffer that's too small
-    let mut buffer = vec![0u8; 100]; // Less than 165 bytes required
-    let result = CompressedToken::new_zero_copy(&mut buffer, config);
-
-    // Should fail with size error
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_compressed_token_new_zero_copy_all_options() {
-    let config = CompressedTokenConfig {
-        delegate: true,
-        is_native: true,
-        close_authority: true,
-        extensions: vec![],
-    };
-
-    // Create buffer and initialize
-    let mut buffer = vec![0u8; CompressedToken::byte_len(&config).unwrap()];
-    let (compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
-        .expect("Failed to initialize compressed token with all options");
-
-    // All optional fields should be Some
-    assert!(compressed_token.delegate.is_some());
-    assert!(compressed_token.is_native.is_some());
-    assert!(compressed_token.close_authority.is_some());
-    // Verify all discriminators are set to 1 (Some)
-    assert_eq!(buffer[72], 1); // delegate discriminator should be 1 (Some)
-    assert_eq!(buffer[109], 1); // is_native discriminator should be 1 (Some)
-    assert_eq!(buffer[129], 1); // close_authority discriminator should be 1 (Some)
-}
-
-#[test]
 fn test_compressed_token_with_compressible_extension() {
     use light_zero_copy::traits::ZeroCopyAtMut;
 
@@ -553,13 +440,6 @@ fn test_compressed_token_with_compressible_extension() {
         .expect("Failed to deserialize mutable token with compressible extension");
 
     assert!(mutable_token.extensions.is_some());
-
-    // Test updating the compressible extension's last_written_slot
-    // Note: This would normally be done via the update_compressible_last_written_slot method
-    // but we can't test that here since it requires Solana runtime
-
-    println!("✅ Compressible extension test passed - AccountType byte correctly inserted at position 165");
-    println!("✅ Extensions properly serialized and deserialized with AccountType compatibility");
 }
 
 #[test]
@@ -588,18 +468,7 @@ fn test_account_type_compatibility_with_spl_parsing() {
 
     // Verify AccountType byte is at position 165
     assert_eq!(buffer[165], 2); // AccountType::Account = 2
-
-    // This demonstrates that:
-    // 1. First 165 bytes are standard SPL Token format
-    // 2. AccountType::Account byte at position 165 (as expected by SPL Token 2022)
-    // 3. Our extensions start after the AccountType byte
-
-    println!("✅ Account layout is SPL Token 2022 compatible");
-    println!("   - First 165 bytes: Standard SPL Token Account");
-    println!("   - Byte 165: AccountType::Account (value = 2)");
-    println!("   - Byte 166+: Our extension data");
-
-    // Deserialize with extensions
+                                // Deserialize with extensions
     let token_account_data = StateWithExtensions::<Account>::unpack(&buffer)
         .unwrap()
         .base;

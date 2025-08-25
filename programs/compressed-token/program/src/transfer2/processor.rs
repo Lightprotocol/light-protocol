@@ -3,11 +3,15 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     hash_cache::HashCache,
-    instructions::transfer2::{validate_instruction_data, CompressedTokenInstructionDataTransfer2},
+    instructions::transfer2::{
+        CompressedTokenInstructionDataTransfer2, ZCompressedTokenInstructionDataTransfer2,
+    },
+    CTokenError,
 };
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 
 use crate::{
     shared::cpi::execute_cpi_invoke,
@@ -168,6 +172,39 @@ pub fn process_transfer2(
         )?;
     } else {
         unreachable!()
+    }
+    Ok(())
+}
+
+/// Validate instruction data consistency (lamports and TLV checks)
+pub fn validate_instruction_data(
+    inputs: &ZCompressedTokenInstructionDataTransfer2,
+) -> Result<(), CTokenError> {
+    if let Some(ref in_lamports) = inputs.in_lamports {
+        if in_lamports.len() != inputs.in_token_data.len() {
+            msg!(
+                "in_lamports {} != inputs in_token_data {}",
+                in_lamports.len(),
+                inputs.in_token_data.len()
+            );
+            return Err(CTokenError::InputAccountsLamportsLengthMismatch);
+        }
+    }
+    if let Some(ref out_lamports) = inputs.out_lamports {
+        if out_lamports.len() != inputs.out_token_data.len() {
+            msg!(
+                "outlamports {} != inputs out_token_data {}",
+                out_lamports.len(),
+                inputs.out_token_data.len()
+            );
+            return Err(CTokenError::OutputAccountsLamportsLengthMismatch);
+        }
+    }
+    if inputs.in_tlv.is_some() {
+        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+    }
+    if inputs.out_tlv.is_some() {
+        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
     }
     Ok(())
 }

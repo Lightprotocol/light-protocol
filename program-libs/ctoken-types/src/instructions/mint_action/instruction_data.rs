@@ -91,6 +91,7 @@ pub struct CompressedMintInstructionData {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
+// TODO: add functional test
 impl TryFrom<CompressedMint> for CompressedMintInstructionData {
     type Error = CTokenError;
 

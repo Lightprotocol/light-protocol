@@ -1,7 +1,7 @@
 use light_compressed_account::Pubkey;
 use light_hasher::{
-    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, DataHasher, HasherError,
-    Poseidon, Sha256,
+    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, sha256::Sha256BE, DataHasher,
+    HasherError, Poseidon,
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use solana_msg::msg;
@@ -63,7 +63,7 @@ impl TokenMetadata {
             }
             Version::Sha256 => {
                 msg!("sha256");
-                <Self as DataHasher>::hash::<Sha256>(self)
+                <Self as DataHasher>::hash::<Sha256BE>(self)
             }
             _ => {
                 msg!(
@@ -97,7 +97,6 @@ pub fn token_metadata_hash<H: light_hasher::Hasher>(
     vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[mint])?;
 
     for (key, value) in additional_metadata {
-        // TODO: add check is poseidon and throw meaningful error.
         vec[3] = H::hashv(&[vec[3].as_slice(), key, value])?;
     }
     vec[4][31] = version;
@@ -117,8 +116,8 @@ pub fn token_metadata_hash<H: light_hasher::Hasher>(
 }
 
 pub fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
-    hashed_update_authority: Option<&[u8; 32]>,
-    hashed_mint: &[u8; 32],
+    hashed_update_authority: Option<&[u8]>,
+    hashed_mint: &[u8],
     metadata_hash: &[u8],
     additional_metadata: &[(&[u8], &[u8])],
     version: u8,
@@ -127,13 +126,12 @@ pub fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
     let mut slice_vec: [&[u8]; 5] = [&[]; 5];
 
     if let Some(hashed_update_authority) = hashed_update_authority {
-        vec[0] = *hashed_update_authority;
+        vec[0].copy_from_slice(hashed_update_authority);
     }
 
-    vec[1] = *hashed_mint;
+    vec[1].copy_from_slice(hashed_mint);
 
     for (key, value) in additional_metadata {
-        // TODO: add check is poseidon and throw meaningful error.
         vec[3] = H::hashv(&[vec[3].as_slice(), key, value])?;
     }
     vec[4][31] = version;

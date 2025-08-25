@@ -5,7 +5,6 @@ use light_compressed_account::{
     instruction_data::{compressed_proof::CompressedProof, cpi_context::CompressedCpiContext},
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
-use spl_pod::solana_msg::msg;
 use zerocopy::Ref;
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
@@ -86,6 +85,7 @@ pub struct MultiTokenTransferOutputData {
     pub owner: u8,
     pub amount: u64,
     pub merkle_tree: u8,
+    // pub with_delegate: bool, // Indicates if account has a delegate set (has_delegate)
     pub delegate: u8, // TODO: check whether we need delegate is set
     pub mint: u8,
     pub version: u8,
@@ -119,7 +119,7 @@ impl<'a> ZeroCopyNew<'a> for CompressionMode {
     fn byte_len(
         _config: &Self::ZeroCopyConfig,
     ) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
-        Ok(1) // CompressionMode is always 1 byte
+        Ok(1) // CompressionMode enum size is always 1 byte
     }
 
     fn new_zero_copy(
@@ -299,44 +299,9 @@ pub struct CompressedTokenInstructionDataTransfer2 {
     pub out_token_data: Vec<MultiTokenTransferOutputData>,
     // put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
     pub in_lamports: Option<Vec<u64>>,
-    // TODO: put accounts with lamports first, stop adding values after TODO: only access by get to prevent oob errors
     pub out_lamports: Option<Vec<u64>>,
-    // TODO:  put accounts with tlv first, stop adding values after TODO: only access by get to prevent oob errors
     pub in_tlv: Option<Vec<Vec<u8>>>,
     pub out_tlv: Option<Vec<Vec<u8>>>,
     pub compressions: Option<Vec<Compression>>,
     pub cpi_context: Option<CompressedCpiContext>,
-}
-
-/// Validate instruction data consistency (lamports and TLV checks)
-pub fn validate_instruction_data(
-    inputs: &ZCompressedTokenInstructionDataTransfer2,
-) -> Result<(), crate::CTokenError> {
-    if let Some(ref in_lamports) = inputs.in_lamports {
-        if in_lamports.len() != inputs.in_token_data.len() {
-            msg!(
-                "in_lamports {} != inputs in_token_data {}",
-                in_lamports.len(),
-                inputs.in_token_data.len()
-            );
-            return Err(CTokenError::InputAccountsLamportsLengthMismatch);
-        }
-    }
-    if let Some(ref out_lamports) = inputs.out_lamports {
-        if out_lamports.len() != inputs.out_token_data.len() {
-            msg!(
-                "outlamports {} != inputs out_token_data {}",
-                out_lamports.len(),
-                inputs.out_token_data.len()
-            );
-            return Err(CTokenError::OutputAccountsLamportsLengthMismatch);
-        }
-    }
-    if inputs.in_tlv.is_some() {
-        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
-    }
-    if inputs.out_tlv.is_some() {
-        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
-    }
-    Ok(())
 }

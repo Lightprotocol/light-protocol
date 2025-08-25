@@ -1,5 +1,5 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
-use light_hasher::{errors::HasherError, Hasher, Poseidon, Sha256};
+use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher, Poseidon};
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopy, ZeroCopyMut};
 use solana_msg::msg;
 use zerocopy::IntoBytes;
@@ -84,9 +84,9 @@ impl CompressedMint {
                         extension.hash::<Poseidon>()?.as_slice(),
                     ])?;
                 } else if self.version == 1 {
-                    extension_hashchain = Sha256::hashv(&[
+                    extension_hashchain = Sha256BE::hashv(&[
                         extension_hashchain.as_slice(),
-                        extension.hash::<Sha256>()?.as_slice(),
+                        extension.hash::<Sha256BE>()?.as_slice(),
                     ])?;
                 } else {
                     return Err(CTokenError::InvalidTokenDataVersion);
@@ -98,11 +98,10 @@ impl CompressedMint {
                     extension_hashchain.as_slice(),
                 ])?)
             } else if self.version == 1 {
-                let mut hash =
-                    Sha256::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])?;
-                // Truncate hash to 248 bits
-                hash[0] = 0;
-                Ok(hash)
+                Ok(Sha256BE::hashv(&[
+                    mint_hash.as_slice(),
+                    extension_hashchain.as_slice(),
+                ])?)
             } else {
                 return Err(CTokenError::InvalidTokenDataVersion);
             }
@@ -137,7 +136,7 @@ impl CompressedMint {
                 version,
             )?)
         } else if version == 1 {
-            Ok(CompressedMint::hash_with_hashed_values_inner::<Sha256>(
+            Ok(CompressedMint::hash_with_hashed_values_inner::<Sha256BE>(
                 hashed_spl_mint,
                 supply_bytes,
                 decimals,
@@ -263,10 +262,7 @@ impl ZCompressedMintMut<'_> {
                         if *token_metadata.version == 0 {
                             extension.hash::<Poseidon>()?
                         } else if *token_metadata.version == 1 {
-                            let mut hash = extension.hash::<Sha256>()?;
-                            // Apply the same fix as in ZTokenMetadataInstructionData
-                            hash[0] = 0;
-                            hash
+                            extension.hash::<Sha256BE>()?
                         } else {
                             return Err(CTokenError::InvalidTokenDataVersion);
                         }
@@ -281,7 +277,7 @@ impl ZCompressedMintMut<'_> {
                         extension_hash.as_slice(),
                     ])?;
                 } else if self.version == 1 {
-                    extension_hashchain = Sha256::hashv(&[
+                    extension_hashchain = Sha256BE::hashv(&[
                         extension_hashchain.as_slice(),
                         extension_hash.as_slice(),
                     ])?;
@@ -301,11 +297,10 @@ impl ZCompressedMintMut<'_> {
                     extension_hashchain.as_slice(),
                 ])?)
             } else if self.version == 1 {
-                let mut hash =
-                    Sha256::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])?;
-                hash[0] = 0;
-                msg!("data hash {:?}", hash);
-                Ok(hash)
+                Ok(Sha256BE::hashv(&[
+                    mint_hash.as_slice(),
+                    extension_hashchain.as_slice(),
+                ])?)
             } else {
                 Err(CTokenError::InvalidTokenDataVersion)
             }

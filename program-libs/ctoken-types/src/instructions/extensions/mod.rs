@@ -1,4 +1,4 @@
-use light_hasher::{Hasher, Poseidon, Sha256};
+use light_hasher::{sha256::Sha256BE, Hasher, Poseidon};
 pub mod compressible;
 pub mod token_metadata;
 use light_zero_copy::ZeroCopy;
@@ -62,10 +62,7 @@ impl ZExtensionInstructionData<'_> {
                         token_metadata.hash_token_metadata::<Poseidon>(hashed_mint, context)
                     }
                     Version::Sha256 => {
-                        let mut hash =
-                            token_metadata.hash_token_metadata::<Sha256>(hashed_mint, context)?;
-                        hash[0] = 0;
-                        Ok(hash)
+                        Ok(token_metadata.hash_token_metadata::<Sha256BE>(hashed_mint, context)?)
                     }
                     _ => {
                         msg!(

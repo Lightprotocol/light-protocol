@@ -4,7 +4,7 @@ use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::ZMintActionCompressedInstructionData,
     state::CompressedMint, CTokenError,
 };
-use light_hasher::{Hasher, Poseidon, Sha256};
+use light_hasher::{sha256::Sha256BE, Hasher, Poseidon};
 use light_sdk::instruction::PackedMerkleContext;
 
 use crate::{
@@ -72,10 +72,7 @@ pub fn create_input_compressed_mint_account(
             if mint.version == 0 {
                 Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?
             } else if mint.version == 1 {
-                let mut hash =
-                    Sha256::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?;
-                hash[0] = 0;
-                hash
+                Sha256BE::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?
             } else {
                 return Err(ProgramError::from(CTokenError::InvalidTokenDataVersion));
             }

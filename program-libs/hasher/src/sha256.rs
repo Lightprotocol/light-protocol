@@ -49,3 +49,30 @@ impl Hasher for Sha256 {
         ZERO_INDEXED_LEAF
     }
 }
+
+#[derive(Clone, Copy)] // To allow using with zero copy Solana accounts.
+pub struct Sha256BE;
+
+impl Hasher for Sha256BE {
+    fn hash(val: &[u8]) -> Result<Hash, HasherError> {
+        let mut hash = Self::hashv(&[val])?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+
+    fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
+        let mut hash = Sha256::hashv(vals)?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+
+    fn zero_bytes() -> ZeroBytes {
+        // TODO: regenerate
+        ZERO_BYTES
+    }
+
+    fn zero_indexed_leaf() -> [u8; 32] {
+        // TODO: regenerate
+        ZERO_INDEXED_LEAF
+    }
+}
