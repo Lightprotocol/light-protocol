@@ -44,7 +44,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
     let pod_account = pod_from_bytes::<PodAccount>(&token_account_info.data)
         .map_err(|e| RpcError::CustomError(format!("Failed to parse SPL token account: {}", e)))?;
 
-    let mint = Pubkey::from(pod_account.mint);
+    let mint = pod_account.mint;
 
     // Derive token pool PDA
     let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, 0);

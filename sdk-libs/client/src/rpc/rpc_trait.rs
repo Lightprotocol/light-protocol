@@ -169,8 +169,10 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         signers: &'a [&'a Keypair],
     ) -> Result<Signature, RpcError> {
         let blockhash = self.get_latest_blockhash().await?.0;
-        let transaction =
-            Transaction::new_signed_with_payer(instructions, Some(payer), signers, blockhash);
+        let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
+        transaction
+            .try_sign(signers, blockhash)
+            .map_err(|e| RpcError::CustomError(e.to_string()))?;
         self.process_transaction(transaction).await
     }
 

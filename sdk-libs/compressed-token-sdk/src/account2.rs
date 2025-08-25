@@ -59,6 +59,41 @@ impl CTokenAccount2 {
         })
     }
 
+    /// Input token accounts are delegated and delegate is signer
+    /// The change output account is also delegated.
+    /// (with new change output account is not delegated even if inputs were)
+    pub fn new_delegated(
+        token_data: Vec<MultiInputTokenDataWithContext>,
+        output_merkle_tree_index: u8,
+    ) -> Result<Self, TokenSdkError> {
+        // all mint indices must be the same
+        // all owners must be the same
+        let amount = token_data.iter().map(|data| data.amount).sum();
+        // Check if token_data is empty
+        if token_data.is_empty() {
+            return Err(TokenSdkError::InsufficientBalance); // TODO: Add proper error variant
+        }
+
+        // Use the indices from the first token data (assuming they're all the same mint/owner)
+        let mint_index = token_data[0].mint;
+        let owner_index = token_data[0].owner;
+        let output = MultiTokenTransferOutputData {
+            owner: owner_index,
+            amount,
+            merkle_tree: output_merkle_tree_index,
+            delegate: token_data[0].delegate, // Default delegate index
+            mint: mint_index,
+            version: 2, // V2 for batched Merkle trees
+        };
+        Ok(Self {
+            inputs: token_data,
+            output,
+            delegate_is_set: false,
+            compression: None,
+            method_used: false,
+        })
+    }
+
     pub fn new_empty(owner_index: u8, mint_index: u8, output_merkle_tree_index: u8) -> Self {
         Self {
             inputs: vec![],
@@ -342,38 +377,34 @@ impl Deref for CTokenAccount2 {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_spl_to_ctoken_transfer_instruction(
     source_spl_token_account: Pubkey,
     to: Pubkey,
     amount: u64,
     authority: Pubkey,
     mint: Pubkey,
-    payer: Pubkey,
+    _payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
 ) -> Result<Instruction, TokenSdkError> {
-    let mut packed_accounts = Vec::with_capacity(6);
-
-    // Mint (index 0)
-    packed_accounts.push(AccountMeta::new_readonly(mint, false));
-
-    // Destination token account (index 1)
-    packed_accounts.push(AccountMeta::new(to, false));
-
-    // Authority for compression (index 2) - signer
-    packed_accounts.push(AccountMeta::new_readonly(authority, true));
-
-    // Source SPL token account (index 3) - writable
-    packed_accounts.push(AccountMeta::new(source_spl_token_account, false));
-
-    // Token pool PDA (index 4) - writable
-    packed_accounts.push(AccountMeta::new(token_pool_pda, false));
-
-    // SPL Token program (index 5) - needed for CPI
-    packed_accounts.push(AccountMeta::new_readonly(
-        Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-        false,
-    ));
+    let packed_accounts = vec![
+        // Mint (index 0)
+        AccountMeta::new_readonly(mint, false),
+        // Destination token account (index 1)
+        AccountMeta::new(to, false),
+        // Authority for compression (index 2) - signer
+        AccountMeta::new_readonly(authority, true),
+        // Source SPL token account (index 3) - writable
+        AccountMeta::new(source_spl_token_account, false),
+        // Token pool PDA (index 4) - writable
+        AccountMeta::new(token_pool_pda, false),
+        // SPL Token program (index 5) - needed for CPI
+        AccountMeta::new_readonly(
+            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
+            false,
+        ),
+    ];
 
     let wrap_spl_to_ctoken_account = CTokenAccount2 {
         inputs: vec![],
@@ -413,38 +444,34 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     create_transfer2_instruction(inputs)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_ctoken_to_spl_transfer_instruction(
     source_ctoken_account: Pubkey,
     destination_spl_token_account: Pubkey,
     amount: u64,
     authority: Pubkey,
     mint: Pubkey,
-    payer: Pubkey,
+    _payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
 ) -> Result<Instruction, TokenSdkError> {
-    let mut packed_accounts = Vec::with_capacity(6);
-
-    // Mint (index 0)
-    packed_accounts.push(AccountMeta::new_readonly(mint, false));
-
-    // Source ctoken account (index 1) - writable
-    packed_accounts.push(AccountMeta::new(source_ctoken_account, false));
-
-    // Destination SPL token account (index 2) - writable
-    packed_accounts.push(AccountMeta::new(destination_spl_token_account, false));
-
-    // Authority (index 3) - signer
-    packed_accounts.push(AccountMeta::new_readonly(authority, true));
-
-    // Token pool PDA (index 4) - writable
-    packed_accounts.push(AccountMeta::new(token_pool_pda, false));
-
-    // SPL Token program (index 5) - needed for CPI
-    packed_accounts.push(AccountMeta::new_readonly(
-        Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-        false,
-    ));
+    let packed_accounts = vec![
+        // Mint (index 0)
+        AccountMeta::new_readonly(mint, false),
+        // Source ctoken account (index 1) - writable
+        AccountMeta::new(source_ctoken_account, false),
+        // Destination SPL token account (index 2) - writable
+        AccountMeta::new(destination_spl_token_account, false),
+        // Authority (index 3) - signer
+        AccountMeta::new_readonly(authority, true),
+        // Token pool PDA (index 4) - writable
+        AccountMeta::new(token_pool_pda, false),
+        // SPL Token program (index 5) - needed for CPI
+        AccountMeta::new_readonly(
+            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
+            false,
+        ),
+    ];
 
     // First operation: compress from ctoken account to pool using compress_spl
     let compress_to_pool = CTokenAccount2 {

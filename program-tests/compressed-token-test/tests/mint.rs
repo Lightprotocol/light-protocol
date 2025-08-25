@@ -220,6 +220,7 @@ async fn test_create_compressed_mint() {
             compressed_token_account: &compressed_token_accounts,
             to: new_recipient,
             amount: transfer_amount,
+            is_delegate_transfer: false,
         },
     )
     .await;
@@ -477,6 +478,7 @@ async fn test_create_compressed_mint() {
                 compressed_token_account: &remaining_compressed_tokens,
                 to: transfer_recipient.pubkey(),
                 amount: transfer_amount,
+                is_delegate_transfer: false,
             }),
             // 2. Decompress some compressed tokens to SPL tokens
             Transfer2InstructionType::Decompress(DecompressInput {

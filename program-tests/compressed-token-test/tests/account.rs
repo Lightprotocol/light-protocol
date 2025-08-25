@@ -6,13 +6,13 @@ use light_compressed_token_sdk::instructions::{
 };
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::airdrop_lamports;
-use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
 use light_test_utils::{
+    airdrop_lamports,
     assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
         assert_create_associated_token_account, assert_create_token_account, CompressibleData,
     },
+    spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
     Rpc, RpcError,
 };
 use light_token_client::actions::transfer2;
@@ -608,7 +608,7 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
 
     // Now transfer back from compressed token to SPL token account
     println!("Testing reverse transfer: ctoken to SPL");
-    
+
     // Transfer from recipient's compressed token account back to sender's SPL token account
     transfer2::ctoken_to_spl_transfer(
         &mut rpc,
@@ -630,22 +630,25 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
             .unwrap();
         let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
             .map_err(|e| {
-                RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
-            })?;
+            RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+        })?;
         let restored_spl_balance: u64 = spl_account.amount.into();
         assert_eq!(
             restored_spl_balance, amount,
             "SPL token balance should be restored to original amount"
         );
     }
-    
+
     {
         // Verify compressed token balance is now 0
         let ctoken_account_data = rpc.get_account(associated_token_account).await?.unwrap();
         let ctoken_account =
             spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165])
                 .map_err(|e| {
-                    RpcError::AssertRpcError(format!("Failed to parse compressed token account: {}", e))
+                    RpcError::AssertRpcError(format!(
+                        "Failed to parse compressed token account: {}",
+                        e
+                    ))
                 })?;
         assert_eq!(
             u64::from(ctoken_account.amount),
@@ -655,6 +658,6 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
     }
 
     println!("Successfully completed round-trip transfer: SPL -> CToken -> SPL");
-    
+
     Ok(())
 }

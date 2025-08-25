@@ -63,8 +63,8 @@ pub struct MultiInputTokenDataWithContext {
     // From remaining accounts.
     pub mint: u8,
     pub owner: u8,
-    pub with_delegate: bool,
-    // Only used if with_delegate is true, we could also use 255 to indicate no delegate
+    pub with_delegate: bool, // Indicates if account has a delegate set (has_delegate)
+    // Delegate index - only meaningful if with_delegate is true
     pub delegate: u8,
     pub version: u8,
 }
