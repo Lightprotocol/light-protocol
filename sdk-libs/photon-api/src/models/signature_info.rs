@@ -13,12 +13,20 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SignatureInfo {
     /// An Unix timestamp (seconds)
-    #[serde(rename = "blockTime", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "blockTime",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub block_time: u64,
     /// A Solana transaction signature.
     #[serde(rename = "signature")]
     pub signature: String,
-    #[serde(rename = "slot", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "slot",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub slot: u64,
 }
 

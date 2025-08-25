@@ -18,14 +18,22 @@ pub struct GetQueueElementsResponseValue {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "leaf")]
     pub leaf: String,
-    #[serde(rename = "leafIndex", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "leafIndex",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub leaf_index: u64,
     #[serde(rename = "proof")]
     pub proof: Vec<String>,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "root")]
     pub root: String,
-    #[serde(rename = "rootSeq", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "rootSeq",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub root_seq: u64,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "tree")]

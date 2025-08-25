@@ -1,5 +1,6 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// A wrapper type that can deserialize from either a u64 or a string
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -9,7 +10,7 @@ impl StringU64 {
     pub fn new(value: u64) -> Self {
         StringU64(value)
     }
-    
+
     pub fn value(&self) -> u64 {
         self.0
     }
@@ -67,8 +68,9 @@ impl Serialize for StringU64 {
 
 /// Helper module for optional StringU64 fields
 pub mod option {
-    use super::StringU64;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    use super::StringU64;
 
     pub fn serialize<S>(value: &Option<StringU64>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -104,9 +106,7 @@ pub mod direct {
         }
 
         match StringOrU64::deserialize(deserializer)? {
-            StringOrU64::String(s) => s
-                .parse::<u64>()
-                .map_err(serde::de::Error::custom),
+            StringOrU64::String(s) => s.parse::<u64>().map_err(serde::de::Error::custom),
             StringOrU64::U64(n) => Ok(n),
         }
     }
@@ -136,10 +136,9 @@ pub mod option_direct {
 
         let opt = Option::<StringOrU64>::deserialize(deserializer)?;
         match opt {
-            Some(StringOrU64::String(s)) => s
-                .parse::<u64>()
-                .map(Some)
-                .map_err(serde::de::Error::custom),
+            Some(StringOrU64::String(s)) => {
+                s.parse::<u64>().map(Some).map_err(serde::de::Error::custom)
+            }
             Some(StringOrU64::U64(n)) => Ok(Some(n)),
             None => Ok(None),
         }
@@ -172,9 +171,7 @@ pub mod u32_direct {
         }
 
         match StringOrU32::deserialize(deserializer)? {
-            StringOrU32::String(s) => s
-                .parse::<u32>()
-                .map_err(serde::de::Error::custom),
+            StringOrU32::String(s) => s.parse::<u32>().map_err(serde::de::Error::custom),
             StringOrU32::U32(n) => Ok(n),
         }
     }
@@ -203,9 +200,7 @@ pub mod u16_direct {
         }
 
         match StringOrU16::deserialize(deserializer)? {
-            StringOrU16::String(s) => s
-                .parse::<u16>()
-                .map_err(serde::de::Error::custom),
+            StringOrU16::String(s) => s.parse::<u16>().map_err(serde::de::Error::custom),
             StringOrU16::U16(n) => Ok(n),
         }
     }

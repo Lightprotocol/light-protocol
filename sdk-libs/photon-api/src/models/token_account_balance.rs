@@ -12,7 +12,11 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TokenAccountBalance {
-    #[serde(rename = "amount", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "amount",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub amount: u64,
 }
 

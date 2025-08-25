@@ -18,7 +18,11 @@ pub struct GetBatchAddressUpdateInfoPost200ResponseResult {
     pub context: Box<models::Context>,
     #[serde(rename = "nonInclusionProofs")]
     pub non_inclusion_proofs: Vec<models::MerkleContextWithNewAddressProof>,
-    #[serde(rename = "startIndex", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "startIndex",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub start_index: u64,
     #[serde(rename = "subtrees")]
     pub subtrees: Vec<Vec<u8>>,

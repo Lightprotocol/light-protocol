@@ -18,7 +18,11 @@ pub struct AddressProofInputs {
     pub merkle_context: Box<models::MerkleContextV2>,
     #[serde(rename = "root")]
     pub root: String,
-    #[serde(rename = "rootIndex", deserialize_with = "crate::string_u64::u16_direct::deserialize", serialize_with = "crate::string_u64::u16_direct::serialize")]
+    #[serde(
+        rename = "rootIndex",
+        deserialize_with = "crate::string_u64::u16_direct::deserialize",
+        serialize_with = "crate::string_u64::u16_direct::serialize"
+    )]
     pub root_index: u16,
 }
 

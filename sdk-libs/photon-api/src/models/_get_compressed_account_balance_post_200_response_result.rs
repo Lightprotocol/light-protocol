@@ -14,7 +14,11 @@ use crate::models;
 pub struct GetCompressedAccountBalancePost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
-    #[serde(rename = "value", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "value",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub value: u64,
 }
 

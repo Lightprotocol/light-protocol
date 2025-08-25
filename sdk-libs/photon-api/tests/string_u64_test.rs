@@ -5,11 +5,20 @@ mod tests {
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
     struct TestStruct {
-        #[serde(deserialize_with = "photon_api::string_u64::direct::deserialize", serialize_with = "photon_api::string_u64::direct::serialize")]
+        #[serde(
+            deserialize_with = "photon_api::string_u64::direct::deserialize",
+            serialize_with = "photon_api::string_u64::direct::serialize"
+        )]
         amount: u64,
-        #[serde(deserialize_with = "photon_api::string_u64::u32_direct::deserialize", serialize_with = "photon_api::string_u64::u32_direct::serialize")]
+        #[serde(
+            deserialize_with = "photon_api::string_u64::u32_direct::deserialize",
+            serialize_with = "photon_api::string_u64::u32_direct::serialize"
+        )]
         index: u32,
-        #[serde(deserialize_with = "photon_api::string_u64::u16_direct::deserialize", serialize_with = "photon_api::string_u64::u16_direct::serialize")]
+        #[serde(
+            deserialize_with = "photon_api::string_u64::u16_direct::deserialize",
+            serialize_with = "photon_api::string_u64::u16_direct::serialize"
+        )]
         root_index: u16,
     }
 
@@ -18,7 +27,7 @@ mod tests {
         // Test deserializing from string values (new Photon API format)
         let json_str = r#"{"amount":"5106734359795461623","index":"42","root_index":"7"}"#;
         let result: TestStruct = serde_json::from_str(json_str).unwrap();
-        
+
         assert_eq!(result.amount, 5106734359795461623);
         assert_eq!(result.index, 42);
         assert_eq!(result.root_index, 7);
@@ -29,7 +38,7 @@ mod tests {
         // Test deserializing from numeric values (backward compatibility)
         let json_str = r#"{"amount":5106734359795461623,"index":42,"root_index":7}"#;
         let result: TestStruct = serde_json::from_str(json_str).unwrap();
-        
+
         assert_eq!(result.amount, 5106734359795461623);
         assert_eq!(result.index, 42);
         assert_eq!(result.root_index, 7);
@@ -43,7 +52,7 @@ mod tests {
             index: 42,
             root_index: 7,
         };
-        
+
         let json = serde_json::to_string(&test_struct).unwrap();
         assert!(json.contains(r#""amount":"5106734359795461623""#));
         assert!(json.contains(r#""index":"42""#));
@@ -57,10 +66,10 @@ mod tests {
             index: u32::MAX,
             root_index: u16::MAX,
         };
-        
+
         let json = serde_json::to_string(&original).unwrap();
         let deserialized: TestStruct = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(original, deserialized);
     }
 
@@ -68,7 +77,11 @@ mod tests {
     fn test_optional_fields() {
         #[derive(Debug, Serialize, Deserialize, PartialEq)]
         struct OptionalStruct {
-            #[serde(deserialize_with = "photon_api::string_u64::option_direct::deserialize", serialize_with = "photon_api::string_u64::option_direct::serialize", default)]
+            #[serde(
+                deserialize_with = "photon_api::string_u64::option_direct::deserialize",
+                serialize_with = "photon_api::string_u64::option_direct::serialize",
+                default
+            )]
             seq: Option<u64>,
         }
 

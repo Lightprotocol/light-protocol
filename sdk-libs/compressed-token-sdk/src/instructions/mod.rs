@@ -29,6 +29,9 @@ pub use create_token_account::{
     create_compressible_token_account, create_token_account, CreateCompressibleTokenAccount,
 };
 pub use ctoken_accounts::*;
+pub use decompressed_transfer::{
+    create_decompressed_token_transfer_instruction, transfer, transfer_signed,
+};
 pub use mint_action::{
     create_mint_action, create_mint_action_cpi, get_mint_action_instruction_account_metas,
     get_mint_action_instruction_account_metas_cpi_write, mint_action_cpi_write, MintActionInputs,
@@ -42,10 +45,6 @@ pub use mint_to_compressed::{
 pub use update_compressed_mint::{
     update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,
     UPDATE_COMPRESSED_MINT_DISCRIMINATOR,
-};
-
-pub use decompressed_transfer::{
-    create_decompressed_token_transfer_instruction, transfer, transfer_signed,
 };
 
 /// Derive token pool information for a given mint

@@ -1,11 +1,3 @@
-use crate::{
-    account2::CTokenAccount2,
-    error::{Result, TokenSdkError},
-    instructions::transfer2::account_metas::{
-        get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
-    },
-    AnchorSerialize,
-};
 use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, ValidityProof};
 use light_ctoken_types::{
     instructions::transfer2::{
@@ -20,6 +12,15 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
+
+use crate::{
+    account2::CTokenAccount2,
+    error::{Result, TokenSdkError},
+    instructions::transfer2::account_metas::{
+        get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
+    },
+    AnchorSerialize,
+};
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
 pub struct Transfer2Config {

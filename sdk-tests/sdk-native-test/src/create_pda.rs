@@ -8,9 +8,7 @@ use light_sdk::{
 };
 use solana_program::{account_info::AccountInfo, msg};
 
-use crate::ARRAY_LEN;
-
-use crate::MyPdaAccount;
+use crate::{MyPdaAccount, ARRAY_LEN};
 
 /// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
 /// CU usage:
@@ -55,7 +53,6 @@ pub fn create_pda<const BATCHED: bool>(
     let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
     msg!("pre account");
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
-
         &crate::ID,
         Some(address),
         instruction_data.output_merkle_tree_index,

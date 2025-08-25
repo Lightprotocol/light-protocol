@@ -1,10 +1,10 @@
 pub mod client;
 pub mod errors;
 pub mod indexer;
+pub mod lookup_table;
 pub mod merkle_tree;
 mod rpc_trait;
 pub mod state;
-pub mod lookup_table;
 
 pub use client::{LightClient, RetryConfig};
 pub use errors::RpcError;

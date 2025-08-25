@@ -8,9 +8,7 @@ use light_sdk::{
 };
 use solana_program::{account_info::AccountInfo, msg};
 
-use crate::ARRAY_LEN;
-
-use crate::MyPdaAccount;
+use crate::{MyPdaAccount, ARRAY_LEN};
 
 /// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
 /// CU usage:

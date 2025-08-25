@@ -10,22 +10,21 @@ pub const STATE_TREE_LOOKUP_TABLE_DEVNET: Pubkey =
 pub const NULLIFIED_STATE_TREE_LOOKUP_TABLE_DEVNET: Pubkey =
     pubkey!("5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP");
 
-
 /// Address lookup table with zk compression related keys. Use to reduce
 /// transaction size.
-/// 
+///
 /// Keys include: all protocol pubkeys, default state trees, address trees, and
 /// more.
-/// 
+///
 /// Example usage:
 /// ```bash
-/// 
+///
 /// # By cloning from mainnet
 /// light test-validator --validator-args "\
 ///   --clone 9NYFyEqPkyXUhkerbGHXUXkvb4qpzeEdHuGpgbgpH1NJ \
 ///   --url https://api.mainnet-beta.solana.com \
 ///   --upgradeable-program <your_program_id> <your_program_path> ~/.config/solana/id.json"
-/// 
+///
 /// # With a local LUT file
 /// light test-validator --validator-args "\
 ///   --account 9NYFyEqPkyXUhkerbGHXUXkvb4qpzeEdHuGpgbgpH1NJ ./scripts/lut.json \

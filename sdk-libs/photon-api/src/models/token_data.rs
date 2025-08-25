@@ -12,7 +12,11 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TokenData {
-    #[serde(rename = "amount", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "amount",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub amount: u64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "delegate", skip_serializing_if = "Option::is_none")]

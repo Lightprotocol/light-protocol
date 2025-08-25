@@ -18,7 +18,11 @@ pub struct AccountData {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "dataHash")]
     pub data_hash: String,
-    #[serde(rename = "discriminator", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "discriminator",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub discriminator: u64,
 }
 

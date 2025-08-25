@@ -30,7 +30,11 @@ pub struct AccountContext {
     pub queue: String,
     #[serde(rename = "spent")]
     pub spent: bool,
-    #[serde(rename = "treeType", deserialize_with = "crate::string_u64::u16_direct::deserialize", serialize_with = "crate::string_u64::u16_direct::serialize")]
+    #[serde(
+        rename = "treeType",
+        deserialize_with = "crate::string_u64::u16_direct::deserialize",
+        serialize_with = "crate::string_u64::u16_direct::serialize"
+    )]
     pub tree_type: u16,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "txHash", skip_serializing_if = "Option::is_none")]

@@ -20,9 +20,17 @@ pub struct AccountV2 {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "hash")]
     pub hash: String,
-    #[serde(rename = "lamports", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "lamports",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub lamports: u64,
-    #[serde(rename = "leafIndex", deserialize_with = "crate::string_u64::u32_direct::deserialize", serialize_with = "crate::string_u64::u32_direct::serialize")]
+    #[serde(
+        rename = "leafIndex",
+        deserialize_with = "crate::string_u64::u32_direct::deserialize",
+        serialize_with = "crate::string_u64::u32_direct::serialize"
+    )]
     pub leaf_index: u32,
     #[serde(rename = "merkleContext")]
     pub merkle_context: Box<models::MerkleContextV2>,
@@ -31,9 +39,19 @@ pub struct AccountV2 {
     pub owner: String,
     #[serde(rename = "proveByIndex")]
     pub prove_by_index: bool,
-    #[serde(rename = "seq", skip_serializing_if = "Option::is_none", deserialize_with = "crate::string_u64::option_direct::deserialize", serialize_with = "crate::string_u64::option_direct::serialize", default)]
+    #[serde(
+        rename = "seq",
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::string_u64::option_direct::deserialize",
+        serialize_with = "crate::string_u64::option_direct::serialize",
+        default
+    )]
     pub seq: Option<u64>,
-    #[serde(rename = "slotCreated", deserialize_with = "crate::string_u64::direct::deserialize", serialize_with = "crate::string_u64::direct::serialize")]
+    #[serde(
+        rename = "slotCreated",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub slot_created: u64,
 }
 

@@ -1,7 +1,6 @@
 pub mod actions;
 pub mod instructions;
-use solana_pubkey::pubkey;
-use solana_pubkey::Pubkey;
+use solana_pubkey::{pubkey, Pubkey};
 
 pub const COMPRESSED_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -10,10 +9,11 @@ pub const COMPRESSED_TOKEN_CPI_AUTHORITY: Pubkey =
     pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
 pub mod compressed_token {
-    use super::{COMPRESSED_TOKEN_CPI_AUTHORITY, COMPRESSED_TOKEN_PROGRAM_ID};
     use light_client::indexer::TreeInfo;
     use light_compressed_account::address::derive_address;
     use solana_pubkey::Pubkey;
+
+    use super::{COMPRESSED_TOKEN_CPI_AUTHORITY, COMPRESSED_TOKEN_PROGRAM_ID};
 
     pub const ID: Pubkey = COMPRESSED_TOKEN_PROGRAM_ID;
 

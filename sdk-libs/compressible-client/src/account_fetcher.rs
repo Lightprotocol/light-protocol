@@ -15,20 +15,20 @@ use thiserror::Error;
 pub enum CompressibleAccountError {
     #[error("RPC error: {0}")]
     Rpc(#[from] RpcError),
-    
+
     #[error("Indexer error: {0}")]
     Indexer(#[from] light_client::indexer::IndexerError),
-    
+
     #[error("Compressed account has no data")]
     NoData,
-    
+
     #[error("Deserialization error: {0}")]
     Deserialization(String),
-    
+
     #[cfg(feature = "anchor")]
     #[error("Anchor deserialization error: {0}")]
     AnchorDeserialization(#[from] anchor_lang::error::Error),
-    
+
     #[error("Borsh deserialization error: {0}")]
     BorshDeserialization(#[from] std::io::Error),
 }
@@ -93,11 +93,8 @@ where
 
     // If not on-chain, check compressed storage
     // Derive the compressed address using the account address as seed
-    let (compressed_address, _) = derive_address(
-        &[&address.to_bytes()],
-        &address_tree_info.tree,
-        program_id,
-    );
+    let (compressed_address, _) =
+        derive_address(&[&address.to_bytes()], &address_tree_info.tree, program_id);
 
     let compressed_account = rpc
         .get_compressed_account(compressed_address, None)
@@ -110,7 +107,8 @@ where
         .ok_or(CompressibleAccountError::NoData)?;
 
     // Combine discriminator and data
-    let mut data_slice = Vec::with_capacity(account_data.discriminator.len() + account_data.data.len());
+    let mut data_slice =
+        Vec::with_capacity(account_data.discriminator.len() + account_data.data.len());
     data_slice.extend_from_slice(&account_data.discriminator);
     data_slice.extend_from_slice(&account_data.data);
 
@@ -179,7 +177,7 @@ where
     R: Rpc + Indexer,
 {
     let data = get_compressible_account_data(address, program_id, address_tree_info, rpc).await?;
-    
+
     T::try_deserialize(&mut data.as_slice())
         .map_err(CompressibleAccountError::AnchorDeserialization)
 }
@@ -188,14 +186,15 @@ where
 /// Deserialize an on-chain account using Anchor.
 ///
 /// This is a utility function that deserializes an already fetched account.
-pub fn deserialize_anchor_account<T>(account: &solana_account::Account) -> Result<T, CompressibleAccountError>
+pub fn deserialize_anchor_account<T>(
+    account: &solana_account::Account,
+) -> Result<T, CompressibleAccountError>
 where
     T: anchor_lang::AccountDeserialize,
 {
     T::try_deserialize(&mut &account.data[..])
         .map_err(CompressibleAccountError::AnchorDeserialization)
 }
-
 
 // pub async fn get_compressible_account<T: AccountDeserialize>(
 //     address: &Pubkey,

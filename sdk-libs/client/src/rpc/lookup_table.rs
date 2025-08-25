@@ -1,10 +1,11 @@
-use crate::rpc::errors::RpcError;
 pub use solana_address_lookup_table_interface::{
     error, instruction, program, state::AddressLookupTable,
 };
 use solana_message::AddressLookupTableAccount;
 use solana_pubkey::Pubkey;
 use solana_rpc_client::rpc_client::RpcClient;
+
+use crate::rpc::errors::RpcError;
 
 /// Gets a lookup table account state from the network.
 ///
