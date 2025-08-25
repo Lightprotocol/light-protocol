@@ -53,7 +53,7 @@ pub fn pack_input_token_account(
         root_index: tree_info.root_index,
         mint: packed_accounts.insert_or_get_read_only(account.token.mint),
         owner: packed_accounts.insert_or_get_config(account.token.owner, owner_is_signer, false),
-        with_delegate: has_delegate, // Indicates if account has a delegate set
+        has_delegate: has_delegate, // Indicates if account has a delegate set
         delegate: delegate_index,
         version: 2, // V2 for batched Merkle trees
     }

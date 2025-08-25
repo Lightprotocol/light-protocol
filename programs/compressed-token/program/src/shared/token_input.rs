@@ -24,7 +24,7 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     let owner_account = &accounts[input_token_data.owner as usize];
 
     // Verify signer authorization using shared function
-    let delegate_account = if input_token_data.with_delegate() {
+    let delegate_account = if input_token_data.has_delegate() {
         Some(&accounts[input_token_data.delegate as usize])
     } else {
         None

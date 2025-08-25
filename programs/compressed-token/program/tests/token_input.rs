@@ -40,7 +40,7 @@ fn test_rnd_create_input_compressed_account() {
         let lamports = rng.gen_range(0..=1000000u64);
 
         // Random delegate flag (30% chance)
-        let with_delegate = rng.gen_bool(0.3);
+        let has_delegate = rng.gen_bool(0.3);
 
         // Random merkle hash_cache fields
         let merkle_tree_pubkey_index = rng.gen_range(0..=255u8);
@@ -61,8 +61,8 @@ fn test_rnd_create_input_compressed_account() {
             root_index,
             mint: 0,  // mint is at index 0 in remaining_accounts
             owner: 1, // owner is at index 1 in remaining_accounts
-            with_delegate,
-            delegate: if with_delegate { 2 } else { 0 }, // delegate at index 2 if present
+            has_delegate,
+            delegate: if has_delegate { 2 } else { 0 }, // delegate at index 2 if present
             version: 2,
         };
 
@@ -73,10 +73,10 @@ fn test_rnd_create_input_compressed_account() {
         // Create mock remaining accounts
         let mut mock_accounts = vec![
             create_mock_account(mint_pubkey, false), // mint at index 0
-            create_mock_account(owner_pubkey, !with_delegate), // owner at index 1, signer if no delegate
+            create_mock_account(owner_pubkey, !has_delegate), // owner at index 1, signer if no delegate
         ];
 
-        if with_delegate {
+        if has_delegate {
             mock_accounts.push(create_mock_account(delegate_pubkey, true)); // delegate at index 2, signer
         }
 
@@ -134,7 +134,7 @@ fn test_rnd_create_input_compressed_account() {
 
             // Create expected token data for validation
             let expected_owner = owner_pubkey;
-            let expected_delegate = if with_delegate {
+            let expected_delegate = if has_delegate {
                 Some(delegate_pubkey)
             } else {
                 None

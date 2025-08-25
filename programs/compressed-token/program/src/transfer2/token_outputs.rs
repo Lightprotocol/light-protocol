@@ -35,7 +35,7 @@ pub fn set_output_compressed_accounts(
         let owner_pubkey = *owner_account.key();
 
         // Get delegate if present
-        let delegate_pubkey = if output_data.delegate != 0 {
+        let delegate_pubkey = if output_data.has_delegate() {
             let delegate_account =
                 packed_accounts.get_u8(output_data.delegate, "out token delegete")?;
             Some(*delegate_account.key())

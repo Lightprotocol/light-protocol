@@ -581,7 +581,7 @@ fn pack_input_token_account(
         root_index: tree_info.root_index,
         mint: packed_accounts.insert_or_get_read_only(account.token.mint),
         owner: packed_accounts.insert_or_get_config(account.token.owner, true, false),
-        with_delegate: account.token.delegate.is_some(),
+        has_delegate: account.token.delegate.is_some(),
         delegate: delegate_index,
         version: 2,
     }

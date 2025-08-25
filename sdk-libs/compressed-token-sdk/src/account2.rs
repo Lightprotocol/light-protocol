@@ -49,6 +49,7 @@ impl CTokenAccount2 {
             delegate: 0, // Default delegate index
             mint: mint_index,
             version: 2, // V2 for batched Merkle trees
+            has_delegate: false,
         };
         Ok(Self {
             inputs: token_data,
@@ -84,6 +85,7 @@ impl CTokenAccount2 {
             delegate: token_data[0].delegate, // Default delegate index
             mint: mint_index,
             version: 2, // V2 for batched Merkle trees
+            has_delegate: true,
         };
         Ok(Self {
             inputs: token_data,
@@ -104,6 +106,7 @@ impl CTokenAccount2 {
                 delegate: 0, // Default delegate index
                 mint: mint_index,
                 version: 2, // V2 for batched Merkle trees
+                has_delegate: false,
             },
             compression: None,
             delegate_is_set: false,
@@ -137,6 +140,7 @@ impl CTokenAccount2 {
                 delegate: 0,
                 mint: self.output.mint,
                 version: self.output.version,
+                has_delegate: false,
             },
             delegate_is_set: false,
             method_used: false,
@@ -175,6 +179,7 @@ impl CTokenAccount2 {
                 delegate: delegate_index,
                 mint: self.output.mint,
                 version: self.output.version,
+                has_delegate: true,
             },
             delegate_is_set: true,
             method_used: false,

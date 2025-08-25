@@ -13,7 +13,7 @@ pub fn allocate_cpi_bytes(
     // Build CPI configuration based on delegate flags
     let mut input_delegate_flags: ArrayVec<bool, 8> = ArrayVec::new();
     for input_data in inputs.in_token_data.iter() {
-        input_delegate_flags.push(input_data.with_delegate != 0);
+        input_delegate_flags.push(input_data.has_delegate());
     }
 
     let mut output_accounts = ArrayVec::new();

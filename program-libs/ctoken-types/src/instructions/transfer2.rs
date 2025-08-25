@@ -56,16 +56,14 @@ impl TryFrom<u8> for TokenAccountVersion {
     Debug, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
 pub struct MultiInputTokenDataWithContext {
+    pub owner: u8,
     pub amount: u64,
+    pub has_delegate: bool, // Optional delegate is set
+    pub delegate: u8,
+    pub mint: u8,
+    pub version: u8,
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
-    // From remaining accounts.
-    pub mint: u8,
-    pub owner: u8,
-    pub with_delegate: bool, // Indicates if account has a delegate set (has_delegate)
-    // Delegate index - only meaningful if with_delegate is true
-    pub delegate: u8,
-    pub version: u8,
 }
 
 #[repr(C)]
@@ -84,11 +82,11 @@ pub struct MultiInputTokenDataWithContext {
 pub struct MultiTokenTransferOutputData {
     pub owner: u8,
     pub amount: u64,
-    pub merkle_tree: u8,
-    // pub with_delegate: bool, // Indicates if account has a delegate set (has_delegate)
-    pub delegate: u8, // TODO: check whether we need delegate is set
+    pub has_delegate: bool, // Optional delegate is set
+    pub delegate: u8,
     pub mint: u8,
     pub version: u8,
+    pub merkle_tree: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
