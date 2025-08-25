@@ -1,7 +1,7 @@
 use light_compressed_account::Pubkey;
 use light_hasher::{
-    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, sha256::Sha256BE, DataHasher,
-    HasherError, Poseidon,
+    hash_to_field_size::hashv_to_bn254_field_size_be_const_array, sha256::Sha256BE,
+    to_byte_array::ToByteArray, DataHasher, HasherError, Poseidon,
 };
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use solana_msg::msg;
@@ -30,7 +30,7 @@ impl TryFrom<u8> for Version {
         }
     }
 }
-// TODO: impl string for zero copy
+
 // TODO: test deserialization equivalence
 /// Used for onchain serialization
 #[repr(C)]
@@ -78,7 +78,7 @@ impl TokenMetadata {
     }
 }
 
-pub fn token_metadata_hash<H: light_hasher::Hasher>(
+fn token_metadata_hash_inner<H: light_hasher::Hasher, const HASHED: bool>(
     update_authority: Option<&[u8]>,
     mint: &[u8],
     metadata_hash: &[u8],
@@ -89,12 +89,20 @@ pub fn token_metadata_hash<H: light_hasher::Hasher>(
     let mut slice_vec: [&[u8]; 5] = [&[]; 5];
 
     if let Some(update_authority) = update_authority {
-        vec[0].copy_from_slice(
-            hashv_to_bn254_field_size_be_const_array::<2>(&[update_authority])?.as_slice(),
-        );
+        if HASHED {
+            vec[0].copy_from_slice(update_authority);
+        } else {
+            vec[0].copy_from_slice(
+                hashv_to_bn254_field_size_be_const_array::<2>(&[update_authority])?.as_slice(),
+            );
+        }
     }
 
-    vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[mint])?;
+    if HASHED {
+        vec[1].copy_from_slice(mint);
+    } else {
+        vec[1] = hashv_to_bn254_field_size_be_const_array::<2>(&[mint])?;
+    }
 
     for (key, value) in additional_metadata {
         vec[3] = H::hashv(&[vec[3].as_slice(), key, value])?;
@@ -113,6 +121,16 @@ pub fn token_metadata_hash<H: light_hasher::Hasher>(
     } else {
         H::hashv(slice_vec.as_slice())
     }
+}
+
+pub fn token_metadata_hash<H: light_hasher::Hasher>(
+    update_authority: Option<&[u8]>,
+    mint: &[u8],
+    metadata_hash: &[u8],
+    additional_metadata: &[(&[u8], &[u8])],
+    version: u8,
+) -> Result<[u8; 32], HasherError> {
+    token_metadata_hash_inner::<H, false>(update_authority, mint, metadata_hash, additional_metadata, version)
 }
 
 pub fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
@@ -122,89 +140,35 @@ pub fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
     additional_metadata: &[(&[u8], &[u8])],
     version: u8,
 ) -> Result<[u8; 32], HasherError> {
-    let mut vec = [[0u8; 32]; 5];
-    let mut slice_vec: [&[u8]; 5] = [&[]; 5];
-
-    if let Some(hashed_update_authority) = hashed_update_authority {
-        vec[0].copy_from_slice(hashed_update_authority);
-    }
-
-    vec[1].copy_from_slice(hashed_mint);
-
-    for (key, value) in additional_metadata {
-        vec[3] = H::hashv(&[vec[3].as_slice(), key, value])?;
-    }
-    vec[4][31] = version;
-
-    slice_vec[0] = vec[0].as_slice();
-    slice_vec[1] = vec[1].as_slice();
-    slice_vec[2] = metadata_hash;
-    slice_vec[3] = vec[3].as_slice();
-    slice_vec[4] = vec[4].as_slice();
-    // Omit empty slice
-    if vec[4] == [0u8; 32] {
-        H::hashv(&slice_vec[..4])
-    } else {
-        H::hashv(slice_vec.as_slice())
-    }
+    token_metadata_hash_inner::<H, true>(hashed_update_authority, hashed_mint, metadata_hash, additional_metadata, version)
 }
 
-impl DataHasher for TokenMetadata {
-    fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)?;
-        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
-            .additional_metadata
-            .iter()
-            .map(|item| (item.key.as_slice(), item.value.as_slice()))
-            .collect();
+macro_rules! impl_token_metadata_hasher {
+    ($type_name:ty $(,$op:tt)?) => {
+        impl DataHasher for $type_name {
+            fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
+                let metadata_hash = DataHasher::hash::<H>(&self.metadata)?;
+                let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
+                    .additional_metadata
+                    .iter()
+                    .map(|item| (item.key.as_ref(), item.value.as_ref()))
+                    .collect();
 
-        token_metadata_hash::<H>(
-            self.update_authority.as_ref().map(|auth| (*auth).as_ref()),
-            self.mint.as_ref(),
-            metadata_hash.as_slice(),
-            &additional_metadata,
-            self.version,
-        )
-    }
+                token_metadata_hash::<H>(
+                    self.update_authority.as_ref().map(|auth| auth.as_ref()),
+                    self.mint.as_ref(),
+                    metadata_hash.as_slice(),
+                    &additional_metadata,
+                    $($op)?self.version,
+                )
+            }
+        }
+    };
 }
 
-impl DataHasher for ZTokenMetadataMut<'_> {
-    fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)?;
-        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
-            .additional_metadata
-            .iter()
-            .map(|item| (&*item.key, &*item.value))
-            .collect();
-
-        token_metadata_hash::<H>(
-            self.update_authority.as_ref().map(|auth| (*auth).as_ref()),
-            self.mint.as_ref(),
-            metadata_hash.as_slice(),
-            &additional_metadata,
-            *self.version,
-        )
-    }
-}
-
-impl DataHasher for ZTokenMetadata<'_> {
-    fn hash<H: light_hasher::Hasher>(&self) -> Result<[u8; 32], HasherError> {
-        let metadata_hash = light_hasher::DataHasher::hash::<H>(&self.metadata)?;
-        let additional_metadata: arrayvec::ArrayVec<(&[u8], &[u8]), 32> = self
-            .additional_metadata
-            .iter()
-            .map(|item| (item.key, item.value))
-            .collect();
-
-        token_metadata_hash::<H>(
-            self.update_authority.as_ref().map(|auth| (*auth).as_ref()),
-            self.mint.as_ref(),
-            metadata_hash.as_slice(),
-            &additional_metadata,
-            self.version,
-        )
-    }
-}
+impl_token_metadata_hasher!(TokenMetadata);
+impl_token_metadata_hasher!(ZTokenMetadataMut<'_>, *);
+impl_token_metadata_hasher!(ZTokenMetadata<'_>);
 
 // TODO: if version 0 we check all string len for less than 31 bytes
 #[repr(C)]
@@ -220,91 +184,40 @@ pub struct Metadata {
     pub uri: Vec<u8>,
 }
 
-// Manual LightHasher implementation for Metadata struct
-impl light_hasher::to_byte_array::ToByteArray for Metadata {
-    const NUM_FIELDS: usize = 3;
+macro_rules! impl_metadata_hasher {
+    ($type_name:ty) => {
+        impl ToByteArray for $type_name {
+            const NUM_FIELDS: usize = 3;
 
-    fn to_byte_array(&self) -> Result<[u8; 32], light_hasher::HasherError> {
-        light_hasher::DataHasher::hash::<light_hasher::Poseidon>(self)
-    }
+            fn to_byte_array(&self) -> Result<[u8; 32], light_hasher::HasherError> {
+                DataHasher::hash::<light_hasher::Poseidon>(self)
+            }
+        }
+
+        impl DataHasher for $type_name {
+            fn hash<H>(&self) -> Result<[u8; 32], light_hasher::HasherError>
+            where
+                H: light_hasher::Hasher,
+            {
+                use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
+
+                let name_hash = hash_to_bn254_field_size_be(self.name.as_ref());
+                let symbol_hash = hash_to_bn254_field_size_be(self.symbol.as_ref());
+                let uri_hash = hash_to_bn254_field_size_be(self.uri.as_ref());
+
+                H::hashv(&[
+                    name_hash.as_slice(),
+                    symbol_hash.as_slice(),
+                    uri_hash.as_slice(),
+                ])
+            }
+        }
+    };
 }
 
-impl light_hasher::DataHasher for Metadata {
-    fn hash<H>(&self) -> Result<[u8; 32], light_hasher::HasherError>
-    where
-        H: light_hasher::Hasher,
-    {
-        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
-
-        // Hash each Vec<u8> field using as_slice() and hash_to_bn254_field_size_be for consistency
-        let name_hash = hash_to_bn254_field_size_be(self.name.as_slice());
-        let symbol_hash = hash_to_bn254_field_size_be(self.symbol.as_slice());
-        let uri_hash = hash_to_bn254_field_size_be(self.uri.as_slice());
-
-        H::hashv(&[
-            name_hash.as_slice(),
-            symbol_hash.as_slice(),
-            uri_hash.as_slice(),
-        ])
-    }
-}
-
-// Manual LightHasher implementation for ZMetadata ZStruct
-impl light_hasher::to_byte_array::ToByteArray for ZMetadata<'_> {
-    const NUM_FIELDS: usize = 3;
-
-    fn to_byte_array(&self) -> Result<[u8; 32], light_hasher::HasherError> {
-        light_hasher::DataHasher::hash::<light_hasher::Poseidon>(self)
-    }
-}
-
-impl light_hasher::DataHasher for ZMetadata<'_> {
-    fn hash<H>(&self) -> Result<[u8; 32], light_hasher::HasherError>
-    where
-        H: light_hasher::Hasher,
-    {
-        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
-
-        // Hash each &[u8] slice field using hash_to_bn254_field_size_be for consistency
-        let name_hash = hash_to_bn254_field_size_be(self.name);
-        let symbol_hash = hash_to_bn254_field_size_be(self.symbol);
-        let uri_hash = hash_to_bn254_field_size_be(self.uri);
-
-        H::hashv(&[
-            name_hash.as_slice(),
-            symbol_hash.as_slice(),
-            uri_hash.as_slice(),
-        ])
-    }
-}
-
-impl light_hasher::to_byte_array::ToByteArray for ZMetadataMut<'_> {
-    const NUM_FIELDS: usize = 3;
-
-    fn to_byte_array(&self) -> Result<[u8; 32], light_hasher::HasherError> {
-        light_hasher::DataHasher::hash::<light_hasher::Poseidon>(self)
-    }
-}
-
-impl light_hasher::DataHasher for ZMetadataMut<'_> {
-    fn hash<H>(&self) -> Result<[u8; 32], light_hasher::HasherError>
-    where
-        H: light_hasher::Hasher,
-    {
-        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
-
-        // Hash each &[u8] slice field using hash_to_bn254_field_size_be for consistency
-        let name_hash = hash_to_bn254_field_size_be(self.name);
-        let symbol_hash = hash_to_bn254_field_size_be(self.symbol);
-        let uri_hash = hash_to_bn254_field_size_be(self.uri);
-
-        H::hashv(&[
-            name_hash.as_slice(),
-            symbol_hash.as_slice(),
-            uri_hash.as_slice(),
-        ])
-    }
-}
+impl_metadata_hasher!(Metadata);
+impl_metadata_hasher!(ZMetadata<'_>);
+impl_metadata_hasher!(ZMetadataMut<'_>);
 
 #[repr(C)]
 #[derive(

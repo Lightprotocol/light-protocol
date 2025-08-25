@@ -1,3 +1,4 @@
+#![cfg(feature = "anchor")]
 use anchor_lang::{
     prelude::{borsh, Pubkey},
     AnchorDeserialize, AnchorSerialize,

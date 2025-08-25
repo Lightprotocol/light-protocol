@@ -1,4 +1,4 @@
-use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
+use light_compressed_account::Pubkey;
 use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher, Poseidon};
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopy, ZeroCopyMut};
 use solana_msg::msg;
@@ -42,15 +42,19 @@ pub struct CompressedMint {
 // use nested token metadata layout for data extension
 impl CompressedMint {
     #[allow(dead_code)]
-    pub fn hash(&self) -> std::result::Result<[u8; 32], CTokenError> {
-        let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
+    pub fn hash(&self) -> Result<[u8; 32], CTokenError> {
+        let mut hash_cache = HashCache::new();
+        self.hash_with_cache(&mut hash_cache)
+    }
+
+    pub fn hash_with_cache(&self, hash_cache: &mut HashCache) -> Result<[u8; 32], CTokenError> {
+        let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
         supply_bytes[24..].copy_from_slice(self.supply.to_be_bytes().as_slice());
 
         let hashed_mint_authority;
         let hashed_mint_authority_option = if let Some(mint_authority) = self.mint_authority {
-            hashed_mint_authority =
-                hash_to_bn254_field_size_be(mint_authority.to_bytes().as_slice());
+            hashed_mint_authority = hash_cache.get_or_hash_pubkey(&mint_authority.into());
             Some(&hashed_mint_authority)
         } else {
             None
@@ -58,8 +62,7 @@ impl CompressedMint {
 
         let hashed_freeze_authority;
         let hashed_freeze_authority_option = if let Some(freeze_authority) = self.freeze_authority {
-            hashed_freeze_authority =
-                hash_to_bn254_field_size_be(freeze_authority.to_bytes().as_slice());
+            hashed_freeze_authority = hash_cache.get_or_hash_pubkey(&freeze_authority.into());
             Some(&hashed_freeze_authority)
         } else {
             None
@@ -74,7 +77,7 @@ impl CompressedMint {
             &hashed_freeze_authority_option,
             self.version,
         )?;
-        // TODO: consider to make hasher generic. could use version for that.
+
         if let Some(extensions) = self.extensions.as_ref() {
             let mut extension_hashchain = [0u8; 32];
             for extension in extensions {
@@ -124,7 +127,7 @@ impl CompressedMint {
         hashed_mint_authority: &Option<&[u8; 32]>,
         hashed_freeze_authority: &Option<&[u8; 32]>,
         version: u8,
-    ) -> std::result::Result<[u8; 32], CTokenError> {
+    ) -> Result<[u8; 32], CTokenError> {
         if version == 0 {
             Ok(CompressedMint::hash_with_hashed_values_inner::<Poseidon>(
                 hashed_spl_mint,
@@ -157,7 +160,7 @@ impl CompressedMint {
         hashed_mint_authority: &Option<&[u8; 32]>,
         hashed_freeze_authority: &Option<&[u8; 32]>,
         version: u8,
-    ) -> std::result::Result<[u8; 32], HasherError> {
+    ) -> Result<[u8; 32], HasherError> {
         let mut hash_inputs = vec![hashed_spl_mint.as_slice(), supply_bytes.as_slice()];
 
         // Add decimals with prefix if not 0
@@ -206,11 +209,10 @@ impl CompressedMint {
 }
 
 impl ZCompressedMintMut<'_> {
-    pub fn hash(&self, hash_cache: &mut HashCache) -> std::result::Result<[u8; 32], CTokenError> {
+    pub fn hash(&self, hash_cache: &mut HashCache) -> Result<[u8; 32], CTokenError> {
         // let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
         let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
-        // TODO: copy from slice
         self.supply
             .as_bytes()
             .iter()
@@ -250,7 +252,6 @@ impl ZCompressedMintMut<'_> {
             &hashed_freeze_authority_option,
             self.version,
         )?;
-        msg!("mint_hash {:?}", mint_hash);
 
         // Compute extension hash chain if extensions exist
         if let Some(extensions) = self.extensions.as_ref() {
@@ -315,6 +316,7 @@ impl ZCompressedMintMut<'_> {
         }
     }
 }
+
 // Implementation for zero-copy mutable CompressedMint
 impl ZCompressedMintMut<'_> {
     /// Set all fields of the CompressedMint struct at once
@@ -329,24 +331,23 @@ impl ZCompressedMintMut<'_> {
         self.supply = ix_data.supply;
         self.decimals = ix_data.decimals;
         self.is_decompressed = if is_decompressed { 1 } else { 0 };
-        msg!("set1");
+
         if let Some(self_mint_authority) = self.mint_authority.as_deref_mut() {
             *self_mint_authority = *ix_data
                 .mint_authority
                 .ok_or(CTokenError::InstructionDataExpectedMintAuthority)?;
         }
-        msg!("set2");
+
         if self.mint_authority.is_some() && ix_data.mint_authority.is_none() {
             return Err(CTokenError::ZeroCopyExpectedMintAuthority);
         }
-        msg!("set3");
 
         if let Some(self_freeze_authority) = self.freeze_authority.as_deref_mut() {
             *self_freeze_authority = *ix_data
                 .freeze_authority
                 .ok_or(CTokenError::InstructionDataExpectedFreezeAuthority)?;
         }
-        msg!("set4");
+
         if self.freeze_authority.is_some() && ix_data.freeze_authority.is_none() {
             return Err(CTokenError::ZeroCopyExpectedFreezeAuthority);
         }

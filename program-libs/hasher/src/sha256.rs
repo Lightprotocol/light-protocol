@@ -49,7 +49,7 @@ impl Hasher for Sha256 {
         ZERO_INDEXED_LEAF
     }
 }
-
+/// Sha256 hash that is truncated to 248 be bit
 #[derive(Clone, Copy)] // To allow using with zero copy Solana accounts.
 pub struct Sha256BE;
 
