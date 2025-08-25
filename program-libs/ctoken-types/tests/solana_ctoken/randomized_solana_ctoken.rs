@@ -87,7 +87,7 @@ fn create_spl_data(data: &RandomTokenData) -> Vec<u8> {
         },
         is_native: data
             .is_native
-            .map(|n| spl_pod::solana_program_option::COption::Some(n))
+            .map(spl_pod::solana_program_option::COption::Some)
             .unwrap_or(spl_pod::solana_program_option::COption::None),
         delegated_amount: data.delegated_amount,
         close_authority: data

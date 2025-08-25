@@ -146,9 +146,9 @@ fn test_rnd_create_input_compressed_account() {
                 amount,
                 delegate: expected_delegate.map(|d| d.into()),
                 state: if is_frozen {
-                    AccountState::Frozen
+                    AccountState::Frozen as u8
                 } else {
-                    AccountState::Initialized
+                    AccountState::Initialized as u8
                 },
                 tlv: None,
             };

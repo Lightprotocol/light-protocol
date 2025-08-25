@@ -2,7 +2,10 @@ use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_token_sdk::instructions::find_spl_mint_address;
 use light_ctoken_types::instructions::mint_action::Recipient;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::{airdrop_lamports, assert_transfer2::{assert_transfer2, assert_transfer2_with_delegate}};
+use light_test_utils::{
+    airdrop_lamports,
+    assert_transfer2::{assert_transfer2, assert_transfer2_with_delegate},
+};
 use light_token_client::{
     actions::{create_mint, mint_to_compressed, transfer2},
     instructions::transfer2::{Transfer2InstructionType, TransferInput},
@@ -158,10 +161,13 @@ async fn test_transfer2_delegated_partial() {
         .unwrap()
         .value
         .items;
-    
+
     let remaining_delegated_account = accounts_after_delegate
         .into_iter()
-        .find(|acc| acc.token.delegate == Some(delegate) && acc.token.amount == (delegate_amount - transfer_amount))
+        .find(|acc| {
+            acc.token.delegate == Some(delegate)
+                && acc.token.amount == (delegate_amount - transfer_amount)
+        })
         .expect("Should find remaining delegated account with delegate still set");
 
     // Now have the OWNER transfer the remaining delegated tokens

@@ -84,13 +84,12 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
                     // Determine if delegate should be preserved in change account
                     // If delegate is transferring (is_delegate_transfer = true), preserve the delegate
                     // If owner is transferring, clear the delegate
-                    let expected_delegate = if transfer_input.is_delegate_transfer && source_delegate.is_some() {
-                        source_delegate  // Preserve delegate if they are performing the transfer
-                    } else if !transfer_input.is_delegate_transfer {
-                        None  // Clear delegate if owner is transferring
-                    } else {
-                        None  // No delegate to preserve
-                    };
+                    let expected_delegate =
+                        if transfer_input.is_delegate_transfer && source_delegate.is_some() {
+                            source_delegate // Preserve delegate if they are performing the transfer
+                        } else {
+                            None // No delegate to preserve
+                        };
 
                     let expected_change_token = light_sdk::token::TokenData {
                         mint: source_mint,

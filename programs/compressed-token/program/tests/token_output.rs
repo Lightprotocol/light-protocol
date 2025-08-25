@@ -131,7 +131,7 @@ fn test_rnd_create_output_compressed_accounts() {
                 owner: owner_pubkeys[i],
                 amount: amounts[i],
                 delegate: token_delegate,
-                state: AccountState::Initialized,
+                state: AccountState::Initialized as u8,
                 tlv: None,
             };
             let data_hash = token_data.hash().unwrap();

@@ -3,8 +3,10 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
-use light_ctoken_types::state::{AccountState, TokenData, TokenDataConfig};
-use light_ctoken_types::{hash_cache::HashCache, state::TokenDataVersion};
+use light_ctoken_types::{
+    hash_cache::HashCache,
+    state::{AccountState, TokenData, TokenDataConfig, TokenDataVersion},
+};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 
 /// 1. Set token account data

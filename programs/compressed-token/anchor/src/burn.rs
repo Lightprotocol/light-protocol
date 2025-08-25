@@ -419,7 +419,7 @@ mod test {
                     owner: authority.into(),
                     amount: change_amount,
                     delegate: None,
-                    state: AccountState::Initialized,
+                    state: AccountState::Initialized as u8,
                     tlv: None,
                 };
                 let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -526,7 +526,7 @@ mod test {
                 owner: authority.into(),
                 amount: sum_inputs - burn_amount,
                 delegate: None,
-                state: AccountState::Initialized,
+                state: AccountState::Initialized as u8,
                 tlv: None,
             };
             let expected_compressed_output_accounts =
@@ -658,7 +658,7 @@ mod test {
                 owner: invalid_authority.into(),
                 amount: 50,
                 delegate: None,
-                state: AccountState::Initialized,
+                state: AccountState::Initialized as u8,
                 tlv: None,
             };
             let expected_compressed_output_accounts =
@@ -709,7 +709,7 @@ mod test {
                 owner: authority.into(),
                 amount: 50,
                 delegate: None,
-                state: AccountState::Initialized,
+                state: AccountState::Initialized as u8,
                 tlv: None,
             };
             let expected_compressed_output_accounts =
