@@ -11,6 +11,7 @@ pub const COMPRESSED_TOKEN_CPI_AUTHORITY: Pubkey =
 pub mod compressed_token {
     use light_client::indexer::TreeInfo;
     use light_compressed_account::address::derive_address;
+    use light_compressed_token_sdk::POOL_SEED;
     use solana_pubkey::Pubkey;
 
     use super::{COMPRESSED_TOKEN_CPI_AUTHORITY, COMPRESSED_TOKEN_PROGRAM_ID};
@@ -24,6 +25,10 @@ pub mod compressed_token {
     /// Return the cpi authority pda of the Compressed Token Program.
     pub fn cpi_authority() -> Pubkey {
         COMPRESSED_TOKEN_CPI_AUTHORITY
+    }
+
+    pub fn get_token_pool_address_and_bump(mint: &Pubkey) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[POOL_SEED, mint.as_ref()], &COMPRESSED_TOKEN_PROGRAM_ID)
     }
     /// Returns the associated ctoken address for a given owner and mint.
     pub fn get_associated_ctoken_address(owner: &Pubkey, mint: &Pubkey) -> Pubkey {
@@ -60,13 +65,10 @@ pub mod compressed_token {
         )
     }
 
-    pub fn derive_compressed_mint_address(
-        mint_address: Pubkey,
-        address_tree_info: &TreeInfo,
-    ) -> [u8; 32] {
+    pub fn derive_compressed_mint_address(mint_address: Pubkey, address_tree: &Pubkey) -> [u8; 32] {
         derive_address(
             &mint_address.to_bytes(),
-            &address_tree_info.tree.to_bytes(),
+            &address_tree.to_bytes(),
             &ID.to_bytes(),
         )
     }
