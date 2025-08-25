@@ -1,7 +1,7 @@
 {
   "devDependencies": {
     "husky": "^9.1.7",
-    "nx": "^20.8.1",
+    "nx": "^21.4.1",
     "playwright": "^1.54.2",
     "prettier": "^3.6.2",
     "snarkjs": "^0.7.5",
