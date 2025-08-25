@@ -8,48 +8,6 @@ use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
 use zerocopy::Ref;
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
-// TODO: move to token data
-#[repr(u8)]
-pub enum TokenAccountVersion {
-    V1 = 1u8,
-    V2 = 2u8,
-}
-
-impl TokenAccountVersion {
-    pub fn discriminator(&self) -> [u8; 8] {
-        match self {
-            TokenAccountVersion::V1 => [2, 0, 0, 0, 0, 0, 0, 0], // 2 le
-            TokenAccountVersion::V2 => [0, 0, 0, 0, 0, 0, 0, 3], // 3 be
-        }
-    }
-
-    /// Serializes amount to bytes using version-specific endianness
-    /// V1: little-endian, V2: big-endian
-    pub fn serialize_amount_bytes(&self, amount: u64) -> [u8; 32] {
-        let mut amount_bytes = [0u8; 32];
-        match self {
-            TokenAccountVersion::V1 => {
-                amount_bytes[24..].copy_from_slice(&amount.to_le_bytes());
-            }
-            TokenAccountVersion::V2 => {
-                amount_bytes[24..].copy_from_slice(&amount.to_be_bytes());
-            }
-        }
-        amount_bytes
-    }
-}
-
-impl TryFrom<u8> for TokenAccountVersion {
-    type Error = crate::CTokenError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(TokenAccountVersion::V1),
-            2 => Ok(TokenAccountVersion::V2),
-            _ => Err(crate::CTokenError::InvalidTokenDataVersion),
-        }
-    }
-}
 
 #[repr(C)]
 #[derive(

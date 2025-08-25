@@ -2,8 +2,8 @@ use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
-    hash_cache::HashCache,
-    instructions::transfer2::{TokenAccountVersion, ZMultiInputTokenDataWithContext},
+    hash_cache::HashCache, instructions::transfer2::ZMultiInputTokenDataWithContext,
+    state::TokenDataVersion,
 };
 use pinocchio::account_info::AccountInfo;
 
@@ -41,7 +41,7 @@ pub fn set_input_compressed_account<const IS_FROZEN: bool>(
     let mint_account = &accounts[input_token_data.mint as usize];
     let hashed_mint = hash_cache.get_or_hash_mint(mint_account.key())?;
 
-    let version = TokenAccountVersion::try_from(input_token_data.version)?;
+    let version = TokenDataVersion::try_from(input_token_data.version)?;
     let amount_bytes = version.serialize_amount_bytes(input_token_data.amount.get());
 
     let data_hash = if !IS_FROZEN {

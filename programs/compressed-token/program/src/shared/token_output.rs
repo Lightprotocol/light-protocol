@@ -7,7 +7,7 @@ use anchor_lang::{
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
-use light_ctoken_types::{hash_cache::HashCache, instructions::transfer2::TokenAccountVersion};
+use light_ctoken_types::{hash_cache::HashCache, state::TokenDataVersion};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyMut, ZeroCopyNew};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -108,7 +108,7 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
             AccountState::Initialized,
         )?;
     }
-    let token_version = TokenAccountVersion::try_from(version)?;
+    let token_version = TokenDataVersion::try_from(version)?;
     // 2. Create TokenData using zero-copy to compute the data hash
     let data_hash = {
         let hashed_owner = hash_cache.get_or_hash_pubkey(&owner.into());
