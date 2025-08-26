@@ -1,15 +1,13 @@
-use anchor_lang::{prelude::msg, solana_program::program_error::ProgramError};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::ZMintActionCompressedInstructionData,
-    state::CompressedMint, CTokenError,
+    state::compute_compressed_mint_hash_from_values,
 };
-use light_hasher::{sha256::Sha256BE, Hasher, Poseidon};
 use light_sdk::instruction::PackedMerkleContext;
+use zerocopy::IntoBytes;
 
-use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR, extensions::processor::create_extension_hash_chain,
-};
+use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;
 /// Creates and validates an input compressed mint account.
 /// This function follows the same pattern as create_output_compressed_mint_account
 /// but processes existing compressed mint accounts as inputs.
@@ -26,66 +24,19 @@ pub fn create_input_compressed_mint_account(
     merkle_context: PackedMerkleContext,
 ) -> Result<(), ProgramError> {
     let mint = &mint_instruction_data.mint;
-    msg!("input mint: {:?}", mint);
-    // 1. Compute data hash using HashCache for caching
-    let data_hash = {
-        let hashed_spl_mint = hash_cache
-            .get_or_hash_mint(&mint.spl_mint.into())
-            .map_err(ProgramError::from)?;
-        let mut supply_bytes = [0u8; 32];
-        supply_bytes[24..].copy_from_slice(mint.supply.get().to_be_bytes().as_slice());
-
-        let hashed_mint_authority = mint
-            .mint_authority
-            .map(|pubkey| hash_cache.get_or_hash_pubkey(&pubkey.to_bytes()));
-        let hashed_freeze_authority = mint
-            .freeze_authority
-            .map(|pubkey| hash_cache.get_or_hash_pubkey(&pubkey.to_bytes()));
-
-        // Compute the data hash using the CompressedMint hash function
-        let data_hash = CompressedMint::hash_with_hashed_values(
-            &hashed_spl_mint,
-            &supply_bytes,
-            mint.decimals,
-            mint.is_decompressed(),
-            &hashed_mint_authority.as_ref(),
-            &hashed_freeze_authority.as_ref(),
-            mint.version,
-        )?;
-        msg!("in data_hash {:?}", data_hash);
-
-        let extension_hashchain =
-            mint_instruction_data
-                .mint
-                .extensions
-                .as_ref()
-                .map(|extensions| {
-                    create_extension_hash_chain(
-                        extensions,
-                        &hashed_spl_mint,
-                        hash_cache,
-                        mint.version,
-                    )
-                });
-        msg!("in extension hashchain {:?}", extension_hashchain);
-        if let Some(extension_hashchain) = extension_hashchain {
-            if mint.version == 0 {
-                Poseidon::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?
-            } else if mint.version == 1 {
-                Sha256BE::hashv(&[data_hash.as_slice(), extension_hashchain?.as_slice()])?
-            } else {
-                return Err(ProgramError::from(CTokenError::InvalidTokenDataVersion));
-            }
-        } else if mint.version == 0 {
-            data_hash
-        } else if mint.version == 1 {
-            let mut hash = data_hash;
-            hash[0] = 0;
-            hash
-        } else {
-            return Err(ProgramError::from(CTokenError::InvalidTokenDataVersion));
-        }
-    };
+    // 1. Compute data hash using unified function
+    let data_hash = compute_compressed_mint_hash_from_values(
+        mint.spl_mint,
+        mint.supply.as_bytes(),
+        mint.decimals,
+        mint.is_decompressed(),
+        mint.mint_authority.map(|x| *x),
+        mint.freeze_authority.map(|x| *x),
+        mint.version,
+        mint_instruction_data.mint.extensions.as_deref(),
+        hash_cache,
+    )
+    .map_err(ProgramError::from)?;
 
     // 2. Set InAccount fields
     input_compressed_account.set(

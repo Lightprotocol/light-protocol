@@ -3,10 +3,11 @@ use light_zero_copy::ZeroCopy;
 use spl_pod::solana_msg::msg;
 
 use crate::{
+    hash_cache::HashCache,
     state::extensions::{
         CompressibleExtension, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut,
     },
-    AnchorDeserialize, AnchorSerialize, CTokenError,
+    AnchorDeserialize, AnchorSerialize, CTokenError, HashableExtension,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
@@ -235,5 +236,25 @@ impl ZExtensionStructMut<'_> {
             }
             _ => Err(CTokenError::UnsupportedExtension),
         }
+    }
+}
+
+impl HashableExtension<CTokenError> for ExtensionStruct {
+    fn hash_with_hasher<H: Hasher>(
+        &self,
+        _hashed_spl_mint: &[u8; 32],
+        _hash_cache: &mut HashCache,
+    ) -> Result<[u8; 32], CTokenError> {
+        self.hash::<H>()
+    }
+}
+
+impl HashableExtension<CTokenError> for ZExtensionStructMut<'_> {
+    fn hash_with_hasher<H: Hasher>(
+        &self,
+        _hashed_spl_mint: &[u8; 32],
+        _hash_cache: &mut HashCache,
+    ) -> Result<[u8; 32], CTokenError> {
+        self.hash::<H>()
     }
 }

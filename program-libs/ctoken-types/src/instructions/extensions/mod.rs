@@ -7,6 +7,7 @@ pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstruction
 
 use crate::{
     hash_cache::HashCache, state::Version, AnchorDeserialize, AnchorSerialize, CTokenError,
+    HashableExtension,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
@@ -73,6 +74,21 @@ impl ZExtensionInstructionData<'_> {
                     } // Version::Keccak256 => <Self as DataHasher>::hash::<Keccak>(self),
                       // Version::Sha256Flat => self.sha_flat(),
                 }
+            }
+            _ => Err(CTokenError::UnsupportedExtension),
+        }
+    }
+}
+
+impl HashableExtension<CTokenError> for ZExtensionInstructionData<'_> {
+    fn hash_with_hasher<H: Hasher>(
+        &self,
+        hashed_spl_mint: &[u8; 32],
+        hash_cache: &mut HashCache,
+    ) -> Result<[u8; 32], CTokenError> {
+        match self {
+            ZExtensionInstructionData::TokenMetadata(token_metadata) => {
+                token_metadata.hash_token_metadata::<H>(hashed_spl_mint, hash_cache)
             }
             _ => Err(CTokenError::UnsupportedExtension),
         }

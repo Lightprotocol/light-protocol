@@ -42,86 +42,120 @@ macro_rules! impl_compressed_mint_hash {
         $is_decompressed:expr
         $(,$deref_op:tt)?
     ) => {{
-        let hashed_spl_mint = $hash_cache.get_or_hash_mint(&$self.spl_mint.into())?;
-        let mut supply_bytes = [0u8; 32];
-        $self.supply
-            .as_bytes()
-            .iter()
-            .rev()
-            .zip(supply_bytes[24..].iter_mut())
-            .for_each(|(x, y)| *y = *x);
+        // Extract authority values with optional dereferencing
+        let mint_authority = $self.mint_authority.as_ref().map(|auth| ($($deref_op)?auth).clone());
+        let freeze_authority = $self.freeze_authority.as_ref().map(|auth| ($($deref_op)?auth).clone());
 
-        let hashed_mint_authority;
-        let hashed_mint_authority_option =
-            if let Some(mint_authority) = $self.mint_authority.as_ref() {
-                hashed_mint_authority = $hash_cache.get_or_hash_pubkey(&($($deref_op)?mint_authority).to_bytes());
-                Some(&hashed_mint_authority)
-            } else {
-                None
-            };
-
-        let hashed_freeze_authority;
-        let hashed_freeze_authority_option = if let Some(freeze_authority) =
-            $self.freeze_authority.as_ref()
-        {
-            hashed_freeze_authority = $hash_cache.get_or_hash_pubkey(&($($deref_op)?freeze_authority).to_bytes());
-            Some(&hashed_freeze_authority)
-        } else {
-            None
-        };
-
-        let mint_hash = CompressedMint::hash_with_hashed_values(
-            &hashed_spl_mint,
-            &supply_bytes,
+        // Call unified function
+        compute_compressed_mint_hash_from_values(
+            $self.spl_mint,
+            $self.supply.as_bytes(),
             $self.decimals,
             $is_decompressed,
-            &hashed_mint_authority_option,
-            &hashed_freeze_authority_option,
+            mint_authority,
+            freeze_authority,
             $self.version,
-        )?;
-
-        if let Some(extensions) = $self.extensions.as_ref() {
-            let mut extension_hashchain = [0u8; 32];
-            for extension in extensions.as_slice() {
-                let extension_hash = if $self.version == 0 {
-                    extension.hash::<Poseidon>()?
-                } else if $self.version == 1 {
-                    extension.hash::<Sha256BE>()?
-                } else {
-                    return Err(CTokenError::InvalidTokenDataVersion);
-                };
-
-                if $self.version == 0 {
-                    extension_hashchain = Poseidon::hashv(&[
-                        extension_hashchain.as_slice(),
-                        extension_hash.as_slice(),
-                    ])?;
-                } else if $self.version == 1 {
-                    extension_hashchain = Sha256BE::hashv(&[
-                        extension_hashchain.as_slice(),
-                        extension_hash.as_slice(),
-                    ])?;
-                } else {
-                    return Err(CTokenError::InvalidTokenDataVersion);
-                }
-            }
-            if $self.version == 0 {
-                Ok(Poseidon::hashv(&[
-                    mint_hash.as_slice(),
-                    extension_hashchain.as_slice(),
-                ])?)
-            } else if $self.version == 1 {
-                Ok(Sha256BE::hashv(&[
-                    mint_hash.as_slice(),
-                    extension_hashchain.as_slice(),
-                ])?)
-            } else {
-                return Err(CTokenError::InvalidTokenDataVersion);
-            }
-        } else {
-            Ok(mint_hash)
-        }
+            $self.extensions.as_ref().map(|e| e.as_slice()),
+            $hash_cache,
+        )
     }};
+}
+
+/// Unified function to compute compressed mint hash from extracted values.
+/// This function contains the core logic that was previously duplicated
+/// in both the macro and instruction processing code.
+#[allow(clippy::too_many_arguments)]
+pub fn compute_compressed_mint_hash_from_values<ExtType, E>(
+    spl_mint: light_compressed_account::Pubkey,
+    supply_bytes: &[u8],
+    decimals: u8,
+    is_decompressed: bool,
+    mint_authority: Option<light_compressed_account::Pubkey>,
+    freeze_authority: Option<light_compressed_account::Pubkey>,
+    version: u8,
+    extensions: Option<&[ExtType]>,
+    hash_cache: &mut HashCache,
+) -> Result<[u8; 32], E>
+where
+    ExtType: crate::HashableExtension<E>,
+    E: From<HasherError> + From<CTokenError>,
+{
+    // 1. Get cached hashes for common values
+    let hashed_spl_mint = hash_cache
+        .get_or_hash_mint(&spl_mint.into())
+        .map_err(E::from)?;
+
+    // 2. Convert supply bytes to 32-byte array (big-endian, right-aligned)
+    let mut supply_bytes_32 = [0u8; 32];
+    supply_bytes
+        .iter()
+        .rev()
+        .zip(supply_bytes_32[24..].iter_mut())
+        .for_each(|(x, y)| *y = *x);
+
+    // 3. Hash authorities if present
+    let hashed_mint_authority;
+    let hashed_mint_authority_option = if let Some(mint_authority) = mint_authority.as_ref() {
+        hashed_mint_authority = hash_cache.get_or_hash_pubkey(&mint_authority.to_bytes());
+        Some(&hashed_mint_authority)
+    } else {
+        None
+    };
+
+    let hashed_freeze_authority;
+    let hashed_freeze_authority_option = if let Some(freeze_authority) = freeze_authority.as_ref() {
+        hashed_freeze_authority = hash_cache.get_or_hash_pubkey(&freeze_authority.to_bytes());
+        Some(&hashed_freeze_authority)
+    } else {
+        None
+    };
+
+    // 4. Compute base mint hash using existing function
+    let mint_hash = CompressedMint::hash_with_hashed_values(
+        &hashed_spl_mint,
+        &supply_bytes_32,
+        decimals,
+        is_decompressed,
+        &hashed_mint_authority_option,
+        &hashed_freeze_authority_option,
+        version,
+    )
+    .map_err(E::from)?;
+
+    // 5. Handle extensions if present
+    if let Some(extensions) = extensions {
+        let mut extension_hashchain = [0u8; 32];
+        for extension in extensions {
+            let extension_hash = if version == 0 {
+                extension.hash_with_hasher::<Poseidon>(&hashed_spl_mint, hash_cache)
+            } else if version == 1 {
+                extension.hash_with_hasher::<Sha256BE>(&hashed_spl_mint, hash_cache)
+            } else {
+                Err(CTokenError::InvalidTokenDataVersion.into())
+            };
+            extension_hashchain = match version {
+                0 => {
+                    Poseidon::hashv(&[extension_hashchain.as_slice(), extension_hash?.as_slice()])?
+                }
+                1 => {
+                    Sha256BE::hashv(&[extension_hashchain.as_slice(), extension_hash?.as_slice()])?
+                }
+                _ => return Err(CTokenError::InvalidTokenDataVersion.into()),
+            };
+        }
+
+        // 6. Combine mint hash with extension hashchain
+        let final_hash = if version == 0 {
+            Poseidon::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])?
+        } else if version == 1 {
+            Sha256BE::hashv(&[mint_hash.as_slice(), extension_hashchain.as_slice()])?
+        } else {
+            return Err(CTokenError::InvalidTokenDataVersion.into());
+        };
+        Ok(final_hash)
+    } else {
+        Ok(mint_hash)
+    }
 }
 
 // TODO: unify code if possible
