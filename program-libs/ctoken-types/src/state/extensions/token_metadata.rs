@@ -130,7 +130,13 @@ pub fn token_metadata_hash<H: light_hasher::Hasher>(
     additional_metadata: &[(&[u8], &[u8])],
     version: u8,
 ) -> Result<[u8; 32], HasherError> {
-    token_metadata_hash_inner::<H, false>(update_authority, mint, metadata_hash, additional_metadata, version)
+    token_metadata_hash_inner::<H, false>(
+        update_authority,
+        mint,
+        metadata_hash,
+        additional_metadata,
+        version,
+    )
 }
 
 pub fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
@@ -140,7 +146,13 @@ pub fn token_metadata_hash_with_hashed_values<H: light_hasher::Hasher>(
     additional_metadata: &[(&[u8], &[u8])],
     version: u8,
 ) -> Result<[u8; 32], HasherError> {
-    token_metadata_hash_inner::<H, true>(hashed_update_authority, hashed_mint, metadata_hash, additional_metadata, version)
+    token_metadata_hash_inner::<H, true>(
+        hashed_update_authority,
+        hashed_mint,
+        metadata_hash,
+        additional_metadata,
+        version,
+    )
 }
 
 macro_rules! impl_token_metadata_hasher {

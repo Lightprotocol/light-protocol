@@ -1,14 +1,11 @@
 use light_compressed_account::Pubkey;
 use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher, Poseidon};
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopy, ZeroCopyMut};
-use solana_msg::msg;
 use zerocopy::IntoBytes;
 
 use crate::{
-    hash_cache::HashCache,
-    instructions::mint_action::CompressedMintInstructionData,
-    state::{ExtensionStruct, ZExtensionStructMut},
-    AnchorDeserialize, AnchorSerialize, CTokenError,
+    hash_cache::HashCache, instructions::mint_action::CompressedMintInstructionData,
+    state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
 // Order is optimized for hashing.
@@ -38,19 +35,16 @@ pub struct CompressedMint {
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 
-// TODO: unify code if possible
-// use nested token metadata layout for data extension
-impl CompressedMint {
-    #[allow(dead_code)]
-    pub fn hash(&self) -> Result<[u8; 32], CTokenError> {
-        let mut hash_cache = HashCache::new();
-        self.hash_with_cache(&mut hash_cache)
-    }
-
-    pub fn hash_with_cache(&self, hash_cache: &mut HashCache) -> Result<[u8; 32], CTokenError> {
-        let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
+macro_rules! impl_compressed_mint_hash {
+    (
+        $self:ident,
+        $hash_cache:ident,
+        $is_decompressed:expr
+        $(,$deref_op:tt)?
+    ) => {{
+        let hashed_spl_mint = $hash_cache.get_or_hash_mint(&$self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
-        self.supply
+        $self.supply
             .as_bytes()
             .iter()
             .rev()
@@ -59,8 +53,8 @@ impl CompressedMint {
 
         let hashed_mint_authority;
         let hashed_mint_authority_option =
-            if let Some(mint_authority) = self.mint_authority.as_ref() {
-                hashed_mint_authority = hash_cache.get_or_hash_pubkey(&mint_authority.to_bytes());
+            if let Some(mint_authority) = $self.mint_authority.as_ref() {
+                hashed_mint_authority = $hash_cache.get_or_hash_pubkey(&($($deref_op)?mint_authority).to_bytes());
                 Some(&hashed_mint_authority)
             } else {
                 None
@@ -68,9 +62,9 @@ impl CompressedMint {
 
         let hashed_freeze_authority;
         let hashed_freeze_authority_option = if let Some(freeze_authority) =
-            self.freeze_authority.as_ref()
+            $self.freeze_authority.as_ref()
         {
-            hashed_freeze_authority = hash_cache.get_or_hash_pubkey(&freeze_authority.to_bytes());
+            hashed_freeze_authority = $hash_cache.get_or_hash_pubkey(&($($deref_op)?freeze_authority).to_bytes());
             Some(&hashed_freeze_authority)
         } else {
             None
@@ -79,36 +73,44 @@ impl CompressedMint {
         let mint_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
             &supply_bytes,
-            self.decimals,
-            self.is_decompressed,
+            $self.decimals,
+            $is_decompressed,
             &hashed_mint_authority_option,
             &hashed_freeze_authority_option,
-            self.version,
+            $self.version,
         )?;
 
-        if let Some(extensions) = self.extensions.as_ref() {
+        if let Some(extensions) = $self.extensions.as_ref() {
             let mut extension_hashchain = [0u8; 32];
             for extension in extensions.as_slice() {
-                if self.version == 0 {
+                let extension_hash = if $self.version == 0 {
+                    extension.hash::<Poseidon>()?
+                } else if $self.version == 1 {
+                    extension.hash::<Sha256BE>()?
+                } else {
+                    return Err(CTokenError::InvalidTokenDataVersion);
+                };
+
+                if $self.version == 0 {
                     extension_hashchain = Poseidon::hashv(&[
                         extension_hashchain.as_slice(),
-                        extension.hash::<Poseidon>()?.as_slice(),
+                        extension_hash.as_slice(),
                     ])?;
-                } else if self.version == 1 {
+                } else if $self.version == 1 {
                     extension_hashchain = Sha256BE::hashv(&[
                         extension_hashchain.as_slice(),
-                        extension.hash::<Sha256BE>()?.as_slice(),
+                        extension_hash.as_slice(),
                     ])?;
                 } else {
                     return Err(CTokenError::InvalidTokenDataVersion);
                 }
             }
-            if self.version == 0 {
+            if $self.version == 0 {
                 Ok(Poseidon::hashv(&[
                     mint_hash.as_slice(),
                     extension_hashchain.as_slice(),
                 ])?)
-            } else if self.version == 1 {
+            } else if $self.version == 1 {
                 Ok(Sha256BE::hashv(&[
                     mint_hash.as_slice(),
                     extension_hashchain.as_slice(),
@@ -119,6 +121,20 @@ impl CompressedMint {
         } else {
             Ok(mint_hash)
         }
+    }};
+}
+
+// TODO: unify code if possible
+// use nested token metadata layout for data extension
+impl CompressedMint {
+    #[allow(dead_code)]
+    pub fn hash(&self) -> Result<[u8; 32], CTokenError> {
+        let mut hash_cache = HashCache::new();
+        self.hash_with_cache(&mut hash_cache)
+    }
+
+    pub fn hash_with_cache(&self, hash_cache: &mut HashCache) -> Result<[u8; 32], CTokenError> {
+        impl_compressed_mint_hash!(self, hash_cache, self.is_decompressed)
     }
 
     pub fn hash_with_hashed_values(
@@ -163,14 +179,20 @@ impl CompressedMint {
         hashed_freeze_authority: &Option<&[u8; 32]>,
         version: u8,
     ) -> Result<[u8; 32], HasherError> {
-        let mut hash_inputs = vec![hashed_spl_mint.as_slice(), supply_bytes.as_slice()];
+        // Note: ArrayVec causes lifetime issues.
+        let mut hash_inputs: [&[u8]; 8] = [&[]; 8];
+
+        hash_inputs[0] = hashed_spl_mint.as_slice();
+        hash_inputs[1] = supply_bytes.as_slice();
+        let mut input_count = 2;
 
         // Add decimals with prefix if not 0
         let mut decimals_bytes = [0u8; 32];
         if decimals != 0 {
             decimals_bytes[30] = 1; // decimals prefix
             decimals_bytes[31] = decimals;
-            hash_inputs.push(&decimals_bytes[..]);
+            hash_inputs[input_count] = &decimals_bytes[..];
+            input_count += 1;
         }
 
         // Add is_decompressed with prefix if true
@@ -178,12 +200,14 @@ impl CompressedMint {
         if is_decompressed {
             is_decompressed_bytes[30] = 2; // is_decompressed prefix
             is_decompressed_bytes[31] = 1; // true as 1
-            hash_inputs.push(&is_decompressed_bytes[..]);
+            hash_inputs[input_count] = &is_decompressed_bytes[..];
+            input_count += 1;
         }
 
         // Add mint authority if present
         if let Some(hashed_mint_authority) = hashed_mint_authority {
-            hash_inputs.push(hashed_mint_authority.as_slice());
+            hash_inputs[input_count] = hashed_mint_authority.as_slice();
+            input_count += 1;
         }
 
         // Add freeze authority if present
@@ -191,9 +215,11 @@ impl CompressedMint {
         if let Some(hashed_freeze_authority) = hashed_freeze_authority {
             // If there is freeze authority but no mint authority, add empty mint authority
             if hashed_mint_authority.is_none() {
-                hash_inputs.push(&empty_authority[..]);
+                hash_inputs[input_count] = &empty_authority[..];
+                input_count += 1;
             }
-            hash_inputs.push(hashed_freeze_authority.as_slice());
+            hash_inputs[input_count] = hashed_freeze_authority.as_slice();
+            input_count += 1;
         }
 
         // Add version with prefix if not 0
@@ -201,10 +227,11 @@ impl CompressedMint {
         if version != 0 {
             num_extensions_bytes[30] = 3; // version prefix
             num_extensions_bytes[31] = version;
-            hash_inputs.push(&num_extensions_bytes[..]);
+            hash_inputs[input_count] = &num_extensions_bytes[..];
+            input_count += 1;
         }
 
-        let hash = H::hashv(hash_inputs.as_slice())?;
+        let hash = H::hashv(&hash_inputs[..input_count])?;
 
         Ok(hash)
     }
@@ -212,98 +239,12 @@ impl CompressedMint {
 
 impl ZCompressedMintMut<'_> {
     pub fn hash(&self, hash_cache: &mut HashCache) -> Result<[u8; 32], CTokenError> {
-        let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
-        let mut supply_bytes = [0u8; 32];
-        self.supply
-            .as_bytes()
-            .iter()
-            .rev()
-            .zip(supply_bytes[24..].iter_mut())
-            .for_each(|(x, y)| *y = *x);
-
-        let hashed_mint_authority;
-        let hashed_mint_authority_option = if let Some(mint_authority) =
-            self.mint_authority.as_ref()
-        {
-            hashed_mint_authority = hash_cache.get_or_hash_pubkey(&(*mint_authority).to_bytes());
-            Some(&hashed_mint_authority)
-        } else {
-            None
-        };
-
-        let hashed_freeze_authority;
-        let hashed_freeze_authority_option =
-            if let Some(freeze_authority) = self.freeze_authority.as_ref() {
-                hashed_freeze_authority =
-                    hash_cache.get_or_hash_pubkey(&(*freeze_authority).to_bytes());
-                Some(&hashed_freeze_authority)
-            } else {
-                None
-            };
-
-        let mint_hash = CompressedMint::hash_with_hashed_values(
-            &hashed_spl_mint,
-            &supply_bytes,
-            self.decimals,
+        impl_compressed_mint_hash!(
+            self,
+            hash_cache,
             self.is_decompressed(),
-            &hashed_mint_authority_option,
-            &hashed_freeze_authority_option,
-            self.version,
-        )?;
-
-        if let Some(extensions) = self.extensions.as_ref() {
-            let mut extension_hashchain = [0u8; 32];
-            for extension in extensions.as_slice() {
-                let extension_hash = match extension {
-                    ZExtensionStructMut::TokenMetadata(token_metadata) => {
-                        if *token_metadata.version == 0 {
-                            extension.hash::<Poseidon>()?
-                        } else if *token_metadata.version == 1 {
-                            extension.hash::<Sha256BE>()?
-                        } else {
-                            return Err(CTokenError::InvalidTokenDataVersion);
-                        }
-                    }
-                    _ => return Err(CTokenError::UnsupportedExtension),
-                };
-
-                if self.version == 0 {
-                    extension_hashchain = Poseidon::hashv(&[
-                        extension_hashchain.as_slice(),
-                        extension_hash.as_slice(),
-                    ])?;
-                } else if self.version == 1 {
-                    extension_hashchain = Sha256BE::hashv(&[
-                        extension_hashchain.as_slice(),
-                        extension_hash.as_slice(),
-                    ])?;
-                } else {
-                    msg!("invalid version ");
-                    return Err(CTokenError::InvalidTokenDataVersion);
-                }
-            }
-
-            msg!(
-                "ZCompressedMintMut extension_hashchain: {:?} ",
-                extension_hashchain
-            );
-
-            if self.version == 0 {
-                Ok(Poseidon::hashv(&[
-                    mint_hash.as_slice(),
-                    extension_hashchain.as_slice(),
-                ])?)
-            } else if self.version == 1 {
-                Ok(Sha256BE::hashv(&[
-                    mint_hash.as_slice(),
-                    extension_hashchain.as_slice(),
-                ])?)
-            } else {
-                Err(CTokenError::InvalidTokenDataVersion)
-            }
-        } else {
-            Ok(mint_hash)
-        }
+            *
+        )
     }
 }
 
