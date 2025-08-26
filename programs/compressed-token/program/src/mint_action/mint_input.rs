@@ -24,6 +24,7 @@ pub fn create_input_compressed_mint_account(
     merkle_context: PackedMerkleContext,
 ) -> Result<(), ProgramError> {
     let mint = &mint_instruction_data.mint;
+
     // 1. Compute data hash using unified function
     let data_hash = compute_compressed_mint_hash_from_values(
         mint.spl_mint,

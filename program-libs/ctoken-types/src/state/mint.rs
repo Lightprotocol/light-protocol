@@ -1,6 +1,7 @@
 use light_compressed_account::Pubkey;
 use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher, Poseidon};
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopy, ZeroCopyMut};
+use solana_msg::msg;
 use zerocopy::IntoBytes;
 
 use crate::{
@@ -124,8 +125,20 @@ where
 
     // 5. Handle extensions if present
     if let Some(extensions) = extensions {
-        let mut extension_hashchain = [0u8; 32];
-        for extension in extensions {
+        let mut extension_hashchain = if let Some(first_extension) = extensions.first() {
+            if version == 0 {
+                first_extension.hash_with_hasher::<Poseidon>(&hashed_spl_mint, hash_cache)
+            } else if version == 1 {
+                first_extension.hash_with_hasher::<Sha256BE>(&hashed_spl_mint, hash_cache)
+            } else {
+                Err(CTokenError::InvalidTokenDataVersion.into())
+            }?
+        } else {
+            msg!("empty extensions");
+            return Err(CTokenError::InvalidTokenDataVersion.into());
+        };
+
+        for extension in extensions.iter().skip(1) {
             let extension_hash = if version == 0 {
                 extension.hash_with_hasher::<Poseidon>(&hashed_spl_mint, hash_cache)
             } else if version == 1 {
@@ -181,7 +194,7 @@ impl CompressedMint {
         version: u8,
     ) -> Result<[u8; 32], CTokenError> {
         if version == 0 {
-            Ok(CompressedMint::hash_with_hashed_values_inner::<Poseidon>(
+            Ok(CompressedMint::hash_with_hashed_values_generic::<Poseidon>(
                 hashed_spl_mint,
                 supply_bytes,
                 decimals,
@@ -191,7 +204,7 @@ impl CompressedMint {
                 version,
             )?)
         } else if version == 1 {
-            Ok(CompressedMint::hash_with_hashed_values_inner::<Sha256BE>(
+            Ok(CompressedMint::hash_with_hashed_values_generic::<Sha256BE>(
                 hashed_spl_mint,
                 supply_bytes,
                 decimals,
@@ -204,7 +217,8 @@ impl CompressedMint {
             Err(CTokenError::InvalidTokenDataVersion)
         }
     }
-    fn hash_with_hashed_values_inner<H: Hasher>(
+
+    fn hash_with_hashed_values_generic<H: Hasher>(
         hashed_spl_mint: &[u8; 32],
         supply_bytes: &[u8; 32],
         decimals: u8,
