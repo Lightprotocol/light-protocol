@@ -50,19 +50,27 @@ impl CompressedMint {
     pub fn hash_with_cache(&self, hash_cache: &mut HashCache) -> Result<[u8; 32], CTokenError> {
         let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
-        supply_bytes[24..].copy_from_slice(self.supply.to_be_bytes().as_slice());
+        self.supply
+            .as_bytes()
+            .iter()
+            .rev()
+            .zip(supply_bytes[24..].iter_mut())
+            .for_each(|(x, y)| *y = *x);
 
         let hashed_mint_authority;
-        let hashed_mint_authority_option = if let Some(mint_authority) = self.mint_authority {
-            hashed_mint_authority = hash_cache.get_or_hash_pubkey(&mint_authority.into());
-            Some(&hashed_mint_authority)
-        } else {
-            None
-        };
+        let hashed_mint_authority_option =
+            if let Some(mint_authority) = self.mint_authority.as_ref() {
+                hashed_mint_authority = hash_cache.get_or_hash_pubkey(&mint_authority.to_bytes());
+                Some(&hashed_mint_authority)
+            } else {
+                None
+            };
 
         let hashed_freeze_authority;
-        let hashed_freeze_authority_option = if let Some(freeze_authority) = self.freeze_authority {
-            hashed_freeze_authority = hash_cache.get_or_hash_pubkey(&freeze_authority.into());
+        let hashed_freeze_authority_option = if let Some(freeze_authority) =
+            self.freeze_authority.as_ref()
+        {
+            hashed_freeze_authority = hash_cache.get_or_hash_pubkey(&freeze_authority.to_bytes());
             Some(&hashed_freeze_authority)
         } else {
             None
@@ -80,7 +88,7 @@ impl CompressedMint {
 
         if let Some(extensions) = self.extensions.as_ref() {
             let mut extension_hashchain = [0u8; 32];
-            for extension in extensions {
+            for extension in extensions.as_slice() {
                 if self.version == 0 {
                     extension_hashchain = Poseidon::hashv(&[
                         extension_hashchain.as_slice(),
@@ -108,17 +116,11 @@ impl CompressedMint {
             } else {
                 return Err(CTokenError::InvalidTokenDataVersion);
             }
-        } else if self.version == 0 {
-            Ok(mint_hash)
-        } else if self.version == 1 {
-            // Truncate hash to 248 bits
-            let mut hash = mint_hash;
-            hash[0] = 0;
-            Ok(hash)
         } else {
-            return Err(CTokenError::InvalidTokenDataVersion);
+            Ok(mint_hash)
         }
     }
+
     pub fn hash_with_hashed_values(
         hashed_spl_mint: &[u8; 32],
         supply_bytes: &[u8; 32],
@@ -210,7 +212,6 @@ impl CompressedMint {
 
 impl ZCompressedMintMut<'_> {
     pub fn hash(&self, hash_cache: &mut HashCache) -> Result<[u8; 32], CTokenError> {
-        // let hashed_spl_mint = hash_to_bn254_field_size_be(self.spl_mint.to_bytes().as_slice());
         let hashed_spl_mint = hash_cache.get_or_hash_mint(&self.spl_mint.into())?;
         let mut supply_bytes = [0u8; 32];
         self.supply
@@ -224,7 +225,6 @@ impl ZCompressedMintMut<'_> {
         let hashed_mint_authority_option = if let Some(mint_authority) =
             self.mint_authority.as_ref()
         {
-            // TODO: skip if sha is selected
             hashed_mint_authority = hash_cache.get_or_hash_pubkey(&(*mint_authority).to_bytes());
             Some(&hashed_mint_authority)
         } else {
@@ -234,16 +234,14 @@ impl ZCompressedMintMut<'_> {
         let hashed_freeze_authority;
         let hashed_freeze_authority_option =
             if let Some(freeze_authority) = self.freeze_authority.as_ref() {
-                // TODO: skip if sha is selected
                 hashed_freeze_authority =
                     hash_cache.get_or_hash_pubkey(&(*freeze_authority).to_bytes());
-
                 Some(&hashed_freeze_authority)
             } else {
                 None
             };
 
-        let mut mint_hash = CompressedMint::hash_with_hashed_values(
+        let mint_hash = CompressedMint::hash_with_hashed_values(
             &hashed_spl_mint,
             &supply_bytes,
             self.decimals,
@@ -253,11 +251,9 @@ impl ZCompressedMintMut<'_> {
             self.version,
         )?;
 
-        // Compute extension hash chain if extensions exist
         if let Some(extensions) = self.extensions.as_ref() {
             let mut extension_hashchain = [0u8; 32];
             for extension in extensions.as_slice() {
-                // Let each extension determine its own hash method based on its version
                 let extension_hash = match extension {
                     ZExtensionStructMut::TokenMetadata(token_metadata) => {
                         if *token_metadata.version == 0 {
@@ -270,7 +266,6 @@ impl ZCompressedMintMut<'_> {
                     }
                     _ => return Err(CTokenError::UnsupportedExtension),
                 };
-                msg!("ZCompressedMintMut extension hash: {:?} ", extension_hash);
 
                 if self.version == 0 {
                     extension_hashchain = Poseidon::hashv(&[
@@ -287,6 +282,7 @@ impl ZCompressedMintMut<'_> {
                     return Err(CTokenError::InvalidTokenDataVersion);
                 }
             }
+
             msg!(
                 "ZCompressedMintMut extension_hashchain: {:?} ",
                 extension_hashchain
@@ -305,14 +301,8 @@ impl ZCompressedMintMut<'_> {
             } else {
                 Err(CTokenError::InvalidTokenDataVersion)
             }
-        } else if self.version == 0 {
-            Ok(mint_hash)
-        } else if self.version == 1 {
-            // Truncate hash to 248 bits
-            mint_hash[0] = 0;
-            Ok(mint_hash)
         } else {
-            Err(CTokenError::InvalidTokenDataVersion)
+            Ok(mint_hash)
         }
     }
 }
