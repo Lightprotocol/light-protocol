@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-. "./scripts/devenv.sh" || { echo >&2 "Failed to source devenv.sh. Aborting."; exit 1; }
+# Check if already in devenv, if not source it
+if [ -z "${LIGHT_PROTOCOL_DEVENV:-}" ]; then
+    . "./scripts/devenv.sh" || { echo >&2 "Failed to source devenv.sh. Aborting."; exit 1; }
+fi
 
 set -eux
 
