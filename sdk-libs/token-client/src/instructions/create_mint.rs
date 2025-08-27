@@ -16,7 +16,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-/// Create a compressed mint instruction with automatic setup.
+/// Create a compressed mint instruction.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
@@ -38,25 +38,20 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     payer: Pubkey,
     metadata: Option<TokenMetadataInstructionData>,
 ) -> Result<Instruction, RpcError> {
-    // Get address tree and output queue from RPC
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let output_queue = rpc.get_random_state_tree_info()?.queue;
 
-    // Derive compressed mint address using utility function
     let compressed_mint_address =
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
-    // Find mint bump for the instruction
     let (_, mint_bump) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.pubkey().as_ref()],
         &Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
     );
 
-    // Create extensions if metadata is provided
     let extensions = metadata.map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta)]);
 
-    // Get validity proof for address creation
     let rpc_result = rpc
         .get_validity_proof(
             vec![],
@@ -71,7 +66,6 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
-    // Create instruction using the existing SDK function
     let inputs = CreateCompressedMintInputs {
         decimals,
         mint_authority,

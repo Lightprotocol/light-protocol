@@ -24,31 +24,24 @@ pub fn create_token_pool_instruction(
     mint: &Pubkey,
     is_token_22: bool,
 ) -> Result<Instruction, RpcError> {
-    // Constants from the compressed token program
-
     let compressed_token_program_id = Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
 
-    // Derive token pool PDA (index 0 for default pool)
     let (token_pool_pda, _bump) = Pubkey::find_program_address(
         &[TOKEN_POOL_SEED, mint.as_ref()],
         &compressed_token_program_id,
     );
 
-    // Derive CPI authority PDA
     let (cpi_authority_pda, _cpi_bump) =
         Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &compressed_token_program_id);
 
-    // Choose the appropriate token program
     let token_program = if is_token_22 {
         Pubkey::from(SPL_TOKEN_2022_PROGRAM_ID)
     } else {
         Pubkey::from(SPL_TOKEN_PROGRAM_ID)
     };
 
-    // Create the instruction data (discriminator for create_token_pool)
-    // This matches the anchor discriminator for the create_token_pool instruction
     let mut instruction_data = Vec::new();
-    instruction_data.extend_from_slice(&CREATE_TOKEN_POOL_DISCRIMINATOR); // create_token_pool discriminator
+    instruction_data.extend_from_slice(&CREATE_TOKEN_POOL_DISCRIMINATOR);
 
     let instruction = Instruction {
         program_id: compressed_token_program_id,
@@ -83,9 +76,9 @@ pub fn find_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> (P
 
     let seeds = &[POOL_SEED, mint.as_ref(), &[token_pool_index]];
     let seeds = if token_pool_index == 0 {
-        &seeds[..2] // For index 0, don't include the index byte
+        &seeds[..2] // For index 0, we don't include the index byte
     } else {
-        &seeds[..] // For other indices, include all seeds
+        &seeds[..]
     };
 
     Pubkey::find_program_address(seeds, &compressed_token_program_id)

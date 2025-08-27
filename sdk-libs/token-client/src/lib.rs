@@ -1,5 +1,9 @@
 pub mod actions;
 pub mod instructions;
+use light_client::indexer::TreeInfo;
+use light_compressed_account::address::derive_address;
+use light_compressed_token_sdk::POOL_SEED;
+use solana_pubkey::Pubkey;
 use solana_pubkey::{pubkey, Pubkey};
 
 pub const COMPRESSED_TOKEN_PROGRAM_ID: Pubkey =
@@ -9,10 +13,6 @@ pub const COMPRESSED_TOKEN_CPI_AUTHORITY: Pubkey =
     pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
 pub mod compressed_token {
-    use light_client::indexer::TreeInfo;
-    use light_compressed_account::address::derive_address;
-    use light_compressed_token_sdk::POOL_SEED;
-    use solana_pubkey::Pubkey;
 
     use super::{COMPRESSED_TOKEN_CPI_AUTHORITY, COMPRESSED_TOKEN_PROGRAM_ID};
 
@@ -33,28 +33,21 @@ pub mod compressed_token {
     /// Returns the associated ctoken address for a given owner and mint.
     pub fn get_associated_ctoken_address(owner: &Pubkey, mint: &Pubkey) -> Pubkey {
         Pubkey::find_program_address(
-            &[
-                &owner.to_bytes(),
-                &COMPRESSED_TOKEN_PROGRAM_ID.to_bytes(),
-                &mint.to_bytes(),
-            ],
-            &COMPRESSED_TOKEN_PROGRAM_ID,
+            &[&owner.to_bytes(), &id().to_bytes(), &mint.to_bytes()],
+            &id(),
         )
         .0
     }
     /// Returns the associated ctoken address and bump for a given owner and mint.
     pub fn get_associated_ctoken_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
         Pubkey::find_program_address(
-            &[
-                &owner.to_bytes(),
-                &COMPRESSED_TOKEN_PROGRAM_ID.to_bytes(),
-                &mint.to_bytes(),
-            ],
-            &COMPRESSED_TOKEN_PROGRAM_ID,
+            &[&owner.to_bytes(), &id().to_bytes(), &mint.to_bytes()],
+            &id(),
         )
     }
 
     pub const COMPRESSED_MINT_SEED: &[u8] = &[
+        //  b"compressed_mint"
         99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 109, 105, 110, 116,
     ];
 
@@ -72,15 +65,15 @@ pub mod compressed_token {
             &ID.to_bytes(),
         )
     }
-}
 
-pub fn get_associated_ctoken_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            &owner.to_bytes(),
-            &COMPRESSED_TOKEN_PROGRAM_ID.to_bytes(),
-            &mint.to_bytes(),
-        ],
-        &COMPRESSED_TOKEN_PROGRAM_ID,
-    )
+    pub fn get_associated_ctoken_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
+        Pubkey::find_program_address(
+            &[
+                &owner.to_bytes(),
+                &COMPRESSED_TOKEN_PROGRAM_ID.to_bytes(),
+                &mint.to_bytes(),
+            ],
+            &COMPRESSED_TOKEN_PROGRAM_ID,
+        )
+    }
 }

@@ -15,7 +15,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-/// Creates a create_spl_mint instruction with automatic RPC integration
+/// Creates a create_spl_mint instruction with rpc.
 ///
 /// This function automatically:
 /// - Fetches the compressed mint account data
@@ -39,13 +39,11 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
     mint_authority: Pubkey,
     payer: Pubkey,
 ) -> Result<Instruction, RpcError> {
-    // Get the compressed mint account
     let compressed_mint_account = rpc
         .get_compressed_account(compressed_mint_address, None)
         .await?
         .value;
 
-    // Deserialize the compressed mint data
     let compressed_mint: CompressedMint = BorshDeserialize::deserialize(
         &mut compressed_mint_account
             .data
@@ -58,27 +56,21 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
     )
     .map_err(|e| RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e)))?;
 
-    // Get validity proof for the compressed mint
     let proof_result = rpc
         .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
         .await?
         .value;
 
-    // Derive SPL mint PDA and bump
     let (spl_mint_pda, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
-    // Derive token pool for the SPL mint
     let token_pool = derive_token_pool(&spl_mint_pda, 0);
 
-    // Get tree and queue information
     let input_tree = compressed_mint_account.tree_info.tree;
     let input_queue = compressed_mint_account.tree_info.queue;
 
-    // Get a separate output queue for the new compressed mint state
     let output_tree_info = rpc.get_random_state_tree_info()?;
     let output_queue = output_tree_info.queue;
 
-    // Prepare compressed mint inputs
     let compressed_mint_inputs = CompressedMintWithContext {
         leaf_index: compressed_mint_account.leaf_index,
         prove_by_index: true,
@@ -92,7 +84,6 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
         })?,
     };
 
-    // Create the instruction using the SDK function
     let instruction = sdk_create_spl_mint_instruction(CreateSplMintInputs {
         mint_signer: mint_seed.pubkey(),
         mint_bump,
@@ -106,6 +97,6 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
         token_pool,
     })
     .map_err(|e| RpcError::CustomError(format!("Failed to create SPL mint instruction: {}", e)))?;
-    println!("instruction {:?}", instruction);
+
     Ok(instruction)
 }

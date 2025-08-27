@@ -27,10 +27,10 @@ solana-program-error = { workspace = true }
 arrayvec = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
-# Optional Anchor dependency
 light-account-checks = { workspace = true, features = ["solana"] }
-
+# optional
 anchor-lang = { workspace = true, optional = true }
+
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "solana"] }
 anchor-lang = { workspace = true }
