@@ -39,12 +39,10 @@ pub(crate) fn add_compressible_instructions(
 ) -> Result<TokenStream> {
     let type_list = syn::parse2::<CompressibleTypeList>(args)?;
 
-    // Check if module has content
     if module.content.is_none() {
         return Err(syn::Error::new_spanned(&module, "Module must have a body"));
     }
 
-    // Collect all struct names
     let mut all_struct_names = Vec::new();
 
     for compressible_type in &type_list.types {
@@ -56,8 +54,6 @@ pub(crate) fn add_compressible_instructions(
     }
 
     // Note: All account types must implement CompressAs trait
-
-    // Get the module content
     let content = module.content.as_mut().unwrap();
 
     // Collect all struct names for the enum
@@ -636,9 +632,8 @@ pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream
         )
     })?;
 
-    // Validate that the field is Option<CompressionInfo>
-    // For now, we'll assume it's correct and let the compiler catch type errors
-
+    // Validate that the field is Option<CompressionInfo>. For now, we'll assume
+    // it's correct and let the compiler catch type errors
     let has_compression_info_impl = quote! {
         impl light_sdk::compressible::HasCompressionInfo for #struct_name {
             fn compression_info(&self) -> &light_sdk::compressible::CompressionInfo {
