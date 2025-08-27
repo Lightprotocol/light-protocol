@@ -1,12 +1,13 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::{
-    indexer::Indexer,
+    indexer::{CompressedAccount, Indexer},
     rpc::{Rpc, RpcError},
 };
 use light_ctoken_types::state::{
     extensions::{AdditionalMetadata, ExtensionStruct, Metadata, TokenMetadata},
     CompressedMint,
 };
+use light_hasher::{sha256::Sha256BE, Hasher, HasherError};
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 
 /// Expected metadata state for comprehensive testing
@@ -46,6 +47,7 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
         .await
         .expect("Failed to get compressed mint account")
         .value;
+    assert_sha_account_hash(&compressed_mint_account).unwrap();
 
     // Deserialize the CompressedMint
     let mint_data: CompressedMint =
@@ -87,6 +89,20 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
     );
 
     actual_metadata.clone()
+}
+
+pub fn assert_sha_account_hash(account: &CompressedAccount) -> Result<(), HasherError> {
+    let data = account.data.as_ref().ok_or(HasherError::EmptyInput)?;
+    let data_hash = Sha256BE::hash(&data.data.as_slice())?;
+    if data_hash != data.data_hash {
+        println!(
+            "compressed account expected data hash {:?} != {:?}",
+            data_hash, data.data_hash
+        );
+        Err(HasherError::BorshError)
+    } else {
+        Ok(())
+    }
 }
 
 /// Assert that a mint operation produced the expected state transition by modifying before state
@@ -156,7 +172,6 @@ pub fn create_expected_metadata_state(
     symbol: &str,
     uri: &str,
     additional_metadata: Vec<AdditionalMetadata>,
-    version: u8,
 ) -> ExpectedMetadataState {
     ExpectedMetadataState {
         update_authority,
@@ -166,7 +181,7 @@ pub fn create_expected_metadata_state(
             uri: uri.as_bytes().to_vec(),
         },
         additional_metadata,
-        version,
+        version: 3,
     }
 }
 
@@ -212,7 +227,7 @@ pub async fn assert_metadata_exists<R: Rpc + Indexer>(
     }
 }
 
-/// Assert that a mint does NOT have metadata extensions  
+/// Assert that a mint does NOT have metadata extensions
 pub async fn assert_metadata_not_exists<R: Rpc + Indexer>(
     rpc: &mut R,
     compressed_mint_address: [u8; 32],

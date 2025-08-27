@@ -117,7 +117,7 @@ pub fn create_mint_action_cpi(
         .actions
         .iter()
         .any(|action| matches!(action, MintActionType::CreateSplMint { .. }))
-        || input.compressed_mint_inputs.mint.is_decompressed;
+        || input.compressed_mint_inputs.mint.base.is_decompressed;
     let has_mint_to_actions = input.actions.iter().any(|action| {
         matches!(
             action,

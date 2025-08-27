@@ -23,6 +23,7 @@ pub fn mint_authority_check(
 ) -> Result<(), ErrorCode> {
     // Get current authority (from field or instruction fallback)
     let mint_authority = compressed_mint
+        .base
         .mint_authority
         .as_ref()
         .map(|a| **a)
@@ -83,7 +84,7 @@ pub fn process_mint_to_action(
     }
 
     let updated_supply = sum_amounts
-        .checked_add(compressed_mint.supply.into())
+        .checked_add(compressed_mint.base.supply.into())
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
 
     handle_decompressed_mint_to_token_pool(validated_accounts, accounts_config, sum_amounts, mint)?;

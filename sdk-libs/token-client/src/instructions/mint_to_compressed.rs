@@ -53,7 +53,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     let state_tree_info = rpc.get_random_state_tree_info()?;
 
     // Create decompressed mint config and token pool if mint is decompressed
-    let decompressed_mint_config = if compressed_mint.is_decompressed {
+    let decompressed_mint_config = if compressed_mint.base.is_decompressed {
         let (token_pool_pda, _) = find_token_pool_pda_with_index(&spl_mint_pda, 0);
         Some(DecompressedMintConfig {
             mint_pda: spl_mint_pda,
@@ -65,7 +65,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     };
 
     // Derive token pool if needed for decompressed mints
-    let token_pool = if compressed_mint.is_decompressed {
+    let token_pool = if compressed_mint.base.is_decompressed {
         Some(derive_token_pool(&spl_mint_pda, 0))
     } else {
         None

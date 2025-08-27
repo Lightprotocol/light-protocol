@@ -42,7 +42,7 @@ pub async fn assert_spl_mint<R: Rpc + Indexer>(
     .expect("Failed to deserialize compressed mint");
 
     let mut expected_compressed_mint = (*pre_compressed_mint).clone();
-    expected_compressed_mint.is_decompressed = true;
+    expected_compressed_mint.base.is_decompressed = true;
     assert_eq!(compressed_mint, expected_compressed_mint);
 
     // 2. Assert SPL mint is initialized and equivalent with compressed mint
@@ -59,8 +59,8 @@ pub async fn assert_spl_mint<R: Rpc + Indexer>(
         // Create expected SPL mint struct
         let expected_spl_mint = spl_token_2022::state::Mint {
             mint_authority: actual_spl_mint.mint_authority, // Copy the actual COption value
-            supply: compressed_mint.supply,
-            decimals: compressed_mint.decimals,
+            supply: compressed_mint.base.supply,
+            decimals: compressed_mint.base.decimals,
             is_initialized: true,
             freeze_authority: actual_spl_mint.freeze_authority, // Copy the actual COption value
         };
@@ -68,7 +68,7 @@ pub async fn assert_spl_mint<R: Rpc + Indexer>(
         assert_eq!(actual_spl_mint, expected_spl_mint);
     }
     // 3. If supply > 0, assert token pool has the supply
-    if compressed_mint.supply > 0 {
+    if compressed_mint.base.supply > 0 {
         let (token_pool_pda, _) = find_token_pool_pda_with_index(&spl_mint_pda, 0);
         let token_pool_account_data = rpc
             .get_account(token_pool_pda)
@@ -84,7 +84,7 @@ pub async fn assert_spl_mint<R: Rpc + Indexer>(
         let expected_token_pool = spl_token_2022::state::Account {
             mint: spl_mint_pda,
             owner: LIGHT_CPI_SIGNER.cpi_signer.into(),
-            amount: compressed_mint.supply,
+            amount: compressed_mint.base.supply,
             delegate: actual_token_pool.delegate, // Copy the actual COption value
             state: spl_token_2022::state::AccountState::Initialized,
             is_native: actual_token_pool.is_native, // Copy the actual COption value

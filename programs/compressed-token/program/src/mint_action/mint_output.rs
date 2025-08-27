@@ -1,3 +1,5 @@
+use std::ptr::slice_from_raw_parts_mut;
+
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
@@ -6,6 +8,7 @@ use light_ctoken_types::{
     instructions::mint_action::ZMintActionCompressedInstructionData,
     state::{CompressedMint, CompressedMintConfig},
 };
+use light_hasher::sha256::Sha256BE;
 use light_zero_copy::ZeroCopyNew;
 
 use crate::{
@@ -51,41 +54,50 @@ pub fn process_output_compressed_account<'a>(
         .data
         .as_mut()
         .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
-
-    let (mut compressed_mint, _) =
-        CompressedMint::new_zero_copy(compressed_account_data.data, mint_size_config)
-            .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
+    let data = unsafe {
+        &mut *slice_from_raw_parts_mut(
+            compressed_account_data.data.as_mut_ptr(),
+            compressed_account_data.data.len(),
+        )
+    };
 
     {
-        compressed_mint.set(
-            &parsed_instruction_data.mint,
-            // Instruction data is used for the input compressed account.
-            // We need to use this value to cover the case that we decompress the mint in this instruction.
-            accounts_config.is_decompressed,
-        )?;
+        let (mut compressed_mint, _) = CompressedMint::new_zero_copy(data, mint_size_config)
+            .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
 
-        if let Some(extensions) = parsed_instruction_data.mint.extensions.as_deref() {
-            let z_extensions = compressed_mint
-                .extensions
-                .as_mut()
-                .ok_or(ProgramError::AccountAlreadyInitialized)?;
-            extensions_state_in_output_compressed_account(
-                extensions,
-                z_extensions.as_mut_slice(),
-                parsed_instruction_data.mint.spl_mint,
+        {
+            compressed_mint.set(
+                &parsed_instruction_data.mint,
+                // Instruction data is used for the input compressed account.
+                // We need to use this value to cover the case that we decompress the mint in this instruction.
+                accounts_config.is_decompressed,
             )?;
+
+            if let Some(extensions) = parsed_instruction_data.mint.extensions.as_deref() {
+                let z_extensions = compressed_mint
+                    .extensions
+                    .as_mut()
+                    .ok_or(ProgramError::AccountAlreadyInitialized)?;
+                extensions_state_in_output_compressed_account(
+                    extensions,
+                    z_extensions.as_mut_slice(),
+                    parsed_instruction_data.mint.base.spl_mint,
+                )?;
+            }
         }
+
+        process_actions(
+            parsed_instruction_data,
+            validated_accounts,
+            accounts_config,
+            token_accounts,
+            hash_cache,
+            queue_indices,
+            &validated_accounts.packed_accounts,
+            &mut compressed_mint,
+        )?;
+        use light_hasher::Hasher;
+        *compressed_account_data.data_hash = Sha256BE::hash(&compressed_account_data.data)?;
     }
-    process_actions(
-        parsed_instruction_data,
-        validated_accounts,
-        accounts_config,
-        token_accounts,
-        hash_cache,
-        queue_indices,
-        &validated_accounts.packed_accounts,
-        &mut compressed_mint,
-    )?;
-    *compressed_account_data.data_hash = compressed_mint.hash(hash_cache)?;
     Ok(())
 }

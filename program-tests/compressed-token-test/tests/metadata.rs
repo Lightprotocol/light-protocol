@@ -99,7 +99,7 @@ fn create_test_metadata(update_authority: Option<Pubkey>) -> TokenMetadataInstru
             uri: b"https://example.com/token.json".to_vec(),
         },
         additional_metadata: Some(additional_metadata),
-        version: 0,
+        version: 3,
     }
 }
 
@@ -117,7 +117,7 @@ async fn test_metadata_create_with_additional_keys() -> Result<(), light_client:
 
     // Create mint with metadata
     let metadata = create_test_metadata(Some(context.mint_authority.pubkey()));
-    let _mint_result = create_mint_with_metadata(&mut rpc, &context, metadata).await?;
+    create_mint_with_metadata(&mut rpc, &context, metadata).await?;
 
     // Assert complete metadata state matches expected
     let expected_state = create_expected_metadata_state(
@@ -131,7 +131,6 @@ async fn test_metadata_create_with_additional_keys() -> Result<(), light_client:
             create_additional_metadata("creator", "TokenMaker Inc."),
             create_additional_metadata("license", "MIT"),
         ],
-        0,
     );
 
     let actual_metadata =
@@ -362,7 +361,6 @@ async fn test_metadata_authority_management() -> Result<(), light_client::rpc::R
             create_additional_metadata("creator", "TokenMaker Inc."),
             create_additional_metadata("license", "MIT"),
         ],
-        0,
     );
 
     assert_metadata_state(
@@ -403,7 +401,6 @@ async fn test_metadata_authority_management() -> Result<(), light_client::rpc::R
             create_additional_metadata("creator", "TokenMaker Inc."),
             create_additional_metadata("license", "MIT"),
         ],
-        0,
     );
 
     assert_metadata_state(
@@ -467,7 +464,6 @@ async fn test_metadata_key_removal_operations() -> Result<(), light_client::rpc:
             create_additional_metadata("creator", "TokenMaker Inc."),
             // "license" removed
         ],
-        0,
     );
 
     assert_metadata_state(
@@ -520,7 +516,6 @@ async fn test_metadata_key_removal_operations() -> Result<(), light_client::rpc:
             create_additional_metadata("creator", "TokenMaker Inc."),
             // "website" and "category" removed
         ],
-        0,
     );
 
     assert_metadata_state(
@@ -563,7 +558,6 @@ async fn test_metadata_key_removal_operations() -> Result<(), light_client::rpc:
         "TEST",
         "https://example.com/token.json",
         vec![], // All additional metadata removed
-        0,
     );
 
     assert_metadata_state(
@@ -647,7 +641,6 @@ async fn test_metadata_combined_operations() -> Result<(), light_client::rpc::Rp
             create_additional_metadata("creator", "TokenMaker Inc."),
             // "license" removed
         ],
-        0,
     );
 
     assert_metadata_state(
@@ -683,7 +676,6 @@ async fn test_metadata_comprehensive_workflow() -> Result<(), light_client::rpc:
             create_additional_metadata("creator", "TokenMaker Inc."),
             create_additional_metadata("license", "MIT"),
         ],
-        0,
     );
 
     assert_metadata_state(
@@ -758,7 +750,6 @@ async fn test_metadata_comprehensive_workflow() -> Result<(), light_client::rpc:
             create_additional_metadata("category", "DeFi"),
             create_additional_metadata("creator", "TokenMaker Inc."),
         ],
-        0,
     );
     assert_metadata_state(
         &mut rpc,
@@ -904,7 +895,6 @@ async fn test_metadata_comprehensive_workflow() -> Result<(), light_client::rpc:
             create_additional_metadata("category", "DeFi"),
             create_additional_metadata("creator", "TokenMaker Inc."),
         ],
-        0,
     );
     assert_metadata_state(&mut rpc, context.compressed_mint_address, &expected_final).await;
 

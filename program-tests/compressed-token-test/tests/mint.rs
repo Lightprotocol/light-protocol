@@ -16,7 +16,7 @@ use light_ctoken_types::{
     },
     state::{
         extensions::{AdditionalMetadata, Metadata},
-        CompressedMint,
+        BaseCompressedMint, CompressedMint,
     },
     COMPRESSED_MINT_SEED,
 };
@@ -582,7 +582,7 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
             uri: b"https://example.com/token.json".to_vec(),
         },
         additional_metadata: Some(additional_metadata.clone()),
-        version: 0, // Poseidon hash version
+        version: 3, // Poseidon hash version
     };
     light_token_client::actions::create_mint(
         &mut rpc,
@@ -771,7 +771,7 @@ async fn test_update_compressed_mint_authority() {
             .unwrap();
     println!("compressed_mint {:?}", compressed_mint);
     assert_eq!(
-        compressed_mint.mint_authority.unwrap(),
+        compressed_mint.base.mint_authority.unwrap(),
         new_mint_authority.pubkey()
     );
     // 3. Update freeze authority (need to preserve mint authority)
@@ -797,7 +797,7 @@ async fn test_update_compressed_mint_authority() {
             .unwrap();
     println!("compressed_mint {:?}", compressed_mint);
     assert_eq!(
-        compressed_mint.freeze_authority.unwrap(),
+        compressed_mint.base.freeze_authority.unwrap(),
         new_freeze_authority.pubkey()
     );
     println!("Updated freeze authority successfully");
@@ -908,7 +908,7 @@ async fn test_decompressed_token_transfer() {
             mint_authority: mint_authority.pubkey(),
             freeze_authority: Some(freeze_authority.pubkey()),
             metadata: None, // No metadata for simplicity
-            version: 1,
+            version: 3,
         }),
     )
     .await
@@ -1563,9 +1563,9 @@ async fn test_mint_actions_comprehensive() {
                     uri: "https://example.com/token.json".as_bytes().to_vec(),
                 },
                 additional_metadata: None,
-                version: 1,
+                version: 3,
             }),
-            version: 1,
+            version: 3,
         }),
     )
     .await
@@ -1580,13 +1580,15 @@ async fn test_mint_actions_comprehensive() {
 
     // Create empty pre-states since everything was created from scratch
     let empty_pre_compressed_mint = CompressedMint {
-        spl_mint: spl_mint_pda.into(),
-        supply: 0,
-        decimals,
-        mint_authority: Some(new_mint_authority.pubkey().into()),
-        freeze_authority: Some(freeze_authority.pubkey().into()), // We didn't update freeze authority
-        is_decompressed: true, // Should be true after CreateSplMint action
-        version: 1,            // With metadata
+        base: BaseCompressedMint {
+            spl_mint: spl_mint_pda.into(),
+            supply: 0,
+            decimals,
+            mint_authority: Some(new_mint_authority.pubkey().into()),
+            freeze_authority: Some(freeze_authority.pubkey().into()), // We didn't update freeze authority
+            is_decompressed: true, // Should be true after CreateSplMint action
+            version: 3,            // With metadata
+        },
         extensions: Some(vec![
             light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
                 light_ctoken_types::state::extensions::TokenMetadata {
@@ -1598,7 +1600,7 @@ async fn test_mint_actions_comprehensive() {
                         uri: "https://example.com/token.json".as_bytes().to_vec(),
                     },
                     additional_metadata: vec![], // No additional metadata in our test
-                    version: 1,
+                    version: 3,
                 },
             ),
         ]), // Match the metadata we're creating
@@ -1670,16 +1672,16 @@ async fn test_mint_actions_comprehensive() {
 
     // Authority update assertions
     assert_eq!(
-        updated_compressed_mint.mint_authority.unwrap(),
+        updated_compressed_mint.base.mint_authority.unwrap(),
         new_mint_authority.pubkey(),
         "Mint authority should be updated"
     );
     assert_eq!(
-        updated_compressed_mint.supply, total_mint_amount,
+        updated_compressed_mint.base.supply, total_mint_amount,
         "Supply should match minted amount"
     );
     assert!(
-        updated_compressed_mint.is_decompressed,
+        updated_compressed_mint.base.is_decompressed,
         "Mint should be decompressed after CreateSplMint"
     );
 
@@ -1766,7 +1768,7 @@ async fn test_mint_actions_comprehensive() {
 
     // Create pre-states for the second action (current state after first action)
     let mut pre_compressed_mint_for_second = current_compressed_mint.clone();
-    pre_compressed_mint_for_second.mint_authority = Some(newer_mint_authority.pubkey().into());
+    pre_compressed_mint_for_second.base.mint_authority = Some(newer_mint_authority.pubkey().into());
 
     // Verify second minting using assertion helper
     assert_mint_to_compressed(
@@ -1792,17 +1794,17 @@ async fn test_mint_actions_comprehensive() {
 
     // Final assertions
     assert_eq!(
-        final_compressed_mint.mint_authority.unwrap(),
+        final_compressed_mint.base.mint_authority.unwrap(),
         newer_mint_authority.pubkey(),
         "Mint authority should be updated to newer authority"
     );
     assert_eq!(
-        final_compressed_mint.supply,
+        final_compressed_mint.base.supply,
         total_mint_amount + additional_mint_amount,
         "Supply should include both mintings"
     );
     assert!(
-        final_compressed_mint.is_decompressed,
+        final_compressed_mint.base.is_decompressed,
         "Mint should remain decompressed"
     );
 
@@ -1853,7 +1855,7 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
             uri: b"https://example.com/token.json".to_vec(),
         },
         additional_metadata: Some(additional_metadata.clone()),
-        version: 1, // Sha hash version
+        version: 3, // Sha hash version
     };
     light_token_client::actions::create_mint(
         &mut rpc,

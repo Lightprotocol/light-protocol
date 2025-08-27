@@ -186,7 +186,7 @@ async fn create_compressed_mint_helper(
 
     // Create compressed mint
     let instruction = create_compressed_mint(CreateCompressedMintInputs {
-        version: 0,
+        version: 3,
         decimals,
         mint_authority,
         freeze_authority: None,
@@ -235,7 +235,7 @@ async fn mint_compressed_tokens(
         is_decompressed: false,
         mint_authority: Some(payer.pubkey().into()),
         freeze_authority: None,
-        version: 0,
+        version: 3,
         extensions: None,
     };
 

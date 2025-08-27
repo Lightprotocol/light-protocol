@@ -355,7 +355,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             uri: b"https://test.com".to_vec(),
         },
         additional_metadata: vec![],
-        version: 0,
+        version: 3,
     };
 
     let compressed_mint = CompressedMint {
@@ -365,7 +365,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
         is_decompressed: false,
         mint_authority: Some(Pubkey::new_from_array([4; 32])),
         freeze_authority: None,
-        version: 1u8,
+        version: 3u8,
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
 

@@ -108,7 +108,7 @@ pub fn get_mint_action_instruction_account_metas(
         } else {
             // For existing mint operations - use the spl_mint from compressed mint inputs
             let spl_mint_pubkey =
-                solana_pubkey::Pubkey::from(compressed_mint_inputs.mint.spl_mint.to_bytes());
+                solana_pubkey::Pubkey::from(compressed_mint_inputs.mint.base.spl_mint.to_bytes());
             metas.push(AccountMeta::new(spl_mint_pubkey, false)); // mutable: true, signer: false
 
             // token_pool_pda (derived from the spl_mint)

@@ -1,4 +1,4 @@
-use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_zero_copy::ZeroCopy;
 
 use super::{
@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     instructions::extensions::ExtensionInstructionData,
-    state::{CompressedMint, ExtensionStruct},
+    state::{BaseCompressedMint, CompressedMint, ExtensionStruct},
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
@@ -49,13 +49,13 @@ pub struct MintActionCompressedInstructionData {
     /// If proof by index not used.
     pub root_index: u16,
     pub compressed_address: [u8; 32],
-    /// If some -> no input because we create mint
-    pub mint: CompressedMintInstructionData,
     pub token_pool_bump: u8,
     pub token_pool_index: u8,
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
+    /// If some -> no input because we create mint
+    pub mint: CompressedMintInstructionData,
 }
 
 #[repr(C)]
@@ -71,23 +71,7 @@ pub struct CompressedMintWithContext {
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInstructionData {
-    /// Version for upgradability
-    pub version: u8,
-    /// Pda with seed address of compressed mint
-    pub spl_mint: Pubkey,
-    /// Total supply of tokens.
-    pub supply: u64,
-    /// Number of base 10 digits to the right of the decimal place.
-    pub decimals: u8,
-    /// Extension, necessary for mint to.
-    pub is_decompressed: bool,
-    /// Optional authority used to mint new tokens. The mint authority may only
-    /// be provided during mint creation. If no mint authority is present
-    /// then the mint has a fixed supply and no further tokens may be
-    /// minted.
-    pub mint_authority: Option<Pubkey>,
-    /// Optional authority to freeze token accounts.
-    pub freeze_authority: Option<Pubkey>,
+    pub base: BaseCompressedMint,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
@@ -122,13 +106,7 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
         };
 
         Ok(Self {
-            version: mint.version,
-            spl_mint: mint.spl_mint,
-            supply: mint.supply,
-            decimals: mint.decimals,
-            mint_authority: mint.mint_authority,
-            is_decompressed: mint.is_decompressed,
-            freeze_authority: mint.freeze_authority,
+            base: mint.base,
             extensions,
         })
     }

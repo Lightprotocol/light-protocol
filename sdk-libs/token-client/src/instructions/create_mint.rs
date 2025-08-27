@@ -84,7 +84,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         address_tree_pubkey,
         output_queue,
         extensions,
-        version: 0,
+        version: 3,
     };
 
     create_compressed_mint(inputs)

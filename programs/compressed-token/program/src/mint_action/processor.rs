@@ -70,12 +70,12 @@ pub fn process_mint_action(
     let validated_accounts = MintActionAccounts::validate_and_parse(
         accounts,
         &accounts_config,
-        &parsed_instruction_data.mint.spl_mint.into(),
+        &parsed_instruction_data.mint.base.spl_mint.into(),
         parsed_instruction_data.token_pool_index,
         parsed_instruction_data.token_pool_bump,
     )?;
 
-    let (config, mut cpi_bytes, mint_size_config) =
+    let (config, mut cpi_bytes, output_mint_size_config) =
         get_zero_copy_configs(&mut parsed_instruction_data)?;
     sol_log_compute_units();
     let (mut cpi_instruction_struct, _) =
@@ -120,7 +120,6 @@ pub fn process_mint_action(
         // Process input compressed mint account
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
-            &mut hash_cache,
             &parsed_instruction_data,
             PackedMerkleContext {
                 merkle_tree_pubkey_index: queue_indices.in_tree_index,
@@ -140,7 +139,7 @@ pub fn process_mint_action(
         &validated_accounts,
         &accounts_config,
         &mut cpi_instruction_struct.output_compressed_accounts,
-        mint_size_config,
+        output_mint_size_config,
         &mut hash_cache,
         &queue_indices,
     )?;
@@ -193,35 +192,17 @@ pub fn process_actions<'a>(
 ) -> Result<(), ProgramError> {
     // Centralized authority validation - extract and validate authorities at the start
     let signer_key = *validated_accounts.authority.key();
-    msg!(
-        "parsed_instruction_data.mint.mint_authority {:?}",
-        parsed_instruction_data
-            .mint
-            .mint_authority
-            .as_ref()
-            .map(|x| solana_pubkey::Pubkey::new_from_array((**x).into()))
-    );
-    msg!(
-        "signer_key {:?}",
-        solana_pubkey::Pubkey::new_from_array(signer_key)
-    );
+
     // Validate mint authority
     let mut _validated_mint_authority = None;
-    if let Some(current_mint_auth) = parsed_instruction_data.mint.mint_authority.as_ref() {
+    if let Some(current_mint_auth) = parsed_instruction_data.mint.base.mint_authority.as_ref() {
         if current_mint_auth.to_bytes() == signer_key {
             _validated_mint_authority = Some(**current_mint_auth);
-            msg!("Mint authority validated: signer matches current mint authority");
-        } else {
-            msg!("Mint authority validation failed: signer does not match current mint authority");
         }
     }
 
     // Start metadata authority with same value as mint authority
     let mut validated_metadata_authority = Some(light_compressed_account::Pubkey::from(signer_key));
-    msg!(
-        "validated_metadata_authority {:?}",
-        validated_metadata_authority
-    );
     for (index, action) in parsed_instruction_data.actions.iter().enumerate() {
         msg!("Action {}", index);
         match action {
@@ -234,22 +215,24 @@ pub fn process_actions<'a>(
                     accounts_config,
                     cpi_instruction_struct,
                     hash_cache,
-                    parsed_instruction_data.mint.spl_mint,
+                    parsed_instruction_data.mint.base.spl_mint,
                     queue_indices.out_token_queue_index,
                     parsed_instruction_data
                         .mint
+                        .base
                         .mint_authority
                         .as_ref()
                         .map(|a| **a),
                 )?;
-                compressed_mint.supply = new_supply.into();
+                compressed_mint.base.supply = new_supply.into();
             }
             ZAction::UpdateMintAuthority(update_action) => {
                 msg!("Processing UpdateMintAuthority action");
                 validate_and_update_authority(
-                    &mut compressed_mint.mint_authority,
+                    &mut compressed_mint.base.mint_authority,
                     parsed_instruction_data
                         .mint
+                        .base
                         .mint_authority
                         .as_ref()
                         .map(|a| **a),
@@ -261,9 +244,10 @@ pub fn process_actions<'a>(
             ZAction::UpdateFreezeAuthority(update_action) => {
                 msg!("Processing UpdateFreezeAuthority action");
                 validate_and_update_authority(
-                    &mut compressed_mint.freeze_authority,
+                    &mut compressed_mint.base.freeze_authority,
                     parsed_instruction_data
                         .mint
+                        .base
                         .freeze_authority
                         .as_ref()
                         .map(|a| **a),
@@ -284,19 +268,20 @@ pub fn process_actions<'a>(
                 msg!("Processing MintToDecompressed action");
                 let new_supply = process_mint_to_decompressed_action(
                     mint_to_decompressed_action,
-                    u64::from(compressed_mint.supply),
+                    u64::from(compressed_mint.base.supply),
                     compressed_mint,
                     validated_accounts,
                     accounts_config,
                     packed_accounts,
-                    parsed_instruction_data.mint.spl_mint,
+                    parsed_instruction_data.mint.base.spl_mint,
                     parsed_instruction_data
                         .mint
+                        .base
                         .mint_authority
                         .as_ref()
                         .map(|a| **a),
                 )?;
-                compressed_mint.supply = new_supply.into();
+                compressed_mint.base.supply = new_supply.into();
                 msg!("done Processing MintToDecompressed action");
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {

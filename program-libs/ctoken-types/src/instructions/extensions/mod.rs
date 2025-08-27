@@ -1,14 +1,9 @@
-use light_hasher::{sha256::Sha256BE, Hasher, Poseidon};
 pub mod compressible;
 pub mod token_metadata;
 use light_zero_copy::ZeroCopy;
-use solana_msg::msg;
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
-use crate::{
-    hash_cache::HashCache, state::Version, AnchorDeserialize, AnchorSerialize, CTokenError,
-    HashableExtension,
-};
+use crate::{AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 #[repr(C)]
@@ -34,7 +29,7 @@ pub enum ExtensionInstructionData {
     Placeholder18,
     TokenMetadata(TokenMetadataInstructionData),
 }
-
+/*
 impl ExtensionInstructionData {
     pub fn hash<H: Hasher>(
         &self,
@@ -94,3 +89,4 @@ impl HashableExtension<CTokenError> for ZExtensionInstructionData<'_> {
         }
     }
 }
+*/

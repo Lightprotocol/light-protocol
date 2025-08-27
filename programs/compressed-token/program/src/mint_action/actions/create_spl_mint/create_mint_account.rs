@@ -61,7 +61,7 @@ pub fn initialize_mint_account_for_action(
         Some(&solana_pubkey::Pubkey::new_from_array(
             LIGHT_CPI_SIGNER.cpi_signer,
         )),
-        mint_data.decimals,
+        mint_data.base.decimals,
     )?;
 
     let initialize_mint_ix = pinocchio::instruction::Instruction {

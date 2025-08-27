@@ -114,6 +114,8 @@ pub enum CTokenError {
     TokenDataTlvUnimplemented,
     #[error("InvalidAccountState")]
     InvalidAccountState,
+    #[error("BorshFailed")]
+    BorshFailed,
 }
 
 impl From<CTokenError> for u32 {
@@ -155,6 +157,7 @@ impl From<CTokenError> for u32 {
             CTokenError::ZeroCopyExpectedDelegate => 18034,
             CTokenError::TokenDataTlvUnimplemented => 18035,
             CTokenError::InvalidAccountState => 18036,
+            CTokenError::BorshFailed => 18037,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

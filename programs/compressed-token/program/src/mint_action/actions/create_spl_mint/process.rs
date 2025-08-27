@@ -20,14 +20,14 @@ pub fn process_create_spl_mint_action(
         .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
 
     // Check mint authority if it exists
-    if let Some(ix_data_mint_authority) = mint_data.mint_authority {
+    if let Some(ix_data_mint_authority) = mint_data.base.mint_authority {
         if *validated_accounts.authority.key() != ix_data_mint_authority.to_bytes() {
             return Err(ErrorCode::MintActionInvalidMintAuthority.into());
         }
     }
 
     // Verify mint PDA matches the spl_mint field in compressed mint inputs
-    let expected_mint: [u8; 32] = mint_data.spl_mint.to_bytes();
+    let expected_mint: [u8; 32] = mint_data.base.spl_mint.to_bytes();
     if executing_accounts
         .mint
         .ok_or(ErrorCode::MintActionMissingMintAccount)?
@@ -58,7 +58,7 @@ pub fn process_create_spl_mint_action(
     initialize_token_pool_account_for_action(executing_accounts)?;
 
     // 5. Mint the existing supply to the token pool if there's any supply
-    if mint_data.supply > 0 {
+    if mint_data.base.supply > 0 {
         crate::shared::mint_to_token_pool(
             executing_accounts
                 .mint
@@ -70,7 +70,7 @@ pub fn process_create_spl_mint_action(
                 .token_program
                 .ok_or(ErrorCode::MintActionMissingTokenProgram)?,
             executing_accounts.system.cpi_authority_pda,
-            mint_data.supply.into(),
+            mint_data.base.supply.into(),
         )?;
     }
 

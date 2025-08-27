@@ -6,6 +6,7 @@ use crate::extensions::{token_metadata::create_output_token_metadata, ZExtension
 
 /// Set extensions state in output compressed account.
 /// Compute extensions hash chain.
+#[inline(always)]
 pub fn extensions_state_in_output_compressed_account(
     extensions: &[ZExtensionInstructionData<'_>],
     extension_in_output_compressed_account: &mut [ZExtensionStructMut<'_>],

@@ -22,11 +22,6 @@ fn check_validated_metadata_authority(
         ))?;
 
         if *validated_metadata_authority != **authority {
-            msg!(
-                "validated_metadata_authority {:?} authority {:?}",
-                validated_metadata_authority,
-                **authority
-            );
             return Err(ErrorCode::MintActionInvalidMintAuthority.into());
         }
     } else {

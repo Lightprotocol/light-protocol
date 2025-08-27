@@ -73,7 +73,7 @@ async fn test_compress_full_and_close() {
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
     let instruction = create_compressed_mint(CreateCompressedMintInputs {
-        version: 0,
+        version: 3,
         decimals,
         mint_authority,
         freeze_authority: Some(freeze_authority),
@@ -118,7 +118,7 @@ async fn test_compress_full_and_close() {
         is_decompressed: false,
         mint_authority: Some(mint_authority.into()),
         freeze_authority: Some(freeze_authority.into()),
-        version: 0,
+        version: 3,
         extensions: None,
     };
 

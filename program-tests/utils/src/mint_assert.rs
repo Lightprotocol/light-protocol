@@ -1,10 +1,11 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_ctoken_types::{
     instructions::extensions::TokenMetadataInstructionData,
-    state::{CompressedMint, ExtensionStruct},
+    state::{BaseCompressedMint, CompressedMint, ExtensionStruct},
 };
-use light_hasher::Poseidon;
 use solana_sdk::pubkey::Pubkey;
+
+use crate::assert_metadata::assert_sha_account_hash;
 
 #[track_caller]
 pub fn assert_compressed_mint_account(
@@ -31,13 +32,15 @@ pub fn assert_compressed_mint_account(
 
     // Create expected compressed mint for comparison
     let expected_compressed_mint = CompressedMint {
-        spl_mint: spl_mint_pda.into(),
-        supply: 0,
-        decimals,
-        is_decompressed: false,
-        mint_authority: Some(mint_authority.into()),
-        freeze_authority: Some(freeze_authority.into()),
-        version: 0,
+        base: BaseCompressedMint {
+            spl_mint: spl_mint_pda.into(),
+            supply: 0,
+            decimals,
+            is_decompressed: false,
+            mint_authority: Some(mint_authority.into()),
+            freeze_authority: Some(freeze_authority.into()),
+            version: 3,
+        },
         extensions: expected_extensions,
     };
 
@@ -62,10 +65,9 @@ pub fn assert_compressed_mint_account(
     println!("Compressed Mint: {:?}", compressed_mint);
     assert_eq!(compressed_mint, expected_compressed_mint);
     if let Some(extensions) = compressed_mint.extensions {
-        println!(
-            "Compressed Mint extension hash: {:?}",
-            extensions[0].hash::<Poseidon>()
-        );
+        println!("Compressed Mint extensions: {:?}", extensions);
     }
+    assert_sha_account_hash(&compressed_mint_account).unwrap();
+
     expected_compressed_mint
 }

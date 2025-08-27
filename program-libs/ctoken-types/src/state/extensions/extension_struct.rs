@@ -1,13 +1,11 @@
-use light_hasher::Hasher;
 use light_zero_copy::ZeroCopy;
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    hash_cache::HashCache,
     state::extensions::{
         CompressibleExtension, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut,
     },
-    AnchorDeserialize, AnchorSerialize, CTokenError, HashableExtension,
+    AnchorDeserialize, AnchorSerialize,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
@@ -212,49 +210,4 @@ pub enum ExtensionStructConfig {
     Placeholder24,
     Placeholder25,
     Compressible,
-}
-
-impl ExtensionStruct {
-    pub fn hash<H: Hasher>(&self) -> Result<[u8; 32], CTokenError> {
-        match self {
-            ExtensionStruct::TokenMetadata(token_metadata) => {
-                // hash function is defined on the metadata level
-                Ok(token_metadata.hash()?)
-            }
-            _ => Err(CTokenError::UnsupportedExtension),
-        }
-    }
-}
-
-impl ZExtensionStructMut<'_> {
-    pub fn hash<H: Hasher>(&self) -> Result<[u8; 32], CTokenError> {
-        match self {
-            ZExtensionStructMut::TokenMetadata(token_metadata) => {
-                // hash function is defined on the metadata level
-                use light_hasher::DataHasher;
-                Ok(DataHasher::hash::<H>(token_metadata)?)
-            }
-            _ => Err(CTokenError::UnsupportedExtension),
-        }
-    }
-}
-
-impl HashableExtension<CTokenError> for ExtensionStruct {
-    fn hash_with_hasher<H: Hasher>(
-        &self,
-        _hashed_spl_mint: &[u8; 32],
-        _hash_cache: &mut HashCache,
-    ) -> Result<[u8; 32], CTokenError> {
-        self.hash::<H>()
-    }
-}
-
-impl HashableExtension<CTokenError> for ZExtensionStructMut<'_> {
-    fn hash_with_hasher<H: Hasher>(
-        &self,
-        _hashed_spl_mint: &[u8; 32],
-        _hash_cache: &mut HashCache,
-    ) -> Result<[u8; 32], CTokenError> {
-        self.hash::<H>()
-    }
 }

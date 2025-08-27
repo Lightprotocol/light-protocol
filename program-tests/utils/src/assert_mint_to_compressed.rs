@@ -97,7 +97,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
 
     // Create expected compressed mint by mutating the pre-mint
     let mut expected_compressed_mint = pre_compressed_mint;
-    expected_compressed_mint.supply += total_minted;
+    expected_compressed_mint.base.supply += total_minted;
 
     assert_eq!(
         actual_compressed_mint, expected_compressed_mint,
@@ -105,7 +105,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
     );
 
     // If mint is decompressed and pre_token_pool_account is provided, validate SPL mint and token pool
-    if actual_compressed_mint.is_decompressed {
+    if actual_compressed_mint.base.is_decompressed {
         if let Some(pre_pool_account) = pre_token_pool_account {
             // Validate SPL mint supply
             let spl_mint_data = rpc
