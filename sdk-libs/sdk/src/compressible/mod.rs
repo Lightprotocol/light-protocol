@@ -1,7 +1,8 @@
-//! SDK helpers for compressing and decompressing PDAs.
+//! SDK helpers for compressing and decompressing compressible PDAs accounts.
 
 pub mod compress_account;
 pub mod compress_account_on_init;
+pub mod compress_account_on_init_native;
 pub mod compression_info;
 pub mod config;
 pub mod decompress_idempotent;
@@ -14,7 +15,7 @@ pub use compress_account_on_init::{
     compress_account_on_init, compress_empty_account_on_init,
     prepare_accounts_for_compression_on_init, prepare_empty_compressed_accounts_on_init,
 };
-pub use compress_account_on_init::{
+pub use compress_account_on_init_native::{
     compress_account_on_init_native, compress_empty_account_on_init_native,
     prepare_accounts_for_compression_on_init_native,
     prepare_empty_compressed_accounts_on_init_native,

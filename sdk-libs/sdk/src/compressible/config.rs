@@ -16,6 +16,7 @@ pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 1;
 const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
     Pubkey::from_str_const("BPFLoaderUpgradeab1e11111111111111111111111");
 
+// TODO: add rent_authority + rent_func like in ctoken.
 /// Global configuration for compressible accounts
 #[derive(Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressibleConfig {
@@ -27,26 +28,12 @@ pub struct CompressibleConfig {
     pub update_authority: Pubkey,
     /// Account that receives rent from compressed PDAs
     pub rent_recipient: Pubkey,
-    /// Config bump seed (for multiple configs per program)
+    /// Config bump seed (currently always 0)å
     pub config_bump: u8,
     /// PDA bump seed
     pub bump: u8,
-    /// Address space for compressed accounts (exactly 1 address_tree allowed)
+    /// Address space for compressed accounts (currently 1 address_tree allowed)
     pub address_space: Vec<Pubkey>,
-}
-
-impl Default for CompressibleConfig {
-    fn default() -> Self {
-        Self {
-            version: 0,
-            compression_delay: 216_000, // 24h
-            update_authority: Pubkey::default(),
-            rent_recipient: Pubkey::default(),
-            config_bump: 0,
-            bump: 0,
-            address_space: vec![Pubkey::default()],
-        }
-    }
 }
 
 impl CompressibleConfig {
@@ -54,8 +41,8 @@ impl CompressibleConfig {
 
     /// Calculate the exact size needed for a CompressibleConfig with the given
     /// number of address spaces
-    pub fn size_for_address_spaces(num_address_spaces: usize) -> usize {
-        1 + 4 + 32 + 32 + 1 + 4 + (32 * num_address_spaces) + 1
+    pub fn size_for_address_space(num_address_trees: usize) -> usize {
+        1 + 4 + 32 + 32 + 1 + 4 + (32 * num_address_trees) + 1
     }
 
     /// Derives the config PDA address with config bump
@@ -68,12 +55,7 @@ impl CompressibleConfig {
         Self::derive_pda(program_id, 0)
     }
 
-    /// Returns the primary address space (first in the list)
-    pub fn primary_address_space(&self) -> &Pubkey {
-        &self.address_space[0]
-    }
-
-    /// Validates the config account
+    /// Checks the config account
     pub fn validate(&self) -> Result<(), crate::ProgramError> {
         if self.version != 1 {
             msg!(
@@ -149,7 +131,7 @@ impl CompressibleConfig {
 /// * `config_account` - The config PDA account to initialize
 /// * `update_authority` - Authority that can update the config after creation
 /// * `rent_recipient` - Account that receives rent from compressed PDAs
-/// * `address_space` - Address spaces for compressed accounts (exactly 1 allowed)
+/// * `address_space` - Address space for compressed accounts (currently 1 address_tree allowed)
 /// * `compression_delay` - Number of slots to wait before compression
 /// * `config_bump` - Config bump seed (must be 0 for now)
 /// * `payer` - Account paying for the PDA creation
@@ -214,7 +196,7 @@ pub fn process_initialize_compression_config_account_info<'info>(
     }
 
     let rent = Rent::get().map_err(LightSdkError::from)?;
-    let account_size = CompressibleConfig::size_for_address_spaces(address_space.len());
+    let account_size = CompressibleConfig::size_for_address_space(address_space.len());
     let rent_lamports = rent.minimum_balance(account_size);
 
     let seeds = &[COMPRESSIBLE_CONFIG_SEED, &[config_bump], &[bump]];
@@ -264,7 +246,7 @@ pub fn process_initialize_compression_config_account_info<'info>(
 /// * `authority` - Current update authority (must match config)
 /// * `new_update_authority` - Optional new update authority
 /// * `new_rent_recipient` - Optional new rent recipient
-/// * `new_address_space` - Optional new address spaces (exactly 1 allowed)
+/// * `new_address_space` - Optional new address space (currently 1 address_tree allowed)
 /// * `new_compression_delay` - Optional new compression delay
 /// * `owner_program_id` - The program that owns the config
 ///
@@ -283,51 +265,51 @@ pub fn process_update_compression_config<'info>(
     // CHECK: PDA derivation
     let mut config = CompressibleConfig::load_checked(config_account, owner_program_id)?;
 
-    // Check authority
+    // CHECK: signer
     if !authority.is_signer {
         msg!("Update authority must be signer");
         return Err(LightSdkError::ConstraintViolation.into());
     }
+    // CHECK: authority
     if *authority.key != config.update_authority {
         msg!("Invalid update authority");
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
-    // Apply updates
     if let Some(new_authority) = new_update_authority {
         config.update_authority = *new_authority;
     }
     if let Some(new_recipient) = new_rent_recipient {
         config.rent_recipient = *new_recipient;
     }
-    if let Some(new_spaces) = new_address_space {
-        if new_spaces.len() != 1 {
+    if let Some(new_address_space) = new_address_space {
+        // CHECK: address space length
+        if new_address_space.len() != MAX_ADDRESS_TREES_PER_SPACE {
             msg!(
-                "Address space must contain exactly 1 pubkey, found: {}",
-                new_spaces.len()
+                "New address space must contain exactly 1 pubkey, found: {}",
+                new_address_space.len()
             );
             return Err(LightSdkError::ConstraintViolation.into());
         }
 
-        // Validate no duplicate pubkeys in new address_space
-        validate_address_space_no_duplicates(&new_spaces)?;
+        validate_address_space_no_duplicates(&new_address_space)?;
 
-        // Validate that we're only adding, not removing existing pubkeys
-        validate_address_space_only_adds(&config.address_space, &new_spaces)?;
+        validate_address_space_only_adds(&config.address_space, &new_address_space)?;
 
-        config.address_space = new_spaces;
+        config.address_space = new_address_space;
     }
     if let Some(new_delay) = new_compression_delay {
         config.compression_delay = new_delay;
     }
 
-    // Write updated config
-    let mut data = config_account
-        .try_borrow_mut_data()
-        .map_err(LightSdkError::from)?;
-    config
-        .serialize(&mut &mut data[..])
-        .map_err(|_| LightSdkError::Borsh)?;
+    let mut data = config_account.try_borrow_mut_data().map_err(|e| {
+        msg!("Failed to borrow mut data for config_account: {:?}", e);
+        LightSdkError::from(e)
+    })?;
+    config.serialize(&mut &mut data[..]).map_err(|e| {
+        msg!("Failed to serialize updated config: {:?}", e);
+        LightSdkError::Borsh
+    })?;
 
     Ok(())
 }
@@ -342,12 +324,12 @@ pub fn process_update_compression_config<'info>(
 /// # Returns
 /// * `Ok(())` if authority is valid
 /// * `Err(LightSdkError)` if authority is invalid or verification fails
-pub fn verify_program_upgrade_authority(
+pub fn check_program_upgrade_authority(
     program_id: &Pubkey,
     program_data_account: &AccountInfo,
     authority: &AccountInfo,
 ) -> Result<(), crate::ProgramError> {
-    // Verify program data account PDA
+    // CHECK: program data PDA
     let (expected_program_data, _) =
         Pubkey::find_program_address(&[program_id.as_ref()], &BPF_LOADER_UPGRADEABLE_ID);
     if program_data_account.key != &expected_program_data {
@@ -355,14 +337,13 @@ pub fn verify_program_upgrade_authority(
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
-    // Deserialize the program data account using bincode
     let data = program_data_account.try_borrow_data()?;
     let program_state: UpgradeableLoaderState = bincode::deserialize(&data).map_err(|_| {
         msg!("Failed to deserialize program data account");
         LightSdkError::ConstraintViolation
     })?;
 
-    // Extract upgrade authority using pattern matching
+    // Extract upgrade authority
     let upgrade_authority = match program_state {
         UpgradeableLoaderState::ProgramData {
             slot: _,
@@ -389,12 +370,13 @@ pub fn verify_program_upgrade_authority(
         }
     };
 
-    // Verify the signer matches the upgrade authority
+    // CHECK: upgrade authority is signer
     if !authority.is_signer {
         msg!("Authority must be signer");
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
+    // CHECK: upgrade authority is program's upgrade authority
     if *authority.key != upgrade_authority {
         msg!(
             "Signer is not the program's upgrade authority. Signer: {:?}, Expected Authority: {:?}",
@@ -453,7 +435,7 @@ pub fn process_initialize_compression_config_checked<'info>(
         program_id
     );
     // Verify the signer is the program's upgrade authority
-    verify_program_upgrade_authority(program_id, program_data_account, update_authority)?;
+    check_program_upgrade_authority(program_id, program_data_account, update_authority)?;
 
     // Create the config with validated authority
     process_initialize_compression_config_account_info(

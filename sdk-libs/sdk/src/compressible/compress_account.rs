@@ -19,18 +19,20 @@ use crate::{
 
 /// Helper function to compress a PDA and reclaim rent.
 ///
-/// This function uses the CompressAs trait to determine what data should be stored
-/// in the compressed state. For simple cases where you want to store the exact same
-/// data, implement CompressAs with `type Output = Self` and return `self.clone()`.
-/// For custom compression, you can specify different field values or even a different
-/// type entirely.
-///
-/// 1. closes onchain PDA
-/// 2. transfers PDA lamports to rent_recipient  
-/// 3. updates the empty compressed PDA with data from CompressAs::compress_as()
+/// This function uses the CompressAs trait to determine what data should be
+/// stored in the compressed state. For simple cases where you want to store the
+/// exact same data, implement CompressAs with `type Output = Self` and return
+/// `self.clone()`. For custom compression, you can specify different field
+/// values or even a different type entirely.
 ///
 /// This requires the compressed PDA that is tied to the onchain PDA to already
 /// exist, and the account type must implement CompressAs.
+///
+///
+/// 1. updates the empty compressed PDA with data from CompressAs::compress_as()
+/// 2. transfers PDA lamports to rent_recipient  
+/// 1. closes onchain PDA
+///
 ///
 /// # Arguments
 /// * `solana_account` - The PDA account to compress (will be closed)
@@ -88,21 +90,18 @@ where
         compressed_account_meta,
     )?;
 
-    // Use CompressAs trait to get the compressed data
-    // CompressAs now always returns data with compression_info = None, so no mutation needed!
     let compressed_data = match solana_account.compress_as() {
-        std::borrow::Cow::Borrowed(data) => data.clone(), // Should never happen since compression_info must be None
-        std::borrow::Cow::Owned(data) => data,            // Efficient - use owned data directly
+        std::borrow::Cow::Borrowed(data) => data.clone(),
+        std::borrow::Cow::Owned(data) => data,
     };
     compressed_account.account = compressed_data;
 
-    // Create CPI inputs
     let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
 
-    // Invoke light system program to create the compressed account
+    // invoke light system program to update compressed account
     cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
-    // Close the PDA account using Anchor's close method
+    // cleanup
     solana_account.close(rent_recipient.clone())?;
 
     Ok(())
@@ -112,9 +111,9 @@ where
 ///
 /// Helper function to compress a PDA and reclaim rent.
 ///
-/// 1. closes onchain PDA
+/// 1. updates the empty compressed PDA with onchain PDA data
 /// 2. transfers PDA lamports to rent_recipient
-/// 3. updates the empty compressed PDA with onchain PDA data
+/// 3. closes onchain PDA
 ///
 /// This requires the compressed PDA that is tied to the onchain PDA to already
 /// exist.

@@ -5,7 +5,7 @@ use solana_sysvar::Sysvar;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-/// Trait for accounts that contain CompressionInfo
+/// Trait for compressible accounts.
 pub trait HasCompressionInfo {
     fn compression_info(&self) -> &CompressionInfo;
     fn compression_info_mut(&mut self) -> &mut CompressionInfo;
@@ -13,8 +13,8 @@ pub trait HasCompressionInfo {
     fn set_compression_info_none(&mut self);
 }
 
-/// Trait for accounts that want to customize their compressed state
-/// instead of just copying the current onchain state
+/// Trait for accounts that want to customize how their state gets compressed,
+/// instead of just copying the current onchain state.
 pub trait CompressAs {
     /// The type that will be stored in the compressed state.
     /// Can be `Self` or a different type entirely for maximum flexibility.
@@ -26,24 +26,24 @@ pub trait CompressAs {
         + Default
         + Clone;
 
-    /// Returns the data that should be stored in the compressed state.
-    /// This allows developers to reset some fields while keeping others,
-    /// or even return a completely different type.
+    /// Returns the data that should be stored in the compressed state. This
+    /// allows developers to reset some fields while keeping others, or even
+    /// return a completely different type during compression.
     ///
-    /// **IMPORTANT**: compression_info must ALWAYS be None in the returned data.
-    /// This eliminates the need for mutation after calling compress_as().
+    /// compression_info must ALWAYS be None in the returned data. This
+    /// eliminates the need for mutation after calling compress_as().
     ///
     /// Uses Cow (Clone on Write) for performance - typically returns owned data
     /// since compression_info must be None (different from onchain state).
     ///
-    /// # Example - Simple Case (no custom fields, but compression_info = None)
+    /// # Example - Default.
     /// ```rust
     /// impl CompressAs for UserRecord {
     ///     type Output = Self;
     ///     
     ///     fn compress_as(&self) -> Cow<'_, Self::Output> {
     ///         Cow::Owned(Self {
-    ///             compression_info: None,     // ALWAYS None for compressed storage
+    ///             compression_info: None,     // ALWAYS None
     ///             owner: self.owner,
     ///             name: self.name.clone(),
     ///             score: self.score,
@@ -52,32 +52,32 @@ pub trait CompressAs {
     /// }
     /// ```
     ///
-    /// # Example - Custom Compression (returns owned data with resets)
+    /// # Example - Custom Compression (reset some values)
     /// ```rust
     /// impl CompressAs for Oracle {
     ///     type Output = Self;
     ///     
     ///     fn compress_as(&self) -> Cow<'_, Self::Output> {
     ///         Cow::Owned(Self {
-    ///             compression_info: None,     // ALWAYS None for compressed storage
-    ///             initialized: false,         // reset to false
-    ///             observation_index: 0,       // reset to 0
-    ///             pool_id: self.pool_id,      // keep current value
-    ///             observations: None,         // reset to None
+    ///             compression_info: None,     // ALWAYS None
+    ///             initialized: false,         // set false
+    ///             observation_index: 0,       // set 0
+    ///             pool_id: self.pool_id,      // default
+    ///             observations: None,         // set None
     ///             padding: self.padding,
     ///         })
     ///     }
     /// }
     /// ```
     ///
-    /// # Example - Different Type (advanced)
+    /// # Example - Different Type
     /// ```rust
     /// impl CompressAs for LargeGameState {
     ///     type Output = CompactGameState;
     ///     
     ///     fn compress_as(&self) -> Cow<'_, Self::Output> {
     ///         Cow::Owned(CompactGameState {
-    ///             compression_info: None,     // ALWAYS None for compressed storage
+    ///             compression_info: None,     // ALWAYS None
     ///             player_id: self.player_id,
     ///             level: self.level,
     ///             // Skip large arrays, temporary state, etc.
@@ -107,7 +107,8 @@ pub enum CompressionState {
 }
 
 impl CompressionInfo {
-    /// Creates new compression info with the current slot
+    /// Creates new compression info with the current slot and sets state to
+    /// decompressed.
     pub fn new_decompressed() -> Result<Self, crate::ProgramError> {
         Ok(Self {
             last_written_slot: Clock::get()?.slot,
@@ -131,7 +132,7 @@ impl CompressionInfo {
         self.last_written_slot
     }
 
-    /// Checks if the account can be compressed based on the delay
+    /// Checks if the account can be compressed based on the compression delay constant.
     pub fn can_compress(&self, compression_delay: u64) -> Result<bool, crate::ProgramError> {
         let current_slot = Clock::get()?.slot;
         Ok(current_slot >= self.last_written_slot + compression_delay)
@@ -149,11 +150,6 @@ impl CompressionInfo {
     /// Set compressed
     pub fn set_compressed(&mut self) {
         self.state = CompressionState::Compressed;
-    }
-
-    /// Set decompressed
-    pub fn set_decompressed(&mut self) {
-        self.state = CompressionState::Decompressed;
     }
 
     /// Check if the account is compressed
