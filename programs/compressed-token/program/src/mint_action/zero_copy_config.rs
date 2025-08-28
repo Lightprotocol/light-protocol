@@ -8,12 +8,14 @@ use light_ctoken_types::{
     },
     state::{BaseCompressedMintConfig, CompressedMintConfig, ExtensionStructConfig},
 };
+use light_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 
+#[profile]
 pub fn get_zero_copy_configs(
     parsed_instruction_data: &mut ZMintActionCompressedInstructionData<'_>,
 ) -> Result<
@@ -131,6 +133,7 @@ pub fn get_zero_copy_configs(
 /// Removes metadata keys from instruction data that were marked for removal
 /// This should be called AFTER input data hash calculation to avoid hash mismatch
 /// Returns an error if non-idempotent key removal fails (key not found)
+#[profile]
 pub fn cleanup_removed_metadata_keys(
     parsed_instruction_data: &mut ZMintActionCompressedInstructionData<'_>,
 ) -> Result<(), ProgramError> {

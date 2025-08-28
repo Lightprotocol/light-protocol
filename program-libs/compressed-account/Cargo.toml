@@ -13,6 +13,8 @@ anchor = ["anchor-lang"]
 pinocchio = ["dep:pinocchio"]
 bytemuck-des = ["bytemuck"]
 new-unique = ["dep:solana-pubkey"]
+profile-program = []
+profile-heap = ["dep:light-heap"]
 
 [dependencies]
 thiserror = { workspace = true }
@@ -28,6 +30,8 @@ anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
 borsh = { workspace = true }
 solana-pubkey = { workspace = true, optional = true }
+light-profiler = { workspace = true }
+light-heap = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }

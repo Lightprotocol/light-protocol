@@ -1,9 +1,11 @@
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_profiler::profile;
 use pinocchio::instruction::AccountMeta;
 
 use crate::constants::POOL_SEED;
 
 /// Creates the token pool account manually as a PDA derived from our program but owned by the token program
+#[profile]
 pub fn create_token_pool_account_manual(
     executing_accounts: &crate::mint_action::accounts::ExecutingAccounts<'_>,
     program_id: &pinocchio::pubkey::Pubkey,

@@ -1,5 +1,6 @@
 use light_compressed_account::Pubkey;
 use light_hasher::{sha256::Sha256BE, Hasher};
+use light_profiler::profile;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopy, ZeroCopyMut};
 use solana_msg::msg;
 
@@ -60,6 +61,7 @@ impl CompressedMint {
 impl ZCompressedMintMut<'_> {
     /// Set all fields of the CompressedMint struct at once
     #[inline]
+    #[profile]
     pub fn set(
         &mut self,
         ix_data: &<CompressedMintInstructionData as ZeroCopyAt<'_>>::ZeroCopyAt,

@@ -7,6 +7,7 @@ use light_ctoken_types::{
     instructions::mint_action::ZMintActionCompressedInstructionData, CTokenError,
     COMPRESSED_MINT_SEED,
 };
+use light_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::mint_action::accounts::MintActionAccounts;
@@ -14,6 +15,7 @@ use crate::mint_action::accounts::MintActionAccounts;
 // TODO: unit test.
 /// Processes the create mint action by validating parameters and setting up the new address.
 /// Note, the compressed output account creation is unified with other actions in a different function.
+#[profile]
 pub fn process_create_mint_action(
     parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
     validated_accounts: &MintActionAccounts,

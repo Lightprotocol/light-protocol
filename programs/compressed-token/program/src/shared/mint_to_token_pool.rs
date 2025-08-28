@@ -1,4 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_profiler::profile;
 use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use pinocchio::{
     account_info::AccountInfo,
@@ -11,6 +12,7 @@ use crate::LIGHT_CPI_SIGNER;
 /// Mint tokens to the token pool using SPL token mint_to instruction.
 /// This function is shared between create_spl_mint and mint_to_compressed processors
 /// to ensure consistent token pool management.
+#[profile]
 pub fn mint_to_token_pool(
     mint_account: &AccountInfo,
     token_pool_account: &AccountInfo,

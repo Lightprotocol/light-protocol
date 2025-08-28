@@ -19,10 +19,22 @@ mem-profiling = []
 default = ["custom-heap"]
 test-sbf = []
 bench-sbf = []
+profile-program = [
+    "light-profiler/profile-program",
+    "light-compressed-account/profile-program",
+    "light-ctoken-types/profile-program",
+]
+profile-heap = [
+    "light-profiler/profile-heap",
+    "light-compressed-account/profile-heap",
+    "light-ctoken-types/profile-heap",
+]
 cpi-context = []
 cpi-without-program-ids = []
 
 [dependencies]
+light-profiler = { workspace = true }
+
 light-token-22 = { package = "spl-token-2022", git = "https://github.com/Lightprotocol/token-2022", rev = "06d12f50a06db25d73857d253b9a82857d6f4cdf", features = [
     "no-entrypoint",
 ] }

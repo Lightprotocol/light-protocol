@@ -1,5 +1,6 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
+use light_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError, NATIVE_MINT};
@@ -175,6 +176,7 @@ impl TokenData {
 impl ZTokenDataMut<'_> {
     /// Set all fields of the TokenData struct at once
     #[inline]
+    #[profile]
     pub fn set(
         &mut self,
         mint: Pubkey,

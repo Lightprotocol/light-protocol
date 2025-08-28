@@ -7,10 +7,12 @@ use light_ctoken_types::{
     },
     state::{ZCompressedMintMut, ZExtensionStructMut},
 };
+use light_profiler::profile;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use spl_pod::solana_msg::msg;
 
 /// Simple authority check helper - validates that authority is Some (signer was validated)
+#[profile]
 fn check_validated_metadata_authority(
     validated_metadata_authority: &Option<Pubkey>,
     authority: &<Option<Pubkey> as ZeroCopyAtMut<'_>>::ZeroCopyAtMut,
@@ -39,6 +41,8 @@ fn check_validated_metadata_authority(
 ///
 /// Note: We don't need to zero out the data because we always overwrite the complete
 /// metadata field with an exact size match, ensuring no stale data remains.
+#[inline(always)]
+#[profile]
 fn conditional_metadata_update(dest: &mut [u8], src: &[u8]) {
     if dest.len() == src.len() {
         // Size matches: this is the final action for this field, apply the update
@@ -48,6 +52,7 @@ fn conditional_metadata_update(dest: &mut [u8], src: &[u8]) {
 }
 
 /// Process update metadata field action - modifies the instruction data extensions directly
+#[profile]
 pub fn process_update_metadata_field_action(
     action: &ZUpdateMetadataFieldAction,
     compressed_mint: &mut ZCompressedMintMut<'_>,
@@ -124,6 +129,8 @@ pub fn process_update_metadata_field_action(
 }
 
 /// Validates metadata invariants to ensure consistent state
+#[profile]
+#[inline(always)]
 fn validate_metadata_invariants(
     compressed_mint: &ZCompressedMintMut<'_>,
     operation: &str,
@@ -142,6 +149,7 @@ fn validate_metadata_invariants(
 }
 
 /// Updates metadata authority field when allocation and action match
+#[profile]
 fn update_metadata_authority_field(
     metadata_authority: &mut <Option<light_compressed_account::Pubkey> as ZeroCopyAtMut<'_>>::ZeroCopyAtMut,
     new_authority: Option<light_compressed_account::Pubkey>,
@@ -171,6 +179,7 @@ fn update_metadata_authority_field(
 }
 
 /// Process update metadata authority action
+#[profile]
 pub fn process_update_metadata_authority_action(
     action: &ZUpdateMetadataAuthorityAction,
     compressed_mint: &mut ZCompressedMintMut<'_>,
@@ -202,22 +211,10 @@ pub fn process_update_metadata_authority_action(
             if metadata.update_authority.is_none() {
                 let instruction_data_mint_authority = instruction_data_mint_authority
                     .ok_or(ErrorCode::MintActionInvalidMintAuthority)?;
-                msg!(
-                    "instruction_data_mint_authority {:?}",
-                    solana_pubkey::Pubkey::new_from_array(
-                        instruction_data_mint_authority.to_bytes()
-                    )
-                );
                 {
                     let validated_metadata_authority = validated_metadata_authority
                         .as_ref()
                         .ok_or(ErrorCode::MintActionInvalidMintAuthority)?;
-                    msg!(
-                        "validated_metadata_authority {:?}",
-                        solana_pubkey::Pubkey::new_from_array(
-                            validated_metadata_authority.to_bytes()
-                        )
-                    );
                     if *instruction_data_mint_authority != *validated_metadata_authority {
                         msg!(
                         "Metadata authority validation failed for metadata authority update: no valid metadata authority"
@@ -252,6 +249,7 @@ pub fn process_update_metadata_authority_action(
 }
 
 /// Only checks authority, the key is removed during data allocation.
+#[profile]
 pub fn process_remove_metadata_key_action(
     action: &ZRemoveMetadataKeyAction,
     compressed_mint: &ZCompressedMintMut<'_>,

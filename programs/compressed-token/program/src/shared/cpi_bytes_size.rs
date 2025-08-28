@@ -10,18 +10,21 @@ use light_compressed_account::{
         },
     },
 };
+use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 
 const MAX_INPUT_ACCOUNTS: usize = 8;
 const MAX_OUTPUT_ACCOUNTS: usize = 35;
 
 /// Calculate data length for a compressed mint account
+#[profile]
 pub fn mint_data_len(config: &light_ctoken_types::state::CompressedMintConfig) -> u32 {
     use light_ctoken_types::state::CompressedMint;
     CompressedMint::byte_len(config).unwrap() as u32
 }
 
 /// Calculate data length for a compressed token account
+#[profile]
 pub fn token_data_len(has_delegate: bool) -> u32 {
     if has_delegate {
         107
@@ -40,6 +43,7 @@ pub struct CpiConfigInput {
 
 impl CpiConfigInput {
     /// Helper to create config for mint_to_compressed with no delegates
+    #[profile]
     pub fn mint_to_compressed(
         num_recipients: usize,
         has_proof: bool,
@@ -64,6 +68,7 @@ impl CpiConfigInput {
     }
 
     /// Helper to create config for update_mint
+    #[profile]
     pub fn update_mint(
         has_proof: bool,
         output_mint_config: &light_ctoken_types::state::CompressedMintConfig,
@@ -84,6 +89,7 @@ impl CpiConfigInput {
 }
 // TODO: generalize and move the light-compressed-account
 // TODO: add version of this function with hardcoded values that just calculates the cpi_byte_size, with a randomized test vs this function
+#[profile]
 pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithReadOnlyConfig {
     let input_compressed_accounts = {
         let mut input_compressed_accounts = Vec::with_capacity(input.input_accounts.len());
@@ -126,6 +132,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 }
 
 /// Allocate CPI instruction bytes with discriminator and length prefix
+#[profile]
 pub fn allocate_invoke_with_read_only_cpi_bytes(
     config: &InstructionDataInvokeCpiWithReadOnlyConfig,
 ) -> Vec<u8> {

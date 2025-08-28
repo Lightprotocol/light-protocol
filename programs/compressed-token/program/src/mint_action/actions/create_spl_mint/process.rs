@@ -1,6 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_types::CTokenError;
+use light_profiler::profile;
 
 use super::{
     create_mint_account, create_token_pool_account_manual, initialize_mint_account_for_action,
@@ -9,6 +10,7 @@ use super::{
 use crate::mint_action::accounts::MintActionAccounts;
 
 /// Helper function for processing CreateSplMint action
+#[profile]
 pub fn process_create_spl_mint_action(
     create_spl_action: &light_ctoken_types::instructions::mint_action::ZCreateSplMintAction<'_>,
     validated_accounts: &MintActionAccounts,

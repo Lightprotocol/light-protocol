@@ -4,6 +4,7 @@ use light_compressed_account::Pubkey;
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::ZMintToAction, state::ZCompressedMintMut,
 };
+use light_profiler::profile;
 use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
 use spl_pod::solana_msg::msg;
 
@@ -16,6 +17,7 @@ use crate::{
 };
 
 #[inline(always)]
+#[profile]
 pub fn mint_authority_check(
     compressed_mint: &ZCompressedMintMut<'_>,
     validated_accounts: &MintActionAccounts,
@@ -59,6 +61,7 @@ pub fn mint_authority_check(
 /// token supply and the underlying SPL mint supply by minting equivalent tokens to a program-controlled
 /// token pool account via CPI to SPL Token 2022.
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn process_mint_to_action(
     action: &ZMintToAction,
     compressed_mint: &ZCompressedMintMut<'_>,
@@ -100,6 +103,7 @@ pub fn process_mint_to_action(
     Ok(updated_supply)
 }
 
+#[profile]
 fn create_output_compressed_token_accounts(
     parsed_instruction_data: &ZMintToAction<'_>,
     output_compressed_accounts: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],

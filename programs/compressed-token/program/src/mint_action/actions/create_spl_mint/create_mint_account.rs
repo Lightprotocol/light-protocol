@@ -1,9 +1,11 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_types::COMPRESSED_MINT_SEED;
+use light_profiler::profile;
 
 use crate::LIGHT_CPI_SIGNER;
 
 /// Creates the mint account manually as a PDA derived from our program but owned by the token program
+#[profile]
 pub fn create_mint_account(
     executing_accounts: &crate::mint_action::accounts::ExecutingAccounts<'_>,
     program_id: &pinocchio::pubkey::Pubkey,

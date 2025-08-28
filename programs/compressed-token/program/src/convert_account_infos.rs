@@ -1,4 +1,5 @@
 use anchor_lang::prelude::ProgramError;
+use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 // TODO: move to light-account-checks
 /// Convert Pinocchio AccountInfo to Solana AccountInfo with minimal safety overhead
@@ -9,6 +10,7 @@ use pinocchio::account_info::AccountInfo;
 /// - Pinocchio runtime must have properly deserialized the accounts
 /// - Caller must ensure no concurrent access to returned AccountInfo
 #[inline(always)]
+#[profile]
 pub unsafe fn convert_account_infos<'a, const N: usize>(
     pinocchio_accounts: &'a [AccountInfo],
 ) -> Result<arrayvec::ArrayVec<anchor_lang::prelude::AccountInfo<'a>, N>, ProgramError> {

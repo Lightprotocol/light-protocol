@@ -17,6 +17,7 @@ use light_ctoken_types::{
     },
     state::ZCompressedMintMut,
 };
+use light_profiler::profile;
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
@@ -180,6 +181,7 @@ pub fn process_mint_action(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn process_actions<'a>(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
     validated_accounts: &MintActionAccounts,
@@ -336,6 +338,7 @@ pub fn process_actions<'a>(
 }
 
 /// Sets compressed lamports by summing all MintTo action lamports
+#[profile]
 fn set_compressed_lamports(
     actions: &[ZAction],
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,

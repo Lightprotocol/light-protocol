@@ -42,6 +42,7 @@ members = [
     "program-tests/create-address-test-program",
     "program-tests/utils",
     "program-tests/merkle-tree",
+    "program-tests/profile",
     "sdk-tests/client-test",
     "sdk-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "sdk-tests/sdk-pinocchio-test",
@@ -206,6 +207,7 @@ light-bounded-vec = { version = "2.0.0" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
+light-profiler = { path = "program-tests/profile", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
 groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
@@ -230,3 +232,9 @@ governor = "0.8.0"
 
 # Random
 rand = "0.8.5"
+
+[patch.crates-io]
+# Profiling logs and state is handled here
+solana-program-runtime = { path = "../agave/program-runtime" }
+# Profiling syscalls are defined here
+solana-bpf-loader-program = { path = "../agave/programs/bpf_loader" }

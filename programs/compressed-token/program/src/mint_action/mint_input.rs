@@ -12,6 +12,7 @@ use light_ctoken_types::{
     CTokenError,
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
+use light_profiler::profile;
 use light_sdk::instruction::PackedMerkleContext;
 
 use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;
@@ -24,6 +25,7 @@ use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;
 /// 2. Validate the compressed mint data matches expected values
 /// 3. Compute data hash using HashCache for caching
 /// 4. Return validated CompressedMint data for output processing
+#[profile]
 pub fn create_input_compressed_mint_account(
     input_compressed_account: &mut ZInAccountMut,
     mint_instruction_data: &ZMintActionCompressedInstructionData,

@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use light_compressed_account::Pubkey;
+use light_profiler::profile;
 use light_zero_copy::{
     errors::ZeroCopyError,
     traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew},
@@ -401,6 +402,7 @@ impl DerefMut for ZCompressedTokenMut<'_> {
 impl ZCompressedTokenMut<'_> {
     /// Update the last_written_slot for compressible extensions to current slot
     #[inline(always)]
+    #[profile]
     pub fn update_compressible_last_written_slot(&mut self) -> Result<(), crate::CTokenError> {
         #[cfg(target_os = "solana")]
         if let Some(extensions) = self.extensions.as_deref_mut() {

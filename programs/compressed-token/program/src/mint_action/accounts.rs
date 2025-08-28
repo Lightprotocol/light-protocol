@@ -4,6 +4,7 @@ use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::instructions::mint_action::{
     ZAction, ZMintActionCompressedInstructionData,
 };
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
@@ -56,6 +57,7 @@ pub struct ExecutingAccounts<'info> {
 }
 
 impl<'info> MintActionAccounts<'info> {
+    #[profile]
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
         config: &AccountsConfig,
@@ -312,6 +314,7 @@ pub struct AccountsConfig {
 impl AccountsConfig {
     // TODO: Unit test
     /// Initialize AccountsConfig based in instruction data.  -
+    #[profile]
     pub fn new(parsed_instruction_data: &ZMintActionCompressedInstructionData) -> AccountsConfig {
         // 1.cpi context
         let with_cpi_context = parsed_instruction_data.cpi_context.is_some();

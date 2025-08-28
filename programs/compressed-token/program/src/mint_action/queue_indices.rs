@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use light_ctoken_types::instructions::mint_action::ZMintActionCompressedInstructionData;
+use light_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::mint_action::accounts::MintActionAccounts;
@@ -14,6 +15,7 @@ pub struct QueueIndices {
 }
 
 impl QueueIndices {
+    #[profile]
     pub fn new(
         parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
         validated_accounts: &MintActionAccounts,

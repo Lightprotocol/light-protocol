@@ -10,10 +10,12 @@ use light_ctoken_types::{
     },
     CTokenError,
 };
+use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 
 /// Action-aware version that calculates maximum sizes needed for field updates
 /// Returns: (has_extensions, extension_configs, additional_data_len)
+#[profile]
 pub fn process_extensions_config_with_actions(
     extensions: Option<&Vec<ZExtensionInstructionData>>,
     actions: &[ZAction],

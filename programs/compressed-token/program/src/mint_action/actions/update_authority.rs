@@ -2,10 +2,12 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::instructions::mint_action::ZUpdateAuthority;
+use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use spl_pod::solana_msg::msg;
 
 /// Validates signer authority and updates the authority field in one operation
+#[profile]
 pub fn validate_and_update_authority(
     authority_field: &mut <Option<Pubkey> as ZeroCopyAtMut<'_>>::ZeroCopyAtMut,
     instruction_fallback: Option<Pubkey>,

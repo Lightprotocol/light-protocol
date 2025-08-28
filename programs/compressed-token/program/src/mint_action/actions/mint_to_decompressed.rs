@@ -6,6 +6,7 @@ use light_ctoken_types::{
     instructions::{mint_action::ZMintToDecompressedAction, transfer2::ZCompressionMode},
     state::ZCompressedMintMut,
 };
+use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
@@ -19,6 +20,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn process_mint_to_decompressed_action(
     action: &ZMintToDecompressedAction,
     current_supply: u64,
@@ -59,6 +61,7 @@ pub fn process_mint_to_decompressed_action(
     Ok(updated_supply)
 }
 
+#[profile]
 pub fn handle_decompressed_mint_to_token_pool(
     validated_accounts: &MintActionAccounts,
     accounts_config: &crate::mint_action::accounts::AccountsConfig,

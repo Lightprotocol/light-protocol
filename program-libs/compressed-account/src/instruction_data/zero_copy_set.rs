@@ -1,3 +1,4 @@
+use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 use zerocopy::little_endian::U16;
 
@@ -13,6 +14,7 @@ use crate::{
 
 // TODO: unit test
 impl ZOutputCompressedAccountWithPackedContextMut<'_> {
+    #[profile]
     #[inline]
     pub fn set(
         &mut self,
@@ -82,6 +84,7 @@ impl ZInAccountMut<'_> {
     }
 
     #[inline]
+    #[profile]
     pub fn set(
         &mut self,
         discriminator: [u8; 8],
@@ -155,6 +158,7 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
 
 impl ZNewAddressParamsAssignedPackedMut<'_> {
     #[inline]
+    #[profile]
     pub fn set(
         &mut self,
         seed: [u8; 32],

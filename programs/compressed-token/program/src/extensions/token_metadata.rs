@@ -5,8 +5,10 @@ use light_ctoken_types::{
     instructions::extensions::token_metadata::ZTokenMetadataInstructionData,
     state::ZTokenMetadataMut,
 };
+use light_profiler::profile;
 
 #[inline(always)]
+#[profile]
 pub fn create_output_token_metadata(
     token_metadata_data: &ZTokenMetadataInstructionData<'_>,
     token_metadata: &mut ZTokenMetadataMut<'_>,

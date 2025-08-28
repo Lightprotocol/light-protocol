@@ -9,6 +9,7 @@ use light_ctoken_types::{
     state::{CompressedMint, CompressedMintConfig},
 };
 use light_hasher::sha256::Sha256BE;
+use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 
 use crate::{
@@ -21,6 +22,7 @@ use crate::{
     },
 };
 
+#[profile]
 pub fn process_output_compressed_account<'a>(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
     validated_accounts: &MintActionAccounts,

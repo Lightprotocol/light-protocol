@@ -1,12 +1,14 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_ctoken_types::state::ZExtensionStructMut;
+use light_profiler::profile;
 
 use crate::extensions::{token_metadata::create_output_token_metadata, ZExtensionInstructionData};
 
 /// Set extensions state in output compressed account.
 /// Compute extensions hash chain.
 #[inline(always)]
+#[profile]
 pub fn extensions_state_in_output_compressed_account(
     extensions: &[ZExtensionInstructionData<'_>],
     extension_in_output_compressed_account: &mut [ZExtensionStructMut<'_>],

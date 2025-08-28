@@ -1,0 +1,20 @@
+[package]
+name = "light-profiler"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+
+[features]
+profile-program = []
+profile-heap = []
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }

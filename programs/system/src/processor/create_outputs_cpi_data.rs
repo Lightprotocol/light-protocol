@@ -230,12 +230,6 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
     for (derived_addresses, new_addresses) in
         cpi_ix_data.addresses.iter().zip(inputs.new_addresses())
     {
-        msg!(format!(
-            " derived_addresses.address {:?} != new_addresses index {:?}",
-            derived_addresses.address,
-            new_addresses.assigned_compressed_account_index()
-        )
-        .as_str());
         if let Some(assigned_account_index) = new_addresses.assigned_compressed_account_index() {
             let output_account = inputs
                 .get_output_account(assigned_account_index)
