@@ -141,6 +141,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 return Err(SystemProgramError::InvalidAccount);
             }
             let merkle_tree = &mut merkle_tree.map_err(|_| SystemProgramError::InvalidAccount)?;
+            // SAFETY: merkle_tree is a valid RefMut<[u8]>, pointer and length are valid
             let data_slice: &'info mut [u8] = unsafe {
                 std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
             };
@@ -170,6 +171,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let mut merkle_tree = account_info
                 .try_borrow_mut_data()
                 .map_err(|_| SystemProgramError::InvalidAccount)?;
+            // SAFETY: merkle_tree is a valid RefMut<[u8]>, pointer and length are valid
             let data_slice: &'info mut [u8] = unsafe {
                 std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
             };

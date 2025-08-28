@@ -118,6 +118,12 @@ pub enum SystemProgramError {
     DuplicateAccountInInputsAndReadOnly,
     #[error("CPI context account doesn't exist, but CPI context passed as set_context or first_set_context")]
     CpiContextPassedAsSetContext,
+    #[error("Invalid CPI context account owner")]
+    InvalidCpiContextOwner,
+    #[error("Invalid CPI context account discriminator")]
+    InvalidCpiContextDiscriminator,
+    #[error("Account index out of bounds")]
+    InvalidAccountIndex,
     #[error("Batched Merkle tree error {0}")]
     BatchedMerkleTreeError(#[from] BatchedMerkleTreeError),
     #[error("Concurrent Merkle tree error {0}")]
@@ -190,6 +196,9 @@ impl From<SystemProgramError> for u32 {
             SystemProgramError::BorrowingDataFailed => 6052,
             SystemProgramError::DuplicateAccountInInputsAndReadOnly => 6053,
             SystemProgramError::CpiContextPassedAsSetContext => 6054,
+            SystemProgramError::InvalidCpiContextOwner => 6055,
+            SystemProgramError::InvalidCpiContextDiscriminator => 6056,
+            SystemProgramError::InvalidAccountIndex => 6057,
             SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
             SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
             SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),

@@ -2,12 +2,13 @@ use std::slice;
 
 use borsh::BorshDeserialize;
 use light_account_checks::{checks::check_owner, discriminator::Discriminator};
-use light_compressed_account::instruction_data::zero_copy::{
-    ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+use light_compressed_account::instruction_data::{
+    data::OutputCompressedAccountWithPackedContext,
+    zero_copy::{ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
 };
 use light_profiler::profile;
 use light_zero_copy::{errors::ZeroCopyError, slice_mut::ZeroCopySliceMut, vec::ZeroCopyVecU8};
-use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
 use zerocopy::{little_endian::U16, Ref};
 
 use crate::{
@@ -15,6 +16,7 @@ use crate::{
         account::{CpiContextInAccount, CpiContextOutAccount},
         address::CpiContextNewAddressParamsAssignedPacked,
     },
+    errors::SystemProgramError,
     CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR_V1, ID,
 };
 
@@ -56,6 +58,12 @@ impl<'a> ZCpiContextAccount<'a> {
             && self.output_data.is_empty()
     }
 
+    /// Get the output data length
+    #[inline]
+    pub fn output_data_len(&self) -> u16 {
+        self.output_data_len.get()
+    }
+
     #[profile]
     pub fn store_data<
         'b,
@@ -67,18 +75,22 @@ impl<'a> ZCpiContextAccount<'a> {
         let pre_address_len = self.new_addresses.len();
         // Cache owner bytes to avoid repeated calls
         let owner_bytes = instruction_data.owner().to_bytes();
-        
+
         // Store new addresses
         for address in instruction_data.new_addresses() {
             let assigned_index = address.assigned_compressed_account_index();
+            // Use checked arithmetic to prevent overflow
+            let assigned_account_index = (assigned_index.unwrap_or(0) as u8)
+                .checked_add(pre_address_len as u8)
+                .ok_or(ZeroCopyError::Size)?;
             let new_address = CpiContextNewAddressParamsAssignedPacked {
                 owner: owner_bytes, // Use cached owner bytes
                 seed: address.seed(),
                 address_queue_account_index: address.address_queue_index(),
                 address_merkle_tree_account_index: address.address_merkle_tree_account_index(),
                 address_merkle_tree_root_index: address.address_merkle_tree_root_index().into(),
-                assigned_to_account: assigned_index.is_some() as u8, // Direct bool to u8 conversion
-                assigned_account_index: assigned_index.unwrap_or(0) as u8 + pre_address_len as u8,
+                assigned_to_account: assigned_index.is_some() as u8,
+                assigned_account_index,
             };
             self.new_addresses.push(new_address)?;
         }
@@ -92,7 +104,7 @@ impl<'a> ZCpiContextAccount<'a> {
             let data = input.data();
             let address = input.address();
             let merkle_context = input.merkle_context();
-            
+
             let in_account = CpiContextInAccount {
                 owner: *input.owner(),
                 discriminator: data.as_ref().map_or([0; 8], |d| d.discriminator),
@@ -127,13 +139,13 @@ impl<'a> ZCpiContextAccount<'a> {
         // Store output accounts
         for output in instruction_data.output_accounts() {
             if output.skip() {
-                // TODO: check what skip does
+                // Skipping none accounts from CompressedAccountInfo based instruction data
                 continue;
             }
             // Cache data and address calls
             let data = output.data();
             let address = output.address();
-            
+
             let out_account = CpiContextOutAccount {
                 owner: output.owner(),
                 discriminator: data.as_ref().map_or([0; 8], |d| d.discriminator),
@@ -148,7 +160,9 @@ impl<'a> ZCpiContextAccount<'a> {
             {
                 *self.output_data_len += 1;
 
-                let data_len = data.as_ref().map_or(Ok(0), |d| d.data.len().try_into())
+                let data_len = data
+                    .as_ref()
+                    .map_or(Ok(0), |d| d.data.len().try_into())
                     .map_err(|_| ZeroCopyError::InvalidConversion)?;
                 let (mut new_data, remaining_data) =
                     ZeroCopySliceMut::<U16, u8>::new_at(data_len.into(), self.remaining_data)?;
@@ -173,36 +187,39 @@ impl Discriminator for ZCpiContextAccount<'_> {
 #[profile]
 pub fn deserialize_cpi_context_account<'a>(
     account_info: &AccountInfo,
-) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
+) -> Result<ZCpiContextAccount<'a>, ProgramError> {
     deserialize_cpi_context_account_inner::<false>(account_info)
 }
 
 #[profile]
 pub fn deserialize_cpi_context_account_cleared<'a>(
     account_info: &AccountInfo,
-) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
+) -> Result<ZCpiContextAccount<'a>, ProgramError> {
     deserialize_cpi_context_account_inner::<true>(account_info)
 }
 
 #[profile]
 fn deserialize_cpi_context_account_inner<'a, const CLEARED: bool>(
     account_info: &AccountInfo,
-) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
-    check_owner(&ID, account_info).map_err(|_| ZeroCopyError::IterFromOutOfBounds)?;
+) -> Result<ZCpiContextAccount<'a>, ProgramError> {
+    check_owner(&ID, account_info).map_err(|_| SystemProgramError::InvalidCpiContextOwner)?;
     let mut account_data = account_info
         .try_borrow_mut_data()
-        .map_err(|_| ZeroCopyError::IterFromOutOfBounds)?;
+        .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
+    // SAFETY: account_data is a valid RefMut<[u8]>, pointer and length are valid
     let data = unsafe { slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len()) };
     let (discriminator, data) = data.split_at_mut(8);
     if discriminator != CPI_CONTEXT_ACCOUNT_DISCRIMINATOR {
         msg!("Invalid cpi context account discriminator.");
-        return Err(ZeroCopyError::IterFromOutOfBounds);
+        return Err(SystemProgramError::InvalidCpiContextDiscriminator.into());
     }
     let (fee_payer, data) =
-        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)?;
+        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)
+            .map_err(ZeroCopyError::from)?;
 
     let (associated_merkle_tree, data) =
-        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)?;
+        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)
+            .map_err(ZeroCopyError::from)?;
 
     let (mut new_addresses, data) =
         ZeroCopyVecU8::<'a, CpiContextNewAddressParamsAssignedPacked>::from_bytes_at(data)?;
@@ -212,7 +229,8 @@ fn deserialize_cpi_context_account_inner<'a, const CLEARED: bool>(
         ZeroCopyVecU8::<'a, ZPackedReadOnlyCompressedAccount>::from_bytes_at(data)?;
     let (mut in_accounts, data) = ZeroCopyVecU8::<'a, CpiContextInAccount>::from_bytes_at(data)?;
     let (mut out_accounts, data) = ZeroCopyVecU8::<'a, CpiContextOutAccount>::from_bytes_at(data)?;
-    let (mut output_data_len, mut data) = Ref::<&'a mut [u8], U16>::from_prefix(data)?;
+    let (mut output_data_len, mut data) =
+        Ref::<&'a mut [u8], U16>::from_prefix(data).map_err(ZeroCopyError::from)?;
     let output_data = if CLEARED {
         new_addresses.zero_out();
         readonly_addresses.zero_out();
@@ -283,39 +301,41 @@ impl CpiContextAccountInitParams {
 pub fn cpi_context_account_new<'a, const RE_INIT: bool>(
     account_info: &AccountInfo,
     params: CpiContextAccountInitParams,
-) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
+) -> Result<ZCpiContextAccount<'a>, ProgramError> {
     check_owner(&ID, account_info).map_err(|_| {
         msg!("Invalid cpi context account owner.");
-        ZeroCopyError::IterFromOutOfBounds
+        SystemProgramError::InvalidCpiContextOwner
     })?;
-    println!("Checked owner");
     let mut account_data = account_info.try_borrow_mut_data().map_err(|_| {
         msg!("Cpi context account data borrow failed.");
-        ZeroCopyError::IterFromOutOfBounds
+        SystemProgramError::BorrowingDataFailed
     })?;
 
+    // SAFETY: account_data is a valid RefMut<[u8]>, pointer and length are valid
     let data = unsafe { slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len()) };
     let (discriminator, data) = data.split_at_mut(8);
     if RE_INIT {
         // Check discriminator matches
         if discriminator != CPI_CONTEXT_ACCOUNT_DISCRIMINATOR_V1 {
             msg!("Invalid cpi context account discriminator.");
-            return Err(ZeroCopyError::IterFromOutOfBounds);
+            return Err(SystemProgramError::InvalidCpiContextDiscriminator.into());
         }
         // Zero out account data
         data.fill(0);
     } else if discriminator != [0u8; 8] {
         msg!("Invalid cpi context account discriminator.");
-        return Err(ZeroCopyError::IterFromOutOfBounds);
+        return Err(SystemProgramError::InvalidCpiContextDiscriminator.into());
     }
     discriminator.copy_from_slice(&CPI_CONTEXT_ACCOUNT_DISCRIMINATOR);
 
     let (mut fee_payer, data) =
-        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)?;
+        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)
+            .map_err(ZeroCopyError::from)?;
     *fee_payer = [0u8; 32].into(); // Is set during operation.
 
     let (mut associated_merkle_tree, data) =
-        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)?;
+        Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)
+            .map_err(ZeroCopyError::from)?;
     *associated_merkle_tree = params.associated_merkle_tree.into();
 
     let (new_addresses, data) =
@@ -324,7 +344,7 @@ pub fn cpi_context_account_new<'a, const RE_INIT: bool>(
             data,
         )?;
     let (readonly_addresses, data) =
-        ZeroCopyVecU8::<'a, ZPackedReadOnlyAddress>::new_at(params.readonly_accounts_len, data)?;
+        ZeroCopyVecU8::<'a, ZPackedReadOnlyAddress>::new_at(params.readonly_addresses_len, data)?;
     let (readonly_accounts, data) = ZeroCopyVecU8::<'a, ZPackedReadOnlyCompressedAccount>::new_at(
         params.readonly_accounts_len,
         data,
@@ -333,7 +353,17 @@ pub fn cpi_context_account_new<'a, const RE_INIT: bool>(
         ZeroCopyVecU8::<'a, CpiContextInAccount>::new_at(params.in_accounts_len, data)?;
     let (out_accounts, data) =
         ZeroCopyVecU8::<'a, CpiContextOutAccount>::new_at(params.out_accounts_len, data)?;
-    let (output_data_len, data) = Ref::<&'a mut [u8], U16>::from_prefix(data)?;
+    let (output_data_len, data) =
+        Ref::<&'a mut [u8], U16>::from_prefix(data).map_err(ZeroCopyError::from)?;
+    if data.len()
+        < params.out_accounts_len as usize
+            * std::mem::size_of::<OutputCompressedAccountWithPackedContext>()
+            + 1024
+    // arbitrary minimum for Data bytes because OutputCompressedAccountWithPackedContext
+    // contains vectors which are only considered with their pointer size in size_of
+    {
+        return Err(ZeroCopyError::InsufficientCapacity.into());
+    }
 
     Ok(ZCpiContextAccount {
         fee_payer,
