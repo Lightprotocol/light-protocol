@@ -1,5 +1,7 @@
 use std::cmp::min;
 
+use light_profiler::profile;
+
 use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -75,6 +77,7 @@ use crate::{
 ///    `read_only_addresses`
 ///    4.1. Verify non-inclusion in queue
 ///    4.2. Verify inclusion by zkp
+#[profile]
 pub fn process<
     'a,
     'info,
@@ -346,6 +349,7 @@ pub fn process<
 /// Multiple reads of the same account are allowed.
 /// Multiple writes of the same account will fail at nullifier queue insertion.
 #[inline(always)]
+#[profile]
 fn check_no_duplicate_accounts_in_inputs_and_read_only(
     input_nullifiers: &ZeroCopySliceMut<'_, u8, InsertNullifierInput, false>,
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
@@ -361,6 +365,7 @@ fn check_no_duplicate_accounts_in_inputs_and_read_only(
 }
 
 #[inline(always)]
+#[profile]
 fn filter_for_accounts_not_proven_by_index(
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
     input_compressed_account_hashes: &ZeroCopySliceMut<'_, u8, InsertNullifierInput, false>,

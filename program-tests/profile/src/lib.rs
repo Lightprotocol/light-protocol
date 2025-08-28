@@ -126,7 +126,7 @@ pub fn profile(_attr: TokenStream, item: TokenStream) -> TokenStream {
             .into_iter()
             .filter(|a| !a.path().is_ident("profile"))
             .collect();
-        f.attrs.push(syn::parse_quote!(#[inline(always)]));
+        // f.attrs.push(syn::parse_quote!(#[inline(always)]));
         f.block = syn::parse2(new_body).unwrap();
 
         return TokenStream::from(quote! {

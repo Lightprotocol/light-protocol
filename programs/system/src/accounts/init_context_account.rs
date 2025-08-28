@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use light_profiler::profile;
 use light_account_checks::{
     checks::{check_owner, check_signer},
     discriminator::Discriminator,
@@ -24,6 +25,7 @@ pub struct InitializeCpiContextAccount<'info> {
 }
 
 impl<'info> InitializeCpiContextAccount<'info> {
+    #[profile]
     pub fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<Self> {
         if accounts.len() < 3 {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -54,6 +56,7 @@ impl<'info> InitializeCpiContextAccount<'info> {
     }
 }
 
+#[profile]
 pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
     // Check that Merkle tree is initialized.
     let ctx = InitializeCpiContextAccount::from_account_infos(accounts)?;
@@ -64,6 +67,7 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
     Ok(())
 }
 
+#[profile]
 pub fn reinit_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
     if accounts.is_empty() {
         return Err(ProgramError::NotEnoughAccountKeys);

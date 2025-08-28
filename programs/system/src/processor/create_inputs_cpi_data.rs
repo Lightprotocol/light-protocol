@@ -5,6 +5,7 @@ use light_compressed_account::{
         traits::InstructionData,
     },
 };
+use light_profiler::profile;
 use light_hasher::{Hasher, Poseidon};
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
@@ -19,6 +20,7 @@ use crate::{
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(always)]
+#[profile]
 pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     remaining_accounts: &'info [AccountInfo],
     instruction_data: &WrappedInstructionData<'a, T>,

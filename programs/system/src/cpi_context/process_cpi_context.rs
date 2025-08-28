@@ -1,4 +1,5 @@
 use light_account_checks::discriminator::Discriminator;
+use light_profiler::profile;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::{
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
@@ -46,6 +47,7 @@ use crate::{
 ///    compressed account, reads cpi context and combines the instruction instruction_data
 ///    with verified instruction_data from the cpi context. The proof is verified and
 ///    other state transition is executed with the combined instruction_data.
+#[profile]
 pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
     mut instruction_data: WrappedInstructionData<'a, T>,
     cpi_context_account_info: Option<&'info AccountInfo>,
@@ -91,6 +93,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
     }
     Ok(Some((0, instruction_data)))
 }
+#[profile]
 pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     fee_payer: Pubkey,
     cpi_context_account_info: &'info AccountInfo,
@@ -135,6 +138,7 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
 /// This way we ensure that all data involved in the instruction is emitted in this transaction.
 /// This prevents an edge case where users misuse the cpi context over multiple transactions
 /// and the indexer cannot find all output account data.
+#[profile]
 pub fn copy_cpi_context_outputs(
     cpi_context_account: &Option<ZCpiContextAccount<'_>>,
     bytes: &mut [u8],
@@ -187,6 +191,7 @@ pub fn copy_cpi_context_outputs(
     Ok(())
 }
 
+#[profile]
 fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionData<'a>>(
     instruction_data: &WrappedInstructionData<'a, T>,
     cpi_context_account: &ZCpiContextAccount<'a>,

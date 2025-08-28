@@ -1,5 +1,6 @@
 use aligned_sized::*;
 use light_compressed_account::instruction_data::traits::InstructionData;
+use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
@@ -18,6 +19,7 @@ pub struct CompressedSolPda {}
 pub const SOL_POOL_PDA_BUMP: u8 = 255;
 pub const SOL_POOL_PDA_SEED: &[u8] = b"sol_pool_pda";
 
+#[profile]
 pub fn compress_or_decompress_lamports<
     'a,
     'b,
@@ -47,6 +49,7 @@ pub fn compress_or_decompress_lamports<
     Ok(())
 }
 
+#[profile]
 pub fn decompress_lamports<
     'a,
     'b,
@@ -75,6 +78,7 @@ pub fn decompress_lamports<
     transfer_lamports(sol_pool_pda, recipient, lamports)
 }
 
+#[profile]
 pub fn compress_lamports<
     'a,
     'b,
@@ -97,6 +101,7 @@ pub fn compress_lamports<
     transfer_lamports_invoke(ctx.get_fee_payer(), recipient, lamports)
 }
 
+#[profile]
 pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {
     let bump = &[SOL_POOL_PDA_BUMP];
     let seed_array = [Seed::from(SOL_POOL_PDA_SEED), Seed::from(bump)];

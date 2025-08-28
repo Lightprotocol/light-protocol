@@ -25,6 +25,9 @@ default = ["debug", "readonly", "reinit"]
 test-sbf = []
 debug = []
 readonly = []
+profile-program = ["light-profiler/profile-program"]
+profile-heap = ["light-profiler/profile-heap", "dep:light-heap"]
+custom-heap = []
 
 [dependencies]
 light-concurrent-merkle-tree = { workspace = true, features = ["pinocchio"] }
@@ -49,6 +52,8 @@ pinocchio-system = { version = "0.2.3" }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 pinocchio-pubkey = { workspace = true }
 solana-msg = { workspace = true }
+light-profiler = { workspace = true }
+light-heap = { workspace = true, optional = true }
 [dev-dependencies]
 rand = { workspace = true }
 light-compressed-account = { workspace = true, features = [

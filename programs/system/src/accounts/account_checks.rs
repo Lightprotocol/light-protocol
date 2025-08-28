@@ -1,5 +1,7 @@
 use std::panic::Location;
 
+use light_profiler::profile;
+
 use light_account_checks::{
     checks::{
         check_discriminator, check_mut, check_non_mut, check_owner, check_pda_seeds,
@@ -18,6 +20,7 @@ use crate::{
     Result,
 };
 
+#[profile]
 pub fn check_fee_payer(fee_payer: Option<&AccountInfo>) -> Result<&AccountInfo> {
     let fee_payer = fee_payer.ok_or(ProgramError::NotEnoughAccountKeys)?;
     check_signer(fee_payer).map_err(ProgramError::from)?;
@@ -25,6 +28,7 @@ pub fn check_fee_payer(fee_payer: Option<&AccountInfo>) -> Result<&AccountInfo> 
     Ok(fee_payer)
 }
 
+#[profile]
 pub fn check_authority(authority: Option<&AccountInfo>) -> Result<&AccountInfo> {
     let authority = authority.ok_or(ProgramError::NotEnoughAccountKeys)?;
     check_signer(authority).map_err(ProgramError::from)?;
@@ -32,12 +36,14 @@ pub fn check_authority(authority: Option<&AccountInfo>) -> Result<&AccountInfo> 
     Ok(authority)
 }
 
+#[profile]
 pub fn check_non_mut_account_info(account_info: Option<&AccountInfo>) -> Result<&AccountInfo> {
     let account_info = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
     check_non_mut(account_info)?;
     Ok(account_info)
 }
 
+#[profile]
 pub fn check_account_compression_program(
     account_compression_program: Option<&AccountInfo>,
 ) -> Result<&AccountInfo> {
@@ -48,6 +54,7 @@ pub fn check_account_compression_program(
     Ok(account_compression_program)
 }
 
+#[profile]
 pub fn check_anchor_option_sol_pool_pda(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
@@ -67,6 +74,7 @@ pub fn check_anchor_option_sol_pool_pda(
 }
 
 /// Processes account equivalent to anchor Accounts Option<AccountInfo>.
+#[profile]
 pub fn anchor_option_mut_account_info(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
@@ -80,12 +88,14 @@ pub fn anchor_option_mut_account_info(
     Ok(decompression_recipient)
 }
 
+#[profile]
 pub fn check_system_program(account_info: Option<&AccountInfo>) -> Result<&AccountInfo> {
     let account_info = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
     check_program(&Pubkey::default(), account_info)?;
     Ok(account_info)
 }
 
+#[profile]
 pub fn check_anchor_option_cpi_context_account(
     account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
@@ -104,6 +114,7 @@ pub fn check_anchor_option_cpi_context_account(
     Ok(cpi_context_account)
 }
 
+#[profile]
 pub fn check_option_decompression_recipient<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
@@ -120,6 +131,7 @@ pub fn check_option_decompression_recipient<'a>(
 }
 
 #[track_caller]
+#[profile]
 pub fn check_option_cpi_context_account<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
@@ -154,6 +166,7 @@ pub fn check_option_cpi_context_account<'a>(
     Ok(account)
 }
 
+#[profile]
 pub fn check_option_sol_pool_pda<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,

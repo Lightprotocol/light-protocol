@@ -5,6 +5,7 @@ use light_account_checks::{checks::check_owner, discriminator::Discriminator};
 use light_compressed_account::instruction_data::zero_copy::{
     ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
 };
+use light_profiler::profile;
 use light_zero_copy::{errors::ZeroCopyError, slice_mut::ZeroCopySliceMut, vec::ZeroCopyVecU8};
 use pinocchio::{account_info::AccountInfo, log::sol_log_compute_units, msg, pubkey::Pubkey};
 use zerocopy::{little_endian::U16, Ref};
@@ -45,6 +46,7 @@ pub struct ZCpiContextAccount<'a> {
 }
 
 impl<'a> ZCpiContextAccount<'a> {
+    #[profile]
     pub fn is_empty(&self) -> bool {
         self.new_addresses.is_empty()
             && self.readonly_addresses.is_empty()
@@ -54,6 +56,7 @@ impl<'a> ZCpiContextAccount<'a> {
             && self.output_data.is_empty()
     }
 
+    #[profile]
     pub fn store_data<
         'b,
         T: light_compressed_account::instruction_data::traits::InstructionData<'b>,
@@ -138,7 +141,6 @@ impl<'a> ZCpiContextAccount<'a> {
                 address: output.address().unwrap_or([0; 32]),
             };
             self.out_accounts.push(out_account)?;
-            sol_log_compute_units();
             // Add output data
             {
                 *self.output_data_len += 1;
@@ -156,8 +158,6 @@ impl<'a> ZCpiContextAccount<'a> {
                 self.output_data.push(new_data);
                 self.remaining_data = remaining_data;
             }
-
-            sol_log_compute_units();
         }
 
         Ok(())
@@ -169,18 +169,21 @@ impl Discriminator for ZCpiContextAccount<'_> {
     const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 }
 
+#[profile]
 pub fn deserialize_cpi_context_account<'a>(
     account_info: &AccountInfo,
 ) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
     deserialize_cpi_context_account_inner::<false>(account_info)
 }
 
+#[profile]
 pub fn deserialize_cpi_context_account_cleared<'a>(
     account_info: &AccountInfo,
 ) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
     deserialize_cpi_context_account_inner::<true>(account_info)
 }
 
+#[profile]
 fn deserialize_cpi_context_account_inner<'a, const CLEARED: bool>(
     account_info: &AccountInfo,
 ) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
@@ -252,6 +255,7 @@ pub struct CpiContextAccountInitParams {
 }
 
 impl CpiContextAccountInitParams {
+    #[profile]
     pub fn new(associated_merkle_tree: Pubkey) -> Self {
         Self {
             associated_merkle_tree,
@@ -274,6 +278,7 @@ impl CpiContextAccountInitParams {
 /// 8. Set readonly accounts length.
 /// 9. Set in accounts length.
 /// 10. Set out accounts length.
+#[profile]
 pub fn cpi_context_account_new<'a, const RE_INIT: bool>(
     account_info: &AccountInfo,
     params: CpiContextAccountInitParams,

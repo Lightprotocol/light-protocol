@@ -6,6 +6,7 @@ use light_compressed_account::{
     },
     TreeType,
 };
+use light_profiler::profile;
 use light_hasher::{Hasher, Poseidon};
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
@@ -30,6 +31,7 @@ use crate::{
 ///    output compressed accounts. This will close the account.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
+#[profile]
 pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     remaining_accounts: &'info [AccountInfo],
@@ -223,6 +225,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
 }
 
 // Check that new addresses are assigned correctly to the compressed output accounts specified by index
+#[profile]
 pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     cpi_ix_data: &InsertIntoQueuesInstructionDataMut<'_>,

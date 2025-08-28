@@ -6,6 +6,7 @@ use light_compressed_account::{
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::{
@@ -37,6 +38,7 @@ pub struct MerkleTreeContext {
 }
 
 impl SystemContext<'_> {
+    #[profile]
     pub fn get_legacy_merkle_context(&mut self, index: u8) -> Option<&MerkleTreeContext> {
         self.legacy_merkle_context
             .iter()
@@ -47,6 +49,7 @@ impl SystemContext<'_> {
         self.legacy_merkle_context.push((index, context));
     }
 
+    #[profile]
     pub fn set_address_fee(&mut self, fee: u64, index: u8) {
         if !self.address_fee_is_set {
             self.address_fee_is_set = true;
@@ -54,6 +57,7 @@ impl SystemContext<'_> {
         }
     }
 
+    #[profile]
     pub fn set_network_fee(&mut self, fee: u64, index: u8) {
         if !self.network_fee_is_set {
             self.network_fee_is_set = true;
@@ -151,6 +155,7 @@ impl<'a, 'b, T> WrappedInstructionData<'a, T>
 where
     T: InstructionData<'a>,
 {
+    #[profile]
     pub fn new(instruction_data: T) -> std::result::Result<Self, SystemProgramError> {
         let outputs_len = instruction_data
             .output_accounts()
@@ -175,6 +180,7 @@ where
         })
     }
 
+    #[profile]
     pub fn set_cpi_context(&mut self, cpi_context: ZCpiContextAccount<'a>) -> Result<()> {
         if self.cpi_context.is_none() {
             self.outputs_len += cpi_context.out_accounts.len();
@@ -238,6 +244,7 @@ where
         self.instruction_data.with_transaction_hash()
     }
 
+    #[profile]
     pub fn get_output_account(&'b self, index: usize) -> Option<&'b (dyn OutputAccount<'a> + 'b)> {
         // Check CPI context first
         if let Some(cpi_context) = self.cpi_context.as_ref() {
@@ -347,6 +354,7 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
     }
 }
 
+#[profile]
 pub fn chain_outputs<'a, 'b: 'a>(
     slice1: &'a [impl OutputAccount<'b>],
     slice2: &'a [impl OutputAccount<'b>],
@@ -363,6 +371,7 @@ pub fn chain_outputs<'a, 'b: 'a>(
         )
 }
 
+#[profile]
 pub fn chain_inputs<'a, 'b: 'a>(
     slice1: &'a [impl InputAccount<'b>],
     slice2: &'a [impl InputAccount<'b>],
@@ -379,6 +388,7 @@ pub fn chain_inputs<'a, 'b: 'a>(
         )
 }
 
+#[profile]
 pub fn chain_new_addresses<'a, 'b: 'a>(
     slice1: &'a [impl NewAddress<'b>],
     slice2: &'a [impl NewAddress<'b>],

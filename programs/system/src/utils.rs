@@ -1,4 +1,5 @@
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
+use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::{find_program_address, Pubkey},
@@ -8,18 +9,22 @@ use crate::{
     accounts::remaining_account_checks::AcpAccount, constants::CPI_AUTHORITY_PDA_SEED,
     errors::SystemProgramError, processor::sol_compression::SOL_POOL_PDA_SEED,
 };
+#[profile]
 pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
     find_program_address(&[program_id.as_ref()], &ACCOUNT_COMPRESSION_PROGRAM_ID).0
 }
 
+#[profile]
 pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
     find_program_address(&[CPI_AUTHORITY_PDA_SEED], program_id).0
 }
 
+#[profile]
 pub fn get_sol_pool_pda() -> Pubkey {
     find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID).0
 }
 
+#[profile]
 pub fn get_queue_and_tree_accounts<'b, 'info>(
     accounts: &'b mut [AcpAccount<'info>],
     queue_index: usize,

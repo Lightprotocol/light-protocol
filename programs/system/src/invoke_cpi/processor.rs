@@ -1,4 +1,5 @@
 use light_compressed_account::instruction_data::traits::InstructionData;
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 pub use crate::Result;
@@ -18,6 +19,7 @@ use crate::{
 /// 2. sets or gets cpi context (process_cpi_context)
 /// 3. Process input data and cpi account compression program.
 /// 4. Clears the cpi context account if used.
+#[profile]
 #[allow(unused_mut)]
 pub fn process_invoke_cpi<
     'a,

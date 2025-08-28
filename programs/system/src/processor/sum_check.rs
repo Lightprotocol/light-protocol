@@ -1,8 +1,10 @@
 use light_compressed_account::instruction_data::traits::InstructionData;
+use light_profiler::profile;
 use pinocchio::program_error::ProgramError;
 
 use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result};
 
+#[profile]
 #[inline(always)]
 pub fn sum_check<'a, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,

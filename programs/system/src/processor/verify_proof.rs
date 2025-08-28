@@ -1,6 +1,7 @@
 use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
+use light_profiler::profile;
 use light_compressed_account::{
     hash_chain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
     instruction_data::{
@@ -23,6 +24,7 @@ const IS_STATE: bool = true;
 const IS_NOT_STATE: bool = false;
 
 #[inline(always)]
+#[profile]
 pub fn read_input_state_roots<'a: 'b, 'b>(
     remaining_accounts: &[AcpAccount<'_>],
     input_compressed_accounts_with_merkle_context: impl Iterator<Item = &'b (dyn InputAccount<'a> + 'b)>,
@@ -59,6 +61,7 @@ pub fn read_input_state_roots<'a: 'b, 'b>(
 }
 
 /// Check that internal height matches tree height.
+#[profile]
 fn check_tree_height<const IS_STATE_TREE: bool>(
     tree_height: &mut u8,
     internal_height: u8,
@@ -81,6 +84,7 @@ fn check_tree_height<const IS_STATE_TREE: bool>(
 }
 
 #[inline(always)]
+#[profile]
 pub fn read_address_roots<'a, 'b: 'a>(
     remaining_accounts: &[AcpAccount<'_>],
     new_address_params: impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)>,
@@ -109,6 +113,7 @@ pub fn read_address_roots<'a, 'b: 'a>(
 }
 
 #[inline(always)]
+#[profile]
 fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
     merkle_tree_account: &AcpAccount<'_>,
     root_index: u16,
@@ -154,6 +159,7 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn verify_proof(
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],

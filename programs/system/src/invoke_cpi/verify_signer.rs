@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 use light_compressed_account::instruction_data::traits::InstructionData;
+use light_profiler::profile;
 use pinocchio::{
     msg,
     program_error::ProgramError,
@@ -16,6 +17,7 @@ use crate::{
 ///    (input_compressed_accounts_signer_check)
 /// 3. Output compressed accounts with data are owned by the invoking program
 ///    (output_compressed_accounts_write_access_check)
+#[profile]
 pub fn cpi_signer_checks<'a, T: InstructionData<'a>>(
     invoking_program_id: &Pubkey,
     authority: &Pubkey,
@@ -32,6 +34,7 @@ pub fn cpi_signer_checks<'a, T: InstructionData<'a>>(
 #[allow(unused_variables)]
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
+#[profile]
 pub fn cpi_signer_check(
     invoking_program: &Pubkey,
     authority: &Pubkey,
@@ -63,6 +66,7 @@ pub fn cpi_signer_check(
 }
 
 /// Checks that the invoking program owns all input compressed accounts.
+#[profile]
 pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
@@ -90,6 +94,7 @@ pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionData<'a>>
 ///   invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
+#[profile]
 pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,

@@ -1,4 +1,5 @@
 use light_account_checks::{checks::check_owner, discriminator::Discriminator};
+use light_profiler::profile;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -46,6 +47,7 @@ pub enum AcpAccount<'info> {
     Unknown(),
 }
 
+#[profile]
 pub(crate) fn try_from_account_infos<'info>(
     account_infos: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
@@ -59,6 +61,7 @@ pub(crate) fn try_from_account_infos<'info>(
 }
 
 #[inline(always)]
+#[profile]
 pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     account_info: &'info AccountInfo,
     context: &mut SystemContext<'info>,

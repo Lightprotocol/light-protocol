@@ -11,6 +11,7 @@ use light_ctoken_types::{
         mint_action::{CompressedMintWithContext, Recipient},
         transfer2::MultiInputTokenDataWithContext,
     },
+    state::BaseCompressedMint,
     COMPRESSED_MINT_SEED,
 };
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
@@ -229,13 +230,15 @@ async fn mint_compressed_tokens(
 
     // Create expected compressed mint for the input
     let expected_compressed_mint = light_ctoken_types::state::CompressedMint {
-        spl_mint: mint_pda.into(),
-        supply: 0,
-        decimals: 6,
-        is_decompressed: false,
-        mint_authority: Some(payer.pubkey().into()),
-        freeze_authority: None,
-        version: 3,
+        base: BaseCompressedMint {
+            spl_mint: mint_pda.into(),
+            supply: 0,
+            decimals: 6,
+            is_decompressed: false,
+            mint_authority: Some(payer.pubkey().into()),
+            freeze_authority: None,
+            version: 3,
+        },
         extensions: None,
     };
 

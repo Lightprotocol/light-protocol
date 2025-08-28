@@ -5,6 +5,7 @@ use light_compressed_account::{
     },
     Pubkey,
 };
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
     errors::SystemProgramError, Result,
 };
 
+#[profile]
 pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
     new_address_params: impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)>,
     address_owners: &[Option<Pubkey>],

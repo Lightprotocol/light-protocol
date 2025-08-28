@@ -1,6 +1,7 @@
 use std::mem;
 
 use aligned_sized::aligned_sized;
+use light_profiler::profile;
 use bytemuck::{Pod, Zeroable};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::{
@@ -17,6 +18,7 @@ pub struct AddressMerkleTreeAccount {
     pub metadata: MerkleTreeMetadata,
 }
 
+#[profile]
 pub fn address_merkle_tree_from_bytes_zero_copy(
     data: &[u8],
 ) -> Result<IndexedMerkleTreeZeroCopy<Poseidon, usize, 26, 16>> {
@@ -29,6 +31,7 @@ pub fn address_merkle_tree_from_bytes_zero_copy(
     Ok(merkle_tree)
 }
 
+#[profile]
 pub fn address_merkle_tree_from_bytes_zero_copy_mut(
     data: &mut [u8],
 ) -> Result<IndexedMerkleTreeZeroCopyMut<Poseidon, usize, 26, 16>> {

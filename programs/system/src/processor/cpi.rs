@@ -1,5 +1,7 @@
 use std::cmp::min;
 
+use light_profiler::profile;
+
 use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, discriminators::DISCRIMINATOR_INSERT_INTO_QUEUES,
     instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut,
@@ -17,6 +19,7 @@ use crate::{
     context::SystemContext,
     Result,
 };
+#[profile]
 #[allow(clippy::too_many_arguments)]
 pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
     ctx: &A,
@@ -70,6 +73,7 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
     ))
 }
 
+#[profile]
 pub fn cpi_account_compression_program(
     cpi_context: SystemContext<'_>,
     bytes: Vec<u8>,

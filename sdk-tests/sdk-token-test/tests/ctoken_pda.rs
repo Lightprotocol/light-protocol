@@ -13,7 +13,10 @@ use light_ctoken_types::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     },
-    state::extensions::{AdditionalMetadata, Metadata},
+    state::{
+        extensions::{AdditionalMetadata, Metadata},
+        BaseCompressedMint,
+    },
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
@@ -101,25 +104,31 @@ async fn test_ctoken_pda() {
     .unwrap();
 
     println!("✅ Compressed mint created:");
-    println!("   - SPL mint: {:?}", compressed_mint.spl_mint);
-    println!("   - Decimals: {}", compressed_mint.decimals);
-    println!("   - Supply: {}", compressed_mint.supply);
-    println!("   - Mint authority: {:?}", compressed_mint.mint_authority);
+    println!("   - SPL mint: {:?}", compressed_mint.base.spl_mint);
+    println!("   - Decimals: {}", compressed_mint.base.decimals);
+    println!("   - Supply: {}", compressed_mint.base.supply);
+    println!(
+        "   - Mint authority: {:?}",
+        compressed_mint.base.mint_authority
+    );
     println!(
         "   - Freeze authority: {:?}",
-        compressed_mint.freeze_authority
+        compressed_mint.base.freeze_authority
     );
 
     // Assert mint authority was revoked (should be None after update)
     assert_eq!(
-        compressed_mint.mint_authority, None,
+        compressed_mint.base.mint_authority, None,
         "Mint authority should be revoked (None)"
     );
     assert_eq!(
-        compressed_mint.supply, 1000u64,
+        compressed_mint.base.supply, 1000u64,
         "Supply should be 1000 after minting"
     );
-    assert_eq!(compressed_mint.decimals, decimals, "Decimals should match");
+    assert_eq!(
+        compressed_mint.base.decimals, decimals,
+        "Decimals should match"
+    );
 
     println!("🎉 All chained CPI operations completed successfully!");
     println!("   1. ✅ Created compressed mint with mint authority");
@@ -197,14 +206,15 @@ pub async fn create_mint<R: Rpc + Indexer>(
         root_index: rpc_result.addresses[0].root_index,
         address: compressed_mint_address,
         mint: CompressedMintInstructionData {
-            version: 1,
+          base: BaseCompressedMint {   version: 1,
             spl_mint: spl_mint.into(),
             supply: 0,
             decimals,
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),
+            is_decompressed: false,},
             extensions: metadata.map(|m| vec![light_ctoken_types::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
-            is_decompressed: false,
+
         },
     };
 
