@@ -230,22 +230,22 @@ pub mod anchor_compressible {
                     )?;
 
                     // Process this single UserRecord account
-                    let solana_account_slice = Box::new(vec![&solana_accounts[i]]);
-                    let light_accounts = Box::new(vec![light_account]);
+                    let solana_account_slice = vec![&solana_accounts[i]];
+                    let light_accounts = vec![light_account];
                     let seeds_slice = seeds_refs.as_slice();
-                    let seeds_array = Box::new(vec![seeds_slice]);
+                    let seeds_array = vec![seeds_slice];
                     let cpi_accounts_box = Box::new(cpi_accounts.clone());
 
                     let compressed_infos = prepare_accounts_for_decompress_idempotent::<UserRecord>(
-                        &solana_account_slice,
+                        solana_account_slice,
                         light_accounts,
-                        &seeds_array,
+                        seeds_array,
                         &cpi_accounts_box,
                         &ctx.accounts.rent_payer,
                         address_space,
                     )?;
 
-                    all_compressed_infos.extend(*compressed_infos);
+                    all_compressed_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::GameSession(data) => {
                     // Build seeds refs without cloning - pre-allocate capacity
@@ -263,21 +263,21 @@ pub mod anchor_compressible {
                     )?;
 
                     // Process this single GameSession account
-                    let solana_account_slice = Box::new(vec![&solana_accounts[i]]);
-                    let light_accounts = Box::new(vec![light_account]);
+                    let solana_account_slice = vec![&solana_accounts[i]];
+                    let light_accounts = vec![light_account];
                     let seeds_slice = seeds_refs.as_slice();
-                    let seeds_array = Box::new(vec![seeds_slice]);
+                    let seeds_array = vec![seeds_slice];
                     let cpi_accounts_box = Box::new(cpi_accounts.clone());
 
                     let compressed_infos = prepare_accounts_for_decompress_idempotent::<GameSession>(
-                        &solana_account_slice,
+                        solana_account_slice,
                         light_accounts,
-                        &seeds_array,
+                        seeds_array,
                         &cpi_accounts_box,
                         &ctx.accounts.rent_payer,
                         address_space,
                     )?;
-                    all_compressed_infos.extend(*compressed_infos);
+                    all_compressed_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::PlaceholderRecord(data) => {
                     let mut seeds_refs = Vec::with_capacity(compressed_data.seeds.len() + 1);
@@ -294,23 +294,23 @@ pub mod anchor_compressible {
                     )?;
 
                     // Process this single PlaceholderRecord account
-                    let solana_account_slice = Box::new(vec![&solana_accounts[i]]);
-                    let light_accounts = Box::new(vec![light_account]);
+                    let solana_account_slice = vec![&solana_accounts[i]];
+                    let light_accounts = vec![light_account];
                     let seeds_slice = seeds_refs.as_slice();
-                    let seeds_array = Box::new(vec![seeds_slice]);
+                    let seeds_array = vec![seeds_slice];
                     let cpi_accounts_box = Box::new(cpi_accounts.clone());
 
                     let compressed_infos =
                         prepare_accounts_for_decompress_idempotent::<PlaceholderRecord>(
-                            &solana_account_slice,
+                            solana_account_slice,
                             light_accounts,
-                            &seeds_array,
+                            seeds_array,
                             &cpi_accounts_box,
                             &ctx.accounts.rent_payer,
                             address_space,
                         )?;
 
-                    all_compressed_infos.extend(*compressed_infos);
+                    all_compressed_infos.extend(compressed_infos);
                 }
             }
         }

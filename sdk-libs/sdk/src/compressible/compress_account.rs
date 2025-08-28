@@ -10,7 +10,7 @@ use solana_sysvar::Sysvar;
 use crate::compressible::compression_info::CompressAs;
 use crate::{
     account::sha::LightAccount,
-    compressible::{compress_account_on_init::close, compression_info::HasCompressionInfo},
+    compressible::{compress_account_on_init_native::close, compression_info::HasCompressionInfo},
     cpi::{CpiAccountsSmall, CpiInputs},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},

@@ -1,9 +1,6 @@
 pub mod actions;
 pub mod instructions;
-use light_client::indexer::TreeInfo;
-use light_compressed_account::address::derive_address;
-use light_compressed_token_sdk::POOL_SEED;
-use solana_pubkey::Pubkey;
+
 use solana_pubkey::{pubkey, Pubkey};
 
 pub const COMPRESSED_TOKEN_PROGRAM_ID: Pubkey =
@@ -13,6 +10,9 @@ pub const COMPRESSED_TOKEN_CPI_AUTHORITY: Pubkey =
     pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
 pub mod compressed_token {
+    use light_compressed_account::address::derive_address;
+    use light_compressed_token_sdk::POOL_SEED;
+    use solana_pubkey::Pubkey;
 
     use super::{COMPRESSED_TOKEN_CPI_AUTHORITY, COMPRESSED_TOKEN_PROGRAM_ID};
 
@@ -63,17 +63,6 @@ pub mod compressed_token {
             &mint_address.to_bytes(),
             &address_tree.to_bytes(),
             &ID.to_bytes(),
-        )
-    }
-
-    pub fn get_associated_ctoken_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
-        Pubkey::find_program_address(
-            &[
-                &owner.to_bytes(),
-                &COMPRESSED_TOKEN_PROGRAM_ID.to_bytes(),
-                &mint.to_bytes(),
-            ],
-            &COMPRESSED_TOKEN_PROGRAM_ID,
         )
     }
 }

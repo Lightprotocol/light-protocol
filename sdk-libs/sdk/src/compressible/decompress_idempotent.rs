@@ -44,7 +44,7 @@ fn invoke_create_account_heap<'info>(
         system_program.clone(),
     ];
 
-    invoke_signed(&*create_account_ix, &accounts[..], &[seeds])
+    invoke_signed(&create_account_ix, &accounts, &[seeds])
         .map_err(|e| LightSdkError::ProgramError(e))
 }
 
@@ -98,7 +98,7 @@ where
 
         let account_count = solana_accounts.len();
 
-        let mut compressed_accounts = *compressed_accounts;
+        let mut compressed_accounts = compressed_accounts;
 
         for idx in 0..account_count {
             let solana_account = solana_accounts[idx];
@@ -194,7 +194,7 @@ where
         solana_account,
         rent_minimum_balance,
         space as u64,
-        &*program_id,
+        &program_id,
         seeds,
         cpi_accounts.system_program()?,
     )?;
