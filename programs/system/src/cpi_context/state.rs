@@ -7,7 +7,7 @@ use light_compressed_account::instruction_data::zero_copy::{
 };
 use light_profiler::profile;
 use light_zero_copy::{errors::ZeroCopyError, slice_mut::ZeroCopySliceMut, vec::ZeroCopyVecU8};
-use pinocchio::{account_info::AccountInfo, log::sol_log_compute_units, msg, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 use zerocopy::{little_endian::U16, Ref};
 
 use crate::{
@@ -65,22 +65,20 @@ impl<'a> ZCpiContextAccount<'a> {
         instruction_data: &crate::context::WrappedInstructionData<'b, T>,
     ) -> Result<(), light_zero_copy::errors::ZeroCopyError> {
         let pre_address_len = self.new_addresses.len();
+        // Cache owner bytes to avoid repeated calls
+        let owner_bytes = instruction_data.owner().to_bytes();
+        
         // Store new addresses
         for address in instruction_data.new_addresses() {
+            let assigned_index = address.assigned_compressed_account_index();
             let new_address = CpiContextNewAddressParamsAssignedPacked {
-                owner: instruction_data.owner().to_bytes(), // Use instruction data owner
+                owner: owner_bytes, // Use cached owner bytes
                 seed: address.seed(),
                 address_queue_account_index: address.address_queue_index(),
                 address_merkle_tree_account_index: address.address_merkle_tree_account_index(),
                 address_merkle_tree_root_index: address.address_merkle_tree_root_index().into(),
-                assigned_to_account: if address.assigned_compressed_account_index().is_some() {
-                    1
-                } else {
-                    0
-                }, // correct assigned address index
-                assigned_account_index: address.assigned_compressed_account_index().unwrap_or(0)
-                    as u8
-                    + pre_address_len as u8,
+                assigned_to_account: assigned_index.is_some() as u8, // Direct bool to u8 conversion
+                assigned_account_index: assigned_index.unwrap_or(0) as u8 + pre_address_len as u8,
             };
             self.new_addresses.push(new_address)?;
         }
@@ -90,24 +88,25 @@ impl<'a> ZCpiContextAccount<'a> {
             if input.skip() {
                 continue;
             }
+            // Cache data and address calls
+            let data = input.data();
+            let address = input.address();
+            let merkle_context = input.merkle_context();
+            
             let in_account = CpiContextInAccount {
                 owner: *input.owner(),
-                discriminator: input.data().map(|d| d.discriminator).unwrap_or([0; 8]),
-                data_hash: input.data().map(|d| d.data_hash).unwrap_or([0; 32]),
+                discriminator: data.as_ref().map_or([0; 8], |d| d.discriminator),
+                data_hash: data.as_ref().map_or([0; 32], |d| d.data_hash),
                 merkle_context: ZPackedMerkleContext {
-                    merkle_tree_pubkey_index: input.merkle_context().merkle_tree_pubkey_index,
-                    queue_pubkey_index: input.merkle_context().queue_pubkey_index,
-                    leaf_index: input.merkle_context().leaf_index,
-                    prove_by_index: if input.merkle_context().prove_by_index() {
-                        1
-                    } else {
-                        0
-                    },
+                    merkle_tree_pubkey_index: merkle_context.merkle_tree_pubkey_index,
+                    queue_pubkey_index: merkle_context.queue_pubkey_index,
+                    leaf_index: merkle_context.leaf_index,
+                    prove_by_index: merkle_context.prove_by_index() as u8, // Direct bool to u8
                 },
                 root_index: input.root_index().into(),
                 lamports: input.lamports().into(),
-                with_address: if input.address().is_some() { 1 } else { 0 },
-                address: input.address().unwrap_or([0; 32]),
+                with_address: address.is_some() as u8, // Direct bool to u8
+                address: address.unwrap_or([0; 32]),
             };
             self.in_accounts.push(in_account)?;
         }
@@ -131,29 +130,31 @@ impl<'a> ZCpiContextAccount<'a> {
                 // TODO: check what skip does
                 continue;
             }
+            // Cache data and address calls
+            let data = output.data();
+            let address = output.address();
+            
             let out_account = CpiContextOutAccount {
                 owner: output.owner(),
-                discriminator: output.data().map(|d| d.discriminator).unwrap_or([0; 8]),
-                data_hash: output.data().map(|d| d.data_hash).unwrap_or([0; 32]),
+                discriminator: data.as_ref().map_or([0; 8], |d| d.discriminator),
+                data_hash: data.as_ref().map_or([0; 32], |d| d.data_hash),
                 output_merkle_tree_index: output.merkle_tree_index(),
                 lamports: output.lamports().into(),
-                with_address: if output.address().is_some() { 1 } else { 0 },
-                address: output.address().unwrap_or([0; 32]),
+                with_address: address.is_some() as u8, // Direct bool to u8
+                address: address.unwrap_or([0; 32]),
             };
             self.out_accounts.push(out_account)?;
             // Add output data
             {
                 *self.output_data_len += 1;
 
-                let data_len = output
-                    .data()
-                    .map_or(Ok(0), |data| data.data.len().try_into())
+                let data_len = data.as_ref().map_or(Ok(0), |d| d.data.len().try_into())
                     .map_err(|_| ZeroCopyError::InvalidConversion)?;
                 let (mut new_data, remaining_data) =
                     ZeroCopySliceMut::<U16, u8>::new_at(data_len.into(), self.remaining_data)?;
 
-                if let Some(data) = output.data() {
-                    new_data.as_mut_slice().copy_from_slice(&data.data);
+                if let Some(d) = data.as_ref() {
+                    new_data.as_mut_slice().copy_from_slice(&d.data);
                 }
                 self.output_data.push(new_data);
                 self.remaining_data = remaining_data;

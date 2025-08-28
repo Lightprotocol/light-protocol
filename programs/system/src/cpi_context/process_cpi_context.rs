@@ -1,5 +1,4 @@
 use light_account_checks::discriminator::Discriminator;
-use light_profiler::profile;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::{
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
@@ -12,6 +11,7 @@ use light_compressed_account::{
     },
     pubkey::AsPubkey,
 };
+use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use solana_msg::msg;
@@ -65,19 +65,18 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             Some(cpi_context_account_info) => cpi_context_account_info,
             None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
         };
-        let mut cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
-        // We only validate when executing with the cpi context.
-        if !cpi_context.first_set_context && !cpi_context.set_context {
+
+        if cpi_context.set_context || cpi_context.first_set_context {
+            set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
+            return Ok(None);
+        } else {
+            let mut cpi_context_account =
+                deserialize_cpi_context_account(cpi_context_account_info)?;
             validate_cpi_context_associated_with_merkle_tree(
                 &instruction_data,
                 &cpi_context_account,
                 remaining_accounts,
             )?;
-        }
-        if cpi_context.set_context || cpi_context.first_set_context {
-            set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
-            return Ok(None);
-        } else {
             if cpi_context_account.is_empty() {
                 return Err(SystemProgramError::CpiContextEmpty.into());
             }
@@ -149,12 +148,6 @@ pub fn copy_cpi_context_outputs(
             (cpi_context.out_accounts.len() as u32)
                 .to_le_bytes()
                 .as_slice(),
-        );
-        msg!(
-            "here cpi_context
-            .out_accounts len {} data len {}",
-            cpi_context.out_accounts.len(),
-            cpi_context.output_data.len()
         );
         for (output_account, output_data) in cpi_context
             .out_accounts
