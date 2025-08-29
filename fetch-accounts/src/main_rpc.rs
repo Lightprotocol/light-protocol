@@ -13,16 +13,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    // Get RPC URL - can be set via environment variable or use predefined networks
+    // Set via RPC_URL env or use preset.
+    // env takes precedence.
     let rpc_url = get_rpc_url();
     println!("Using RPC: {}", rpc_url);
 
     let client = RpcClient::new(rpc_url);
 
-    // Check if we should process as lookup tables
     let is_lut = std::env::var("IS_LUT").unwrap_or_default() == "true";
-
-    // Fetch all addresses provided as command line arguments
     for address_str in &args[1..] {
         if is_lut {
             fetch_and_process_lut(&client, address_str)?;
@@ -31,23 +29,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("✅ Finished processing {} accounts", args.len() - 1);
+    println!("Processed {} accounts", args.len() - 1);
     Ok(())
 }
 
 fn get_rpc_url() -> String {
-    // Check for custom RPC_URL environment variable first
     if let Ok(custom_url) = std::env::var("RPC_URL") {
         return custom_url;
     }
 
-    // Check for NETWORK environment variable for predefined networks
     match std::env::var("NETWORK").as_deref() {
         Ok("mainnet") => "https://api.mainnet-beta.solana.com".to_string(),
         Ok("devnet") => "https://api.devnet.solana.com".to_string(),
         Ok("testnet") => "https://api.testnet.solana.com".to_string(),
         Ok("localnet") | Ok("local") => "http://localhost:8899".to_string(),
-        _ => "http://localhost:8899".to_string(), // default to localnet
+        _ => "http://localhost:8899".to_string(),
     }
 }
 
@@ -89,18 +85,14 @@ fn fetch_and_process_lut(
     address_str: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let pubkey = Pubkey::from_str(address_str)?;
-    println!("📥 Fetching lookup table: {}", pubkey);
+    println!("Fetching lookup table: {}", pubkey);
 
     match client.get_account(&pubkey) {
         Ok(account) => {
-            println!("✅ Fetched LUT: {} bytes", account.data.len());
-
-            // Decode the lookup table
             let modified_data = decode_and_modify_lut(&account.data)?;
 
             let filename = format!("modified_lut_{}.json", pubkey);
 
-            // Create JSON with modified data
             let data_base64 = encode(&modified_data);
             let json_obj = json!({
                 "pubkey": pubkey.to_string(),
@@ -117,13 +109,11 @@ fn fetch_and_process_lut(
             let mut file = File::create(&filename)?;
             file.write_all(json_obj.to_string().as_bytes())?;
 
-            println!(
-                "✅ Modified LUT saved: {} (last_extended_slot set to 0)",
-                filename
-            );
+            println!("Saved LUT {} with last_extended_slot set to 0", filename);
         }
         Err(e) => {
-            println!("❌ Error fetching LUT {}: {}", pubkey, e);
+            println!("Error fetching LUT {}: {}", pubkey, e);
+            return Err(e.into());
         }
     }
 
@@ -144,9 +134,8 @@ fn decode_and_modify_lut(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Err
     // - last_extended_slot_start_index: u8 (1 byte) - at offset 20
     // - authority: Option<Pubkey> (33 bytes max) - at offset 21
     // - _padding: u16 (2 bytes)
-    // - addresses follow...
 
-    // Verify this is a lookup table (discriminator should be 1)
+    // CHECK: disc = 1
     let discriminator = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
     if discriminator != 1 {
         return Err(format!(
@@ -156,9 +145,6 @@ fn decode_and_modify_lut(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Err
         .into());
     }
 
-    println!("📊 LUT Analysis:");
-
-    // Read current values for logging
     let deactivation_slot = u64::from_le_bytes([
         data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11],
     ]);
@@ -188,7 +174,7 @@ fn decode_and_modify_lut(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Err
         println!("  Authority: None");
     }
 
-    // Modify last_extended_slot to 0 (at offset 12, 8 bytes)
+    // MUT: last_extended_slot to 0 (at offset 12, 8 bytes)
     let zero_bytes = 0u64.to_le_bytes();
     modified_data[12..20].copy_from_slice(&zero_bytes);
 
@@ -201,7 +187,7 @@ fn decode_and_modify_lut(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Err
     let addresses_start = 56; // LOOKUP_TABLE_META_SIZE
     if data.len() > addresses_start {
         let addresses_data_len = data.len() - addresses_start;
-        let num_addresses = addresses_data_len / 32; // Each address is 32 bytes
+        let num_addresses = addresses_data_len / 32;
         println!("  Number of addresses: {}", num_addresses);
     }
 
@@ -213,7 +199,6 @@ fn fetch_and_save_account(
     address_str: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let pubkey = Pubkey::from_str(address_str)?;
-    println!("📥 Fetching account: {}", pubkey);
 
     match client.get_account(&pubkey) {
         Ok(account) => {
@@ -221,14 +206,15 @@ fn fetch_and_save_account(
             write_account_json(&account, &pubkey, &filename)?;
 
             println!(
-                "✅ Saved: {} ({} bytes, {} lamports)",
+                "Saved {} ({} bytes, {} lamports)",
                 filename,
                 account.data.len(),
                 account.lamports
             );
         }
         Err(e) => {
-            println!("❌ Error fetching {}: {}", pubkey, e);
+            println!("Error fetching {}: {}", pubkey, e);
+            return Err(e.into());
         }
     }
 
