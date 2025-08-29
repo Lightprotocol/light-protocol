@@ -1,6 +1,10 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{program::invoke, pubkey::Pubkey},
+    solana_program::{
+        instruction::AccountMeta,
+        program::{invoke, invoke_signed},
+        pubkey::Pubkey,
+    },
 };
 
 use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
@@ -19,11 +23,306 @@ use light_sdk::{
     sha::LightAccount,
     LightDiscriminator, LightHasher,
 };
-use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall, CpiSigner};
+use light_sdk_types::{
+    CpiAccountsConfig, CpiAccountsSmall, CpiSigner, COMPRESSED_TOKEN_PROGRAM_ID,
+};
 
 declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
+
+// Efficient packed accounts structure for CToken decompression
+#[derive(Debug, Clone)]
+struct PackedCTokenDecompression {
+    /// All unique pubkeys (mints, owners, delegates, etc.)
+    packed_pubkeys: Vec<Pubkey>,
+    /// Mapping from pubkey to index in packed_pubkeys
+    pubkey_indices: std::collections::HashMap<Pubkey, u8>,
+    /// Account metadata for each CToken account to decompress
+    accounts: Vec<PackedCTokenAccountMeta>,
+}
+
+#[derive(Debug, Clone)]
+struct PackedCTokenAccountMeta {
+    /// Index of mint in packed_pubkeys
+    mint_index: u8,
+    /// Index of owner in packed_pubkeys
+    owner_index: u8,
+    /// Index of delegate in packed_pubkeys (255 = None)
+    delegate_index: u8,
+    /// Index of target decompression account in solana_accounts
+    target_account_index: usize,
+    /// Whether this account is owned by the program PDA
+    is_program_owned: bool,
+    /// Amount to decompress
+    amount: u64,
+    /// Merkle tree context from compressed account
+    merkle_context: light_compressed_account::compressed_account::PackedMerkleContext,
+    /// Root index for proof
+    root_index: u16,
+}
+
+impl PackedCTokenDecompression {
+    fn new() -> Self {
+        Self {
+            packed_pubkeys: Vec::new(),
+            pubkey_indices: std::collections::HashMap::new(),
+            accounts: Vec::new(),
+        }
+    }
+
+    /// Insert a pubkey and return its index (or existing index if already present)
+    fn insert_pubkey(&mut self, pubkey: Pubkey) -> u8 {
+        if let Some(&index) = self.pubkey_indices.get(&pubkey) {
+            index
+        } else {
+            let index = self.packed_pubkeys.len() as u8;
+            self.packed_pubkeys.push(pubkey);
+            self.pubkey_indices.insert(pubkey, index);
+            index
+        }
+    }
+
+    /// Insert an optional pubkey and return its index (255 for None)
+    fn insert_optional_pubkey(&mut self, pubkey: Option<Pubkey>) -> u8 {
+        match pubkey {
+            Some(pk) => self.insert_pubkey(pk),
+            None => 255,
+        }
+    }
+}
+
+// Helper function to derive PDA for program-owned CToken accounts
+fn derive_ctoken_pda(target_account: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
+    // PDA is derived from the target decompressed account address
+    // This creates the association between compressed and decompressed accounts
+    Pubkey::find_program_address(&[b"ctoken_owner", target_account.as_ref()], program_id)
+}
+
+// Helper function to invoke compressed token program for CToken decompression
+fn invoke_ctoken_decompression<'info, T>(
+    ctx: &Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
+    ctoken_accounts: Vec<(usize, CompressedAccountData, CTokenAccountData, u8)>,
+    solana_accounts: &[AccountInfo<'info>],
+    _cpi_accounts: &T,
+    proof: ValidityProof,
+) -> Result<()> {
+    use light_compressed_token_sdk::{
+        account2::CTokenAccount2,
+        instructions::transfer2::{
+            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
+            Transfer2Config, Transfer2Inputs,
+        },
+    };
+    use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
+
+    // Validate that compressed token program accounts are provided
+    let compressed_token_program = ctx
+        .accounts
+        .compressed_token_program
+        .as_ref()
+        .ok_or(ErrorCode::MissingCompressedTokenProgram)?;
+
+    let cpi_authority = ctx
+        .accounts
+        .compressed_token_cpi_authority
+        .as_ref()
+        .ok_or(ErrorCode::MissingCompressedTokenProgramAuthorityPDA)?;
+
+    // CHECK: cpi into correct ctoken program
+    let expected_program_id = Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID);
+    if compressed_token_program.key() != expected_program_id {
+        return err!(ErrorCode::MissingCompressedTokenProgram);
+    }
+
+    // Build efficient packed structure for all CToken accounts
+    let mut packed = PackedCTokenDecompression::new();
+    let mut pda_seeds_collection = Vec::new();
+
+    // First pass: collect all unique pubkeys and build account metadata
+    for (index, compressed_data, token_data, _bump) in ctoken_accounts {
+        let mint_index = packed.insert_pubkey(token_data.mint);
+
+        // Get the target decompressed account
+        let target_account = solana_accounts[index].key();
+
+        // Determine if this account is program-owned
+        // A compressed CToken account is program-owned if its owner is a PDA
+        // derived from the target decompressed account address
+        let (expected_pda, bump) = derive_ctoken_pda(&target_account, &ctx.program_id);
+        let is_program_owned = token_data.owner == expected_pda;
+
+        // For program-owned accounts, use the PDA as owner
+        // For external accounts, use the actual owner
+        let owner_to_use = if is_program_owned {
+            expected_pda
+        } else {
+            token_data.owner
+        };
+
+        let owner_index = packed.insert_pubkey(owner_to_use);
+        let delegate_index = packed.insert_optional_pubkey(token_data.delegate);
+
+        // Store PDA seeds for program-owned accounts (for invoke_signed)
+        if is_program_owned {
+            pda_seeds_collection.push((
+                index,
+                vec![
+                    b"ctoken_owner".to_vec(),
+                    target_account.to_bytes().to_vec(),
+                    vec![bump],
+                ],
+            ));
+        }
+
+        // Extract tree info from CompressedAccountMeta
+        let tree_info = &compressed_data.meta.tree_info;
+
+        packed.accounts.push(PackedCTokenAccountMeta {
+            mint_index,
+            owner_index,
+            delegate_index,
+            target_account_index: index,
+            is_program_owned,
+            amount: token_data.amount,
+            merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
+                merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                queue_pubkey_index: tree_info.queue_pubkey_index,
+                leaf_index: tree_info.leaf_index,
+                prove_by_index: tree_info.prove_by_index,
+            },
+            root_index: tree_info.root_index,
+        });
+    }
+
+    // Build AccountMeta array for all packed pubkeys and target accounts
+    let mut packed_account_metas = Vec::new();
+
+    // First add all unique pubkeys (mints, owners, delegates)
+    for pubkey in &packed.packed_pubkeys {
+        // Determine if this pubkey is a signer
+        // For program-owned accounts, the PDA is the signer
+        // For external accounts, the actual owner is the signer
+        let is_signer = packed.accounts.iter().any(|acc| {
+            acc.owner_index < 255
+                && packed.packed_pubkeys[acc.owner_index as usize] == *pubkey
+                && !acc.is_program_owned // External owners need to sign
+        });
+        packed_account_metas.push(AccountMeta::new_readonly(*pubkey, is_signer));
+    }
+
+    // Then add all target native CToken accounts (writable for decompression)
+    for account_meta in &packed.accounts {
+        let target_account = *solana_accounts[account_meta.target_account_index].key;
+        packed_account_metas.push(AccountMeta::new(target_account, false));
+    }
+
+    // Build individual CTokenAccount2 for each account to decompress
+    // Each account needs its own CTokenAccount2 with proper decompression
+    let mut token_accounts = Vec::new();
+    let target_accounts_offset = packed.packed_pubkeys.len() as u8;
+
+    for (i, account_meta) in packed.accounts.iter().enumerate() {
+        // Create input data for this specific account
+        let input_data = MultiInputTokenDataWithContext {
+            amount: account_meta.amount,
+            merkle_context: account_meta.merkle_context,
+            root_index: account_meta.root_index,
+            mint: account_meta.mint_index,
+            owner: account_meta.owner_index,
+            has_delegate: account_meta.delegate_index != 255,
+            delegate: if account_meta.delegate_index == 255 {
+                0
+            } else {
+                account_meta.delegate_index
+            },
+            version: 2, // V2 for batched Merkle trees
+        };
+
+        // Create CTokenAccount2 for this specific account
+        let mut ctoken_account = CTokenAccount2::new(vec![input_data], 0)
+            .map_err(|_| ErrorCode::CTokenDecompressionNotImplemented)?;
+
+        // Decompress to the specific target account
+        let target_account_index = target_accounts_offset + i as u8;
+        ctoken_account
+            .decompress(account_meta.amount, target_account_index)
+            .map_err(|_| ErrorCode::CTokenDecompressionNotImplemented)?;
+
+        token_accounts.push(ctoken_account);
+    }
+
+    // Create Transfer2 inputs
+    let inputs = Transfer2Inputs {
+        validity_proof: proof.into(),
+        transfer_config: Transfer2Config::default(),
+        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+            ctx.accounts.fee_payer.key(),
+            packed_account_metas,
+        ),
+        in_lamports: None,
+        out_lamports: None,
+        token_accounts,
+    };
+
+    // Create the transfer2 instruction
+    let ix = create_transfer2_instruction(inputs)
+        .map_err(|_| ErrorCode::CTokenDecompressionNotImplemented)?;
+
+    // Build account infos for CPI
+    let mut account_infos = vec![
+        cpi_authority.to_account_info(),
+        compressed_token_program.to_account_info(),
+    ];
+
+    // Add all unique pubkeys (mints, owners, delegates)
+    // These must be provided in ctx.remaining_accounts after system accounts
+    // TODO: In production, implement proper account lookup from remaining_accounts
+
+    // Add all target native CToken accounts
+    for account_meta in &packed.accounts {
+        account_infos.push(solana_accounts[account_meta.target_account_index].to_account_info());
+    }
+
+    msg!(
+        "CToken decompression: {} unique pubkeys, {} accounts ({} program-owned)",
+        packed.packed_pubkeys.len(),
+        packed.accounts.len(),
+        packed
+            .accounts
+            .iter()
+            .filter(|a| a.is_program_owned)
+            .count()
+    );
+
+    // Check if we have any program-owned accounts
+    let has_program_owned = packed.accounts.iter().any(|a| a.is_program_owned);
+
+    if has_program_owned {
+        // For program-owned accounts, we need to use invoke_signed
+        // Build the seeds for all program-owned PDAs
+        let mut all_seeds = Vec::new();
+        for (target_index, seeds) in pda_seeds_collection.iter() {
+            // Only add seeds for accounts that are actually program-owned
+            if packed
+                .accounts
+                .iter()
+                .any(|a| a.target_account_index == *target_index && a.is_program_owned)
+            {
+                all_seeds.push(seeds.iter().map(|s| s.as_slice()).collect::<Vec<&[u8]>>());
+            }
+        }
+
+        // Use invoke_signed with PDA seeds
+        let seeds_refs: Vec<&[&[u8]]> = all_seeds.iter().map(|s| s.as_slice()).collect();
+        invoke_signed(&ix, &account_infos, &seeds_refs)?;
+    } else {
+        // For external accounts, use regular invoke
+        invoke(&ix, &account_infos)?;
+    }
+
+    Ok(())
+}
 
 // Simple anchor program retrofitted with compressible accounts.
 #[program]
@@ -205,7 +504,9 @@ pub mod anchor_compressible {
         let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
         let address_space = config.address_space[0];
 
-        let mut all_compressed_infos = Vec::with_capacity(compressed_accounts.len());
+        // Separate CToken accounts from other compressible accounts
+        let mut ctoken_accounts = Vec::new();
+        let mut other_compressed_infos = Vec::new();
 
         for (i, (compressed_data, &bump)) in compressed_accounts
             .into_iter()
@@ -215,6 +516,10 @@ pub mod anchor_compressible {
             let bump_slice = [bump];
 
             match compressed_data.data {
+                CompressedAccountVariant::CTokenAccount(ref data) => {
+                    // Collect CToken accounts for batch processing via compressed token program
+                    ctoken_accounts.push((i, compressed_data.clone(), data.clone(), bump));
+                }
                 CompressedAccountVariant::UserRecord(data) => {
                     let mut seeds_refs = Vec::with_capacity(compressed_data.seeds.len() + 1);
                     for seed in &compressed_data.seeds {
@@ -245,7 +550,7 @@ pub mod anchor_compressible {
                         address_space,
                     )?;
 
-                    all_compressed_infos.extend(compressed_infos);
+                    other_compressed_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::GameSession(data) => {
                     // Build seeds refs without cloning - pre-allocate capacity
@@ -277,7 +582,7 @@ pub mod anchor_compressible {
                         &ctx.accounts.rent_payer,
                         address_space,
                     )?;
-                    all_compressed_infos.extend(compressed_infos);
+                    other_compressed_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::PlaceholderRecord(data) => {
                     let mut seeds_refs = Vec::with_capacity(compressed_data.seeds.len() + 1);
@@ -310,17 +615,31 @@ pub mod anchor_compressible {
                             address_space,
                         )?;
 
-                    all_compressed_infos.extend(compressed_infos);
+                    other_compressed_infos.extend(compressed_infos);
                 }
             }
         }
 
-        if all_compressed_infos.is_empty() {
-            msg!("No compressed accounts to decompress");
-        } else {
-            let cpi_inputs = CpiInputs::new(proof, all_compressed_infos);
-            cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+        // Process CToken accounts via compressed token program if any
+        let has_ctoken_accounts = !ctoken_accounts.is_empty();
+        if has_ctoken_accounts {
+            super::invoke_ctoken_decompression(
+                &ctx,
+                ctoken_accounts,
+                solana_accounts,
+                &cpi_accounts,
+                proof.clone(),
+            )?;
         }
+
+        // Process other compressible accounts via light system program
+        if !other_compressed_infos.is_empty() {
+            let cpi_inputs = CpiInputs::new(proof, other_compressed_infos);
+            cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+        } else if !has_ctoken_accounts {
+            msg!("No compressed accounts to decompress");
+        }
+
         Ok(())
     }
 
@@ -954,9 +1273,21 @@ pub struct DecompressAccountsIdempotent<'info> {
     /// The global config account
     /// CHECK: load_checked.
     pub config: AccountInfo<'info>,
+
+    // CToken-specific accounts (optional, only needed when decompressing CToken accounts)
+    /// Compressed token program
+    /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
+    pub compressed_token_program: Option<UncheckedAccount<'info>>,
+
+    /// CPI authority PDA of the compressed token program
+    /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
+    pub compressed_token_cpi_authority: Option<UncheckedAccount<'info>>,
     // Remaining accounts:
-    // - First N accounts: PDA accounts to decompress into
+    // - First N accounts: PDA accounts to decompress into (native CToken accounts)
     // - After system_accounts_offset: Light Protocol system accounts for CPI
+    //
+    // For CToken decompression, the PDA accounts must be native CToken accounts
+    // owned by the compressed token program (cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m)
 }
 
 #[derive(Accounts)]
@@ -992,6 +1323,26 @@ pub enum CompressedAccountVariant {
     UserRecord(UserRecord),
     GameSession(GameSession),
     PlaceholderRecord(PlaceholderRecord),
+    CTokenAccount(CTokenAccountData), // Must always be included if used for cTokens.
+}
+// CToken account structure that matches native token accounts
+#[derive(Default, Debug, LightHasher, LightDiscriminator, InitSpace)]
+#[account]
+pub struct CTokenAccountData {
+    #[skip]
+    pub compression_info: Option<CompressionInfo>,
+    #[hash]
+    pub mint: Pubkey,
+    #[hash]
+    pub owner: Pubkey,
+    pub amount: u64,
+    #[hash]
+    pub delegate: Option<Pubkey>,
+    pub state: u8, // AccountState: Initialized/Frozen
+    pub is_native: Option<u64>,
+    pub delegated_amount: u64,
+    #[hash]
+    pub close_authority: Option<Pubkey>,
 }
 
 impl Default for CompressedAccountVariant {
@@ -1006,6 +1357,7 @@ impl DataHasher for CompressedAccountVariant {
             Self::UserRecord(data) => data.hash::<H>(),
             Self::GameSession(data) => data.hash::<H>(),
             Self::PlaceholderRecord(data) => data.hash::<H>(),
+            Self::CTokenAccount(data) => data.hash::<H>(),
         }
     }
 }
@@ -1021,6 +1373,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.compression_info(),
             Self::GameSession(data) => data.compression_info(),
             Self::PlaceholderRecord(data) => data.compression_info(),
+            Self::CTokenAccount(data) => data.compression_info(),
         }
     }
 
@@ -1029,6 +1382,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.compression_info_mut(),
             Self::GameSession(data) => data.compression_info_mut(),
             Self::PlaceholderRecord(data) => data.compression_info_mut(),
+            Self::CTokenAccount(data) => data.compression_info_mut(),
         }
     }
 
@@ -1037,6 +1391,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.compression_info_mut_opt(),
             Self::GameSession(data) => data.compression_info_mut_opt(),
             Self::PlaceholderRecord(data) => data.compression_info_mut_opt(),
+            Self::CTokenAccount(data) => data.compression_info_mut_opt(),
         }
     }
 
@@ -1045,6 +1400,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.set_compression_info_none(),
             Self::GameSession(data) => data.set_compression_info_none(),
             Self::PlaceholderRecord(data) => data.set_compression_info_none(),
+            Self::CTokenAccount(data) => data.set_compression_info_none(),
         }
     }
 }
@@ -1055,6 +1411,7 @@ impl Size for CompressedAccountVariant {
             Self::UserRecord(data) => data.size(),
             Self::GameSession(data) => data.size(),
             Self::PlaceholderRecord(data) => data.size(),
+            Self::CTokenAccount(data) => data.size(),
         }
     }
 }
@@ -1077,6 +1434,51 @@ pub struct UserRecord {
     #[max_len(32)]
     pub name: String,
     pub score: u64,
+}
+
+impl HasCompressionInfo for CTokenAccountData {
+    fn compression_info(&self) -> &CompressionInfo {
+        self.compression_info
+            .as_ref()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        self.compression_info
+            .as_mut()
+            .expect("CompressionInfo must be Some on-chain")
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
+        &mut self.compression_info
+    }
+
+    fn set_compression_info_none(&mut self) {
+        self.compression_info = None;
+    }
+}
+
+impl Size for CTokenAccountData {
+    fn size(&self) -> usize {
+        Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE
+    }
+}
+impl CompressAs for CTokenAccountData {
+    type Output = Self;
+
+    fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
+        // Return owned data with compression_info = None for compressed storage
+        std::borrow::Cow::Owned(Self {
+            compression_info: None,
+            mint: self.mint,
+            owner: self.owner,
+            amount: self.amount,
+            delegate: self.delegate,
+            state: self.state,
+            is_native: self.is_native,
+            delegated_amount: self.delegated_amount,
+            close_authority: self.close_authority,
+        })
+    }
 }
 
 // Auto-derived via macro.
@@ -1254,6 +1656,13 @@ pub enum ErrorCode {
     InvalidRentRecipient,
     #[msg("Failed to create compressed mint")]
     MintCreationFailed,
+    #[msg("Compressed token program account not found in remaining accounts")]
+    MissingCompressedTokenProgram,
+    #[msg("Compressed token program authority PDA account not found in remaining accounts")]
+    MissingCompressedTokenProgramAuthorityPDA,
+
+    #[msg("CToken decompression not yet implemented")]
+    CTokenDecompressionNotImplemented,
 }
 
 // Add these struct definitions before the program module
