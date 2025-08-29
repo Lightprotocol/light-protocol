@@ -6,6 +6,7 @@ use light_compressed_account::{
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
     pubkey::Pubkey,
+    CompressedAccountError,
 };
 use zerocopy::Ref;
 
@@ -77,13 +78,13 @@ impl<'a> InstructionData<'a> for ZCpiContextAccount<'a> {
         None
     }
 
-    fn account_option_config(&self) -> AccountOptions {
-        AccountOptions {
+    fn account_option_config(&self) -> Result<AccountOptions, CompressedAccountError> {
+        Ok(AccountOptions {
             sol_pool_pda: false,
             decompression_recipient: false,
             cpi_context_account: true,
             write_to_cpi_context: true,
-        }
+        })
     }
 
     fn with_transaction_hash(&self) -> bool {

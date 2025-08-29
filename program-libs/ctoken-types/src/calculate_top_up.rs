@@ -20,8 +20,7 @@ pub fn calculate_top_up(
     let rent_exemption: u64 = 2630880; // Approx token account with extension
     #[cfg(target_os = "solana")]
     let rent_exemption: u64 = {
-        use pinocchio::sysvars::rent::Rent;
-        use pinocchio::sysvars::Sysvar;
+        use pinocchio::sysvars::{rent::Rent, Sysvar};
         let rent = Rent::get().unwrap();
         rent.minimum_balance(_num_bytes as usize)
     };

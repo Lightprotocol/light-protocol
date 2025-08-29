@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 //! Set cpi context tests:
 //! 1. Functional: Set cpi context first invocation
 //! 2. Functional: Set cpi context subsequent invocation
@@ -18,43 +16,117 @@
 //! 1. Set context
 //! 2. Combine (with malicious input in cpi context account)
 
-use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
-use light_compressed_account::instruction_data::zero_copy::{
-    ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
-};
-use light_system_program_pinocchio::cpi_context::process_cpi_context::set_cpi_context;
-use light_system_program_pinocchio::errors::SystemProgramError;
-use light_system_program_pinocchio::ID;
-use light_system_program_pinocchio::{
-    context::WrappedInstructionData,
-    cpi_context::{
-        account::{CpiContextInAccount, CpiContextOutAccount},
-        address::CpiContextNewAddressParamsAssignedPacked,
-        process_cpi_context::process_cpi_context,
-        state::{
-            cpi_context_account_new, deserialize_cpi_context_account,
-            deserialize_cpi_context_account_cleared, CpiContextAccountInitParams,
-        },
-    },
-};
-use pinocchio::account_info::AccountInfo;
-use pinocchio::pubkey::Pubkey;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
-use zerocopy::little_endian::{U16, U32, U64};
-
 use borsh::BorshSerialize;
+use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
+#[cfg(test)]
+use light_compressed_account::instruction_data::traits::InstructionData;
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
     },
     instruction_data::{
-        cpi_context::CompressedCpiContext, data::OutputCompressedAccountWithPackedContext,
-        invoke_cpi::InstructionDataInvokeCpi, traits::instruction_data_eq,
-        zero_copy::ZInstructionDataInvokeCpi,
+        cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
+        invoke_cpi::InstructionDataInvokeCpi,
+        traits::{InputAccount, NewAddress, OutputAccount},
+        zero_copy::{
+            ZInstructionDataInvokeCpi, ZPackedMerkleContext, ZPackedReadOnlyAddress,
+            ZPackedReadOnlyCompressedAccount,
+        },
     },
 };
+use light_system_program_pinocchio::{
+    context::WrappedInstructionData,
+    cpi_context::{
+        account::{CpiContextInAccount, CpiContextOutAccount},
+        address::CpiContextNewAddressParamsAssignedPacked,
+        process_cpi_context::{process_cpi_context, set_cpi_context},
+        state::{
+            cpi_context_account_new, deserialize_cpi_context_account,
+            deserialize_cpi_context_account_cleared, CpiContextAccountInitParams,
+        },
+    },
+    errors::SystemProgramError,
+    ID,
+};
 use light_zero_copy::traits::ZeroCopyAt;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use zerocopy::little_endian::{U16, U32, U64};
+
+/// Compares:
+/// 1. new address
+/// 2. input account
+/// 3. output account
+/// 4. read-only address
+/// 5. read-only account
+/// - other data is not compared
+#[cfg(test)]
+pub fn instruction_data_eq<'a>(
+    left: &impl InstructionData<'a>,
+    right: &impl InstructionData<'a>,
+) -> bool {
+    // Compare collections using our helper functions
+    new_addresses_eq(left.new_addresses(), right.new_addresses()) &&
+    input_accounts_eq(left.input_accounts(), right.input_accounts()) &&
+    output_accounts_eq(left.output_accounts(), right.output_accounts()) &&
+    // Compare read-only data
+    left.read_only_addresses() == right.read_only_addresses() &&
+    left.read_only_accounts() == right.read_only_accounts()
+}
+
+pub fn input_accounts_eq<'a>(
+    left: &[impl InputAccount<'a>],
+    right: &[impl InputAccount<'a>],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    left.iter().zip(right.iter()).all(|(l, r)| {
+        l.owner() == r.owner()
+            && l.lamports() == r.lamports()
+            && l.address() == r.address()
+            && l.merkle_context() == r.merkle_context()
+            && l.skip() == r.skip()
+            && l.has_data() == r.has_data()
+            && l.data() == r.data()
+            && l.root_index() == r.root_index()
+    })
+}
+
+pub fn new_addresses_eq<'a>(left: &[impl NewAddress<'a>], right: &[impl NewAddress<'a>]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    left.iter().zip(right.iter()).all(|(l, r)| {
+        l.seed() == r.seed()
+            && l.address_queue_index() == r.address_queue_index()
+            && l.address_merkle_tree_account_index() == r.address_merkle_tree_account_index()
+            && l.address_merkle_tree_root_index() == r.address_merkle_tree_root_index()
+            && l.assigned_compressed_account_index() == r.assigned_compressed_account_index()
+    })
+}
+
+pub fn output_accounts_eq<'a>(
+    left: &[impl OutputAccount<'a>],
+    right: &[impl OutputAccount<'a>],
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    left.iter().zip(right.iter()).all(|(l, r)| {
+        l.owner() == r.owner()
+            && l.lamports() == r.lamports()
+            && l.address() == r.address()
+            && l.merkle_tree_index() == r.merkle_tree_index()
+            && l.skip() == r.skip()
+            && l.has_data() == r.has_data()
+            && l.data() == r.data()
+    })
+}
 
 /// Calculate vector offsets for zero-copy vectors
 /// Returns (length_offset, capacity_offset, data_start, data_end)
@@ -988,7 +1060,7 @@ fn test_cpi_context_zero_copy_randomized() {
     for iteration in 0..1000 {
         // Get the current context (after clearing it will be empty, ready for new data)
         let mut cpi_context = deserialize_cpi_context_account(&account_info)
-            .expect(&format!("Failed to deserialize at iteration {}", iteration));
+            .unwrap_or_else(|_| panic!("Failed to deserialize at iteration {}", iteration));
 
         // 1. Create randomized input data
         let num_new_addresses = rng.gen_range(0..=new_addresses_len.min(5));
@@ -1096,38 +1168,40 @@ fn test_cpi_context_zero_copy_randomized() {
 
         // 2. Store the randomized data
         for item in &expected_new_addresses {
-            cpi_context.new_addresses.push(*item).expect(&format!(
-                "Failed to push new address at iteration {}",
-                iteration
-            ));
+            cpi_context.new_addresses.push(*item).unwrap_or_else(|_| {
+                panic!("Failed to push new address at iteration {}", iteration)
+            });
         }
 
         for item in &expected_readonly_addresses {
-            cpi_context.readonly_addresses.push(*item).expect(&format!(
-                "Failed to push readonly address at iteration {}",
-                iteration
-            ));
+            cpi_context
+                .readonly_addresses
+                .push(*item)
+                .unwrap_or_else(|_| {
+                    panic!("Failed to push readonly address at iteration {}", iteration)
+                });
         }
 
         for item in &expected_readonly_accounts {
-            cpi_context.readonly_accounts.push(*item).expect(&format!(
-                "Failed to push readonly account at iteration {}",
-                iteration
-            ));
+            cpi_context
+                .readonly_accounts
+                .push(*item)
+                .unwrap_or_else(|_| {
+                    panic!("Failed to push readonly account at iteration {}", iteration)
+                });
         }
 
         for item in &expected_in_accounts {
-            cpi_context.in_accounts.push(*item).expect(&format!(
-                "Failed to push in account at iteration {}",
-                iteration
-            ));
+            cpi_context
+                .in_accounts
+                .push(*item)
+                .unwrap_or_else(|_| panic!("Failed to push in account at iteration {}", iteration));
         }
 
         for item in expected_out_accounts.iter() {
-            cpi_context.out_accounts.push(*item).expect(&format!(
-                "Failed to push out account at iteration {}",
-                iteration
-            ));
+            cpi_context.out_accounts.push(*item).unwrap_or_else(|_| {
+                panic!("Failed to push out account at iteration {}", iteration)
+            });
         }
 
         // Note: We can't directly test output data storage as it requires WrappedInstructionData
@@ -1136,7 +1210,7 @@ fn test_cpi_context_zero_copy_randomized() {
 
         // 3. Deserialize again and assert the data
         let deserialized = deserialize_cpi_context_account(&account_info)
-            .expect(&format!("Failed to deserialize at iteration {}", iteration));
+            .unwrap_or_else(|_| panic!("Failed to deserialize at iteration {}", iteration));
 
         // Assert all vectors have correct data
         assert_eq!(
@@ -1234,10 +1308,8 @@ fn test_cpi_context_zero_copy_randomized() {
         );
 
         // 4. Zero out (clear the account)
-        let cleared = deserialize_cpi_context_account_cleared(&account_info).expect(&format!(
-            "Failed to deserialize cleared at iteration {}",
-            iteration
-        ));
+        let cleared = deserialize_cpi_context_account_cleared(&account_info)
+            .unwrap_or_else(|_| panic!("Failed to deserialize cleared at iteration {}", iteration));
 
         // 5. Assert zeroed out
         assert_eq!(

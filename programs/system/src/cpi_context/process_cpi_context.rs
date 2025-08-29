@@ -13,7 +13,7 @@ use light_compressed_account::{
 };
 use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use solana_msg::msg;
 
 use super::state::{deserialize_cpi_context_account, ZCpiContextAccount};
@@ -113,18 +113,17 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     // relay_fee
     // 2. Subsequent invocations check the proof and fee payer
 
-    let cpi_context = instruction_data.cpi_context()
+    let cpi_context = instruction_data
+        .cpi_context()
         .ok_or(SystemProgramError::CpiContextMissing)?;
-    
+
     if cpi_context.first_set_context {
         let mut cpi_context_account =
-            deserialize_cpi_context_account_cleared(cpi_context_account_info)
-                .map_err(ProgramError::from)?;
+            deserialize_cpi_context_account_cleared(cpi_context_account_info)?;
         *cpi_context_account.fee_payer = fee_payer.into();
         cpi_context_account.store_data(&instruction_data)?;
     } else {
-        let mut cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)
-            .map_err(ProgramError::from)?;
+        let mut cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
 
         if *cpi_context_account.fee_payer == fee_payer && !cpi_context_account.is_empty() {
             cpi_context_account.store_data(&instruction_data)?;

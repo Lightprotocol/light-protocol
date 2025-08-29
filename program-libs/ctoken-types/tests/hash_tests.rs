@@ -6,7 +6,7 @@ mod hash_tests {
 
     /// Hash Collision Detection Tests
     /// Tests for CompressedMint::hash() following hash_collision_testing_guide.md:
-    /// 
+    ///
     /// 1. test_hash_basic_functionality - Basic functionality and determinism
     /// 2. test_hash_collision_detection - Systematic field-by-field collision testing
     /// 3. test_hash_zero_value_edge_cases - Edge cases with zero/minimal values
@@ -14,8 +14,8 @@ mod hash_tests {
     /// 5. test_hash_authority_combinations - Authority confusion prevention
     /// 6. test_hash_randomized_1k_iterations - Randomized testing with 1k iterations
     /// 7. test_hash_some_zero_vs_none - Some(zero) vs None semantic distinction
-
-    /// Helper function for collision detection - reuse existing pattern from token_data.rs
+    ///
+    ///    Helper function for collision detection - reuse existing pattern from token_data.rs
     fn assert_to_previous_hashes(hash: [u8; 32], previous_hashes: &mut Vec<[u8; 32]>) {
         for previous_hash in previous_hashes.iter() {
             assert_ne!(hash, *previous_hash, "Hash collision detected!");
@@ -203,7 +203,9 @@ mod hash_tests {
 
         // Test supply boundaries - avoid duplicating base value 100
         for supply in [0, 1, 2, u32::MAX as u64, u64::MAX - 1, u64::MAX] {
-            if supply == 100 { continue; } // Skip base value
+            if supply == 100 {
+                continue;
+            } // Skip base value
             let mut variant = base.clone();
             variant.base.supply = supply;
             assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
@@ -211,7 +213,9 @@ mod hash_tests {
 
         // Test decimals boundaries - avoid duplicating base value 6
         for decimals in [0, 1, 2, 9, 18, u8::MAX - 1, u8::MAX] {
-            if decimals == 6 { continue; } // Skip base value
+            if decimals == 6 {
+                continue;
+            } // Skip base value
             let mut variant = base.clone();
             variant.base.decimals = decimals;
             assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
@@ -244,7 +248,7 @@ mod hash_tests {
         };
 
         // Test all authority combinations with same pubkey - must produce different hashes
-        
+
         // Case 1: None mint_authority, None freeze_authority
         let mut variant1 = base.clone();
         variant1.base.mint_authority = None;
@@ -274,12 +278,30 @@ mod hash_tests {
         assert_to_previous_hashes(hash4, &mut previous_hashes);
 
         // Critical security check: all combinations must produce different hashes
-        assert_ne!(hash1, hash2, "CRITICAL: Hash collision between different authority configurations!");
-        assert_ne!(hash1, hash3, "CRITICAL: Hash collision between different authority configurations!");
-        assert_ne!(hash1, hash4, "CRITICAL: Hash collision between different authority configurations!");
-        assert_ne!(hash2, hash3, "CRITICAL: Hash collision between different authority configurations!");
-        assert_ne!(hash2, hash4, "CRITICAL: Hash collision between different authority configurations!");
-        assert_ne!(hash3, hash4, "CRITICAL: Hash collision between different authority configurations!");
+        assert_ne!(
+            hash1, hash2,
+            "CRITICAL: Hash collision between different authority configurations!"
+        );
+        assert_ne!(
+            hash1, hash3,
+            "CRITICAL: Hash collision between different authority configurations!"
+        );
+        assert_ne!(
+            hash1, hash4,
+            "CRITICAL: Hash collision between different authority configurations!"
+        );
+        assert_ne!(
+            hash2, hash3,
+            "CRITICAL: Hash collision between different authority configurations!"
+        );
+        assert_ne!(
+            hash2, hash4,
+            "CRITICAL: Hash collision between different authority configurations!"
+        );
+        assert_ne!(
+            hash3, hash4,
+            "CRITICAL: Hash collision between different authority configurations!"
+        );
     }
 
     #[test]
@@ -375,7 +397,7 @@ mod hash_tests {
             };
 
             let hash_result = mint.hash().unwrap();
-            
+
             // Basic validation
             assert_eq!(hash_result.len(), 32);
             assert_ne!(hash_result, [0u8; 32]); // Should not be all zeros
@@ -400,6 +422,9 @@ mod hash_tests {
             all_hashes.push(hash_result);
         }
 
-        println!("Successfully tested {} random mint configurations without collisions", all_hashes.len());
+        println!(
+            "Successfully tested {} random mint configurations without collisions",
+            all_hashes.len()
+        );
     }
 }

@@ -66,7 +66,10 @@ pub fn process_create_mint_action(
 
     // Validate version is supported
     if parsed_instruction_data.mint.base.version != 3 {
-        msg!("Unsupported mint version");
+        msg!(
+            "Unsupported mint version {}",
+            parsed_instruction_data.mint.base.version
+        );
         return Err(ErrorCode::MintActionUnsupportedVersion.into());
     }
 

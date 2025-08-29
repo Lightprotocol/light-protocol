@@ -51,6 +51,7 @@ impl ZOutputCompressedAccountWithPackedContextMut<'_> {
 // TODO: unit test
 impl ZInAccountMut<'_> {
     #[inline]
+    #[profile]
     pub fn set_z(
         &mut self,
         discriminator: [u8; 8],

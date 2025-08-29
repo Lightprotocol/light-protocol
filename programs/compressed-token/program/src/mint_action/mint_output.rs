@@ -99,7 +99,7 @@ pub fn process_output_compressed_account<'a>(
             &mut compressed_mint,
         )?;
         use light_hasher::Hasher;
-        *compressed_account_data.data_hash = Sha256BE::hash(&compressed_account_data.data)?;
+        *compressed_account_data.data_hash = Sha256BE::hash(compressed_account_data.data)?;
     }
     Ok(())
 }

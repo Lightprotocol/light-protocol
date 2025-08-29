@@ -17,7 +17,7 @@ pub fn process_mint_action<'c, 'info>(
         MintActionType::MintTo {
             recipients: input.token_recipients.clone(),
             lamports: input.lamports,
-            token_account_version: input.compressed_mint_with_context.mint.base.version,
+            token_account_version: 2,
         },
         MintActionType::UpdateMintAuthority {
             new_authority: input.final_mint_authority,

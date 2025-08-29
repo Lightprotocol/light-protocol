@@ -262,15 +262,24 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
 }
 
 impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
-    fn account_option_config(&self) -> AccountOptions {
-        AccountOptions {
-            sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
-            decompression_recipient: self.compress_or_decompress_lamports().is_some()
-                && !self.is_compress(),
-            cpi_context_account: self.cpi_context().is_some(),
-            write_to_cpi_context: self.cpi_context.first_set_context()
-                || self.cpi_context.set_context(),
+    fn account_option_config(&self) -> Result<AccountOptions, CompressedAccountError> {
+        let sol_pool_pda = self.compress_or_decompress_lamports().is_some();
+        let decompression_recipient = sol_pool_pda && !self.is_compress();
+        let cpi_context_account = self.cpi_context().is_some();
+        let write_to_cpi_context =
+            self.cpi_context.first_set_context() || self.cpi_context.set_context();
+
+        // Validate: if we want to write to CPI context, we must have a CPI context
+        if write_to_cpi_context && !cpi_context_account {
+            return Err(CompressedAccountError::InvalidCpiContext);
         }
+
+        Ok(AccountOptions {
+            sol_pool_pda,
+            decompression_recipient,
+            cpi_context_account,
+            write_to_cpi_context,
+        })
     }
 
     fn with_transaction_hash(&self) -> bool {
@@ -519,7 +528,7 @@ fn test_read_only_zero_copy() {
     assert_eq!(zero_copy, borsh_struct);
 }
 
-#[cfg(not(feature = "pinocchio"))]
+#[cfg(all(not(feature = "pinocchio"), feature = "new-unique"))]
 #[cfg(test)]
 mod test {
     use borsh::BorshSerialize;

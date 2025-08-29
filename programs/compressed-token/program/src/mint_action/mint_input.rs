@@ -58,7 +58,7 @@ pub fn create_input_compressed_mint_account(
                         .unwrap_or_default();
 
                     let token_metadata = TokenMetadata {
-                        update_authority: metadata_ix.update_authority.map(|x| (*x).into()),
+                        update_authority: metadata_ix.update_authority.map(|x| *x),
                         mint: mint_instruction_data.mint.base.spl_mint,
                         metadata,
                         additional_metadata,
@@ -85,16 +85,8 @@ pub fn create_input_compressed_mint_account(
             supply: mint_instruction_data.mint.base.supply.into(),
             decimals: mint_instruction_data.mint.base.decimals,
             is_decompressed: mint_instruction_data.mint.base.is_decompressed(),
-            mint_authority: mint_instruction_data
-                .mint
-                .base
-                .mint_authority
-                .map(|x| (*x).into()),
-            freeze_authority: mint_instruction_data
-                .mint
-                .base
-                .freeze_authority
-                .map(|x| (*x).into()),
+            mint_authority: mint_instruction_data.mint.base.mint_authority.map(|x| *x),
+            freeze_authority: mint_instruction_data.mint.base.freeze_authority.map(|x| *x),
         },
         extensions: extensions_vec,
     };

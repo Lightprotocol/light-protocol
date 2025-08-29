@@ -305,15 +305,26 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
         Some(self.bump)
     }
 
-    fn account_option_config(&self) -> super::traits::AccountOptions {
-        AccountOptions {
-            sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
-            decompression_recipient: self.compress_or_decompress_lamports().is_some()
-                && !self.is_compress(),
-            cpi_context_account: self.cpi_context().is_some(),
-            write_to_cpi_context: self.cpi_context.first_set_context()
-                || self.cpi_context.set_context(),
+    fn account_option_config(
+        &self,
+    ) -> Result<super::traits::AccountOptions, CompressedAccountError> {
+        let sol_pool_pda = self.compress_or_decompress_lamports().is_some();
+        let decompression_recipient = sol_pool_pda && !self.is_compress();
+        let cpi_context_account = self.cpi_context().is_some();
+        let write_to_cpi_context =
+            self.cpi_context.first_set_context() || self.cpi_context.set_context();
+
+        // Validate: if we want to write to CPI context, we must have a CPI context
+        if write_to_cpi_context && !cpi_context_account {
+            return Err(CompressedAccountError::InvalidCpiContext);
         }
+
+        Ok(AccountOptions {
+            sol_pool_pda,
+            decompression_recipient,
+            cpi_context_account,
+            write_to_cpi_context,
+        })
     }
 
     fn with_transaction_hash(&self) -> bool {
@@ -440,7 +451,7 @@ impl<'a> ZeroCopyAt<'a> for InstructionDataInvokeCpiWithAccountInfo {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
+#[cfg(all(not(feature = "pinocchio"), feature = "new-unique"))]
 #[cfg(test)]
 pub mod test {
     use borsh::BorshSerialize;
@@ -462,15 +473,16 @@ pub mod test {
     fn get_rnd_instruction_data_invoke_cpi_with_account_info(
         rng: &mut StdRng,
     ) -> InstructionDataInvokeCpiWithAccountInfo {
+        let with_cpi_context = rng.gen();
         InstructionDataInvokeCpiWithAccountInfo {
             mode: rng.gen_range(0..2),
             bump: rng.gen(),
             invoking_program_id: Pubkey::new_unique(),
             compress_or_decompress_lamports: rng.gen(),
             is_compress: rng.gen(),
-            with_cpi_context: rng.gen(),
+            with_cpi_context,
             with_transaction_hash: rng.gen(),
-            cpi_context: get_rnd_cpi_context(rng),
+            cpi_context: get_rnd_cpi_context(rng, with_cpi_context),
             proof: Some(CompressedProof {
                 a: rng.gen(),
                 b: (0..64)
@@ -490,10 +502,10 @@ pub mod test {
         }
     }
 
-    fn get_rnd_cpi_context(rng: &mut StdRng) -> CompressedCpiContext {
+    fn get_rnd_cpi_context(rng: &mut StdRng, with_cpi_context: bool) -> CompressedCpiContext {
         CompressedCpiContext {
-            first_set_context: rng.gen(),
-            set_context: rng.gen(),
+            first_set_context: rng.gen() && with_cpi_context,
+            set_context: rng.gen() && with_cpi_context,
             cpi_context_account_index: rng.gen(),
         }
     }
@@ -782,7 +794,7 @@ pub mod test {
         }
 
         // Check account_option_config
-        let account_options = z_copy.account_option_config();
+        let account_options = z_copy.account_option_config().unwrap();
         assert_eq!(
             account_options.sol_pool_pda,
             z_copy.compress_or_decompress_lamports().is_some()

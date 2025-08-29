@@ -156,24 +156,29 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     }
 
     /// Get the current position in the iterator.
+    #[inline(always)]
     pub fn position(&self) -> usize {
         self.position
     }
 
     /// Get the total number of accounts.
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self.accounts.len()
     }
 
     /// Check if the iterator is empty.
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.accounts.is_empty()
     }
 
+    #[inline(always)]
     pub fn iterator_is_empty(&self) -> bool {
         self.len() == self.position()
     }
 
+    #[inline(always)]
     fn print_on_error(&self, error: &AccountError, account_name: &str, location: &Location) {
         solana_msg::msg!(
             "ERROR: {}. for account '{}' at index {}  {}:{}:{}",

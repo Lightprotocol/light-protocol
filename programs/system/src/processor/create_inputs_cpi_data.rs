@@ -5,8 +5,8 @@ use light_compressed_account::{
         traits::InstructionData,
     },
 };
-use light_profiler::profile;
 use light_hasher::{Hasher, Poseidon};
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{

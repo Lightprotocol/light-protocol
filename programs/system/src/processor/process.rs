@@ -1,7 +1,5 @@
 use std::cmp::min;
 
-use light_profiler::profile;
-
 use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -11,6 +9,7 @@ use light_compressed_account::{
     },
     tx_hash::create_tx_hash_from_hash_chains,
 };
+use light_profiler::profile;
 use light_zero_copy::slice_mut::ZeroCopySliceMut;
 use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,

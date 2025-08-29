@@ -188,7 +188,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
         AccountMode::Small => {
             let (ctx, remaining_accounts) = InvokeCpiInstructionSmall::from_account_infos(
                 accounts,
-                inputs.account_option_config(),
+                inputs.account_option_config()?,
             )?;
 
             process_invoke_cpi::<true, InvokeCpiInstructionSmall, T>(

@@ -93,7 +93,7 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
 
 pub fn assert_sha_account_hash(account: &CompressedAccount) -> Result<(), HasherError> {
     let data = account.data.as_ref().ok_or(HasherError::EmptyInput)?;
-    let data_hash = Sha256BE::hash(&data.data.as_slice())?;
+    let data_hash = Sha256BE::hash(data.data.as_slice())?;
     if data_hash != data.data_hash {
         println!(
             "compressed account expected data hash {:?} != {:?}",

@@ -74,7 +74,7 @@ async fn test_pda_ctoken() {
             uri: token_uri.clone().into_bytes(),
         },
         additional_metadata: Some(additional_metadata),
-        version: 1, // Poseidon hash version
+        version: 3,
     };
 
     // Create the compressed mint (with chained operations including update mint)
@@ -274,7 +274,8 @@ pub async fn create_mint<R: Rpc + Indexer>(
         root_index: rpc_result.addresses[0].root_index,
         address: compressed_mint_address,
         mint: CompressedMintInstructionData {
-           base: BaseCompressedMint {  version: 1,
+           base: BaseCompressedMint {
+            version: 3,
             spl_mint: spl_mint.into(),
             supply: 0,
             decimals,

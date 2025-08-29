@@ -1,7 +1,5 @@
 use std::panic::Location;
 
-use light_profiler::profile;
-
 use light_account_checks::{
     checks::{
         check_discriminator, check_mut, check_non_mut, check_owner, check_pda_seeds,
@@ -12,6 +10,7 @@ use light_account_checks::{
 use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, instruction_data::traits::AccountOptions,
 };
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{

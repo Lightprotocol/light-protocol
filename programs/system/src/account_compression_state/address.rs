@@ -1,13 +1,13 @@
 use std::mem;
 
 use aligned_sized::aligned_sized;
-use light_profiler::profile;
 use bytemuck::{Pod, Zeroable};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::{
     IndexedMerkleTreeZeroCopy, IndexedMerkleTreeZeroCopyMut,
 };
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
+use light_profiler::profile;
 
 use crate::Result;
 

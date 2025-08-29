@@ -54,7 +54,10 @@ pub fn create_output_token_metadata(
     // Set mint
     *token_metadata.mint = mint;
     if token_metadata_data.version != 3 {
-        msg!("unsupported token metadata version only shaflat version 3 is supported");
+        msg!(
+            "unsupported token metadata version only shaflat version 3 is supported {}",
+            token_metadata_data.version
+        );
         return Err(ErrorCode::MintActionUnsupportedVersion.into());
     }
     // Set version

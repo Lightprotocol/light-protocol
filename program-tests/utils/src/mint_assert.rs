@@ -67,7 +67,7 @@ pub fn assert_compressed_mint_account(
     if let Some(extensions) = compressed_mint.extensions {
         println!("Compressed Mint extensions: {:?}", extensions);
     }
-    assert_sha_account_hash(&compressed_mint_account).unwrap();
+    assert_sha_account_hash(compressed_mint_account).unwrap();
 
     expected_compressed_mint
 }

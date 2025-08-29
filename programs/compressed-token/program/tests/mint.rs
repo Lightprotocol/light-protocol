@@ -10,14 +10,13 @@ use light_compressed_token::{
     },
 };
 use light_ctoken_types::{
-    hash_cache::HashCache,
     instructions::{
         extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
         mint_action::{CompressedMintInstructionData, MintActionCompressedInstructionData},
     },
     state::{
-        AdditionalMetadata, AdditionalMetadataConfig, CompressedMint, ExtensionStruct, Metadata,
-        TokenMetadata, ZCompressedMint, ZExtensionStruct,
+        AdditionalMetadata, AdditionalMetadataConfig, BaseCompressedMint, CompressedMint,
+        ExtensionStruct, Metadata, TokenMetadata, ZCompressedMint, ZExtensionStruct,
     },
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
@@ -115,13 +114,15 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Step 2: Create CompressedMintInstructionData using current API
         let mint_instruction_data = CompressedMintInstructionData {
-            version,
-            spl_mint: mint_pda,
-            supply: input_supply,
-            decimals,
-            is_decompressed,
-            mint_authority: Some(mint_authority),
-            freeze_authority,
+            base: BaseCompressedMint {
+                version,
+                spl_mint: mint_pda,
+                supply: input_supply,
+                decimals,
+                is_decompressed,
+                mint_authority: Some(mint_authority),
+                freeze_authority,
+            },
             extensions: expected_extensions,
         };
 
@@ -157,7 +158,6 @@ fn test_rnd_create_compressed_mint_account() {
         // Step 6: Test input compressed mint account creation (if not create_mint)
         if !parsed_instruction_data.create_mint() {
             let input_account = &mut cpi_instruction_struct.input_compressed_accounts[0];
-            let mut hash_cache = HashCache::new();
 
             use light_sdk::instruction::PackedMerkleContext;
             let merkle_context = PackedMerkleContext {
@@ -169,7 +169,6 @@ fn test_rnd_create_compressed_mint_account() {
 
             create_input_compressed_mint_account(
                 input_account,
-                &mut hash_cache,
                 &parsed_instruction_data,
                 merkle_context,
             )
@@ -183,7 +182,7 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Create a modified mint with updated supply for output using original data
         let mut output_mint_data = mint_action_data.mint.clone();
-        output_mint_data.supply = output_supply;
+        output_mint_data.base.supply = output_supply;
 
         // Test 1: Serialize with Borsh
         let borsh_bytes = borsh::to_vec(&output_mint_data).unwrap();
@@ -195,24 +194,29 @@ fn test_rnd_create_compressed_mint_account() {
         assert!(remaining.is_empty(), "Should consume all bytes");
 
         // Test 3: Verify data matches between borsh and zero-copy
-        assert_eq!(zc_mint.version, output_mint_data.version);
+        assert_eq!(zc_mint.base.version, output_mint_data.base.version);
         assert_eq!(
-            zc_mint.spl_mint.to_bytes(),
-            output_mint_data.spl_mint.to_bytes()
+            zc_mint.base.spl_mint.to_bytes(),
+            output_mint_data.base.spl_mint.to_bytes()
         );
-        assert_eq!(zc_mint.supply.get(), output_mint_data.supply);
-        assert_eq!(zc_mint.decimals, output_mint_data.decimals);
-        assert_eq!(zc_mint.is_decompressed(), output_mint_data.is_decompressed);
+        assert_eq!(zc_mint.base.supply.get(), output_mint_data.base.supply);
+        assert_eq!(zc_mint.base.decimals, output_mint_data.base.decimals);
+        assert_eq!(
+            zc_mint.base.is_decompressed(),
+            output_mint_data.base.is_decompressed
+        );
 
-        if let (Some(zc_mint_auth), Some(orig_mint_auth)) =
-            (zc_mint.mint_authority, output_mint_data.mint_authority)
-        {
+        if let (Some(zc_mint_auth), Some(orig_mint_auth)) = (
+            zc_mint.base.mint_authority,
+            output_mint_data.base.mint_authority,
+        ) {
             assert_eq!(zc_mint_auth.to_bytes(), orig_mint_auth.to_bytes());
         }
 
-        if let (Some(zc_freeze_auth), Some(orig_freeze_auth)) =
-            (zc_mint.freeze_authority, output_mint_data.freeze_authority)
-        {
+        if let (Some(zc_freeze_auth), Some(orig_freeze_auth)) = (
+            zc_mint.base.freeze_authority,
+            output_mint_data.base.freeze_authority,
+        ) {
             assert_eq!(zc_freeze_auth.to_bytes(), orig_freeze_auth.to_bytes());
         }
 
@@ -359,13 +363,15 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
     };
 
     let compressed_mint = CompressedMint {
-        spl_mint: Pubkey::new_from_array([3; 32]),
-        supply: 1000u64,
-        decimals: 6u8,
-        is_decompressed: false,
-        mint_authority: Some(Pubkey::new_from_array([4; 32])),
-        freeze_authority: None,
-        version: 3u8,
+        base: BaseCompressedMint {
+            spl_mint: Pubkey::new_from_array([3; 32]),
+            supply: 1000u64,
+            decimals: 6u8,
+            is_decompressed: false,
+            mint_authority: Some(Pubkey::new_from_array([4; 32])),
+            freeze_authority: None,
+            version: 3u8,
+        },
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
 
@@ -382,13 +388,15 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
     let zc_reserialized = {
         // Convert zero-copy fields back to regular types
         let reconstructed_mint = CompressedMint {
-            spl_mint: zc_mint.spl_mint,
-            supply: u64::from(zc_mint.supply),
-            decimals: zc_mint.decimals,
-            is_decompressed: zc_mint.is_decompressed(),
-            mint_authority: zc_mint.mint_authority.map(|x| *x),
-            freeze_authority: zc_mint.freeze_authority.map(|x| *x),
-            version: zc_mint.version,
+            base: BaseCompressedMint {
+                spl_mint: zc_mint.base.spl_mint,
+                supply: u64::from(zc_mint.base.supply),
+                decimals: zc_mint.base.decimals,
+                is_decompressed: zc_mint.base.is_decompressed(),
+                mint_authority: zc_mint.base.mint_authority.map(|x| *x),
+                freeze_authority: zc_mint.base.freeze_authority.map(|x| *x),
+                version: zc_mint.base.version,
+            },
             extensions: zc_mint.extensions.as_ref().map(|zc_exts| {
                 zc_exts
                     .iter()

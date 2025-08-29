@@ -121,16 +121,12 @@ pub fn profile(_attr: TokenStream, item: TokenStream) -> TokenStream {
         };
 
         // Filter out the profile attribute, add inline(always), and replace the function body
-        f.attrs = f
-            .attrs
-            .into_iter()
-            .filter(|a| !a.path().is_ident("profile"))
-            .collect();
+        f.attrs.retain(|a| !a.path().is_ident("profile"));
         // f.attrs.push(syn::parse_quote!(#[inline(always)]));
         f.block = syn::parse2(new_body).unwrap();
 
-        return TokenStream::from(quote! {
+        TokenStream::from(quote! {
             #f
-        });
+        })
     }
 }

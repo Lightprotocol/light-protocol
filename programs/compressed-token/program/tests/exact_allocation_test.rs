@@ -5,7 +5,7 @@ use light_compressed_token::shared::cpi_bytes_size::{
 };
 use light_ctoken_types::state::{
     extensions::{AdditionalMetadataConfig, MetadataConfig, TokenMetadataConfig},
-    CompressedMint, CompressedMintConfig, ExtensionStructConfig,
+    BaseCompressedMintConfig, CompressedMint, CompressedMintConfig, ExtensionStructConfig,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 
@@ -38,8 +38,10 @@ fn test_exact_allocation_assertion() {
 
     // Step 1: Calculate expected mint size
     let mint_config = CompressedMintConfig {
-        mint_authority: (true, ()),
-        freeze_authority: (false, ()),
+        base: BaseCompressedMintConfig {
+            mint_authority: (true, ()),
+            freeze_authority: (false, ()),
+        },
         extensions: (true, extensions_config.clone()),
     };
 
@@ -89,8 +91,10 @@ fn test_exact_allocation_assertion() {
     // Step 5: Calculate exact space needed
     let base_mint_size_no_ext = {
         let no_ext_config = CompressedMintConfig {
-            mint_authority: (true, ()),
-            freeze_authority: (false, ()),
+            base: BaseCompressedMintConfig {
+                mint_authority: (true, ()),
+                freeze_authority: (false, ()),
+            },
             extensions: (false, vec![]),
         };
         CompressedMint::byte_len(&no_ext_config).unwrap()
@@ -298,8 +302,10 @@ fn test_allocation_with_various_metadata_sizes() {
         })];
 
         let mint_config = CompressedMintConfig {
-            mint_authority: (true, ()),
-            freeze_authority: (false, ()),
+            base: BaseCompressedMintConfig {
+                mint_authority: (true, ()),
+                freeze_authority: (false, ()),
+            },
             extensions: (true, extensions_config.clone()),
         };
 

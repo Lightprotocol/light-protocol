@@ -61,6 +61,10 @@ pub enum CompressedAccountError {
     InstructionDataExpectedAddress,
     #[error("Compressed account data not initialized.")]
     CompressedAccountDataNotInitialized,
+    #[error(
+        "Invalid CPI context configuration: cannot write to CPI context without valid context"
+    )]
+    InvalidCpiContext,
     #[error("Expected discriminator for compressed account got None.")]
     ExpectedDiscriminator,
     #[error("Expected data hash for compressed account got None.")]
@@ -95,6 +99,7 @@ impl From<CompressedAccountError> for u32 {
             CompressedAccountError::InstructionDataExpectedProof => 12021,
             CompressedAccountError::ZeroCopyExpectedProof => 12022,
             CompressedAccountError::ExpectedDataHash => 12023,
+            CompressedAccountError::InvalidCpiContext => 12024,
             CompressedAccountError::HasherError(e) => u32::from(e),
         }
     }

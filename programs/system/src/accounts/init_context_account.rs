@@ -1,5 +1,4 @@
 use borsh::BorshDeserialize;
-use light_profiler::profile;
 use light_account_checks::{
     checks::{check_owner, check_signer},
     discriminator::Discriminator,
@@ -8,6 +7,7 @@ use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_compressed_account::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
 };
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
