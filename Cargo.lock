@@ -290,9 +290,14 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
+ "solana-instruction",
+ "solana-keypair",
  "solana-logger",
  "solana-program",
+ "solana-pubkey",
  "solana-sdk",
+ "solana-signature",
+ "solana-signer",
  "tokio",
 ]
 

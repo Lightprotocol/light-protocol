@@ -31,160 +31,103 @@ declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
-// Efficient packed accounts structure for CToken decompression
-#[derive(Debug, Clone)]
-struct PackedCTokenDecompression {
-    /// All unique pubkeys (mints, owners, delegates, etc.)
-    packed_pubkeys: Vec<Pubkey>,
-    /// Mapping from pubkey to index in packed_pubkeys
-    pubkey_indices: std::collections::HashMap<Pubkey, u8>,
-    /// Account metadata for each CToken account to decompress
-    accounts: Vec<PackedCTokenAccountMeta>,
-}
+// pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")];
 
+// Simple structure for CToken decompression - no complex packing
 #[derive(Debug, Clone)]
-struct PackedCTokenAccountMeta {
-    /// Index of mint in packed_pubkeys
-    mint_index: u8,
-    /// Index of owner in packed_pubkeys
-    owner_index: u8,
-    /// Index of delegate in packed_pubkeys (255 = None)
-    delegate_index: u8,
-    /// Index of target decompression account in solana_accounts
+struct CTokenDecompressionInfo {
+    /// Target decompressed account index
     target_account_index: usize,
-    /// Whether this account is owned by the program PDA
-    is_program_owned: bool,
-    /// Amount to decompress
-    amount: u64,
-    /// Merkle tree context from compressed account
-    merkle_context: light_compressed_account::compressed_account::PackedMerkleContext,
-    /// Root index for proof
-    root_index: u16,
+    /// Token data
+    token_data: CTokenAccountData,
+    /// Compressed account metadata
+    compressed_meta: CompressedAccountMeta,
+    /// Bump for PDA
+    #[allow(dead_code)]
+    bump: u8,
 }
 
-impl PackedCTokenDecompression {
-    fn new() -> Self {
-        Self {
-            packed_pubkeys: Vec::new(),
-            pubkey_indices: std::collections::HashMap::new(),
-            accounts: Vec::new(),
-        }
-    }
-
-    /// Insert a pubkey and return its index (or existing index if already present)
-    fn insert_pubkey(&mut self, pubkey: Pubkey) -> u8 {
-        if let Some(&index) = self.pubkey_indices.get(&pubkey) {
-            index
-        } else {
-            let index = self.packed_pubkeys.len() as u8;
-            self.packed_pubkeys.push(pubkey);
-            self.pubkey_indices.insert(pubkey, index);
-            index
-        }
-    }
-
-    /// Insert an optional pubkey and return its index (255 for None)
-    fn insert_optional_pubkey(&mut self, pubkey: Option<Pubkey>) -> u8 {
-        match pubkey {
-            Some(pk) => self.insert_pubkey(pk),
-            None => 255,
-        }
-    }
+// target
+// TODO: use actual seeds or some.
+pub fn mock_compressible_token_account_address(
+    user: &Pubkey,
+    mint_signer: &Pubkey,
+    program_id: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[b"ctoken_signer", user.as_ref(), mint_signer.as_ref()],
+        program_id,
+    )
+    .0
 }
 
+// TODO: move to sdk. consider different derivation path.
 // Helper function to derive PDA for program-owned CToken accounts
 fn derive_ctoken_pda(target_account: &Pubkey, program_id: &Pubkey) -> (Pubkey, u8) {
-    // PDA is derived from the target decompressed account address
-    // This creates the association between compressed and decompressed accounts
-    Pubkey::find_program_address(&[b"ctoken_owner", target_account.as_ref()], program_id)
+    // PDA is derived from the target decompressed account address This creates
+    // association between compressed and decompressed accounts, without us
+    // having to create compressed addresses for each token account.
+    Pubkey::find_program_address(&[b"ctoken_signer", target_account.as_ref()], program_id)
 }
 
-// Helper function to invoke compressed token program for CToken decompression
-fn invoke_ctoken_decompression<'info, T>(
-    ctx: &Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
-    ctoken_accounts: Vec<(usize, CompressedAccountData, CTokenAccountData, u8)>,
-    solana_accounts: &[AccountInfo<'info>],
-    _cpi_accounts: &T,
-    proof: ValidityProof,
-) -> Result<()> {
-    use light_compressed_token_sdk::{
-        account2::CTokenAccount2,
-        instructions::transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Config, Transfer2Inputs,
-        },
-    };
-    use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
-
-    // Validate that compressed token program accounts are provided
-    let compressed_token_program = ctx
-        .accounts
-        .compressed_token_program
-        .as_ref()
-        .ok_or(ErrorCode::MissingCompressedTokenProgram)?;
-
-    let cpi_authority = ctx
-        .accounts
-        .compressed_token_cpi_authority
-        .as_ref()
-        .ok_or(ErrorCode::MissingCompressedTokenProgramAuthorityPDA)?;
-
-    // CHECK: cpi into correct ctoken program
-    let expected_program_id = Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID);
-    if compressed_token_program.key() != expected_program_id {
-        return err!(ErrorCode::MissingCompressedTokenProgram);
-    }
-
-    // Build efficient packed structure for all CToken accounts
-    let mut packed = PackedCTokenDecompression::new();
+/// Process CToken accounts and prepare for decompression
+fn prepare_ctoken_accounts(
+    ctoken_accounts: &[(usize, CompressedAccountData, CTokenAccountData, u8)],
+    solana_accounts: &[AccountInfo],
+    program_id: &Pubkey,
+) -> Result<(Vec<CTokenDecompressionInfo>, Vec<(usize, Vec<Vec<u8>>)>)> {
+    let mut infos = Vec::new();
     let mut pda_seeds_collection = Vec::new();
 
-    // First pass: collect all unique pubkeys and build account metadata
-    for (index, compressed_data, token_data, _bump) in ctoken_accounts {
-        let mint_index = packed.insert_pubkey(token_data.mint);
-
-        // Get the target decompressed account
-        let target_account = solana_accounts[index].key();
+    for (index, compressed_data, token_data, bump) in ctoken_accounts {
+        let target_account = solana_accounts[*index].key();
 
         // Determine if this account is program-owned
-        // A compressed CToken account is program-owned if its owner is a PDA
-        // derived from the target decompressed account address
-        let (expected_pda, bump) = derive_ctoken_pda(&target_account, &ctx.program_id);
+        let (expected_pda, pda_bump) = derive_ctoken_pda(&target_account, program_id);
         let is_program_owned = token_data.owner == expected_pda;
 
-        // For program-owned accounts, use the PDA as owner
-        // For external accounts, use the actual owner
-        let owner_to_use = if is_program_owned {
-            expected_pda
-        } else {
-            token_data.owner
-        };
-
-        let owner_index = packed.insert_pubkey(owner_to_use);
-        let delegate_index = packed.insert_optional_pubkey(token_data.delegate);
-
-        // Store PDA seeds for program-owned accounts (for invoke_signed)
+        // Store PDA seeds for program-owned accounts
         if is_program_owned {
             pda_seeds_collection.push((
-                index,
+                *index,
                 vec![
-                    b"ctoken_owner".to_vec(),
+                    b"ctoken_signer".to_vec(),
                     target_account.to_bytes().to_vec(),
-                    vec![bump],
+                    vec![pda_bump],
                 ],
             ));
         }
 
-        // Extract tree info from CompressedAccountMeta
-        let tree_info = &compressed_data.meta.tree_info;
+        infos.push(CTokenDecompressionInfo {
+            target_account_index: *index,
+            token_data: token_data.clone(),
+            compressed_meta: compressed_data.meta.clone(),
+            bump: *bump,
+        });
+    }
 
-        packed.accounts.push(PackedCTokenAccountMeta {
-            mint_index,
-            owner_index,
-            delegate_index,
-            target_account_index: index,
-            is_program_owned,
-            amount: token_data.amount,
+    Ok((infos, pda_seeds_collection))
+}
+
+/// Creates CTokenAccount2 instances for decompression - simplified
+fn create_token_accounts_for_decompression_simple(
+    infos: &[CTokenDecompressionInfo],
+    mint_account_index: u8,
+    owner_account_index: u8,
+    target_accounts_offset: u8,
+) -> Result<Vec<light_compressed_token_sdk::account2::CTokenAccount2>> {
+    use light_compressed_token_sdk::account2::CTokenAccount2;
+    use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
+
+    let mut token_accounts = Vec::new();
+
+    for (i, info) in infos.iter().enumerate() {
+        // Extract tree info from CompressedAccountMeta
+        let tree_info = &info.compressed_meta.tree_info;
+
+        // Create input data for this specific account
+        let input_data = MultiInputTokenDataWithContext {
+            amount: info.token_data.amount,
             merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
                 merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
                 queue_pubkey_index: tree_info.queue_pubkey_index,
@@ -192,51 +135,11 @@ fn invoke_ctoken_decompression<'info, T>(
                 prove_by_index: tree_info.prove_by_index,
             },
             root_index: tree_info.root_index,
-        });
-    }
-
-    // Build AccountMeta array for all packed pubkeys and target accounts
-    let mut packed_account_metas = Vec::new();
-
-    // First add all unique pubkeys (mints, owners, delegates)
-    for pubkey in &packed.packed_pubkeys {
-        // Determine if this pubkey is a signer
-        // For program-owned accounts, the PDA is the signer
-        // For external accounts, the actual owner is the signer
-        let is_signer = packed.accounts.iter().any(|acc| {
-            acc.owner_index < 255
-                && packed.packed_pubkeys[acc.owner_index as usize] == *pubkey
-                && !acc.is_program_owned // External owners need to sign
-        });
-        packed_account_metas.push(AccountMeta::new_readonly(*pubkey, is_signer));
-    }
-
-    // Then add all target native CToken accounts (writable for decompression)
-    for account_meta in &packed.accounts {
-        let target_account = *solana_accounts[account_meta.target_account_index].key;
-        packed_account_metas.push(AccountMeta::new(target_account, false));
-    }
-
-    // Build individual CTokenAccount2 for each account to decompress
-    // Each account needs its own CTokenAccount2 with proper decompression
-    let mut token_accounts = Vec::new();
-    let target_accounts_offset = packed.packed_pubkeys.len() as u8;
-
-    for (i, account_meta) in packed.accounts.iter().enumerate() {
-        // Create input data for this specific account
-        let input_data = MultiInputTokenDataWithContext {
-            amount: account_meta.amount,
-            merkle_context: account_meta.merkle_context,
-            root_index: account_meta.root_index,
-            mint: account_meta.mint_index,
-            owner: account_meta.owner_index,
-            has_delegate: account_meta.delegate_index != 255,
-            delegate: if account_meta.delegate_index == 255 {
-                0
-            } else {
-                account_meta.delegate_index
-            },
-            version: 2, // V2 for batched Merkle trees
+            mint: mint_account_index,
+            owner: owner_account_index,
+            has_delegate: info.token_data.delegate.is_some(),
+            delegate: 0, // Not supported yet
+            version: 2,  // V2 for batched Merkle trees
         };
 
         // Create CTokenAccount2 for this specific account
@@ -246,76 +149,217 @@ fn invoke_ctoken_decompression<'info, T>(
         // Decompress to the specific target account
         let target_account_index = target_accounts_offset + i as u8;
         ctoken_account
-            .decompress(account_meta.amount, target_account_index)
+            .decompress(info.token_data.amount, target_account_index)
             .map_err(|_| ErrorCode::CTokenDecompressionNotImplemented)?;
 
         token_accounts.push(ctoken_account);
     }
 
-    // Create Transfer2 inputs
-    let inputs = Transfer2Inputs {
-        validity_proof: proof.into(),
-        transfer_config: Transfer2Config::default(),
-        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
-            ctx.accounts.fee_payer.key(),
-            packed_account_metas,
-        ),
-        in_lamports: None,
-        out_lamports: None,
-        token_accounts,
+    Ok(token_accounts)
+}
+
+/// Builds the Transfer2 configuration based on CPI context requirements
+fn build_transfer_config(
+    with_cpi_context: bool,
+    cpi_accounts: &CpiAccountsSmall<'_, AccountInfo>,
+) -> Result<light_compressed_token_sdk::instructions::transfer2::Transfer2Config> {
+    use light_compressed_token_sdk::instructions::transfer2::Transfer2Config;
+
+    if with_cpi_context {
+        Ok(Transfer2Config {
+            cpi_context_pubkey: Some(
+                cpi_accounts
+                    .cpi_context()
+                    .map_err(|_| ErrorCode::MissingCompressedTokenProgram)?
+                    .key(),
+            ),
+            cpi_context: Some(
+                light_compressed_account::instruction_data::cpi_context::CompressedCpiContext {
+                    set_context: false,           // false for first write
+                    first_set_context: true,      // true to clear any previous context
+                    cpi_context_account_index: 0, // Index of CPI context account
+                },
+            ),
+            ..Transfer2Config::default()
+        })
+    } else {
+        Ok(Transfer2Config::default())
+    }
+}
+
+// Main entry point for CToken decompression - SIMPLIFIED
+// Uses CPI context to write state transition without settling (Light Protocol optimization)
+fn invoke_ctoken_decompression<'a, 'info>(
+    fee_payer: &AccountInfo<'info>,
+    compressed_token_program: &UncheckedAccount<'info>,
+    compressed_token_cpi_authority: &UncheckedAccount<'info>,
+    remaining_accounts: &[AccountInfo<'info>],
+    program_id: Pubkey,
+    ctoken_accounts: Vec<(usize, CompressedAccountData, CTokenAccountData, u8)>,
+    solana_accounts: &[AccountInfo<'info>], // Target decompressed accounts
+    cpi_accounts: &CpiAccountsSmall<'a, AccountInfo<'info>>,
+    proof: ValidityProof,
+    with_cpi_context: bool,
+) -> Result<()> {
+    use light_compressed_token_sdk::instructions::transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Inputs,
     };
 
-    // Create the transfer2 instruction
-    let ix = create_transfer2_instruction(inputs)
-        .map_err(|_| ErrorCode::CTokenDecompressionNotImplemented)?;
-
-    // Build account infos for CPI
-    let mut account_infos = vec![
-        cpi_authority.to_account_info(),
-        compressed_token_program.to_account_info(),
-    ];
-
-    // Add all unique pubkeys (mints, owners, delegates)
-    // These must be provided in ctx.remaining_accounts after system accounts
-    // TODO: In production, implement proper account lookup from remaining_accounts
-
-    // Add all target native CToken accounts
-    for account_meta in &packed.accounts {
-        account_infos.push(solana_accounts[account_meta.target_account_index].to_account_info());
+    // Validate compressed token program ID
+    let expected_program_id = Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID);
+    if compressed_token_program.key() != expected_program_id {
+        msg!(
+            "Invalid compressed token program: expected {}, got {}",
+            expected_program_id,
+            compressed_token_program.key()
+        );
+        return err!(ErrorCode::MissingCompressedTokenProgram);
     }
 
-    msg!(
-        "CToken decompression: {} unique pubkeys, {} accounts ({} program-owned)",
-        packed.packed_pubkeys.len(),
-        packed.accounts.len(),
-        packed
-            .accounts
-            .iter()
-            .filter(|a| a.is_program_owned)
-            .count()
-    );
+    // Process CToken accounts
+    let (infos, pda_seeds_collection) =
+        prepare_ctoken_accounts(&ctoken_accounts, solana_accounts, &program_id)?;
 
-    // Check if we have any program-owned accounts
-    let has_program_owned = packed.accounts.iter().any(|a| a.is_program_owned);
+    // Validate all accounts have the same mint (for now, single mint support)
+    if !infos.is_empty() {
+        let first_mint = infos[0].token_data.mint;
 
-    if has_program_owned {
-        // For program-owned accounts, we need to use invoke_signed
-        // Build the seeds for all program-owned PDAs
-        let mut all_seeds = Vec::new();
-        for (target_index, seeds) in pda_seeds_collection.iter() {
-            // Only add seeds for accounts that are actually program-owned
-            if packed
-                .accounts
-                .iter()
-                .any(|a| a.target_account_index == *target_index && a.is_program_owned)
-            {
-                all_seeds.push(seeds.iter().map(|s| s.as_slice()).collect::<Vec<&[u8]>>());
+        for info in &infos {
+            if info.token_data.mint != first_mint {
+                msg!("Error: Multiple mints not supported in single decompression");
+                return Err(ProgramError::InvalidArgument.into());
+            }
+            if info.token_data.delegate.is_some() {
+                msg!("Error: Delegate functionality is not yet implemented");
+                return Err(ProgramError::InvalidArgument.into());
             }
         }
+    }
 
-        // Use invoke_signed with PDA seeds
-        let seeds_refs: Vec<&[&[u8]]> = all_seeds.iter().map(|s| s.as_slice()).collect();
-        invoke_signed(&ix, &account_infos, &seeds_refs)?;
+    // Build simple account metas - directly use the accounts we need
+    let mut packed_account_metas = Vec::new();
+
+    // Get the first token info to extract mint and owner
+    let first_info = &infos[0];
+
+    // Add mint (index 0)
+    packed_account_metas.push(AccountMeta::new_readonly(first_info.token_data.mint, false));
+
+
+
+    // Add all target accounts (writable for decompression)
+    // PDAs that are being created need to be signers!
+    for info in &infos {
+        let target_account = *solana_accounts[info.target_account_index].key;
+        // Check if this target account is a PDA (program-owned)
+        let is_pda = pda_seeds_collection
+            .iter()
+            .any(|(idx, _)| *idx == info.target_account_index);
+        
+        // PDAs being created/initialized must be signers
+        packed_account_metas.push(AccountMeta::new(target_account, is_pda));
+    }
+
+    msg!("packed_account_metas: {:?}", packed_account_metas);
+
+    // Create token accounts for decompression
+    let token_accounts = create_token_accounts_for_decompression_simple(
+        &infos, 0, // mint is at index 0
+        1, // owner is at index 1
+        2, // target accounts start at index 2
+    )?;
+
+    msg!("created cTokenAccounts2: {:?}", token_accounts);
+
+    // Build transfer configuration
+    let transfer_config = build_transfer_config(with_cpi_context, cpi_accounts)?;
+
+    msg!("transfer_config: {:?}", transfer_config);
+
+    // Create the transfer2 instruction
+    let ix = {
+        let inputs = Transfer2Inputs {
+            validity_proof: proof.into(),
+            transfer_config,
+            meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+                fee_payer.key(),
+                packed_account_metas,
+            ),
+            in_lamports: None,
+            out_lamports: None,
+            token_accounts,
+        };
+
+        create_transfer2_instruction(inputs)
+            .map_err(|_| ErrorCode::CTokenDecompressionNotImplemented)?
+    };
+
+    msg!("transfer2 ix: {:?}", ix);
+
+    // Build account infos for CPI - SIMPLE AND DIRECT
+    let mut account_infos = Vec::new();
+
+    // Add fixed accounts
+    account_infos.push(compressed_token_cpi_authority.to_account_info());
+    account_infos.push(compressed_token_program.to_account_info());
+
+    // Add mint account - find it in remaining_accounts
+    let mint_pubkey = first_info.token_data.mint;
+    let mint_account = remaining_accounts
+        .iter()
+        .find(|acc| acc.key() == mint_pubkey)
+        .ok_or_else(|| {
+            msg!(
+                "Error: Mint account {} not found in remaining_accounts",
+                mint_pubkey
+            );
+            ProgramError::NotEnoughAccountKeys
+        })?;
+    account_infos.push(mint_account.clone());
+
+    // Add owner account - find it in solana_accounts or remaining_accounts
+    let owner_pubkey = first_info.token_data.owner;
+    let owner_account = solana_accounts
+        .iter()
+        .find(|acc| acc.key() == owner_pubkey)
+        .or_else(|| remaining_accounts.iter().find(|acc| acc.key() == owner_pubkey))
+        .ok_or_else(|| {
+            msg!(
+                "Error: Owner account {} not found in accounts",
+                owner_pubkey
+            );
+            ProgramError::NotEnoughAccountKeys
+        })?;
+    account_infos.push(owner_account.clone());
+
+    // Add target accounts
+    for info in &infos {
+        account_infos.push(solana_accounts[info.target_account_index].to_account_info());
+    }
+
+    // Add CPI context if needed
+    if with_cpi_context {
+        let cpi_context = cpi_accounts.cpi_context().map_err(|_| {
+            msg!("Error: Missing CPI context account");
+            ErrorCode::MissingCompressedTokenProgram
+        })?;
+        account_infos.push(cpi_context.to_account_info());
+    }
+
+    msg!("account_infos len: {}", account_infos.len());
+    for (i, acc) in account_infos.iter().enumerate() {
+        msg!("account_infos[{}]: {}", i, acc.key());
+    }
+
+    // Execute CPI with appropriate signing
+    if !pda_seeds_collection.is_empty() {
+        // For program-owned accounts, use invoke_signed with PDA seeds
+        let seeds_refs: Vec<Vec<&[u8]>> = pda_seeds_collection
+            .iter()
+            .map(|(_, seeds)| seeds.iter().map(|s| s.as_slice()).collect())
+            .collect();
+        let seeds_slice_refs: Vec<&[&[u8]]> = seeds_refs.iter().map(|s| s.as_slice()).collect();
+        invoke_signed(&ix, &account_infos, &seeds_slice_refs)?;
     } else {
         // For external accounts, use regular invoke
         invoke(&ix, &account_infos)?;
@@ -471,7 +515,11 @@ pub mod anchor_compressible {
         bumps: Vec<u8>,
         system_accounts_offset: u8,
     ) -> Result<()> {
-        // Get PDA accounts from remaining accounts
+        // Get PDA accounts from remaining accounts (current client implementation)
+        msg!(
+            "program: passed system_accounts_offset: {:?}",
+            system_accounts_offset
+        );
         let pda_accounts_end = system_accounts_offset as usize;
         let solana_accounts = &ctx.remaining_accounts[..pda_accounts_end];
 
@@ -488,10 +536,11 @@ pub mod anchor_compressible {
         }
 
         let fee_payer_account_info = ctx.accounts.fee_payer.to_account_info();
-        let cpi_accounts = CpiAccountsSmall::new(
+        let config = CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER);
+        let cpi_accounts = CpiAccountsSmall::new_with_config(
             &fee_payer_account_info,
             &ctx.remaining_accounts[system_accounts_offset as usize..],
-            LIGHT_CPI_SIGNER,
+            config,
         );
 
         msg!(
@@ -620,23 +669,65 @@ pub mod anchor_compressible {
             }
         }
 
-        // Process CToken accounts via compressed token program if any
+        // Process accounts using Light Protocol's CPI context optimization:
+        // 1. CToken decompression writes STF to context (doesn't settle)
+        // 2. PDA decompression settles everything in one invocation
+
         let has_ctoken_accounts = !ctoken_accounts.is_empty();
-        if has_ctoken_accounts {
+        let has_pda_accounts = !other_compressed_infos.is_empty();
+
+        if has_ctoken_accounts && has_pda_accounts {
+            // Both CTokens and PDAs: use CPI context for efficiency
+            for (i, account) in ctx.remaining_accounts.iter().enumerate() {
+                msg!("remaining_accounts[{}]: {}", i, account.key());
+            }
+
+            for (i, account) in ctoken_accounts.iter().enumerate() {
+                msg!("ctoken_accounts[{}]: {:?}", i, account);
+            }
+
+            // Step 1: CToken decompression writes to CPI context (no settlement)
             super::invoke_ctoken_decompression(
-                &ctx,
+                &ctx.accounts.fee_payer,
+                ctx.accounts.compressed_token_program.as_ref().unwrap(),
+                ctx.accounts
+                    .compressed_token_cpi_authority
+                    .as_ref()
+                    .unwrap(),
+                &ctx.remaining_accounts[system_accounts_offset as usize..], // Pass only the system accounts
+                *ctx.program_id,
                 ctoken_accounts,
                 solana_accounts,
                 &cpi_accounts,
                 proof.clone(),
+                true, // with_cpi_context = true since we have PDAs to process next
             )?;
-        }
 
-        // Process other compressible accounts via light system program
-        if !other_compressed_infos.is_empty() {
+            // Step 2: PDA decompression settles both CToken STF (from context) and PDA STF
+            let cpi_inputs = CpiInputs::new(proof, other_compressed_infos).with_last_cpi_context(0); // Read and settle the CPI context
+            cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+        } else if has_ctoken_accounts {
+            // Only CTokens: invoke without CPI context (settles immediately)
+            super::invoke_ctoken_decompression(
+                &ctx.accounts.fee_payer,
+                ctx.accounts.compressed_token_program.as_ref().unwrap(),
+                ctx.accounts
+                    .compressed_token_cpi_authority
+                    .as_ref()
+                    .unwrap(),
+                &ctx.remaining_accounts[system_accounts_offset as usize..], // Pass only the system accounts
+                *ctx.program_id,
+                ctoken_accounts,
+                solana_accounts,
+                &cpi_accounts,
+                proof,
+                false, // with_cpi_context = false, no PDAs to process
+            )?;
+        } else if has_pda_accounts {
+            // Only PDAs: normal invocation without CPI context
             let cpi_inputs = CpiInputs::new(proof, other_compressed_infos);
             cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
-        } else if !has_ctoken_accounts {
+        } else {
             msg!("No compressed accounts to decompress");
         }
 
@@ -811,9 +902,31 @@ pub mod anchor_compressible {
         };
         cpi_inputs.invoke_light_system_program_cpi_context(cpi_context_accounts)?;
 
-        let actions = vec![];
-
-        // TODO: pass.
+        // these are custom seeds of the caller program that are used to derive the program owned onchain tokenb account PDA.
+        // dual use: as owner of the compressed token account.
+        let token_account_address = mock_compressible_token_account_address(
+            &ctx.accounts.user.key(),
+            &ctx.accounts.mint_signer.key(),
+            &crate::ID,
+        );
+        msg!("user: {:?}", ctx.accounts.user.key());
+        msg!("mint_signer: {:?}", ctx.accounts.mint_signer.key());
+        msg!(
+            "derived_recipient_owner: {:?}",
+            token_account_address.to_string()
+        );
+        let actions = vec![
+            light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
+                recipients: vec![
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: token_account_address, // TRY: THE DECOMPRESS TOKEN ACCOUNT ADDRES IS THE OWNER OF ITS COMPRESSIBLED VERSION.
+                        amount: 1000,                     // Mint the full supply to the user
+                    },
+                ],
+                lamports: None,
+                token_account_version: 2,
+            },
+        ];
 
         let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key; // Same tree as PDA
         let address_tree_pubkey = *cpi_accounts.tree_accounts().unwrap()[1].key; // Same tree as PDA
@@ -1263,6 +1376,7 @@ pub struct CompressPlaceholderRecord<'info> {
     pub rent_recipient: AccountInfo<'info>,
 }
 
+// TODO: split into one ix with ctoken and one without.
 #[derive(Accounts)]
 pub struct DecompressAccountsIdempotent<'info> {
     #[account(mut)]
