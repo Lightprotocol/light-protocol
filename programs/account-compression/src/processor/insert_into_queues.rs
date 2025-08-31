@@ -35,17 +35,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     // msg!("insert_addresses {:?}", inputs.addresses.len());
 
     #[cfg(feature = "bench-sbf")]
-    light_heap::bench_sbf_start!("insert_nullifiers");
-    insert_nullifiers(
-        inputs.num_queues,
-        inputs.tx_hash,
-        inputs.nullifiers.as_slice(),
-        &mut accounts,
-        &current_slot,
-    )?;
-    #[cfg(feature = "bench-sbf")]
-    light_heap::bench_sbf_end!("insert_nullifiers");
-    #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("append_leaves");
     insert_leaves(
         inputs.leaves.as_slice(),
@@ -56,6 +45,18 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     )?;
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("append_leaves");
+
+    #[cfg(feature = "bench-sbf")]
+    light_heap::bench_sbf_start!("insert_nullifiers");
+    insert_nullifiers(
+        inputs.num_queues,
+        inputs.tx_hash,
+        inputs.nullifiers.as_slice(),
+        &mut accounts,
+        &current_slot,
+    )?;
+    #[cfg(feature = "bench-sbf")]
+    light_heap::bench_sbf_end!("insert_nullifiers");
 
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_addresses");

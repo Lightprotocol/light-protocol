@@ -79,7 +79,7 @@ impl TestAccounts {
                 queue: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
             }],
 
-            v2_address_trees: vec![pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")],
+            v2_address_trees: vec![pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")],
             v2_state_trees: vec![StateMerkleTreeAccountsV2 {
                 merkle_tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
                 output_queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
@@ -138,11 +138,7 @@ impl TestAccounts {
                     .unwrap()
                     .pubkey(),
             }],
-            v2_address_trees: vec![
-                Keypair::from_bytes(&BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR)
-                    .unwrap()
-                    .pubkey(),
-            ],
+            v2_address_trees: vec![pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")],
         }
     }
 }

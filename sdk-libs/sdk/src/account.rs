@@ -69,7 +69,11 @@ use std::ops::{Deref, DerefMut};
 
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
-    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+    instruction_data::{
+        data::OutputCompressedAccountWithPackedContext,
+        with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+        with_readonly::InAccount,
+    },
 };
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
@@ -77,7 +81,7 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::LightSdkError,
     light_hasher::{DataHasher, Poseidon},
-    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
 #[derive(Debug, PartialEq)]
@@ -118,9 +122,12 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
         owner: &'a Pubkey,
         input_account_meta: &impl CompressedAccountMetaTrait,
         input_account: A,
-    ) -> Result<Self, LightSdkError> {
+    ) -> Result<Self, ProgramError> {
         let input_account_info = {
-            let input_data_hash = input_account.hash::<Poseidon>()?;
+            let input_data_hash = input_account
+                .hash::<Poseidon>()
+                .map_err(LightSdkError::from)
+                .map_err(ProgramError::from)?;
             let tree_info = input_account_meta.get_tree_info();
             InAccountInfo {
                 data_hash: input_data_hash,
@@ -138,7 +145,8 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
         let output_account_info = {
             let output_merkle_tree_index = input_account_meta
                 .get_output_state_tree_index()
-                .ok_or(LightSdkError::OutputStateTreeIndexIsNone)?;
+                .ok_or(LightSdkError::OutputStateTreeIndexIsNone)
+                .map_err(ProgramError::from)?;
             OutAccountInfo {
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 output_merkle_tree_index,
@@ -162,9 +170,12 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
         owner: &'a Pubkey,
         input_account_meta: &impl CompressedAccountMetaTrait,
         input_account: A,
-    ) -> Result<Self, LightSdkError> {
+    ) -> Result<Self, ProgramError> {
         let input_account_info = {
-            let input_data_hash = input_account.hash::<Poseidon>()?;
+            let input_data_hash = input_account
+                .hash::<Poseidon>()
+                .map_err(LightSdkError::from)
+                .map_err(ProgramError::from)?;
             let tree_info = input_account_meta.get_tree_info();
             InAccountInfo {
                 data_hash: input_data_hash,
@@ -235,15 +246,57 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHashe
     ///
     /// Note this is an expensive operation
     /// that should only be called once per instruction.
-    pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, LightSdkError> {
+    pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, ProgramError> {
         if let Some(output) = self.account_info.output.as_mut() {
-            output.data_hash = self.account.hash::<Poseidon>()?;
+            output.data_hash = self
+                .account
+                .hash::<Poseidon>()
+                .map_err(LightSdkError::from)
+                .map_err(ProgramError::from)?;
             output.data = self
                 .account
                 .try_to_vec()
-                .map_err(|_| LightSdkError::Borsh)?;
+                .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
         }
         Ok(self.account_info)
+    }
+
+    pub fn to_in_account(&self) -> Option<InAccount> {
+        self.account_info
+            .input
+            .as_ref()
+            .map(|input| input.into_in_account(self.account_info.address))
+    }
+
+    pub fn to_output_compressed_account_with_packed_context(
+        &self,
+        owner: Option<solana_pubkey::Pubkey>,
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, ProgramError> {
+        let owner = if let Some(owner) = owner {
+            owner.to_bytes().into()
+        } else {
+            (*self.owner).to_bytes().into()
+        };
+
+        if let Some(mut output) = self.account_info.output.clone() {
+            output.data_hash = self
+                .account
+                .hash::<Poseidon>()
+                .map_err(LightSdkError::from)
+                .map_err(ProgramError::from)?;
+            output.data = self
+                .account
+                .try_to_vec()
+                .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+            let result = OutputCompressedAccountWithPackedContext::from_with_owner(
+                &output,
+                owner,
+                self.account_info.address,
+            );
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 }
 

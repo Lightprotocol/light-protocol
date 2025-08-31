@@ -1,4 +1,3 @@
-pub mod account;
 pub mod instruction;
 
 pub mod instruction_v2;

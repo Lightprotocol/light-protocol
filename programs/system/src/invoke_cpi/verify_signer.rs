@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 use light_compressed_account::instruction_data::traits::InstructionData;
+use light_program_profiler::profile;
 use pinocchio::{
     msg,
     program_error::ProgramError,
@@ -16,6 +17,7 @@ use crate::{
 ///    (input_compressed_accounts_signer_check)
 /// 3. Output compressed accounts with data are owned by the invoking program
 ///    (output_compressed_accounts_write_access_check)
+#[profile]
 pub fn cpi_signer_checks<'a, T: InstructionData<'a>>(
     invoking_program_id: &Pubkey,
     authority: &Pubkey,
@@ -32,19 +34,15 @@ pub fn cpi_signer_checks<'a, T: InstructionData<'a>>(
 #[allow(unused_variables)]
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
+#[profile]
 pub fn cpi_signer_check(
     invoking_program: &Pubkey,
     authority: &Pubkey,
     bump: Option<u8>,
 ) -> Result<()> {
     let derived_signer = if let Some(bump) = bump {
-        let seeds = [CPI_AUTHORITY_PDA_SEED, &[bump][..]];
-        solana_pubkey::Pubkey::create_program_address(
-            &seeds,
-            &solana_pubkey::Pubkey::new_from_array(*invoking_program),
-        )
-        .map_err(|_| ProgramError::from(SystemProgramError::CpiSignerCheckFailed))?
-        .to_bytes()
+        let seeds = [CPI_AUTHORITY_PDA_SEED];
+        pinocchio_pubkey::derive_address(&seeds, Some(bump), invoking_program)
     } else {
         // Kept for backwards compatibility with instructions, invoke, and invoke cpi.
         let seeds = [CPI_AUTHORITY_PDA_SEED];
@@ -68,6 +66,7 @@ pub fn cpi_signer_check(
 }
 
 /// Checks that the invoking program owns all input compressed accounts.
+#[profile]
 pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
@@ -95,6 +94,7 @@ pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionData<'a>>
 ///   invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
+#[profile]
 pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
@@ -125,7 +125,7 @@ mod test {
     use solana_pubkey::Pubkey;
 
     use super::*;
-
+    #[ignore = "pinocchio doesnt support hashing non solana target os"]
     #[test]
     fn test_cpi_signer_check() {
         for _ in 0..1000 {
