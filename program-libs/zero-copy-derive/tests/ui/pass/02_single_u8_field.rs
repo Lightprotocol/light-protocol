@@ -27,7 +27,8 @@ fn main() {
     let byte_len = SingleU8::byte_len(&config).unwrap();
     assert_eq!(bytes.len(), byte_len);
     let mut new_bytes = vec![0u8; byte_len];
-    let (mut struct_copy_mut, remaining) = SingleU8::new_zero_copy(&mut new_bytes, config).unwrap();
+    let (mut struct_copy_mut, _remaining) =
+        SingleU8::new_zero_copy(&mut new_bytes, config).unwrap();
     // convert primitive to zero copy type
     struct_copy_mut.value = 42.into();
     assert_eq!(new_bytes, bytes);

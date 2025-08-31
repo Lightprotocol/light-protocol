@@ -65,6 +65,14 @@ impl BumpAllocator {
         msg!("{}: total heap used: {}", msg, heap_used);
         heap_used
     }
+    #[cfg(target_os = "solana")]
+    pub fn get_used_heap(&self) -> u64 {
+        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS as u64 + HEAP_LENGTH as u64;
+
+        let heap_start = unsafe { self.pos() } as u64;
+        let heap_used = HEAP_END_ADDRESS - heap_start;
+        heap_used
+    }
 
     #[cfg(target_os = "solana")]
     pub fn get_heap_pos(&self) -> usize {
