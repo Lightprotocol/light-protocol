@@ -132,6 +132,8 @@ pub enum SystemProgramError {
     AddressOwnerIndexOutOfBounds,
     #[error("AddressAssignedAccountIndexOutOfBounds")]
     AddressAssignedAccountIndexOutOfBounds,
+    #[error("InputMerkleTreeIndexOutOfBounds (can be output queue for V2 state trees, Merkle tree for V1 state trees")]
+    InputMerkleTreeIndexOutOfBounds,
     #[error("OutputMerkleTreeIndexOutOfBounds (can be output queue for V2 state trees, Merkle tree for V1 state trees")]
     OutputMerkleTreeIndexOutOfBounds,
     #[error("Packed Account index out of bounds index.")]
@@ -220,6 +222,10 @@ impl From<SystemProgramError> for u32 {
             SystemProgramError::PackedAccountIndexOutOfBounds => 6062,
             SystemProgramError::Unimplemented => 6063,
             SystemProgramError::CpiContextDeactivated => 6064,
+            SystemProgramError::InputMerkleTreeIndexOutOfBounds => 6065,
+            SystemProgramError::OutputMerkleTreeIndexOutOfBounds => 6066,
+            SystemProgramError::PackedAccountIndexOutOfBounds => 6067,
+            SystemProgramError::Unimplemented => 6068,
             SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
             SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
             SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),

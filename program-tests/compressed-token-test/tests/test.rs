@@ -3213,7 +3213,7 @@ async fn failing_tests_burn() {
                 None,
             )
             .await;
-            println!("instruction {:?}", instruction);
+
             let res = rpc
                 .create_and_send_transaction(&[instruction], &sender.pubkey(), &[&payer, &sender])
                 .await;

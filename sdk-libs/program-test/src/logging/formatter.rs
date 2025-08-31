@@ -16,7 +16,7 @@ use super::{
 /// Row for account table display
 #[derive(Tabled)]
 struct AccountRow {
-    #[tabled(rename = "#")]
+    #[tabled(rename = "Access")]
     symbol: String,
     #[tabled(rename = "Account")]
     pubkey: String,

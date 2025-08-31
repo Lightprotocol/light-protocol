@@ -21,7 +21,7 @@ test-sbf = []
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
 account-compression = { workspace = true, features = ["cpi"] }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["new-unique"] }
 light-zero-copy = { workspace = true }
 zerocopy = { workspace = true }
 

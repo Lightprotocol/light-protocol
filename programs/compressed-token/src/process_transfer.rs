@@ -410,14 +410,16 @@ pub fn cpi_execute_compressed_transaction_transfer<
         );
         data.extend(inputs);
 
-        // 4 static accounts
-        let accounts_len = 4 + remaining_accounts.len() + cpi_context.is_some() as usize;
+        // 6 static accounts
+        let accounts_len = 6 + remaining_accounts.len() + cpi_context.is_some() as usize;
         let mut account_infos = Vec::with_capacity(accounts_len);
         let mut account_metas = Vec::with_capacity(accounts_len);
         account_infos.push(ctx.get_fee_payer().to_account_info());
         account_infos.push(cpi_authority_pda);
         account_infos.push(ctx.get_registered_program_pda().to_account_info());
         account_infos.push(ctx.get_account_compression_authority().to_account_info());
+        account_infos.push(ctx.get_account_compression_program().to_account_info());
+        account_infos.push(ctx.get_system_program().to_account_info());
 
         account_metas.push(AccountMeta {
             pubkey: account_infos[0].key(),
@@ -439,7 +441,17 @@ pub fn cpi_execute_compressed_transaction_transfer<
             is_signer: false,
             is_writable: false,
         });
-        let mut remaining_accounts_index = 4;
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[4].key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[5].key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        let mut remaining_accounts_index = 6;
 
         if let Some(account_info) = cpi_context_account {
             account_infos.push(account_info);
