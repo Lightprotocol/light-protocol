@@ -61,12 +61,16 @@ impl Default for SystemAccountPubkeys {
             )
             .0,
             noop_program: Pubkey::from(NOOP_PROGRAM_ID),
-            // TODO: add correct pubkey
-            sol_pool_pda: Pubkey::default(),
+            sol_pool_pda: Pubkey::find_program_address(
+                &[b"sol_pool_pda"],
+                &Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
+            )
+            .0,
         }
     }
 }
 
+/// InvokeSystemCpi, not with read only
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
     let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
@@ -78,7 +82,7 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
         AccountMeta::new_readonly(default_pubkeys.noop_program, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(config.self_program, false),
+        AccountMeta::new_readonly(config.self_program, false), // with read only doesnt have this one
     ];
 
     if let Some(pubkey) = config.sol_pool_pda {
@@ -126,11 +130,11 @@ pub fn get_light_system_account_metas_v2(config: SystemAccountMetaConfig) -> Vec
 
     let mut vec = vec![
         AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(default_pubkeys.system_program, false),
-        AccountMeta::new_readonly(cpi_signer, false),
+        AccountMeta::new_readonly(cpi_signer, false), // authority (cpi_signer)
         AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+        AccountMeta::new_readonly(default_pubkeys.system_program, false),
     ];
 
     if let Some(pubkey) = config.sol_pool_pda {

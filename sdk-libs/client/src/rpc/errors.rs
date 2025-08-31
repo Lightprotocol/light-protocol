@@ -1,5 +1,6 @@
 use std::io;
 
+use light_sdk::error::LightSdkError;
 use solana_rpc_client_api::client_error::Error as ClientError;
 use solana_transaction_error::TransactionError;
 use thiserror::Error;
@@ -59,6 +60,9 @@ pub enum RpcError {
         "No state trees available, use rpc.get_latest_active_state_trees() to fetch state trees"
     )]
     NoStateTreesAvailable,
+
+    #[error("LightSdkError error: {0}")]
+    LightSdkError(#[from] LightSdkError),
 }
 
 impl From<light_compressed_account::indexer_event::error::ParseIndexerEventError> for RpcError {
@@ -83,6 +87,7 @@ impl Clone for RpcError {
             RpcError::InvalidResponseData => RpcError::InvalidResponseData,
             RpcError::IndexerNotInitialized => RpcError::IndexerNotInitialized,
             RpcError::IndexerError(e) => RpcError::IndexerError(e.clone()),
+            RpcError::LightSdkError(e) => RpcError::CustomError(e.to_string()),
             RpcError::StateTreeLookupTableNotFound => RpcError::StateTreeLookupTableNotFound,
             RpcError::InvalidStateTreeLookupTable => RpcError::InvalidStateTreeLookupTable,
             RpcError::NullifyTableNotFound => RpcError::NullifyTableNotFound,

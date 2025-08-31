@@ -6,7 +6,10 @@ use light_sdk::{
     // anchor test test poseidon LightAccount, native tests sha256 LightAccount
     account::poseidon::LightAccount,
     address::v1::derive_address,
-    cpi::{CpiAccounts, CpiInputs, CpiSigner},
+    cpi::{
+        CpiAccounts, CpiSigner, InstructionDataInvokeCpiWithReadOnly, InvokeLightSystemProgram,
+        LightCpiInstruction,
+    },
     derive_light_cpi_signer,
     instruction::{
         account_meta::{CompressedAccountMeta, CompressedAccountMetaClose},
@@ -46,7 +49,8 @@ pub mod sdk_anchor_test {
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?,
             &crate::ID,
         );
-        let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
+        let new_address_params =
+            address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
 
         let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
             &crate::ID,
@@ -57,17 +61,14 @@ pub mod sdk_anchor_test {
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        let cpi_inputs = CpiInputs::new_with_address(
-            proof,
-            vec![my_compressed_account
-                .to_account_info()
-                .map_err(ProgramError::from)?],
-            vec![new_address_params],
-        );
-
-        cpi_inputs
-            .invoke_light_system_program(light_cpi_accounts)
-            .map_err(ProgramError::from)?;
+        InstructionDataInvokeCpiWithReadOnly::new(
+            LIGHT_CPI_SIGNER.program_id.into(),
+            LIGHT_CPI_SIGNER.bump,
+            proof.into(),
+        )
+        .with_light_account(my_compressed_account)?
+        .with_new_addresses(&[new_address_params])
+        .invoke(light_cpi_accounts)?;
 
         Ok(())
     }
@@ -83,8 +84,7 @@ pub mod sdk_anchor_test {
             &crate::ID,
             &account_meta,
             my_compressed_account,
-        )
-        .map_err(ProgramError::from)?;
+        )?;
 
         my_compressed_account.nested = nested_data;
 
@@ -93,17 +93,13 @@ pub mod sdk_anchor_test {
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
         );
-
-        let cpi_inputs = CpiInputs::new(
-            proof,
-            vec![my_compressed_account
-                .to_account_info()
-                .map_err(ProgramError::from)?],
-        );
-
-        cpi_inputs
-            .invoke_light_system_program(light_cpi_accounts)
-            .map_err(ProgramError::from)?;
+        InstructionDataInvokeCpiWithReadOnly::new(
+            LIGHT_CPI_SIGNER.program_id.into(),
+            LIGHT_CPI_SIGNER.bump,
+            proof.into(),
+        )
+        .with_light_account(my_compressed_account)?
+        .invoke(light_cpi_accounts)?;
 
         Ok(())
     }

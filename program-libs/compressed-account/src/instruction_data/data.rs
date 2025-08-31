@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
+use light_zero_copy::ZeroCopyMut;
+
 use crate::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-    instruction_data::compressed_proof::CompressedProof,
-    AnchorDeserialize, AnchorSerialize, Pubkey,
+    discriminators::DISCRIMINATOR_INVOKE,
+    instruction_data::{compressed_proof::CompressedProof, traits::LightInstructionData},
+    AnchorDeserialize, AnchorSerialize, InstructionDiscriminator, Pubkey,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
@@ -18,19 +21,82 @@ pub struct InstructionDataInvoke {
     pub is_compress: bool,
 }
 
+impl InstructionDataInvoke {
+    pub fn new(proof: Option<CompressedProof>) -> Self {
+        Self {
+            proof,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_input_compressed_accounts_with_merkle_context(
+        mut self,
+        input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
+    ) -> Self {
+        if !input_compressed_accounts_with_merkle_context.is_empty() {
+            self.input_compressed_accounts_with_merkle_context
+                .extend_from_slice(input_compressed_accounts_with_merkle_context);
+        }
+        self
+    }
+
+    pub fn with_output_compressed_accounts(
+        mut self,
+        output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+    ) -> Self {
+        if !output_compressed_accounts.is_empty() {
+            self.output_compressed_accounts
+                .extend_from_slice(output_compressed_accounts);
+        }
+        self
+    }
+
+    pub fn with_new_addresses(mut self, new_address_params: &[NewAddressParamsPacked]) -> Self {
+        if !new_address_params.is_empty() {
+            self.new_address_params
+                .extend_from_slice(new_address_params);
+        }
+        self
+    }
+
+    pub fn compress_lamports(mut self, lamports: u64) -> Self {
+        self.compress_or_decompress_lamports = Some(lamports);
+        self.is_compress = true;
+        self
+    }
+
+    pub fn decompress_lamports(mut self, lamports: u64) -> Self {
+        self.compress_or_decompress_lamports = Some(lamports);
+        self.is_compress = false;
+        self
+    }
+}
+
+impl InstructionDiscriminator for InstructionDataInvoke {
+    fn discriminator(&self) -> &'static [u8] {
+        &DISCRIMINATOR_INVOKE
+    }
+}
+
+impl LightInstructionData for InstructionDataInvoke {}
+
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct OutputCompressedAccountWithContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree: Pubkey,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[repr(C)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -38,7 +104,10 @@ pub struct NewAddressParamsPacked {
     pub address_merkle_tree_root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[repr(C)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct NewAddressParamsAssignedPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -86,7 +155,10 @@ pub struct NewAddressParamsAssigned {
     pub assigned_account_index: Option<u8>,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[repr(C)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+)]
 pub struct PackedReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_root_index: u16,

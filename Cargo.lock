@@ -3274,9 +3274,10 @@ name = "light-account-checks"
 version = "0.3.0"
 dependencies = [
  "borsh 0.10.4",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-account-info",
+ "solana-msg",
  "solana-program-error",
  "solana-pubkey",
  "solana-sysvar",
@@ -3300,7 +3301,7 @@ dependencies = [
  "light-test-utils",
  "light-verifier",
  "light-zero-copy",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "serial_test",
  "solana-account-info",
@@ -3320,7 +3321,7 @@ dependencies = [
  "bitvec",
  "light-hasher",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-nostd-keccak",
  "solana-program-error",
@@ -3394,12 +3395,15 @@ dependencies = [
  "borsh 0.10.4",
  "bytemuck",
  "light-hasher",
+ "light-heap",
  "light-macros",
  "light-poseidon 0.3.0",
+ "light-program-profiler",
  "light-zero-copy",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
+ "solana-msg",
  "solana-program-error",
  "solana-pubkey",
  "thiserror 2.0.16",
@@ -3441,7 +3445,7 @@ dependencies = [
  "memoffset",
  "num-bigint 0.4.6",
  "num-traits",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-program-error",
  "thiserror 2.0.16",
@@ -3472,7 +3476,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "sha2 0.10.9",
  "sha3",
@@ -3480,6 +3484,7 @@ dependencies = [
  "solana-program-error",
  "solana-pubkey",
  "thiserror 2.0.16",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3511,7 +3516,7 @@ dependencies = [
  "light-merkle-tree-reference",
  "num-bigint 0.4.6",
  "num-traits",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-program-error",
  "thiserror 2.0.16",
@@ -3535,7 +3540,7 @@ dependencies = [
  "borsh 0.10.4",
  "bytemuck",
  "light-compressed-account",
- "pinocchio",
+ "pinocchio 0.8.4",
  "solana-msg",
  "solana-program-error",
  "solana-sysvar",
@@ -3577,6 +3582,24 @@ dependencies = [
  "ark-ff 0.5.0",
  "num-bigint 0.4.6",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "light-profiler-macro"
+version = "0.1.0"
+source = "git+https://github.com/Lightprotocol/light-program-profiler?rev=36a75e14f54dd862bf2f338c97435ffc7e3e8de9#36a75e14f54dd862bf2f338c97435ffc7e3e8de9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
+name = "light-program-profiler"
+version = "0.1.0"
+source = "git+https://github.com/Lightprotocol/light-program-profiler?rev=36a75e14f54dd862bf2f338c97435ffc7e3e8de9#36a75e14f54dd862bf2f338c97435ffc7e3e8de9"
+dependencies = [
+ "light-profiler-macro",
 ]
 
 [[package]]
@@ -3719,7 +3742,7 @@ dependencies = [
  "light-sdk-macros",
  "light-sdk-types",
  "light-zero-copy",
- "pinocchio",
+ "pinocchio 0.8.4",
  "solana-pubkey",
  "thiserror 2.0.16",
 ]
@@ -3777,14 +3800,18 @@ dependencies = [
  "light-compressed-account",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-metadata",
+ "light-program-profiler",
  "light-verifier",
  "light-zero-copy",
- "pinocchio",
+ "pinocchio 0.8.4",
+ "pinocchio-pubkey 0.3.0",
  "pinocchio-system",
  "rand 0.8.5",
+ "solana-msg",
  "solana-pubkey",
  "solana-security-txt",
  "thiserror 2.0.16",
@@ -3798,6 +3825,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "base64 0.13.1",
  "create-address-test-program",
  "forester-utils",
  "light-account-checks",
@@ -3817,6 +3845,7 @@ dependencies = [
  "light-sdk",
  "light-sparse-merkle-tree",
  "light-system-program-anchor",
+ "light-zero-copy",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3835,7 +3864,7 @@ version = "2.1.0"
 dependencies = [
  "groth16-solana",
  "light-compressed-account",
- "pinocchio",
+ "pinocchio 0.8.4",
  "solana-msg",
  "solana-program-error",
  "thiserror 2.0.16",
@@ -3847,7 +3876,7 @@ version = "0.2.0"
 dependencies = [
  "borsh 0.10.4",
  "light-zero-copy-derive",
- "pinocchio",
+ "pinocchio 0.8.4",
  "rand 0.8.5",
  "solana-program-error",
  "zerocopy",
@@ -4519,13 +4548,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c33b58567c11b07749cefbb8320ac023f3387c57807aeb8e3b1262501b6e9f0"
 
 [[package]]
+name = "pinocchio"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c3410a5d525f024b0aed7f8747e94e918c91ba64274a190e2365903e2c0b2e9"
+
+[[package]]
 name = "pinocchio-pubkey"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c6b20fcebc172c3cd3f54114b0241b48fa8e30893ced2eb4927aaba5e3a0ba5"
 dependencies = [
  "five8_const",
- "pinocchio",
+ "pinocchio 0.8.4",
+]
+
+[[package]]
+name = "pinocchio-pubkey"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb0225638cadcbebae8932cb7f49cb5da7c15c21beb19f048f05a5ca7d93f065"
+dependencies = [
+ "five8_const",
+ "pinocchio 0.9.1",
+ "sha2-const-stable",
 ]
 
 [[package]]
@@ -4534,8 +4580,8 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f75423420ae70aa748cf611cab14cfd00af08d0d2d3d258cb0cf5e2880ec19c"
 dependencies = [
- "pinocchio",
- "pinocchio-pubkey",
+ "pinocchio 0.8.4",
+ "pinocchio-pubkey 0.2.4",
 ]
 
 [[package]]
@@ -5459,7 +5505,24 @@ dependencies = [
  "light-sdk",
  "light-sdk-pinocchio",
  "light-sdk-types",
- "pinocchio",
+ "pinocchio 0.8.4",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
+name = "sdk-v1-native-test"
+version = "1.0.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-types",
+ "light-zero-copy",
+ "solana-program",
  "solana-sdk",
  "tokio",
 ]
@@ -5690,6 +5753,12 @@ dependencies = [
  "cpufeatures",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "sha2-const-stable"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f179d4e11094a893b82fff208f74d448a7512f99f5a0acbd5c679b705f83ed9"
 
 [[package]]
 name = "sha3"
@@ -9080,6 +9149,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "light-account-checks",
  "light-batched-merkle-tree",
  "light-bloom-filter",
  "light-client",
@@ -9091,8 +9161,10 @@ dependencies = [
  "light-registry",
  "light-sdk",
  "light-system-program-anchor",
+ "light-system-program-pinocchio",
  "light-test-utils",
  "light-verifier",
+ "pinocchio 0.8.4",
  "quote",
  "serde_json",
  "serial_test",

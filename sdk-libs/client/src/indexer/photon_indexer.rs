@@ -122,6 +122,10 @@ impl PhotonIndexer {
         PhotonIndexer { configuration }
     }
 
+    pub fn new_with_config(configuration: Configuration) -> Self {
+        PhotonIndexer { configuration }
+    }
+
     fn extract_result<T>(context: &str, result: Option<T>) -> Result<T, IndexerError> {
         result.ok_or_else(|| IndexerError::missing_result(context, "value not present"))
     }
@@ -1209,7 +1213,7 @@ impl Indexer for PhotonIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let hashes = hashes.clone();
@@ -1242,8 +1246,8 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(CompressedAccount::try_from)
-                .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
+                .map(|item| item.as_ref().map(CompressedAccount::try_from).transpose())
+                .collect::<Result<Vec<Option<CompressedAccount>>, IndexerError>>()?;
 
             Ok(Response {
                 context: Context {

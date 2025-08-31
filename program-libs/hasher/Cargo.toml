@@ -10,6 +10,7 @@ edition = "2021"
 default = []
 solana = ["solana-program-error", "solana-pubkey"]
 pinocchio = ["dep:pinocchio"]
+zero-copy = ["dep:zerocopy"]
 
 
 [dependencies]
@@ -22,6 +23,7 @@ num-bigint = { workspace = true }
 solana-program-error = { workspace = true, optional = true }
 solana-pubkey = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
+zerocopy = { workspace = true, optional = true }
 borsh = { workspace = true }
 solana-nostd-keccak = "0.1.3"
 

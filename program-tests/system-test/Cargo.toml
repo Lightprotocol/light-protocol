@@ -21,6 +21,9 @@ default = ["custom-heap"]
 
 
 [dev-dependencies]
+light-system-program-pinocchio = { path = "../../programs/system", features = [
+    "cpi",
+] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
@@ -42,3 +45,5 @@ serial_test = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-bloom-filter = { workspace = true }
+pinocchio = { workspace = true }
+light-account-checks = { workspace = true, features = ["test-only", "pinocchio"] }

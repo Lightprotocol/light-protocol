@@ -1,0 +1,168 @@
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+/// LightSystemProgramCpi optimized for Compressed Pdas.
+///
+/// InstructionDataInvokeCpiWithReadOnly provides more flexibility
+/// for complex operations such as changing the compressed account owner.
+pub use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo as LightSystemProgramCpi;
+pub use light_compressed_account::instruction_data::{
+    cpi_context::*, with_account_info::*, with_readonly::*,
+};
+
+use super::traits::{CpiAccountsTrait, LightCpiInstruction};
+use crate::{
+    account::LightAccount,
+    cpi::{to_account_metas_v2, CpiAccountsV2, CpiSigner},
+    error::LightSdkError,
+    instruction::account_info::CompressedAccountInfoTrait,
+    AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator,
+    ProgramError,
+};
+
+impl<'info> CpiAccountsTrait<'info> for CpiAccountsV2<'_, 'info> {
+    fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
+        self.to_account_infos()
+    }
+
+    fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError> {
+        to_account_metas_v2(self).map_err(ProgramError::from)
+    }
+
+    fn get_mode(&self) -> Option<u8> {
+        Some(1) // Small mode
+    }
+}
+
+impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
+    fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
+        Self {
+            bump: cpi_signer.bump,
+            invoking_program_id: cpi_signer.program_id.into(),
+            proof: proof.into(),
+            ..Default::default()
+        }
+    }
+
+    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, ProgramError>
+    where
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
+    {
+        // Convert LightAccount to instruction data format
+        let account_info = account.to_account_info()?;
+
+        // Handle input accounts
+        if let Some(input_account) = account_info
+            .input_compressed_account(self.invoking_program_id.to_bytes().into())
+            .map_err(LightSdkError::from)
+            .map_err(ProgramError::from)?
+        {
+            // Convert to InAccount format
+            let in_account = InAccount {
+                discriminator: input_account
+                    .compressed_account
+                    .data
+                    .as_ref()
+                    .map(|d| d.discriminator)
+                    .unwrap_or_default(),
+                data_hash: input_account
+                    .compressed_account
+                    .data
+                    .as_ref()
+                    .map(|d| d.data_hash)
+                    .unwrap_or_default(),
+                merkle_context: input_account.merkle_context,
+                root_index: input_account.root_index,
+                lamports: input_account.compressed_account.lamports,
+                address: input_account.compressed_account.address,
+            };
+            self.input_compressed_accounts.push(in_account);
+        }
+
+        // Handle output accounts
+        if let Some(output_account) = account_info
+            .output_compressed_account(self.invoking_program_id.to_bytes().into())
+            .map_err(LightSdkError::from)
+            .map_err(ProgramError::from)?
+        {
+            self.output_compressed_accounts.push(output_account);
+        }
+
+        Ok(self)
+    }
+
+    fn write_to_cpi_context_first(self) -> Self {
+        self.write_to_cpi_context_first()
+    }
+
+    fn write_to_cpi_context_set(self) -> Self {
+        self.write_to_cpi_context_set()
+    }
+
+    fn execute_with_cpi_context(self) -> Self {
+        self.execute_with_cpi_context()
+    }
+
+    fn get_mode(&self) -> u8 {
+        self.mode
+    }
+
+    fn get_with_cpi_context(&self) -> bool {
+        self.with_cpi_context
+    }
+
+    fn get_cpi_context(&self) -> &CompressedCpiContext {
+        &self.cpi_context
+    }
+
+    fn get_bump(&self) -> u8 {
+        self.bump
+    }
+}
+
+impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
+    fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
+        Self {
+            bump: cpi_signer.bump,
+            invoking_program_id: cpi_signer.program_id.into(),
+            proof: proof.into(),
+            ..Default::default()
+        }
+    }
+
+    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, ProgramError>
+    where
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
+    {
+        // Convert LightAccount to instruction data format
+        let account_info = account.to_account_info()?;
+        self.account_infos.push(account_info);
+        Ok(self)
+    }
+
+    fn write_to_cpi_context_first(self) -> Self {
+        self.write_to_cpi_context_first()
+    }
+
+    fn write_to_cpi_context_set(self) -> Self {
+        self.write_to_cpi_context_set()
+    }
+
+    fn execute_with_cpi_context(self) -> Self {
+        self.execute_with_cpi_context()
+    }
+
+    fn get_mode(&self) -> u8 {
+        self.mode
+    }
+
+    fn get_with_cpi_context(&self) -> bool {
+        self.with_cpi_context
+    }
+
+    fn get_cpi_context(&self) -> &CompressedCpiContext {
+        &self.cpi_context
+    }
+
+    fn get_bump(&self) -> u8 {
+        self.bump
+    }
+}
