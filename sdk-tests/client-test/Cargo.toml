@@ -7,11 +7,8 @@ license = "Apache-2.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["lib"]
 name = "client_test"
-
-[features]
-test-sbf = []
 
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
