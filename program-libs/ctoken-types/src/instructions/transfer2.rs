@@ -9,6 +9,7 @@ use zerocopy::Ref;
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 
+// 22 bytes
 #[repr(C)]
 #[derive(
     Debug, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
@@ -20,7 +21,7 @@ pub struct MultiInputTokenDataWithContext {
     pub delegate: u8,
     pub mint: u8,
     pub version: u8,
-    pub merkle_context: PackedMerkleContext,
+    pub merkle_context: PackedMerkleContext, // 7
     pub root_index: u16,
 }
 

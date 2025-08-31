@@ -29,6 +29,21 @@ impl Transfer2AccountsMetaConfig {
             packed_accounts: Some(packed_accounts),
         }
     }
+    pub fn new_with_cpi_context(
+        fee_payer: Pubkey,
+        packed_accounts: Vec<AccountMeta>,
+        cpi_context: Pubkey,
+    ) -> Self {
+        Self {
+            fee_payer: Some(fee_payer),
+            decompressed_accounts_only: false,
+            sol_pool_pda: None,
+            sol_decompression_recipient: None,
+            cpi_context: Some(cpi_context),
+            with_sol_pool: false,
+            packed_accounts: Some(packed_accounts),
+        }
+    }
     pub fn new_decompressed_accounts_only(
         _fee_payer: Pubkey,
         packed_accounts: Vec<AccountMeta>,

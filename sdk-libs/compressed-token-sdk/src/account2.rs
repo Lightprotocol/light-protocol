@@ -23,7 +23,7 @@ pub struct CTokenAccount2 {
     pub output: MultiTokenTransferOutputData,
     pub compression: Option<Compression>,
     pub delegate_is_set: bool,
-    pub(crate) method_used: bool,
+    pub method_used: bool,
 }
 
 impl CTokenAccount2 {
