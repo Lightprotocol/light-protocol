@@ -54,7 +54,10 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
         if current_mt_index != merkle_context.merkle_tree_pubkey_index || is_first_iter {
             is_first_iter = false;
             current_mt_index = merkle_context.merkle_tree_pubkey_index;
-            current_hashed_mt = match &accounts[current_mt_index as usize] {
+            current_hashed_mt = match &accounts
+                .get(current_mt_index as usize)
+                .ok_or(SystemProgramError::InputMerkleTreeIndexOutOfBounds)?
+            {
                 AcpAccount::BatchedStateTree(tree) => {
                     context.set_network_fee(
                         tree.metadata.rollover_metadata.network_fee,
