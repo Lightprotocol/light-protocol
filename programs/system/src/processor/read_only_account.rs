@@ -1,4 +1,5 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompressedAccount;
+use light_program_profiler::profile;
 use pinocchio::{msg, program_error::ProgramError};
 
 use crate::{
@@ -13,6 +14,7 @@ use crate::{
 ///    2.1. skip cleared batches.
 ///    2.2. prove non-inclusion in the bloom filters for each batch.
 #[inline(always)]
+#[profile]
 pub fn verify_read_only_account_inclusion_by_index(
     accounts: &mut [AcpAccount<'_>],
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
