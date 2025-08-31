@@ -1,56 +1,58 @@
-use light_sdk_types::{
-    CompressionCpiAccountIndexV2, CpiAccountsV2 as GenericCpiAccountsV2, PROGRAM_ACCOUNTS_LEN,
+/*use light_sdk_types::{
+    CpiAccountsV2 as GenericCpiAccountsV2, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+    ACCOUNT_COMPRESSION_PROGRAM_ID, PROGRAM_ACCOUNTS_LEN, REGISTERED_PROGRAM_PDA,
 };
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::error::Result;
 
-pub type CpiAccountsV2<'a> = GenericCpiAccountsV2<'a, AccountInfo>;
+pub type CpiAccountsV2<'c> = GenericCpiAccountsV2<'c, AccountInfo>;
 
 pub fn to_account_metas_v2<'a>(cpi_accounts: &CpiAccountsV2<'a>) -> Result<Vec<AccountMeta<'a>>> {
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
 
+    // 1. Fee payer (signer, writable)
     account_metas.push(AccountMeta::writable_signer(cpi_accounts.fee_payer().key()));
+
+    // 2. Authority/CPI Signer (signer, readonly) - hardcoded from config
     account_metas.push(AccountMeta::readonly_signer(
-        cpi_accounts.authority()?.key(),
+        &cpi_accounts.config().cpi_signer(),
     ));
 
-    account_metas.push(AccountMeta::readonly(
-        cpi_accounts.registered_program_pda()?.key(),
-    ));
-    account_metas.push(AccountMeta::readonly(
-        cpi_accounts.account_compression_authority()?.key(),
-    ));
+    // 3. Registered Program PDA (readonly) - hardcoded constant
+    account_metas.push(AccountMeta::readonly(&Pubkey::from(REGISTERED_PROGRAM_PDA)));
 
-    let accounts = cpi_accounts.account_infos();
-    let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
+    // 4. Account Compression Authority (readonly) - hardcoded constant
+    account_metas.push(AccountMeta::readonly(&Pubkey::from(
+        ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+    )));
 
+    // 5. Account Compression Program (readonly) - hardcoded constant
+    account_metas.push(AccountMeta::readonly(&Pubkey::from(
+        ACCOUNT_COMPRESSION_PROGRAM_ID,
+    )));
+
+    // 6. System Program (readonly) - always default pubkey
+    account_metas.push(AccountMeta::readonly(&Pubkey::default()));
+
+    // Optional accounts based on config
     if cpi_accounts.config().sol_pool_pda {
-        let account = cpi_accounts.get_account_info(index)?;
-        account_metas.push(AccountMeta::writable(account.key()));
-        index += 1;
+        account_metas.push(AccountMeta::writable(cpi_accounts.sol_pool_pda()?.key()));
     }
 
     if cpi_accounts.config().sol_compression_recipient {
-        let account = cpi_accounts.get_account_info(index)?;
-        account_metas.push(AccountMeta::writable(account.key()));
-        index += 1;
+        account_metas.push(AccountMeta::writable(
+            cpi_accounts.decompression_recipient()?.key(),
+        ));
     }
 
     if cpi_accounts.config().cpi_context {
-        let account = cpi_accounts.get_account_info(index)?;
-        account_metas.push(AccountMeta::writable(account.key()));
-        index += 1;
+        account_metas.push(AccountMeta::writable(cpi_accounts.cpi_context()?.key()));
     }
 
-    // Add remaining tree accounts
-    let tree_accounts =
-        accounts
-            .get(index..)
-            .ok_or(crate::error::LightSdkError::CpiAccountsIndexOutOfBounds(
-                index,
-            ))?;
+    // Add tree accounts
+    let tree_accounts = cpi_accounts.tree_accounts()?;
     tree_accounts.iter().for_each(|acc| {
         let account_meta = if acc.is_writable() {
             AccountMeta::writable(acc.key())
@@ -62,3 +64,4 @@ pub fn to_account_metas_v2<'a>(cpi_accounts: &CpiAccountsV2<'a>) -> Result<Vec<A
 
     Ok(account_metas)
 }
+*/

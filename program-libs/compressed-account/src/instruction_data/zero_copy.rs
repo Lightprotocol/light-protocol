@@ -20,6 +20,7 @@ use crate::{
         data::OutputCompressedAccountWithPackedContext,
     },
     pubkey::Pubkey,
+    CompressedAccountError,
 };
 
 #[repr(C)]
@@ -90,7 +91,7 @@ pub struct ZPackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub queue_pubkey_index: u8,
     pub leaf_index: U32,
-    prove_by_index: u8,
+    pub prove_by_index: u8,
 }
 
 impl ZPackedMerkleContext {
@@ -438,7 +439,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
     fn with_transaction_hash(&self) -> bool {
         true
     }
-    fn account_option_config(&self) -> AccountOptions {
+    fn account_option_config(&self) -> Result<AccountOptions, CompressedAccountError> {
         unimplemented!()
     }
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
@@ -556,13 +557,18 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
         true
     }
 
-    fn account_option_config(&self) -> AccountOptions {
-        AccountOptions {
-            sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
-            decompression_recipient: self.compress_or_decompress_lamports().is_some()
-                && !self.is_compress(),
-            cpi_context_account: self.cpi_context().is_some(),
-        }
+    fn account_option_config(&self) -> Result<AccountOptions, CompressedAccountError> {
+        let sol_pool_pda = self.compress_or_decompress_lamports().is_some();
+        let decompression_recipient = sol_pool_pda && !self.is_compress();
+        let cpi_context_account = self.cpi_context().is_some();
+        let write_to_cpi_context = false; // Not used
+
+        Ok(AccountOptions {
+            sol_pool_pda,
+            decompression_recipient,
+            cpi_context_account,
+            write_to_cpi_context,
+        })
     }
 
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
@@ -711,8 +717,8 @@ impl<'a> ZeroCopyAt<'a> for ZInstructionDataInvokeCpi<'a> {
 impl ZeroCopyAt<'_> for CompressedCpiContext {
     type ZeroCopyAt = Self;
     fn zero_copy_at(bytes: &[u8]) -> Result<(Self, &[u8]), ZeroCopyError> {
-        let (first_set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (set_context, bytes) = u8::zero_copy_at(bytes)?;
+        let (first_set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (cpi_context_account_index, bytes) = u8::zero_copy_at(bytes)?;
 
         Ok((
@@ -804,7 +810,7 @@ impl NewAddress<'_> for ZNewAddressParamsAssignedPacked {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
+#[cfg(all(not(feature = "pinocchio"), feature = "new-unique"))]
 #[cfg(test)]
 pub mod test {
     use borsh::BorshSerialize;

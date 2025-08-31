@@ -10,8 +10,12 @@ pub const INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION: [u8; 8] = [233, 112, 71, 66, 121
 pub const INVOKE_INSTRUCTION: [u8; 8] = [26, 16, 169, 7, 21, 202, 242, 25];
 pub const INVOKE_CPI_INSTRUCTION: [u8; 8] = [49, 212, 191, 129, 39, 194, 43, 196];
 pub const INVOKE_CPI_WITH_READ_ONLY_INSTRUCTION: [u8; 8] = [86, 47, 163, 166, 21, 223, 92, 8];
-pub const CPI_CONTEXT_ACCOUNT_DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 204, 128, 166];
+// discriminator of CpiContextAccount2
+pub const CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR: [u8; 8] = [34, 184, 183, 14, 100, 80, 183, 124];
+pub const CPI_CONTEXT_ACCOUNT_1_DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 204, 128, 166];
 pub const INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION: [u8; 8] = [228, 34, 128, 84, 47, 139, 86, 240];
+pub const RE_INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION: [u8; 8] =
+    [187, 147, 22, 142, 104, 180, 136, 190];
 
 impl TryFrom<&[u8]> for InstructionDiscriminator {
     type Error = crate::errors::SystemProgramError;
@@ -31,6 +35,10 @@ impl TryFrom<&[u8]> for InstructionDiscriminator {
             }
             INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION => {
                 Ok(InstructionDiscriminator::InvokeCpiWithAccountInfo)
+            }
+            #[cfg(feature = "reinit")]
+            RE_INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION => {
+                Ok(InstructionDiscriminator::ReInitCpiContextAccount)
             }
             _ => Err(SystemProgramError::InvalidInstructionDataDiscriminator),
         }

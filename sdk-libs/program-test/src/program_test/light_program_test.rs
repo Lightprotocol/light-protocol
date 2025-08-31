@@ -88,7 +88,6 @@ impl LightProgramTest {
             let test_accounts = context.test_accounts.clone();
             context.add_indexer(&test_accounts, batch_size).await?;
 
-            // TODO: add the same for v2 trees once we have grinded a mainnet keypair.
             // ensure that address tree pubkey is amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2
             {
                 let address_mt = context.test_accounts.v1_address_trees[0].merkle_tree;
@@ -114,6 +113,16 @@ impl LightProgramTest {
                 context.set_account(address_queue_pubkey, account);
             }
         }
+        {
+            let address_mt = context.test_accounts.v2_address_trees[0];
+            let account = context
+                .context
+                .get_account(&keypairs.batch_address_merkle_tree.pubkey());
+            if let Some(account) = account {
+                context.set_account(address_mt, account);
+            }
+        }
+
         // reset tx counter after program setup.
         context.transaction_counter = 0;
         // Will always start a prover server.

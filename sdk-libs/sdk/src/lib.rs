@@ -130,6 +130,7 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 pub use light_hasher;
+use light_hasher::DataHasher;
 pub use light_sdk_macros::{
     derive_light_cpi_signer, light_system_accounts, LightDiscriminator, LightHasher,
     LightHasherSha, LightTraits,

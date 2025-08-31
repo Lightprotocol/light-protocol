@@ -1,6 +1,10 @@
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
-use light_zero_copy::{errors::ZeroCopyError, traits::ZeroCopyAt};
+use light_zero_copy::{
+    errors::ZeroCopyError,
+    traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyStructInner, ZeroCopyStructInnerMut},
+    ZeroCopyNew,
+};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -46,6 +50,20 @@ pub struct Pubkey(pub(crate) [u8; 32]);
 #[repr(C)]
 pub struct Pubkey(pub(crate) [u8; 32]);
 
+impl<'a> ZeroCopyNew<'a> for Pubkey {
+    type ZeroCopyConfig = ();
+    type Output = <Self as ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
+    fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
+        Ok(32)
+    }
+    fn new_zero_copy(
+        bytes: &'a mut [u8],
+        _config: Self::ZeroCopyConfig,
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        <Self as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)
+    }
+}
+
 impl Pubkey {
     pub fn new_from_array(array: [u8; 32]) -> Self {
         Self(array)
@@ -90,6 +108,25 @@ impl<'a> ZeroCopyAt<'a> for Pubkey {
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Ref<&'a [u8], Pubkey>, &'a [u8]), ZeroCopyError> {
         Ok(Ref::<&[u8], Pubkey>::from_prefix(bytes)?)
     }
+}
+
+impl<'a> ZeroCopyAtMut<'a> for Pubkey {
+    type ZeroCopyAtMut = Ref<&'a mut [u8], Pubkey>;
+
+    #[inline]
+    fn zero_copy_at_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&mut [u8], Pubkey>::from_prefix(bytes)?)
+    }
+}
+
+impl ZeroCopyStructInner for Pubkey {
+    type ZeroCopyInner = Pubkey;
+}
+
+impl ZeroCopyStructInnerMut for Pubkey {
+    type ZeroCopyInnerMut = Pubkey;
 }
 impl From<Pubkey> for [u8; 32] {
     fn from(pubkey: Pubkey) -> Self {

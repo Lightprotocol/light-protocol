@@ -6,7 +6,7 @@ use crate::{error::Result, AccountInfo, AccountMeta};
 
 pub type CpiAccountsV2<'c, 'info> = GenericCpiAccountsV2<'c, AccountInfo<'info>>;
 
-pub fn to_account_metas_v2(cpi_accounts: CpiAccountsV2<'_, '_>) -> Result<Vec<AccountMeta>> {
+pub fn to_account_metas_v2(cpi_accounts: &CpiAccountsV2<'_, '_>) -> Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
