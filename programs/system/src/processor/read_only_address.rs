@@ -1,9 +1,11 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyAddress;
+use light_program_profiler::profile;
 use pinocchio::{msg, program_error::ProgramError};
 
 use crate::{accounts::remaining_account_checks::AcpAccount, errors::SystemProgramError, Result};
 
 #[inline(always)]
+#[profile]
 pub fn verify_read_only_address_queue_non_inclusion(
     remaining_accounts: &mut [AcpAccount<'_>],
     read_only_addresses: &[ZPackedReadOnlyAddress],

@@ -4,6 +4,7 @@ use light_compressed_account::{
         insert_into_queues::InsertIntoQueuesInstructionDataMut, traits::NewAddress,
     },
 };
+use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
@@ -11,6 +12,7 @@ use crate::{
     errors::SystemProgramError, Result,
 };
 
+#[profile]
 pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
     new_address_params: impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)>,
     remaining_accounts: &'info [AccountInfo],
@@ -18,23 +20,25 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
     accounts: &[AcpAccount<'info>],
 ) -> Result<()> {
-    // Get invoking_program_id early and store if available
     let invoking_program_id_clone = context.invoking_program_id;
     let mut seq_index = 0;
 
     for (i, new_address_params) in new_address_params.enumerate() {
         let (address, rollover_fee) = match &accounts
-            [new_address_params.address_merkle_tree_account_index() as usize]
+            .get(new_address_params.address_merkle_tree_account_index() as usize)
+            .ok_or(SystemProgramError::AddressAssignedAccountIndexOutOfBounds)?
         {
             AcpAccount::AddressTree((pubkey, _)) => {
                 cpi_ix_data.addresses[i].queue_index = context.get_index_or_insert(
                     new_address_params.address_queue_index(),
                     remaining_accounts,
-                );
+                    "V1 address queue",
+                )?;
                 cpi_ix_data.addresses[i].tree_index = context.get_index_or_insert(
                     new_address_params.address_merkle_tree_account_index(),
                     remaining_accounts,
-                );
+                    "V1 address tree",
+                )?;
 
                 (
                     derive_address_legacy(pubkey, &new_address_params.seed())
@@ -46,8 +50,10 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                 )
             }
             AcpAccount::BatchedAddressTree(tree) => {
-                let invoking_program_id_bytes = if let Some(ref bytes) = invoking_program_id_clone {
+                let invoking_program_id_bytes = if let Some(bytes) = new_address_params.owner() {
                     Ok(bytes)
+                } else if let Some(invoking_program_id_clone) = invoking_program_id_clone.as_ref() {
+                    Ok(invoking_program_id_clone)
                 } else {
                     Err(SystemProgramError::DeriveAddressError)
                 }?;
@@ -55,7 +61,8 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                 cpi_ix_data.addresses[i].tree_index = context.get_index_or_insert(
                     new_address_params.address_merkle_tree_account_index(),
                     remaining_accounts,
-                );
+                    "V2 address tree",
+                )?;
 
                 context.set_address_fee(
                     tree.metadata.rollover_metadata.network_fee,

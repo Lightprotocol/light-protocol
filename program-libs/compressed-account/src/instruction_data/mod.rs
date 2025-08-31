@@ -7,3 +7,4 @@ pub mod traits;
 pub mod with_account_info;
 pub mod with_readonly;
 pub mod zero_copy;
+pub mod zero_copy_set;
