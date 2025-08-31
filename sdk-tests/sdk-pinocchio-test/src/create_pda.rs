@@ -41,7 +41,7 @@ pub fn create_pda<const BATCHED: bool>(
             &tree_pubkey,
             &crate::ID,
         );
-        (address, address_seed)
+        (address, address_seed.into())
     } else {
         light_sdk_pinocchio::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],

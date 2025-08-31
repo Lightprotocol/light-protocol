@@ -150,7 +150,7 @@ async fn create_compressed_account(
 ) -> Result<Signature, RpcError> {
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
     let mut remaining_accounts = PackedAccounts::default();
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
 
     let address_merkle_tree_info = rpc.get_address_tree_v1();
 
@@ -207,7 +207,7 @@ async fn update_compressed_account(
     let mut remaining_accounts = PackedAccounts::default();
 
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config).unwrap();
     let hash = compressed_account.hash;
 
     let rpc_result = rpc

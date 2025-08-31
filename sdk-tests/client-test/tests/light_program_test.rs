@@ -104,8 +104,11 @@ async fn test_all_endpoints() {
         .value;
 
     assert_eq!(accounts.items.len(), account_hashes.len());
-    for item in accounts.items.iter() {
-        assert!(initial_accounts.items.iter().any(|x| x.hash == item.hash));
+    for account in accounts.items.iter().flatten() {
+        assert!(initial_accounts
+            .items
+            .iter()
+            .any(|x| x.hash == account.hash));
     }
     // Currently fails because photon doesn't deliver cpi context accounts.
     // for item in accounts.items.iter() {
@@ -117,8 +120,11 @@ async fn test_all_endpoints() {
         .unwrap()
         .value;
     assert_eq!(accounts.items.len(), initial_accounts.items.len());
-    for item in accounts.items.iter() {
-        assert!(initial_accounts.items.iter().any(|x| x.hash == item.hash));
+    for account in accounts.items.iter().flatten() {
+        assert!(initial_accounts
+            .items
+            .iter()
+            .any(|x| x.hash == account.hash));
     }
     // Currently fails because photon doesn't deliver cpi context accounts.
     // for item in accounts.items.iter() {
@@ -142,11 +148,11 @@ async fn test_all_endpoints() {
     }
     // 4. get_compressed_account
     let first_account = rpc
-        .get_compressed_account(accounts.items[0].address.unwrap(), None)
+        .get_compressed_account(accounts.items[0].as_ref().unwrap().address.unwrap(), None)
         .await
         .unwrap()
         .value;
-    assert_eq!(first_account, accounts.items[0]);
+    assert_eq!(Some(first_account.clone()), accounts.items[0]);
 
     // 5. get_compressed_account_by_hash
     {
@@ -653,7 +659,7 @@ async fn create_address(
         .unwrap();
 
     let new_address_params = NewAddressParams {
-        seed: address_seed,
+        seed: address_seed.into(),
         address_queue_pubkey: address_merkle_tree.queue.into(),
         address_merkle_tree_pubkey: address_merkle_tree.tree.into(),
         address_merkle_tree_root_index: rpc_proof_result.value.addresses[0].root_index,

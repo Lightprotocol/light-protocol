@@ -25,6 +25,10 @@ pub mod light_system_program {
         unimplemented!("anchor wrapper not implemented")
     }
 
+    pub fn re_init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
     pub fn invoke(ctx: Context<InvokeInstruction>, inputs: Vec<u8>) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }

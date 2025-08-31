@@ -2149,14 +2149,14 @@ async fn cpi_context_with_read_only() {
             address_queue_pubkey: address_queue.into(),
             address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
-            assigned_account_index: Some(0),
+            assigned_account_index: Some(2),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
             address_queue_pubkey: address_queue.into(),
             address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
-            assigned_account_index: Some(1),
+            assigned_account_index: Some(0),
         };
         let owner_account1 = Pubkey::new_unique();
         // Insert into cpi context.
@@ -2294,6 +2294,12 @@ async fn cpi_context_with_read_only() {
                 output_account_balance[0].compressed_account.address,
                 Some(address)
             );
+
+            let account = test_indexer
+                .get_compressed_account(address1, None)
+                .await
+                .unwrap();
+            assert_eq!(account.value.owner, owner_account1);
             let output_account_balance =
                 test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&owner_account1);
             assert_eq!(
@@ -2445,14 +2451,14 @@ async fn cpi_context_with_account_info() {
             address_queue_pubkey: address_queue.into(),
             address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[0],
-            assigned_account_index: Some(0),
+            assigned_account_index: Some(2),
         };
         let new_address_params1 = NewAddressParamsAssigned {
             seed: seed1,
             address_queue_pubkey: address_queue.into(),
             address_merkle_tree_pubkey: address_tree.into(),
             address_merkle_tree_root_index: rpc_result.value.get_address_root_indices()[1],
-            assigned_account_index: Some(2),
+            assigned_account_index: Some(0),
         };
         let owner_account1 = Pubkey::new_unique();
         // Insert into cpi context.
@@ -2614,12 +2620,12 @@ async fn cpi_context_with_account_info() {
             });
             assert_eq!(output_account_balance.len(), 4);
             assert_eq!(
-                output_account_balance[0].compressed_account.address,
+                output_account_balance[2].compressed_account.address,
                 Some(address)
             );
             assert_eq!(output_account_balance[1].compressed_account.address, None);
             assert_eq!(
-                output_account_balance[2].compressed_account.address,
+                output_account_balance[0].compressed_account.address,
                 Some(address1)
             );
             assert_eq!(output_account_balance[3].compressed_account.address, None);
@@ -3131,9 +3137,27 @@ pub mod local_sdk {
         onchain_config.cpi_context = config.cpi_context.is_some();
         onchain_config.sol_pool_pda = config.sol_pool_pda.is_some();
         onchain_config.sol_compression_recipient = config.sol_compression_recipient.is_some();
-        let remaining_accounts =
-            [get_light_system_account_metas(config), remaining_accounts].concat();
-        println!("remaining_accounts {:?}", remaining_accounts);
+        let write_into_cpi_context = if let Some(cpi_context) = cpi_context.as_ref() {
+            if v2_ix {
+                cpi_context.first_set_context || cpi_context.set_context
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        let remaining_accounts = if write_into_cpi_context {
+            vec![
+                AccountMeta::new_readonly(
+                    SystemAccountPubkeys::default().light_sytem_program,
+                    false,
+                ),
+                AccountMeta::new(Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer), false),
+                AccountMeta::new(config.cpi_context.unwrap(), false),
+            ]
+        } else {
+            [get_light_system_account_metas(config), remaining_accounts].concat()
+        };
 
         let instruction = create_invoke_read_only_account_info_instruction(
             payer.pubkey(),
@@ -3141,7 +3165,9 @@ pub mod local_sdk {
             onchain_config,
             v2_ix,
             remaining_accounts,
+            write_into_cpi_context,
         );
+
         let res = rpc
             .create_and_send_transaction_with_batched_event(
                 &[instruction],
@@ -3324,17 +3350,17 @@ pub mod local_sdk {
 
     pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
         let cpi_signer = Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer);
-        println!("cpi signer {:?}", cpi_signer);
+
         let default_pubkeys = SystemAccountPubkeys::default();
         let mut vec = if config.v2_ix {
             // Accounts without noop and self program.
             let vec = vec![
                 AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-                AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-                AccountMeta::new_readonly(default_pubkeys.system_program, false),
                 AccountMeta::new_readonly(cpi_signer, false),
                 AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
                 AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+                AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+                AccountMeta::new_readonly(default_pubkeys.system_program, false),
             ];
             vec
         } else {

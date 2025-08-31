@@ -117,7 +117,11 @@ use std::{
 
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
-    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+    instruction_data::{
+        data::OutputCompressedAccountWithPackedContext,
+        with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+        with_readonly::InAccount,
+    },
 };
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
@@ -125,7 +129,7 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::LightSdkError,
     light_hasher::{DataHasher, Hasher, Poseidon, Sha256},
-    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
 const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];

@@ -27,11 +27,13 @@ pub fn unpack_new_address_params(
 }
 
 pub mod v1 {
+    use light_sdk_types::address::AddressSeed;
+
     use super::*;
 
     /// Derives a single address seed for a compressed account, based on the
     /// provided multiple `seeds`, `program_id` and `merkle_tree_pubkey`.
-    pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
+    pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> AddressSeed {
         light_sdk_types::address::v1::derive_address_seed(seeds, program_id)
     }
 
@@ -41,7 +43,7 @@ pub mod v1 {
         seeds: &[&[u8]],
         merkle_tree_pubkey: &Pubkey,
         program_id: &Pubkey,
-    ) -> ([u8; 32], [u8; 32]) {
+    ) -> ([u8; 32], AddressSeed) {
         light_sdk_types::address::v1::derive_address(seeds, merkle_tree_pubkey, program_id)
     }
 }
