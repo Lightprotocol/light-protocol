@@ -94,9 +94,7 @@ pub async fn create_pda(
         SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_test::ID));
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
-    accounts
-        .add_system_accounts(system_account_meta_config)
-        .unwrap();
+    accounts.add_system_accounts(system_account_meta_config);
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -144,9 +142,7 @@ pub async fn update_pda(
         SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_test::ID));
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
-    accounts
-        .add_system_accounts(system_account_meta_config)
-        .unwrap();
+    accounts.add_system_accounts(system_account_meta_config);
 
     let rpc_result = rpc
         .get_validity_proof(vec![compressed_account.hash().unwrap()], vec![], None)

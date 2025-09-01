@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use anchor_lang::prelude::*;
 
 pub mod account_traits;
