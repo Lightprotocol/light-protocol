@@ -43,7 +43,7 @@ pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError>
         }
     };
 
-    let max_attempts = 20;
+    let max_attempts = 100;
     let mut attempts = 0;
 
     while rpc_slot > indexer_slot {
@@ -57,8 +57,7 @@ pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError>
             "waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}",
             rpc_slot, indexer_slot
         );
-
-        tokio::task::yield_now().await;
+        
         sleep(std::time::Duration::from_millis(500)).await;
         indexer_slot = rpc.indexer()?.get_indexer_slot(None).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);

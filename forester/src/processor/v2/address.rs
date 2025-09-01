@@ -9,7 +9,7 @@ use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_program::instruction::Instruction;
 use solana_sdk::signer::Signer;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData};
 use crate::Result;
@@ -45,10 +45,6 @@ pub(crate) async fn process_batch<R: Rpc>(
     context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<usize> {
-    info!(
-        "V2_TPS_METRIC: operation_start tree_type=AddressV2 tree={} epoch={}",
-        context.merkle_tree, context.epoch
-    );
     let instruction_builder = |data: &InstructionDataAddressAppendInputs| -> Instruction {
         let serialized_data = data.try_to_vec().unwrap();
         create_batch_update_address_tree_instruction(
@@ -65,8 +61,6 @@ pub(crate) async fn process_batch<R: Rpc>(
         context,
         stream_future,
         instruction_builder,
-        "AddressV2",
-        None,
     )
     .await
 }

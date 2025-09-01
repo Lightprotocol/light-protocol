@@ -64,13 +64,6 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
 ) -> Result<usize> {
     let function_start_time = Instant::now();
 
-    info!(
-        "V1_TPS_METRIC: operation_start tree_type={} tree={} epoch={}",
-        tree_accounts.tree_type,
-        tree_accounts.merkle_tree,
-        transaction_builder.epoch()
-    );
-
     let num_sent_transactions = Arc::new(AtomicUsize::new(0));
     let operation_cancel_signal = Arc::new(AtomicBool::new(false));
 
@@ -228,20 +221,9 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
     };
 
     if queue_item_data.is_empty() {
-        info!(
-            "QUEUE_METRIC: queue_empty tree_type={} tree={}",
-            tree_accounts.tree_type, tree_accounts.merkle_tree
-        );
         trace!(tree = %tree_id_str, "Queue is empty, no transactions to send.");
         return Ok(None); // Return None to indicate no work
     }
-
-    info!(
-        "QUEUE_METRIC: queue_has_elements tree_type={} tree={} count={}",
-        tree_accounts.tree_type,
-        tree_accounts.merkle_tree,
-        queue_item_data.len()
-    );
 
     let (recent_blockhash, last_valid_block_height) = {
         let mut rpc = pool.get_connection().await.map_err(|e| {

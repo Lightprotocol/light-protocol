@@ -20,7 +20,7 @@ use light_client::{
 };
 use light_compressed_account::TreeType;
 use light_registry::{
-    protocol_config::state::ProtocolConfig,
+    protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
     EpochPda, ForesterEpochPda,
@@ -906,7 +906,6 @@ impl<R: Rpc> EpochManager<R> {
         epoch_pda: &ForesterEpochPda,
         mut tree_schedule: TreeForesterSchedule,
     ) -> Result<()> {
-        info!("enter process_queue");
         let mut current_slot = self.slot_tracker.estimated_current_slot();
         'outer_slot_loop: while current_slot < epoch_info.phases.active.end {
             let next_slot_to_process = tree_schedule
@@ -1104,10 +1103,6 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV1 | TreeType::AddressV1 => {
-                info!(
-                    "Processing V1 tree: {} (type: {:?}, epoch: {})",
-                    tree_accounts.merkle_tree, tree_accounts.tree_type, epoch_info.epoch
-                );
                 self.process_v1(
                     epoch_info,
                     epoch_pda,
@@ -1118,10 +1113,6 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                info!(
-                    "Processing V2 tree: {} (type: {:?}, epoch: {})",
-                    tree_accounts.merkle_tree, tree_accounts.tree_type, epoch_info.epoch
-                );
                 self.process_v2(epoch_info, tree_accounts).await
             }
         }
@@ -1185,6 +1176,19 @@ impl<R: Rpc> EpochManager<R> {
     }
 
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
+        // Check if we're in the active phase before processing v2 transactions
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let current_phase_state = epoch_info.phases.get_current_epoch_state(current_slot);
+        
+        if current_phase_state != EpochState::Active {
+            trace!(
+                "Skipping v2 processing: not in active phase (current phase: {:?}, slot: {})",
+                current_phase_state,
+                current_slot
+            );
+            return Ok(0);
+        }
+        
         let default_prover_url = "http://127.0.0.1:3001".to_string();
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),
@@ -1214,8 +1218,10 @@ impl<R: Rpc> EpochManager<R> {
                 .unwrap_or_else(|| default_prover_url.clone()),
             prover_api_key: self.config.external_services.prover_api_key.clone(),
             prover_polling_interval: Duration::from_secs(1),
-            prover_max_wait_time: Duration::from_secs(120),
+            prover_max_wait_time: Duration::from_secs(600),
             ops_cache: self.ops_cache.clone(),
+            epoch_phases: epoch_info.phases.clone(),
+            slot_tracker: self.slot_tracker.clone(),
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
