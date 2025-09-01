@@ -16,7 +16,7 @@ pub struct CreateRecord<'info> {
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
-    pub user_record: Account<'info, UserRecord>,
+    pub user_record: Box<Account<'info, UserRecord>>,
     /// UNCHECKED: checked via config.
     #[account(mut)]
     pub rent_recipient: AccountInfo<'info>,

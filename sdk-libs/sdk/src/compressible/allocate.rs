@@ -1,5 +1,8 @@
 #[cfg(feature = "anchor")]
-use anchor_lang::{system_program::CreateAccount, Result};
+use anchor_lang::{
+    prelude::CpiContext, system_program::create_account, system_program::CreateAccount, Result,
+};
+use light_account_checks::AccountInfoTrait;
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
@@ -17,16 +20,19 @@ pub fn create_or_allocate_account<'a>(
 ) -> Result<()> {
     let rent = Rent::get()?;
     let current_lamports = target_account.lamports();
-
+    use solana_program::msg;
+    msg!("current_lamports, {}", current_lamports);
+    msg!("target_account, {:?}", target_account.pubkey());
     if current_lamports == 0 {
-        use anchor_lang::{prelude::CpiContext, system_program::create_account};
-
         let lamports = rent.minimum_balance(space);
+        anchor_lang::prelude::msg!("payer {:?}", payer.key());
+        anchor_lang::prelude::msg!("target_account {:?}", target_account.key());
         let cpi_accounts = CreateAccount {
             from: payer,
             to: target_account.clone(),
         };
         let cpi_context = CpiContext::new(system_program.clone(), cpi_accounts);
+
         create_account(
             cpi_context.with_signer(&[signer_seed]),
             lamports,

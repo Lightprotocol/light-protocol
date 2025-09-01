@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_compressible_derived::{
     anchor_compressible_derived::CompressedAccountVariant, GameSession, UserRecord,
@@ -41,7 +41,6 @@ async fn test_create_and_decompress_two_accounts() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -116,7 +115,6 @@ async fn test_create_decompress_compress_single_account() {
     );
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -348,7 +346,6 @@ async fn test_decompress_multiple_pdas(
                     vec![b"game_session".to_vec(), session_id.to_le_bytes().to_vec()],
                 ),
             ],
-            &[*user_record_bump, *game_bump],
             rpc_result,
             output_state_tree_info,
         )
@@ -810,7 +807,6 @@ async fn test_decompress_single_user_record(
                 CompressedAccountVariant::UserRecord(c_user_record),
                 vec![b"user_record".to_vec(), payer.pubkey().to_bytes().to_vec()],
             )],
-            &[*user_record_bump],
             rpc_result,
             output_state_tree_info,
         )
@@ -875,8 +871,6 @@ async fn test_double_decompression_attack() {
     );
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -961,7 +955,6 @@ async fn test_double_decompression_attack() {
                 CompressedAccountVariant::UserRecord(c_user_record),
                 vec![b"user_record".to_vec(), payer.pubkey().to_bytes().to_vec()],
             )],
-            &[user_record_bump],
             rpc_result,
             output_state_tree_info,
         )
@@ -1003,7 +996,6 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_default_pda(&program_id).0;
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -1070,8 +1062,6 @@ async fn test_update_record_compression_info() {
     );
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -1218,7 +1208,6 @@ async fn test_decompress_single_game_session(
                 anchor_compressible_derived::anchor_compressible_derived::CompressedAccountVariant::GameSession(c_game_session),
                 vec![b"game_session".to_vec(), session_id.to_le_bytes().to_vec()],
             )],
-            &[*game_bump],
             rpc_result,
             output_state_tree_info,
         )
@@ -1350,7 +1339,6 @@ async fn test_derived_custom_compression_game_session() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     // Initialize config
     let result = initialize_compression_config(

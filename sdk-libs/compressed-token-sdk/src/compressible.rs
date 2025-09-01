@@ -1,12 +1,12 @@
 use light_ctoken_types::{
     instructions::transfer2::MultiInputTokenDataWithContext, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use light_sdk::{compressible::create_or_allocate_account, AnchorDeserialize, AnchorSerialize};
+use light_sdk::compressible::create_or_allocate_account;
 use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
-use crate::error::Result;
+use crate::{error::Result, AnchorDeserialize, AnchorSerialize};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct PackedCompressedTokenDataWithContext {
@@ -73,6 +73,7 @@ pub fn create_compressible_token_account<'a>(
     use solana_cpi::invoke;
 
     let space = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
+    anchor_lang::prelude::msg!("space {:?}", space);
 
     create_or_allocate_account(
         token_program.key,
@@ -82,6 +83,7 @@ pub fn create_compressible_token_account<'a>(
         signer_seeds,
         space,
     )?;
+    anchor_lang::prelude::msg!("space {:?}", space);
 
     let init_ix = initialize_compressible_token_account(CreateCompressibleTokenAccount {
         account_pubkey: *token_account.key,
@@ -91,7 +93,7 @@ pub fn create_compressible_token_account<'a>(
         rent_recipient: *rent_recipient.key,
         slots_until_compression,
     })?;
-
+    anchor_lang::prelude::msg!("init_ix {:?}", init_ix);
     invoke(
         &init_ix,
         &[

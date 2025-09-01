@@ -59,8 +59,11 @@ pub mod anchor_compressible_derived {
         let cpi_accounts =
             CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
-        let new_address_params =
-            address_tree_info.into_new_address_params_packed(user_record.key().to_bytes());
+        let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
+            user_record.key().to_bytes(),
+            true,
+            Some(0),
+        );
 
         compress_account_on_init::<UserRecord>(
             user_record,
@@ -126,10 +129,10 @@ pub mod anchor_compressible_derived {
         // Prepare new address params. One per pda account.
         let user_new_address_params = compression_params
             .user_address_tree_info
-            .into_new_address_params_packed(user_record.key().to_bytes());
+            .into_new_address_params_assigned_packed(user_record.key().to_bytes(), true, Some(0));
         let game_new_address_params = compression_params
             .game_address_tree_info
-            .into_new_address_params_packed(game_session.key().to_bytes());
+            .into_new_address_params_assigned_packed(game_session.key().to_bytes(), true, Some(1));
 
         let mut all_compressed_infos = Vec::new();
 
@@ -171,10 +174,7 @@ pub mod anchor_compressible_derived {
         let cpi_inputs = CpiInputs::new_with_assigned_address(
             compression_params.proof,
             all_compressed_infos,
-            vec![
-                light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(user_new_address_params, None),
-                light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked::new(game_new_address_params, None),
-            ],
+            vec![user_new_address_params, game_new_address_params],
         );
 
         // Invoke light system program to create all compressed accounts in one
@@ -203,7 +203,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
-    pub user_record: Account<'info, UserRecord>,
+    pub user_record: Box<Account<'info, UserRecord>>,
     #[account(
         init,
         payer = user,
@@ -213,7 +213,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
         seeds = [b"game_session", account_data.session_id.to_le_bytes().as_ref()],
         bump,
     )]
-    pub game_session: Account<'info, GameSession>,
+    pub game_session: Box<Account<'info, GameSession>>,
     /// Needs to be here for the init anchor macro to work.
     pub system_program: Program<'info, System>,
     /// The global config account
@@ -235,7 +235,7 @@ pub struct UpdateRecord<'info> {
         bump,
         constraint = user_record.owner == user.key()
     )]
-    pub user_record: Account<'info, UserRecord>,
+    pub user_record: Box<Account<'info, UserRecord>>,
 }
 
 #[error_code]

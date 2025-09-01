@@ -5,6 +5,7 @@
 
 use light_client::rpc::{Rpc, RpcError};
 use light_compressible_client::CompressibleInstruction;
+use litesvm::LiteSVM;
 use solana_sdk::{
     bpf_loader_upgradeable,
     pubkey::Pubkey,
@@ -39,11 +40,7 @@ pub fn create_mock_program_data(authority: Pubkey) -> Vec<u8> {
 ///
 /// # Returns
 /// The pubkey of the created program data account
-pub fn setup_mock_program_data<T: TestRpc>(
-    rpc: &mut T,
-    payer: &Keypair,
-    program_id: &Pubkey,
-) -> Pubkey {
+pub fn setup_mock_program_data(rpc: &mut LiteSVM, payer: &Keypair, program_id: &Pubkey) -> Pubkey {
     let (program_data_pda, _) =
         Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::ID);
     let mock_data = create_mock_program_data(payer.pubkey());

@@ -18,7 +18,12 @@ idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor-discriminator-compat"] }
+light-sdk = { workspace = true, features = [
+    "anchor",
+    "idl-build",
+    "v2",
+    "anchor-discriminator-compat",
+] }
 light-sdk-types = { workspace = true, features = ["v2"] }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
@@ -26,7 +31,11 @@ light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
-anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = ["memo", "metadata", "idl-build"] }
+anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = [
+    "memo",
+    "metadata",
+    "idl-build",
+] }
 light-ctoken-types = { workspace = true }
 light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
 light-compressed-token-types = { workspace = true, features = ["anchor"] }
@@ -35,7 +44,7 @@ light-compressed-token-types = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true, features = ["v2"] }
 light-client = { workspace = true, features = ["v2"] }
 light-compressible-client = { workspace = true, features = ["anchor"] }
-light-test-utils = { workspace = true}
+light-test-utils = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
 solana-logger = { workspace = true }
@@ -44,6 +53,7 @@ solana-pubkey = { workspace = true }
 solana-signature = { workspace = true }
 solana-signer = { workspace = true }
 solana-keypair = { workspace = true }
+light-token-client = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

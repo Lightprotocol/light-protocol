@@ -11,7 +11,9 @@ use light_compressed_token_sdk::{
 };
 use light_compressible_client::CompressibleInstruction;
 use light_ctoken_types::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    instructions::mint_action::{
+        CompressedMintInstructionData, CompressedMintWithContext, Recipient,
+    },
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_macros::pubkey;
@@ -38,16 +40,14 @@ pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9S
 #[tokio::test]
 async fn test_create_and_decompress_two_accounts() {
     let program_id = anchor_compressible::ID;
-    let mut config =
-        ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
-    config = config.with_light_protocol_events();
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
 
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc.context, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -101,6 +101,8 @@ async fn test_create_and_decompress_two_accounts() {
         &compressed_token_account.token.mint,
     );
 
+    println!("compressed_token_account {:?}", compressed_token_account);
+
     decompress_multiple_pdas_with_ctoken(
         &mut rpc,
         &combined_user,
@@ -124,7 +126,6 @@ async fn test_create_decompress_compress_single_account() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -183,8 +184,6 @@ async fn test_double_decompression_attack() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -306,7 +305,6 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -384,8 +382,6 @@ async fn test_update_record_compression_info() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -488,7 +484,7 @@ async fn test_custom_compression_game_session() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+    let _program_data_pda = setup_mock_program_data(&mut rpc.context, &payer, &program_id);
 
     // Initialize config
     let result = initialize_compression_config(
@@ -562,7 +558,6 @@ async fn test_create_empty_compressed_account() {
     let payer = rpc.get_payer().insecure_clone();
 
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     // Initialize compression config
     let result = initialize_compression_config(

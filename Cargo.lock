@@ -291,6 +291,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
+ "light-token-client",
  "solana-instruction",
  "solana-keypair",
  "solana-logger",

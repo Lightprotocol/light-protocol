@@ -230,18 +230,40 @@ pub mod anchor_compressible {
         let address_space = compression_config.address_space[0];
         // create cpi_accounts
         let fee_payer_account_info = ctx.accounts.fee_payer.to_account_info();
-        let cpi_accounts = CpiAccountsSmall::new_with_config(
-            &fee_payer_account_info,
-            &ctx.remaining_accounts[system_accounts_offset as usize..],
-            CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
-        );
-        // the client passes the compressed/token accounts always at the end of the remaining_accounts list.
-        let pda_accounts_start = ctx.remaining_accounts.len()
+        let mut pda_accounts_start = ctx.remaining_accounts.len()
             - compressed_accounts.len()
-            - compressed_token_accounts.len()
-            + 1;
-        let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..]; // assumes those are the pdas + token account to decompress.
+            - compressed_token_accounts.len();
+        let (cpi_accounts, solana_accounts) = if has_pdas && has_tokens {
+            pda_accounts_start += 1; // + cpi context
+            (
+                CpiAccountsSmall::new_with_config(
+                    &fee_payer_account_info,
+                    &ctx.remaining_accounts[system_accounts_offset as usize..],
+                    CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
+                ),
+                &ctx.remaining_accounts[pda_accounts_start..],
+            )
+        } else {
+            (
+                CpiAccountsSmall::new(
+                    &fee_payer_account_info,
+                    &ctx.remaining_accounts[system_accounts_offset as usize..],
+                    LIGHT_CPI_SIGNER,
+                ),
+                &ctx.remaining_accounts[pda_accounts_start..],
+            )
+        };
 
+        msg!("pda_accounts_start {:?}", pda_accounts_start);
+        msg!("system_accounts_offset {:?}", system_accounts_offset);
+        msg!(
+            "remaining_accounts {:?}",
+            ctx.remaining_accounts
+                .iter()
+                .map(|x| x.key())
+                .collect::<Vec<_>>()
+        );
+        msg!("tree accounts {:?}", cpi_accounts.tree_pubkeys());
         let mut compressed_pda_infos = Vec::new();
 
         for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
@@ -261,10 +283,12 @@ pub mod anchor_compressible {
 
                     let solana_account_key = solana_accounts[i].key;
                     if pda != *solana_account_key {
-                        panic!(
+                        msg!(
                             "pda mismatch: expected {:?}, got {:?}",
-                            pda, solana_account_key
+                            pda,
+                            solana_account_key
                         );
+                        panic!()
                     }
 
                     let derived_c_pda = derive_compressed_address(
@@ -315,8 +339,8 @@ pub mod anchor_compressible {
                     let seeds = [b"game_session".as_ref(), session_id_le.as_ref()];
                     let (pda, bump) = Pubkey::find_program_address(&seeds, &crate::ID);
                     let bump_slice = [bump];
-                    let seeds_refs = vec![seeds[0], seeds[1], &bump_slice];
-                    let seeds_refs_vec: Vec<_> = vec![seeds_refs.as_slice()];
+                    let seeds_refs = [seeds[0], seeds[1], &bump_slice];
+                    let seeds_refs_vec = vec![seeds_refs.as_slice()];
 
                     let solana_account_key = solana_accounts[i].key;
                     if pda != *solana_account_key {
@@ -433,6 +457,7 @@ pub mod anchor_compressible {
                 cpi_context: cpi_accounts.cpi_context().unwrap(),
                 cpi_signer: LIGHT_CPI_SIGNER,
             };
+            msg!("cpi write system_cpi_accounts, {:?}", system_cpi_accounts);
             let cpi_inputs = CpiInputs::new_first_cpi(compressed_pda_infos, vec![]);
             cpi_inputs.invoke_light_system_program_cpi_context(system_cpi_accounts)?;
         } else if has_pdas {
@@ -459,8 +484,9 @@ pub mod anchor_compressible {
                 .owner;
             let mint_index = compressed_token_account.token_data.mint;
             let system_program = cpi_accounts.system_program().unwrap();
-            let token_account = &cpi_accounts.tree_accounts().unwrap()[owner_index as usize];
 
+            let token_account = &tree_accounts[owner_index as usize];
+            msg!("token_account {:?}", token_account);
             let mint_info =
                 cpi_accounts.tree_accounts().unwrap()[mint_index as usize].to_account_info();
 
@@ -492,9 +518,14 @@ pub mod anchor_compressible {
                 delegate_is_set: false,
                 method_used: true,
             };
-
+            msg!(
+                " cpi_accounts.authority().unwrap() {:?}",
+                cpi_accounts.authority().unwrap()
+            );
+            msg!("token_account {:?}", token_account);
             create_compressible_token_account(
-                cpi_accounts.authority().unwrap(),
+                token_account,
+                // cpi_accounts.authority().unwrap(),
                 &ctx.accounts.fee_payer.to_account_info(),
                 token_account,
                 &mint_info,
@@ -512,6 +543,7 @@ pub mod anchor_compressible {
                 &ctx.accounts.fee_payer,
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as u64,
             )?;
+            msg!("post");
             packed_accounts[owner_index as usize].is_signer = true;
 
             compressed_token_infos.push(ctoken_account);
@@ -546,21 +578,19 @@ pub mod anchor_compressible {
 
             // account_infos
             let mut all_account_infos = vec![ctx.accounts.fee_payer.to_account_info()];
+            all_account_infos.extend_from_slice(ctx.remaining_accounts);
             all_account_infos.extend(
                 ctx.accounts
                     .compressed_token_cpi_authority
                     .to_account_infos(),
             );
-            all_account_infos.extend(ctx.accounts.compressed_token_program.to_account_infos());
-            all_account_infos.extend(ctx.accounts.rent_payer.to_account_infos());
-            all_account_infos.extend(ctx.accounts.config.to_account_infos());
-            all_account_infos.extend(cpi_accounts.to_account_infos());
 
             // ctoken cpi
             let seed_refs = all_compressed_token_signers_seeds
                 .iter()
                 .map(|s| s.as_slice())
                 .collect::<Vec<&[u8]>>();
+
             invoke_signed(
                 &ctoken_ix,
                 all_account_infos.as_slice(),
@@ -1011,7 +1041,7 @@ pub mod anchor_compressible {
 
         Ok(())
     }
-
+    /*
     pub fn compress_token_account_ctoken_signer<'info>(
         ctx: Context<'_, '_, '_, 'info, CompressTokenAccountCtokenSigner<'info>>,
     ) -> Result<()> {
@@ -1046,12 +1076,11 @@ pub mod anchor_compressible {
         let mint = token_account.mint;
         let amount = token_account.amount;
         let source_or_recipient = token_account.key();
+        let authority = token_account.close_authority; // The owner of the token account is the authority for compression
 
         let system_program = cpi_accounts.system_program().unwrap();
-
         let compression =
             Compression::compress_ctoken(amount, mint, source_or_recipient, authority);
-
         let ctoken_account = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
@@ -1097,7 +1126,7 @@ pub mod anchor_compressible {
         token_account.close(ctx.accounts.rent_recipient.to_account_info())?;
 
         Ok(())
-    }
+    }*/
 }
 
 #[derive(Accounts)]
@@ -1340,7 +1369,7 @@ pub struct CompressTokenAccountCtokenSigner<'info> {
 }
 
 // TODO: split into one ix with ctoken and one without.
-#[derive(Accounts)]
+#[derive(Accounts, Debug)]
 pub struct DecompressAccountsIdempotent<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,

@@ -346,7 +346,7 @@ impl CompressibleInstruction {
         solana_accounts: &[Pubkey],
         compressed_accounts: &[(CompressedAccount, T)],
         solana_token_accounts: &[Pubkey],
-        compressed_token_accounts: &[(light_client::indexer::CompressedTokenAccount, C)],
+        input_compressed_token_accounts: &[(light_client::indexer::CompressedTokenAccount, C)],
         validity_proof_with_context: ValidityProofWithContext,
         output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>>
@@ -354,94 +354,139 @@ impl CompressibleInstruction {
         T: AnchorSerialize + Clone + std::fmt::Debug,
         C: AnchorSerialize + Clone + std::fmt::Debug,
     {
-        let compressed_token_account = compressed_token_accounts[0].0.clone();
-        let variant = compressed_token_accounts[0].1.clone();
-        let mint = compressed_token_account.token.mint;
-
+        println!("tree info {:?}", compressed_accounts[0].0.tree_info);
+        let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
         let mut remaining_accounts = PackedAccounts::default();
-
-        let cpi_context_of_first_input = compressed_token_account
-            .account
-            .tree_info
-            .cpi_context
-            .unwrap();
-
-        let system_config =
-            SystemAccountMetaConfig::new_with_cpi_context(*program_id, cpi_context_of_first_input);
-
-        remaining_accounts.add_system_accounts_small(system_config)?;
+        let has_compressed_accounts = !compressed_accounts.is_empty();
+        let has_ctoken_accounts = !input_compressed_token_accounts.is_empty();
+        if has_compressed_accounts && has_ctoken_accounts {
+            // add cpi context account
+            let cpi_context_of_first_input =
+                compressed_accounts[0].0.tree_info.cpi_context.unwrap();
+            let system_config = SystemAccountMetaConfig::new_with_cpi_context(
+                *program_id,
+                cpi_context_of_first_input,
+            );
+            remaining_accounts.add_system_accounts_small(system_config)?;
+        } else {
+            let system_config = SystemAccountMetaConfig::new(*program_id); // cpi_context_of_first_input
+            remaining_accounts.add_system_accounts_small(system_config)?;
+        }
+        let mut accounts = Vec::new();
+        accounts.push(AccountMeta {
+            pubkey: *fee_payer,
+            is_signer: true,
+            is_writable: true,
+        });
+        accounts.push(AccountMeta {
+            pubkey: *rent_payer,
+            is_signer: true,
+            is_writable: true,
+        });
+        accounts.push(AccountMeta {
+            pubkey: config_pda,
+            is_signer: false,
+            is_writable: false,
+        });
+        if !has_ctoken_accounts {
+            accounts.push(AccountMeta {
+                pubkey: *program_id, // None
+                is_signer: false,
+                is_writable: false,
+            });
+            accounts.push(AccountMeta {
+                pubkey: *program_id, // None
+                is_signer: false,
+                is_writable: false,
+            });
+        } else {
+            accounts.push(AccountMeta {
+                pubkey: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+                is_signer: false,
+                is_writable: false,
+            });
+            accounts.push(AccountMeta {
+                pubkey: COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into(),
+                is_signer: false,
+                is_writable: false,
+            });
+        }
 
         let output_state_tree_index =
             remaining_accounts.insert_or_get(output_state_tree_info.queue);
 
         let packed_tree_infos =
             validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
-
-        let c_token_data = PackedCompressedTokenDataWithContextAndVariant {
-            variant,
-            token_data: PackedCompressedTokenDataWithContext {
-                mint: remaining_accounts.insert_or_get_read_only(mint),
-                source_or_recipient: remaining_accounts.insert_or_get(solana_token_accounts[0]),
-                multi_input_token_data_with_context: MultiInputTokenDataWithContext {
-                    owner: remaining_accounts.insert_or_get_read_only(solana_token_accounts[0]),
-                    amount: compressed_token_account.token.amount,
-                    has_delegate: false, // Optional delegate is set
-                    delegate: 0,
+        let mut compressed_token_accounts = vec![];
+        if !solana_token_accounts.is_empty() {
+            let compressed_token_account = input_compressed_token_accounts[0].0.clone();
+            let variant = input_compressed_token_accounts[0].1.clone();
+            let mint = compressed_token_account.token.mint;
+            println!("solana_token_accounts[0] {:?}", solana_token_accounts[0]);
+            println!("mint {:?}", mint);
+            let c_token_data = PackedCompressedTokenDataWithContextAndVariant {
+                variant,
+                token_data: PackedCompressedTokenDataWithContext {
                     mint: remaining_accounts.insert_or_get_read_only(mint),
-                    version: 2,
-                    merkle_context: PackedMerkleContext {
-                        merkle_tree_pubkey_index: packed_tree_infos
+                    source_or_recipient: remaining_accounts.insert_or_get_config(
+                        solana_token_accounts[0],
+                        false,
+                        true,
+                    ),
+                    multi_input_token_data_with_context: MultiInputTokenDataWithContext {
+                        owner: remaining_accounts.insert_or_get_config(
+                            solana_token_accounts[0],
+                            false,
+                            true,
+                        ),
+                        amount: compressed_token_account.token.amount,
+                        has_delegate: false, // Optional delegate is set
+                        delegate: 0,
+                        mint: remaining_accounts.insert_or_get_read_only(mint),
+                        version: 2,
+                        merkle_context: PackedMerkleContext {
+                            merkle_tree_pubkey_index: packed_tree_infos
+                                .state_trees
+                                .as_ref()
+                                .unwrap()
+                                .packed_tree_infos[2]
+                                .merkle_tree_pubkey_index,
+                            queue_pubkey_index: packed_tree_infos
+                                .state_trees
+                                .as_ref()
+                                .unwrap()
+                                .packed_tree_infos[2]
+                                .queue_pubkey_index,
+                            leaf_index: packed_tree_infos
+                                .state_trees
+                                .as_ref()
+                                .unwrap()
+                                .packed_tree_infos[2]
+                                .leaf_index,
+                            prove_by_index: packed_tree_infos
+                                .state_trees
+                                .as_ref()
+                                .unwrap()
+                                .packed_tree_infos[2]
+                                .prove_by_index,
+                        },
+                        root_index: packed_tree_infos
                             .state_trees
                             .as_ref()
                             .unwrap()
                             .packed_tree_infos[2]
-                            .merkle_tree_pubkey_index,
-                        queue_pubkey_index: packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[2]
-                            .queue_pubkey_index,
-                        leaf_index: packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[2]
-                            .leaf_index,
-                        prove_by_index: packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .packed_tree_infos[2]
-                            .prove_by_index,
+                            .root_index,
                     },
-                    root_index: packed_tree_infos
-                        .state_trees
-                        .as_ref()
-                        .unwrap()
-                        .packed_tree_infos[2]
-                        .root_index,
                 },
-            },
-        };
+            };
+            println!("c_token_data {:?}", c_token_data);
+            compressed_token_accounts.push(c_token_data);
+        }
 
         // Validation
         if solana_accounts.len() != compressed_accounts.len() {
             return Err("PDA accounts and compressed accounts must have the same length".into());
         }
-
-        let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
-
-        // Build instruction accounts
-        let mut accounts = vec![
-            AccountMeta::new(*fee_payer, true),           // fee_payer
-            AccountMeta::new(*rent_payer, true),          // rent_payer
-            AccountMeta::new_readonly(config_pda, false), // config
-            // compressed token program
-            AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_ID.into(), false),
-            // compressed token cpi authority
-            AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into(), false),
-        ];
 
         // Convert to typed compressed account data
         let typed_compressed_accounts: Vec<CompressedAccountData<T>> = compressed_accounts
@@ -482,7 +527,7 @@ impl CompressibleInstruction {
         let instruction_data = DecompressMultipleAccountsIdempotentData {
             proof: validity_proof_with_context.proof,
             compressed_accounts: typed_compressed_accounts,
-            compressed_token_accounts: vec![c_token_data],
+            compressed_token_accounts,
             system_accounts_offset: system_accounts_offset as u8,
         };
 
@@ -522,7 +567,7 @@ pub struct InitializeCompressionConfigData {
 }
 
 /// Generic instruction data for update config
-/// Note: Real programs should use their specific instruction format  
+/// Note: Real programs should use their specific instruction format
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct UpdateCompressionConfigData {
     pub new_compression_delay: Option<u32>,

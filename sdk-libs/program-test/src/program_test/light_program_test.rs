@@ -16,6 +16,7 @@ use crate::{
     },
     indexer::TestIndexer,
     program_test::TestRpc,
+    setup_mock_program_data,
     utils::setup_light_programs::setup_light_programs,
     ProgramTestConfig,
 };

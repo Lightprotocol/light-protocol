@@ -37,7 +37,6 @@ async fn test_initialize_compression_config() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let result = initialize_compression_config(
         &mut rpc,
@@ -62,7 +61,6 @@ async fn test_config_validation() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let non_authority = Keypair::new();
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
@@ -89,7 +87,6 @@ async fn test_config_multiple_address_spaces_validation() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     // Try to init with multiple address spaces - should fail
     let multiple_address_spaces = vec![ADDRESS_SPACE[0], Pubkey::new_unique()];
@@ -132,7 +129,6 @@ async fn test_update_compression_config() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id, 0);
-    let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     let init_result = initialize_compression_config(
         &mut rpc,
@@ -173,7 +169,7 @@ async fn test_config_reinit_attack_prevention() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    setup_mock_program_data(&mut rpc, &payer, &program_id);
+
     let result = initialize_compression_config(
         &mut rpc,
         &payer,
@@ -245,7 +241,7 @@ async fn test_update_remove_address_space() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("anchor_compressible", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    setup_mock_program_data(&mut rpc, &payer, &program_id);
+
     let address_space_1 = vec![ADDRESS_SPACE[0]];
     let address_space_2 = vec![Pubkey::new_unique()];
     let init_result = initialize_compression_config(
@@ -290,7 +286,7 @@ async fn test_update_with_non_authority() {
     rpc.airdrop_lamports(&non_authority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    setup_mock_program_data(&mut rpc, &payer, &program_id);
+
     let init_result = initialize_compression_config(
         &mut rpc,
         &payer,
@@ -332,7 +328,7 @@ async fn test_config_with_wrong_rent_recipient() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id, 0);
-    setup_mock_program_data(&mut rpc, &payer, &program_id);
+
     let init_result = initialize_compression_config(
         &mut rpc,
         &payer,
@@ -382,8 +378,6 @@ async fn test_config_discriminator_attacks() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let (config_pda, _) = CompressibleConfig::derive_pda(&program_id, 0);
-
-    setup_mock_program_data(&mut rpc, &payer, &program_id);
 
     // First, create a valid config
     let init_result = initialize_compression_config(

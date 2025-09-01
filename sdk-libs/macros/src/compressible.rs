@@ -329,15 +329,15 @@ pub(crate) fn add_compressible_instructions(
                 let solana_account_slice = Box::new(vec![&solana_accounts[i]]);
 
                 let compressed_infos = light_sdk::compressible::prepare_accounts_for_decompress_idempotent::<T>(
-                    &solana_account_slice,
-                    light_accounts,
-                    &seeds_array,
+                    (*solana_account_slice).clone(),
+                    *light_accounts,
+                    (*seeds_array).clone(),
                     cpi_accounts,
                     rent_payer,
                     address_space,
                 )?;
 
-                Ok(compressed_infos)
+                Ok(Box::new(compressed_infos))
             }
 
             // Bundle parameters to reduce stack usage

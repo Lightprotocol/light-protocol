@@ -4,6 +4,7 @@ use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use litesvm::LiteSVM;
 use solana_compute_budget::compute_budget::ComputeBudget;
 use solana_pubkey::Pubkey;
+use solana_sdk::{signature::Keypair, signer::Signer};
 
 use crate::{
     accounts::{
@@ -13,6 +14,7 @@ use crate::{
         },
         test_accounts::NOOP_PROGRAM_ID,
     },
+    setup_mock_program_data,
     utils::find_light_bin::find_light_bin,
 };
 
@@ -100,6 +102,10 @@ pub fn setup_light_programs(
         .map_err(|e| {
             RpcError::CustomError(format!("Setting registered program account failed {}", e))
         })?;
+    let payer = Keypair::new();
+    program_test
+        .airdrop(&payer.pubkey(), 10_000_000_000)
+        .unwrap();
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
             let path = format!("{}/{}.so", project_root_target_deploy_path, name);
@@ -108,6 +114,8 @@ pub fn setup_light_programs(
                 .inspect_err(|_| {
                     println!("Program {} bin not found in {}", name, path);
                 })?;
+
+            setup_mock_program_data(&mut program_test, &payer, &id);
         }
     }
     Ok(program_test)
