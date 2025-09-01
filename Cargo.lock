@@ -3260,7 +3260,7 @@ dependencies = [
 
 [[package]]
 name = "light-batched-merkle-tree"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aligned-sized",
  "borsh 0.10.4",
